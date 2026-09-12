@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "modelID": "whisper-large-v3-asr-fp16",
+  "modelFingerprint": "6adc0bb786b1e8616737d8b8aed7a2b462e8c100640cbbff1d45942b07d4a611",
+  "modelName": "Whisper large-v3",
+  "quantization": "FP16",
+  "suiteID": "english-mini-v1",
+  "suiteHash": "756227221aaca6575a7370bd1c8511e3dcbcdc6228786fda48b0a352b9c13486",
+  "machine": "Apple M5 Max",
+  "machineMemoryBytes": 137438953472,
+  "os": "macOS-26.6-arm64-arm-64bit",
+  "mlxAudioVersion": "0.5.1",
+  "mlxVersion": "0.32.2",
+  "parameters": {
+    "verbose": false,
+    "chunk_duration": 30.0,
+    "stream": false
+  },
+  "measuredAt": "2026-09-12T04:48:11Z",
+  "repeats": 2,
+  "audioSeconds": 62.455,
+  "transcriptionSeconds": 2.4453904163092375,
+  "realtimeFactor": 25.53988908415764,
+  "wordErrorRate": 0.052980132450331126,
+  "peakProcessBytes": 3274604544,
+  "peakMLXBytes": 4031502310,
+  "clips": [
+    {
+      "id": "1272-128104-0000",
+      "reference": "MISTER QUILTER IS THE APOSTLE OF THE MIDDLE CLASSES AND WE ARE GLAD TO WELCOME HIS GOSPEL",
+      "transcript": " Mr. Quilter is the apostle of the middle classes, and we are glad to welcome his gospel.",
+      "duration": 5.855,
+      "seconds": 0.34067014581523836,
+      "allSeconds": [
+        0.3405437497422099,
+        0.3407965418882668
+      ],
+      "errors": 1,
+      "referenceWords": 17,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1272-128104-0001",
+      "reference": "NOR IS MISTER QUILTER'S MANNER LESS INTERESTING THAN HIS MATTER",
+      "transcript": " Nor is Mr. Quilter's manner less interesting than his matter.",
+      "duration": 4.815,
+      "seconds": 0.29459904110990465,
+      "allSeconds": [
+        0.29438929120078683,
+        0.29480879101902246
+      ],
+      "errors": 1,
+      "referenceWords": 10,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1272-128104-0002",
+      "reference": "HE TELLS US THAT AT THIS FESTIVE SEASON OF THE YEAR WITH CHRISTMAS AND ROAST BEEF LOOMING BEFORE US SIMILES DRAWN FROM EATING AND ITS RESULTS OCCUR MOST READILY TO THE MIND",
+      "transcript": " he tells us that at this festive season of the year with christmas and roast beef looming before us similes drawn from eating and its results occur most readily to the mind",
+      "duration": 12.485,
+      "seconds": 0.43335375003516674,
+      "allSeconds": [
+        0.4328476251102984,
+        0.4338598749600351
+      ],
+      "errors": 0,
+      "referenceWords": 32,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1272-128104-0003",
+      "reference": "HE HAS GRAVE DOUBTS WHETHER SIR FREDERICK LEIGHTON'S WORK IS REALLY GREEK AFTER ALL AND CAN DISCOVER IN IT BUT LITTLE OF ROCKY ITHACA",
+      "transcript": " He has grave doubts whether Sir Frederick Leighton's work is really Greek after all, and can discover in it but little of rocky Ithaca.",
+      "duration": 9.9,
+      "seconds": 0.4139506043866277,
+      "allSeconds": [
+        0.4142697090283036,
+        0.4136314997449517
+      ],
+      "errors": 0,
+      "referenceWords": 24,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1272-128104-0004",
+      "reference": "LINNELL'S PICTURES ARE A SORT OF UP GUARDS AND AT EM PAINTINGS AND MASON'S EXQUISITE IDYLLS ARE AS NATIONAL AS A JINGO POEM MISTER BIRKET FOSTER'S LANDSCAPES SMILE AT ONE MUCH IN THE SAME WAY THAT MISTER CARKER USED TO FLASH HIS TEETH AND MISTER JOHN COLLIER GIVES HIS SITTER A CHEERFUL SLAP ON THE BACK BEFORE HE SAYS LIKE A SHAMPOOER IN A TURKISH BATH NEXT MAN",
+      "transcript": " linnell's pictures are a sort of up guards and adam paintings and mason's exquisite idylls are as national as a jingo poem mr burkett foster's landscapes smile at one much in the same way that mr carker used to flash his teeth and mr john collier gives his sitter a cheerful slap on the back before he says like a shampooer in a turkish bath next man",
+      "duration": 29.4,
+      "seconds": 0.9628168749623001,
+      "allSeconds": [
+        1.0374147919937968,
+        0.8882189579308033
+      ],
+      "errors": 6,
+      "referenceWords": 68,
+      "repeatTextIdentical": true
+    }
+  ],
+  "note": "Warm isolated-process measurement. Other apps may affect speed. Small clean read-speech smoke test; one speaker. Not a full LibriSpeech score or conversational accuracy guarantee."
+}

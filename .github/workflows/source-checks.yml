@@ -1,0 +1,30 @@
+name: Source checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  source-build:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Swift tests (hardware and inference tests are opt-in)
+        run: swift test
+      - name: Python tests
+        run: python3 -m unittest discover -s Tests -p '*_test.py'
+      - name: Ad-hoc source build; no credentials or release publication
+        env:
+          VELLA_SIGN_IDENTITY: '-'
+          VELLA_REGISTER_APP: '0'
+        run: ./scripts/build.sh
+      - name: Verify required assets and signature
+        run: |
+          test -f dist/Vella.app/Contents/Resources/Calibration/speech.wav
+          test -f dist/Vella.app/Contents/Resources/Calibration/LICENSE-CC-BY-4.0.txt
+          test -f dist/Vella.app/Contents/Resources/LICENSE
+          test -f dist/Vella.app/Contents/Resources/inference_worker.py
+          test -f dist/Vella.app/Contents/Resources/runtime-requirements.txt
+          codesign --verify --strict dist/Vella.app

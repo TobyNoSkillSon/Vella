@@ -1,0 +1,6 @@
+LibriSpeech by Vassil Panayotov, Guoguo Chen, Daniel Povey, and Sanjeev Khudanpur. Derived from LibriVox recordings. Five unmodified audio clips redistributed with their reference text.
+
+Source: https://www.openslr.org/12
+License: https://creativecommons.org/licenses/by/4.0/
+Mirror: https://huggingface.co/datasets/hf-internal-testing/librispeech_asr_dummy/tree/5be91486e11a2d616f4ec5db8d3fd248585ac07a
+Subset: first five clean validation rows. Audio unmodified. References normalized only during scoring.

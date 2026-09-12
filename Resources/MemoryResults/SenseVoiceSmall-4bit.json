@@ -1,0 +1,21 @@
+{
+  "modelID": "SenseVoiceSmall-4bit",
+  "modelFingerprint": "c26aa0242e2d5095f9322a21954ed4e824badb1acb5e727985fe7fcb1b84f4a1",
+  "suiteID": "english-formatted-20m-v1",
+  "suiteHash": "72550f156b6625aa213c8c1bd70761ee61a7638b8b494cfe317fc7d33e0d1188",
+  "machine": "Apple M5 Max",
+  "machineMemoryBytes": 137438953472,
+  "mlxAudioVersion": "0.5.1",
+  "mlxVersion": "0.32.2",
+  "parameters": {
+    "verbose": false
+  },
+  "measuredAt": "2026-09-12T06:24:37Z",
+  "repeats": 1,
+  "audioSeconds": 1215.4351875,
+  "runtimePeakMLXBytes": 884919208,
+  "peakMLXBytes": 884919208,
+  "peakProcessBytes": 413433856,
+  "memoryProtocol": "MLX allocation high-water mark reset after warmup, measured across transcription; includes held model allocations, excludes untracked Python/native memory. Not total process or system RAM.",
+  "clipCount": 144
+}

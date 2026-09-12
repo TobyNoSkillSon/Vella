@@ -1,0 +1,23 @@
+{
+  "modelID": "whisper-large-v3-asr-4bit",
+  "modelFingerprint": "584271691df74aafe698d528aa702f48a4ba9d3037f42a3c2d6526072ce75bab",
+  "suiteID": "english-formatted-20m-v1",
+  "suiteHash": "72550f156b6625aa213c8c1bd70761ee61a7638b8b494cfe317fc7d33e0d1188",
+  "machine": "Apple M5 Max",
+  "machineMemoryBytes": 137438953472,
+  "mlxAudioVersion": "0.5.1",
+  "mlxVersion": "0.32.2",
+  "parameters": {
+    "verbose": false,
+    "chunk_duration": 30.0,
+    "stream": false
+  },
+  "measuredAt": "2026-09-12T06:24:17Z",
+  "repeats": 1,
+  "audioSeconds": 1215.4351875,
+  "runtimePeakMLXBytes": 1754945674,
+  "peakMLXBytes": 1754945674,
+  "peakProcessBytes": 1108836352,
+  "memoryProtocol": "MLX allocation high-water mark reset after warmup, measured across transcription; includes held model allocations, excludes untracked Python/native memory. Not total process or system RAM.",
+  "clipCount": 144
+}
