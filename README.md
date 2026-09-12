@@ -8,6 +8,12 @@ Vella lives in the menu bar and transcribes on your Mac. No account or subscript
 
 ## A look inside
 
+The waveform appears while you speak. Longer jobs also show an estimated time remaining.
+
+| Recording | Transcribing |
+|:---:|:---:|
+| <img src="docs/images/recording.png" alt="Vella’s lavender waveform while recording" width="320"> | <img src="docs/images/transcribing.png" alt="Vella’s waveform and time estimate while transcribing" width="320"> |
+
 <img src="docs/images/menu-preview.png" alt="Rendered preview of Vella’s menu-bar icon and dropdown" width="360">
 
 Pick a microphone, start recording, or open your saved transcripts from the menu. Open **Models** to choose what handles the transcription.
