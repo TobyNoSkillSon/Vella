@@ -56,6 +56,8 @@ The timing records support duration-based estimates only within the tested audio
 
 ## Checks and handoff
 
+Keep the README short and user-facing: what Vella does, rendered interface previews, installation, everyday use and essential data/permission notes. Link to engineering details and benchmarks rather than making readers work through them.
+
 Run `swift test` and `python3 Tests/benchmark_worker_test.py`, validate manifest audio hashes, update the sole canonical app through a controlled quit/build/relaunch, and inspect the actual native model menu. Test cancellation, import rejection, download progress, resumability and failed jobs. Downloads of untested multi-GB models are not required for a UI-only change. Report which model/hardware combinations were measured and which are still unknown.
 
 The chosen distribution is a curl-driven local source build: no Apple Developer enrollment, paid membership or Homebrew registration. Keep that route account-free; do not make notarization a prerequisite for publishing the source installer. Ad-hoc updates may require renewed macOS privacy approval. Prebuilt notarized binaries would be a separate, explicitly chosen distribution route. Model redistribution obligations and fresh-Mac setup still require honest qualification; local checks alone do not establish fresh-machine readiness.
