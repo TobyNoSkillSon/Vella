@@ -1,78 +1,52 @@
 # Vella
 
-Local dictation for Apple Silicon Macs. Press **⌃⌘N**, speak, then press it again. Vella transcribes on your Mac and pastes into the field you started in. It never presses Enter or Send.
+Vella is a dictation app for Apple Silicon Macs. Press **⌃⌘N** to record, speak, then press it again to put the text where your cursor was. Transcription runs on your Mac using [MLX Audio](https://github.com/Blaizzy/mlx-audio).
 
-A small native menu-bar app, with a lavender waveform while recording. No Dock icon, account, subscription or external inference server.
+It lives in the menu bar. A small waveform appears while you speak and disappears when you're done.
 
-**Source beta · macOS 14+ · Apple Silicon**
+| Recording | Transcribing a longer recording |
+|:---:|:---:|
+| <img src="docs/images/recording.png" alt="Vella's lavender recording waveform over the desktop" width="320"> | <img src="docs/images/transcribing.png" alt="Vella processing a recording with an estimated percentage and time remaining" width="320"> |
 
 ## Install
+
+**macOS 14+ · Apple Silicon · Python 3.12–3.14**
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' \
   https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.6.0/scripts/install.sh | bash
 ```
 
-The installer builds Vella locally and installs it in `~/Applications/Vella.app`. It verifies the release source archive against its published SHA-256 and installs the pinned MLX dependencies automatically.
+The installer builds the app locally, puts it in `~/Applications`, and sets up its Python packages. You'll need Apple's free Command Line Tools (`xcode-select --install`) and an existing Apple Silicon Python from [python.org](https://www.python.org/downloads/macos/) or your usual package manager. If either is missing, the installer tells you what to do.
 
-You need:
+No account or paid developer membership is needed. This is a **source beta**, not a notarized app download. macOS may ask you to approve permissions again after an update. [Read the installer](scripts/install.sh).
 
-- **Apple's free Command Line Tools.** If missing, run `xcode-select --install`, finish the installation, then rerun the command.
-- **Existing Apple Silicon Python 3.12–3.14.** If missing, install it from [python.org](https://www.python.org/downloads/macos/), then rerun. You can select an interpreter with `PYTHON=/path/to/python3` on the `bash` side of the pipe.
+## Start dictating
 
-No Apple Developer enrollment, paid membership, Homebrew registration or `sudo`. The installer does not download a private Python interpreter or disable macOS security settings. It builds an ad-hoc-signed app rather than downloading a notarized binary. **Updates may require approving macOS privacy permissions again.**
+1. Open Vella and choose **Models → Install** beside **Parakeet Q4**, then **Use**.
+2. Allow Microphone and Accessibility access when prompted.
+3. Click a text field and press **Control + Command + N**. Press it again when you're finished.
 
-As with any curl-to-shell installer, use a trusted URL. The archive checksum checks the downloaded source; it does not independently authenticate the bootstrap script. You can [read the installer](scripts/install.sh) before running it.
+Vella pastes the finished transcript, but never presses Enter or Send. If you switch to another window or field while recording, it copies the text to your clipboard instead. Retry also copies rather than pasting.
 
-### First use
+You can choose a microphone from the menu. Vella falls back to the MacBook microphone when available and leaves your system input setting alone.
 
-1. Open Vella from `~/Applications`.
-2. Open **Models**, click **Install** next to **Parakeet Q4**, then **Use**. Downloads are explicit, checksum-verified and resumable.
-3. Approve **Accessibility** and **Microphone** when requested. Screen Recording and Input Monitoring are not required.
-4. Put the cursor in a text field. Press **Control + Command + N**, speak, then press it again to finish.
+## Recordings stay on your Mac
 
-Choose your preferred microphone from the menu. Vella falls back to the MacBook microphone when available; it does not change the system default or silently choose an iPhone. Stop recording before unplugging a microphone.
+There's no recording timer. Audio is saved as you speak, and transcription picks up from saved checkpoints if something fails. Storage works out to about **230 MB per hour**. Running out of space, disconnecting the microphone or closing the lid can still interrupt a recording.
 
-## What happens to your speech
+**Audio and transcripts are kept until you delete them**, including after a successful paste. Choose **Open Saved Recordings** to find them in Finder. Incomplete transcripts are labelled and aren't pasted automatically.
 
-Transcription runs locally in Vella's own offline worker. There is no listening port or dependency on another app's model server. Downloading the app, packages and model weights needs an internet connection; ordinary transcription does not.
+Once the packages and a model are downloaded, transcription works offline. Clipboard managers and Universal Clipboard can still see text you copy or paste.
 
-Vella pastes only after you explicitly finish, the complete transcript is saved, and the original application, window and focused field still match. If focus changes, it leaves the transcript on the clipboard for you to paste. Recovery and Retry are always clipboard-only. Vella never sends Return/Enter or tries to switch focus back.
+## Choosing a model
 
-**Recordings and transcripts are kept until you delete them.** Use **Open Saved Recordings** to open their folder in Finder:
+Start with **Parakeet Q4** for English. The Models menu lets you compare accuracy, speed and memory use, install another model, or remove one you no longer need. Downloads can be cancelled and resumed. Removing a model moves its files to Trash; it doesn't delete your recordings.
 
-```text
-~/Library/Application Support/Vella/Recordings/
-```
+Only one model is loaded at a time. Vella releases it after a minute without transcription, rather than keeping every installed model in memory. Longer jobs show an estimated time remaining; short jobs just show the waveform.
 
-Successful paste, cancellation, a new recording and normal quit do not erase that history. Original audio and completed transcription checkpoints remain available after a failed request. Incomplete results are marked explicitly and are never pasted automatically.
-
-There is no recording-duration cutoff. Audio is written to disk in small segments, using roughly **230 MB/hour**, plus overlap and metadata. Low disk space, disconnected hardware, closing the lid or forced sleep can still interrupt capture; this is not a promise of unlimited storage or lossless recovery from every failure.
-
-The worker discards third-party diagnostic output rather than saving recognized speech in a backend log. Clipboard managers and Universal Clipboard may still see text copied or pasted by Vella. After an automatic paste, Vella restores only a small, plain-text previous clipboard item, and only if nothing else changed the clipboard.
-
-## Memory and responsiveness
-
-Only one model is resident. Vella clears temporary MLX allocations after each request, releases the old worker before switching models or calibrating, and unloads its worker after **60 seconds idle**. Cancellation and shutdown terminate its owned worker, not unrelated services.
-
-With **Parakeet Q4 on an M5 Max / 128 GiB Mac**, an accelerated hour-long corpus replay measured:
-
-| Measurement | Result |
-|---|---:|
-| Worker physical footprint after requests | 0.98–1.04 GB |
-| Worker lifetime peak physical footprint | 1.42 GB |
-| Active MLX allocation after requests | 0.68 GB, steady |
-| Allocator cache after requests | 0 bytes |
-| Audio / processing time | 3,619 seconds / 30 seconds |
-| Lexical word errors | 249 / 8,955 · **2.78%** |
-
-These are worker-process measurements, not total system RAM or a minimum hardware requirement. The Swift app uses additional memory. Larger models need more RAM, and other Macs can behave differently. Worker exit after the idle timeout was checked with real inference. The hour replay used recorded benchmark material, not an hour-long physical microphone endurance test.
-
-Fast jobs show only the waveform. Percentage and remaining time appear only when the initial processing estimate exceeds five seconds. Estimates are not measured progress and can be wrong during loading or contention.
-
-## Models and benchmarks
-
-Start with **Parakeet Q4** for English dictation. The menu also recommends Qwen Q4, Whisper Q8, Granite Q4 and SenseVoice FP32. Granite and SenseVoice produced little or no punctuation in these tests. Recommendations are practical defaults, not universal rankings.
+<details>
+<summary><strong>Model benchmarks</strong></summary>
 
 <!-- BENCHMARK_RESULTS_START -->
 
@@ -95,33 +69,31 @@ Apple M5 Max · 128 GiB unified memory · MLX Audio 0.5.1 · MLX 0.32.2. **★ m
 
 <!-- BENCHMARK_RESULTS_END -->
 
-**Lower errors are better.** Word errors ignore case and punctuation. Text errors measure character edits against the written reference, including case and punctuation; valid editorial alternatives can still count as errors.
+These results come from 144 clean English reading clips: 34 speakers and 20m 15s of audio, with [LibriSpeech-PC](https://www.openslr.org/145/) written references. Each clip was transcribed twice; accuracy uses the first transcript and speed uses median warm latency. Memory was measured in a separate pass.
 
-The suite contains **144 intact clips, 34 speakers and 20m 15s of clean English reading**, with [LibriSpeech-PC](https://www.openslr.org/145/) formatted references. Each clip has two measured inference passes. Accuracy uses the first transcript; speed uses median warm latency. Memory was measured separately over the same suite after warmup.
+**Word errors** ignore case and punctuation. **Text errors** include them. Lower is better for both. Punctuation F1 measures agreement with the reference at aligned words and boundaries; valid editorial choices can still differ.
 
-**Warm speed excludes loading, transport, capture and paste. Warm MLX RAM is allocator peak, not total process memory**, and must not be added to RSS. Punctuation F1 is conditional on aligned words and boundaries. Only three usable quotation clips remain, so quotation scores are exploratory. These results do not establish performance on noisy, spontaneous or multilingual dictation, or spoken paragraph commands.
+Warm speed excludes loading, capture and paste. Warm MLX RAM is peak allocator usage, **not total process memory** or a minimum Mac specification. These are clean-reading tests, not a guarantee for every accent, language or noisy room.
 
-[Raw results](Resources/ReferenceResults/) · [Memory measurements](Resources/MemoryResults/) · [Scoring policy](Resources/benchmark-policy.json) · [Benchmark corpus](Resources/Benchmarks/english-formatted-20m-v1/)
+In a separate hour-long Parakeet Q4 replay, the worker used about **1 GB after requests**, peaked at **1.42 GB**, and finished in **30 seconds with 2.78% word errors** on the same M5 Max. That was recorded corpus playback, not an hour-long microphone endurance test; the Swift app uses additional memory.
 
-The [sortable explorer](docs/index.html) can be opened locally from a checkout. GitHub displays HTML source rather than running it; GitHub Pages is not configured.
+[Raw results](Resources/ReferenceResults/) · [Memory measurements](Resources/MemoryResults/) · [Scoring policy](Resources/benchmark-policy.json) · [Corpus](Resources/Benchmarks/english-formatted-20m-v1/) · [Sortable explorer](docs/index.html) (open locally)
 
-### Managing models
+</details>
 
-The native Models table shows the five recommendations plus installed exceptions. Click a column heading to sort. Install downloads weights; Use selects them. Cancel keeps resumable download data. An offline calibration after installation helps estimate processing time without using your speech.
+## Updates and removal
 
-The trash button asks for confirmation and moves an inactive, Vella-owned model folder to macOS Trash. Active models and external/shared/linked folders are protected. Recordings, transcripts and reference scores are retained. Empty Trash to reclaim disk space. Recovering an older recording can require reinstalling its model.
+Use the installer from the release you want. It keeps your models, recordings and microphone choices. If Vella is installed somewhere else, set `VELLA_APP_PATH=/your/path/Vella.app` on the `bash` side of the install command. The installer won't replace a certificate-signed copy with an ad-hoc build.
 
-The footer **“Want another model? Copy instructions for your agent.”** copies a pointer to the [integration guide](Resources/AGENT_GUIDE.md). It sends nothing automatically.
+To uninstall, quit Vella and move the app to Trash. Your data stays in:
 
-## Updates and uninstalling
+```text
+~/Library/Application Support/Vella/
+```
 
-Run the installer from the release you want to install. It prepares the app and dependencies before replacing the existing copy, refuses to update during dictation, and preserves model and microphone choices. Existing weights are not downloaded again for a runtime update.
+Delete that folder separately only if you also want to remove the recordings, transcripts, models and runtime packages.
 
-Use `VELLA_APP_PATH=/existing/path/Vella.app` on the `bash` side of the pipe if your app is elsewhere. The installer refuses to replace a certificate-signed installation with an ad-hoc build; use that installation's existing signing workflow instead.
-
-To uninstall, quit Vella and move its app to Trash. Its data remains in `~/Library/Application Support/Vella`. Delete that folder separately **only if you also want to remove your recordings, transcripts, models and runtime packages**. The reused Python interpreter is never removed.
-
-## Build and test from source
+## Development
 
 ```sh
 git clone https://github.com/TobyNoSkillSon/Vella.git
@@ -129,31 +101,10 @@ cd Vella
 ./scripts/install.sh
 ```
 
-For development without installing:
+Run `swift test` and `python3 -m unittest discover -s Tests -p '*_test.py'` for the tests, or `swift build -c release` to build without installing. Python dependencies are [version-pinned](Resources/runtime-requirements.txt). See the [integration guide](Resources/AGENT_GUIDE.md) for adding models and running benchmarks.
 
-```sh
-swift test
-python3 -m unittest discover -s Tests -p '*_test.py'
-swift build -c release
-```
-
-The Swift app has no third-party Swift package dependencies. Python versions are pinned in [runtime-requirements.txt](Resources/runtime-requirements.txt). Runtime preparation can be run separately with `scripts/setup-backend.sh --runtime-only`; `--migrate-runtime` selects it while retaining model/microphone choices and saving a rollback config. Weights live separately from versioned package environments.
-
-An opt-in long replay checks completed transcripts, exact recovered audio hashes and a default 5% WER ceiling:
-
-```sh
-VELLA_LONG_SUITE="$PWD/Resources/Benchmarks/english-formatted-20m-v1" \
-  swift test --filter LongRecordingTests.testHourOfCorpusThroughCaptureAndRealBackend
-```
-
-Configure the private runtime and install a model first. `VELLA_MAX_LONG_WER` explicitly changes the threshold when evaluating another model. Ordinary tests do not record your microphone. CI checks source builds; it does not publish releases or notarize binaries.
-
-## Beta limits
-
-Recognition still needs proofreading, especially around speaker changes, forced segment boundaries and repeated phrases. Tests cover capture conversion, persistence, bounded recovery, worker failure/cancellation, idle release and focus-safe paste. They are not fresh-Mac Gatekeeper/TCC certification or exhaustive microphone, language and noise testing.
-
-Launch at login is not enabled. The app must remain running for the shortcut to work.
+Vella is still a beta. Proofread its output, especially around speaker changes and repeated phrases. It doesn't launch at login, so keep it running for the shortcut to work.
 
 ## License
 
-Vella's original code is [Apache 2.0](LICENSE). See [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). Model and dependency licenses remain separate. Benchmark audio and the bundled calibration sample are CC BY 4.0, with attribution and hashes alongside the files.
+[Apache 2.0](LICENSE). Model and dependency licenses are separate; the benchmark audio and calibration sample are CC BY 4.0. See [third-party notices](THIRD_PARTY_NOTICES.md).
