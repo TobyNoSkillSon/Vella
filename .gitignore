@@ -1,0 +1,20 @@
+/.build/
+/dist/
+/.swiftpm/
+.DS_Store
+*.wav
+*.caf
+
+/dist-preview/
+__pycache__/
+*.pyc
+
+# The one licensed calibration clip is required for source builds.
+!/Resources/Calibration/speech.wav
+.env
+.env.*
+*.pem
+*.p12
+*.key
+
+/logs/

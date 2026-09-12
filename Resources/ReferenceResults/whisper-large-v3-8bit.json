@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "modelID": "whisper-large-v3-8bit",
+  "modelFingerprint": "223fdef2c328da68be62fb8d3243ed0c4168d45fdb722afb79909f9c60806df4",
+  "modelName": "Whisper large-v3",
+  "quantization": "8-bit",
+  "suiteID": "english-mini-v1",
+  "suiteHash": "756227221aaca6575a7370bd1c8511e3dcbcdc6228786fda48b0a352b9c13486",
+  "machine": "Apple M5 Max",
+  "machineMemoryBytes": 137438953472,
+  "os": "macOS-26.6-arm64-arm-64bit",
+  "mlxAudioVersion": "0.5.1",
+  "mlxVersion": "0.32.2",
+  "parameters": {
+    "verbose": false,
+    "chunk_duration": 30.0,
+    "stream": false
+  },
+  "processorSource": {
+    "repository": "mlx-community/whisper-large-v3-asr-fp16",
+    "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
+    "files": [
+      "preprocessor_config.json",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "special_tokens_map.json",
+      "added_tokens.json",
+      "normalizer.json",
+      "vocab.json",
+      "merges.txt"
+    ]
+  },
+  "measuredAt": "2026-09-12T04:49:37Z",
+  "repeats": 2,
+  "audioSeconds": 62.455,
+  "transcriptionSeconds": 2.177138479426503,
+  "realtimeFactor": 28.686737472230867,
+  "wordErrorRate": 0.052980132450331126,
+  "peakProcessBytes": 1859256320,
+  "peakMLXBytes": 2529292038,
+  "clips": [
+    {
+      "id": "1272-128104-0000",
+      "reference": "MISTER QUILTER IS THE APOSTLE OF THE MIDDLE CLASSES AND WE ARE GLAD TO WELCOME HIS GOSPEL",
+      "transcript": " Mr. Quilter is the apostle of the middle classes, and we are glad to welcome his gospel.",
+      "duration": 5.855,
+      "seconds": 0.3228955415543169,
+      "allSeconds": [
+        0.32287379121407866,
+        0.3229172918945551
+      ],
+      "errors": 1,
+      "referenceWords": 17,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1272-128104-0001",
+      "reference": "NOR IS MISTER QUILTER'S MANNER LESS INTERESTING THAN HIS MATTER",
+      "transcript": " Nor is Mr. Quilter's manner less interesting than his matter.",
+      "duration": 4.815,
+      "seconds": 0.285410291980952,
+      "allSeconds": [
+        0.2856069589033723,
+        0.28521362505853176
+      ],
+      "errors": 1,
+      "referenceWords": 10,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1272-128104-0002",
+      "reference": "HE TELLS US THAT AT THIS FESTIVE SEASON OF THE YEAR WITH CHRISTMAS AND ROAST BEEF LOOMING BEFORE US SIMILES DRAWN FROM EATING AND ITS RESULTS OCCUR MOST READILY TO THE MIND",
+      "transcript": " he tells us that at this festive season of the year with christmas and roast beef looming before us similes drawn from eating and its results occur most readily to the mind",
+      "duration": 12.485,
+      "seconds": 0.3994896460790187,
+      "allSeconds": [
+        0.39912833413109183,
+        0.3998509580269456
+      ],
+      "errors": 0,
+      "referenceWords": 32,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1272-128104-0003",
+      "reference": "HE HAS GRAVE DOUBTS WHETHER SIR FREDERICK LEIGHTON'S WORK IS REALLY GREEK AFTER ALL AND CAN DISCOVER IN IT BUT LITTLE OF ROCKY ITHACA",
+      "transcript": " He has grave doubts whether Sir Frederick Leighton's work is really Greek after all, and can discover in it but little of rocky Ithaca.",
+      "duration": 9.9,
+      "seconds": 0.383469020947814,
+      "allSeconds": [
+        0.38331941701471806,
+        0.3836186248809099
+      ],
+      "errors": 0,
+      "referenceWords": 24,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1272-128104-0004",
+      "reference": "LINNELL'S PICTURES ARE A SORT OF UP GUARDS AND AT EM PAINTINGS AND MASON'S EXQUISITE IDYLLS ARE AS NATIONAL AS A JINGO POEM MISTER BIRKET FOSTER'S LANDSCAPES SMILE AT ONE MUCH IN THE SAME WAY THAT MISTER CARKER USED TO FLASH HIS TEETH AND MISTER JOHN COLLIER GIVES HIS SITTER A CHEERFUL SLAP ON THE BACK BEFORE HE SAYS LIKE A SHAMPOOER IN A TURKISH BATH NEXT MAN",
+      "transcript": " linnell's pictures are a sort of up guards and adam paintings and mason's exquisite idylls are as national as a jingo poem mr burkett foster's landscapes smile at one much in the same way that mr carker used to flash his teeth and mr john collier gives his sitter a cheerful slap on the back before he says like a shampooer in a turkish bath next man",
+      "duration": 29.4,
+      "seconds": 0.7858739788644016,
+      "allSeconds": [
+        0.7840107497759163,
+        0.7877372079528868
+      ],
+      "errors": 6,
+      "referenceWords": 68,
+      "repeatTextIdentical": true
+    }
+  ],
+  "note": "Warm isolated-process measurement. Other apps may affect speed. Small clean read-speech smoke test; one speaker. Not a full LibriSpeech score or conversational accuracy guarantee."
+}

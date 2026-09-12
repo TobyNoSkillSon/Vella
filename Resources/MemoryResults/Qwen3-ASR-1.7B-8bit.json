@@ -1,0 +1,24 @@
+{
+  "modelID": "Qwen3-ASR-1.7B-8bit",
+  "modelFingerprint": "6456ac82c52c45451396358dde884b62c691899093e01e59dce84d4e318e44f8",
+  "suiteID": "english-formatted-20m-v1",
+  "suiteHash": "72550f156b6625aa213c8c1bd70761ee61a7638b8b494cfe317fc7d33e0d1188",
+  "machine": "Apple M5 Max",
+  "machineMemoryBytes": 137438953472,
+  "mlxAudioVersion": "0.5.1",
+  "mlxVersion": "0.32.2",
+  "parameters": {
+    "verbose": false,
+    "max_tokens": 1024,
+    "chunk_duration": 30.0,
+    "stream": false
+  },
+  "measuredAt": "2026-09-12T06:20:56Z",
+  "repeats": 1,
+  "audioSeconds": 1215.4351875,
+  "runtimePeakMLXBytes": 3891352444,
+  "peakMLXBytes": 3891352444,
+  "peakProcessBytes": 2717564928,
+  "memoryProtocol": "MLX allocation high-water mark reset after warmup, measured across transcription; includes held model allocations, excludes untracked Python/native memory. Not total process or system RAM.",
+  "clipCount": 144
+}

@@ -1,0 +1,7 @@
+{
+  "suiteID": "english-formatted-20m-v1",
+  "suiteHash": "72550f156b6625aa213c8c1bd70761ee61a7638b8b494cfe317fc7d33e0d1188",
+  "minimumRepeats": 2,
+  "scorerSHA256": "965470fad61e1bcb4c6a450e98baa4a7319643a3cfc937d7f2e73894fa13e2e6",
+  "lexicalNormalizerSHA256": "1a302224d34b5a3fa8320b926e534d1865008ffecc1e0e0cda9d76292343e5c3"
+}

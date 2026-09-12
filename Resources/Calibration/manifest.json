@@ -1,0 +1,13 @@
+{
+  "id": "vella-librispeech-calibration-v1",
+  "source": "LibriSpeech test-clean audio; LibriSpeech-PC formatted text",
+  "clipID": "260-123286-0000",
+  "sourceAudioSHA256": "d654a43d06f0e8b586b525e8ec83d6e3c0dc83c3f4742f8e25fd291db77248b3",
+  "audioSeconds": 7.04,
+  "sha256": "e36af54bcd25cbbb9c1adba8ff28bc7a4001a91f6bfdbc3360df9efd395bafa2",
+  "textSHA256": "5d1772325ea342a62f30872e6ce9fb4c109dc20aa997bd921e9c92385a997d7e",
+  "license": "CC-BY-4.0",
+  "audioSource": "https://www.openslr.org/12/",
+  "textSource": "https://www.openslr.org/145/",
+  "conversion": "FLAC decoded to mono PCM16 WAV at 16000 Hz; no trimming or gain changes"
+}

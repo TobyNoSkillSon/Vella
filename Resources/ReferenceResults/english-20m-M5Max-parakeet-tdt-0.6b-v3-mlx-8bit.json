@@ -1,0 +1,2004 @@
+{
+  "schemaVersion": 1,
+  "modelID": "parakeet-tdt-0.6b-v3-mlx-8bit",
+  "modelFingerprint": "5c7ac3733d7d7cd40229b9a34efab86b00198ce949fd1ed622b039a67fe31fb7",
+  "modelName": "Parakeet v3",
+  "quantization": "8-bit",
+  "suiteID": "english-20m-v1",
+  "suiteHash": "c52610b360a744482a41573ddbb84cd702f6beb3c4200e2de2a579db3511b24c",
+  "machine": "Apple M5 Max",
+  "machineMemoryBytes": 137438953472,
+  "os": "macOS-26.6-arm64-arm-64bit",
+  "mlxAudioVersion": "0.5.1",
+  "mlxVersion": "0.32.2",
+  "parameters": {
+    "chunk_duration": 30.0,
+    "stream": false
+  },
+  "processorSource": null,
+  "measuredAt": "2026-09-12T05:35:19Z",
+  "repeats": 2,
+  "audioSeconds": 1200.5801875,
+  "transcriptionSeconds": 5.329493791563436,
+  "realtimeFactor": 225.27096089323018,
+  "wordErrorRate": 0.016884358075820324,
+  "peakProcessBytes": 1117437952,
+  "peakMLXBytes": 1613396232,
+  "clips": [
+    {
+      "id": "61-70968-0021",
+      "reference": "SURELY WE CAN SUBMIT WITH GOOD GRACE",
+      "transcript": "surely we can submit with good grace.",
+      "duration": 2.69,
+      "seconds": 0.019527666503563523,
+      "allSeconds": [
+        0.01958479220047593,
+        0.019470540806651115
+      ],
+      "errors": 0,
+      "referenceWords": 7,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "121-127105-0022",
+      "reference": "WELL IF I DON'T KNOW WHO SHE WAS IN LOVE WITH I KNOW WHO HE WAS",
+      "transcript": "Well, if I don't know who she was in love with, I know who he was.",
+      "duration": 5.075,
+      "seconds": 0.1755433960352093,
+      "allSeconds": [
+        0.3266414999961853,
+        0.024445292074233294
+      ],
+      "errors": 0,
+      "referenceWords": 16,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "237-134493-0012",
+      "reference": "I GET WET TO MY KNEES WHEN I GO DOWN TO PICK CHERRIES",
+      "transcript": "I get wet to my knees when I go down to pick cherries.",
+      "duration": 3.66,
+      "seconds": 0.02327462495304644,
+      "allSeconds": [
+        0.023434374947100878,
+        0.023114874958992004
+      ],
+      "errors": 0,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "260-123286-0000",
+      "reference": "SATURDAY AUGUST FIFTEENTH THE SEA UNBROKEN ALL ROUND NO LAND IN SIGHT",
+      "transcript": "Saturday, august fifteenth. The sea unbroken all round. No land in sight,",
+      "duration": 7.04,
+      "seconds": 0.03027431247755885,
+      "allSeconds": [
+        0.03084591683000326,
+        0.02970270812511444
+      ],
+      "errors": 0,
+      "referenceWords": 12,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "672-122797-0071",
+      "reference": "IN THE COURT YARD SOME OF THE MERRY CHILDREN WERE PLAYING WHO HAD DANCED AT CHRISTMAS ROUND THE FIR TREE AND WERE SO GLAD AT THE SIGHT OF HIM",
+      "transcript": "In the courtyard some of the merry children were playing who had danced at Christmas round the fir tree, and were so glad at the sight of him.",
+      "duration": 8.875,
+      "seconds": 0.03678081254474819,
+      "allSeconds": [
+        0.036997999995946884,
+        0.03656362509354949
+      ],
+      "errors": 2,
+      "referenceWords": 29,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1188-133604-0029",
+      "reference": "ONLY THERE ARE TWO SORTS OF CLOUD AND FIRE",
+      "transcript": "Only there are two sorts of cloud and fire.",
+      "duration": 3.705,
+      "seconds": 0.022205521119758487,
+      "allSeconds": [
+        0.022186667192727327,
+        0.022224375046789646
+      ],
+      "errors": 0,
+      "referenceWords": 9,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1221-135767-0000",
+      "reference": "HESTER PRYNNE WENT ONE DAY TO THE MANSION OF GOVERNOR BELLINGHAM WITH A PAIR OF GLOVES WHICH SHE HAD FRINGED AND EMBROIDERED TO HIS ORDER AND WHICH WERE TO BE WORN ON SOME GREAT OCCASION OF STATE FOR THOUGH THE CHANCES OF A POPULAR ELECTION HAD CAUSED THIS FORMER RULER TO DESCEND A STEP OR TWO FROM THE HIGHEST RANK HE STILL HELD AN HONOURABLE AND INFLUENTIAL PLACE AMONG THE COLONIAL MAGISTRACY",
+      "transcript": "Hester Prynne went one day to the mansion of Governor Bellingham with a pair of gloves which she had fringed and embroidered to his order, and which were to be worn on some great occasion of state, for, though the chances of a popular election had caused this former ruler to descend a step or two from the highest rank, he still held an honorable and influential place among the colonial magistracy.",
+      "duration": 24.85,
+      "seconds": 0.07697374979034066,
+      "allSeconds": [
+        0.07802583370357752,
+        0.0759216658771038
+      ],
+      "errors": 1,
+      "referenceWords": 72,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1284-1181-0000",
+      "reference": "OJO EXAMINED THIS CURIOUS CONTRIVANCE WITH WONDER",
+      "transcript": "Ojo examined this curious contrivance with wonder.",
+      "duration": 3.965,
+      "seconds": 0.02315950021147728,
+      "allSeconds": [
+        0.02349566714838147,
+        0.022823333274573088
+      ],
+      "errors": 0,
+      "referenceWords": 7,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1320-122617-0000",
+      "reference": "NOTWITHSTANDING THE HIGH RESOLUTION OF HAWKEYE HE FULLY COMPREHENDED ALL THE DIFFICULTIES AND DANGER HE WAS ABOUT TO INCUR",
+      "transcript": "Notwithstanding the high resolution of Hawkeye, he fully comprehended all the difficulties and danger he was about to incur.",
+      "duration": 7.835,
+      "seconds": 0.035714374389499426,
+      "allSeconds": [
+        0.0359048331156373,
+        0.03552391566336155
+      ],
+      "errors": 0,
+      "referenceWords": 19,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1580-141083-0051",
+      "reference": "ONLY FOR A MINUTE OR SO",
+      "transcript": "only for a minute or so",
+      "duration": 1.98,
+      "seconds": 0.023415437899529934,
+      "allSeconds": [
+        0.030013708863407373,
+        0.016817166935652494
+      ],
+      "errors": 0,
+      "referenceWords": 6,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1995-1837-0023",
+      "reference": "THE NET AND WEB OF ENDLESS THINGS HAD BEEN CRAWLING AND CREEPING AROUND HER SHE HAD STRUGGLED IN DUMB SPEECHLESS TERROR AGAINST SOME MIGHTY GRASPING THAT STROVE FOR HER LIFE WITH GNARLED AND CREEPING FINGERS BUT NOW AT LAST WEAKLY SHE OPENED HER EYES AND QUESTIONED",
+      "transcript": "The net and web of endless things had been crawling and creeping around her. She had struggled in dumb, speechless terror against some mighty grasping that strove for her life, with gnarled and creeping fingers, but now at last, weakly, she opened her eyes and questioned.",
+      "duration": 16.965,
+      "seconds": 0.06294979201629758,
+      "allSeconds": [
+        0.06333616701886058,
+        0.06256341701373458
+      ],
+      "errors": 0,
+      "referenceWords": 46,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2300-131720-0000",
+      "reference": "THE PARIS PLANT LIKE THAT AT THE CRYSTAL PALACE WAS A TEMPORARY EXHIBIT",
+      "transcript": "The Paris plant, like that at the Crystal Palace, was a temporary exhibit.",
+      "duration": 5.08,
+      "seconds": 0.025930874748155475,
+      "allSeconds": [
+        0.025730416178703308,
+        0.02613133331760764
+      ],
+      "errors": 0,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2830-3980-0000",
+      "reference": "IN EVERY WAY THEY SOUGHT TO UNDERMINE THE AUTHORITY OF SAINT PAUL",
+      "transcript": "In every way they sought to undermine the authority of Saint Paul,",
+      "duration": 3.73,
+      "seconds": 0.023604479152709246,
+      "allSeconds": [
+        0.023635458201169968,
+        0.023573500104248524
+      ],
+      "errors": 0,
+      "referenceWords": 12,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2961-960-0000",
+      "reference": "HE PASSES ABRUPTLY FROM PERSONS TO IDEAS AND NUMBERS AND FROM IDEAS AND NUMBERS TO PERSONS FROM THE HEAVENS TO MAN FROM ASTRONOMY TO PHYSIOLOGY HE CONFUSES OR RATHER DOES NOT DISTINGUISH SUBJECT AND OBJECT FIRST AND FINAL CAUSES AND IS DREAMING OF GEOMETRICAL FIGURES LOST IN A FLUX OF SENSE",
+      "transcript": "He passes abruptly from persons to ideas and numbers, and from ideas and numbers to persons, from the heavens to man, from astronomy to physiology. He confuses, or rather, does not distinguish subject and object, first and final causes, and is dreaming of geometrical figures lost in a flux of sense.",
+      "duration": 27.18,
+      "seconds": 0.06972079141996801,
+      "allSeconds": [
+        0.0708950418047607,
+        0.06854654103517532
+      ],
+      "errors": 0,
+      "referenceWords": 51,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3570-5694-0000",
+      "reference": "BUT ALREADY AT A POINT IN ECONOMIC EVOLUTION FAR ANTEDATING THE EMERGENCE OF THE LADY SPECIALISED CONSUMPTION OF GOODS AS AN EVIDENCE OF PECUNIARY STRENGTH HAD BEGUN TO WORK OUT IN A MORE OR LESS ELABORATE SYSTEM",
+      "transcript": "But already at a point in economic evolution far antedating the emergence of the lady, specialized consumption of goods as an evidence of pecuniary strength had begun to work out in a more or less elaborate system.",
+      "duration": 12.085,
+      "seconds": 0.04865514556877315,
+      "allSeconds": [
+        0.04936254117637873,
+        0.047947749961167574
+      ],
+      "errors": 1,
+      "referenceWords": 37,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3575-170457-0031",
+      "reference": "ON AUGUST TWENTY SEVENTH EIGHTEEN THIRTY SEVEN SHE WRITES",
+      "transcript": "On august twenty seventh, eighteen thirty seven, she writes",
+      "duration": 4.0,
+      "seconds": 0.025588667020201683,
+      "allSeconds": [
+        0.025578792206943035,
+        0.02559854183346033
+      ],
+      "errors": 0,
+      "referenceWords": 9,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3729-6852-0000",
+      "reference": "TO CELEBRATE THE ARRIVAL OF HER SON SILVIA GAVE A SPLENDID SUPPER TO WHICH SHE HAD INVITED ALL HER RELATIVES AND IT WAS A GOOD OPPORTUNITY FOR ME TO MAKE THEIR ACQUAINTANCE",
+      "transcript": "To celebrate the arrival of her son, Sylvia gave a splendid supper to which she had invited all her relatives, and it was a good opportunity for me to make their acquaintance.",
+      "duration": 11.17,
+      "seconds": 0.042248333571478724,
+      "allSeconds": [
+        0.04225675016641617,
+        0.04223991697654128
+      ],
+      "errors": 1,
+      "referenceWords": 32,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4077-13754-0000",
+      "reference": "THE ARMY FOUND THE PEOPLE IN POVERTY AND LEFT THEM IN COMPARATIVE WEALTH",
+      "transcript": "The army found the people in poverty and left them in comparative wealth",
+      "duration": 4.78,
+      "seconds": 0.024993562372401357,
+      "allSeconds": [
+        0.025001832749694586,
+        0.024985291995108128
+      ],
+      "errors": 0,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4446-2275-0005",
+      "reference": "I FELT IT IN MY BONES WHEN I WOKE THIS MORNING THAT SOMETHING SPLENDID WAS GOING TO TURN UP",
+      "transcript": "I felt it in my bones when I woke this morning that something splendid was going to turn up.",
+      "duration": 4.445,
+      "seconds": 0.026269896188750863,
+      "allSeconds": [
+        0.026336542330682278,
+        0.02620325004681945
+      ],
+      "errors": 0,
+      "referenceWords": 19,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4507-16021-0000",
+      "reference": "CHAPTER ONE ORIGIN",
+      "transcript": "CHAPTER one ORIGIN",
+      "duration": 2.59,
+      "seconds": 0.0237528330180794,
+      "allSeconds": [
+        0.023630500305444002,
+        0.023875165730714798
+      ],
+      "errors": 0,
+      "referenceWords": 3,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4970-29095-0000",
+      "reference": "SHE WAS TIRED OF OTHER THINGS",
+      "transcript": "She was tired of other things.",
+      "duration": 2.865,
+      "seconds": 0.01890727085992694,
+      "allSeconds": [
+        0.01891866698861122,
+        0.018895874731242657
+      ],
+      "errors": 0,
+      "referenceWords": 6,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5105-28241-0000",
+      "reference": "HER SEA GOING QUALITIES WERE EXCELLENT AND WOULD HAVE AMPLY SUFFICED FOR A CIRCUMNAVIGATION OF THE GLOBE",
+      "transcript": "Her sea going qualities were excellent, and would have amply sufficed for a circumnavigation of the globe.",
+      "duration": 6.455,
+      "seconds": 0.031027771066874266,
+      "allSeconds": [
+        0.030938624870032072,
+        0.03111691726371646
+      ],
+      "errors": 0,
+      "referenceWords": 17,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5142-36377-0000",
+      "reference": "IT WAS ONE OF THE MASTERLY AND CHARMING STORIES OF DUMAS THE ELDER",
+      "transcript": "It was one of the masterly and charming stories of Dumas the Elder,",
+      "duration": 3.38,
+      "seconds": 0.02420343761332333,
+      "allSeconds": [
+        0.023987125139683485,
+        0.024419750086963177
+      ],
+      "errors": 0,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5683-32865-0000",
+      "reference": "YOU KNOW CAPTAIN LAKE",
+      "transcript": "You know Captain Lake?",
+      "duration": 2.19,
+      "seconds": 0.016015541506931186,
+      "allSeconds": [
+        0.016368249896913767,
+        0.015662833116948605
+      ],
+      "errors": 0,
+      "referenceWords": 4,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "6829-68769-0000",
+      "reference": "KENNETH AND BETH REFRAINED FROM TELLING THE OTHER GIRLS OR UNCLE JOHN OF OLD WILL ROGERS'S VISIT BUT THEY GOT MISTER WATSON IN THE LIBRARY AND QUESTIONED HIM CLOSELY ABOUT THE PENALTY FOR FORGING A CHECK",
+      "transcript": "Kenneth and Beth refrained from telling the other girls or Uncle John of old Will Rogers' visit, but they got mister Watson in the library and questioned him closely about the penalty for forging a cheque.",
+      "duration": 11.695,
+      "seconds": 0.04913408332504332,
+      "allSeconds": [
+        0.0497023337520659,
+        0.048565832898020744
+      ],
+      "errors": 2,
+      "referenceWords": 36,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "6930-75918-0000",
+      "reference": "CONCORD RETURNED TO ITS PLACE AMIDST THE TENTS",
+      "transcript": "Concord returned to its place amidst the tents,",
+      "duration": 3.505,
+      "seconds": 0.022063561948016286,
+      "allSeconds": [
+        0.02204654086381197,
+        0.022080583032220602
+      ],
+      "errors": 0,
+      "referenceWords": 8,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7021-79730-0001",
+      "reference": "TO SUPPOSE THAT THE OBJECT OF THIS WORK IS TO AID IN EFFECTING SUCH A SUBSTITUTION AS THAT IS ENTIRELY TO MISTAKE ITS NATURE AND DESIGN",
+      "transcript": "To suppose that the object of this work is to aid in effecting such a substitution as that, is entirely to mistake its nature and design,",
+      "duration": 11.49,
+      "seconds": 0.03846687451004982,
+      "allSeconds": [
+        0.0383367077447474,
+        0.03859704127535224
+      ],
+      "errors": 0,
+      "referenceWords": 26,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7127-75947-0000",
+      "reference": "EVERY ONE COULD OBSERVE HIS AGITATION AND PROSTRATION A PROSTRATION WHICH WAS INDEED THE MORE REMARKABLE SINCE PEOPLE WERE NOT ACCUSTOMED TO SEE HIM WITH HIS ARMS HANGING LISTLESSLY BY HIS SIDE HIS HEAD BEWILDERED AND HIS EYES WITH ALL THEIR BRIGHT INTELLIGENCE BEDIMMED",
+      "transcript": "Every one could observe his agitation and prostration, a prostration which was, indeed, the more remarkable since people were not accustomed to see him, with his arms hanging listlessly by his side, his head bewildered, and his eyes, with all their bright intelligence, bedimmed.",
+      "duration": 17.97,
+      "seconds": 0.06282354146242142,
+      "allSeconds": [
+        0.06327137490734458,
+        0.062375708017498255
+      ],
+      "errors": 0,
+      "referenceWords": 44,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7176-92135-0000",
+      "reference": "HE IS A WELCOME FIGURE AT THE GARDEN PARTIES OF THE ELECT WHO ARE ALWAYS READY TO ENCOURAGE HIM BY ACCEPTING FREE SEATS FOR HIS PLAY ACTOR MANAGERS NOD TO HIM EDITORS ALLOW HIM TO CONTRIBUTE WITHOUT CHARGE TO A SYMPOSIUM ON THE PRICE OF GOLF BALLS",
+      "transcript": "He is a welcome figure at the garden parties of the elect, who are always ready to encourage him by accepting free seats for his play. Actor managers nod to him, editors allow him to contribute, without charge, to a symposium on the price of golf balls.",
+      "duration": 14.44,
+      "seconds": 0.05760795786045492,
+      "allSeconds": [
+        0.0576576660387218,
+        0.057558249682188034
+      ],
+      "errors": 0,
+      "referenceWords": 47,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7729-102255-0000",
+      "reference": "THE BOGUS LEGISLATURE NUMBERED THIRTY SIX MEMBERS",
+      "transcript": "The Bogus legislature numbered thirty six members and",
+      "duration": 3.285,
+      "seconds": 0.023871999699622393,
+      "allSeconds": [
+        0.02397074969485402,
+        0.023773249704390764
+      ],
+      "errors": 1,
+      "referenceWords": 7,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8224-274384-0000",
+      "reference": "HE PASSED THROUGH HENLEY SAINT ALBANS AND CAME SO NEAR TO LONDON AS HARROW ON THE HILL",
+      "transcript": "He passed through Henley, St Albans, and came so near to London as Harrow on the Hill.",
+      "duration": 7.605,
+      "seconds": 0.0915008329320699,
+      "allSeconds": [
+        0.1521140830591321,
+        0.030887582805007696
+      ],
+      "errors": 1,
+      "referenceWords": 17,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8230-279154-0000",
+      "reference": "THE ANALYSIS OF KNOWLEDGE WILL OCCUPY US UNTIL THE END OF THE THIRTEENTH LECTURE AND IS THE MOST DIFFICULT PART OF OUR WHOLE ENTERPRISE",
+      "transcript": "The analysis of knowledge will occupy us until the end of the thirteenth lecture, and is the most difficult part of our whole enterprise.",
+      "duration": 8.805,
+      "seconds": 0.03539541666395962,
+      "allSeconds": [
+        0.03585795825347304,
+        0.0349328750744462
+      ],
+      "errors": 0,
+      "referenceWords": 24,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8455-210777-0028",
+      "reference": "JACK WOULD BECOME EVA'S HAPPY HUSBAND AND WOULD REMAIN AMIDST THE HURRIED DUTIES OF THE EAGER WORLD",
+      "transcript": "Jack would become Eva's happy husband, and would remain amidst the hurried duties of the eager world.",
+      "duration": 7.735,
+      "seconds": 0.03321756236255169,
+      "allSeconds": [
+        0.03334379196166992,
+        0.033091332763433456
+      ],
+      "errors": 0,
+      "referenceWords": 17,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8463-294828-0022",
+      "reference": "WE'RE LEAVING ON THE ABRAHAM LINCOLN",
+      "transcript": "We're leaving on the Abraham Lincoln.",
+      "duration": 2.355,
+      "seconds": 0.019613812444731593,
+      "allSeconds": [
+        0.01948891580104828,
+        0.019738709088414907
+      ],
+      "errors": 0,
+      "referenceWords": 6,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8555-292519-0000",
+      "reference": "BRIGHTER THAN EARLY DAWN'S MOST BRILLIANT DYE ARE BLOWN CLEAR BANDS OF COLOR THROUGH THE SKY THAT SWIRL AND SWEEP AND MEET TO BREAK AND FOAM LIKE RAINBOW VEILS UPON A BUBBLE'S DOME",
+      "transcript": "Brighter than early dawn's most brilliant dye Are blown clear bands of colour through the sky, That swirl and sweep and meet, To break and foam like rainbow veils upon a bubble's dome.",
+      "duration": 14.9,
+      "seconds": 0.05334283341653645,
+      "allSeconds": [
+        0.05364429159089923,
+        0.05304137524217367
+      ],
+      "errors": 1,
+      "referenceWords": 33,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "61-70968-0022",
+      "reference": "TIS FINE FOR YOU TO TALK OLD MAN ANSWERED THE LEAN SULLEN APPRENTICE",
+      "transcript": "'Tis fine for you to talk, old man, answered the lean sullen apprentice,",
+      "duration": 4.67,
+      "seconds": 0.02816906268708408,
+      "allSeconds": [
+        0.027854041662067175,
+        0.028484083712100983
+      ],
+      "errors": 1,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "121-127105-0023",
+      "reference": "LET ME SAY HERE DISTINCTLY TO HAVE DONE WITH IT THAT THIS NARRATIVE FROM AN EXACT TRANSCRIPT OF MY OWN MADE MUCH LATER IS WHAT I SHALL PRESENTLY GIVE",
+      "transcript": "Let me say here distinctly to have done with it, that this narrative, from an exact transcript of my own made much later, is what I shall presently give.",
+      "duration": 10.91,
+      "seconds": 0.040370041970163584,
+      "allSeconds": [
+        0.04041574988514185,
+        0.04032433405518532
+      ],
+      "errors": 0,
+      "referenceWords": 29,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "237-134493-0013",
+      "reference": "INDEED HE HAD LOOKED AWAY WITH THE PURPOSE OF NOT SEEING IT",
+      "transcript": "Indeed, he had looked away with the purpose of not seeing it.",
+      "duration": 4.09,
+      "seconds": 0.023528999416157603,
+      "allSeconds": [
+        0.023684915620833635,
+        0.02337308321148157
+      ],
+      "errors": 0,
+      "referenceWords": 12,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "260-123286-0001",
+      "reference": "THE HORIZON SEEMS EXTREMELY DISTANT",
+      "transcript": "The horizon seems extremely distant.",
+      "duration": 3.07,
+      "seconds": 0.02077427110634744,
+      "allSeconds": [
+        0.021036500111222267,
+        0.020512042101472616
+      ],
+      "errors": 0,
+      "referenceWords": 5,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "672-122797-0072",
+      "reference": "AND THE GARDENER'S BOY CHOPPED THE TREE INTO SMALL PIECES THERE WAS A WHOLE HEAP LYING THERE",
+      "transcript": "and the gardener's boy chopped the tree into small pieces. There was a whole heap lying there.",
+      "duration": 7.94,
+      "seconds": 0.03210062487050891,
+      "allSeconds": [
+        0.0318339578807354,
+        0.03236729186028242
+      ],
+      "errors": 0,
+      "referenceWords": 17,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1188-133604-0030",
+      "reference": "HE KNOWS THEM BOTH",
+      "transcript": "He knows them both.",
+      "duration": 1.915,
+      "seconds": 0.01618481194600463,
+      "allSeconds": [
+        0.016425041016191244,
+        0.015944582875818014
+      ],
+      "errors": 0,
+      "referenceWords": 4,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1221-135767-0001",
+      "reference": "ANOTHER AND FAR MORE IMPORTANT REASON THAN THE DELIVERY OF A PAIR OF EMBROIDERED GLOVES IMPELLED HESTER AT THIS TIME TO SEEK AN INTERVIEW WITH A PERSONAGE OF SO MUCH POWER AND ACTIVITY IN THE AFFAIRS OF THE SETTLEMENT",
+      "transcript": "Another and far more important reason than the delivery of a pair of embroidered gloves impelled Hester at this time to seek an interview with a personage of so much power and activity in the affairs of the settlement.",
+      "duration": 13.43,
+      "seconds": 0.04924089601263404,
+      "allSeconds": [
+        0.049559374805539846,
+        0.04892241721972823
+      ],
+      "errors": 0,
+      "referenceWords": 39,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1284-1181-0001",
+      "reference": "MARGOLOTTE HAD FIRST MADE THE GIRL'S FORM FROM THE PATCHWORK QUILT AND THEN SHE HAD DRESSED IT WITH A PATCHWORK SKIRT AND AN APRON WITH POCKETS IN IT USING THE SAME GAY MATERIAL THROUGHOUT",
+      "transcript": "Margolot had first made the girl's form from the patchwork quilt, and then she had dressed it with a patchwork skirt and an apron with pockets in it, using the same gay material throughout.",
+      "duration": 11.43,
+      "seconds": 0.04555299994535744,
+      "allSeconds": [
+        0.04598062485456467,
+        0.04512537503615022
+      ],
+      "errors": 1,
+      "referenceWords": 34,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1320-122617-0001",
+      "reference": "IN HIS RETURN TO THE CAMP HIS ACUTE AND PRACTISED INTELLECTS WERE INTENTLY ENGAGED IN DEVISING MEANS TO COUNTERACT A WATCHFULNESS AND SUSPICION ON THE PART OF HIS ENEMIES THAT HE KNEW WERE IN NO DEGREE INFERIOR TO HIS OWN",
+      "transcript": "In his return to the camp, his acute and practised intellects were intently engaged in devising means to counteract a watchfulness and suspicion on the part of his enemies that he knew were in no degree inferior to his own.",
+      "duration": 14.055,
+      "seconds": 0.053108499851077795,
+      "allSeconds": [
+        0.05395258264616132,
+        0.05226441705599427
+      ],
+      "errors": 0,
+      "referenceWords": 40,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1580-141083-0052",
+      "reference": "OH I WOULD NOT VENTURE TO SAY SIR",
+      "transcript": "Oh, I would not venture to say, sir,",
+      "duration": 3.45,
+      "seconds": 0.020521041471511126,
+      "allSeconds": [
+        0.02058787504211068,
+        0.02045420790091157
+      ],
+      "errors": 0,
+      "referenceWords": 8,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1995-1837-0024",
+      "reference": "FOR A WHILE SHE LAY IN HER CHAIR IN HAPPY DREAMY PLEASURE AT SUN AND BIRD AND TREE",
+      "transcript": "For a while she lay in her chair in happy, dreamy pleasure at sun and bird and tree.",
+      "duration": 5.385,
+      "seconds": 0.029471375048160553,
+      "allSeconds": [
+        0.029796500224620104,
+        0.029146249871701002
+      ],
+      "errors": 0,
+      "referenceWords": 18,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2300-131720-0001",
+      "reference": "THE LONDON PLANT WAS LESS TEMPORARY BUT NOT PERMANENT SUPPLYING BEFORE IT WAS TORN OUT NO FEWER THAN THREE THOUSAND LAMPS IN HOTELS CHURCHES STORES AND DWELLINGS IN THE VICINITY OF HOLBORN VIADUCT",
+      "transcript": "The London plant was less temporary, but not permanent, supplying, before it was torn out, no fewer than three thousand lamps in hotels, churches, stores, and dwellings in the vicinity of Holburn Viaduct.",
+      "duration": 14.63,
+      "seconds": 0.05280591733753681,
+      "allSeconds": [
+        0.05333670927211642,
+        0.0522751254029572
+      ],
+      "errors": 1,
+      "referenceWords": 33,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2830-3980-0001",
+      "reference": "THEY SAID TO THE GALATIANS YOU HAVE NO RIGHT TO THINK HIGHLY OF PAUL",
+      "transcript": "They said to the Galatians, You have no right to think highly of Paul,",
+      "duration": 3.945,
+      "seconds": 0.02432058355771005,
+      "allSeconds": [
+        0.024373208172619343,
+        0.02426795894280076
+      ],
+      "errors": 0,
+      "referenceWords": 14,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2961-960-0001",
+      "reference": "THE INFLUENCE WITH THE TIMAEUS HAS EXERCISED UPON POSTERITY IS DUE PARTLY TO A MISUNDERSTANDING",
+      "transcript": "The influence which the Timaeus has exercised upon posterity is due partly to a misunderstanding",
+      "duration": 8.2500625,
+      "seconds": 0.03228666656650603,
+      "allSeconds": [
+        0.03216095780953765,
+        0.03241237532347441
+      ],
+      "errors": 1,
+      "referenceWords": 15,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3570-5694-0001",
+      "reference": "THE UTILITY OF CONSUMPTION AS AN EVIDENCE OF WEALTH IS TO BE CLASSED AS A DERIVATIVE GROWTH",
+      "transcript": "The utility of consumption as an evidence of wealth is to be classed as a derivative of growth.",
+      "duration": 5.675,
+      "seconds": 0.0288827707991004,
+      "allSeconds": [
+        0.029044749680906534,
+        0.028720791917294264
+      ],
+      "errors": 1,
+      "referenceWords": 17,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3575-170457-0032",
+      "reference": "COME COME I AM GETTING REALLY TIRED OF YOUR ABSENCE",
+      "transcript": "Come, come, I'm getting really tired of your absence.",
+      "duration": 3.03,
+      "seconds": 0.022560687502846122,
+      "allSeconds": [
+        0.022806792054325342,
+        0.0223145829513669
+      ],
+      "errors": 2,
+      "referenceWords": 10,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3729-6852-0001",
+      "reference": "WITHOUT SAYING IT POSITIVELY SHE MADE ME UNDERSTAND THAT BEING HERSELF AN ILLUSTRIOUS MEMBER OF THE REPUBLIC OF LETTERS SHE WAS WELL AWARE THAT SHE WAS SPEAKING TO AN INSECT",
+      "transcript": "Without saying it positively, she made me understand that being herself an illustrious member of the Republic of Letters, she was well aware that she was speaking to an insect.",
+      "duration": 12.195,
+      "seconds": 0.0433356873691082,
+      "allSeconds": [
+        0.04353212518617511,
+        0.04313924955204129
+      ],
+      "errors": 0,
+      "referenceWords": 30,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4077-13754-0001",
+      "reference": "BUT A WORD FURTHER CONCERNING THE EXPEDITION IN GENERAL",
+      "transcript": "But a word further concerning the expedition in general.",
+      "duration": 3.77,
+      "seconds": 0.02211006241850555,
+      "allSeconds": [
+        0.021958957891911268,
+        0.02226116694509983
+      ],
+      "errors": 0,
+      "referenceWords": 9,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4446-2275-0006",
+      "reference": "I THOUGHT IT MIGHT BE SISTER KATE OR COUSIN MIKE WOULD BE HAPPENING ALONG",
+      "transcript": "I thought it might be Sister Kate or Cousin Mike would be happening along,",
+      "duration": 3.54,
+      "seconds": 0.025666479719802737,
+      "allSeconds": [
+        0.025963792111724615,
+        0.02536916732788086
+      ],
+      "errors": 0,
+      "referenceWords": 14,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4507-16021-0001",
+      "reference": "IT ENGENDERS A WHOLE WORLD LA PEGRE FOR WHICH READ THEFT AND A HELL LA PEGRENNE FOR WHICH READ HUNGER",
+      "transcript": "It engenders a whole world, la p\u00e8gre, for which read theft, and a hell la p\u00e8grenne, for which read hunger.",
+      "duration": 11.32,
+      "seconds": 0.03916433313861489,
+      "allSeconds": [
+        0.0396134159527719,
+        0.038715250324457884
+      ],
+      "errors": 2,
+      "referenceWords": 20,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4970-29095-0001",
+      "reference": "SHE TRIED THIS MORNING AN AIR OR TWO UPON THE PIANO SANG A SIMPLE SONG IN A SWEET BUT SLIGHTLY METALLIC VOICE AND THEN SEATING HERSELF BY THE OPEN WINDOW READ PHILIP'S LETTER",
+      "transcript": "She tried this morning an air or two upon the piano, sang a simple song in a sweet but slightly metallic voice, and then, seating herself by the open window, read Philip's letter.",
+      "duration": 13.91,
+      "seconds": 0.04991745878942311,
+      "allSeconds": [
+        0.05045008426532149,
+        0.04938483331352472
+      ],
+      "errors": 0,
+      "referenceWords": 33,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5105-28241-0001",
+      "reference": "AFTER AN APPRENTICESHIP ON A MERCHANT SHIP HE HAD ENTERED THE IMPERIAL NAVY AND HAD ALREADY REACHED THE RANK OF LIEUTENANT WHEN THE COUNT APPOINTED HIM TO THE CHARGE OF HIS OWN PRIVATE YACHT IN WHICH HE WAS ACCUSTOMED TO SPEND BY FAR THE GREATER PART OF HIS TIME THROUGHOUT THE WINTER GENERALLY CRUISING IN THE MEDITERRANEAN WHILST IN THE SUMMER HE VISITED MORE NORTHERN WATERS",
+      "transcript": "After an apprenticeship on a merchant ship he had entered the Imperial Navy, and had already reached the rank of lieutenant when the Count appointed him to the charge of his own private yacht, in which he was accustomed to spend by far the greater part of his time. Throughout the winter generally cruising in the Mediterranean, whilst in the summer he visited more northern waters.",
+      "duration": 21.015,
+      "seconds": 0.07290943758562207,
+      "allSeconds": [
+        0.07366775022819638,
+        0.07215112494304776
+      ],
+      "errors": 0,
+      "referenceWords": 66,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5142-36377-0001",
+      "reference": "IN FIVE MINUTES I WAS IN A NEW WORLD AND MY MELANCHOLY ROOM WAS FULL OF THE LIVELIEST FRENCH COMPANY",
+      "transcript": "In five minutes I was in a new world, and my melancholy room was full of the liveliest French company,",
+      "duration": 5.39,
+      "seconds": 0.029837228823453188,
+      "allSeconds": [
+        0.030154999811202288,
+        0.029519457835704088
+      ],
+      "errors": 0,
+      "referenceWords": 20,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5683-32865-0001",
+      "reference": "SAID LORD CHELFORD ADDRESSING ME",
+      "transcript": "said Lord Shelford, addressing me.",
+      "duration": 2.58,
+      "seconds": 0.019336708122864366,
+      "allSeconds": [
+        0.019446541089564562,
+        0.01922687515616417
+      ],
+      "errors": 1,
+      "referenceWords": 5,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "6829-68769-0001",
+      "reference": "IT WAS A SERIOUS CRIME INDEED MISTER WATSON TOLD THEM AND TOM GATES BADE FAIR TO SERVE A LENGTHY TERM IN STATE'S PRISON AS A CONSEQUENCE OF HIS RASH ACT",
+      "transcript": "It was a serious crime indeed, mister Watson told them, and Tom Gates bade fair to serve a lengthy term in the State's prison as a consequence of his rash act.",
+      "duration": 9.315,
+      "seconds": 0.04097581235691905,
+      "allSeconds": [
+        0.04082920774817467,
+        0.04112241696566343
+      ],
+      "errors": 1,
+      "referenceWords": 30,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "6930-75918-0001",
+      "reference": "THE ENGLISH FORWARDED TO THE FRENCH BASKETS OF FLOWERS OF WHICH THEY HAD MADE A PLENTIFUL PROVISION TO GREET THE ARRIVAL OF THE YOUNG PRINCESS THE FRENCH IN RETURN INVITED THE ENGLISH TO A SUPPER WHICH WAS TO BE GIVEN THE NEXT DAY",
+      "transcript": "the English forwarded to the French baskets of flowers, of which they had made a plentiful provision to greet the arrival of the young princess. The French, in return, invited the English to a supper, which was to be given the next day.",
+      "duration": 14.225,
+      "seconds": 0.05376293766312301,
+      "allSeconds": [
+        0.05419716704636812,
+        0.0533287082798779
+      ],
+      "errors": 0,
+      "referenceWords": 43,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7021-79730-0002",
+      "reference": "BY REASON AND AFFECTION",
+      "transcript": "By reason and affection.",
+      "duration": 2.69,
+      "seconds": 0.019067479064688087,
+      "allSeconds": [
+        0.018939583096653223,
+        0.01919537503272295
+      ],
+      "errors": 0,
+      "referenceWords": 4,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7127-75947-0001",
+      "reference": "UPON THIS MADAME DEIGNED TO TURN HER EYES LANGUISHINGLY TOWARDS THE COMTE OBSERVING",
+      "transcript": "Upon this Madame deigned to turn her eyes languishingly towards the Comte, observing",
+      "duration": 6.64,
+      "seconds": 0.02904772898182273,
+      "allSeconds": [
+        0.029256542213261127,
+        0.02883891575038433
+      ],
+      "errors": 0,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7176-92135-0001",
+      "reference": "IN SHORT HE BECOMES A PROMINENT FIGURE IN LONDON SOCIETY AND IF HE IS NOT CAREFUL SOMEBODY WILL SAY SO",
+      "transcript": "In short, he becomes a prominent figure in London society, and, if he is not careful, somebody will say so.",
+      "duration": 7.56,
+      "seconds": 0.03076483285985887,
+      "allSeconds": [
+        0.030458790715783834,
+        0.031070875003933907
+      ],
+      "errors": 0,
+      "referenceWords": 20,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7729-102255-0001",
+      "reference": "THIS WAS AT THE MARCH ELECTION EIGHTEEN FIFTY FIVE",
+      "transcript": "This was at the March election, eighteen fifty five.",
+      "duration": 3.45,
+      "seconds": 0.022964770905673504,
+      "allSeconds": [
+        0.022963416762650013,
+        0.022966125048696995
+      ],
+      "errors": 0,
+      "referenceWords": 9,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8224-274384-0001",
+      "reference": "THE SCOTTISH GENERALS AND COMMISSIONERS AFFECTED GREAT SURPRISE ON THE APPEARANCE OF THE KING AND THOUGH THEY PAID HIM ALL THE EXTERIOR RESPECT DUE TO HIS DIGNITY THEY INSTANTLY SET A GUARD UPON HIM UNDER COLOR OF PROTECTION AND MADE HIM IN REALITY A PRISONER",
+      "transcript": "The Scottish generals and commissioners effected great surprise on the appearance of the king, and though they paid him all the exterior respect due to his dignity, they instantly set a guard upon him under colour of protection, and made him in reality a prisoner.",
+      "duration": 20.33,
+      "seconds": 0.06281864643096924,
+      "allSeconds": [
+        0.06315708393231034,
+        0.062480208929628134
+      ],
+      "errors": 2,
+      "referenceWords": 45,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8230-279154-0001",
+      "reference": "WHAT IS CALLED PERCEPTION DIFFERS FROM SENSATION BY THE FACT THAT THE SENSATIONAL INGREDIENTS BRING UP HABITUAL ASSOCIATES IMAGES AND EXPECTATIONS OF THEIR USUAL CORRELATES ALL OF WHICH ARE SUBJECTIVELY INDISTINGUISHABLE FROM THE SENSATION",
+      "transcript": "What is called perception differs from sensation by the fact that the sensational ingredients bring up habitual associates, images and expectations of their usual correlates, all of which are subjectively indistinguishable from the sensation.",
+      "duration": 17.38,
+      "seconds": 0.05552670871838927,
+      "allSeconds": [
+        0.05635179206728935,
+        0.05470162536948919
+      ],
+      "errors": 0,
+      "referenceWords": 34,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8455-210777-0029",
+      "reference": "THINKING OF ALL THIS I WENT TO SLEEP",
+      "transcript": "Thinking of all this, I went to sleep.",
+      "duration": 3.085,
+      "seconds": 0.020993624813854694,
+      "allSeconds": [
+        0.020752166863530874,
+        0.021235082764178514
+      ],
+      "errors": 0,
+      "referenceWords": 8,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8463-294828-0023",
+      "reference": "YOU SEE MY FRIEND IT'S AN ISSUE OF THE MONSTER THE NOTORIOUS NARWHALE",
+      "transcript": "You see, my friend, it's an issue of the monster, the notorious Narwhal,",
+      "duration": 4.745,
+      "seconds": 0.026355270529165864,
+      "allSeconds": [
+        0.026375750079751015,
+        0.026334790978580713
+      ],
+      "errors": 1,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8555-292519-0001",
+      "reference": "GUIDED BY YOU HOW WE MIGHT STROLL TOWARDS DEATH OUR ONLY MUSIC ONE ANOTHER'S BREATH THROUGH GARDENS INTIMATE WITH HOLLYHOCKS WHERE SILENT POPPIES BURN BETWEEN THE ROCKS BY POOLS WHERE BIRCHES BEND TO CONFIDANTS ABOVE GREEN WATERS SCUMMED WITH LILY PLANTS",
+      "transcript": "Guided by you, how we might stroll towards death, our only music, one another's breath, Through gardens intimate with hollyhocks, where silent poppies burn between the rocks, by pools where birches bend to confidants above green waters scummed with lily plants.",
+      "duration": 20.82,
+      "seconds": 0.06514464551582932,
+      "allSeconds": [
+        0.06587612489238381,
+        0.06441316613927484
+      ],
+      "errors": 0,
+      "referenceWords": 41,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "61-70968-0023",
+      "reference": "BUT I WRESTLED WITH THIS FELLOW AND DO KNOW THAT HE PLAYED UNFAIRLY IN THE SECOND BOUT",
+      "transcript": "but I wrestled with this fellow, and do know that he played unfairly in the second bout,",
+      "duration": 5.025,
+      "seconds": 0.027183562517166138,
+      "allSeconds": [
+        0.026881666854023933,
+        0.027485458180308342
+      ],
+      "errors": 0,
+      "referenceWords": 17,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "121-127105-0024",
+      "reference": "POOR DOUGLAS BEFORE HIS DEATH WHEN IT WAS IN SIGHT COMMITTED TO ME THE MANUSCRIPT THAT REACHED HIM ON THE THIRD OF THESE DAYS AND THAT ON THE SAME SPOT WITH IMMENSE EFFECT HE BEGAN TO READ TO OUR HUSHED LITTLE CIRCLE ON THE NIGHT OF THE FOURTH",
+      "transcript": "Poor Douglas, before his death, when it was in sight, committed to me the manuscript that reached him on the third of these days, and that, on the same spot, with immense effect, he began to read to our hushed little circle on the night of the fourth,",
+      "duration": 14.45,
+      "seconds": 0.056634833104908466,
+      "allSeconds": [
+        0.05607308307662606,
+        0.05719658313319087
+      ],
+      "errors": 0,
+      "referenceWords": 48,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "237-134493-0014",
+      "reference": "THEY THINK YOU'RE PROUD BECAUSE YOU'VE BEEN AWAY TO SCHOOL OR SOMETHING",
+      "transcript": "They think you're proud because you've been away to school or something.",
+      "duration": 3.7,
+      "seconds": 0.02422895818017423,
+      "allSeconds": [
+        0.02416012529283762,
+        0.024297791067510843
+      ],
+      "errors": 0,
+      "referenceWords": 12,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "260-123286-0002",
+      "reference": "ALL MY DANGER AND SUFFERINGS WERE NEEDED TO STRIKE A SPARK OF HUMAN FEELING OUT OF HIM BUT NOW THAT I AM WELL HIS NATURE HAS RESUMED ITS SWAY",
+      "transcript": "All my danger and sufferings were needed to strike a spark of human feeling out of him. But now that I am well, his nature has resumed its sway.",
+      "duration": 9.985,
+      "seconds": 0.038157770643010736,
+      "allSeconds": [
+        0.038287416100502014,
+        0.03802812518551946
+      ],
+      "errors": 0,
+      "referenceWords": 29,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "672-122797-0073",
+      "reference": "THE WOOD FLAMED UP SPLENDIDLY UNDER THE LARGE BREWING COPPER AND IT SIGHED SO DEEPLY",
+      "transcript": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "duration": 8.205,
+      "seconds": 0.031653875252231956,
+      "allSeconds": [
+        0.031759250443428755,
+        0.031548500061035156
+      ],
+      "errors": 0,
+      "referenceWords": 15,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1188-133604-0031",
+      "reference": "THERE'S ONE AND THERE'S ANOTHER THE DUDLEY AND THE FLINT",
+      "transcript": "There's one and there's another the Dudley and the Flint.",
+      "duration": 4.25,
+      "seconds": 0.0249590000603348,
+      "allSeconds": [
+        0.02515866607427597,
+        0.024759334046393633
+      ],
+      "errors": 0,
+      "referenceWords": 10,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1221-135767-0002",
+      "reference": "AT THAT EPOCH OF PRISTINE SIMPLICITY HOWEVER MATTERS OF EVEN SLIGHTER PUBLIC INTEREST AND OF FAR LESS INTRINSIC WEIGHT THAN THE WELFARE OF HESTER AND HER CHILD WERE STRANGELY MIXED UP WITH THE DELIBERATIONS OF LEGISLATORS AND ACTS OF STATE",
+      "transcript": "At that epoch of pristine simplicity, however, matters of even slighter public interest, and of far less intrinsic weight than the welfare of Hester and her child, were strangely mixed up with the deliberations of legislators and acts of state.",
+      "duration": 16.12,
+      "seconds": 0.057905334047973156,
+      "allSeconds": [
+        0.05822908412665129,
+        0.057581583969295025
+      ],
+      "errors": 0,
+      "referenceWords": 40,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1284-1181-0002",
+      "reference": "THE HEAD OF THE PATCHWORK GIRL WAS THE MOST CURIOUS PART OF HER",
+      "transcript": "The head of the patchwork girl was the most curious part of her.",
+      "duration": 3.835,
+      "seconds": 0.07070752116851509,
+      "allSeconds": [
+        0.11802775040268898,
+        0.023387291934341192
+      ],
+      "errors": 0,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1320-122617-0002",
+      "reference": "IN OTHER WORDS WHILE HE HAD IMPLICIT FAITH IN THE ABILITY OF BALAAM'S ASS TO SPEAK HE WAS SOMEWHAT SKEPTICAL ON THE SUBJECT OF A BEAR'S SINGING AND YET HE HAD BEEN ASSURED OF THE LATTER ON THE TESTIMONY OF HIS OWN EXQUISITE ORGANS",
+      "transcript": "In other words, while he had implicit faith in the ability of Balaam's ass to speak, he was somewhat sceptical on the subject of a bear's singing, and yet he had been assured of the latter on the testimony of his own exquisite organs.",
+      "duration": 13.585,
+      "seconds": 0.05498279212042689,
+      "allSeconds": [
+        0.0550632500089705,
+        0.05490233423188329
+      ],
+      "errors": 1,
+      "referenceWords": 44,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1580-141083-0053",
+      "reference": "YOU HAVEN'T SEEN ANY OF THEM NO SIR",
+      "transcript": "You haven't seen any of them? No, sir.",
+      "duration": 4.015,
+      "seconds": 0.021935167023912072,
+      "allSeconds": [
+        0.02204420929774642,
+        0.021826124750077724
+      ],
+      "errors": 0,
+      "referenceWords": 8,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1995-1837-0025",
+      "reference": "SHE ROSE WITH A FLEETING GLANCE GATHERED THE SHAWL ROUND HER THEN GLIDING FORWARD WAVERING TREMULOUS SLIPPED ACROSS THE ROAD AND INTO THE SWAMP",
+      "transcript": "She rose with a fleeting glance, gathered the shawl around her, then, gliding forward, wavering, tremulous, slipped across the road and into the swamp.",
+      "duration": 9.5050625,
+      "seconds": 0.04145089606754482,
+      "allSeconds": [
+        0.04186208313331008,
+        0.041039709001779556
+      ],
+      "errors": 1,
+      "referenceWords": 24,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2300-131720-0002",
+      "reference": "THERE MESSRS JOHNSON AND HAMMER PUT INTO PRACTICE MANY OF THE IDEAS NOW STANDARD IN THE ART AND SECURED MUCH USEFUL DATA FOR THE WORK IN NEW YORK OF WHICH THE STORY HAS JUST BEEN TOLD",
+      "transcript": "There, Messiers Johnson and Hammer put into practice many of the ideas now standard in the art, and secured much useful data for the work in New York, of which the story has just been told.",
+      "duration": 13.115,
+      "seconds": 0.04660045774653554,
+      "allSeconds": [
+        0.046964749693870544,
+        0.046236165799200535
+      ],
+      "errors": 1,
+      "referenceWords": 36,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2830-3980-0002",
+      "reference": "HE WAS THE LAST TO TURN TO CHRIST",
+      "transcript": "He was the last to turn to Christ,",
+      "duration": 2.025,
+      "seconds": 0.016800187062472105,
+      "allSeconds": [
+        0.016733916010707617,
+        0.016866458114236593
+      ],
+      "errors": 0,
+      "referenceWords": 8,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2961-960-0002",
+      "reference": "IN THE SUPPOSED DEPTHS OF THIS DIALOGUE THE NEO PLATONISTS FOUND HIDDEN MEANINGS AND CONNECTIONS WITH THE JEWISH AND CHRISTIAN SCRIPTURES AND OUT OF THEM THEY ELICITED DOCTRINES QUITE AT VARIANCE WITH THE SPIRIT OF PLATO",
+      "transcript": "In the supposed depths of this dialogue the Neoplatonists found hidden meanings and connections with the Jewish and Christian scriptures and out of them they elicited doctrines quite at variance with the spirit of Plato",
+      "duration": 15.35,
+      "seconds": 0.053038146113976836,
+      "allSeconds": [
+        0.05344075011089444,
+        0.05263554211705923
+      ],
+      "errors": 2,
+      "referenceWords": 36,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3570-5694-0002",
+      "reference": "SUCH CONSUMPTION AS FALLS TO THE WOMEN IS MERELY INCIDENTAL TO THEIR WORK IT IS A MEANS TO THEIR CONTINUED LABOUR AND NOT A CONSUMPTION DIRECTED TO THEIR OWN COMFORT AND FULNESS OF LIFE",
+      "transcript": "Such consumption as falls through the women is merely incidental to their work it is a means to their continued labour, and not a consumption directed to their own comfort and fullness of life.",
+      "duration": 10.615,
+      "seconds": 0.04324489552527666,
+      "allSeconds": [
+        0.04360133269801736,
+        0.04288845835253596
+      ],
+      "errors": 2,
+      "referenceWords": 34,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3575-170457-0033",
+      "reference": "SATURDAY AFTER SATURDAY COMES ROUND AND I CAN HAVE NO HOPE OF HEARING YOUR KNOCK AT THE DOOR AND THEN BEING TOLD THAT MISS E IS COME OH DEAR",
+      "transcript": "Saturday after Saturday comes around, and I can have no hope of hearing your knock at the door, and then being told that Miss E is come. Oh dear",
+      "duration": 8.5,
+      "seconds": 0.03925179201178253,
+      "allSeconds": [
+        0.03942733397707343,
+        0.03907625004649162
+      ],
+      "errors": 1,
+      "referenceWords": 29,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3729-6852-0002",
+      "reference": "IN ORDER TO PLEASE HER I SPOKE TO HER OF THE ABBE CONTI AND I HAD OCCASION TO QUOTE TWO LINES OF THAT PROFOUND WRITER",
+      "transcript": "In order to please her, I spoke to her of the Abbey Conti, and I had occasion to quote two lines of that profound writer.",
+      "duration": 8.78,
+      "seconds": 0.035413645673543215,
+      "allSeconds": [
+        0.03540891595184803,
+        0.0354183753952384
+      ],
+      "errors": 1,
+      "referenceWords": 25,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4077-13754-0002",
+      "reference": "IT WAS THROUGH FLOYD'S ADVICE THAT BUCHANAN ORDERED THE MILITARY EXPEDITION TO UTAH OSTENSIBLY TO INSTALL CERTAIN FEDERAL OFFICIALS AND TO REPRESS AN ALLEGED INFANTILE REBELLION WHICH IN FACT HAD NEVER COME INTO EXISTENCE BUT IN REALITY TO FURTHER THE INTERESTS OF THE SECESSIONISTS",
+      "transcript": "It was through Floyd's advice that Buchanan ordered the military expedition to Utah, ostensibly to install certain Federal officials and to repress an alleged infantile rebellion, which in fact had never come into existence, but in reality to further the interests of the secessionists.",
+      "duration": 17.78,
+      "seconds": 0.0655412080232054,
+      "allSeconds": [
+        0.06623983290046453,
+        0.06484258314594626
+      ],
+      "errors": 0,
+      "referenceWords": 44,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4446-2275-0007",
+      "reference": "SHE PUSHED HIM TOWARD THE BIG CHAIR BY THE FIRE AND SAT DOWN ON A STOOL AT THE OPPOSITE SIDE OF THE HEARTH HER KNEES DRAWN UP TO HER CHIN LAUGHING LIKE A HAPPY LITTLE GIRL",
+      "transcript": "She pushed him toward the big chair by the fire, and sat down on a stool at the opposite side of the hearth, her knees drawn up to her chin, laughing like a happy little girl.",
+      "duration": 8.975,
+      "seconds": 0.04163054144009948,
+      "allSeconds": [
+        0.041643332690000534,
+        0.04161775019019842
+      ],
+      "errors": 0,
+      "referenceWords": 36,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4507-16021-0002",
+      "reference": "THUS IDLENESS IS THE MOTHER",
+      "transcript": "Thus, idleness is the mother.",
+      "duration": 3.185,
+      "seconds": 0.020359395537525415,
+      "allSeconds": [
+        0.020604582969099283,
+        0.020114208105951548
+      ],
+      "errors": 0,
+      "referenceWords": 5,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4970-29095-0002",
+      "reference": "WELL MOTHER SAID THE YOUNG STUDENT LOOKING UP WITH A SHADE OF IMPATIENCE",
+      "transcript": "Well, mother, said the young student, looking up with a shade of impatience.",
+      "duration": 5.48,
+      "seconds": 0.027028375072404742,
+      "allSeconds": [
+        0.02696387516334653,
+        0.027092874981462955
+      ],
+      "errors": 0,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5105-28241-0002",
+      "reference": "THE LATE ASTOUNDING EVENTS HOWEVER HAD RENDERED PROCOPE MANIFESTLY UNEASY AND NOT THE LESS SO FROM HIS CONSCIOUSNESS THAT THE COUNT SECRETLY PARTOOK OF HIS OWN ANXIETY",
+      "transcript": "The late astounding events, however, had rendered Procope manifestly uneasy, and not the less so from his consciousness that the Count secretly partook of his own anxiety.",
+      "duration": 10.96,
+      "seconds": 0.044225166318938136,
+      "allSeconds": [
+        0.04419520776718855,
+        0.04425512487068772
+      ],
+      "errors": 0,
+      "referenceWords": 27,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5142-36377-0002",
+      "reference": "THE SOUND OF AN IMPERATIVE AND UNCOMPROMISING BELL RECALLED ME IN DUE TIME TO THE REGIONS OF REALITY",
+      "transcript": "The sound of an imperative and uncompromising bell recalled me in due time to the regions of reality,",
+      "duration": 5.62,
+      "seconds": 0.028763083508238196,
+      "allSeconds": [
+        0.028626957908272743,
+        0.02889920910820365
+      ],
+      "errors": 0,
+      "referenceWords": 18,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5683-32865-0002",
+      "reference": "HE HAD HIS HAND UPON LAKE'S SHOULDER",
+      "transcript": "He had his hand upon Lake's shoulder.",
+      "duration": 2.78,
+      "seconds": 0.02036072895862162,
+      "allSeconds": [
+        0.02069054078310728,
+        0.02003091713413596
+      ],
+      "errors": 0,
+      "referenceWords": 7,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "6829-68769-0002",
+      "reference": "I CAN'T SEE IT IN THAT LIGHT SAID THE OLD LAWYER",
+      "transcript": "I can't see it in that light, said the old lawyer,",
+      "duration": 3.075,
+      "seconds": 0.022032270906493068,
+      "allSeconds": [
+        0.0219179168343544,
+        0.022146624978631735
+      ],
+      "errors": 0,
+      "referenceWords": 11,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "6930-75918-0002",
+      "reference": "CONGRATULATIONS WERE POURED IN UPON THE PRINCESS EVERYWHERE DURING HER JOURNEY",
+      "transcript": "Congratulations were poured in upon the Princess everywhere during her journey.",
+      "duration": 5.025,
+      "seconds": 0.025734624825417995,
+      "allSeconds": [
+        0.025740041863173246,
+        0.025729207787662745
+      ],
+      "errors": 0,
+      "referenceWords": 11,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7021-79730-0003",
+      "reference": "AS THE CHAISE DRIVES AWAY MARY STANDS BEWILDERED AND PERPLEXED ON THE DOOR STEP HER MIND IN A TUMULT OF EXCITEMENT IN WHICH HATRED OF THE DOCTOR DISTRUST AND SUSPICION OF HER MOTHER DISAPPOINTMENT VEXATION AND ILL HUMOR SURGE AND SWELL AMONG THOSE DELICATE ORGANIZATIONS ON WHICH THE STRUCTURE AND DEVELOPMENT OF THE SOUL SO CLOSELY DEPEND DOING PERHAPS AN IRREPARABLE INJURY",
+      "transcript": "As the chase drives away, Mary stands bewildered and perplexed on the doorstep, her mind in a tumult of excitement, in which hatred of the doctor, distrust, and suspicion of her mother, disappointment, vexation, and ill humor surge and swell among those delegate organizations on which the structure and development of the soul so closely depend, doing perhaps an irreparable injury.",
+      "duration": 32.88,
+      "seconds": 0.14033818687312305,
+      "allSeconds": [
+        0.16513304086402059,
+        0.11554333288222551
+      ],
+      "errors": 4,
+      "referenceWords": 62,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7127-75947-0002",
+      "reference": "DO YOU THINK SO SHE REPLIED WITH INDIFFERENCE",
+      "transcript": "Do you think so? she replied, with indifference.",
+      "duration": 3.235,
+      "seconds": 0.021723271114751697,
+      "allSeconds": [
+        0.02224962506443262,
+        0.021196917165070772
+      ],
+      "errors": 0,
+      "referenceWords": 8,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7176-92135-0002",
+      "reference": "BUT EVEN THE UNSUCCESSFUL DRAMATIST HAS HIS MOMENTS",
+      "transcript": "But even the unsuccessful dramatist has his moments,",
+      "duration": 3.415,
+      "seconds": 0.021755291847512126,
+      "allSeconds": [
+        0.02179287513718009,
+        0.021717708557844162
+      ],
+      "errors": 0,
+      "referenceWords": 8,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7729-102255-0002",
+      "reference": "THAT SUMMER'S EMIGRATION HOWEVER BEING MAINLY FROM THE FREE STATES GREATLY CHANGED THE RELATIVE STRENGTH OF THE TWO PARTIES",
+      "transcript": "That summer's emigration, however, being mainly from the free states, greatly changed the relative strengths of the two parties.",
+      "duration": 8.3,
+      "seconds": 0.035329896258190274,
+      "allSeconds": [
+        0.035168417263776064,
+        0.035491375252604485
+      ],
+      "errors": 1,
+      "referenceWords": 19,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8224-274384-0002",
+      "reference": "THEY INFORMED THE ENGLISH PARLIAMENT OF THIS UNEXPECTED INCIDENT AND ASSURED THEM THAT THEY HAD ENTERED INTO NO PRIVATE TREATY WITH THE KING",
+      "transcript": "They informed the English Parliament of this unexpected incident, and assured them that they had entered into no private treaty with the King.",
+      "duration": 9.815,
+      "seconds": 0.035785708110779524,
+      "allSeconds": [
+        0.03583404095843434,
+        0.035737375263124704
+      ],
+      "errors": 0,
+      "referenceWords": 23,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8230-279154-0002",
+      "reference": "WHETHER OR NOT THIS PRINCIPLE IS LIABLE TO EXCEPTIONS EVERYONE WOULD AGREE THAT IS HAS A BROAD MEASURE OF TRUTH THOUGH THE WORD EXACTLY MIGHT SEEM AN OVERSTATEMENT AND IT MIGHT SEEM MORE CORRECT TO SAY THAT IDEAS APPROXIMATELY REPRESENT IMPRESSIONS",
+      "transcript": "Whether or not this principle is liable to exceptions, every one would agree that it has a broad measure of truth, though the word exactly might seem an overstatement, and it might seem more correct to say that ideas approximately represent impressions.",
+      "duration": 16.475,
+      "seconds": 0.057843832997605205,
+      "allSeconds": [
+        0.05814620805904269,
+        0.05754145793616772
+      ],
+      "errors": 3,
+      "referenceWords": 41,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8455-210777-0030",
+      "reference": "MISTER NEVERBEND BEGAN THE CAPTAIN AND I OBSERVED THAT UP TO THAT MOMENT HE HAD GENERALLY ADDRESSED ME AS PRESIDENT IT CANNOT BE DENIED THAT WE HAVE COME HERE ON AN UNPLEASANT MISSION",
+      "transcript": "mister Neverbend, began the captain, and I observed that up to that moment he had generally addressed me as President. It cannot be denied that we have come here on an unpleasant mission.",
+      "duration": 12.845,
+      "seconds": 0.045364666962996125,
+      "allSeconds": [
+        0.04607649985700846,
+        0.04465283406898379
+      ],
+      "errors": 0,
+      "referenceWords": 33,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8463-294828-0024",
+      "reference": "WE DON'T KNOW WHERE IT WILL TAKE US",
+      "transcript": "We don't know where it will take us.",
+      "duration": 1.975,
+      "seconds": 0.016477999510243535,
+      "allSeconds": [
+        0.016583332791924477,
+        0.016372666228562593
+      ],
+      "errors": 0,
+      "referenceWords": 8,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8555-292519-0002",
+      "reference": "VENICE",
+      "transcript": "Venice.",
+      "duration": 1.81,
+      "seconds": 0.016285770805552602,
+      "allSeconds": [
+        0.016615333035588264,
+        0.01595620857551694
+      ],
+      "errors": 0,
+      "referenceWords": 1,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "61-70968-0024",
+      "reference": "SPOKE THE SQUIRE LOSING ALL PATIENCE AND IT WAS TO YOU THAT I GAVE ANOTHER PURSE IN CONSOLATION",
+      "transcript": "spoke the squire, losing all patience. And it was to you that I gave another person consolation,",
+      "duration": 6.025,
+      "seconds": 0.02853991719894111,
+      "allSeconds": [
+        0.028509417083114386,
+        0.028570417314767838
+      ],
+      "errors": 2,
+      "referenceWords": 18,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "121-127105-0025",
+      "reference": "THE DEPARTING LADIES WHO HAD SAID THEY WOULD STAY DIDN'T OF COURSE THANK HEAVEN STAY THEY DEPARTED IN CONSEQUENCE OF ARRANGEMENTS MADE IN A RAGE OF CURIOSITY AS THEY PROFESSED PRODUCED BY THE TOUCHES WITH WHICH HE HAD ALREADY WORKED US UP",
+      "transcript": "The departing ladies who had said they would stay didn't, of course, thank Heaven, stay they departed, in consequence of arrangements made. In a rage of curiosity, as they professed, produced by the touches with which he had already worked us up.",
+      "duration": 16.065,
+      "seconds": 0.059808499878272414,
+      "allSeconds": [
+        0.06000920897349715,
+        0.059607790783047676
+      ],
+      "errors": 0,
+      "referenceWords": 42,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "237-134493-0015",
+      "reference": "THERE WAS SOMETHING INDIVIDUAL ABOUT THE GREAT FARM A MOST UNUSUAL TRIMNESS AND CARE FOR DETAIL",
+      "transcript": "There was something individual about the great farm, a most unusual trimness and care for detail.",
+      "duration": 6.55,
+      "seconds": 0.027651646174490452,
+      "allSeconds": [
+        0.027842834126204252,
+        0.02746045822277665
+      ],
+      "errors": 0,
+      "referenceWords": 16,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "260-123286-0003",
+      "reference": "YOU SEEM ANXIOUS MY UNCLE I SAID SEEING HIM CONTINUALLY WITH HIS GLASS TO HIS EYE ANXIOUS",
+      "transcript": "You seem anxious, my uncle, I said, seeing him continually with his glass to his eye. Anxious",
+      "duration": 7.37,
+      "seconds": 0.030360603937879205,
+      "allSeconds": [
+        0.03030575020238757,
+        0.030415457673370838
+      ],
+      "errors": 0,
+      "referenceWords": 17,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "672-122797-0074",
+      "reference": "HOWEVER THAT WAS OVER NOW THE TREE GONE THE STORY AT AN END",
+      "transcript": "However, that was over now the tree gone, the story at an end.",
+      "duration": 8.73,
+      "seconds": 0.030201104003936052,
+      "allSeconds": [
+        0.030587750021368265,
+        0.02981445798650384
+      ],
+      "errors": 0,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1188-133604-0032",
+      "reference": "IT IS ONLY A PENCIL OUTLINE BY EDWARD BURNE JONES IN ILLUSTRATION OF THE STORY OF PSYCHE IT IS THE INTRODUCTION OF PSYCHE AFTER ALL HER TROUBLES INTO HEAVEN",
+      "transcript": "It is only a pencil outline by Edward Byrne Jones in illustration of the story of Psyche. It is the introduction of Psyche, after all her troubles, into heaven.",
+      "duration": 10.985,
+      "seconds": 0.04257391719147563,
+      "allSeconds": [
+        0.043034250382333994,
+        0.042113584000617266
+      ],
+      "errors": 1,
+      "referenceWords": 29,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1221-135767-0003",
+      "reference": "THE PERIOD WAS HARDLY IF AT ALL EARLIER THAN THAT OF OUR STORY WHEN A DISPUTE CONCERNING THE RIGHT OF PROPERTY IN A PIG NOT ONLY CAUSED A FIERCE AND BITTER CONTEST IN THE LEGISLATIVE BODY OF THE COLONY BUT RESULTED IN AN IMPORTANT MODIFICATION OF THE FRAMEWORK ITSELF OF THE LEGISLATURE",
+      "transcript": "The period was hardly, if at all, earlier than that of our story, when a dispute concerning the right of property in a pig not only caused a fierce and bitter contest in the legislative body of the colony, but resulted in an important modification of the framework itself of the legislature.",
+      "duration": 18.63,
+      "seconds": 0.0651230625808239,
+      "allSeconds": [
+        0.0652890419587493,
+        0.0649570832028985
+      ],
+      "errors": 0,
+      "referenceWords": 52,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1284-1181-0003",
+      "reference": "THE HAIR WAS OF BROWN YARN AND HUNG DOWN ON HER NECK IN SEVERAL NEAT BRAIDS",
+      "transcript": "The hair was of brown yarn and hung down on her neck in several neat braids,",
+      "duration": 4.505,
+      "seconds": 0.02590300003066659,
+      "allSeconds": [
+        0.025760124903172255,
+        0.026045875158160925
+      ],
+      "errors": 0,
+      "referenceWords": 16,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1320-122617-0003",
+      "reference": "THERE WAS SOMETHING IN HIS AIR AND MANNER THAT BETRAYED TO THE SCOUT THE UTTER CONFUSION OF THE STATE OF HIS MIND",
+      "transcript": "There was something in his air and manner that betrayed to the scout the utter confusion of the state of his mind.",
+      "duration": 6.285,
+      "seconds": 0.029853582847863436,
+      "allSeconds": [
+        0.030078040901571512,
+        0.02962912479415536
+      ],
+      "errors": 0,
+      "referenceWords": 22,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1580-141084-0000",
+      "reference": "IT WAS THE INDIAN WHOSE DARK SILHOUETTE APPEARED SUDDENLY UPON HIS BLIND",
+      "transcript": "It was the Indian, whose dark silhouette appeared suddenly upon his blind.",
+      "duration": 4.615,
+      "seconds": 0.025850645266473293,
+      "allSeconds": [
+        0.026206040754914284,
+        0.025495249778032303
+      ],
+      "errors": 0,
+      "referenceWords": 12,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "1995-1837-0026",
+      "reference": "SHE HAD BEEN BORN WITHIN ITS BORDERS WITHIN ITS BORDERS SHE HAD LIVED AND GROWN AND WITHIN ITS BORDERS SHE HAD MET HER LOVE",
+      "transcript": "She had been born within its borders, within its borders she had lived and grown, and within its borders she had met her love.",
+      "duration": 8.095,
+      "seconds": 0.03384675062261522,
+      "allSeconds": [
+        0.03340229205787182,
+        0.03429120918735862
+      ],
+      "errors": 0,
+      "referenceWords": 24,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2300-131720-0003",
+      "reference": "THE DYNAMO ELECTRIC MACHINE THOUGH SMALL WAS ROBUST FOR UNDER ALL THE VARYING SPEEDS OF WATER POWER AND THE VICISSITUDES OF THE PLANT TO WHICH IT BELONGED IT CONTINUED IN ACTIVE USE UNTIL EIGHTEEN NINETY NINE SEVENTEEN YEARS",
+      "transcript": "The Dynamo electric machine, though small, was robust, for under all the varying speeds of water power and the vicissitudes of the plant to which it belonged, it continued in active use until eighteen ninety nine, seventeen years.",
+      "duration": 16.76,
+      "seconds": 0.05721887480467558,
+      "allSeconds": [
+        0.057949124835431576,
+        0.05648862477391958
+      ],
+      "errors": 0,
+      "referenceWords": 38,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "2830-3980-0003",
+      "reference": "PAUL CAME LATER AND IS BENEATH US",
+      "transcript": "Paul came later and is beneath us.",
+      "duration": 2.48,
+      "seconds": 0.01778327045030892,
+      "allSeconds": [
+        0.017897875048220158,
+        0.01766866585239768
+      ],
+      "errors": 0,
+      "referenceWords": 7,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3570-5694-0003",
+      "reference": "WITH A FURTHER ADVANCE IN CULTURE THIS TABU MAY CHANGE INTO SIMPLE CUSTOM OF A MORE OR LESS RIGOROUS CHARACTER BUT WHATEVER BE THE THEORETICAL BASIS OF THE DISTINCTION WHICH IS MAINTAINED WHETHER IT BE A TABU OR A LARGER CONVENTIONALITY THE FEATURES OF THE CONVENTIONAL SCHEME OF CONSUMPTION DO NOT CHANGE EASILY",
+      "transcript": "With a further advance in culture, this taboo may change into simple custom of a more or less rigorous character, but whatever be the theoretical basis of the distinction which is maintained, whether it be a taboo or a larger conventionality, the features of the conventional scheme of consumption do not change easily.",
+      "duration": 19.025,
+      "seconds": 0.06819193763658404,
+      "allSeconds": [
+        0.06859841709956527,
+        0.06778545817360282
+      ],
+      "errors": 2,
+      "referenceWords": 53,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3575-170457-0034",
+      "reference": "IN THIS MONOTONOUS LIFE OF MINE THAT WAS A PLEASANT EVENT",
+      "transcript": "In this monotonous life of mine that was a pleasant event.",
+      "duration": 3.495,
+      "seconds": 0.022673479514196515,
+      "allSeconds": [
+        0.023088291753083467,
+        0.022258667275309563
+      ],
+      "errors": 0,
+      "referenceWords": 11,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "3729-6852-0003",
+      "reference": "MADAM CORRECTED ME WITH A PATRONIZING AIR FOR MY PRONUNCIATION OF THE WORD SCEVRA WHICH MEANS DIVIDED SAYING THAT IT OUGHT TO BE PRONOUNCED SCEURA AND SHE ADDED THAT I OUGHT TO BE VERY GLAD TO HAVE LEARNED SO MUCH ON THE FIRST DAY OF MY ARRIVAL IN PARIS TELLING ME THAT IT WOULD BE AN IMPORTANT DAY IN MY LIFE",
+      "transcript": "Madame corrected me with a patronizing air for my pronunciation of the word skevres, which means divided, saying that it ought to be pronounced scura, and she added that I ought to be very glad to have learned so much on the first day of my arrival in Paris, telling me that it would be an important day in my life.",
+      "duration": 21.48,
+      "seconds": 0.06714729149825871,
+      "allSeconds": [
+        0.06799783324822783,
+        0.06629674974828959
+      ],
+      "errors": 3,
+      "referenceWords": 61,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4077-13754-0003",
+      "reference": "MOREOVER HAD THE PEOPLE BEEN INCLINED TO REBELLION WHAT GREATER OPPORTUNITY COULD THEY HAVE WISHED",
+      "transcript": "Moreover, had the people been inclined to rebellion, what greater opportunity could they have wished?",
+      "duration": 5.68,
+      "seconds": 0.027357249753549695,
+      "allSeconds": [
+        0.02742870757356286,
+        0.02728579193353653
+      ],
+      "errors": 0,
+      "referenceWords": 15,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4446-2275-0008",
+      "reference": "WHEN DID YOU COME BARTLEY AND HOW DID IT HAPPEN YOU HAVEN'T SPOKEN A WORD",
+      "transcript": "When did you come, Bartley? And how did it happen? You haven't spoken a word.",
+      "duration": 4.13,
+      "seconds": 0.02643285389058292,
+      "allSeconds": [
+        0.026702291797846556,
+        0.026163415983319283
+      ],
+      "errors": 0,
+      "referenceWords": 15,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4507-16021-0003",
+      "reference": "SHE HAS A SON THEFT AND A DAUGHTER HUNGER",
+      "transcript": "She has a son, theft, and a daughter, hunger.",
+      "duration": 4.895,
+      "seconds": 0.02325414610095322,
+      "allSeconds": [
+        0.023349666967988014,
+        0.02315862523391843
+      ],
+      "errors": 0,
+      "referenceWords": 9,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "4970-29095-0003",
+      "reference": "I HOPE THEE TOLD THE ELDERS THAT FATHER AND I ARE RESPONSIBLE FOR THE PIANO AND THAT MUCH AS THEE LOVES MUSIC THEE IS NEVER IN THE ROOM WHEN IT IS PLAYED",
+      "transcript": "I hope thee told the elders that father and I are responsible for the piano, and that, much as thee loves music, thee is never in the room when it is played.",
+      "duration": 10.02,
+      "seconds": 0.03982722945511341,
+      "allSeconds": [
+        0.03975208383053541,
+        0.03990237507969141
+      ],
+      "errors": 0,
+      "referenceWords": 32,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5105-28241-0003",
+      "reference": "STEAM UP AND CANVAS SPREAD THE SCHOONER STARTED EASTWARDS",
+      "transcript": "Steam up and canvas spread the schooner started eastwards.",
+      "duration": 3.98,
+      "seconds": 0.02413700008764863,
+      "allSeconds": [
+        0.024494250304996967,
+        0.023779749870300293
+      ],
+      "errors": 0,
+      "referenceWords": 9,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5142-36377-0003",
+      "reference": "AMBROSE MET ME AT THE BOTTOM OF THE STAIRS AND SHOWED ME THE WAY TO THE SUPPER ROOM",
+      "transcript": "Ambrose met me at the bottom of the stairs and showed me the way to the supper room.",
+      "duration": 3.91,
+      "seconds": 0.026219124672934413,
+      "allSeconds": [
+        0.025856207590550184,
+        0.02658204175531864
+      ],
+      "errors": 0,
+      "referenceWords": 18,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "5683-32865-0003",
+      "reference": "THEY ARE COUSINS YOU KNOW WE ARE ALL COUSINS",
+      "transcript": "They are cousins, you know. We are all cousins.",
+      "duration": 3.51,
+      "seconds": 0.020872958470135927,
+      "allSeconds": [
+        0.021200249902904034,
+        0.02054566703736782
+      ],
+      "errors": 0,
+      "referenceWords": 9,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "6829-68769-0003",
+      "reference": "IT WAS A DELIBERATE THEFT FROM HIS EMPLOYERS TO PROTECT A GIRL HE LOVED",
+      "transcript": "It was a deliberate theft from his employers to protect a girl he loved,",
+      "duration": 4.215,
+      "seconds": 0.025415188167244196,
+      "allSeconds": [
+        0.025556667242199183,
+        0.02527370909228921
+      ],
+      "errors": 0,
+      "referenceWords": 14,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "6930-75918-0003",
+      "reference": "FROM THE RESPECT PAID HER ON ALL SIDES SHE SEEMED LIKE A QUEEN AND FROM THE ADORATION WITH WHICH SHE WAS TREATED BY TWO OR THREE SHE APPEARED AN OBJECT OF WORSHIP THE QUEEN MOTHER GAVE THE FRENCH THE MOST AFFECTIONATE RECEPTION FRANCE WAS HER NATIVE COUNTRY AND SHE HAD SUFFERED TOO MUCH UNHAPPINESS IN ENGLAND FOR ENGLAND TO HAVE MADE HER FORGET FRANCE",
+      "transcript": "from the respect paid her on all sides she seemed like a queen, and from the adoration with which she was treated by two or three, she appeared an object of worship. The Queen Mother gave the French the most affectionate reception. France was her native country, and she had suffered too much unhappiness in England for England to have made her forget France.",
+      "duration": 23.315,
+      "seconds": 0.06979227066040039,
+      "allSeconds": [
+        0.07078170822933316,
+        0.06880283309146762
+      ],
+      "errors": 0,
+      "referenceWords": 64,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7021-79730-0004",
+      "reference": "THE MOTHER AS SOON AS THE CHAISE IS SO FAR TURNED THAT MARY CAN NO LONGER WATCH THE EXPRESSION OF HER COUNTENANCE GOES AWAY FROM THE DOOR WITH A SMILE OF COMPLACENCY AND SATISFACTION UPON HER FACE AT THE INGENUITY AND SUCCESS OF HER LITTLE ARTIFICE",
+      "transcript": "The mother, as soon as the chase is so far turned that Mary can no longer watch the expression of her counce, goes away from the door with a smile of complacency and satisfaction on her face at the ingenuity and success of her little artifice.",
+      "duration": 17.945,
+      "seconds": 0.05863441713154316,
+      "allSeconds": [
+        0.05887016700580716,
+        0.05839866725727916
+      ],
+      "errors": 3,
+      "referenceWords": 46,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7127-75947-0003",
+      "reference": "YES THE CHARACTER WHICH YOUR ROYAL HIGHNESS ASSUMED IS IN PERFECT HARMONY WITH YOUR OWN",
+      "transcript": "Yes, the character which your Royal Highness assumed is in perfect harmony with your own.",
+      "duration": 5.98,
+      "seconds": 0.02945725037716329,
+      "allSeconds": [
+        0.02961504179984331,
+        0.02929945895448327
+      ],
+      "errors": 0,
+      "referenceWords": 15,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7176-92135-0003",
+      "reference": "YOUR PLAY MUST BE NOT MERELY A GOOD PLAY BUT A SUCCESSFUL ONE",
+      "transcript": "Your play must be not merely a good play, but a successful one.",
+      "duration": 3.955,
+      "seconds": 0.023422000231221318,
+      "allSeconds": [
+        0.023392292205244303,
+        0.023451708257198334
+      ],
+      "errors": 0,
+      "referenceWords": 13,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "7729-102255-0003",
+      "reference": "FOR GENERAL SERVICE THEREFORE REQUIRING NO SPECIAL EFFORT THE NUMERICAL STRENGTH OF THE FACTIONS WAS ABOUT EQUAL WHILE ON EXTRAORDINARY OCCASIONS THE TWO THOUSAND BORDER RUFFIAN RESERVE LYING A LITTLE FARTHER BACK FROM THE STATE LINE COULD AT ANY TIME EASILY TURN THE SCALE",
+      "transcript": "For general service, therefore, requiring no special effort, the numerical strength of the factions was about equal, while on extraordinary occasions the two thousand border ruffian reserve lying a little farther back from the state line could at any time easily turn the scale.",
+      "duration": 19.8050625,
+      "seconds": 0.06585756270214915,
+      "allSeconds": [
+        0.06607312522828579,
+        0.06564200017601252
+      ],
+      "errors": 0,
+      "referenceWords": 44,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8224-274384-0003",
+      "reference": "OR HATH HE GIVEN US ANY GIFT",
+      "transcript": "Or hath He given us any gift?",
+      "duration": 3.87,
+      "seconds": 0.02147920848801732,
+      "allSeconds": [
+        0.021537709049880505,
+        0.021420707926154137
+      ],
+      "errors": 0,
+      "referenceWords": 7,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8230-279154-0003",
+      "reference": "AND WHAT SORT OF EVIDENCE IS LOGICALLY POSSIBLE",
+      "transcript": "And what sort of evidence is logically possible?",
+      "duration": 3.195,
+      "seconds": 0.02132016676478088,
+      "allSeconds": [
+        0.021563708782196045,
+        0.021076624747365713
+      ],
+      "errors": 0,
+      "referenceWords": 8,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8455-210777-0031",
+      "reference": "YOU HAVE RECEIVED US WITH ALL THAT COURTESY AND HOSPITALITY FOR WHICH YOUR CHARACTER IN ENGLAND STANDS SO HIGH",
+      "transcript": "You have received us with all that courtesy and hospitality for which your character in England stands so high.",
+      "duration": 7.67,
+      "seconds": 0.030332020949572325,
+      "allSeconds": [
+        0.03044587466865778,
+        0.03021816723048687
+      ],
+      "errors": 0,
+      "referenceWords": 19,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8463-294828-0025",
+      "reference": "BUT WE'RE GOING JUST THE SAME",
+      "transcript": "But we're going just the same, said",
+      "duration": 1.99,
+      "seconds": 0.017365938052535057,
+      "allSeconds": [
+        0.017473458778113127,
+        0.017258417326956987
+      ],
+      "errors": 1,
+      "referenceWords": 6,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "8555-292519-0003",
+      "reference": "IN A SUNSET GLOWING OF CRIMSON AND GOLD SHE LIES THE GLORY OF THE WORLD A BEACHED KING'S GALLEY WHOSE SAILS ARE FURLED WHO IS HUNG WITH TAPESTRIES RICH AND OLD",
+      "transcript": "In a sunset glowing of crimson and gold She lies, The glory of the world, A beached king's galley, Whose sails are furled, Who is hung with tapestries rich and old,",
+      "duration": 14.58,
+      "seconds": 0.05034449999220669,
+      "allSeconds": [
+        0.05076091689988971,
+        0.04992808308452368
+      ],
+      "errors": 0,
+      "referenceWords": 31,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "61-70968-0025",
+      "reference": "COME TO ME MEN HERE HERE HE RAISED HIS VOICE STILL LOUDER",
+      "transcript": "Come to me, men here here He raised his voice still louder,",
+      "duration": 4.41,
+      "seconds": 0.02486481238156557,
+      "allSeconds": [
+        0.025214874651283026,
+        0.024514750111848116
+      ],
+      "errors": 0,
+      "referenceWords": 12,
+      "repeatTextIdentical": true
+    },
+    {
+      "id": "121-127105-0026",
+      "reference": "THE FIRST OF THESE TOUCHES CONVEYED THAT THE WRITTEN STATEMENT TOOK UP THE TALE AT A POINT AFTER IT HAD IN A MANNER BEGUN",
+      "transcript": "The first of these touches conveyed that the written statement took up the tale at a point after it had, in a manner, begun.",
+      "duration": 7.53,
+      "seconds": 0.03229608363471925,
+      "allSeconds": [
+        0.03251370834186673,
+        0.032078458927571774
+      ],
+      "errors": 0,
+      "referenceWords": 24,
+      "repeatTextIdentical": true
+    }
+  ],
+  "note": "Warm isolated-process measurement. Other apps may affect speed. Fixed multi-speaker subset of LibriSpeech test-clean. Read English, not conversational/noisy/multilingual dictation; not a full LibriSpeech score. Full clips are retained so reference text remains aligned. WER uses the first transcript per clip; repeated passes measure median warm latency. Repeat transcript differences are flagged in clip records."
+}

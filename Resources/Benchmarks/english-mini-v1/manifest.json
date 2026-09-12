@@ -1,0 +1,44 @@
+{
+  "id": "english-mini-v1",
+  "name": "English mini \u00b7 5 clips",
+  "description": "Small clean read-speech smoke test; one speaker. Not a full LibriSpeech score or conversational accuracy guarantee.",
+  "dataset": "hf-internal-testing/librispeech_asr_dummy",
+  "revision": "5be91486e11a2d616f4ec5db8d3fd248585ac07a",
+  "config": "clean",
+  "split": "validation",
+  "license": "CC-BY-4.0",
+  "source": "https://www.openslr.org/12",
+  "attribution": "LibriSpeech by Vassil Panayotov, Guoguo Chen, Daniel Povey, and Sanjeev Khudanpur. Derived from LibriVox recordings. Five unmodified audio clips redistributed with their reference text.",
+  "clips": [
+    {
+      "id": "1272-128104-0000",
+      "file": "1272-128104-0000.flac",
+      "reference": "MISTER QUILTER IS THE APOSTLE OF THE MIDDLE CLASSES AND WE ARE GLAD TO WELCOME HIS GOSPEL",
+      "sha256": "4e25e22555cd16e90edb0a3b49fdcf1fe652b2a1250ab643634db33895c75b41"
+    },
+    {
+      "id": "1272-128104-0001",
+      "file": "1272-128104-0001.flac",
+      "reference": "NOR IS MISTER QUILTER'S MANNER LESS INTERESTING THAN HIS MATTER",
+      "sha256": "46a9d58622b4675b29564da2d9ba73e702241c5fa969f12c387cad4aa984276a"
+    },
+    {
+      "id": "1272-128104-0002",
+      "file": "1272-128104-0002.flac",
+      "reference": "HE TELLS US THAT AT THIS FESTIVE SEASON OF THE YEAR WITH CHRISTMAS AND ROAST BEEF LOOMING BEFORE US SIMILES DRAWN FROM EATING AND ITS RESULTS OCCUR MOST READILY TO THE MIND",
+      "sha256": "59bf7bb1129c11734a8dd362ad52b4e10ae31c03f0879fc92f7107ecd513513f"
+    },
+    {
+      "id": "1272-128104-0003",
+      "file": "1272-128104-0003.flac",
+      "reference": "HE HAS GRAVE DOUBTS WHETHER SIR FREDERICK LEIGHTON'S WORK IS REALLY GREEK AFTER ALL AND CAN DISCOVER IN IT BUT LITTLE OF ROCKY ITHACA",
+      "sha256": "60d72657439cd3092fc2313efe0fabd31f0cd2f28f8ca46a21380c290b2e031d"
+    },
+    {
+      "id": "1272-128104-0004",
+      "file": "1272-128104-0004.flac",
+      "reference": "LINNELL'S PICTURES ARE A SORT OF UP GUARDS AND AT EM PAINTINGS AND MASON'S EXQUISITE IDYLLS ARE AS NATIONAL AS A JINGO POEM MISTER BIRKET FOSTER'S LANDSCAPES SMILE AT ONE MUCH IN THE SAME WAY THAT MISTER CARKER USED TO FLASH HIS TEETH AND MISTER JOHN COLLIER GIVES HIS SITTER A CHEERFUL SLAP ON THE BACK BEFORE HE SAYS LIKE A SHAMPOOER IN A TURKISH BATH NEXT MAN",
+      "sha256": "07244790e9a8300bfcbf12c28ac5230792e75238d03b2ac167a72bf3943c5404"
+    }
+  ]
+}

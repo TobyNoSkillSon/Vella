@@ -1,0 +1,160 @@
+[
+  {
+    "id": "Qwen3-ASR-1.7B-bf16",
+    "name": "Qwen3 ASR \u00b7 1.7B",
+    "quantization": "BF16",
+    "repository": "mlx-community/Qwen3-ASR-1.7B-bf16",
+    "revision": "e1f6c266914abc5a46e8756e02580f834a6cf8a7",
+    "downloadBytes": 4080710353,
+    "architecture": "qwen3_asr",
+    "license": "apache-2.0",
+    "recommendation": "Current quality baseline",
+    "recommended": false
+  },
+  {
+    "id": "Qwen3-ASR-1.7B-8bit",
+    "name": "Qwen3 ASR \u00b7 1.7B",
+    "quantization": "8-bit",
+    "repository": "mlx-community/Qwen3-ASR-1.7B-8bit",
+    "revision": "a8379a2e2f9e313c9292cdf1af4055ab56d50d55",
+    "downloadBytes": 2467859030,
+    "architecture": "qwen3_asr",
+    "license": "apache-2.0",
+    "recommendation": "Middle ground",
+    "recommended": false
+  },
+  {
+    "id": "Qwen3-ASR-1.7B-4bit",
+    "name": "Qwen3 ASR \u00b7 1.7B",
+    "quantization": "4-bit",
+    "repository": "mlx-community/Qwen3-ASR-1.7B-4bit",
+    "revision": "78a389c776a5483b2d0d4ea5494e11012e0d6159",
+    "downloadBytes": 1607633106,
+    "architecture": "qwen3_asr",
+    "license": "apache-2.0",
+    "recommendation": "Smaller download",
+    "recommended": true
+  },
+  {
+    "id": "whisper-large-v3-asr-fp16",
+    "name": "Whisper large-v3",
+    "quantization": "FP16",
+    "repository": "mlx-community/whisper-large-v3-asr-fp16",
+    "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
+    "downloadBytes": 3087749956,
+    "architecture": "whisper",
+    "license": "apache-2.0",
+    "recommendation": "Alternative to compare",
+    "recommended": false
+  },
+  {
+    "id": "whisper-large-v3-8bit",
+    "name": "Whisper large-v3",
+    "quantization": "8-bit",
+    "repository": "mlx-community/whisper-large-v3-8bit",
+    "revision": "7fede54fd97b154a4f5e476646484fc023b1bcdf",
+    "downloadBytes": 1650093348,
+    "architecture": "whisper",
+    "license": "apache-2.0",
+    "recommendation": "Quantized alternative",
+    "processorSource": {
+      "repository": "mlx-community/whisper-large-v3-asr-fp16",
+      "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
+      "files": [
+        "preprocessor_config.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "special_tokens_map.json",
+        "added_tokens.json",
+        "normalizer.json",
+        "vocab.json",
+        "merges.txt"
+      ]
+    },
+    "recommended": true
+  },
+  {
+    "id": "whisper-large-v3-asr-4bit",
+    "name": "Whisper large-v3",
+    "quantization": "4-bit",
+    "repository": "mlx-community/whisper-large-v3-asr-4bit",
+    "revision": "762b1efb49eb1d10b244236e896425deec3d6a95",
+    "downloadBytes": 882232654,
+    "architecture": "whisper",
+    "license": "apache-2.0",
+    "recommendation": "Measured on the shared 20-minute clean-English suite; see metric tooltips",
+    "recommended": false
+  },
+  {
+    "id": "parakeet-tdt-0.6b-v3-mlx-8bit",
+    "name": "Parakeet v3",
+    "quantization": "8-bit",
+    "repository": "animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit",
+    "revision": "18498133db8b4c8753bf98b3c5b6639b2a791be3",
+    "downloadBytes": 909120599,
+    "architecture": "parakeet",
+    "license": "cc-by-4.0",
+    "recommendation": "Measured on the shared 20-minute clean-English suite; see metric tooltips",
+    "recommended": false
+  },
+  {
+    "id": "parakeet-tdt-0.6b-v3-mlx-4bit",
+    "name": "Parakeet v3",
+    "quantization": "4-bit",
+    "repository": "animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit",
+    "revision": "65247a0a9e735426eba06056a9535f7e67dcbbb9",
+    "downloadBytes": 637004647,
+    "architecture": "parakeet",
+    "license": "cc-by-4.0",
+    "recommendation": "Measured on the shared 20-minute clean-English suite; see metric tooltips",
+    "recommended": true
+  },
+  {
+    "id": "SenseVoiceSmall",
+    "name": "SenseVoice",
+    "quantization": "FP32",
+    "repository": "mlx-community/SenseVoiceSmall",
+    "revision": "8ddd966bd96243cff196422f81f0c5d955814792",
+    "downloadBytes": 936489716,
+    "architecture": "sensevoice",
+    "license": "SenseVoice upstream custom model license (see repository)",
+    "recommendation": "Measured on the shared 20-minute clean-English suite; see metric tooltips",
+    "recommended": true
+  },
+  {
+    "id": "SenseVoiceSmall-4bit",
+    "name": "SenseVoice",
+    "quantization": "4-bit",
+    "repository": "vanch007/SenseVoiceSmall-4bit",
+    "revision": "b5365bac129cf37740aac0a2cfaf283fca0d2d1c",
+    "downloadBytes": 152732818,
+    "architecture": "sensevoice",
+    "license": "SenseVoice upstream custom model license; conversion declares no separate license",
+    "recommendation": "Measured on the shared 20-minute clean-English suite; see metric tooltips",
+    "recommended": false
+  },
+  {
+    "id": "granite-4.0-1b-speech-4bit",
+    "name": "Granite 4.0 1B",
+    "quantization": "4-bit",
+    "repository": "mlx-community/granite-4.0-1b-speech-4bit",
+    "revision": "7e42cf86c0f595f0c38327eae7a90a8c11a17281",
+    "downloadBytes": 1995580064,
+    "architecture": "granite_speech",
+    "license": "apache-2.0",
+    "recommendation": "Measured on the shared 20-minute clean-English suite; see metric tooltips",
+    "recommended": true
+  },
+  {
+    "id": "granite-4.0-1b-speech-8bit",
+    "name": "Granite 4.0 1B",
+    "quantization": "8-bit",
+    "repository": "mlx-community/granite-4.0-1b-speech-8bit",
+    "revision": "5ed3098fb331d0131cb2aeafdbacc19841359736",
+    "downloadBytes": 2914135282,
+    "architecture": "granite_speech",
+    "license": "apache-2.0",
+    "recommendation": "Measured on the shared 20-minute clean-English suite; see metric tooltips",
+    "recommended": false
+  }
+]

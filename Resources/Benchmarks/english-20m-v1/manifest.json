@@ -1,0 +1,1286 @@
+{
+  "id": "english-20m-v1",
+  "name": "English read speech \u00b7 approximately 20 minutes",
+  "description": "Fixed multi-speaker subset of LibriSpeech test-clean. Read English, not conversational/noisy/multilingual dictation; not a full LibriSpeech score. Full clips are retained so reference text remains aligned.",
+  "dataset": "openslr/librispeech_asr",
+  "revision": "71cacbfb7e2354c4226d01e70d77d5fca3d04ba1",
+  "config": "clean",
+  "split": "test",
+  "license": "CC-BY-4.0",
+  "source": "https://www.openslr.org/12",
+  "attribution": "LibriSpeech by Vassil Panayotov, Guoguo Chen, Daniel Povey, and Sanjeev Khudanpur; derived from LibriVox recordings. Unedited cached FLAC audio and its reference text, selected round-robin across speakers.",
+  "selection": "100 rows at offsets 0, 200, 400, \u2026, 2400, and the final 20 at 2600; round-robin by ascending speaker ID; whole clips until at least 1200 seconds. Cached asset URLs verified against the pinned dataset revision.",
+  "audioSeconds": 1200.5801875000004,
+  "speakers": 35,
+  "clips": [
+    {
+      "id": "61-70968-0021",
+      "file": "61-70968-0021.flac",
+      "reference": "SURELY WE CAN SUBMIT WITH GOOD GRACE",
+      "speaker": 61,
+      "chapter": 70968,
+      "duration": 2.69,
+      "sha256": "b3f397ef340a70245a7328ec5ccde7e5c4fbe84f05d37ef1c4ba5394f1610615"
+    },
+    {
+      "id": "121-127105-0022",
+      "file": "121-127105-0022.flac",
+      "reference": "WELL IF I DON'T KNOW WHO SHE WAS IN LOVE WITH I KNOW WHO HE WAS",
+      "speaker": 121,
+      "chapter": 127105,
+      "duration": 5.075,
+      "sha256": "fb25d5d8b07290d6d072475eaddac1ba51fc33c58f07ab475d2dd176dab6414e"
+    },
+    {
+      "id": "237-134493-0012",
+      "file": "237-134493-0012.flac",
+      "reference": "I GET WET TO MY KNEES WHEN I GO DOWN TO PICK CHERRIES",
+      "speaker": 237,
+      "chapter": 134493,
+      "duration": 3.66,
+      "sha256": "d415e2e0818179e8d1810656024230c6097fee7ff124ce746634fd23c7e6fc04"
+    },
+    {
+      "id": "260-123286-0000",
+      "file": "260-123286-0000.flac",
+      "reference": "SATURDAY AUGUST FIFTEENTH THE SEA UNBROKEN ALL ROUND NO LAND IN SIGHT",
+      "speaker": 260,
+      "chapter": 123286,
+      "duration": 7.04,
+      "sha256": "d654a43d06f0e8b586b525e8ec83d6e3c0dc83c3f4742f8e25fd291db77248b3"
+    },
+    {
+      "id": "672-122797-0071",
+      "file": "672-122797-0071.flac",
+      "reference": "IN THE COURT YARD SOME OF THE MERRY CHILDREN WERE PLAYING WHO HAD DANCED AT CHRISTMAS ROUND THE FIR TREE AND WERE SO GLAD AT THE SIGHT OF HIM",
+      "speaker": 672,
+      "chapter": 122797,
+      "duration": 8.875,
+      "sha256": "40ebbc169b5ca7ec08388a6da104f97b04641eb3fe46b6389c4b9a9c22ba6071"
+    },
+    {
+      "id": "1188-133604-0029",
+      "file": "1188-133604-0029.flac",
+      "reference": "ONLY THERE ARE TWO SORTS OF CLOUD AND FIRE",
+      "speaker": 1188,
+      "chapter": 133604,
+      "duration": 3.705,
+      "sha256": "dda0cac1d5c1bfa95fe61e8a1baff50facd58923a0d6f18f262f783dd2cf8dc1"
+    },
+    {
+      "id": "1221-135767-0000",
+      "file": "1221-135767-0000.flac",
+      "reference": "HESTER PRYNNE WENT ONE DAY TO THE MANSION OF GOVERNOR BELLINGHAM WITH A PAIR OF GLOVES WHICH SHE HAD FRINGED AND EMBROIDERED TO HIS ORDER AND WHICH WERE TO BE WORN ON SOME GREAT OCCASION OF STATE FOR THOUGH THE CHANCES OF A POPULAR ELECTION HAD CAUSED THIS FORMER RULER TO DESCEND A STEP OR TWO FROM THE HIGHEST RANK HE STILL HELD AN HONOURABLE AND INFLUENTIAL PLACE AMONG THE COLONIAL MAGISTRACY",
+      "speaker": 1221,
+      "chapter": 135767,
+      "duration": 24.85,
+      "sha256": "3c2a567579ba2887aceba70a639f5ef78fbd75e896c4ee1f1af417697ceb9079"
+    },
+    {
+      "id": "1284-1181-0000",
+      "file": "1284-1181-0000.flac",
+      "reference": "OJO EXAMINED THIS CURIOUS CONTRIVANCE WITH WONDER",
+      "speaker": 1284,
+      "chapter": 1181,
+      "duration": 3.965,
+      "sha256": "326d6429d760f9a8e8bcb13993db768e25cead1ac08995e970921f2cf003664d"
+    },
+    {
+      "id": "1320-122617-0000",
+      "file": "1320-122617-0000.flac",
+      "reference": "NOTWITHSTANDING THE HIGH RESOLUTION OF HAWKEYE HE FULLY COMPREHENDED ALL THE DIFFICULTIES AND DANGER HE WAS ABOUT TO INCUR",
+      "speaker": 1320,
+      "chapter": 122617,
+      "duration": 7.835,
+      "sha256": "8948a7773a0bf478d4aab72401532da7e5496eafd3c89d432ede3b599be6e0a9"
+    },
+    {
+      "id": "1580-141083-0051",
+      "file": "1580-141083-0051.flac",
+      "reference": "ONLY FOR A MINUTE OR SO",
+      "speaker": 1580,
+      "chapter": 141083,
+      "duration": 1.98,
+      "sha256": "3f7d90044d1a1ec56c95e9f0ec7a5bd1f1914259b6441148ea2991a341950b77"
+    },
+    {
+      "id": "1995-1837-0023",
+      "file": "1995-1837-0023.flac",
+      "reference": "THE NET AND WEB OF ENDLESS THINGS HAD BEEN CRAWLING AND CREEPING AROUND HER SHE HAD STRUGGLED IN DUMB SPEECHLESS TERROR AGAINST SOME MIGHTY GRASPING THAT STROVE FOR HER LIFE WITH GNARLED AND CREEPING FINGERS BUT NOW AT LAST WEAKLY SHE OPENED HER EYES AND QUESTIONED",
+      "speaker": 1995,
+      "chapter": 1837,
+      "duration": 16.965,
+      "sha256": "7f584164eef2f5976f874ee9c027933c892ba7f920f7233bfd2a219d0ebffcd4"
+    },
+    {
+      "id": "2300-131720-0000",
+      "file": "2300-131720-0000.flac",
+      "reference": "THE PARIS PLANT LIKE THAT AT THE CRYSTAL PALACE WAS A TEMPORARY EXHIBIT",
+      "speaker": 2300,
+      "chapter": 131720,
+      "duration": 5.08,
+      "sha256": "84cb3f03857e7a68d5811c2f07f14725f8583a61d3a280816e30ec44956d8d7e"
+    },
+    {
+      "id": "2830-3980-0000",
+      "file": "2830-3980-0000.flac",
+      "reference": "IN EVERY WAY THEY SOUGHT TO UNDERMINE THE AUTHORITY OF SAINT PAUL",
+      "speaker": 2830,
+      "chapter": 3980,
+      "duration": 3.73,
+      "sha256": "a73adb84b9560fdfc8f6c7f5801e567267ac8beb6fd51df4f5dec7217eb43ad8"
+    },
+    {
+      "id": "2961-960-0000",
+      "file": "2961-960-0000.flac",
+      "reference": "HE PASSES ABRUPTLY FROM PERSONS TO IDEAS AND NUMBERS AND FROM IDEAS AND NUMBERS TO PERSONS FROM THE HEAVENS TO MAN FROM ASTRONOMY TO PHYSIOLOGY HE CONFUSES OR RATHER DOES NOT DISTINGUISH SUBJECT AND OBJECT FIRST AND FINAL CAUSES AND IS DREAMING OF GEOMETRICAL FIGURES LOST IN A FLUX OF SENSE",
+      "speaker": 2961,
+      "chapter": 960,
+      "duration": 27.18,
+      "sha256": "370a3a9f5cda245004db3e6178a7a9a50919687fb24dea05e661a0ad2e7c1c5d"
+    },
+    {
+      "id": "3570-5694-0000",
+      "file": "3570-5694-0000.flac",
+      "reference": "BUT ALREADY AT A POINT IN ECONOMIC EVOLUTION FAR ANTEDATING THE EMERGENCE OF THE LADY SPECIALISED CONSUMPTION OF GOODS AS AN EVIDENCE OF PECUNIARY STRENGTH HAD BEGUN TO WORK OUT IN A MORE OR LESS ELABORATE SYSTEM",
+      "speaker": 3570,
+      "chapter": 5694,
+      "duration": 12.085,
+      "sha256": "55049eed3f6a821b44b5b8d0e2a7348fc01692fc79981ec56b140ac0f051579e"
+    },
+    {
+      "id": "3575-170457-0031",
+      "file": "3575-170457-0031.flac",
+      "reference": "ON AUGUST TWENTY SEVENTH EIGHTEEN THIRTY SEVEN SHE WRITES",
+      "speaker": 3575,
+      "chapter": 170457,
+      "duration": 4.0,
+      "sha256": "dc22b4909f6e821a7f194fc9d9c3acebb692c21b99c9f2eb7398cde731b2d8fc"
+    },
+    {
+      "id": "3729-6852-0000",
+      "file": "3729-6852-0000.flac",
+      "reference": "TO CELEBRATE THE ARRIVAL OF HER SON SILVIA GAVE A SPLENDID SUPPER TO WHICH SHE HAD INVITED ALL HER RELATIVES AND IT WAS A GOOD OPPORTUNITY FOR ME TO MAKE THEIR ACQUAINTANCE",
+      "speaker": 3729,
+      "chapter": 6852,
+      "duration": 11.17,
+      "sha256": "3fa96f8e0276d79ec027bb1595215a8bbeb488cefcc1702ff798e91ec8504403"
+    },
+    {
+      "id": "4077-13754-0000",
+      "file": "4077-13754-0000.flac",
+      "reference": "THE ARMY FOUND THE PEOPLE IN POVERTY AND LEFT THEM IN COMPARATIVE WEALTH",
+      "speaker": 4077,
+      "chapter": 13754,
+      "duration": 4.78,
+      "sha256": "bb97062d41ac6188b550c21c5c91ec815f8ae69a3249330d2938da3b76aea147"
+    },
+    {
+      "id": "4446-2275-0005",
+      "file": "4446-2275-0005.flac",
+      "reference": "I FELT IT IN MY BONES WHEN I WOKE THIS MORNING THAT SOMETHING SPLENDID WAS GOING TO TURN UP",
+      "speaker": 4446,
+      "chapter": 2275,
+      "duration": 4.445,
+      "sha256": "1a42e9752f8df18ed25054c64be970067491284131a2238a3e8c2682ef932620"
+    },
+    {
+      "id": "4507-16021-0000",
+      "file": "4507-16021-0000.flac",
+      "reference": "CHAPTER ONE ORIGIN",
+      "speaker": 4507,
+      "chapter": 16021,
+      "duration": 2.59,
+      "sha256": "950559180cd8f76521baba6f400159c9ab081a375590a6fd74db300d094d13f9"
+    },
+    {
+      "id": "4970-29095-0000",
+      "file": "4970-29095-0000.flac",
+      "reference": "SHE WAS TIRED OF OTHER THINGS",
+      "speaker": 4970,
+      "chapter": 29095,
+      "duration": 2.865,
+      "sha256": "5880817dae00dd9dafb5c8a0b3b30e2e2374cecfe324e30cb6d07afaa9b6cf32"
+    },
+    {
+      "id": "5105-28241-0000",
+      "file": "5105-28241-0000.flac",
+      "reference": "HER SEA GOING QUALITIES WERE EXCELLENT AND WOULD HAVE AMPLY SUFFICED FOR A CIRCUMNAVIGATION OF THE GLOBE",
+      "speaker": 5105,
+      "chapter": 28241,
+      "duration": 6.455,
+      "sha256": "f706e407dd4c7716e6e7b8cb9c359e37201122a802f47684e9bbd083f2d29297"
+    },
+    {
+      "id": "5142-36377-0000",
+      "file": "5142-36377-0000.flac",
+      "reference": "IT WAS ONE OF THE MASTERLY AND CHARMING STORIES OF DUMAS THE ELDER",
+      "speaker": 5142,
+      "chapter": 36377,
+      "duration": 3.38,
+      "sha256": "baad1a53bcc5b733cc858f6b35df91bc426df5a37c234edf99831fc762c80147"
+    },
+    {
+      "id": "5683-32865-0000",
+      "file": "5683-32865-0000.flac",
+      "reference": "YOU KNOW CAPTAIN LAKE",
+      "speaker": 5683,
+      "chapter": 32865,
+      "duration": 2.19,
+      "sha256": "83d9240db37ae4aef073712b852dfefec95a1e6861d7efaa55038623569128b7"
+    },
+    {
+      "id": "6829-68769-0000",
+      "file": "6829-68769-0000.flac",
+      "reference": "KENNETH AND BETH REFRAINED FROM TELLING THE OTHER GIRLS OR UNCLE JOHN OF OLD WILL ROGERS'S VISIT BUT THEY GOT MISTER WATSON IN THE LIBRARY AND QUESTIONED HIM CLOSELY ABOUT THE PENALTY FOR FORGING A CHECK",
+      "speaker": 6829,
+      "chapter": 68769,
+      "duration": 11.695,
+      "sha256": "2f5d7ee4899ac1ba7bd170757a30b3679aad182830b0900d27967761e6f60826"
+    },
+    {
+      "id": "6930-75918-0000",
+      "file": "6930-75918-0000.flac",
+      "reference": "CONCORD RETURNED TO ITS PLACE AMIDST THE TENTS",
+      "speaker": 6930,
+      "chapter": 75918,
+      "duration": 3.505,
+      "sha256": "9ce35224156f071ab58eb7feb8a5ceae600f6f9f353da2a6cbf797b6b1ac8a23"
+    },
+    {
+      "id": "7021-79730-0001",
+      "file": "7021-79730-0001.flac",
+      "reference": "TO SUPPOSE THAT THE OBJECT OF THIS WORK IS TO AID IN EFFECTING SUCH A SUBSTITUTION AS THAT IS ENTIRELY TO MISTAKE ITS NATURE AND DESIGN",
+      "speaker": 7021,
+      "chapter": 79730,
+      "duration": 11.49,
+      "sha256": "e3c99827d8617e55b049399baf4bf190bb51a51dc1dc2e4572519029968e49ba"
+    },
+    {
+      "id": "7127-75947-0000",
+      "file": "7127-75947-0000.flac",
+      "reference": "EVERY ONE COULD OBSERVE HIS AGITATION AND PROSTRATION A PROSTRATION WHICH WAS INDEED THE MORE REMARKABLE SINCE PEOPLE WERE NOT ACCUSTOMED TO SEE HIM WITH HIS ARMS HANGING LISTLESSLY BY HIS SIDE HIS HEAD BEWILDERED AND HIS EYES WITH ALL THEIR BRIGHT INTELLIGENCE BEDIMMED",
+      "speaker": 7127,
+      "chapter": 75947,
+      "duration": 17.97,
+      "sha256": "b06cfec9f44db0fc53fdc1195c7b2431838269ad49c3d96f41836d075740914f"
+    },
+    {
+      "id": "7176-92135-0000",
+      "file": "7176-92135-0000.flac",
+      "reference": "HE IS A WELCOME FIGURE AT THE GARDEN PARTIES OF THE ELECT WHO ARE ALWAYS READY TO ENCOURAGE HIM BY ACCEPTING FREE SEATS FOR HIS PLAY ACTOR MANAGERS NOD TO HIM EDITORS ALLOW HIM TO CONTRIBUTE WITHOUT CHARGE TO A SYMPOSIUM ON THE PRICE OF GOLF BALLS",
+      "speaker": 7176,
+      "chapter": 92135,
+      "duration": 14.44,
+      "sha256": "6b806688aa9b88146862231456c16e4a450e4dbeb67d23c1375fd67d7658ca86"
+    },
+    {
+      "id": "7729-102255-0000",
+      "file": "7729-102255-0000.flac",
+      "reference": "THE BOGUS LEGISLATURE NUMBERED THIRTY SIX MEMBERS",
+      "speaker": 7729,
+      "chapter": 102255,
+      "duration": 3.285,
+      "sha256": "3e143b9c2d525646a0db1f149607f686cb2b7bcaa00aa8732a58aa92a5ab2f76"
+    },
+    {
+      "id": "8224-274384-0000",
+      "file": "8224-274384-0000.flac",
+      "reference": "HE PASSED THROUGH HENLEY SAINT ALBANS AND CAME SO NEAR TO LONDON AS HARROW ON THE HILL",
+      "speaker": 8224,
+      "chapter": 274384,
+      "duration": 7.605,
+      "sha256": "4625344176f2d28a1269d43165a38313dcb9b139aa2618e57da5006243a9b959"
+    },
+    {
+      "id": "8230-279154-0000",
+      "file": "8230-279154-0000.flac",
+      "reference": "THE ANALYSIS OF KNOWLEDGE WILL OCCUPY US UNTIL THE END OF THE THIRTEENTH LECTURE AND IS THE MOST DIFFICULT PART OF OUR WHOLE ENTERPRISE",
+      "speaker": 8230,
+      "chapter": 279154,
+      "duration": 8.805,
+      "sha256": "27f288ccebd4a68b77e7721d164bbed2e67c4da24155a4253a14f3abd9cf7d0f"
+    },
+    {
+      "id": "8455-210777-0028",
+      "file": "8455-210777-0028.flac",
+      "reference": "JACK WOULD BECOME EVA'S HAPPY HUSBAND AND WOULD REMAIN AMIDST THE HURRIED DUTIES OF THE EAGER WORLD",
+      "speaker": 8455,
+      "chapter": 210777,
+      "duration": 7.735,
+      "sha256": "61e1697bdc0de5142e0cd76c4a14ed38086b66b9a0ab7722bd1c02aa3cebd261"
+    },
+    {
+      "id": "8463-294828-0022",
+      "file": "8463-294828-0022.flac",
+      "reference": "WE'RE LEAVING ON THE ABRAHAM LINCOLN",
+      "speaker": 8463,
+      "chapter": 294828,
+      "duration": 2.355,
+      "sha256": "4b0b7f62860ac9f04945b08f79183b52c26f80eedd14ff829e2ff2aaa5143e3f"
+    },
+    {
+      "id": "8555-292519-0000",
+      "file": "8555-292519-0000.flac",
+      "reference": "BRIGHTER THAN EARLY DAWN'S MOST BRILLIANT DYE ARE BLOWN CLEAR BANDS OF COLOR THROUGH THE SKY THAT SWIRL AND SWEEP AND MEET TO BREAK AND FOAM LIKE RAINBOW VEILS UPON A BUBBLE'S DOME",
+      "speaker": 8555,
+      "chapter": 292519,
+      "duration": 14.9,
+      "sha256": "068f068118ba73ad07e9ca892ee9880941f924237fdda24fea1c5568132cd7ca"
+    },
+    {
+      "id": "61-70968-0022",
+      "file": "61-70968-0022.flac",
+      "reference": "TIS FINE FOR YOU TO TALK OLD MAN ANSWERED THE LEAN SULLEN APPRENTICE",
+      "speaker": 61,
+      "chapter": 70968,
+      "duration": 4.67,
+      "sha256": "dea1dd525d16410bac43b958586f7389545ce042f6fee01e298a80ac44bd46ff"
+    },
+    {
+      "id": "121-127105-0023",
+      "file": "121-127105-0023.flac",
+      "reference": "LET ME SAY HERE DISTINCTLY TO HAVE DONE WITH IT THAT THIS NARRATIVE FROM AN EXACT TRANSCRIPT OF MY OWN MADE MUCH LATER IS WHAT I SHALL PRESENTLY GIVE",
+      "speaker": 121,
+      "chapter": 127105,
+      "duration": 10.91,
+      "sha256": "4b3979253bd95e23eca3dff699c225d223be8895b3db1d3579ac100191aafb5a"
+    },
+    {
+      "id": "237-134493-0013",
+      "file": "237-134493-0013.flac",
+      "reference": "INDEED HE HAD LOOKED AWAY WITH THE PURPOSE OF NOT SEEING IT",
+      "speaker": 237,
+      "chapter": 134493,
+      "duration": 4.09,
+      "sha256": "6fb0309b05569809deebe4a4d3aa34ec0c95e57cabeedb0da6e21d56e72a00a2"
+    },
+    {
+      "id": "260-123286-0001",
+      "file": "260-123286-0001.flac",
+      "reference": "THE HORIZON SEEMS EXTREMELY DISTANT",
+      "speaker": 260,
+      "chapter": 123286,
+      "duration": 3.07,
+      "sha256": "482a025752a99bedf0d539c055c80c1f0396f3f0b0094fd1d3ff89b3d26beb9e"
+    },
+    {
+      "id": "672-122797-0072",
+      "file": "672-122797-0072.flac",
+      "reference": "AND THE GARDENER'S BOY CHOPPED THE TREE INTO SMALL PIECES THERE WAS A WHOLE HEAP LYING THERE",
+      "speaker": 672,
+      "chapter": 122797,
+      "duration": 7.94,
+      "sha256": "c279440fcc23dfec5f45beef3330dec8d4b35c21837aac6c48bf396d189ae6d8"
+    },
+    {
+      "id": "1188-133604-0030",
+      "file": "1188-133604-0030.flac",
+      "reference": "HE KNOWS THEM BOTH",
+      "speaker": 1188,
+      "chapter": 133604,
+      "duration": 1.915,
+      "sha256": "6c568a355c878517157dac880701f60b1b85e5c6215aff31519408e24c1d7c5f"
+    },
+    {
+      "id": "1221-135767-0001",
+      "file": "1221-135767-0001.flac",
+      "reference": "ANOTHER AND FAR MORE IMPORTANT REASON THAN THE DELIVERY OF A PAIR OF EMBROIDERED GLOVES IMPELLED HESTER AT THIS TIME TO SEEK AN INTERVIEW WITH A PERSONAGE OF SO MUCH POWER AND ACTIVITY IN THE AFFAIRS OF THE SETTLEMENT",
+      "speaker": 1221,
+      "chapter": 135767,
+      "duration": 13.43,
+      "sha256": "0d8ef7e082f0fd267ec1e645e20c3308fc97f191d58ac72badca7b24815e6e08"
+    },
+    {
+      "id": "1284-1181-0001",
+      "file": "1284-1181-0001.flac",
+      "reference": "MARGOLOTTE HAD FIRST MADE THE GIRL'S FORM FROM THE PATCHWORK QUILT AND THEN SHE HAD DRESSED IT WITH A PATCHWORK SKIRT AND AN APRON WITH POCKETS IN IT USING THE SAME GAY MATERIAL THROUGHOUT",
+      "speaker": 1284,
+      "chapter": 1181,
+      "duration": 11.43,
+      "sha256": "8ad2da841751882c0cb73b8c4f1cd4e22cd743466ad74fc7b220934a76987ff1"
+    },
+    {
+      "id": "1320-122617-0001",
+      "file": "1320-122617-0001.flac",
+      "reference": "IN HIS RETURN TO THE CAMP HIS ACUTE AND PRACTISED INTELLECTS WERE INTENTLY ENGAGED IN DEVISING MEANS TO COUNTERACT A WATCHFULNESS AND SUSPICION ON THE PART OF HIS ENEMIES THAT HE KNEW WERE IN NO DEGREE INFERIOR TO HIS OWN",
+      "speaker": 1320,
+      "chapter": 122617,
+      "duration": 14.055,
+      "sha256": "58ce003d42fef7fcb3ddecb28071ce6ec8adff7039a7846d0347a814bf467f2d"
+    },
+    {
+      "id": "1580-141083-0052",
+      "file": "1580-141083-0052.flac",
+      "reference": "OH I WOULD NOT VENTURE TO SAY SIR",
+      "speaker": 1580,
+      "chapter": 141083,
+      "duration": 3.45,
+      "sha256": "81a0fae54a90dc7dc4727c60c026aa0c556819444bce69207cd5fadfd8530191"
+    },
+    {
+      "id": "1995-1837-0024",
+      "file": "1995-1837-0024.flac",
+      "reference": "FOR A WHILE SHE LAY IN HER CHAIR IN HAPPY DREAMY PLEASURE AT SUN AND BIRD AND TREE",
+      "speaker": 1995,
+      "chapter": 1837,
+      "duration": 5.385,
+      "sha256": "c7dcb4a3e1d16c4301753ffdb71d5a7beabd2df4cfde745f7ba747a3e066632d"
+    },
+    {
+      "id": "2300-131720-0001",
+      "file": "2300-131720-0001.flac",
+      "reference": "THE LONDON PLANT WAS LESS TEMPORARY BUT NOT PERMANENT SUPPLYING BEFORE IT WAS TORN OUT NO FEWER THAN THREE THOUSAND LAMPS IN HOTELS CHURCHES STORES AND DWELLINGS IN THE VICINITY OF HOLBORN VIADUCT",
+      "speaker": 2300,
+      "chapter": 131720,
+      "duration": 14.63,
+      "sha256": "421a5788b45cc79e2c7eb4cc91ad5ca98a0644a0dab2978436a20fc4cd1853ce"
+    },
+    {
+      "id": "2830-3980-0001",
+      "file": "2830-3980-0001.flac",
+      "reference": "THEY SAID TO THE GALATIANS YOU HAVE NO RIGHT TO THINK HIGHLY OF PAUL",
+      "speaker": 2830,
+      "chapter": 3980,
+      "duration": 3.945,
+      "sha256": "0a48ca921b3ff4a37cbc7424ee31a83710f446814520abbbbc355e60bb25c1da"
+    },
+    {
+      "id": "2961-960-0001",
+      "file": "2961-960-0001.flac",
+      "reference": "THE INFLUENCE WITH THE TIMAEUS HAS EXERCISED UPON POSTERITY IS DUE PARTLY TO A MISUNDERSTANDING",
+      "speaker": 2961,
+      "chapter": 960,
+      "duration": 8.2500625,
+      "sha256": "73a2c08a15dc492ae512877618f9bd2ba6dd8b3c1bd5a5e8d59ef63d7ef3d5fb"
+    },
+    {
+      "id": "3570-5694-0001",
+      "file": "3570-5694-0001.flac",
+      "reference": "THE UTILITY OF CONSUMPTION AS AN EVIDENCE OF WEALTH IS TO BE CLASSED AS A DERIVATIVE GROWTH",
+      "speaker": 3570,
+      "chapter": 5694,
+      "duration": 5.675,
+      "sha256": "83d42febda01d467c35c0b90dc7bb5d5d80b18ed95d65748a831afca53f2e3cd"
+    },
+    {
+      "id": "3575-170457-0032",
+      "file": "3575-170457-0032.flac",
+      "reference": "COME COME I AM GETTING REALLY TIRED OF YOUR ABSENCE",
+      "speaker": 3575,
+      "chapter": 170457,
+      "duration": 3.03,
+      "sha256": "68cbf5f4ece9dcbb4d1a6457ca0b952ee0e769cbab423be97bc751ee6ac2b7f7"
+    },
+    {
+      "id": "3729-6852-0001",
+      "file": "3729-6852-0001.flac",
+      "reference": "WITHOUT SAYING IT POSITIVELY SHE MADE ME UNDERSTAND THAT BEING HERSELF AN ILLUSTRIOUS MEMBER OF THE REPUBLIC OF LETTERS SHE WAS WELL AWARE THAT SHE WAS SPEAKING TO AN INSECT",
+      "speaker": 3729,
+      "chapter": 6852,
+      "duration": 12.195,
+      "sha256": "d62cde117a1e577e7fced2186f6a031e8341b1677efdd037f2891c8a38946023"
+    },
+    {
+      "id": "4077-13754-0001",
+      "file": "4077-13754-0001.flac",
+      "reference": "BUT A WORD FURTHER CONCERNING THE EXPEDITION IN GENERAL",
+      "speaker": 4077,
+      "chapter": 13754,
+      "duration": 3.77,
+      "sha256": "45a33624cbbe1069aa750b5646175194c90e653455baac9c67615688731290e7"
+    },
+    {
+      "id": "4446-2275-0006",
+      "file": "4446-2275-0006.flac",
+      "reference": "I THOUGHT IT MIGHT BE SISTER KATE OR COUSIN MIKE WOULD BE HAPPENING ALONG",
+      "speaker": 4446,
+      "chapter": 2275,
+      "duration": 3.54,
+      "sha256": "177a704d676c041757a35d6efdfc092c28d7c662ae959d19a0bd436b4f7af49b"
+    },
+    {
+      "id": "4507-16021-0001",
+      "file": "4507-16021-0001.flac",
+      "reference": "IT ENGENDERS A WHOLE WORLD LA PEGRE FOR WHICH READ THEFT AND A HELL LA PEGRENNE FOR WHICH READ HUNGER",
+      "speaker": 4507,
+      "chapter": 16021,
+      "duration": 11.32,
+      "sha256": "3fec8e81e775deb6b2cc2bbbb24463289953d7c249157437f6bf3c043f1840c9"
+    },
+    {
+      "id": "4970-29095-0001",
+      "file": "4970-29095-0001.flac",
+      "reference": "SHE TRIED THIS MORNING AN AIR OR TWO UPON THE PIANO SANG A SIMPLE SONG IN A SWEET BUT SLIGHTLY METALLIC VOICE AND THEN SEATING HERSELF BY THE OPEN WINDOW READ PHILIP'S LETTER",
+      "speaker": 4970,
+      "chapter": 29095,
+      "duration": 13.91,
+      "sha256": "3ffe22232ab70de8f0d17b62d6bdde02fa35545a9265b79e6260932e2ba7119b"
+    },
+    {
+      "id": "5105-28241-0001",
+      "file": "5105-28241-0001.flac",
+      "reference": "AFTER AN APPRENTICESHIP ON A MERCHANT SHIP HE HAD ENTERED THE IMPERIAL NAVY AND HAD ALREADY REACHED THE RANK OF LIEUTENANT WHEN THE COUNT APPOINTED HIM TO THE CHARGE OF HIS OWN PRIVATE YACHT IN WHICH HE WAS ACCUSTOMED TO SPEND BY FAR THE GREATER PART OF HIS TIME THROUGHOUT THE WINTER GENERALLY CRUISING IN THE MEDITERRANEAN WHILST IN THE SUMMER HE VISITED MORE NORTHERN WATERS",
+      "speaker": 5105,
+      "chapter": 28241,
+      "duration": 21.015,
+      "sha256": "aa36e1df17500c7f6002cd59739e8f31d0bbe495286587d00dfd26ffb31f0088"
+    },
+    {
+      "id": "5142-36377-0001",
+      "file": "5142-36377-0001.flac",
+      "reference": "IN FIVE MINUTES I WAS IN A NEW WORLD AND MY MELANCHOLY ROOM WAS FULL OF THE LIVELIEST FRENCH COMPANY",
+      "speaker": 5142,
+      "chapter": 36377,
+      "duration": 5.39,
+      "sha256": "1afcc918bd57e3dbb8e25b3be18ec7cf66761729bd46863e1ae59069b4dfada6"
+    },
+    {
+      "id": "5683-32865-0001",
+      "file": "5683-32865-0001.flac",
+      "reference": "SAID LORD CHELFORD ADDRESSING ME",
+      "speaker": 5683,
+      "chapter": 32865,
+      "duration": 2.58,
+      "sha256": "f383946e11b8324e6b63b32e49f6339e119a58427687ebc2965442b737717597"
+    },
+    {
+      "id": "6829-68769-0001",
+      "file": "6829-68769-0001.flac",
+      "reference": "IT WAS A SERIOUS CRIME INDEED MISTER WATSON TOLD THEM AND TOM GATES BADE FAIR TO SERVE A LENGTHY TERM IN STATE'S PRISON AS A CONSEQUENCE OF HIS RASH ACT",
+      "speaker": 6829,
+      "chapter": 68769,
+      "duration": 9.315,
+      "sha256": "3156c962e6a5db566faeb183df8a8974d46d461ba381787f26eb68555a1ce0fe"
+    },
+    {
+      "id": "6930-75918-0001",
+      "file": "6930-75918-0001.flac",
+      "reference": "THE ENGLISH FORWARDED TO THE FRENCH BASKETS OF FLOWERS OF WHICH THEY HAD MADE A PLENTIFUL PROVISION TO GREET THE ARRIVAL OF THE YOUNG PRINCESS THE FRENCH IN RETURN INVITED THE ENGLISH TO A SUPPER WHICH WAS TO BE GIVEN THE NEXT DAY",
+      "speaker": 6930,
+      "chapter": 75918,
+      "duration": 14.225,
+      "sha256": "3dfad7eb0793eddd5040d04f1f2f3046ceeee39e0ec461794856a350e1bd728e"
+    },
+    {
+      "id": "7021-79730-0002",
+      "file": "7021-79730-0002.flac",
+      "reference": "BY REASON AND AFFECTION",
+      "speaker": 7021,
+      "chapter": 79730,
+      "duration": 2.69,
+      "sha256": "eefba0de833896a7da8c9252f168a117c00e182c82320720e6ab2b3aa79b2fb2"
+    },
+    {
+      "id": "7127-75947-0001",
+      "file": "7127-75947-0001.flac",
+      "reference": "UPON THIS MADAME DEIGNED TO TURN HER EYES LANGUISHINGLY TOWARDS THE COMTE OBSERVING",
+      "speaker": 7127,
+      "chapter": 75947,
+      "duration": 6.64,
+      "sha256": "bff50121e15e39a7bc741d55892a1d91acf8cf183896ea23f17e37353f0f9ab8"
+    },
+    {
+      "id": "7176-92135-0001",
+      "file": "7176-92135-0001.flac",
+      "reference": "IN SHORT HE BECOMES A PROMINENT FIGURE IN LONDON SOCIETY AND IF HE IS NOT CAREFUL SOMEBODY WILL SAY SO",
+      "speaker": 7176,
+      "chapter": 92135,
+      "duration": 7.56,
+      "sha256": "7d99981a85cdd0f3acd8400e910200e782fc582e8b2c64e5aedd647d891a0cd6"
+    },
+    {
+      "id": "7729-102255-0001",
+      "file": "7729-102255-0001.flac",
+      "reference": "THIS WAS AT THE MARCH ELECTION EIGHTEEN FIFTY FIVE",
+      "speaker": 7729,
+      "chapter": 102255,
+      "duration": 3.45,
+      "sha256": "6d89403ed443907226129942df0cb8a59099d042a12554df29a18f27f0e586d1"
+    },
+    {
+      "id": "8224-274384-0001",
+      "file": "8224-274384-0001.flac",
+      "reference": "THE SCOTTISH GENERALS AND COMMISSIONERS AFFECTED GREAT SURPRISE ON THE APPEARANCE OF THE KING AND THOUGH THEY PAID HIM ALL THE EXTERIOR RESPECT DUE TO HIS DIGNITY THEY INSTANTLY SET A GUARD UPON HIM UNDER COLOR OF PROTECTION AND MADE HIM IN REALITY A PRISONER",
+      "speaker": 8224,
+      "chapter": 274384,
+      "duration": 20.33,
+      "sha256": "882af53a676c36185cc1218c1ce7636c872cc1d48f3e7b0bdf4fd882cc81bf17"
+    },
+    {
+      "id": "8230-279154-0001",
+      "file": "8230-279154-0001.flac",
+      "reference": "WHAT IS CALLED PERCEPTION DIFFERS FROM SENSATION BY THE FACT THAT THE SENSATIONAL INGREDIENTS BRING UP HABITUAL ASSOCIATES IMAGES AND EXPECTATIONS OF THEIR USUAL CORRELATES ALL OF WHICH ARE SUBJECTIVELY INDISTINGUISHABLE FROM THE SENSATION",
+      "speaker": 8230,
+      "chapter": 279154,
+      "duration": 17.38,
+      "sha256": "7ee6c3c0a955798b7f90d357a123c87ad1b226ac94ee1549f96930568f4ed29f"
+    },
+    {
+      "id": "8455-210777-0029",
+      "file": "8455-210777-0029.flac",
+      "reference": "THINKING OF ALL THIS I WENT TO SLEEP",
+      "speaker": 8455,
+      "chapter": 210777,
+      "duration": 3.085,
+      "sha256": "289ad7e37196db91419a006a00b121b4ccb7eba5980b02be4941e174c3d201c4"
+    },
+    {
+      "id": "8463-294828-0023",
+      "file": "8463-294828-0023.flac",
+      "reference": "YOU SEE MY FRIEND IT'S AN ISSUE OF THE MONSTER THE NOTORIOUS NARWHALE",
+      "speaker": 8463,
+      "chapter": 294828,
+      "duration": 4.745,
+      "sha256": "37bdaab194ec7ab3a639624c6df75778d24f37c87ec5a64cd74795c8461f6688"
+    },
+    {
+      "id": "8555-292519-0001",
+      "file": "8555-292519-0001.flac",
+      "reference": "GUIDED BY YOU HOW WE MIGHT STROLL TOWARDS DEATH OUR ONLY MUSIC ONE ANOTHER'S BREATH THROUGH GARDENS INTIMATE WITH HOLLYHOCKS WHERE SILENT POPPIES BURN BETWEEN THE ROCKS BY POOLS WHERE BIRCHES BEND TO CONFIDANTS ABOVE GREEN WATERS SCUMMED WITH LILY PLANTS",
+      "speaker": 8555,
+      "chapter": 292519,
+      "duration": 20.82,
+      "sha256": "b082de228dbad73be95d916e5149c02035758a390482845def17215c0eed0fa9"
+    },
+    {
+      "id": "61-70968-0023",
+      "file": "61-70968-0023.flac",
+      "reference": "BUT I WRESTLED WITH THIS FELLOW AND DO KNOW THAT HE PLAYED UNFAIRLY IN THE SECOND BOUT",
+      "speaker": 61,
+      "chapter": 70968,
+      "duration": 5.025,
+      "sha256": "2e018381a6c3ca3257b4edcddf637841a1688cacf9944b922e512acc6f1ffc2a"
+    },
+    {
+      "id": "121-127105-0024",
+      "file": "121-127105-0024.flac",
+      "reference": "POOR DOUGLAS BEFORE HIS DEATH WHEN IT WAS IN SIGHT COMMITTED TO ME THE MANUSCRIPT THAT REACHED HIM ON THE THIRD OF THESE DAYS AND THAT ON THE SAME SPOT WITH IMMENSE EFFECT HE BEGAN TO READ TO OUR HUSHED LITTLE CIRCLE ON THE NIGHT OF THE FOURTH",
+      "speaker": 121,
+      "chapter": 127105,
+      "duration": 14.45,
+      "sha256": "035a6e41424d6dc68d1dd0553d145db8d2217efa546b96cd79288018d4800918"
+    },
+    {
+      "id": "237-134493-0014",
+      "file": "237-134493-0014.flac",
+      "reference": "THEY THINK YOU'RE PROUD BECAUSE YOU'VE BEEN AWAY TO SCHOOL OR SOMETHING",
+      "speaker": 237,
+      "chapter": 134493,
+      "duration": 3.7,
+      "sha256": "83bd17d8a36d59834c71d914b0693c82e2105dd39704e5e7d38128177482f57c"
+    },
+    {
+      "id": "260-123286-0002",
+      "file": "260-123286-0002.flac",
+      "reference": "ALL MY DANGER AND SUFFERINGS WERE NEEDED TO STRIKE A SPARK OF HUMAN FEELING OUT OF HIM BUT NOW THAT I AM WELL HIS NATURE HAS RESUMED ITS SWAY",
+      "speaker": 260,
+      "chapter": 123286,
+      "duration": 9.985,
+      "sha256": "25d5b388fb4d8f14752fbbfb9f1b020b4de121b9be7d20ee6632b060ab88bd82"
+    },
+    {
+      "id": "672-122797-0073",
+      "file": "672-122797-0073.flac",
+      "reference": "THE WOOD FLAMED UP SPLENDIDLY UNDER THE LARGE BREWING COPPER AND IT SIGHED SO DEEPLY",
+      "speaker": 672,
+      "chapter": 122797,
+      "duration": 8.205,
+      "sha256": "b1b4fa05c0258d96b2ed29c6ca4fb3466abe5eb5c03cbb55d3090812844747e6"
+    },
+    {
+      "id": "1188-133604-0031",
+      "file": "1188-133604-0031.flac",
+      "reference": "THERE'S ONE AND THERE'S ANOTHER THE DUDLEY AND THE FLINT",
+      "speaker": 1188,
+      "chapter": 133604,
+      "duration": 4.25,
+      "sha256": "08584f8b87cd859e9212f1730979ed141623f35e38995a88ba50747d04cdc222"
+    },
+    {
+      "id": "1221-135767-0002",
+      "file": "1221-135767-0002.flac",
+      "reference": "AT THAT EPOCH OF PRISTINE SIMPLICITY HOWEVER MATTERS OF EVEN SLIGHTER PUBLIC INTEREST AND OF FAR LESS INTRINSIC WEIGHT THAN THE WELFARE OF HESTER AND HER CHILD WERE STRANGELY MIXED UP WITH THE DELIBERATIONS OF LEGISLATORS AND ACTS OF STATE",
+      "speaker": 1221,
+      "chapter": 135767,
+      "duration": 16.12,
+      "sha256": "164ac0778b5cc1c637e1805069f47df9026513ac2fb4249ba8c80f428f68a067"
+    },
+    {
+      "id": "1284-1181-0002",
+      "file": "1284-1181-0002.flac",
+      "reference": "THE HEAD OF THE PATCHWORK GIRL WAS THE MOST CURIOUS PART OF HER",
+      "speaker": 1284,
+      "chapter": 1181,
+      "duration": 3.835,
+      "sha256": "72a482ff41203903e61801d983ddf7f1718daa8fa14787d1c382b891690d8e5e"
+    },
+    {
+      "id": "1320-122617-0002",
+      "file": "1320-122617-0002.flac",
+      "reference": "IN OTHER WORDS WHILE HE HAD IMPLICIT FAITH IN THE ABILITY OF BALAAM'S ASS TO SPEAK HE WAS SOMEWHAT SKEPTICAL ON THE SUBJECT OF A BEAR'S SINGING AND YET HE HAD BEEN ASSURED OF THE LATTER ON THE TESTIMONY OF HIS OWN EXQUISITE ORGANS",
+      "speaker": 1320,
+      "chapter": 122617,
+      "duration": 13.585,
+      "sha256": "c567f708d614c54f20e4727cdcb3cf81aaf434277bb180e878edc2118f5e4abc"
+    },
+    {
+      "id": "1580-141083-0053",
+      "file": "1580-141083-0053.flac",
+      "reference": "YOU HAVEN'T SEEN ANY OF THEM NO SIR",
+      "speaker": 1580,
+      "chapter": 141083,
+      "duration": 4.015,
+      "sha256": "768dd5aaa1ad5d04ecd4f6ddd41cab8d8cceb0400171cdd51fd3f5af5fb4af44"
+    },
+    {
+      "id": "1995-1837-0025",
+      "file": "1995-1837-0025.flac",
+      "reference": "SHE ROSE WITH A FLEETING GLANCE GATHERED THE SHAWL ROUND HER THEN GLIDING FORWARD WAVERING TREMULOUS SLIPPED ACROSS THE ROAD AND INTO THE SWAMP",
+      "speaker": 1995,
+      "chapter": 1837,
+      "duration": 9.5050625,
+      "sha256": "db22191b537f78e12c754a0c1fc7a14e9b79954f95965de5bc6c18ecea4387d4"
+    },
+    {
+      "id": "2300-131720-0002",
+      "file": "2300-131720-0002.flac",
+      "reference": "THERE MESSRS JOHNSON AND HAMMER PUT INTO PRACTICE MANY OF THE IDEAS NOW STANDARD IN THE ART AND SECURED MUCH USEFUL DATA FOR THE WORK IN NEW YORK OF WHICH THE STORY HAS JUST BEEN TOLD",
+      "speaker": 2300,
+      "chapter": 131720,
+      "duration": 13.115,
+      "sha256": "2b3dfdfd676c5e0132d83191ced000b5f2e73bb1f9e37bf5a785f922161f67bf"
+    },
+    {
+      "id": "2830-3980-0002",
+      "file": "2830-3980-0002.flac",
+      "reference": "HE WAS THE LAST TO TURN TO CHRIST",
+      "speaker": 2830,
+      "chapter": 3980,
+      "duration": 2.025,
+      "sha256": "15894ba401783ba5463dabfe42c30c063487aba34f5a7ece70bcdac9077033bd"
+    },
+    {
+      "id": "2961-960-0002",
+      "file": "2961-960-0002.flac",
+      "reference": "IN THE SUPPOSED DEPTHS OF THIS DIALOGUE THE NEO PLATONISTS FOUND HIDDEN MEANINGS AND CONNECTIONS WITH THE JEWISH AND CHRISTIAN SCRIPTURES AND OUT OF THEM THEY ELICITED DOCTRINES QUITE AT VARIANCE WITH THE SPIRIT OF PLATO",
+      "speaker": 2961,
+      "chapter": 960,
+      "duration": 15.35,
+      "sha256": "753bea25c30c610c8715e13e9528363fba527c81bbea8997d1c4fa89a3fe3082"
+    },
+    {
+      "id": "3570-5694-0002",
+      "file": "3570-5694-0002.flac",
+      "reference": "SUCH CONSUMPTION AS FALLS TO THE WOMEN IS MERELY INCIDENTAL TO THEIR WORK IT IS A MEANS TO THEIR CONTINUED LABOUR AND NOT A CONSUMPTION DIRECTED TO THEIR OWN COMFORT AND FULNESS OF LIFE",
+      "speaker": 3570,
+      "chapter": 5694,
+      "duration": 10.615,
+      "sha256": "a21a557d5db7d6bea193ba2e49efaa488f9a4c468f898b4e24c722544bbc6844"
+    },
+    {
+      "id": "3575-170457-0033",
+      "file": "3575-170457-0033.flac",
+      "reference": "SATURDAY AFTER SATURDAY COMES ROUND AND I CAN HAVE NO HOPE OF HEARING YOUR KNOCK AT THE DOOR AND THEN BEING TOLD THAT MISS E IS COME OH DEAR",
+      "speaker": 3575,
+      "chapter": 170457,
+      "duration": 8.5,
+      "sha256": "84f15e1d13ed08afeb10049ed302481b3ca8d1b5edd7dcd34b8ed98419a04e4b"
+    },
+    {
+      "id": "3729-6852-0002",
+      "file": "3729-6852-0002.flac",
+      "reference": "IN ORDER TO PLEASE HER I SPOKE TO HER OF THE ABBE CONTI AND I HAD OCCASION TO QUOTE TWO LINES OF THAT PROFOUND WRITER",
+      "speaker": 3729,
+      "chapter": 6852,
+      "duration": 8.78,
+      "sha256": "7f9f490fb4b7e243ad7ddfb75b4db384aec028df1ad5f71f446bde3b86f2739f"
+    },
+    {
+      "id": "4077-13754-0002",
+      "file": "4077-13754-0002.flac",
+      "reference": "IT WAS THROUGH FLOYD'S ADVICE THAT BUCHANAN ORDERED THE MILITARY EXPEDITION TO UTAH OSTENSIBLY TO INSTALL CERTAIN FEDERAL OFFICIALS AND TO REPRESS AN ALLEGED INFANTILE REBELLION WHICH IN FACT HAD NEVER COME INTO EXISTENCE BUT IN REALITY TO FURTHER THE INTERESTS OF THE SECESSIONISTS",
+      "speaker": 4077,
+      "chapter": 13754,
+      "duration": 17.78,
+      "sha256": "58ff360d46e4fc6bcaf04da1a6ead97dc191c54426528cfa13efe7e780349ff5"
+    },
+    {
+      "id": "4446-2275-0007",
+      "file": "4446-2275-0007.flac",
+      "reference": "SHE PUSHED HIM TOWARD THE BIG CHAIR BY THE FIRE AND SAT DOWN ON A STOOL AT THE OPPOSITE SIDE OF THE HEARTH HER KNEES DRAWN UP TO HER CHIN LAUGHING LIKE A HAPPY LITTLE GIRL",
+      "speaker": 4446,
+      "chapter": 2275,
+      "duration": 8.975,
+      "sha256": "59d5214f129dcf429e0aab6af36a1bc8c251946e3dde650e20bf0c8993274b8f"
+    },
+    {
+      "id": "4507-16021-0002",
+      "file": "4507-16021-0002.flac",
+      "reference": "THUS IDLENESS IS THE MOTHER",
+      "speaker": 4507,
+      "chapter": 16021,
+      "duration": 3.185,
+      "sha256": "5ed9d4db5430065d9da3202d49a9f52f0e6c6fb7883142db861d05f0fa965873"
+    },
+    {
+      "id": "4970-29095-0002",
+      "file": "4970-29095-0002.flac",
+      "reference": "WELL MOTHER SAID THE YOUNG STUDENT LOOKING UP WITH A SHADE OF IMPATIENCE",
+      "speaker": 4970,
+      "chapter": 29095,
+      "duration": 5.48,
+      "sha256": "dcfed616c4f4fa1f3b87ea9f77ab57b32769f78d27a7ce61397f029664fff334"
+    },
+    {
+      "id": "5105-28241-0002",
+      "file": "5105-28241-0002.flac",
+      "reference": "THE LATE ASTOUNDING EVENTS HOWEVER HAD RENDERED PROCOPE MANIFESTLY UNEASY AND NOT THE LESS SO FROM HIS CONSCIOUSNESS THAT THE COUNT SECRETLY PARTOOK OF HIS OWN ANXIETY",
+      "speaker": 5105,
+      "chapter": 28241,
+      "duration": 10.96,
+      "sha256": "fd852c5f382dbc5f99a39c2801267bfd78ab91fabbd71d9f8de577ffcfef518c"
+    },
+    {
+      "id": "5142-36377-0002",
+      "file": "5142-36377-0002.flac",
+      "reference": "THE SOUND OF AN IMPERATIVE AND UNCOMPROMISING BELL RECALLED ME IN DUE TIME TO THE REGIONS OF REALITY",
+      "speaker": 5142,
+      "chapter": 36377,
+      "duration": 5.62,
+      "sha256": "ff7c4bb43a23d6c4ce3d029129ad9e4f6f6019ef4ed1bed9eba0e1f290701607"
+    },
+    {
+      "id": "5683-32865-0002",
+      "file": "5683-32865-0002.flac",
+      "reference": "HE HAD HIS HAND UPON LAKE'S SHOULDER",
+      "speaker": 5683,
+      "chapter": 32865,
+      "duration": 2.78,
+      "sha256": "7304ebe34fbdbf8f8a7ec918b8f71acfd2749c72aa050d65e4571921ba4db232"
+    },
+    {
+      "id": "6829-68769-0002",
+      "file": "6829-68769-0002.flac",
+      "reference": "I CAN'T SEE IT IN THAT LIGHT SAID THE OLD LAWYER",
+      "speaker": 6829,
+      "chapter": 68769,
+      "duration": 3.075,
+      "sha256": "f5ed704cd2ea08dea3d6205e10c402b0ce2ab3bd69564badf7aac5e855292d24"
+    },
+    {
+      "id": "6930-75918-0002",
+      "file": "6930-75918-0002.flac",
+      "reference": "CONGRATULATIONS WERE POURED IN UPON THE PRINCESS EVERYWHERE DURING HER JOURNEY",
+      "speaker": 6930,
+      "chapter": 75918,
+      "duration": 5.025,
+      "sha256": "74ecfd628f49dca71995972c075fcc9904df804d49a4eb5b11fb712b3584f789"
+    },
+    {
+      "id": "7021-79730-0003",
+      "file": "7021-79730-0003.flac",
+      "reference": "AS THE CHAISE DRIVES AWAY MARY STANDS BEWILDERED AND PERPLEXED ON THE DOOR STEP HER MIND IN A TUMULT OF EXCITEMENT IN WHICH HATRED OF THE DOCTOR DISTRUST AND SUSPICION OF HER MOTHER DISAPPOINTMENT VEXATION AND ILL HUMOR SURGE AND SWELL AMONG THOSE DELICATE ORGANIZATIONS ON WHICH THE STRUCTURE AND DEVELOPMENT OF THE SOUL SO CLOSELY DEPEND DOING PERHAPS AN IRREPARABLE INJURY",
+      "speaker": 7021,
+      "chapter": 79730,
+      "duration": 32.88,
+      "sha256": "fb151b9781dbd0338c8b6d3de1e3d25d09f246ff6b1c74d8f4221f4c6e16a8c0"
+    },
+    {
+      "id": "7127-75947-0002",
+      "file": "7127-75947-0002.flac",
+      "reference": "DO YOU THINK SO SHE REPLIED WITH INDIFFERENCE",
+      "speaker": 7127,
+      "chapter": 75947,
+      "duration": 3.235,
+      "sha256": "64354098b5ab1ea4e6e5853a4a9278ec02f99d5e95b64713995e1e8808312a69"
+    },
+    {
+      "id": "7176-92135-0002",
+      "file": "7176-92135-0002.flac",
+      "reference": "BUT EVEN THE UNSUCCESSFUL DRAMATIST HAS HIS MOMENTS",
+      "speaker": 7176,
+      "chapter": 92135,
+      "duration": 3.415,
+      "sha256": "097bc7e8963d5fd12512dac0a950a93747b0de2dd41aa3f8bb597bad1c052b5e"
+    },
+    {
+      "id": "7729-102255-0002",
+      "file": "7729-102255-0002.flac",
+      "reference": "THAT SUMMER'S EMIGRATION HOWEVER BEING MAINLY FROM THE FREE STATES GREATLY CHANGED THE RELATIVE STRENGTH OF THE TWO PARTIES",
+      "speaker": 7729,
+      "chapter": 102255,
+      "duration": 8.3,
+      "sha256": "7d5de46782c4be843229d050c67eaecd3ef51922fd42d2810f26534efa82a212"
+    },
+    {
+      "id": "8224-274384-0002",
+      "file": "8224-274384-0002.flac",
+      "reference": "THEY INFORMED THE ENGLISH PARLIAMENT OF THIS UNEXPECTED INCIDENT AND ASSURED THEM THAT THEY HAD ENTERED INTO NO PRIVATE TREATY WITH THE KING",
+      "speaker": 8224,
+      "chapter": 274384,
+      "duration": 9.815,
+      "sha256": "846737bd0b1d3666825fedda89174a9eb170bb1f37dafd2ab03c6295c283409f"
+    },
+    {
+      "id": "8230-279154-0002",
+      "file": "8230-279154-0002.flac",
+      "reference": "WHETHER OR NOT THIS PRINCIPLE IS LIABLE TO EXCEPTIONS EVERYONE WOULD AGREE THAT IS HAS A BROAD MEASURE OF TRUTH THOUGH THE WORD EXACTLY MIGHT SEEM AN OVERSTATEMENT AND IT MIGHT SEEM MORE CORRECT TO SAY THAT IDEAS APPROXIMATELY REPRESENT IMPRESSIONS",
+      "speaker": 8230,
+      "chapter": 279154,
+      "duration": 16.475,
+      "sha256": "73e7236483519d05a5a62d69970793138ba6869e100676d2bcbd5d7945d54182"
+    },
+    {
+      "id": "8455-210777-0030",
+      "file": "8455-210777-0030.flac",
+      "reference": "MISTER NEVERBEND BEGAN THE CAPTAIN AND I OBSERVED THAT UP TO THAT MOMENT HE HAD GENERALLY ADDRESSED ME AS PRESIDENT IT CANNOT BE DENIED THAT WE HAVE COME HERE ON AN UNPLEASANT MISSION",
+      "speaker": 8455,
+      "chapter": 210777,
+      "duration": 12.845,
+      "sha256": "4c1f5a6047a567c2ac3e7eb8b40444387b4f091f460ccd3cb6c052b202349555"
+    },
+    {
+      "id": "8463-294828-0024",
+      "file": "8463-294828-0024.flac",
+      "reference": "WE DON'T KNOW WHERE IT WILL TAKE US",
+      "speaker": 8463,
+      "chapter": 294828,
+      "duration": 1.975,
+      "sha256": "9be0e1d445bbe223ddcb48d19cf0f761e2c732137f2480ba27f8826422a22633"
+    },
+    {
+      "id": "8555-292519-0002",
+      "file": "8555-292519-0002.flac",
+      "reference": "VENICE",
+      "speaker": 8555,
+      "chapter": 292519,
+      "duration": 1.81,
+      "sha256": "bba7ad2f1e026db874fca0d6b8b599d104ada897478992868d4596497f5f6b3a"
+    },
+    {
+      "id": "61-70968-0024",
+      "file": "61-70968-0024.flac",
+      "reference": "SPOKE THE SQUIRE LOSING ALL PATIENCE AND IT WAS TO YOU THAT I GAVE ANOTHER PURSE IN CONSOLATION",
+      "speaker": 61,
+      "chapter": 70968,
+      "duration": 6.025,
+      "sha256": "bedacad0f35cc7921429a8d8c165ee124c287566219da559513e27f1a37da67d"
+    },
+    {
+      "id": "121-127105-0025",
+      "file": "121-127105-0025.flac",
+      "reference": "THE DEPARTING LADIES WHO HAD SAID THEY WOULD STAY DIDN'T OF COURSE THANK HEAVEN STAY THEY DEPARTED IN CONSEQUENCE OF ARRANGEMENTS MADE IN A RAGE OF CURIOSITY AS THEY PROFESSED PRODUCED BY THE TOUCHES WITH WHICH HE HAD ALREADY WORKED US UP",
+      "speaker": 121,
+      "chapter": 127105,
+      "duration": 16.065,
+      "sha256": "ec14b48202c92b71bc91f352bb2698aae068a03f392c22770f3baebf7b7a0e59"
+    },
+    {
+      "id": "237-134493-0015",
+      "file": "237-134493-0015.flac",
+      "reference": "THERE WAS SOMETHING INDIVIDUAL ABOUT THE GREAT FARM A MOST UNUSUAL TRIMNESS AND CARE FOR DETAIL",
+      "speaker": 237,
+      "chapter": 134493,
+      "duration": 6.55,
+      "sha256": "c03f76f5a6042b17abff06937238ea38cad9b79adc7b5f88a401d632b95d00f6"
+    },
+    {
+      "id": "260-123286-0003",
+      "file": "260-123286-0003.flac",
+      "reference": "YOU SEEM ANXIOUS MY UNCLE I SAID SEEING HIM CONTINUALLY WITH HIS GLASS TO HIS EYE ANXIOUS",
+      "speaker": 260,
+      "chapter": 123286,
+      "duration": 7.37,
+      "sha256": "07a827233cc275019deb9b43f6531d73cdd08f0e6eeb90b660d5511a1500b95b"
+    },
+    {
+      "id": "672-122797-0074",
+      "file": "672-122797-0074.flac",
+      "reference": "HOWEVER THAT WAS OVER NOW THE TREE GONE THE STORY AT AN END",
+      "speaker": 672,
+      "chapter": 122797,
+      "duration": 8.73,
+      "sha256": "265cd493e813658eb45709be6d284b4cc89643c399307aae142abe2d5b93d5af"
+    },
+    {
+      "id": "1188-133604-0032",
+      "file": "1188-133604-0032.flac",
+      "reference": "IT IS ONLY A PENCIL OUTLINE BY EDWARD BURNE JONES IN ILLUSTRATION OF THE STORY OF PSYCHE IT IS THE INTRODUCTION OF PSYCHE AFTER ALL HER TROUBLES INTO HEAVEN",
+      "speaker": 1188,
+      "chapter": 133604,
+      "duration": 10.985,
+      "sha256": "3f0ba99f17ec41ab8a82b60bf2fbc537d7de57eef18142e478876881ed95798f"
+    },
+    {
+      "id": "1221-135767-0003",
+      "file": "1221-135767-0003.flac",
+      "reference": "THE PERIOD WAS HARDLY IF AT ALL EARLIER THAN THAT OF OUR STORY WHEN A DISPUTE CONCERNING THE RIGHT OF PROPERTY IN A PIG NOT ONLY CAUSED A FIERCE AND BITTER CONTEST IN THE LEGISLATIVE BODY OF THE COLONY BUT RESULTED IN AN IMPORTANT MODIFICATION OF THE FRAMEWORK ITSELF OF THE LEGISLATURE",
+      "speaker": 1221,
+      "chapter": 135767,
+      "duration": 18.63,
+      "sha256": "4d1e44c0b88787b0e76244e954e21187d47bb3be45229016b067ab793fd089bf"
+    },
+    {
+      "id": "1284-1181-0003",
+      "file": "1284-1181-0003.flac",
+      "reference": "THE HAIR WAS OF BROWN YARN AND HUNG DOWN ON HER NECK IN SEVERAL NEAT BRAIDS",
+      "speaker": 1284,
+      "chapter": 1181,
+      "duration": 4.505,
+      "sha256": "da12f5e50b135d9940712eaf3d2ca89835179e04f32f526934c5a64d916cba16"
+    },
+    {
+      "id": "1320-122617-0003",
+      "file": "1320-122617-0003.flac",
+      "reference": "THERE WAS SOMETHING IN HIS AIR AND MANNER THAT BETRAYED TO THE SCOUT THE UTTER CONFUSION OF THE STATE OF HIS MIND",
+      "speaker": 1320,
+      "chapter": 122617,
+      "duration": 6.285,
+      "sha256": "bbe9ef85bbe228c73a414f064c9bd992c94135d73f9900b33104ad93c07d0594"
+    },
+    {
+      "id": "1580-141084-0000",
+      "file": "1580-141084-0000.flac",
+      "reference": "IT WAS THE INDIAN WHOSE DARK SILHOUETTE APPEARED SUDDENLY UPON HIS BLIND",
+      "speaker": 1580,
+      "chapter": 141084,
+      "duration": 4.615,
+      "sha256": "3ff2777781f07c365e6301f1536796a6270ccfdb5404f1e15dc598f92151e0f8"
+    },
+    {
+      "id": "1995-1837-0026",
+      "file": "1995-1837-0026.flac",
+      "reference": "SHE HAD BEEN BORN WITHIN ITS BORDERS WITHIN ITS BORDERS SHE HAD LIVED AND GROWN AND WITHIN ITS BORDERS SHE HAD MET HER LOVE",
+      "speaker": 1995,
+      "chapter": 1837,
+      "duration": 8.095,
+      "sha256": "2cba61e7f2f9af6c811c38a636982064485a3d72a8b5558bede26cb70e77fbdf"
+    },
+    {
+      "id": "2300-131720-0003",
+      "file": "2300-131720-0003.flac",
+      "reference": "THE DYNAMO ELECTRIC MACHINE THOUGH SMALL WAS ROBUST FOR UNDER ALL THE VARYING SPEEDS OF WATER POWER AND THE VICISSITUDES OF THE PLANT TO WHICH IT BELONGED IT CONTINUED IN ACTIVE USE UNTIL EIGHTEEN NINETY NINE SEVENTEEN YEARS",
+      "speaker": 2300,
+      "chapter": 131720,
+      "duration": 16.76,
+      "sha256": "af78fe541e9f7b6f7f7fbdf0ef56a11c1ea10b7801b391b41a3b627f88402409"
+    },
+    {
+      "id": "2830-3980-0003",
+      "file": "2830-3980-0003.flac",
+      "reference": "PAUL CAME LATER AND IS BENEATH US",
+      "speaker": 2830,
+      "chapter": 3980,
+      "duration": 2.48,
+      "sha256": "50be2737f12972ba7709f179b5b3273f563878b7abd4ea80f828ec149a671225"
+    },
+    {
+      "id": "3570-5694-0003",
+      "file": "3570-5694-0003.flac",
+      "reference": "WITH A FURTHER ADVANCE IN CULTURE THIS TABU MAY CHANGE INTO SIMPLE CUSTOM OF A MORE OR LESS RIGOROUS CHARACTER BUT WHATEVER BE THE THEORETICAL BASIS OF THE DISTINCTION WHICH IS MAINTAINED WHETHER IT BE A TABU OR A LARGER CONVENTIONALITY THE FEATURES OF THE CONVENTIONAL SCHEME OF CONSUMPTION DO NOT CHANGE EASILY",
+      "speaker": 3570,
+      "chapter": 5694,
+      "duration": 19.025,
+      "sha256": "c868f313fa94c067f61064692dbecfbcc909a55c325f702314fe62ea40cb3857"
+    },
+    {
+      "id": "3575-170457-0034",
+      "file": "3575-170457-0034.flac",
+      "reference": "IN THIS MONOTONOUS LIFE OF MINE THAT WAS A PLEASANT EVENT",
+      "speaker": 3575,
+      "chapter": 170457,
+      "duration": 3.495,
+      "sha256": "7379f6afffbfc11aded5aae60cf94ff2f5aa5a2dc317f61b2cd70c9c4d4847df"
+    },
+    {
+      "id": "3729-6852-0003",
+      "file": "3729-6852-0003.flac",
+      "reference": "MADAM CORRECTED ME WITH A PATRONIZING AIR FOR MY PRONUNCIATION OF THE WORD SCEVRA WHICH MEANS DIVIDED SAYING THAT IT OUGHT TO BE PRONOUNCED SCEURA AND SHE ADDED THAT I OUGHT TO BE VERY GLAD TO HAVE LEARNED SO MUCH ON THE FIRST DAY OF MY ARRIVAL IN PARIS TELLING ME THAT IT WOULD BE AN IMPORTANT DAY IN MY LIFE",
+      "speaker": 3729,
+      "chapter": 6852,
+      "duration": 21.48,
+      "sha256": "a51be675a4e9c7b6164dd7e7f4960860149d1cc8f33dc1fa4e0473848772f30d"
+    },
+    {
+      "id": "4077-13754-0003",
+      "file": "4077-13754-0003.flac",
+      "reference": "MOREOVER HAD THE PEOPLE BEEN INCLINED TO REBELLION WHAT GREATER OPPORTUNITY COULD THEY HAVE WISHED",
+      "speaker": 4077,
+      "chapter": 13754,
+      "duration": 5.68,
+      "sha256": "313a40d78133893c303d760dc06d4fd421bd7a8207bc291027c3429cc4d8023c"
+    },
+    {
+      "id": "4446-2275-0008",
+      "file": "4446-2275-0008.flac",
+      "reference": "WHEN DID YOU COME BARTLEY AND HOW DID IT HAPPEN YOU HAVEN'T SPOKEN A WORD",
+      "speaker": 4446,
+      "chapter": 2275,
+      "duration": 4.13,
+      "sha256": "e0c11b7472c7b7e1f4fa359f692c123a5b11aa02b59aaee021025a4a5f968f9d"
+    },
+    {
+      "id": "4507-16021-0003",
+      "file": "4507-16021-0003.flac",
+      "reference": "SHE HAS A SON THEFT AND A DAUGHTER HUNGER",
+      "speaker": 4507,
+      "chapter": 16021,
+      "duration": 4.895,
+      "sha256": "090444ed0871bdaaa1d25065939bbd756ef74ec3398622591d1073b90c8026ea"
+    },
+    {
+      "id": "4970-29095-0003",
+      "file": "4970-29095-0003.flac",
+      "reference": "I HOPE THEE TOLD THE ELDERS THAT FATHER AND I ARE RESPONSIBLE FOR THE PIANO AND THAT MUCH AS THEE LOVES MUSIC THEE IS NEVER IN THE ROOM WHEN IT IS PLAYED",
+      "speaker": 4970,
+      "chapter": 29095,
+      "duration": 10.02,
+      "sha256": "b23345d8a6c4e46e66a0f79529d9730f985adbfb8a71b3299f57d5f7ccbad87b"
+    },
+    {
+      "id": "5105-28241-0003",
+      "file": "5105-28241-0003.flac",
+      "reference": "STEAM UP AND CANVAS SPREAD THE SCHOONER STARTED EASTWARDS",
+      "speaker": 5105,
+      "chapter": 28241,
+      "duration": 3.98,
+      "sha256": "5bd328b5c55618d8c8610f82e9d81501b96aba8813d880ba384a2d1eb367c5c6"
+    },
+    {
+      "id": "5142-36377-0003",
+      "file": "5142-36377-0003.flac",
+      "reference": "AMBROSE MET ME AT THE BOTTOM OF THE STAIRS AND SHOWED ME THE WAY TO THE SUPPER ROOM",
+      "speaker": 5142,
+      "chapter": 36377,
+      "duration": 3.91,
+      "sha256": "888557aa8cb7bf35dfea351105266edc3993c8ac0fe4aa9ab4a6cfe511846829"
+    },
+    {
+      "id": "5683-32865-0003",
+      "file": "5683-32865-0003.flac",
+      "reference": "THEY ARE COUSINS YOU KNOW WE ARE ALL COUSINS",
+      "speaker": 5683,
+      "chapter": 32865,
+      "duration": 3.51,
+      "sha256": "9a5e8328c6476a5eb70d3bd2f63340584a5320451073de39b641d5551b56512c"
+    },
+    {
+      "id": "6829-68769-0003",
+      "file": "6829-68769-0003.flac",
+      "reference": "IT WAS A DELIBERATE THEFT FROM HIS EMPLOYERS TO PROTECT A GIRL HE LOVED",
+      "speaker": 6829,
+      "chapter": 68769,
+      "duration": 4.215,
+      "sha256": "2cabcf1f4673305e08cdfd5614b8790ca1305a05f8bb6e63bd0946a796d60c7c"
+    },
+    {
+      "id": "6930-75918-0003",
+      "file": "6930-75918-0003.flac",
+      "reference": "FROM THE RESPECT PAID HER ON ALL SIDES SHE SEEMED LIKE A QUEEN AND FROM THE ADORATION WITH WHICH SHE WAS TREATED BY TWO OR THREE SHE APPEARED AN OBJECT OF WORSHIP THE QUEEN MOTHER GAVE THE FRENCH THE MOST AFFECTIONATE RECEPTION FRANCE WAS HER NATIVE COUNTRY AND SHE HAD SUFFERED TOO MUCH UNHAPPINESS IN ENGLAND FOR ENGLAND TO HAVE MADE HER FORGET FRANCE",
+      "speaker": 6930,
+      "chapter": 75918,
+      "duration": 23.315,
+      "sha256": "0ec415739efc00adcbe70838f6c207ee4ae8b31639bad534138c3d26d890f58b"
+    },
+    {
+      "id": "7021-79730-0004",
+      "file": "7021-79730-0004.flac",
+      "reference": "THE MOTHER AS SOON AS THE CHAISE IS SO FAR TURNED THAT MARY CAN NO LONGER WATCH THE EXPRESSION OF HER COUNTENANCE GOES AWAY FROM THE DOOR WITH A SMILE OF COMPLACENCY AND SATISFACTION UPON HER FACE AT THE INGENUITY AND SUCCESS OF HER LITTLE ARTIFICE",
+      "speaker": 7021,
+      "chapter": 79730,
+      "duration": 17.945,
+      "sha256": "8bc15a91a8079b26a0fbd349782162079b7c8b50673a8d4a3b1228206dcd8b23"
+    },
+    {
+      "id": "7127-75947-0003",
+      "file": "7127-75947-0003.flac",
+      "reference": "YES THE CHARACTER WHICH YOUR ROYAL HIGHNESS ASSUMED IS IN PERFECT HARMONY WITH YOUR OWN",
+      "speaker": 7127,
+      "chapter": 75947,
+      "duration": 5.98,
+      "sha256": "7b430831a49531f980b01bb45290bca1ed0a876f1dfdc908cec3840aa0a1334a"
+    },
+    {
+      "id": "7176-92135-0003",
+      "file": "7176-92135-0003.flac",
+      "reference": "YOUR PLAY MUST BE NOT MERELY A GOOD PLAY BUT A SUCCESSFUL ONE",
+      "speaker": 7176,
+      "chapter": 92135,
+      "duration": 3.955,
+      "sha256": "434397c7bb5761ae310359eea363a0da375d634c0343b9162a680513c490cb7b"
+    },
+    {
+      "id": "7729-102255-0003",
+      "file": "7729-102255-0003.flac",
+      "reference": "FOR GENERAL SERVICE THEREFORE REQUIRING NO SPECIAL EFFORT THE NUMERICAL STRENGTH OF THE FACTIONS WAS ABOUT EQUAL WHILE ON EXTRAORDINARY OCCASIONS THE TWO THOUSAND BORDER RUFFIAN RESERVE LYING A LITTLE FARTHER BACK FROM THE STATE LINE COULD AT ANY TIME EASILY TURN THE SCALE",
+      "speaker": 7729,
+      "chapter": 102255,
+      "duration": 19.8050625,
+      "sha256": "5f7767c76f430619b1165275a138199af51f066046c82a9e10e99b4d10a2b0e0"
+    },
+    {
+      "id": "8224-274384-0003",
+      "file": "8224-274384-0003.flac",
+      "reference": "OR HATH HE GIVEN US ANY GIFT",
+      "speaker": 8224,
+      "chapter": 274384,
+      "duration": 3.87,
+      "sha256": "d9ae99b452dfe3bd99903c447f10e88823782fd71ec70862cf51fb99b68aea16"
+    },
+    {
+      "id": "8230-279154-0003",
+      "file": "8230-279154-0003.flac",
+      "reference": "AND WHAT SORT OF EVIDENCE IS LOGICALLY POSSIBLE",
+      "speaker": 8230,
+      "chapter": 279154,
+      "duration": 3.195,
+      "sha256": "03c7c42cc38e072803327603311b649773e8d7b48413c69340e1c831bc847f91"
+    },
+    {
+      "id": "8455-210777-0031",
+      "file": "8455-210777-0031.flac",
+      "reference": "YOU HAVE RECEIVED US WITH ALL THAT COURTESY AND HOSPITALITY FOR WHICH YOUR CHARACTER IN ENGLAND STANDS SO HIGH",
+      "speaker": 8455,
+      "chapter": 210777,
+      "duration": 7.67,
+      "sha256": "23c4ec8496b4a771a3df7c458ec4cdcaab5351d43585b32b9e986910c80dd318"
+    },
+    {
+      "id": "8463-294828-0025",
+      "file": "8463-294828-0025.flac",
+      "reference": "BUT WE'RE GOING JUST THE SAME",
+      "speaker": 8463,
+      "chapter": 294828,
+      "duration": 1.99,
+      "sha256": "0af0c6e78ad8417938a9c0952e19bb0eda0118c323b5df28b8428a98be1385bf"
+    },
+    {
+      "id": "8555-292519-0003",
+      "file": "8555-292519-0003.flac",
+      "reference": "IN A SUNSET GLOWING OF CRIMSON AND GOLD SHE LIES THE GLORY OF THE WORLD A BEACHED KING'S GALLEY WHOSE SAILS ARE FURLED WHO IS HUNG WITH TAPESTRIES RICH AND OLD",
+      "speaker": 8555,
+      "chapter": 292519,
+      "duration": 14.58,
+      "sha256": "d97e15a51c660df80e2819e71c416ae53a77d7b30b20ea1838a2b24934f3418a"
+    },
+    {
+      "id": "61-70968-0025",
+      "file": "61-70968-0025.flac",
+      "reference": "COME TO ME MEN HERE HERE HE RAISED HIS VOICE STILL LOUDER",
+      "speaker": 61,
+      "chapter": 70968,
+      "duration": 4.41,
+      "sha256": "12aff6263572e1e03fc7403dee4d90116a83e05b0eb2466b9722a72d2da2d485"
+    },
+    {
+      "id": "121-127105-0026",
+      "file": "121-127105-0026.flac",
+      "reference": "THE FIRST OF THESE TOUCHES CONVEYED THAT THE WRITTEN STATEMENT TOOK UP THE TALE AT A POINT AFTER IT HAD IN A MANNER BEGUN",
+      "speaker": 121,
+      "chapter": 127105,
+      "duration": 7.53,
+      "sha256": "b16733e0bcc861f75b3eebe691e59ff634a16c3c12313001148032636f31454a"
+    }
+  ]
+}
