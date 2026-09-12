@@ -56,20 +56,20 @@ Recorded on **Apple M5 Max · 128 GiB RAM**, using 144 English reading clips fro
 
 <!-- BENCHMARK_RESULTS_START -->
 
-| Model | Version | Word-only error | Full-text error ↓ | Warm speed | Warm MLX memory |
-|---|---|---:|---:|---:|---:|
-| Parakeet v3 ★ | 4-bit | 1.54% | 1.77% | 233.7× | 1.34 GB |
-| Parakeet v3 | 8-bit | 1.60% | 1.85% | 237.4× | 1.61 GB |
-| Qwen3 1.7B | BF16 | 1.41% | 2.08% | 30.5× | 5.50 GB |
-| Qwen3 1.7B ★ | 4-bit | 1.51% | 2.12% | 59.5× | 3.03 GB |
-| Qwen3 1.7B | 8-bit | 1.57% | 2.14% | 44.5× | 3.89 GB |
-| Whisper large-v3 ★ | 8-bit | 2.60% | 4.50% | 21.0× | 2.52 GB |
-| Granite 4.0 1B ★ | 4-bit | 1.29% | 4.61% | 44.1× | 7.64 GB |
-| Granite 4.0 1B | 8-bit | 1.19% | 4.61% | 37.4× | 8.56 GB |
-| Whisper large-v3 | FP16 | 2.82% | 4.76% | 19.7× | 4.03 GB |
-| SenseVoice ★ | FP32 | 2.45% | 5.05% | 631.6× | 1.79 GB |
-| SenseVoice | 4-bit | 3.45% | 5.40% | 582.3× | 0.88 GB |
-| Whisper large-v3 | 4-bit | 4.14% | 6.30% | 22.2× | 1.75 GB |
+| Model | Word-only error | Full-text error ↓ | Warm speed | Warm MLX memory |
+|---|---:|---:|---:|---:|
+| [Parakeet v3 4-bit](https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit) ★ | 1.54% | 1.77% | 233.7× | 1.34 GB |
+| [Parakeet v3 8-bit](https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit) | 1.60% | 1.85% | 237.4× | 1.61 GB |
+| [Qwen3 1.7B BF16](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-bf16) | 1.41% | 2.08% | 30.5× | 5.50 GB |
+| [Qwen3 1.7B 4-bit](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-4bit) ★ | 1.51% | 2.12% | 59.5× | 3.03 GB |
+| [Qwen3 1.7B 8-bit](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-8bit) | 1.57% | 2.14% | 44.5× | 3.89 GB |
+| [Whisper large-v3 8-bit](https://huggingface.co/mlx-community/whisper-large-v3-8bit) ★ | 2.60% | 4.50% | 21.0× | 2.52 GB |
+| [Granite 4.0 1B 4-bit](https://huggingface.co/mlx-community/granite-4.0-1b-speech-4bit) ★ | 1.29% | 4.61% | 44.1× | 7.64 GB |
+| [Granite 4.0 1B 8-bit](https://huggingface.co/mlx-community/granite-4.0-1b-speech-8bit) | 1.19% | 4.61% | 37.4× | 8.56 GB |
+| [Whisper large-v3 FP16](https://huggingface.co/mlx-community/whisper-large-v3-asr-fp16) | 2.82% | 4.76% | 19.7× | 4.03 GB |
+| [SenseVoice FP32](https://huggingface.co/mlx-community/SenseVoiceSmall) ★ | 2.45% | 5.05% | 631.6× | 1.79 GB |
+| [SenseVoice 4-bit](https://huggingface.co/vanch007/SenseVoiceSmall-4bit) | 3.45% | 5.40% | 582.3× | 0.88 GB |
+| [Whisper large-v3 4-bit](https://huggingface.co/mlx-community/whisper-large-v3-asr-4bit) | 4.14% | 6.30% | 22.2× | 1.75 GB |
 
 <!-- BENCHMARK_RESULTS_END -->
 
