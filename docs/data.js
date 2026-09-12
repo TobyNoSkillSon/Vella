@@ -1,5 +1,5 @@
 const VELLA_RESULTS = {
-  "hardware": "Apple M5 Max · 128 GiB unified memory · MLX Audio 0.5.1 · MLX 0.32.2",
+  "hardware": "Apple M5 Max \u00b7 128 GiB unified memory \u00b7 MLX Audio 0.5.1 \u00b7 MLX 0.32.2",
   "policy": {
     "suiteID": "english-formatted-20m-v1",
     "suiteHash": "72550f156b6625aa213c8c1bd70761ee61a7638b8b494cfe317fc7d33e0d1188",
@@ -20,7 +20,8 @@ const VELLA_RESULTS = {
       "speed": 233.70739455599687,
       "ram": 1.34155212,
       "source": "../Resources/ReferenceResults/formatted-M5Max-parakeet-tdt-0.6b-v3-mlx-4bit.json",
-      "provenance": "Apple M5 Max; 2026-09-12T06:07:29Z; word alignment coverage 98.6%; punctuation coverage 95.1%; memory profile 2026-09-12T06:24:31Z, one pass after warmup. Model: animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit @ 65247a0a9e735426eba06056a9535f7e67dcbbb9"
+      "provenance": "Apple M5 Max; 2026-09-12T06:07:29Z; word alignment coverage 98.6%; punctuation coverage 95.1%; memory profile 2026-09-12T06:24:31Z, one pass after warmup. Model: animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit @ 65247a0a9e735426eba06056a9535f7e67dcbbb9",
+      "modelURL": "https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit"
     },
     {
       "id": "parakeet-tdt-0.6b-v3-mlx-8bit",
@@ -34,7 +35,8 @@ const VELLA_RESULTS = {
       "speed": 237.4226860582875,
       "ram": 1.613674752,
       "source": "../Resources/ReferenceResults/formatted-M5Max-parakeet-tdt-0.6b-v3-mlx-8bit.json",
-      "provenance": "Apple M5 Max; 2026-09-12T06:07:17Z; word alignment coverage 98.6%; punctuation coverage 95.1%; memory profile 2026-09-12T06:24:24Z, one pass after warmup. Model: animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit @ 18498133db8b4c8753bf98b3c5b6639b2a791be3"
+      "provenance": "Apple M5 Max; 2026-09-12T06:07:17Z; word alignment coverage 98.6%; punctuation coverage 95.1%; memory profile 2026-09-12T06:24:24Z, one pass after warmup. Model: animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit @ 18498133db8b4c8753bf98b3c5b6639b2a791be3",
+      "modelURL": "https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit"
     },
     {
       "id": "Qwen3-ASR-1.7B-bf16",
@@ -48,7 +50,8 @@ const VELLA_RESULTS = {
       "speed": 30.5162309133337,
       "ram": 5.50425894,
       "source": "../Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-bf16.json",
-      "provenance": "Apple M5 Max; 2026-09-12T05:58:00Z; word alignment coverage 98.7%; punctuation coverage 95.8%; memory profile 2026-09-12T06:20:26Z, one pass after warmup. Model: mlx-community/Qwen3-ASR-1.7B-bf16 @ e1f6c266914abc5a46e8756e02580f834a6cf8a7"
+      "provenance": "Apple M5 Max; 2026-09-12T05:58:00Z; word alignment coverage 98.7%; punctuation coverage 95.8%; memory profile 2026-09-12T06:20:26Z, one pass after warmup. Model: mlx-community/Qwen3-ASR-1.7B-bf16 @ e1f6c266914abc5a46e8756e02580f834a6cf8a7",
+      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-bf16"
     },
     {
       "id": "Qwen3-ASR-1.7B-4bit",
@@ -62,7 +65,8 @@ const VELLA_RESULTS = {
       "speed": 59.49895365979156,
       "ram": 3.031126908,
       "source": "../Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-4bit.json",
-      "provenance": "Apple M5 Max; 2026-09-12T05:59:40Z; word alignment coverage 98.6%; punctuation coverage 95.5%; memory profile 2026-09-12T06:21:19Z, one pass after warmup. Model: mlx-community/Qwen3-ASR-1.7B-4bit @ 78a389c776a5483b2d0d4ea5494e11012e0d6159"
+      "provenance": "Apple M5 Max; 2026-09-12T05:59:40Z; word alignment coverage 98.6%; punctuation coverage 95.5%; memory profile 2026-09-12T06:21:19Z, one pass after warmup. Model: mlx-community/Qwen3-ASR-1.7B-4bit @ 78a389c776a5483b2d0d4ea5494e11012e0d6159",
+      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-4bit"
     },
     {
       "id": "Qwen3-ASR-1.7B-8bit",
@@ -76,7 +80,8 @@ const VELLA_RESULTS = {
       "speed": 44.52503369535599,
       "ram": 3.891352444,
       "source": "../Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-8bit.json",
-      "provenance": "Apple M5 Max; 2026-09-12T05:58:57Z; word alignment coverage 98.5%; punctuation coverage 95.3%; memory profile 2026-09-12T06:20:56Z, one pass after warmup. Model: mlx-community/Qwen3-ASR-1.7B-8bit @ a8379a2e2f9e313c9292cdf1af4055ab56d50d55"
+      "provenance": "Apple M5 Max; 2026-09-12T05:58:57Z; word alignment coverage 98.5%; punctuation coverage 95.3%; memory profile 2026-09-12T06:20:56Z, one pass after warmup. Model: mlx-community/Qwen3-ASR-1.7B-8bit @ a8379a2e2f9e313c9292cdf1af4055ab56d50d55",
+      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-8bit"
     },
     {
       "id": "whisper-large-v3-8bit",
@@ -90,7 +95,8 @@ const VELLA_RESULTS = {
       "speed": 20.98088588129528,
       "ram": 2.522148778,
       "source": "../Resources/ReferenceResults/formatted-M5Max-whisper-large-v3-8bit.json",
-      "provenance": "Apple M5 Max; 2026-09-12T06:05:14Z; word alignment coverage 98.4%; punctuation coverage 93.5%; memory profile 2026-09-12T06:23:23Z, one pass after warmup. Model: mlx-community/whisper-large-v3-8bit @ 7fede54fd97b154a4f5e476646484fc023b1bcdf"
+      "provenance": "Apple M5 Max; 2026-09-12T06:05:14Z; word alignment coverage 98.4%; punctuation coverage 93.5%; memory profile 2026-09-12T06:23:23Z, one pass after warmup. Model: mlx-community/whisper-large-v3-8bit @ 7fede54fd97b154a4f5e476646484fc023b1bcdf",
+      "modelURL": "https://huggingface.co/mlx-community/whisper-large-v3-8bit"
     },
     {
       "id": "granite-4.0-1b-speech-4bit",
@@ -104,7 +110,8 @@ const VELLA_RESULTS = {
       "speed": 44.13605954840108,
       "ram": 7.640377766,
       "source": "../Resources/ReferenceResults/formatted-M5Max-granite-4.0-1b-speech-4bit.json",
-      "provenance": "Apple M5 Max; 2026-09-12T06:08:37Z; word alignment coverage 98.8%; punctuation coverage 95.5%; memory profile 2026-09-12T06:25:07Z, one pass after warmup. Model: mlx-community/granite-4.0-1b-speech-4bit @ 7e42cf86c0f595f0c38327eae7a90a8c11a17281"
+      "provenance": "Apple M5 Max; 2026-09-12T06:08:37Z; word alignment coverage 98.8%; punctuation coverage 95.5%; memory profile 2026-09-12T06:25:07Z, one pass after warmup. Model: mlx-community/granite-4.0-1b-speech-4bit @ 7e42cf86c0f595f0c38327eae7a90a8c11a17281",
+      "modelURL": "https://huggingface.co/mlx-community/granite-4.0-1b-speech-4bit"
     },
     {
       "id": "granite-4.0-1b-speech-8bit",
@@ -118,7 +125,8 @@ const VELLA_RESULTS = {
       "speed": 37.362870634812666,
       "ram": 8.558930342,
       "source": "../Resources/ReferenceResults/formatted-M5Max-granite-4.0-1b-speech-8bit.json",
-      "provenance": "Apple M5 Max; 2026-09-12T06:09:45Z; word alignment coverage 98.9%; punctuation coverage 96.7%; memory profile 2026-09-12T06:25:42Z, one pass after warmup. Model: mlx-community/granite-4.0-1b-speech-8bit @ 5ed3098fb331d0131cb2aeafdbacc19841359736"
+      "provenance": "Apple M5 Max; 2026-09-12T06:09:45Z; word alignment coverage 98.9%; punctuation coverage 96.7%; memory profile 2026-09-12T06:25:42Z, one pass after warmup. Model: mlx-community/granite-4.0-1b-speech-8bit @ 5ed3098fb331d0131cb2aeafdbacc19841359736",
+      "modelURL": "https://huggingface.co/mlx-community/granite-4.0-1b-speech-8bit"
     },
     {
       "id": "whisper-large-v3-asr-fp16",
@@ -132,7 +140,8 @@ const VELLA_RESULTS = {
       "speed": 19.694962171820215,
       "ram": 4.028225754,
       "source": "../Resources/ReferenceResults/formatted-M5Max-whisper-large-v3-asr-fp16.json",
-      "provenance": "Apple M5 Max; 2026-09-12T06:03:16Z; word alignment coverage 98.4%; punctuation coverage 93.5%; memory profile 2026-09-12T06:22:24Z, one pass after warmup. Model: mlx-community/whisper-large-v3-asr-fp16 @ f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9"
+      "provenance": "Apple M5 Max; 2026-09-12T06:03:16Z; word alignment coverage 98.4%; punctuation coverage 93.5%; memory profile 2026-09-12T06:22:24Z, one pass after warmup. Model: mlx-community/whisper-large-v3-asr-fp16 @ f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
+      "modelURL": "https://huggingface.co/mlx-community/whisper-large-v3-asr-fp16"
     },
     {
       "id": "SenseVoiceSmall",
@@ -146,7 +155,8 @@ const VELLA_RESULTS = {
       "speed": 631.6128303106849,
       "ram": 1.794116544,
       "source": "../Resources/ReferenceResults/formatted-M5Max-SenseVoiceSmall.json",
-      "provenance": "Apple M5 Max; 2026-09-12T06:07:35Z; word alignment coverage 97.7%; punctuation coverage 94.9%; memory profile 2026-09-12T06:24:34Z, one pass after warmup. Model: mlx-community/SenseVoiceSmall @ 8ddd966bd96243cff196422f81f0c5d955814792"
+      "provenance": "Apple M5 Max; 2026-09-12T06:07:35Z; word alignment coverage 97.7%; punctuation coverage 94.9%; memory profile 2026-09-12T06:24:34Z, one pass after warmup. Model: mlx-community/SenseVoiceSmall @ 8ddd966bd96243cff196422f81f0c5d955814792",
+      "modelURL": "https://huggingface.co/mlx-community/SenseVoiceSmall"
     },
     {
       "id": "SenseVoiceSmall-4bit",
@@ -160,7 +170,8 @@ const VELLA_RESULTS = {
       "speed": 582.2959843385853,
       "ram": 0.884919208,
       "source": "../Resources/ReferenceResults/formatted-M5Max-SenseVoiceSmall-4bit.json",
-      "provenance": "Apple M5 Max; 2026-09-12T06:07:40Z; word alignment coverage 96.8%; punctuation coverage 92.0%; memory profile 2026-09-12T06:24:37Z, one pass after warmup. Model: vanch007/SenseVoiceSmall-4bit @ b5365bac129cf37740aac0a2cfaf283fca0d2d1c"
+      "provenance": "Apple M5 Max; 2026-09-12T06:07:40Z; word alignment coverage 96.8%; punctuation coverage 92.0%; memory profile 2026-09-12T06:24:37Z, one pass after warmup. Model: vanch007/SenseVoiceSmall-4bit @ b5365bac129cf37740aac0a2cfaf283fca0d2d1c",
+      "modelURL": "https://huggingface.co/vanch007/SenseVoiceSmall-4bit"
     },
     {
       "id": "whisper-large-v3-asr-4bit",
@@ -174,7 +185,8 @@ const VELLA_RESULTS = {
       "speed": 22.173461980842156,
       "ram": 1.754945674,
       "source": "../Resources/ReferenceResults/formatted-M5Max-whisper-large-v3-asr-4bit.json",
-      "provenance": "Apple M5 Max; 2026-09-12T06:07:06Z; word alignment coverage 98.4%; punctuation coverage 93.5%; memory profile 2026-09-12T06:24:17Z, one pass after warmup. Model: mlx-community/whisper-large-v3-asr-4bit @ 762b1efb49eb1d10b244236e896425deec3d6a95"
+      "provenance": "Apple M5 Max; 2026-09-12T06:07:06Z; word alignment coverage 98.4%; punctuation coverage 93.5%; memory profile 2026-09-12T06:24:17Z, one pass after warmup. Model: mlx-community/whisper-large-v3-asr-4bit @ 762b1efb49eb1d10b244236e896425deec3d6a95",
+      "modelURL": "https://huggingface.co/mlx-community/whisper-large-v3-asr-4bit"
     }
   ]
 };
