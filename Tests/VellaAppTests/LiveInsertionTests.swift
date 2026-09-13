@@ -8,7 +8,10 @@ final class LiveInsertionTests: XCTestCase {
         var output = ""
         let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
         controller.offer("Hello")
-        try await Task.sleep(for: .milliseconds(180))
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while output != "Hello", ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
         XCTAssertEqual(output, "Hello")
         controller.offer("Hello world")
         await controller.finish("Hello world!")
@@ -95,7 +98,9 @@ final class LiveInsertionTests: XCTestCase {
         var output = ""
         let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
         controller.offer("e")
-        try await Task.sleep(for: .milliseconds(180))
+        // This tests revision of an already sent grapheme, not timer latency.
+        controller.flush()
+        XCTAssertEqual(output, "e")
         await controller.finish("e\u{0301}")
         XCTAssertEqual(output, "e")
         XCTAssertNotNil(controller.blockedReason)
@@ -144,7 +149,7 @@ final class LiveInsertionTests: XCTestCase {
         var output = ""
         let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
         controller.offer("hello  world")
-        try await Task.sleep(for: .milliseconds(180))
+        controller.flush()
         XCTAssertEqual(output, "hello world")
         controller.offer("hello world again")
         await controller.finish("hello   world  again  ")
