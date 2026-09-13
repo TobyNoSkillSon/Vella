@@ -74,6 +74,7 @@ final class GlobalShortcut {
     private var meterTimer: Timer?
     private var task: Task<Void, Never>?
     private var successTask: Task<Void, Never>?
+    private(set) var failureStartedAt = Date()
     private var config: Configuration?
     private var operation = UUID()
     var busy: Bool { finishingCapture || phase == .preparing || phase == .transcribing }
@@ -98,6 +99,7 @@ final class GlobalShortcut {
     }
     func update(_ phase: Phase, _ message: String) {
         successTask?.cancel(); successTask = nil
+        if phase == .failed { failureStartedAt = Date() }
         self.phase = phase; self.message = message
         if phase == .idle { hudVisible = false }
         if phase == .success {

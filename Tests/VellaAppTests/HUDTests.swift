@@ -39,7 +39,7 @@ final class HUDTests: XCTestCase {
             XCTAssertTrue(HUDView.animationPaused(phase: phase, visible: true, reduced: true))
         }
         XCTAssertTrue(HUDView.animationPaused(phase: .idle, visible: true, reduced: false))
-        XCTAssertTrue(HUDView.animationPaused(phase: .failed, visible: true, reduced: false))
+        XCTAssertFalse(HUDView.animationPaused(phase: .failed, visible: true, reduced: false))
         XCTAssertFalse(HUDView.animationPaused(phase: .recording, visible: true, reduced: false))
         XCTAssertFalse(HUDView.animationPaused(phase: .success, visible: true, reduced: false))
     }
@@ -51,6 +51,48 @@ final class HUDTests: XCTestCase {
         for role in ["AXTextArea", "AXTextField", "AXComboBox"] {
             XCTAssertTrue(AccessibilityFocus.isFieldRole(role))
         }
+    }
+
+    func testWarningWigglesThenUsesTheExistingCollapse() {
+        XCTAssertLessThan(HUDView.failureDwell, 0.7)
+        XCTAssertNotEqual(WaveformMotion.warning(age: 0.05, reduced: false),
+                          WaveformMotion.warning(age: 0.12, reduced: false))
+        XCTAssertEqual(WaveformMotion.warning(age: 0.50, reduced: false),
+                       WaveformMotion.sample(entryAge: 2, finishAge: 0.50 - WaveformMotion.warningWiggleDuration, reduced: false))
+        XCTAssertEqual(WaveformMotion.warning(age: HUDView.failureDwell, reduced: false).opacity, 0)
+        for age in [0.0, 0.1, 0.5] {
+            XCTAssertEqual(WaveformMotion.warning(age: age, reduced: true), WaveformMotion())
+        }
+    }
+
+    @MainActor func testWarningHUDRendersOrangeWaveAndDisappears() throws {
+        _ = NSApplication.shared
+        let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
+        let model = Model(pasteboard: clipboard); model.phase = .failed
+        var frames: [Data] = []
+        for (name, age) in [("warning-a", 0.05), ("warning-b", 0.13), ("warning-collapse", 0.50), ("warning-gone", HUDView.failureDwell)] {
+            let renderer = ImageRenderer(content: HUDView(model: model, previewTime: 1,
+                previewEntryAge: 2, previewFinishAge: age))
+            renderer.scale = 2
+            let image = try XCTUnwrap(renderer.cgImage)
+            let bitmap = NSBitmapImageRep(cgImage: image)
+            var colored = 0, visible = 0
+            for y in 0..<image.height { for x in 0..<image.width {
+                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB), color.alphaComponent > 0.1 else { continue }
+                visible += 1
+                if color.redComponent > color.blueComponent + 0.08 { colored += 1 }
+            } }
+            if name == "warning-gone" { XCTAssertEqual(visible, 0) }
+            else { XCTAssertGreaterThan(colored, 30) }
+            frames.append(try XCTUnwrap(image.dataProvider?.data as Data?))
+            if let output = ProcessInfo.processInfo.environment["VELLA_HUD_QA_DIR"] {
+                let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                try png.write(to: URL(fileURLWithPath: output).appendingPathComponent(name + ".png"))
+            }
+        }
+        XCTAssertNotEqual(frames[0], frames[1])
+        XCTAssertEqual(model.phase, .failed, "Hiding feedback must not clear the recoverable error")
+        XCTAssertNil(clipboard.string(forType: .string))
     }
 
     @MainActor func testFinishAcknowledgesBeforeCaptureDrainAndKeepsMainActorResponsive() async {

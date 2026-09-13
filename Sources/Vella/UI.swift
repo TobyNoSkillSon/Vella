@@ -267,7 +267,7 @@ final class HUDPanel: NSPanel {
                 self.panel.orderOut(nil)
             }
             dismissal = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + (model.phase == .failed ? 4 : HUDView.successDwell), execute: work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + (model.phase == .failed ? HUDView.failureDwell : HUDView.successDwell), execute: work)
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
