@@ -66,13 +66,37 @@ final class RecordingSession {
             if !segment.finalized { segment.peakRMS = Self.peakRMS(try Data(contentsOf: file), range: 0..<segment.frames) }
             if segment.sha256 == nil { segment.sha256 = Self.digest(try Data(contentsOf: file)) }
             segment.finalized = true
-            if segment.frames > segment.overlapFrames { recovered.append(segment) }
+            recovered.append(segment)
         }
         guard Set(manifest.segments.filter { $0.frames > $0.overlapFrames }.map(\.index)).isSubset(of: Set(recovered.map(\.index))) else {
             throw VellaError.message("A saved audio segment is missing. Remaining files were preserved; open Vella Files to recover them.")
         }
         manifest.segments = recovered.sorted { $0.index < $1.index }
+        for i in manifest.segments.indices where manifest.segments[i].frames == manifest.segments[i].overlapFrames {
+            try verifyRedundantTail(at: i)
+        }
+        manifest.segments.removeAll { $0.frames == $0.overlapFrames }
         if manifest.state == "recording" { manifest.state = "interrupted" }
+    }
+    /// Zero unique samples is only safe when the saved bytes really are a duplicate.
+    /// Stop can land immediately after a forced cut, before any new capture arrives.
+    func verifyRedundantTail(at i: Int) throws {
+        let segment = manifest.segments[i]
+        guard segment.frames == segment.overlapFrames else { return }
+        let raw = try Data(contentsOf: directory.appendingPathComponent(segment.filename))
+        guard raw.count == segment.frames * 4,
+              segment.sha256.map({ $0 == Self.digest(raw) }) ?? true else {
+            throw VellaError.message("Saved tail integrity check failed. Audio is retained.")
+        }
+        if raw.isEmpty { return }
+        guard i > 0 else { throw VellaError.message("Saved overlap has no predecessor. Audio is retained.") }
+        let previous = manifest.segments[i - 1]
+        let left = try Data(contentsOf: directory.appendingPathComponent(previous.filename))
+        guard previous.index + 1 == segment.index, left.count == previous.frames * 4,
+              previous.sha256.map({ $0 == Self.digest(left) }) ?? true,
+              left.count >= raw.count, left.suffix(raw.count) == raw else {
+            throw VellaError.message("Saved overlap does not match its predecessor. Audio is retained.")
+        }
     }
     static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     func save() throws {
@@ -119,6 +143,13 @@ final class RecordingSession {
         return text
     }
     @discardableResult func savePartialTranscript() throws -> String? {
+        if manifest.config.mode == .streaming {
+            if let recovered = try StreamingJournal.recover(directory: directory) {
+                try durableWrite(Data(recovered.utf8), to: directory.appendingPathComponent("partial-transcript.txt"))
+                return recovered
+            }
+            return try? String(contentsOf: directory.appendingPathComponent("partial-transcript.txt"), encoding: .utf8)
+        }
         guard manifest.segments.contains(where: { !($0.text ?? "").isEmpty }) else { return nil }
         var pieces = ["[Incomplete transcript — retry missing audio segments]"]
         for segment in manifest.segments {
@@ -132,6 +163,20 @@ final class RecordingSession {
     func finalizeTranscript(_ text: String) throws -> String {
         try durableWrite(Data(text.utf8), to: transcriptURL)
         manifest.state = "transcribed"; try save(); return text
+    }
+    // These methods use immutable directory only: capture still owns the manifest.
+    func saveStreamingPartial(_ text: String) throws {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        try durableWrite(Data(("[Incomplete streaming transcript — retry saved audio]\n" + text).utf8),
+                         to: directory.appendingPathComponent("partial-transcript.txt"))
+    }
+    func preserveStreamingCheckpoint() throws {
+        _ = try savePartialTranscript()
+        let url = directory.appendingPathComponent("partial-transcript.txt")
+        if FileManager.default.fileExists(atPath: url.path) {
+            try durableWrite(Data(contentsOf: url), to: directory.appendingPathComponent("streaming-retry-\(UUID().uuidString).txt"))
+        }
+        try StreamingJournal.archiveForRetry(directory: directory)
     }
     func complete() throws -> String { try finalizeTranscript(Self.assemble(manifest.segments)) }
     static func trimOverlap(_ left: String, _ right: String, overlaps: Bool) -> String {

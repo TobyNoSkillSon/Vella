@@ -32,7 +32,8 @@ final class CaptureRegressionTests: XCTestCase {
     }
     func testNativeMonoFloatCaptureIsSampleExactAcrossVariableBuffers() throws {
         let record = try RecordingSession(root: root(), config: Configuration(executable: "/unused", model: "/unused"))
-        let sink = try CaptureSink(session: record)
+        var streaming = Data()
+        let sink = try CaptureSink(session: record, onPCM: { streaming.append($0) })
         let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false))
         var expected = Data()
         for count in [4096, 4096, 17, 8000, 333, 4096] {
@@ -48,6 +49,75 @@ final class CaptureRegressionTests: XCTestCase {
         print("Native capture: expected \(expected.count / 4), actual \(actual.count / 4) frames")
         XCTAssertEqual(actual.count, expected.count)
         XCTAssertEqual(SHA256.hash(data: actual), SHA256.hash(data: expected))
+        XCTAssertEqual(streaming, actual, "Live streaming must receive the same finalized PCM as the journal, including converter drain")
+    }
+    @MainActor func testRealCaptureFeedsStreamingBeforeFinish() async throws {
+        guard ProcessInfo.processInfo.environment["VELLA_REAL_STREAM_CHECK"] == "1" else {
+            throw XCTSkip("Opt-in real streaming capture replay; no physical microphone is opened.")
+        }
+        func checkIdle() throws {
+            let path = Backend.support.appendingPathComponent("dictation-status.json")
+            if let data = try? Data(contentsOf: path), let status = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let phase = status["phase"] as? String, ["recording", "preparing", "transcribing"].contains(phase) {
+                throw VellaError.message("Live dictation began; stopping test-owned inference.")
+            }
+        }
+        try checkIdle()
+        let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let installed = Backend.support.appendingPathComponent("Models/nemotron-3.5-asr-streaming-0.6b-8bit")
+        let weights = FileManager.default.fileExists(atPath: installed.path) ? installed : cwd.appendingPathComponent(".build/qa/model-scout/Models/nemotron-3.5-asr-streaming-0.6b-8bit")
+        let runtime = try Backend().configuration(requiresModel: false).executable
+        let config = try Configuration(executable: runtime, model: "", mode: .streaming, streamingModel: weights.path).forRecording()
+        let record = try RecordingSession(root: root(), config: config)
+        let queue = StreamingPCMBuffer()
+        let sink = try CaptureSink(session: record, onPCM: { queue.append($0) })
+        let backend = StreamingBackend()
+        defer { backend.shutdown() }
+        let audio = try AVAudioFile(forReading: cwd.appendingPathComponent("Resources/Calibration/speech.wav"))
+        let pcm = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: audio.processingFormat, frameCapacity: 1600))
+        var expected = Data()
+        let began = ProcessInfo.processInfo.systemUptime
+        var firstPartial: Double?
+        backend.onUpdate = { if firstPartial == nil && !backend.text.isEmpty { firstPartial = ProcessInfo.processInfo.systemUptime - began } }
+        let producer = Task {
+            do {
+                while audio.framePosition < audio.length {
+                    try Task.checkCancellation(); try checkIdle()
+                    try audio.read(into: pcm, frameCount: 1600)
+                    expected.append(bytes(pcm)); sink.consume(try sample(pcm))
+                    let due = began + Double(audio.framePosition) / audio.fileFormat.sampleRate
+                    let delay = due - ProcessInfo.processInfo.systemUptime
+                    if delay > 0 { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+                }
+                sink.finish(); queue.close()
+            } catch {
+                sink.finish(userStopped: false); queue.abort()
+                if !(error is CancellationError) { throw error }
+            }
+        }
+        defer { producer.cancel() }
+        do { try await backend.start(config: config) }
+        catch {
+            print("Streaming capture startup failed: \(error)")
+            producer.cancel(); try? await producer.value; throw error
+        }
+        while !queue.isDrained {
+            try checkIdle()
+            if let data = try queue.take() { try await backend.feed(data) }
+            else { try await Task.sleep(nanoseconds: 10_000_000) }
+        }
+        try await producer.value
+        XCTAssertNil(sink.error)
+        let first = try XCTUnwrap(firstPartial, "No partial arrived before Finish")
+        XCTAssertLessThan(first, Double(audio.length) / audio.fileFormat.sampleRate)
+        let text = try await backend.finish(expectedFrames: queue.totalFrames)
+        XCTAssertFalse(text.isEmpty)
+        let actual = try saved(record)
+        XCTAssertEqual(SHA256.hash(data: actual), SHA256.hash(data: expected))
+        XCTAssertEqual(queue.totalFrames, actual.count / 4)
+        _ = try record.finalizeTranscript(text)
+        try await backend.releaseAndWait(); XCTAssertNil(backend.processID)
+        print("Streaming capture replay: \(queue.totalFrames) frames, first partial \(first)s, exact PCM hash \(RecordingSession.digest(actual)); public fixture text: \(text)")
     }
     func testCorpusReplayAcrossSegmentBoundaryPreservesEveryFloatSample() throws {
         struct Manifest: Decodable { struct Clip: Decodable { let file: String }; let clips: [Clip] }

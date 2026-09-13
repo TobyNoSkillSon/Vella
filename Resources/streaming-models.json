@@ -1,0 +1,38 @@
+[
+  {
+    "id": "nemotron-3.5-asr-streaming-0.6b-8bit",
+    "name": "Nemotron 3.5 ASR · 0.6B",
+    "quantization": "8-bit",
+    "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
+    "revision": "7279359e4481b5e9e185a318bd618e429c6d86cd",
+    "downloadBytes": 756247988,
+    "architecture": "nemotron_asr",
+    "license": "OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License",
+    "recommended": true,
+    "recommendation": "Native cache-aware streaming recognition. Text updates while you speak; batch dictation scores do not measure live streaming latency or accuracy."
+  },
+  {
+    "id": "Voxtral-Mini-4B-Realtime-2602-4bit",
+    "name": "Voxtral Mini Realtime · 4B",
+    "quantization": "4-bit",
+    "repository": "mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit",
+    "revision": "fdebf7b2af834a1db4b8a3c99ab7480b333adf9e",
+    "downloadBytes": 3148833321,
+    "architecture": "voxtral_realtime",
+    "license": "apache-2.0",
+    "recommended": true,
+    "recommendation": "Native persistent streaming with 480-ms configured delay, not measured microphone latency. Lower word error in the clean-English reference test, but only about 1.2x real-time compute on M5 Max: limited headroom for live use."
+  },
+  {
+    "id": "nemotron-3.5-asr-streaming-0.6b-bf16",
+    "name": "Nemotron 3.5 ASR · 0.6B",
+    "quantization": "BF16",
+    "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b",
+    "revision": "e550040c0478027ed679b2b6b0d055502c103663",
+    "downloadBytes": 1276707588,
+    "architecture": "nemotron_asr",
+    "license": "OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License",
+    "recommended": true,
+    "recommendation": "Native streaming at 320-ms context with BF16 weights. Slightly fewer word errors than 8-bit in the clean-English reference test, identical full-text error, higher memory use and slower compute."
+  }
+]

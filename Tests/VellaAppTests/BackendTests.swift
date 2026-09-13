@@ -25,7 +25,7 @@ final class BackendTests: XCTestCase {
     }
     @MainActor func testMenuUsesNativeItemsNotPopoverViews() {
         _ = NSApplication.shared
-        let delegate = AppDelegate()
+        let delegate = AppDelegate(model: Model(configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-vella-config-\(UUID()).json")))
         delegate.rebuildMenu()
         XCTAssertTrue(delegate.menu.items.allSatisfy { $0.view == nil })
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Start Dictation" })
@@ -34,7 +34,7 @@ final class BackendTests: XCTestCase {
     }
     @MainActor func testRecordingMenuOffersFinishAndCancel() {
         _ = NSApplication.shared
-        let delegate = AppDelegate()
+        let delegate = AppDelegate(model: Model(configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-vella-config-\(UUID()).json")))
         delegate.model.phase = .recording
         delegate.rebuildMenu()
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Finish Dictation" })

@@ -1,9 +1,15 @@
 import AppKit
 import Foundation
 import Darwin
+import CryptoKit
 import VellaCore
 
 @MainActor final class ModelLibrary: ObservableObject {
+    let mode: RecognitionMode
+    var catalogName: String { mode == .dictation ? "models.json" : "streaming-models.json" }
+    func supports(_ architecture: String) -> Bool {
+        mode == .streaming ? ["nemotron_asr", "voxtral_realtime"].contains(architecture) : ["whisper", "qwen3_asr", "parakeet", "sensevoice", "granite_speech"].contains(architecture)
+    }
     @Published var models: [ModelRecommendation] = []
     @Published var installed: [String: InstalledModel] = [:]
     @Published var localResults: [String: BenchmarkResult] = [:]
@@ -36,6 +42,10 @@ import VellaCore
     let registryURL: URL
     // Injectable filesystem operations keep deletion tests away from real models/Trash.
     var currentModelPath: () throws -> String = { try Backend().configuration(requiresModel: false).model }
+    var protectedModelPaths: () throws -> [String] = {
+        let config = try Backend().configuration(requiresModel: false)
+        return [config.model, config.streamingModel]
+    }
     var trashModel: (URL) throws -> URL = { source in
         var destination: NSURL?
         try FileManager.default.trashItem(at: source, resultingItemURL: &destination)
@@ -53,9 +63,11 @@ import VellaCore
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &directory), directory.boolValue else { return nil }
         return folder.path // An unfinished download is manageable, but NOT installed.
     }
-    init(resources: URL? = nil, registryURL: URL? = nil, calibration: CalibrationStore? = nil) {
+    init(mode: RecognitionMode = .dictation, resources: URL? = nil, registryURL: URL? = nil, calibration: CalibrationStore? = nil) {
+        self.mode = mode
+        if registryURL != nil { protectedModelPaths = { [] } }
         // Custom registries are an isolation boundary; callers inject their calibration runner.
-        automaticallyCalibrates = registryURL == nil || calibration != nil
+        automaticallyCalibrates = mode == .dictation && (registryURL == nil || calibration != nil)
         self.calibration = calibration ?? (resources == nil ? .shared : CalibrationStore(resources: resources))
         self.registryURL = registryURL ?? Self.registry
         self.resources = resources ?? Self.resourceDirectory()
@@ -86,7 +98,8 @@ import VellaCore
     }()
     func referenceDescription(_ result: BenchmarkResult) -> String {
         let matches = result.machine.caseInsensitiveCompare(Self.processor) == .orderedSame
-        return "Measured on \(result.machine)\(matches ? " (matches your processor)" : " (reference; your processor is \(Self.processor))"). \(Int(result.audioSeconds)) seconds of audio, \(result.repeats) passes. Not measured on every user's individual Mac"
+        let path = result.recognitionMode == .streaming ? "Native streaming input; speed is accelerated replay throughput, not microphone-to-text latency. " : "Batch inference. "
+        return path + "Measured on \(result.machine)\(matches ? " (matches your processor)" : " (reference; your processor is \(Self.processor))"). \(Int(result.audioSeconds)) seconds of audio, \(result.repeats) passes. Not measured on every user's individual Mac"
     }
     func formattingDescription(_ result: BenchmarkResult) -> String {
         guard let f = result.formatting else { return "Formatting not measured" }
@@ -97,18 +110,23 @@ import VellaCore
     func reload() {
         let decoder = JSONDecoder()
         do {
-            models = try decoder.decode([ModelRecommendation].self, from: Data(contentsOf: resources.appendingPathComponent("models.json")))
+            models = try decoder.decode([ModelRecommendation].self, from: Data(contentsOf: resources.appendingPathComponent(catalogName))).filter { supports($0.architecture) }
             if let data = try? Data(contentsOf: registryURL), let saved = try? decoder.decode([String: InstalledModel].self, from: data) { installed = saved }
             for (id, local) in installed where !models.contains(where: { $0.id == id }) {
                 if let bytes = try? Data(contentsOf: URL(fileURLWithPath: local.path).appendingPathComponent("config.json")),
                    let cfg = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
-                   let architecture = (cfg["model_type"] as? String) ?? ((cfg["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel") ? "parakeet" : nil), ["whisper", "qwen3_asr", "parakeet", "sensevoice", "granite_speech"].contains(architecture) {
+                   let architecture = (cfg["model_type"] as? String) ?? ((cfg["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel") ? "parakeet" : nil), supports(architecture) {
                     let bits = (cfg["quantization"] as? [String: Any])?["bits"] as? Int
                     models.append(ModelRecommendation(id: id, name: local.name ?? "Imported model", quantization: bits.map { "\($0)-bit" } ?? "Unquantized", repository: "", revision: "", downloadBytes: 0, architecture: architecture, license: "See imported model’s license", recommendation: "Local import · not a pinned Hub recommendation"))
                 }
             }
             // Treat configuration-selected models as imported until the user maps/downloads a recommendation.
-            if let config = try? Backend().configuration() { activeModelPath = config.model }
+            if registryURL == Self.registry, let config = try? Backend().configuration(requiresModel: false) {
+                activeModelPath = mode == .dictation ? config.model : config.streamingModel
+            }
+            if !models.contains(where: { $0.id == selectedID }) { selectedID = models.first?.id ?? "" }
+            references = [:]; localResults = [:]
+            let streamHash = (try? Data(contentsOf: resources.appendingPathComponent("streaming_worker.py"))).map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
             let policyData = try Data(contentsOf: resources.appendingPathComponent("benchmark-policy.json"))
             let policy = try JSONDecoder().decode(BenchmarkPolicy.self, from: policyData)
             var candidates: [String: [BenchmarkResult]] = [:]
@@ -116,6 +134,12 @@ import VellaCore
             for folder in [resources.appendingPathComponent("ReferenceResults"), Backend.support.appendingPathComponent("ReferenceResults")] {
                 for url in (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? [] where url.pathExtension == "json" {
                     if let data = try? Data(contentsOf: url), let result = try? decoder.decode(BenchmarkResult.self, from: data), result.suiteID == policy.suiteID, result.suiteHash == policy.suiteHash, result.repeats >= policy.minimumRepeats, policy.scorerSHA256 == nil || result.formatting?.scorerSHA256 == policy.scorerSHA256, policy.lexicalNormalizerSHA256 == nil || result.formatting?.lexicalNormalizerSHA256 == policy.lexicalNormalizerSHA256 {
+                        guard (result.recognitionMode ?? .dictation) == mode else { continue }
+                        if mode == .streaming {
+                            guard result.streamingQualified == true, result.complete == true,
+                                  result.measurementKind == "timing", let streamHash,
+                                  result.streamingWorkerSHA256 == streamHash else { continue }
+                        }
                         candidates[result.modelID, default: []].append(result)
                     }
                 }
@@ -124,16 +148,28 @@ import VellaCore
             if !models.contains(where: { $0.id == selectedID }) { selectedID = models.first?.id ?? "" }
         } catch { message = error.localizedDescription }
     }
-    private func saveRegistry() throws {
+    // Merge only explicitly changed IDs into the latest shared registry. The other
+    // mode may have installed/deleted entries since this library last reloaded.
+    func saveRegistry(updating id: String) throws {
+        var latest: [String: InstalledModel] = [:]
+        if FileManager.default.fileExists(atPath: registryURL.path) {
+            latest = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: registryURL))
+        }
+        latest[id] = installed[id]
         try FileManager.default.createDirectory(at: registryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try writeRegistryData(encoder.encode(installed), registryURL)
+        try writeRegistryData(encoder.encode(latest), registryURL)
+        installed = latest
     }
     func deletionBlockReason(_ id: String) -> String? {
         if busy || calibration.isRunning || !mayChangeModel() { return "Finish dictation, downloading or calibration before deleting a model." }
         guard let path = modelFilePath(id) else { return "This model has no local files." }
         let folder = URL(fileURLWithPath: path).standardizedFileURL
         guard let active = try? currentModelPath() else { return "Cannot verify the active model. Check configuration before deleting." }
+        guard let protected = try? protectedModelPaths() else { return "Cannot verify saved model selections. Check configuration before deleting." }
+        if protected.contains(where: { !$0.isEmpty && folder.resolvingSymlinksInPath() == URL(fileURLWithPath: $0).resolvingSymlinksInPath() }) {
+            return "Switch to another model in that mode before deleting its saved selection."
+        }
         if (!active.isEmpty && folder.resolvingSymlinksInPath() == URL(fileURLWithPath: active).resolvingSymlinksInPath()) || path == activeModelPath {
             return "Switch to another model before deleting the one in use."
         }
@@ -166,7 +202,7 @@ import VellaCore
             let source = URL(fileURLWithPath: expectedPath)
             let trashed = FileManager.default.fileExists(atPath: source.path) ? try trashModel(source) : nil
             installed.removeValue(forKey: id)
-            do { if wasInstalled { try saveRegistry() } }
+            do { if wasInstalled { try saveRegistry(updating: id) } }
             catch {
                 installed = old
                 if let trashed {
@@ -182,25 +218,26 @@ import VellaCore
         } catch { downloadError = error.localizedDescription; message = error.localizedDescription; return false }
     }
     func download() {
-        guard let selected, !busy, calibratingID == nil else { return }
+        guard let selected, !busy, !calibration.isRunning, calibratingID == nil else { return }
         guard mayChangeModel() else { message = "Finish or stop dictation before installing a model."; return }
         beforeHeavyWork?()
         downloadingID = selected.id; downloadError = nil
-        run(["download", "--catalog", resources.appendingPathComponent("models.json").path,
+        run(["download", "--catalog", resources.appendingPathComponent(catalogName).path,
              "--model-id", selected.id, "--models-dir", modelsDirectory.path], timeout: 3600)
     }
     func importModel() {
-        guard let selected, !busy else { return }
+        guard let selected, !busy, !calibration.isRunning, mayChangeModel() else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.showsHiddenFiles = true
-        panel.message = "Choose existing \(selected.name) \(selected.quantization) weights. The benchmark will validate architecture and quantization."
+        panel.message = "Choose existing \(selected.name) \(selected.quantization) weights. Vella validates the architecture and quantization before importing."
         guard panel.runModal() == .OK, let path = panel.url else { return }
         do {
             try validateModel(path, expected: selected)
             installed[selected.id] = InstalledModel(path: path.path)
-            try saveRegistry(); message = "Imported locally. Repository revision is unverified; benchmark before choosing."
+            try saveRegistry(updating: selected.id)
+            message = mode == .dictation ? "Imported locally. Repository revision is unverified; benchmark before choosing." : "Imported locally. Repository revision is unverified; live streaming metrics are not available."
         } catch { message = error.localizedDescription }
     }
-    private func validateModel(_ folder: URL, expected: ModelRecommendation) throws {
+    func validateModel(_ folder: URL, expected: ModelRecommendation) throws {
         let data = try Data(contentsOf: folder.appendingPathComponent("config.json"))
         let config = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         if let tokenData = try? Data(contentsOf: folder.appendingPathComponent("tokenizer_config.json")),
@@ -214,14 +251,14 @@ import VellaCore
         let bits = quant?["bits"] as? Int
         let expectedBits = Int(expected.quantization.split(separator: "-").first ?? "")
         let architecture = config?["model_type"] as? String ?? ((config?["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel") ? "parakeet" : "")
-        guard architecture == expected.architecture, config?["auto_map"] == nil,
+        guard supports(architecture), supports(expected.architecture), architecture == expected.architecture, config?["auto_map"] == nil,
               expectedBits == nil ? bits == nil : bits == expectedBits,
               (try FileManager.default.contentsOfDirectory(atPath: folder.path)).contains(where: { $0.hasSuffix(".safetensors") }) else {
             throw VellaError.message("The folder does not match this model architecture/quantization or is missing weights.")
         }
     }
     @discardableResult func useSelected() -> Bool {
-        guard !busy, mayChangeModel() else {
+        guard !busy, !calibration.isRunning, mayChangeModel() else {
             downloadError = "Finish dictation or the current download before switching models."; return false
         }
         guard let selected, let local = installed[selected.id] else {
@@ -233,10 +270,10 @@ import VellaCore
             // Keep a reversible local copy; release only Vella's own worker.
             let previous = try (try? Data(contentsOf: Backend.configURL)) ?? JSONEncoder().encode(config)
             try previous.write(to: Backend.support.appendingPathComponent("config.previous.json"), options: .atomic)
-            config.model = local.path
+            config.selectModel(local.path, for: mode)
             try JSONEncoder().encode(config).write(to: Backend.configURL, options: .atomic)
             activeModelPath = local.path; onUse?()
-            message = "Selected for the next dictation. Previous settings saved. Previous Vella worker memory is released."
+            message = "Selected for the next \(mode.title.lowercased()). Previous settings saved. Previous Vella workers have been asked to stop."
             downloadError = nil
             // Explicit Use also retries missing/deferred calibration. Capture cancels
             // the calibration worker if the user starts dictating immediately.
@@ -249,7 +286,7 @@ import VellaCore
         let candidates = [resources.deletingLastPathComponent(), resources.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()]
         let checkout = candidates.first { FileManager.default.fileExists(atPath: $0.appendingPathComponent("Package.swift").path) && FileManager.default.fileExists(atPath: $0.appendingPathComponent("README.md").path) }
         let source = checkout.map { " Source checkout: \($0.path); read its README.md." } ?? ""
-        return "Help me install another transcription model in Vella. First read the local integration guide at \(docs).\(source) Follow its compatibility, download and setup instructions. Preserve my working model and permissions; ask before switching models. Model I want: [describe it here]."
+        return "Help me install another \(mode.title.lowercased()) transcription model in Vella. First read the local integration guide at \(docs).\(source) Follow its compatibility, download and setup instructions. Preserve my working model and permissions; ask before switching models. Model I want: [describe it here]."
     }
     @discardableResult func copyAgentRequest(to pasteboard: NSPasteboard = .general) -> Bool {
         pasteboard.clearContents()
@@ -276,6 +313,7 @@ import VellaCore
             let child = Process(); child.executableURL = python
             child.arguments = [resources.appendingPathComponent("benchmark_worker.py").path] + args
             var env = ProcessInfo.processInfo.environment; env["PYTHONUNBUFFERED"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
+            env["PYTHONDONTWRITEBYTECODE"] = "1"
             child.environment = env
             let pipe = Pipe(); child.standardOutput = pipe; child.standardError = pipe
             buffer = Data(); receivedResult = false; pendingInstallation = nil; failureMessage = nil
@@ -358,9 +396,9 @@ import VellaCore
         else if code == 0 && receivedResult, let (id, local) = pendingInstallation {
             let previous = installed[id]
             do {
-                installed[id] = local; try saveRegistry()
+                installed[id] = local; try saveRegistry(updating: id)
                 reload(); progress = 1; downloadingID = nil
-                message = "Downloaded. Choose Use to select it for dictation."
+                message = "Downloaded. Choose Use to select it for \(mode.title.lowercased())."
                 beginCalibration(id: id, path: local.path)
             } catch {
                 installed[id] = previous

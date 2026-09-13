@@ -212,7 +212,7 @@ import Darwin
         child.executableURL = python
         child.arguments = [resources.appendingPathComponent("calibration_worker.py").path, "--model", modelPath, "--sample", resources.appendingPathComponent("Calibration").path]
         var env = ProcessInfo.processInfo.environment
-        for key in ["HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_HUB_DISABLE_TELEMETRY", "PYTHONUNBUFFERED"] { env[key] = "1" }
+        for key in ["HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_HUB_DISABLE_TELEMETRY", "PYTHONUNBUFFERED", "PYTHONDONTWRITEBYTECODE"] { env[key] = "1" }
         child.environment = env; child.standardOutput = pipe; child.standardError = pipe
         do { try child.run() } catch { completion("Installed. Calibration could not start: \(error.localizedDescription)"); return false }
         job = token; process = child; stopReason = nil

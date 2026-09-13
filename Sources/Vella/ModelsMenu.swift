@@ -18,7 +18,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
     init(library: ModelLibrary? = nil) { self.library = library ?? ModelLibrary(); super.init() }
     func modelItem() -> NSMenuItem {
         library.reload()
-        let root = NSMenuItem(title: "Models", action: nil, keyEquivalent: "")
+        let root = NSMenuItem(title: "Models…", action: nil, keyEquivalent: "")
         root.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
         let menu = NSMenu(); menu.autoenablesItems = false; tableMenu = menu
         let item = NSMenuItem()
@@ -100,14 +100,16 @@ struct ModelTable: View {
                             Text(result?.formatting.map { String(format: "%.2f%%", $0.formattedCharacterErrorRate * 100) } ?? "—").frame(width: 54, alignment: .trailing)
                                 .help(result.map { library.formattingDescription($0) } ?? "Not measured")
                             Text(result.map { String(format: "%.1f×", $0.realtimeFactor) } ?? "—").frame(width: 56, alignment: .trailing)
+                                .help(result.map { library.referenceDescription($0) } ?? "Not measured")
                             Text(result?.runtimePeakMLXBytes.map { String(format: "%.2f GB", Double($0) / 1_000_000_000) } ?? "—").frame(width: 56, alignment: .trailing)
+                                .help("Peak MLX allocation after warmup, not total app or system RAM. Python, native libraries and other apps need additional memory.")
                             Button(library.busy && library.downloadingID == model.id ? library.progress.map { "\(Int($0 * 100))%" } ?? "…" : active ? "In use" : installed == nil ? (localPath == nil ? "Install" : "Resume") : "Use") {
                                 library.selectedID = model.id
                                 if installed == nil { library.download() }
                                 else if library.useSelected() { dismiss() }
                             }.buttonStyle(.bordered).controlSize(.small).frame(width: 52)
                                 .disabled(active || library.busy || !library.mayChangeModel() || (installed == nil && model.repository.isEmpty))
-                                .help(installed == nil ? "Download \(ByteCountFormatter.string(fromByteCount: model.downloadBytes, countStyle: .file)) from Hugging Face: \(model.repository). License: \(model.license). Selecting for dictation is separate." : "Use this model for your next dictation")
+                                .help(installed == nil ? "Download \(ByteCountFormatter.string(fromByteCount: model.downloadBytes, countStyle: .file)) from Hugging Face: \(model.repository). License: \(model.license). Selecting for \(library.mode.title.lowercased()) is separate." : "Use this model for your next \(library.mode.title.lowercased())")
                             Button { requestDelete(model.id) } label: {
                                 Image(systemName: "trash").frame(width: 20)
                             }.buttonStyle(.plain)
@@ -132,7 +134,7 @@ struct ModelTable: View {
                             }
                             .foregroundStyle(active ? Color(nsColor: .selectedMenuItemTextColor) : Color.primary)
                             .contentShape(Rectangle())
-                            .help(result.map { "\(library.formattingDescription($0)). \($0.transcriptionSeconds.formatted(.number.precision(.fractionLength(2)))) seconds for \($0.audioSeconds.formatted(.number.precision(.fractionLength(1)))) seconds of audio." } ?? "Not measured. No score is borrowed from another quantization.")
+                            .help(result.map { "\(library.formattingDescription($0)). \($0.transcriptionSeconds.formatted(.number.precision(.fractionLength(2)))) seconds for \($0.audioSeconds.formatted(.number.precision(.fractionLength(1)))) seconds of audio." } ?? (library.mode == .streaming ? model.recommendation : "Not measured. No score is borrowed from another quantization."))
                     }
                 }
             }.frame(height: 180)

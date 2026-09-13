@@ -69,6 +69,74 @@ struct TranscriptionEstimate {
             return RecordingSession.join(left, right, overlaps: overlap > 0)
         }
     }
+    /// A short final slice may be an undecodable clipped phoneme, not missing audio.
+    /// Retry once with its entire recognized predecessor; never classify by duration.
+    private func retryTail(_ session: RecordingSession, at i: Int) async throws -> String? {
+        let segments = session.manifest.segments
+        guard i > 0, i == segments.count - 1 else { return nil }
+        let tail = segments[i], previous = segments[i - 1]
+        guard tail.frames > 0, tail.overlapFrames == 0, tail.seconds <= 1,
+              previous.index + 1 == tail.index,
+              let anchor = previous.text, !anchor.isEmpty,
+              previous.frames + tail.frames - tail.overlapFrames + 8000 <= 30 * 16_000 else { return nil }
+        func verified(_ segment: RecordingSession.Segment) throws -> Data {
+            let raw = try Data(contentsOf: session.directory.appendingPathComponent(segment.filename))
+            guard raw.count == segment.frames * 4,
+                  segment.sha256 == RecordingSession.digest(raw) else {
+                throw VellaError.message("Saved audio integrity check failed. Original audio is retained.")
+            }
+            return raw
+        }
+        let left = try verified(previous), right = try verified(tail)
+        var combined = left
+        combined.append(right.dropFirst(tail.overlapFrames * 4))
+        // Isolated disposable request, never rewrite source PCM or existing checkpoints.
+        let scratch = try RecordingSession(root: session.directory, config: session.manifest.config)
+        defer { try? FileManager.default.removeItem(at: scratch.directory) }
+        let source = RecordingSession.Segment(index: 0, frames: combined.count / 4,
+            peakRMS: max(previous.peakRMS, tail.peakRMS), finalized: true,
+            sha256: RecordingSession.digest(combined))
+        try scratch.durableWrite(combined, to: scratch.directory.appendingPathComponent(source.filename))
+        let provenance: [String: Any] = ["version": 1, "previousIndex": previous.index,
+            "tailIndex": tail.index, "previousSHA256": RecordingSession.digest(left),
+            "tailSHA256": RecordingSession.digest(right), "previousRange": [0, previous.frames],
+            "tailRange": [tail.overlapFrames, tail.frames], "paddingFrames": 4000,
+            "combinedSHA256": RecordingSession.digest(combined)]
+        func record(_ outcome: String, decodedContext: String? = nil) throws {
+            var entry = provenance; entry["outcome"] = outcome
+            // Private recovery evidence only; never used as an insertion fallback.
+            if let decodedContext { entry["decodedContext"] = decodedContext }
+            try session.durableWrite(JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
+                to: session.directory.appendingPathComponent(String(format: "context-retry-%06d.json", tail.index)))
+        }
+        try record("requested")
+        try Task.checkCancellation()
+        let decoded: String
+        do { decoded = try await request(scratch.wav(for: source, paddingFrames: 4000), session.manifest.config) }
+        catch VellaError.noSpeech { try record("noSpeech"); return nil }
+        try Task.checkCancellation()
+        guard let suffix = Self.contextSuffix(anchor: anchor, decoded: decoded) else {
+            try record("anchorMismatch", decodedContext: decoded); return nil
+        }
+        try record(suffix.isEmpty ? "recognizedAnchorOnly" : "recognizedSuffix")
+        return suffix
+    }
+    static func contextSuffix(anchor: String, decoded: String) -> String? {
+        let a = anchor.split(whereSeparator: \.isWhitespace)
+        let b = decoded.split(whereSeparator: \.isWhitespace)
+        func key(_ word: Substring) -> String {
+            let normalized = word.lowercased().replacingOccurrences(of: "’", with: "'")
+                .replacingOccurrences(of: "‘", with: "'")
+            // Only token-edge punctuation is ignorable. Internal apostrophes and
+            // hyphens distinguish real words (we're/were, re-sign/resign).
+            return String(normalized.drop(while: { !$0.isLetter && !$0.isNumber })
+                .reversed().drop(while: { !$0.isLetter && !$0.isNumber }).reversed())
+        }
+        let keys = a.map(key)
+        guard !keys.isEmpty, !keys.contains(""), b.count >= a.count,
+              keys == b.prefix(a.count).map(key) else { return nil }
+        return b.dropFirst(a.count).joined(separator: " ")
+    }
     func run(_ session: RecordingSession) async throws -> String {
         guard session.manifest.state != "recording" else { throw VellaError.message("Finish recording before transcription. Nothing has been pasted.") }
         session.manifest.state = "transcribing"; session.manifest.failureCode = nil; try session.save()
@@ -81,7 +149,10 @@ struct TranscriptionEstimate {
             onChunk?(completed, segment.seconds, i + 1, session.manifest.segments.count)
             let text: String
             quietSlices = 0
-            if segment.seconds <= 0 || segment.peakRMS <= 0.00001 {
+            if segment.seconds <= 0 {
+                try session.verifyRedundantTail(at: i)
+                text = "" // Exact duplicate/empty PCM, not a duration-based speech decision.
+            } else if segment.peakRMS <= 0.00001 {
                 text = "" // Only near-digital silence, not ordinary quiet speech.
             } else {
                 let start = ProcessInfo.processInfo.systemUptime
@@ -89,7 +160,14 @@ struct TranscriptionEstimate {
                 catch VellaError.noSpeech {
                     // Don't throw away later recognizable speech because one noisy
                     // interval is undecodable. Leave it pending for explicit Retry.
-                    try session.save()
+                    if let recovered = try await retryTail(session, at: i) {
+                        session.manifest.segments[i].text = recovered
+                        session.manifest.segments[i].quietSlices = 0
+                        try session.save()
+                        completed += segment.seconds
+                    } else { try session.save() }
+                    // Context includes the predecessor and earlier empty retries:
+                    // never calibrate its elapsed time against just the tiny tail.
                     continue
                 }
                 try Task.checkCancellation()

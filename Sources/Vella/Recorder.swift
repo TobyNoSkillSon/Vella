@@ -14,16 +14,19 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
     var error: Error?
     private var file: AVAudioFile?
     private var segmented: SegmentedPCMWriter?
+    private let onPCM: ((Data) -> Void)?
     private let outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
     private var converter: AVAudioConverter?
     // The converter may retain input pointers between output calls. Keep its most
     // recently supplied packet alive until it requests another one (or is released).
     private var converterInput: AVAudioPCMBuffer?
     init(url: URL) throws {
+        onPCM = nil
         let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
         file = try AVAudioFile(forWriting: url, settings: format.settings)
     }
-    init(session: RecordingSession) throws {
+    init(session: RecordingSession, onPCM: ((Data) -> Void)? = nil) throws {
+        self.onPCM = onPCM
         segmented = try SegmentedPCMWriter(session: session)
     }
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
@@ -111,6 +114,10 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
             try segmented.append(UnsafeBufferPointer(start: samples, count: Int(converted.frameLength)))
         } else if let file { try file.write(from: converted) }
         else { throw VellaError.message("Audio recording is already closed.") }
+        // Notify only after the journal accepted these frames, on this same queue.
+        if let onPCM, let samples = converted.floatChannelData?[0] {
+            onPCM(Data(bytes: samples, count: Int(converted.frameLength) * 4))
+        }
         var sum = 0.0
         if let samples = converted.floatChannelData?[0] {
             for i in 0..<Int(converted.frameLength) { let x = Double(samples[i]); sum += x*x }
@@ -213,7 +220,7 @@ private struct CaptureDrain: @unchecked Sendable {
             return Microphone(id: id, name: name.takeUnretainedValue() as String)
         }
     }
-    func start(config: Configuration, recordingsRoot: URL? = nil) throws -> String {
+    func start(config: Configuration, recordingsRoot: URL? = nil, onPCM: ((Data) -> Void)? = nil) throws -> String {
         guard !isStopping else { throw VellaError.message("Capture is still being saved.") }
         discard()
         guard let chosen = selectMicrophone(Self.devices(), preferred: config.preferredMicrophone, fallback: config.fallbackMicrophone) else {
@@ -238,7 +245,7 @@ private struct CaptureDrain: @unchecked Sendable {
             AVLinearPCMBitDepthKey: 32, AVLinearPCMIsFloatKey: true, AVLinearPCMIsNonInterleaved: false]
         let recording = try RecordingSession(root: recordingsRoot ?? RecordingSession.root, config: config)
         recordingSession = recording
-        let sink = try CaptureSink(session: recording)
+        let sink = try CaptureSink(session: recording, onPCM: onPCM)
         self.url = recording.directory
         guard session.canAddInput(input), session.canAddOutput(output) else {
             discard(); throw VellaError.message("Could not configure \(chosen.name) for recording.")

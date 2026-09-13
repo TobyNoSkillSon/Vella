@@ -62,6 +62,12 @@ public struct BenchmarkResult: Codable, Identifiable {
     public let clips: [BenchmarkClip]
     public let note: String
     public let formatting: FormattingResult?
+    /// Legacy records are batch/dictation. Streaming needs its own measured path.
+    public let recognitionMode: RecognitionMode?
+    public let streamingQualified: Bool?
+    public let streamingWorkerSHA256: String?
+    public let complete: Bool?
+    public let measurementKind: String?
     /// An estimate for this benchmark range only; never a real completion percentage.
     public func estimatedSeconds(for audioSeconds: Double) -> Double? {
         guard !clips.isEmpty, audioSeconds > 0,

@@ -51,6 +51,7 @@ fi
 cp scripts/setup-backend.sh "$APP/Contents/Resources/"
 cp Resources/models.json Resources/benchmark-policy.json Resources/benchmark_worker.py Resources/formatting_metrics.py Resources/AGENT_GUIDE.md "$APP/Contents/Resources/"
 cp Resources/calibration_worker.py Resources/inference_worker.py Resources/runtime-requirements.txt "$APP/Contents/Resources/"
+cp Resources/streaming_worker.py Resources/streaming-models.json "$APP/Contents/Resources/"
 mkdir -p "$APP/Contents/Resources/Calibration"
 cp Resources/Calibration/manifest.json Resources/Calibration/text.txt Resources/Calibration/speech.wav Resources/Calibration/ATTRIBUTION.md Resources/Calibration/LICENSE-CC-BY-4.0.txt "$APP/Contents/Resources/Calibration/"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
@@ -78,6 +79,8 @@ for size in 16 32 128 256 512; do
   sips -z "$double" "$double" .build/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vella.icns"
+# Generated Python caches are not app resources. Workers must not mutate the seal.
+find "$APP/Contents/Resources" -type d -name __pycache__ -prune -exec rm -rf {} +
 codesign --force --sign "$IDENTITY" "$APP"
 codesign --verify --strict "$APP"
 if [[ "${VELLA_REGISTER_APP:-1}" == "1" ]]; then

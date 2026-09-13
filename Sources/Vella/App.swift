@@ -28,6 +28,7 @@ final class GlobalShortcut {
 @MainActor final class Model: ObservableObject {
     enum Phase { case idle, preparing, recording, transcribing, success, failed }
     @Published var phase = Phase.idle
+    @Published private(set) var mode: RecognitionMode = .dictation
     @Published var message = "Your voice, right where you need it."
     @Published var microphone = "Shure → MacBook"
     @Published var elapsed = 0
@@ -50,14 +51,43 @@ final class GlobalShortcut {
     private let transcriptionRequest: SessionTranscriber.Request?
     private var finishingCapture = false
     private var captureDrainWaiters: [CheckedContinuation<Void, Never>] = []
+    private let configurationURL: URL
+    let streamingBackend: StreamingBackend
+    private var streamingBuffer: StreamingPCMBuffer?
+    private var streamingTask: Task<String, Error>?
+    private var streamingJournal: StreamingJournal?
+    private var liveInsertion: LiveInsertion?
     var captureIsFinalizing: Bool { finishingCapture }
     init(insertionPermission: InsertionPermission? = nil, pasteboard: NSPasteboard = .general,
          stopCapture: ((Recorder) async throws -> Void)? = nil,
-         transcriptionRequest: SessionTranscriber.Request? = nil) {
+         transcriptionRequest: SessionTranscriber.Request? = nil, configurationURL: URL? = nil,
+         streamingBackend: StreamingBackend? = nil) {
+        self.streamingBackend = streamingBackend ?? StreamingBackend()
+        self.configurationURL = configurationURL ?? Backend.configURL
         self.insertionPermission = insertionPermission ?? InsertionPermission()
         self.pasteboard = pasteboard
         self.stopCapture = stopCapture ?? { recorder in _ = try await recorder.stopAsync(userStopped: true) }
         self.transcriptionRequest = transcriptionRequest
+        if let data = try? Data(contentsOf: self.configurationURL), let saved = try? JSONDecoder().decode(Configuration.self, from: data) { mode = saved.mode }
+    }
+    func selectMode(_ mode: RecognitionMode) throws {
+        guard !busy, phase != .recording else { throw VellaError.message("Finish or stop recording before switching modes.") }
+        var config = FileManager.default.fileExists(atPath: configurationURL.path)
+            ? try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configurationURL))
+            : Configuration(executable: configurationURL.deletingLastPathComponent().appendingPathComponent("runtime/bin/python").path, model: "")
+        config.mode = mode
+        try FileManager.default.createDirectory(at: configurationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONEncoder().encode(config).write(to: configurationURL, options: .atomic)
+        stopWorkers(); self.mode = mode
+        update(.idle, "\(mode.title) selected. Press ⌃⌘N to start; press it again to finish.")
+    }
+    func stopWorkers() {
+        liveInsertion?.cancel(); streamingTask?.cancel(); streamingBuffer?.abort(); backend.stop(); streamingBackend.stop()
+        streamingBackend.onEvent = nil; streamingJournal?.close(); streamingJournal = nil
+    }
+    func releaseWorkers() async throws {
+        try await CalibrationStore.shared.cancelAndWait()
+        try await backend.releaseAndWait(); try await streamingBackend.releaseAndWait()
     }
     @discardableResult func ensureAutomaticInsertion() -> Bool {
         guard insertionPermission.ensure() else {
@@ -130,11 +160,15 @@ final class GlobalShortcut {
         guard ensureAutomaticInsertion() else { return }
         if CalibrationStore.shared.isRunning { CalibrationStore.shared.cancel() }
         task?.cancel(); operation = UUID()
+        liveInsertion?.cancel(); liveInsertion = nil
         let operation = self.operation
         recorder.discard()
         savedSession = nil
-        target = NSWorkspace.shared.frontmostApplication
-        captureTargetFocus()
+        // Dictation owns an original target. Streaming deliberately follows the
+        // system keyboard focus and does not take a field/window snapshot.
+        target = mode == .dictation ? NSWorkspace.shared.frontmostApplication : nil
+        if mode == .dictation { captureTargetFocus() }
+        else { targetElement = nil; targetWindow = nil }
         allowAutomaticInsertion = false
         update(.preparing, "Checking microphone permission…")
         task = Task {
@@ -142,8 +176,18 @@ final class GlobalShortcut {
                 let allowed = await AVCaptureDevice.requestAccess(for: .audio)
                 try Task.checkCancellation()
                 guard allowed else { throw VellaError.message("Allow Vella under System Settings → Privacy & Security → Microphone.") }
-                let config = try backend.configuration(); self.config = config
-                self.microphone = try recorder.start(config: config)
+                let config = try backend.configuration().forRecording(); self.config = config; mode = config.mode
+                try await CalibrationStore.shared.cancelAndWait()
+                try await streamingBackend.releaseAndWait()
+                try Task.checkCancellation()
+                guard self.operation == operation else { return }
+                streamingTask = nil; streamingBuffer = nil
+                streamingBackend.resetTranscript()
+                let pcm = config.mode == .streaming ? StreamingPCMBuffer() : nil
+                streamingBuffer = pcm
+                self.microphone = try recorder.start(config: config, onPCM: pcm.map { buffer in { buffer.append($0) } })
+                if config.mode == .streaming { prepareLiveInsertion() }
+                if let pcm, let session = recorder.recordingSession { beginStreaming(session, config: config, pcm: pcm, operation: operation) }
                 elapsed = 0
                 update(.recording, "\(microphone) · ⌃⌘N to finish")
                 meterTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
@@ -172,6 +216,8 @@ final class GlobalShortcut {
         elapsed += 1
         // No duration cutoff. A hardware/storage failure preserves already captured audio.
         if let error {
+            liveInsertion?.pause("Microphone capture stopped.")
+            streamingTask?.cancel(); streamingBuffer?.abort(); streamingBackend.stop()
             timer?.invalidate(); timer = nil
             _ = try? recorder.stop(userStopped: false)
             savedSession = recorder.recordingSession; allowAutomaticInsertion = false
@@ -198,9 +244,11 @@ final class GlobalShortcut {
                 savedSession = recorder.recordingSession
                 guard self.operation == operation, !Task.isCancelled else { cancel(); return }
                 guard let session = savedSession else { throw VellaError.message("Missing recording journal. Open Vella Files to recover audio.") }
+                streamingBuffer?.close()
                 allowAutomaticInsertion = true
-                runTranscription(session)
+                runTranscription(session, liveStream: true)
             } catch {
+                streamingTask?.cancel(); streamingBuffer?.abort(); streamingBackend.stop()
                 finishingCapture = false
                 savedSession = recorder.recordingSession; allowAutomaticInsertion = false
                 guard self.operation == operation, !Task.isCancelled else { cancel(); return }
@@ -208,13 +256,148 @@ final class GlobalShortcut {
             }
         }
     }
-    private func runTranscription(_ session: RecordingSession) {
+    private func observeStreaming(_ session: RecordingSession, operation: UUID) throws {
+        streamingJournal?.close()
+        let journal = try StreamingJournal(directory: session.directory)
+        streamingJournal = journal
+        streamingBackend.onUpdate = nil
+        streamingBackend.onEvent = { [weak self, journal] committed, partial, incomplete in
+            guard let self, self.operation == operation else { return }
+            // Bounded append, not a growing full-transcript rewrite; the capture
+            // queue continues to own its separate PCM files and manifest.
+            try journal.append(committed: committed, partial: partial, frames: self.streamingBackend.frames)
+            if incomplete {
+                self.liveInsertion?.pause("Some audio was not recognized. Live insertion stopped; audio is still saved.")
+            } else {
+                self.liveInsertion?.offer(committed: committed, partial: partial)
+            }
+            if self.phase == .recording {
+                self.message = self.liveInsertion?.blockedReason ?? "Inserting live · ⌃⌘N to close the microphone."
+            }
+        }
+    }
+    private func beginStreaming(_ session: RecordingSession, config: Configuration, pcm: StreamingPCMBuffer, operation: UUID) {
+        streamingTask = Task {
+            do {
+                try observeStreaming(session, operation: operation)
+                try await backend.releaseAndWait()
+                try Task.checkCancellation()
+                guard self.operation == operation else { throw CancellationError() }
+                try await streamingBackend.start(config: config)
+                while !pcm.isDrained {
+                    try Task.checkCancellation()
+                    if let data = try pcm.take() { try await streamingBackend.feed(data) }
+                    else { try await Task.sleep(nanoseconds: 20_000_000) }
+                }
+                return try await streamingBackend.finish(expectedFrames: pcm.totalFrames)
+            } catch {
+                pcm.abort()
+                if self.operation == operation {
+                    liveInsertion?.pause("Streaming recognition stopped. Audio is still saved.")
+                    streamingBackend.stop()
+                    try? session.saveStreamingPartial(streamingBackend.text)
+                    if phase == .recording {
+                        message = "Streaming stopped; the microphone is still saving audio. Finish, then retry the saved recording."
+                        onChange?()
+                    }
+                }
+                throw error
+            }
+        }
+    }
+    private func runStreamingTranscription(_ session: RecordingSession, live: Bool) {
+        let operation = self.operation
+        update(.transcribing, live ? "Finalizing streaming transcription…" : "Replaying saved audio through the streaming model. Recovery copies only.")
+        task = Task {
+            do {
+                session.manifest.failureCode = nil; try session.save()
+                let text: String
+                if live {
+                    guard let streamingTask, let pcm = streamingBuffer,
+                          pcm.totalFrames == session.manifest.segments.reduce(0, { $0 + $1.frames - $1.overlapFrames }) else {
+                        throw VellaError.message("Streaming audio accounting failed. Saved audio is retained; automatic replay is disabled.")
+                    }
+                    text = try await streamingTask.value
+                } else {
+                    streamingBackend.onEvent = nil; streamingJournal?.close(); streamingJournal = nil
+                    // Keep earlier incomplete recognition instead of overwriting its only copy.
+                    try session.preserveStreamingCheckpoint()
+                    try await releaseWorkers()
+                    try Task.checkCancellation()
+                    guard self.operation == operation else { throw CancellationError() }
+                    try observeStreaming(session, operation: operation)
+                    try await streamingBackend.start(config: session.manifest.config.forRecording())
+                    var frames = 0
+                    for segment in session.manifest.segments {
+                        try Task.checkCancellation()
+                        let file = try FileHandle(forReadingFrom: session.directory.appendingPathComponent(segment.filename))
+                        defer { try? file.close() }
+                        try file.seek(toOffset: UInt64(segment.overlapFrames * 4))
+                        var remaining = (segment.frames - segment.overlapFrames) * 4
+                        while remaining > 0 {
+                            try Task.checkCancellation()
+                            let count = min(6400, remaining)
+                            guard let data = try file.read(upToCount: count), data.count == count else {
+                                throw VellaError.message("Saved streaming audio ended unexpectedly. Files were retained.")
+                            }
+                            try await streamingBackend.feed(data); remaining -= count; frames += count / 4
+                        }
+                    }
+                    text = try await streamingBackend.finish(expectedFrames: frames)
+                }
+                try Task.checkCancellation()
+                guard self.operation == operation else { return }
+                streamingBackend.onEvent = nil; streamingJournal?.close(); streamingJournal = nil
+                _ = try session.finalizeTranscript(text)
+                lastText = text; lastTranscriptIncomplete = false
+                backendStatus = "Vella streaming worker unloaded"
+                streamingTask = nil; streamingBuffer = nil
+                if live, let insertion = liveInsertion {
+                    await insertion.finishStream()
+                    try Task.checkCancellation()
+                    guard self.operation == operation else { return }
+                    insertionWasAutomatic = insertion.didSend
+                    if let reason = insertion.blockedReason {
+                        insertionWasAutomatic = false
+                        copyLast()
+                        update(.success, "Live insertion stopped. \(reason) Full transcript copied; previously sent text was not inserted again.")
+                    } else {
+                        update(.success, "Streaming text sent as you spoke. Full transcript saved; no duplicate final paste and no Enter or Send.")
+                    }
+                } else { insert(text) }
+            } catch {
+                guard self.operation == operation else { return }
+                streamingBackend.onEvent = nil; streamingJournal?.close(); streamingJournal = nil
+                liveInsertion?.pause("Streaming did not finish successfully.")
+                streamingBackend.stop(); streamingBuffer?.abort(); streamingTask = nil
+                session.manifest.state = "interrupted"
+                if error is CancellationError { session.manifest.failureCode = "cancelled" }
+                else if case VellaError.noSpeech = error { session.manifest.failureCode = "no_speech" }
+                else if case VellaError.unrecognizedAudio = error { session.manifest.failureCode = "unrecognized_audio" }
+                else if (error as? URLError)?.code == .timedOut { session.manifest.failureCode = "timeout" }
+                else { session.manifest.failureCode = "local_failure" }
+                try? session.saveStreamingPartial(streamingBackend.text); try? session.save()
+                if let partial = try? session.savePartialTranscript() { lastText = partial; lastTranscriptIncomplete = true }
+                allowAutomaticInsertion = false
+                let reason: String
+                if case VellaError.unrecognizedAudio = error {
+                    reason = "Some non-quiet audio returned no words. The transcript is marked incomplete."
+                } else { reason = error is CancellationError ? "Streaming stopped before completion." : error.localizedDescription }
+                update(.failed, reason + " Audio is saved. Text already sent stays in the target; it will not be replayed automatically. Retry copies only.")
+            }
+        }
+    }
+    private func runTranscription(_ session: RecordingSession, liveStream: Bool = false) {
+        if session.manifest.config.mode == .streaming { runStreamingTranscription(session, live: liveStream); return }
         let operation = self.operation
         processingProgress = ""
         update(.transcribing, "Transcribing saved segments locally. Estimates exclude unknown model-loading and queue delays.")
         task = Task {
             do {
                 let runner = SessionTranscriber(request: transcriptionRequest ?? { [backend] url, config in try await backend.transcribe(url, config: config) })
+                try await streamingBackend.releaseAndWait()
+                try Task.checkCancellation()
+                guard self.operation == operation else { return }
                 let speed = CalibrationStore.speed(modelPath: session.manifest.config.model)
                     ?? referenceSpeed?(session.manifest.config.model)
                 let pendingAudio = session.manifest.segments.filter { $0.text == nil }.reduce(0.0) { $0 + $1.seconds }
@@ -281,6 +464,7 @@ final class GlobalShortcut {
     }
     func recover(_ directory: URL) {
         guard !busy, phase != .recording else { return }
+        liveInsertion?.cancel(); liveInsertion = nil
         operation = UUID(); let operation = self.operation
         target = nil; allowAutomaticInsertion = false
         update(.preparing, "Checking saved audio integrity…")
@@ -296,7 +480,8 @@ final class GlobalShortcut {
         }
     }
     func cancel() {
-        operation = UUID(); task?.cancel(); task = nil; backend.stop(); timer?.invalidate(); timer = nil
+        let liveTextWasSent = liveInsertion?.didSend == true
+        operation = UUID(); task?.cancel(); task = nil; stopWorkers(); timer?.invalidate(); timer = nil
         progressTimer?.invalidate(); progressTimer = nil; allowAutomaticInsertion = false
         if finishingCapture {
             // The capture queue still owns the journal. Settle cancellation only
@@ -311,7 +496,9 @@ final class GlobalShortcut {
             savedSession.manifest.state = "interrupted"; try? savedSession.save()
             if let partial = try? savedSession.savePartialTranscript() { lastText = partial; lastTranscriptIncomplete = true }
         }
-        update(.idle, "Stopped. Audio and completed text remain in Saved Recordings; nothing was pasted.")
+        update(.idle, liveTextWasSent
+            ? "Stopped. Previously streamed text stays in the target; audio and checkpoints are saved."
+            : "Stopped. Audio and completed text remain in Saved Recordings; nothing was pasted.")
     }
     func deleteSavedRecording() throws {
         guard !busy, phase != .recording, let savedSession else { return }
@@ -370,6 +557,9 @@ final class GlobalShortcut {
     }
     private var automaticInsertionBlockReason: String? {
         guard allowAutomaticInsertion else { return "Recovered or cancelled recordings are clipboard-only." }
+        return currentTargetBlockReason
+    }
+    private var currentTargetBlockReason: String? {
         guard AXIsProcessTrusted() else { return "Enable Accessibility for Vella to insert automatically." }
         guard let target, !target.isTerminated, target.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
             return "The original application is unavailable."
@@ -378,6 +568,20 @@ final class GlobalShortcut {
             return "The original application is no longer in front."
         }
         return targetFocusBlockReason
+    }
+    private func prepareLiveInsertion() {
+        let insertion = LiveInsertion(targetIsCurrent: { [weak self] in
+            guard let self, self.phase == .recording || self.phase == .transcribing else { return false }
+            // Explicit roaming mode: the OS routes text to current keyboard focus.
+            // Delayed words may cross fields; the user controls speech/navigation.
+            return AXIsProcessTrusted()
+        }, send: LiveInsertion.nativeSend, monitorUserInput: false)
+        insertion.onBlocked = { [weak self] reason in
+            guard let self, self.phase == .recording else { return }
+            self.message = "Live insertion paused: \(reason) Microphone capture continues."
+            self.onChange?()
+        }
+        liveInsertion = insertion
     }
     private func insert(_ text: String) {
         insertionWasAutomatic = false
@@ -418,18 +622,25 @@ final class GlobalShortcut {
             microphone = name + " → MacBook fallback"
         } catch { update(.failed, error.localizedDescription) }
     }
-    func shutdown() { cancel(); backend.shutdown() }
+    func shutdown() { cancel(); backend.shutdown(); streamingBackend.shutdown() }
     func shutdownAfterCaptureDrain() async {
         cancel()
         if finishingCapture {
             await withCheckedContinuation { captureDrainWaiters.append($0) }
         }
         backend.shutdown()
+        streamingBackend.shutdown()
     }
 }
 
 @main struct VellaMain {
     @MainActor static func main() {
+        if let index = CommandLine.arguments.firstIndex(of: "--check-live-insertion-fixture"), CommandLine.arguments.count > index + 1 {
+            let model = CommandLine.arguments.firstIndex(of: "--fixture-model").flatMap { i in
+                CommandLine.arguments.count > i + 1 ? CommandLine.arguments[i + 1] : nil
+            }
+            LiveInsertionProbe.run(project: URL(fileURLWithPath: CommandLine.arguments[index + 1]), modelPath: model); return
+        }
         #if DEBUG
         if let index = CommandLine.arguments.firstIndex(of: "--session-crash-fixture"), CommandLine.arguments.count > index + 1 {
             do {
