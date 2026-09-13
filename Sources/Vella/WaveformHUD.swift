@@ -6,12 +6,24 @@ struct WaveformMotion: Equatable {
     static let entranceSpeed = 3.5
     static let completionSpeed = 3.0
     static let completionDuration = 0.5 / completionSpeed
+    static let warningWiggleDuration = 0.45
+    var offsetX = 0.0
     var offsetY = 0.0
     var width = 1.0
     var height = 1.0
     var opacity = 1.0
     var brightness = 0.0
     var attachment = 0.0
+
+    static func warning(age: Double, reduced: Bool) -> Self {
+        if reduced { return Self() }
+        if age >= warningWiggleDuration {
+            return sample(entryAge: 2, finishAge: age - warningWiggleDuration, reduced: false)
+        }
+        let envelope = max(0, 1 - age / warningWiggleDuration)
+        return Self(offsetX: sin(age * 65) * 4 * envelope,
+                    offsetY: sin(age * 45) * 2 * envelope)
+    }
 
     static func sample(entryAge: Double, finishAge: Double?, reduced: Bool) -> Self {
         if reduced { return Self(opacity: finishAge == nil ? 1 : 0) }
@@ -38,12 +50,13 @@ struct WaveformField: View {
     let time: Double
     let motion: WaveformMotion
     var highContrast = false
+    var warning = false
 
     var body: some View {
         Canvas { context, size in
             guard motion.opacity > 0 else { return }
             let energy = min(1, max(0, level.isFinite ? level : 0))
-            let cx = size.width / 2
+            let cx = size.width / 2 + motion.offsetX
             let cy = size.height / 2 + motion.offsetY
             let halfWidth = 91 * motion.width
             context.opacity = motion.opacity
@@ -86,16 +99,18 @@ struct WaveformField: View {
             context.drawLayer { halo in
                 halo.addFilter(.blur(radius: 5 + motion.brightness * 6))
                 halo.opacity = (energy * 0.04 + motion.brightness * 0.13)
-                for path in paths { halo.fill(path, with: .color(Color(red: 0.77, green: 0.72, blue: 1))) }
+                for path in paths { halo.fill(path, with: .color(warning ? Color(red: 1, green: 0.62, blue: 0.30) : Color(red: 0.77, green: 0.72, blue: 1))) }
             }
             for (index, path) in paths.enumerated() {
                 let opacity = highContrast ? 0.65 : 0.28 + Double(index) * 0.055
+                let edge = warning ? Color(red: 1, green: 0.46, blue: 0.12) : Color(red: 0.70, green: 0.64, blue: 0.98)
+                let middle = warning ? Color(red: 1, green: 0.59, blue: 0.24) : Color(red: 0.76, green: 0.70, blue: 1)
                 let gradient = Gradient(stops: [
-                    .init(color: Color(red: 0.70, green: 0.64, blue: 0.98).opacity(0.08), location: 0),
-                    .init(color: Color(red: 0.76, green: 0.70, blue: 1).opacity(opacity), location: 0.34),
+                    .init(color: edge.opacity(0.08), location: 0),
+                    .init(color: middle.opacity(opacity), location: 0.34),
                     .init(color: .white.opacity(min(1, opacity + 0.24 + motion.brightness)), location: 0.5),
-                    .init(color: Color(red: 0.76, green: 0.70, blue: 1).opacity(opacity), location: 0.66),
-                    .init(color: Color(red: 0.70, green: 0.64, blue: 0.98).opacity(0.08), location: 1)
+                    .init(color: middle.opacity(opacity), location: 0.66),
+                    .init(color: edge.opacity(0.08), location: 1)
                 ])
                 context.fill(path, with: .linearGradient(gradient, startPoint: CGPoint(x: cx - halfWidth, y: cy), endPoint: CGPoint(x: cx + halfWidth, y: cy)))
             }
@@ -112,6 +127,7 @@ struct WaveformField: View {
 struct HUDView: View {
     static let panelSize = CGSize(width: 220, height: 124)
     static let successDwell = WaveformMotion.completionDuration + 0.025
+    static let failureDwell = WaveformMotion.warningWiggleDuration + successDwell
     @ObservedObject var model: Model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -124,7 +140,7 @@ struct HUDView: View {
     var previewFinishAge: Double? = nil
 
     static func animationPaused(phase: Model.Phase, visible: Bool, reduced: Bool) -> Bool {
-        reduced || !visible || phase == .idle || phase == .failed
+        reduced || !visible || phase == .idle
     }
 
     var body: some View {
@@ -132,14 +148,15 @@ struct HUDView: View {
             let time = previewTime ?? timeline.date.timeIntervalSinceReferenceDate
             let entryAge = previewEntryAge ?? timeline.date.timeIntervalSince(entered)
             let finishAge = previewFinishAge ?? finished.map { timeline.date.timeIntervalSince($0) }
-            let motion = WaveformMotion.sample(entryAge: entryAge, finishAge: model.phase == .success ? finishAge : nil, reduced: reduceMotion)
+            let warning = model.phase == .failed
+            let warningAge = max(0, previewFinishAge ?? timeline.date.timeIntervalSince(model.failureStartedAt))
+            let motion = warning ? WaveformMotion.warning(age: warningAge, reduced: reduceMotion)
+                : WaveformMotion.sample(entryAge: entryAge, finishAge: model.phase == .success ? finishAge : nil, reduced: reduceMotion)
             ZStack {
-                if model.phase == .failed {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 16, weight: .medium)).foregroundStyle(.orange)
-                } else if model.phase != .idle {
+                if model.phase != .idle {
                     let level = model.phase == .recording ? model.audioLevel : model.phase == .success ? max(0.4, lastVoiceLevel) : 0.18 + (reduceMotion ? 0 : sin(time * 2) * 0.05)
-                    WaveformField(level: level, time: reduceMotion ? 0 : time, motion: motion, highContrast: reduceTransparency)
+                    WaveformField(level: warning ? 0.8 : level, time: reduceMotion ? 0 : warning ? warningAge * 7 : time,
+                                  motion: motion, highContrast: reduceTransparency, warning: warning)
                 }
                 if model.phase == .transcribing && !model.processingProgress.isEmpty {
                     Text(model.processingProgress).font(.system(size: 11, weight: .medium, design: .monospaced))
