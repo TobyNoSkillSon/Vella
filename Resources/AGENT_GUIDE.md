@@ -82,6 +82,8 @@ The timing records support duration-based estimates only within the tested audio
 
 ## Checks and handoff
 
+Keep GitHub discovery copy descriptive: function, platform and implementation, with relevant topics and a descriptive README title. Account/subscription slogans belong outside this repository positioning; preserve the repository URL unless a rename is explicitly settled.
+
 During foreground insertion QA, user interaction may change focus. Treat a missing fixture result as inconclusive until focus interference is separated from recognition failure; verify saved recognition output independently before repeating an intrusive test.
 
 Keep the README short and user-facing: what Vella does, rendered interface previews, installation, everyday use and essential data/permission notes. Keep the measured performance table and approved visuals when simplifying prose. Explain word-only errors (WER) versus full-text errors (CER, including punctuation and capitalization), and order results by full-text error ascending. Link each model name plus quantization to its exact Hugging Face repository when available, otherwise the main model repository. Link out for deeper engineering details.

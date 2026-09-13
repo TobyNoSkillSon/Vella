@@ -10,6 +10,7 @@ final class HUDPanel: NSPanel {
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let model: Model
+    var openExternalURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     init(model: Model? = nil) { self.model = model ?? Model(); super.init() }
     let shortcut = GlobalShortcut()
     private lazy var dictationMenus = makeModelMenus(.dictation)
@@ -221,6 +222,7 @@ final class HUDPanel: NSPanel {
         item("Open Saved Recordings", "folder", #selector(savedRecordings))
         item("Open Vella Files", "folder", #selector(files))
         menu.addItem(.separator())
+        item("Support the developer…", "heart", #selector(supportDeveloper))
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
     }
     private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = []) {
@@ -262,6 +264,17 @@ final class HUDPanel: NSPanel {
     }
     @objc private func selectMicrophone(_ sender: NSMenuItem) { if let name = sender.representedObject as? String { model.chooseMicrophone(name) } }
     @objc private func files() { NSWorkspace.shared.open(Backend.support) }
+    @objc private func supportDeveloper() {
+        DispatchQueue.main.async {
+            let url = URL(string: "https://github.com/sponsors/TobyNoSkillSon")!
+            if !self.openExternalURL(url) {
+                let alert = NSAlert()
+                alert.messageText = "Could not open GitHub Sponsors"
+                alert.informativeText = url.absoluteString
+                alert.runModal()
+            }
+        }
+    }
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func details() {
         DispatchQueue.main.async {

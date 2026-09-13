@@ -1,10 +1,10 @@
 <img src="docs/images/icon.png" alt="Vella icon" width="96">
 
-# Vella
+# Vella — Offline dictation for macOS
 
-Dictation for your Mac. Press **⌃⌘N**, speak, then press it again to put the text where your cursor was.
+Vella is a native menu-bar app for offline dictation and live speech-to-text on Apple Silicon Macs, using local MLX models.
 
-Vella lives in the menu bar and transcribes on your Mac. No account or subscription.
+Press **⌃⌘N** to open or close the microphone. Dictation inserts the transcript when you finish; Streaming inserts text as you speak.
 
 ## A look inside
 
