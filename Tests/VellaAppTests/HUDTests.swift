@@ -44,6 +44,88 @@ final class HUDTests: XCTestCase {
         XCTAssertFalse(HUDView.animationPaused(phase: .success, visible: true, reduced: false))
     }
 
+    func testBrowserContainerCannotStandInForTheOriginalTextField() {
+        for role: String? in [nil, "AXApplication", "AXWindow", "AXWebArea", "AXGroup", "AXScrollArea", "AXToolbar", "AXButton", "AXStaticText"] {
+            XCTAssertFalse(AccessibilityFocus.isFieldRole(role))
+        }
+        for role in ["AXTextArea", "AXTextField", "AXComboBox"] {
+            XCTAssertTrue(AccessibilityFocus.isFieldRole(role))
+        }
+    }
+
+    @MainActor func testFinishAcknowledgesBeforeCaptureDrainAndKeepsMainActorResponsive() async {
+        let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
+        var drain: CheckedContinuation<Void, Error>?
+        let started = expectation(description: "Capture drain started")
+        let failed = expectation(description: "Missing fixture journal is reported without insertion")
+        let model = Model(pasteboard: clipboard, stopCapture: { _ in
+            try await withCheckedThrowingContinuation { continuation in
+                drain = continuation; started.fulfill()
+            }
+        })
+        model.update(.recording, "Fixture; no microphone")
+        model.audioLevel = 0.7
+        model.finish()
+        XCTAssertEqual(model.phase, .transcribing, "Shortcut must acknowledge synchronously")
+        XCTAssertEqual(model.audioLevel, 0)
+        XCTAssertTrue(model.busy)
+        await fulfillment(of: [started], timeout: 2)
+        XCTAssertEqual(model.phase, .transcribing, "UI can run while capture is still draining")
+        model.onChange = { if model.phase == .failed { failed.fulfill() } }
+        drain?.resume()
+        await fulfillment(of: [failed], timeout: 2)
+        model.onChange = nil
+        XCTAssertFalse(model.insertionWasAutomatic)
+        XCTAssertNil(clipboard.string(forType: .string))
+    }
+
+    @MainActor func testCancelDuringDrainWaitsBeforeAllowingNewCapture() async {
+        let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
+        var drain: CheckedContinuation<Void, Error>?
+        let started = expectation(description: "Capture drain started")
+        let settled = expectation(description: "Cancellation settles after drain")
+        let model = Model(pasteboard: clipboard, stopCapture: { _ in
+            try await withCheckedThrowingContinuation { continuation in
+                drain = continuation; started.fulfill()
+            }
+        })
+        model.update(.recording, "Fixture; no microphone"); model.finish()
+        await fulfillment(of: [started], timeout: 2)
+        model.cancel()
+        XCTAssertTrue(model.busy, "Don't race a second capture against unfinished journal writes")
+        XCTAssertEqual(model.phase, .transcribing)
+        model.onChange = { if model.phase == .idle { settled.fulfill() } }
+        drain?.resume()
+        await fulfillment(of: [settled], timeout: 2)
+        model.onChange = nil
+        XCTAssertFalse(model.busy)
+        XCTAssertNil(clipboard.string(forType: .string))
+    }
+
+    @MainActor func testShutdownWaitsForDrainEvenWhenCancelledDrainFails() async {
+        let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
+        var drain: CheckedContinuation<Void, Error>?
+        let started = expectation(description: "Drain started")
+        let finished = expectation(description: "Orderly shutdown after drain")
+        let model = Model(pasteboard: clipboard, stopCapture: { _ in
+            try await withCheckedThrowingContinuation { continuation in
+                drain = continuation; started.fulfill()
+            }
+        })
+        model.update(.recording, "Fixture; no microphone"); model.finish()
+        await fulfillment(of: [started], timeout: 2)
+        var shutdownReturned = false
+        Task { await model.shutdownAfterCaptureDrain(); shutdownReturned = true; finished.fulfill() }
+        await Task.yield()
+        XCTAssertFalse(shutdownReturned)
+        XCTAssertTrue(model.captureIsFinalizing)
+        drain?.resume(throwing: NSError(domain: "VellaFixture", code: 1))
+        await fulfillment(of: [finished], timeout: 2)
+        XCTAssertFalse(model.busy)
+        XCTAssertEqual(model.phase, .idle)
+        XCTAssertNil(clipboard.string(forType: .string))
+    }
+
     @MainActor func testPermissionPollingStopsAtDeadlineAndOnGrant() {
         let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
         var trusted = false, checks = 0
@@ -155,7 +237,19 @@ final class HUDTests: XCTestCase {
         let renderer = ImageRenderer(content: WaveformField(level: 0, time: 8.9, motion: WaveformMotion()).frame(width: 220, height: 124))
         renderer.scale = 2
         let still = try XCTUnwrap(renderer.cgImage)
-        XCTAssertEqual(still.dataProvider?.data as Data?, images["listening"]?.dataProvider?.data as Data?, "Silence must remain visually still")
+        if let output = ProcessInfo.processInfo.environment["VELLA_HUD_QA_DIR"] {
+            for (name, image) in [("silence-a", images["listening"]!), ("silence-b", still)] {
+                let data = try XCTUnwrap(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))
+                try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("\(name).png"))
+            }
+        }
+        let a = try XCTUnwrap(images["listening"]?.dataProvider?.data as Data?)
+        let b = try XCTUnwrap(still.dataProvider?.data as Data?)
+        XCTAssertEqual(a.count, b.count)
+        // CoreGraphics can round antialiased 8-bit edge channels by one LSB
+        // across contexts. This tolerance permits rounding, not moving geometry.
+        XCTAssertLessThanOrEqual(zip(a,b).map { abs(Int($0)-Int($1)) }.max() ?? 0, 1,
+                                 "Silence must remain visually still")
     }
 }
 

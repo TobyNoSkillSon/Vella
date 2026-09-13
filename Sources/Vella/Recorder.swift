@@ -150,7 +150,21 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
     }
 }
 
+/// One-shot exclusive handoff: session configuration is frozen; sink access stays
+/// on its capture queue. Recorder cannot start/discard/stop again until completion.
+private struct CaptureDrain: @unchecked Sendable {
+    let capture: AVCaptureSession?
+    let sink: CaptureSink?
+    let queue: DispatchQueue
+    let userStopped: Bool
+    func run() {
+        capture?.stopRunning()
+        queue.sync { sink?.finish(userStopped: userStopped) }
+    }
+}
+
 @MainActor final class Recorder {
+    private var isStopping = false
     private var session: AVCaptureSession?
     private var sink: CaptureSink?
     private let queue = DispatchQueue(label: "dev.vella.capture")
@@ -200,6 +214,7 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
         }
     }
     func start(config: Configuration, recordingsRoot: URL? = nil) throws -> String {
+        guard !isStopping else { throw VellaError.message("Capture is still being saved.") }
         discard()
         guard let chosen = selectMicrophone(Self.devices(), preferred: config.preferredMicrophone, fallback: config.fallbackMicrophone) else {
             throw VellaError.message("Neither the preferred microphone nor a MacBook microphone is available.")
@@ -235,9 +250,28 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
         guard session.isRunning else { discard(); throw VellaError.message("Microphone capture did not start.") }
         return chosen.name
     }
+    /// Caller retains exclusive ownership until completion (including cancellation).
+    /// AVCaptureSession.stopRunning and disk flushes must not freeze the HUD.
+    func stopAsync(userStopped: Bool = true) async throws -> URL {
+        guard !isStopping else { throw VellaError.message("Capture is still being saved.") }
+        isStopping = true
+        defer { isStopping = false }
+        let drain = CaptureDrain(capture: session, sink: sink, queue: queue, userStopped: userStopped)
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                drain.run()
+                continuation.resume()
+            }
+        }
+        return try completeStop()
+    }
     func stop(userStopped: Bool = true) throws -> URL {
+        guard !isStopping else { throw VellaError.message("Capture is still being saved.") }
         session?.stopRunning()
         queue.sync { sink?.finish(userStopped: userStopped) } // Drain callbacks and the resampler tail, then close the WAV.
+        return try completeStop()
+    }
+    private func completeStop() throws -> URL {
         writeDiagnostics()
         let frames = sink?.frames ?? 0
         let error = sink?.error
@@ -247,6 +281,7 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
         return url
     }
     func discard() {
+        guard !isStopping else { return } // The in-flight drain still owns these objects.
         session?.stopRunning(); queue.sync {}; session = nil; sink = nil
         // Session audio is never removed here: new recording, failure and quit are not deletion consent.
         url = nil; recordingSession = nil
