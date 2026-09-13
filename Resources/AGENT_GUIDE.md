@@ -56,7 +56,7 @@ The timing records support duration-based estimates only within the tested audio
 
 ## Checks and handoff
 
-Keep the README short and user-facing: what Vella does, rendered interface previews, installation, everyday use and essential data/permission notes. Keep the measured performance table and approved visuals when simplifying prose. Explain word-only errors (WER) versus full-text errors (CER, including punctuation and capitalization), and order results by full-text error ascending. Link out for deeper engineering details.
+Keep the README short and user-facing: what Vella does, rendered interface previews, installation, everyday use and essential data/permission notes. Keep the measured performance table and approved visuals when simplifying prose. Explain word-only errors (WER) versus full-text errors (CER, including punctuation and capitalization), and order results by full-text error ascending. Link each model name plus quantization to its exact Hugging Face repository when available, otherwise the main model repository. Link out for deeper engineering details.
 
 Run `swift test` and `python3 Tests/benchmark_worker_test.py`, validate manifest audio hashes, update the sole canonical app through a controlled quit/build/relaunch, and inspect the actual native model menu. Test cancellation, import rejection, download progress, resumability and failed jobs. Downloads of untested multi-GB models are not required for a UI-only change. Report which model/hardware combinations were measured and which are still unknown.
 

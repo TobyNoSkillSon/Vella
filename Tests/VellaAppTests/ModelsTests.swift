@@ -99,7 +99,13 @@ final class ModelsTests: XCTestCase {
     }
     @MainActor func testFormattedResultsAndSorting() throws {
         let library = ModelLibrary()
-        XCTAssertEqual(library.references.count, 12)
+        XCTAssertEqual(library.references.count, 16)
+        let benchmarkOnly: Set<String> = [
+            "Qwen3-ASR-0.6B-4bit", "nemotron-3.5-asr-streaming-0.6b-8bit",
+            "Voxtral-Mini-4B-Realtime-2602-4bit", "granite-speech-5.0-470m-turboctc-mlx-fp16"
+        ]
+        XCTAssertTrue(benchmarkOnly.isSubset(of: Set(library.references.keys)))
+        XCTAssertTrue(benchmarkOnly.isDisjoint(with: Set(library.models.map(\.id))))
         for result in library.references.values {
             XCTAssertEqual(result.suiteID, "english-formatted-20m-v1")
             XCTAssertNotNil(result.formatting?.scorerSHA256)

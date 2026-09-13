@@ -52,7 +52,7 @@ The two error columns answer different questions. **Lower is better for both.**
 
 **Sorted by full-text error, lowest first**—the same default used in the app. That makes punctuation and capitalization part of the comparison, rather than ranking on word recognition alone.
 
-Recorded on **Apple M5 Max · 128 GiB RAM**, using 144 English reading clips from 34 speakers (20m 15s). ★ marks a recommended variant.
+Recorded on **Apple M5 Max · 128 GiB RAM**, using 144 English reading clips from 34 speakers (20m 15s). ★ marks a current in-app recommendation. † marks a benchmarked candidate not yet in the released app’s model catalog.
 
 <!-- BENCHMARK_RESULTS_START -->
 
@@ -60,15 +60,19 @@ Recorded on **Apple M5 Max · 128 GiB RAM**, using 144 English reading clips fro
 |---|---:|---:|---:|---:|
 | [Parakeet v3 4-bit](https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit) ★ | 1.54% | 1.77% | 233.7× | 1.34 GB |
 | [Parakeet v3 8-bit](https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit) | 1.60% | 1.85% | 237.4× | 1.61 GB |
+| [Qwen3 0.6B 4-bit](https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit) † | 1.54% | 2.07% | 88.6× | 1.93 GB |
 | [Qwen3 1.7B BF16](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-bf16) | 1.41% | 2.08% | 30.5× | 5.50 GB |
 | [Qwen3 1.7B 4-bit](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-4bit) ★ | 1.51% | 2.12% | 59.5× | 3.03 GB |
 | [Qwen3 1.7B 8-bit](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-8bit) | 1.57% | 2.14% | 44.5× | 3.89 GB |
+| [Nemotron 3.5 ASR 0.6B 8-bit](https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit) † | 2.64% | 2.53% | 52.9× | 0.99 GB |
+| [Voxtral Mini Realtime 4B 4-bit](https://huggingface.co/mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit) † | 2.26% | 2.57% | 5.1× | 5.94 GB |
 | [Whisper large-v3 8-bit](https://huggingface.co/mlx-community/whisper-large-v3-8bit) ★ | 2.60% | 4.50% | 21.0× | 2.52 GB |
 | [Granite 4.0 1B 4-bit](https://huggingface.co/mlx-community/granite-4.0-1b-speech-4bit) ★ | 1.29% | 4.61% | 44.1× | 7.64 GB |
 | [Granite 4.0 1B 8-bit](https://huggingface.co/mlx-community/granite-4.0-1b-speech-8bit) | 1.19% | 4.61% | 37.4× | 8.56 GB |
 | [Whisper large-v3 FP16](https://huggingface.co/mlx-community/whisper-large-v3-asr-fp16) | 2.82% | 4.76% | 19.7× | 4.03 GB |
 | [SenseVoice FP32](https://huggingface.co/mlx-community/SenseVoiceSmall) ★ | 2.45% | 5.05% | 631.6× | 1.79 GB |
 | [SenseVoice 4-bit](https://huggingface.co/vanch007/SenseVoiceSmall-4bit) | 3.45% | 5.40% | 582.3× | 0.88 GB |
+| [Granite Speech 5.0 TurboCTC 470M FP16](https://huggingface.co/iky1e/granite-speech-5.0-470m-turboctc-mlx-fp16) † | 3.70% | 5.87% | 654.0× | 1.59 GB |
 | [Whisper large-v3 4-bit](https://huggingface.co/mlx-community/whisper-large-v3-asr-4bit) | 4.14% | 6.30% | 22.2× | 1.75 GB |
 
 <!-- BENCHMARK_RESULTS_END -->

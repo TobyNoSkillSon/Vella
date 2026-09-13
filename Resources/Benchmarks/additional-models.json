@@ -1,0 +1,50 @@
+[
+  {
+    "id": "Qwen3-ASR-0.6B-4bit",
+    "name": "Qwen3 ASR \u00b7 0.6B",
+    "quantization": "4-bit",
+    "repository": "mlx-community/Qwen3-ASR-0.6B-4bit",
+    "revision": "313d850181767edf09f00a9c289becca70e58cd0",
+    "downloadBytes": 712781279,
+    "architecture": "qwen3_asr",
+    "license": "apache-2.0",
+    "recommended": false,
+    "benchmarkOnly": true
+  },
+  {
+    "id": "Voxtral-Mini-4B-Realtime-2602-4bit",
+    "name": "Voxtral Mini Realtime \u00b7 4B",
+    "quantization": "4-bit",
+    "repository": "mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit",
+    "revision": "fdebf7b2af834a1db4b8a3c99ab7480b333adf9e",
+    "downloadBytes": 3148833321,
+    "architecture": "voxtral_realtime",
+    "license": "apache-2.0",
+    "recommended": false,
+    "benchmarkOnly": true
+  },
+  {
+    "id": "granite-speech-5.0-470m-turboctc-mlx-fp16",
+    "name": "Granite Speech 5.0 TurboCTC \u00b7 470M",
+    "quantization": "FP16",
+    "repository": "iky1e/granite-speech-5.0-470m-turboctc-mlx-fp16",
+    "revision": "319abff7072204bc6cd30485aac58da6c1216214",
+    "downloadBytes": 947195433,
+    "architecture": "granite_speech5_ctc",
+    "license": "apache-2.0",
+    "recommended": false,
+    "benchmarkOnly": true
+  },
+  {
+    "id": "nemotron-3.5-asr-streaming-0.6b-8bit",
+    "name": "Nemotron 3.5 ASR \u00b7 0.6B",
+    "quantization": "8-bit",
+    "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
+    "revision": "7279359e4481b5e9e185a318bd618e429c6d86cd",
+    "downloadBytes": 756247988,
+    "architecture": "nemotron_asr",
+    "license": "nvidia-open-model-license",
+    "recommended": false,
+    "benchmarkOnly": true
+  }
+]

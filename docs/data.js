@@ -39,6 +39,22 @@ const VELLA_RESULTS = {
       "modelURL": "https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit"
     },
     {
+      "id": "Qwen3-ASR-0.6B-4bit",
+      "name": "Qwen3 0.6B",
+      "quantization": "4-bit",
+      "recommended": false,
+      "benchmarkOnly": true,
+      "words": 1.537496077816128,
+      "text": 2.0682753252529746,
+      "punctuation": 72.68408551068883,
+      "casing": 97.5469894870978,
+      "speed": 88.56894352316577,
+      "ram": 1.932469492,
+      "source": "../Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-0.6B-4bit.json",
+      "provenance": "Apple M5 Max; 2026-09-13T00:00:17Z; word alignment coverage 98.5%; punctuation coverage 95.3%; memory profile 2026-09-13T00:00:32Z, one pass after warmup. Model: mlx-community/Qwen3-ASR-0.6B-4bit @ 313d850181767edf09f00a9c289becca70e58cd0. Benchmark-only candidate; not in the released app's catalog.",
+      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit"
+    },
+    {
       "id": "Qwen3-ASR-1.7B-bf16",
       "name": "Qwen3 1.7B",
       "quantization": "BF16",
@@ -82,6 +98,38 @@ const VELLA_RESULTS = {
       "source": "../Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-8bit.json",
       "provenance": "Apple M5 Max; 2026-09-12T05:58:57Z; word alignment coverage 98.5%; punctuation coverage 95.3%; memory profile 2026-09-12T06:20:56Z, one pass after warmup. Model: mlx-community/Qwen3-ASR-1.7B-8bit @ a8379a2e2f9e313c9292cdf1af4055ab56d50d55",
       "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-8bit"
+    },
+    {
+      "id": "nemotron-3.5-asr-streaming-0.6b-8bit",
+      "name": "Nemotron 3.5 ASR 0.6B",
+      "quantization": "8-bit",
+      "recommended": false,
+      "benchmarkOnly": true,
+      "words": 2.6357075619705053,
+      "text": 2.529745357500278,
+      "punctuation": 68.18181818181817,
+      "casing": 97.7491961414791,
+      "speed": 52.92441058376794,
+      "ram": 0.994208316,
+      "source": "../Resources/ReferenceResults/formatted-M5Max-nemotron-3.5-asr-streaming-0.6b-8bit.json",
+      "provenance": "Apple M5 Max; 2026-09-13T00:01:20Z; word alignment coverage 97.6%; punctuation coverage 94.0%; memory profile 2026-09-13T00:01:44Z, one pass after warmup. Model: mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit @ 7279359e4481b5e9e185a318bd618e429c6d86cd. Benchmark-only candidate; not in the released app's catalog.",
+      "modelURL": "https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit"
+    },
+    {
+      "id": "Voxtral-Mini-4B-Realtime-2602-4bit",
+      "name": "Voxtral Mini Realtime 4B",
+      "quantization": "4-bit",
+      "recommended": false,
+      "benchmarkOnly": true,
+      "words": 2.259177910260433,
+      "text": 2.57422439675303,
+      "punctuation": 77.23970944309927,
+      "casing": 97.8818998716303,
+      "speed": 5.050184936796989,
+      "ram": 5.938638088,
+      "source": "../Resources/ReferenceResults/formatted-M5Max-Voxtral-Mini-4B-Realtime-2602-4bit.json",
+      "provenance": "Apple M5 Max; 2026-09-13T00:09:49Z; word alignment coverage 97.8%; punctuation coverage 94.0%; memory profile 2026-09-13T00:13:52Z, one pass after warmup. Model: mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit @ fdebf7b2af834a1db4b8a3c99ab7480b333adf9e. Benchmark-only candidate; not in the released app's catalog.",
+      "modelURL": "https://huggingface.co/mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit"
     },
     {
       "id": "whisper-large-v3-8bit",
@@ -172,6 +220,22 @@ const VELLA_RESULTS = {
       "source": "../Resources/ReferenceResults/formatted-M5Max-SenseVoiceSmall-4bit.json",
       "provenance": "Apple M5 Max; 2026-09-12T06:07:40Z; word alignment coverage 96.8%; punctuation coverage 92.0%; memory profile 2026-09-12T06:24:37Z, one pass after warmup. Model: vanch007/SenseVoiceSmall-4bit @ b5365bac129cf37740aac0a2cfaf283fca0d2d1c",
       "modelURL": "https://huggingface.co/vanch007/SenseVoiceSmall-4bit"
+    },
+    {
+      "id": "granite-speech-5.0-470m-turboctc-mlx-fp16",
+      "name": "Granite Speech 5.0 TurboCTC 470M",
+      "quantization": "FP16",
+      "recommended": false,
+      "benchmarkOnly": true,
+      "words": 3.702541575149043,
+      "text": 5.865673301456688,
+      "punctuation": 0.0,
+      "casing": 90.95607235142118,
+      "speed": 654.0039306807996,
+      "ram": 1.586632787,
+      "source": "../Resources/ReferenceResults/formatted-M5Max-granite-speech-5.0-470m-turboctc-mlx-fp16.json",
+      "provenance": "Apple M5 Max; 2026-09-13T00:14:08Z; word alignment coverage 97.1%; punctuation coverage 93.8%; memory profile 2026-09-13T00:14:11Z, one pass after warmup. Model: iky1e/granite-speech-5.0-470m-turboctc-mlx-fp16 @ 319abff7072204bc6cd30485aac58da6c1216214. Benchmark-only candidate; not in the released app's catalog.",
+      "modelURL": "https://huggingface.co/iky1e/granite-speech-5.0-470m-turboctc-mlx-fp16"
     },
     {
       "id": "whisper-large-v3-asr-4bit",
