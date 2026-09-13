@@ -13,6 +13,8 @@ jobs:
           python-version: '3.12'
       - name: Swift tests (hardware and inference tests are opt-in)
         run: swift test
+      - name: SwiftUI property-wrapper and package-manager compatibility
+        run: python3 scripts/check_toolchain.py
       - name: Python tests
         run: python3 -m unittest discover -s Tests -p '*_test.py'
       - name: Ad-hoc source build; no credentials or release publication

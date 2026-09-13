@@ -27,6 +27,14 @@ LOCK="$HERE/runtime-requirements.txt"
 [[ -f "$LOCK" ]] || LOCK="$HERE/../Resources/runtime-requirements.txt"
 LOCK_HASH="$("$PYTHON" -c 'import hashlib,pathlib,sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest()[:12])' "$LOCK")"
 TARGET="$ROOT/Runtimes/mlx-audio-0.5.1-mlx-0.32.2-$LOCK_HASH-python-$PYVER"
+"$PYTHON" - "$ROOT" "$TARGET" <<'PY'
+import pathlib,sys
+root,target=map(pathlib.Path,sys.argv[1:3])
+for path in (root,root/'Runtimes',target,target/'.vella-ready',root/'config.json',
+             root/'config.before-runtime.json',root/'config.runtime-pending.json'):
+    if path.is_symlink():
+        sys.exit(f'Linked runtime or configuration preserved: {path}. Choose an unlinked Vella support directory.')
+PY
 mkdir -p "$ROOT/Runtimes"
 if [[ ! -f "$TARGET/.vella-ready" ]]; then
   "$PYTHON" -m venv "$TARGET"

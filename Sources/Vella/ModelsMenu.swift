@@ -63,10 +63,10 @@ struct ModelTable: View {
     @ObservedObject var library: ModelLibrary
     var dismiss: () -> Void = {}
     var requestDelete: (String) -> Void = { _ in }
-    @State private var sortColumn: ModelSortColumn = .formattedError
-    @State private var ascending = true
-    @State private var copied = false
-    @State private var copyGeneration = 0
+    @VellaState private var sortColumn: ModelSortColumn = .formattedError
+    @VellaState private var ascending = true
+    @VellaState private var copied = false
+    @VellaState private var copyGeneration = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let accent = Color.primary
     private var results: [String: BenchmarkResult] { library.references }

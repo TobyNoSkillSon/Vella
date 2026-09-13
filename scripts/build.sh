@@ -23,9 +23,10 @@ fi
 if [[ "$IDENTITY" == "-" ]]; then
   echo 'Local ad-hoc build: replacing this build can invalidate macOS privacy permissions.' >&2
 fi
-swift build -c release
+"${PYTHON:-python3}" scripts/check_toolchain.py
+xcrun swift build -c release
 # Compile first, then close only this exact installed app before replacing files.
-RELAUNCH="$(VELLA_TARGET_APP="$APP" swift -e '
+RELAUNCH="$(VELLA_TARGET_APP="$APP" xcrun swift -e '
 import AppKit
 let path = ProcessInfo.processInfo.environment["VELLA_TARGET_APP"]!
 let apps = NSWorkspace.shared.runningApplications.filter { $0.bundleURL?.path == path }
@@ -72,7 +73,7 @@ for path in pathlib.Path('Resources/ReferenceResults').glob('*.json'):
 PYDATA
 ICONSET="$PWD/.build/Vella.iconset"
 mkdir -p "$ICONSET"
-swift scripts/icon.swift "$PWD/.build/icon.png"
+xcrun swift scripts/icon.swift "$PWD/.build/icon.png"
 for size in 16 32 128 256 512; do
   sips -z "$size" "$size" .build/icon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
   double=$((size * 2))
