@@ -72,7 +72,12 @@ final class StreamingTests: XCTestCase {
         defer { insertion.cancel() }
         insertion.offer(committed: "", partial: "hello")
         current = "second" // Even already queued words deliberately follow focus.
-        try await Task.sleep(nanoseconds: 180_000_000)
+        // Drain completion, not a scheduler-speed assumption, separates the two
+        // focus changes. A loaded CI runner can legitimately exceed 180 ms.
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while fields["second"] != "hello", ContinuousClock.now < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
         XCTAssertEqual(fields["first"], ""); XCTAssertEqual(fields["second"], "hello")
         current = "first"; fields["first"] = "manual edit: "
         insertion.offer(committed: "hello world", partial: "")
@@ -89,7 +94,10 @@ final class StreamingTests: XCTestCase {
         backend.onUpdate = { insertion.offer(backend.text) }
         try await backend.start(config: config().forRecording())
         try await backend.feed(Data(repeating: 0, count: 4))
-        try await Task.sleep(nanoseconds: 180_000_000)
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while writes.joined() != "hello", ContinuousClock.now < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
         XCTAssertEqual(writes.joined(), "hello", "Partial must be delivered while the microphone would still be open")
         let final = try await backend.finish(expectedFrames: 1)
         await insertion.finish(final)
