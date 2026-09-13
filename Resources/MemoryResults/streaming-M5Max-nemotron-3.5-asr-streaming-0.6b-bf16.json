@@ -1,0 +1,45 @@
+{
+  "measuredAt": "2026-09-13T07:04:08Z",
+  "repeats": 1,
+  "measurementKind": "memory",
+  "runtimePeakMLXBytes": 2215282152,
+  "peakMLXBytes": 2215282152,
+  "peakProcessBytes": 1826357248,
+  "memoryProtocol": "MLX allocation high-water mark reset after warmup, measured across transcription; includes held model allocations, excludes untracked Python/native memory. Not total process or system RAM.",
+  "modelFingerprint": "377c93f95d406ca57a54f784dcea37089568bb270be31704caec5c4f75218f1c",
+  "suiteHash": "72550f156b6625aa213c8c1bd70761ee61a7638b8b494cfe317fc7d33e0d1188",
+  "streamingWorkerSHA256": "6942bbd32d29ac39c2d664194cdf6f81285e98f675892f15dd51de16c4a9c79a",
+  "driverSHA256": "ca46af33857f1307d0d6e63d5a5344acca3f5c670064c31c774d5c3d19b8653d",
+  "parameters": {
+    "packetFrames": 1600,
+    "sampleRate": 16000,
+    "sampleFormat": "Float32LE",
+    "gateFrames": 320,
+    "preRollBlocks": 15,
+    "trailingSilenceBlocks": 40,
+    "energyRMS": 0.0003,
+    "endpoint": "production Session.endpoint",
+    "finish": "production Session.handle(finish)",
+    "decode": "production native incremental greedy",
+    "perClipReset": true,
+    "timingScope": "accelerated direct Session.handle + MLX synchronization; excludes model load, IPC, packet encoding, scoring and inter-clip reset",
+    "architecture": "nemotron_asr",
+    "native": {
+      "api": "StreamingLogMelSpectrogram/ConformerStreamingState/persistent RNNT",
+      "attContextSize": [
+        56,
+        3
+      ],
+      "cacheLimitBytes": 67108864,
+      "language": "model.default_language",
+      "maxSymbols": "model.max_symbols or 10"
+    }
+  },
+  "mlxAudioVersion": "0.5.1",
+  "mlxVersion": "0.32.2",
+  "machine": "Apple M5 Max",
+  "resultSHA256": "da4776ed46065e2a535cf1776855db4028dcc3b9ac8f23f703487d5640826916",
+  "clipCount": 144,
+  "sourceFileSHA256": "7b45d2dc69b3a38ec21d53893f1e54f1697047e26a9f8d9b8b12abe89bce3e47",
+  "note": "Separate full-suite one-pass memory process; original timing/accuracy retained."
+}

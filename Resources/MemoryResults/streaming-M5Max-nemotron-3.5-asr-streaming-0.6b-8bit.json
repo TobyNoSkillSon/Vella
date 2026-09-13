@@ -1,0 +1,45 @@
+{
+  "measuredAt": "2026-09-13T06:50:33Z",
+  "repeats": 1,
+  "measurementKind": "memory",
+  "runtimePeakMLXBytes": 980055816,
+  "peakMLXBytes": 980055816,
+  "peakProcessBytes": 1307885568,
+  "memoryProtocol": "MLX allocation high-water mark reset after warmup, measured across transcription; includes held model allocations, excludes untracked Python/native memory. Not total process or system RAM.",
+  "modelFingerprint": "7a3a1e42699c2fb804ca79eeb8a6b822fbc431ae5c79f50079aed0e0cba14687",
+  "suiteHash": "72550f156b6625aa213c8c1bd70761ee61a7638b8b494cfe317fc7d33e0d1188",
+  "streamingWorkerSHA256": "6942bbd32d29ac39c2d664194cdf6f81285e98f675892f15dd51de16c4a9c79a",
+  "driverSHA256": "ca46af33857f1307d0d6e63d5a5344acca3f5c670064c31c774d5c3d19b8653d",
+  "parameters": {
+    "packetFrames": 1600,
+    "sampleRate": 16000,
+    "sampleFormat": "Float32LE",
+    "gateFrames": 320,
+    "preRollBlocks": 15,
+    "trailingSilenceBlocks": 40,
+    "energyRMS": 0.0003,
+    "endpoint": "production Session.endpoint",
+    "finish": "production Session.handle(finish)",
+    "decode": "production native incremental greedy",
+    "perClipReset": true,
+    "timingScope": "accelerated direct Session.handle + MLX synchronization; excludes model load, IPC, packet encoding, scoring and inter-clip reset",
+    "architecture": "nemotron_asr",
+    "native": {
+      "api": "StreamingLogMelSpectrogram/ConformerStreamingState/persistent RNNT",
+      "attContextSize": [
+        56,
+        3
+      ],
+      "cacheLimitBytes": 67108864,
+      "language": "model.default_language",
+      "maxSymbols": "model.max_symbols or 10"
+    }
+  },
+  "mlxAudioVersion": "0.5.1",
+  "mlxVersion": "0.32.2",
+  "machine": "Apple M5 Max",
+  "resultSHA256": "78badbb074cd917168eaf7b04c364fbc10ecad50d383b2de482a766c5cd8d7e5",
+  "clipCount": 144,
+  "sourceFileSHA256": "08fc6be8117a54e91146c145d2c3c9a7c0395bbef7141f0ab46c5b8b41913030",
+  "note": "Separate full-suite one-pass memory process; original timing/accuracy retained."
+}

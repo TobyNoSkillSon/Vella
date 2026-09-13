@@ -43,6 +43,18 @@ Vella is a beta. macOS will ask for Microphone and Accessibility access, and you
 
 A small waveform appears while you speak. Vella pastes the finished text but never presses Enter or Send. If you move to another window or field, it leaves the text on your clipboard instead.
 
+### Dictation and Streaming
+
+Version 0.8.0 source builds offer **Mode → Dictation / Streaming**. Dictation transcribes and inserts after you finish. **Streaming inserts text continuously wherever keyboard focus is**, using native incremental recognition. The shortcut stays **⌃⌘N**: open or close the microphone. Finish sends only the remaining suffix, never a duplicate full transcript.
+
+Streaming follows window and field changes without stopping for clicks or manual typing. It deliberately does not bind words to a field or utterance: words still being processed when you switch will go to the new focus. Pause your speech or close the microphone while navigating as needed. Streaming sends native Unicode text without touching the clipboard or pressing Enter. Dictation keeps its original-target checks; terminal and custom-editor acceptance depends on the target application.
+
+Streaming uses bounded audio/text queues and incremental checkpoints rather than rewriting the whole transcript on every update. Saved audio and transcripts still consume disk space; recordings are retained until you delete them, and low disk space stops capture safely.
+
+Each mode remembers its own model. Select the mode, open **Models**, then **Install** and **Use**. Streaming offers **Nemotron 3.5 8-bit, Nemotron 3.5 BF16, and Voxtral Realtime 4-bit**: three precision choices across two 2026 model families. Nemotron 8-bit remains the starting choice. Mode/model changes are blocked while recording or finalizing. Quiet intervals pause recognition, not capture; the gate measures volume, not whether background sound is speech. Saved streaming audio can be replayed for clipboard-only recovery.
+
+The pinned curl installer above still installs **v0.6.0**, without Streaming.
+
 ## Measured performance
 
 The two error columns answer different questions. **Lower is better for both.**
@@ -52,7 +64,9 @@ The two error columns answer different questions. **Lower is better for both.**
 
 **Sorted by full-text error, lowest first**—the same default used in the app. That makes punctuation and capitalization part of the comparison, rather than ranking on word recognition alone.
 
-Recorded on **Apple M5 Max · 128 GiB RAM**, using 144 English reading clips from 34 speakers (20m 15s). ★ marks a current in-app recommendation. † marks a benchmarked candidate not yet in the released app’s model catalog.
+Recorded on **Apple M5 Max · 128 GiB RAM**, using 144 English reading clips from 34 speakers (20m 15s). ★ marks a Dictation recommendation. † marks a batch-benchmarked candidate outside the Dictation catalog; native Streaming measurements appear separately below.
+
+### Dictation / batch inference
 
 <!-- BENCHMARK_RESULTS_START -->
 
@@ -80,6 +94,28 @@ Recorded on **Apple M5 Max · 128 GiB RAM**, using 144 English reading clips fro
 Speed compares audio length with transcription time after the model is loaded; 60× means a minute of audio takes about a second of inference. Memory is the measured MLX allocation, **not total app memory**. Accuracy and speed use two passes per clip; memory was measured separately. These are clean-reading results, not a guarantee for every voice or noisy room.
 
 [Full measurements](Resources/ReferenceResults/) · [How the scores are calculated](Resources/benchmark-policy.json)
+
+### Streaming / native incremental input
+
+**The same 144 clips, audio hashes, references and scoring as the table above**, fed through Vella's actual streaming worker in 100-ms packets. Two timing passes per clip. Nemotron uses its supported 320-ms context; Voxtral uses a configured 480-ms delay. Neither setting is measured microphone-to-word latency.
+
+<!-- STREAMING_RESULTS_START -->
+
+| Model | Word-only error | Full-text error ↓ | Streaming compute speed | Warm MLX memory |
+|---|---:|---:|---:|---:|
+| [Nemotron 3.5 ASR 0.6B 8-bit](https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit) | 2.95% | 2.66% | 15.3× | 0.98 GB |
+| [Nemotron 3.5 ASR 0.6B BF16](https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b) | 2.86% | 2.66% | 8.1× | 2.22 GB |
+| [Voxtral Mini Realtime 4B 4-bit](https://huggingface.co/mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit) | 2.35% | 2.71% | 1.2× | 5.56 GB ‡ |
+
+<!-- STREAMING_RESULTS_END -->
+
+‡ Voxtral's warm MLX peak was measured during its completed two-pass timing run, not a separate memory profile. Nemotron memory uses separate full-suite one-pass measurements. All values are actual MLX allocation peaks, not total process RAM.
+
+On this corpus, Nemotron 8-bit is the efficient starting choice. BF16 changes a few words without lowering full-text error; Voxtral improves word recognition but runs only slightly faster than real time.
+
+Streaming speed is accelerated compute throughput, excluding loading, IPC and inter-clip reset—not how quickly words appear after you speak. Accuracy includes the normal streaming gate, partials and final flush; these are not the batch scores reused under another label. This clean-English corpus does not establish multilingual accuracy or day-long microphone endurance.
+
+The September 2026 VibeVoice streaming release and Moonshine v2 were screened but not benchmarked: Vella's pinned MLX runtime lacks their native input-streaming implementations. Moonshine's current official engine would require a separate runtime integration. No untested scores or placeholder model choices are included.
 
 ## Your recordings
 

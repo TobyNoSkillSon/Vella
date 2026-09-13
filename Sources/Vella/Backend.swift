@@ -75,6 +75,7 @@ import VellaCore
         let child = Process(), stdout = Pipe(), stdin = Pipe()
         child.executableURL = python; child.arguments = [script.path]
         var env = ProcessInfo.processInfo.environment
+        env["PYTHONDONTWRITEBYTECODE"] = "1" // The signed app bundle is immutable.
         env["PYTHONUNBUFFERED"] = "1"; env["HF_HUB_OFFLINE"] = "1"; env["TRANSFORMERS_OFFLINE"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
         child.environment = env; child.standardInput = stdin; child.standardOutput = stdout
         // Third-party diagnostics can contain speech; never persist them.

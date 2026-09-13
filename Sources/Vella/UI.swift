@@ -12,20 +12,33 @@ final class HUDPanel: NSPanel {
     let model: Model
     init(model: Model? = nil) { self.model = model ?? Model(); super.init() }
     let shortcut = GlobalShortcut()
-    private lazy var modelMenus: ModelsMenu = {
-        let menus = ModelsMenu()
-        menus.library.mayChangeModel = { [weak self] in self?.model.phase != .recording && self?.model.busy == false }
-        menus.library.onUse = { [weak self] in self?.model.backend.stop() }
-        menus.library.beforeHeavyWork = { [weak self] in self?.model.backend.stop() }
-        menus.library.prepareForCalibration = { [weak self] in try await self?.model.backend.releaseAndWait() }
-        model.referenceSpeed = { [weak menus] path in
-            guard let library = menus?.library,
-                  let id = library.installed.first(where: { $0.value.path == path })?.key,
-                  let speed = library.references[id]?.realtimeFactor, speed.isFinite, speed > 0 else { return nil }
-            return speed
+    private lazy var dictationMenus = makeModelMenus(.dictation)
+    private lazy var streamingMenus = makeModelMenus(.streaming)
+    private var modelMenus: ModelsMenu { model.mode == .dictation ? dictationMenus : streamingMenus }
+    private var librariesBusy: Bool {
+        [dictationMenus.library, streamingMenus.library].contains { $0.busy || $0.calibration.isRunning }
+    }
+    private var canChangeMode: Bool { model.phase != .recording && !model.busy && !librariesBusy }
+    private func makeModelMenus(_ mode: RecognitionMode) -> ModelsMenu {
+        let menus = ModelsMenu(library: ModelLibrary(mode: mode))
+        menus.library.mayChangeModel = { [weak self] in
+            guard let self else { return false }
+            let other = mode == .dictation ? self.streamingMenus.library : self.dictationMenus.library
+            return self.model.phase != .recording && !self.model.busy && !other.busy && !other.calibration.isRunning
+        }
+        menus.library.onUse = { [weak self] in self?.model.stopWorkers() }
+        menus.library.beforeHeavyWork = { [weak self] in self?.model.stopWorkers() }
+        menus.library.prepareForCalibration = { [weak self] in try await self?.model.releaseWorkers() }
+        if mode == .dictation {
+            model.referenceSpeed = { [weak menus] path in
+                guard let library = menus?.library,
+                      let id = library.installed.first(where: { $0.value.path == path })?.key,
+                      let speed = library.references[id]?.realtimeFactor, speed.isFinite, speed > 0 else { return nil }
+                return speed
+            }
         }
         return menus
-    }()
+    }
     var status: NSStatusItem!
     let menu = NSMenu()
     var panel: HUDPanel!
@@ -77,7 +90,7 @@ final class HUDPanel: NSPanel {
 
     @objc private func showCaptureError() {
         let alert = NSAlert()
-        alert.messageText = "Dictation failed"
+        alert.messageText = "\(model.mode.title) failed"
         alert.informativeText = model.message
         alert.addButton(withTitle: "OK")
         alert.runModal()
@@ -157,12 +170,12 @@ final class HUDPanel: NSPanel {
         menu.removeAllItems()
         let summary: String
         switch model.phase {
-        case .idle: summary = model.insertionPermission.granted ? "Dictation: ready" : "Dictation: Accessibility required"
-        case .preparing: summary = "Dictation: preparing…"
-        case .recording: summary = "Dictation: listening"
-        case .transcribing: summary = model.processingProgress.isEmpty ? "Dictation: transcribing…" : "Dictation: " + model.processingProgress
-        case .success: summary = model.insertionWasAutomatic ? "Dictation: paste sent" : "Dictation: copied—press ⌘V"
-        case .failed: summary = "Dictation: needs attention…"
+        case .idle: summary = model.insertionPermission.granted ? "\(model.mode.title): ready" : "\(model.mode.title): Accessibility required"
+        case .preparing: summary = "\(model.mode.title): preparing…"
+        case .recording: summary = "\(model.mode.title): listening"
+        case .transcribing: summary = model.processingProgress.isEmpty ? "\(model.mode.title): transcribing…" : "\(model.mode.title): " + model.processingProgress
+        case .success: summary = model.insertionWasAutomatic ? "\(model.mode.title): paste sent" : "\(model.mode.title): copied—press ⌘V"
+        case .failed: summary = "\(model.mode.title): needs attention…"
         }
         let needsPermission = !model.insertionPermission.granted
         let header = NSMenuItem(title: summary, action: needsPermission ? #selector(accessibility) : model.phase == .failed ? #selector(showCaptureError) : nil, keyEquivalent: "")
@@ -171,12 +184,22 @@ final class HUDPanel: NSPanel {
         header.toolTip = model.message
         header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.phase == .failed || needsPermission ? NSColor.systemOrange : NSColor.systemGreen])
         menu.addItem(header); menu.addItem(.separator())
-        item(model.phase == .recording ? "Finish Dictation" : "Start Dictation", "waveform", #selector(toggle), enabled: !model.busy, key: "n", modifiers: [.control, .command])
+        item(model.phase == .recording ? "Finish \(model.mode.title)" : "Start \(model.mode.title)", "waveform", #selector(toggle), enabled: !model.busy, key: "n", modifiers: [.control, .command])
         if model.phase == .recording || model.busy { item("Stop and Keep Audio", "pause.circle", #selector(cancel)) }
         if model.phase == .failed, model.savedSession != nil { item("Retry Saved Recording", "arrow.clockwise", #selector(retry)) }
         if model.savedSession != nil, !model.busy, model.phase != .recording {
             item("Delete This Saved Recording…", "trash", #selector(deleteSaved))
         }
+        let modes = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
+        let modeMenu = NSMenu(); modeMenu.autoenablesItems = false
+        for mode in RecognitionMode.allCases {
+            let entry = NSMenuItem(title: mode.title, action: #selector(selectMode(_:)), keyEquivalent: "")
+            entry.target = self; entry.representedObject = mode.rawValue
+            entry.state = model.mode == mode ? .on : .off
+            entry.isEnabled = canChangeMode
+            modeMenu.addItem(entry)
+        }
+        modes.submenu = modeMenu; menu.addItem(modes)
         let microphones = NSMenuItem(title: "Microphone", action: nil, keyEquivalent: "")
         microphones.image = NSImage(systemSymbolName: "mic", accessibilityDescription: nil)
         let devices = NSMenu(); devices.autoenablesItems = false
@@ -185,7 +208,7 @@ final class HUDPanel: NSPanel {
             let entry = NSMenuItem(title: device.name, action: #selector(selectMicrophone(_:)), keyEquivalent: "")
             entry.target = self; entry.representedObject = device.name
             entry.state = device.name == selected ? .on : .off
-            entry.isEnabled = !model.busy && model.phase != .recording
+            entry.isEnabled = canChangeMode
             devices.addItem(entry)
         }
         devices.addItem(.separator())
@@ -232,6 +255,11 @@ final class HUDPanel: NSPanel {
     }
     @objc private func copyLast() { model.copyLast() }
     @objc private func accessibility() { model.accessibility(); beginPermissionPolling() }
+    @objc private func selectMode(_ sender: NSMenuItem) {
+        guard canChangeMode, let raw = sender.representedObject as? String, let mode = RecognitionMode(rawValue: raw) else { return }
+        do { try model.selectMode(mode); rebuildMenu() }
+        catch { model.update(.failed, error.localizedDescription) }
+    }
     @objc private func selectMicrophone(_ sender: NSMenuItem) { if let name = sender.representedObject as? String { model.chooseMicrophone(name) } }
     @objc private func files() { NSWorkspace.shared.open(Backend.support) }
     @objc private func quit() { NSApp.terminate(nil) }
@@ -271,7 +299,7 @@ final class HUDPanel: NSPanel {
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard model.phase == .recording || model.busy || modelMenus.library.busy else { return .terminateNow }
+        guard model.phase == .recording || model.busy || librariesBusy else { return .terminateNow }
         let alert = NSAlert(); alert.messageText = "Stop dictation and quit?"
         alert.informativeText = "Saved audio and completed text will be kept. Unfinished text will not be inserted."
         alert.addButton(withTitle: "Keep Dictating"); alert.addButton(withTitle: "Stop and Quit")
@@ -288,6 +316,6 @@ final class HUDPanel: NSPanel {
     func applicationWillTerminate(_ notification: Notification) {
         if let applicationFocusObserver { NSWorkspace.shared.notificationCenter.removeObserver(applicationFocusObserver) }
         dismissal?.cancel(); stopPermissionPolling(); model.hudVisible = false
-        modelMenus.library.shutdown(); modelMenus.library.calibration.shutdown(); model.shutdown()
+        dictationMenus.library.shutdown(); streamingMenus.library.shutdown(); model.shutdown()
     }
 }
