@@ -1,8 +1,8 @@
 <img src="docs/images/icon.png" alt="Vella icon" width="96">
 
-# Vella — Offline dictation for macOS
+# Vella — Minimal offline transcription for macOS
 
-Vella is a native menu-bar app for offline dictation and live speech-to-text on Apple Silicon Macs, using local MLX models.
+Vella is a minimal, native menu-bar app for offline dictation and live speech-to-text on Apple Silicon Macs. It supports selectable local MLX models, a global keyboard shortcut, and saved recordings with transcription recovery.
 
 Press **⌃⌘N** to open or close the microphone. Dictation inserts the transcript when you finish; Streaming inserts text as you speak.
 
