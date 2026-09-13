@@ -35,7 +35,7 @@ import VellaCore
     let resources: URL
     let registryURL: URL
     // Injectable filesystem operations keep deletion tests away from real models/Trash.
-    var currentModelPath: () throws -> String = { try Backend().configuration().model }
+    var currentModelPath: () throws -> String = { try Backend().configuration(requiresModel: false).model }
     var trashModel: (URL) throws -> URL = { source in
         var destination: NSURL?
         try FileManager.default.trashItem(at: source, resultingItemURL: &destination)
@@ -44,6 +44,15 @@ import VellaCore
     }
     var writeRegistryData: (Data, URL) throws -> Void = { try $0.write(to: $1, options: .atomic) }
     static var registry: URL { Backend.support.appendingPathComponent("models-installed.json") }
+    var modelsDirectory: URL { registryURL.deletingLastPathComponent().appendingPathComponent("Models") }
+    func modelFilePath(_ id: String) -> String? {
+        if let local = installed[id] { return local.path }
+        guard models.contains(where: { $0.id == id }), !id.isEmpty, id != ".", id != "..", !id.contains("/") else { return nil }
+        let folder = modelsDirectory.appendingPathComponent(id)
+        var directory = ObjCBool(false)
+        guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &directory), directory.boolValue else { return nil }
+        return folder.path // An unfinished download is manageable, but NOT installed.
+    }
     init(resources: URL? = nil, registryURL: URL? = nil, calibration: CalibrationStore? = nil) {
         // Custom registries are an isolation boundary; callers inject their calibration runner.
         automaticallyCalibrates = registryURL == nil || calibration != nil
@@ -57,7 +66,7 @@ import VellaCore
         return URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("Resources")
     }
     var displayedModels: [ModelRecommendation] {
-        var rows = models.filter { $0.recommended == true || installed[$0.id] != nil }
+        var rows = models.filter { $0.recommended == true || modelFilePath($0.id) != nil }
         if rows.isEmpty { return models } // Legacy catalogs without recommendation metadata.
         // Keep a custom active model visible without switching or deleting it.
         if !rows.contains(where: { installed[$0.id]?.path == activeModelPath }),
@@ -122,10 +131,10 @@ import VellaCore
     }
     func deletionBlockReason(_ id: String) -> String? {
         if busy || calibration.isRunning || !mayChangeModel() { return "Finish dictation, downloading or calibration before deleting a model." }
-        guard let local = installed[id] else { return "This model is not installed." }
-        let folder = URL(fileURLWithPath: local.path).standardizedFileURL
+        guard let path = modelFilePath(id) else { return "This model has no local files." }
+        let folder = URL(fileURLWithPath: path).standardizedFileURL
         guard let active = try? currentModelPath() else { return "Cannot verify the active model. Check configuration before deleting." }
-        if folder.resolvingSymlinksInPath() == URL(fileURLWithPath: active).resolvingSymlinksInPath() || local.path == activeModelPath {
+        if (!active.isEmpty && folder.resolvingSymlinksInPath() == URL(fileURLWithPath: active).resolvingSymlinksInPath()) || path == activeModelPath {
             return "Switch to another model before deleting the one in use."
         }
         let root = registryURL.deletingLastPathComponent().appendingPathComponent("Models").standardizedFileURL
@@ -142,16 +151,22 @@ import VellaCore
         return nil
     }
     /// Only called after confirmation. Re-read disk/configuration rather than trusting an old row.
-    @discardableResult func deleteModel(_ id: String, expectedPath: String) -> Bool {
+    @discardableResult func deleteModel(_ id: String, expectedPath: String, expectedInstalled: Bool? = nil) -> Bool {
         do {
-            installed = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: registryURL))
-            guard installed[id]?.path == expectedPath else { throw VellaError.message("The model changed since confirmation. Reopen Models and try again.") }
+            let wasInstalled = expectedInstalled ?? (installed[id] != nil)
+            if FileManager.default.fileExists(atPath: registryURL.path) {
+                installed = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: registryURL))
+            } else {
+                guard !wasInstalled else { throw VellaError.message("The model registry changed. Reopen Models and try again.") }
+                installed = [:]
+            }
+            guard (installed[id] != nil) == wasInstalled, modelFilePath(id) == expectedPath else { throw VellaError.message("The model changed since confirmation. Reopen Models and try again.") }
             if let reason = deletionBlockReason(id) { throw VellaError.message(reason) }
             let old = installed
             let source = URL(fileURLWithPath: expectedPath)
             let trashed = FileManager.default.fileExists(atPath: source.path) ? try trashModel(source) : nil
             installed.removeValue(forKey: id)
-            do { try saveRegistry() }
+            do { if wasInstalled { try saveRegistry() } }
             catch {
                 installed = old
                 if let trashed {
@@ -161,17 +176,18 @@ import VellaCore
                 throw error
             }
             downloadError = nil
-            message = "Model removed. Empty Trash to reclaim disk space. You can download it again later."
+            message = (wasInstalled ? "Model removed." : "Partial download removed.") + " Empty Trash to reclaim disk space. You can download it again later."
             reload()
             return true
         } catch { downloadError = error.localizedDescription; message = error.localizedDescription; return false }
     }
     func download() {
         guard let selected, !busy, calibratingID == nil else { return }
+        guard mayChangeModel() else { message = "Finish or stop dictation before installing a model."; return }
         beforeHeavyWork?()
         downloadingID = selected.id; downloadError = nil
         run(["download", "--catalog", resources.appendingPathComponent("models.json").path,
-             "--model-id", selected.id, "--models-dir", Backend.support.appendingPathComponent("Models").path], timeout: 3600)
+             "--model-id", selected.id, "--models-dir", modelsDirectory.path], timeout: 3600)
     }
     func importModel() {
         guard let selected, !busy else { return }
@@ -246,8 +262,9 @@ import VellaCore
             return
         }
         deadline?.cancel(); deadline = nil
-        guard let worker, worker.isRunning else { return }
+        guard busy else { return }
         failureMessage = "Cancelled. Partial downloads may be resumed; no model selection was changed."
+        guard let worker, worker.isRunning else { return } // Reject a queued successful-exit callback too.
         worker.terminate()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { if worker.isRunning { kill(worker.processIdentifier, SIGKILL) } }
     }
@@ -255,7 +272,7 @@ import VellaCore
         guard !busy else { return }
         do {
             let python = try workerPython()
-            guard FileManager.default.isExecutableFile(atPath: python.path) else { throw VellaError.message("No Python executable next to the configured MLX server. Configure its virtual environment first.") }
+            guard FileManager.default.isExecutableFile(atPath: python.path) else { throw VellaError.message("Vella's Python runtime is unavailable. Repair the runtime setup before downloading a model.") }
             let child = Process(); child.executableURL = python
             child.arguments = [resources.appendingPathComponent("benchmark_worker.py").path] + args
             var env = ProcessInfo.processInfo.environment; env["PYTHONUNBUFFERED"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -277,7 +294,7 @@ import VellaCore
                 child.waitUntilExit()
                 await self?.finished(code: child.terminationStatus)
             }
-        } catch { busy = false; downloadError = error.localizedDescription; message = error.localizedDescription }
+        } catch { busy = false; downloadingID = nil; downloadError = error.localizedDescription; message = error.localizedDescription }
     }
     func receive(_ data: Data) {
         buffer.append(data)
@@ -289,7 +306,9 @@ import VellaCore
                 if let done = object["completed"] as? Double, let total = object["total"] as? Double, total > 0 { progress = min(0.99, max(0, done / total)) }
             } else if event == "installed", let id = object["modelID"] as? String, let path = object["path"] as? String {
                 guard id == downloadingID,
-                      URL(fileURLWithPath: path).standardizedFileURL == Backend.support.appendingPathComponent("Models").appendingPathComponent(id).standardizedFileURL else {
+                      let expected = models.first(where: { $0.id == id }),
+                      object["revision"] as? String == expected.revision,
+                      URL(fileURLWithPath: path).standardizedFileURL == modelsDirectory.appendingPathComponent(id).standardizedFileURL else {
                     failureMessage = "Download returned an unexpected model or location."; continue
                 }
                 let model = models.first { $0.id == id }
@@ -334,6 +353,7 @@ import VellaCore
     }
     func finished(code: Int32) {
         deadline?.cancel(); deadline = nil; worker = nil; busy = false
+        downloadingID = nil
         if let failureMessage { message = failureMessage; downloadError = failureMessage }
         else if code == 0 && receivedResult, let (id, local) = pendingInstallation {
             let previous = installed[id]

@@ -71,7 +71,7 @@ struct TranscriptionEstimate {
     }
     func run(_ session: RecordingSession) async throws -> String {
         guard session.manifest.state != "recording" else { throw VellaError.message("Finish recording before transcription. Nothing has been pasted.") }
-        session.manifest.state = "transcribing"; try session.save()
+        session.manifest.state = "transcribing"; session.manifest.failureCode = nil; try session.save()
         var completed = session.manifest.segments.filter { $0.text != nil }.reduce(0.0) { $0 + $1.seconds }
         var requestCount = 0
         for i in session.manifest.segments.indices {
@@ -109,7 +109,7 @@ struct TranscriptionEstimate {
         try Task.checkCancellation()
         guard session.manifest.segments.allSatisfy({ $0.text != nil }) else {
             _ = try session.savePartialTranscript()
-            throw VellaError.message("Some audio was not recognized. An explicitly marked incomplete transcript is available; nothing was automatically pasted. Retry missing segments or review the saved audio.")
+            throw VellaError.unrecognizedAudio
         }
         let segments = session.manifest.segments
         let assembly = Task.detached(priority: .userInitiated) { try RecordingSession.assemble(segments) }

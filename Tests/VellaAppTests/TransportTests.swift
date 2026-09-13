@@ -118,4 +118,56 @@ for line in sys.stdin:
         XCTAssertEqual(backend.processID, pid)
         task.cancel(); _ = try? await task.value
     }
+
+    @MainActor func testStopDuringStartupCannotLaunchAReplacement() async throws {
+        let (script, record) = try fixture()
+        let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script)
+        defer { backend.shutdown() }
+        let wav = try record.wav(for: record.manifest.segments[0])
+        record.manifest.config.model = "/fixture/stubborn"
+        let first = Task { try await backend.transcribe(wav, config: record.manifest.config) }
+        for _ in 0..<100 { if backend.processID != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        let pid = try XCTUnwrap(backend.processID)
+        try await Task.sleep(nanoseconds: 150_000_000)
+        backend.stop(); _ = try? await first.value
+        XCTAssertEqual(kill(pid, 0), 0, "Fixture predecessor must still be retiring")
+        record.manifest.config.model = "/fixture/normal"
+        let next = Task { try await backend.transcribe(wav, config: record.manifest.config) }
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertNil(backend.processID)
+        backend.stop() // Caller task itself is intentionally NOT cancelled.
+        do { _ = try await next.value; XCTFail("A stopped startup launched inference") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertNil(backend.processID)
+        try await exited(pid)
+    }
+
+    @MainActor func testRepeatedWorkerFailuresRecoverWithoutLosingAudioOrLeakingChildren() async throws {
+        let (script, record) = try fixture()
+        let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script)
+        defer { backend.shutdown() }
+        let wav = try record.wav(for: record.manifest.segments[0])
+        let archive = record.directory.appendingPathComponent(record.manifest.segments[0].filename)
+        let original = try Data(contentsOf: archive)
+        for cycle in 0..<12 {
+            record.manifest.config.model = "/fixture/normal"
+            _ = try await backend.transcribe(wav, config: record.manifest.config)
+            let first = try XCTUnwrap(backend.processID)
+            _ = try await backend.transcribe(wav, config: record.manifest.config)
+            XCTAssertEqual(backend.processID, first)
+            record.manifest.config.model = "/fixture/" + ["failure", "malformed", "exit", "empty"][cycle % 4]
+            do { _ = try await backend.transcribe(wav, config: record.manifest.config); XCTFail("Expected fixture failure") }
+            catch { }
+            try await backend.releaseAndWait()
+            XCTAssertNotEqual(kill(first, 0), 0)
+            XCTAssertNil(backend.processID)
+            record.manifest.config.model = "/fixture/normal"
+            let recovered = try await backend.transcribe(wav, config: record.manifest.config)
+            XCTAssertEqual(recovered, "Fixture recognized speech.")
+            let last = try XCTUnwrap(backend.processID)
+            try await backend.releaseAndWait()
+            XCTAssertNotEqual(kill(last, 0), 0)
+            XCTAssertEqual(try Data(contentsOf: archive), original)
+        }
+    }
 }

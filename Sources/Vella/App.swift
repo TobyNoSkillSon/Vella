@@ -47,14 +47,17 @@ final class GlobalShortcut {
     let insertionPermission: InsertionPermission
     private let pasteboard: NSPasteboard
     private let stopCapture: (Recorder) async throws -> Void
+    private let transcriptionRequest: SessionTranscriber.Request?
     private var finishingCapture = false
     private var captureDrainWaiters: [CheckedContinuation<Void, Never>] = []
     var captureIsFinalizing: Bool { finishingCapture }
     init(insertionPermission: InsertionPermission? = nil, pasteboard: NSPasteboard = .general,
-         stopCapture: ((Recorder) async throws -> Void)? = nil) {
+         stopCapture: ((Recorder) async throws -> Void)? = nil,
+         transcriptionRequest: SessionTranscriber.Request? = nil) {
         self.insertionPermission = insertionPermission ?? InsertionPermission()
         self.pasteboard = pasteboard
         self.stopCapture = stopCapture ?? { recorder in _ = try await recorder.stopAsync(userStopped: true) }
+        self.transcriptionRequest = transcriptionRequest
     }
     @discardableResult func ensureAutomaticInsertion() -> Bool {
         guard insertionPermission.ensure() else {
@@ -211,7 +214,7 @@ final class GlobalShortcut {
         update(.transcribing, "Transcribing saved segments locally. Estimates exclude unknown model-loading and queue delays.")
         task = Task {
             do {
-                let runner = SessionTranscriber { [backend] url, config in try await backend.transcribe(url, config: config) }
+                let runner = SessionTranscriber(request: transcriptionRequest ?? { [backend] url, config in try await backend.transcribe(url, config: config) })
                 let speed = CalibrationStore.speed(modelPath: session.manifest.config.model)
                     ?? referenceSpeed?(session.manifest.config.model)
                 let pendingAudio = session.manifest.segments.filter { $0.text == nil }.reduce(0.0) { $0 + $1.seconds }
@@ -254,14 +257,21 @@ final class GlobalShortcut {
                 insert(text)
                 let quiet = session.manifest.segments.reduce(0) { $0 + ($1.quietSlices ?? 0) }
                 if quiet > 0 { message += " \(quiet) very quiet interval(s) returned no recognized speech; original audio remains saved." }
-            } catch is CancellationError { }
-            catch {
+            } catch {
                 guard self.operation == operation else { return }
                 progressTimer?.invalidate(); progressTimer = nil
-                session.manifest.state = "interrupted"; try? session.save()
+                processingProgress = ""
+                session.manifest.state = "interrupted"
+                if error is CancellationError { session.manifest.failureCode = "cancelled" }
+                else if case VellaError.noSpeech = error { session.manifest.failureCode = "no_speech" }
+                else if case VellaError.unrecognizedAudio = error { session.manifest.failureCode = "unrecognized_audio" }
+                else if (error as? URLError)?.code == .timedOut { session.manifest.failureCode = "timeout" }
+                else { session.manifest.failureCode = "local_failure" }
+                try? session.save()
                 if let partial = try? session.savePartialTranscript() { lastText = partial; lastTranscriptIncomplete = true }
                 allowAutomaticInsertion = false
-                update(.failed, error.localizedDescription + " Audio and completed segments are saved. Retry resumes unfinished segments; recovery copies only.")
+                let reason = error is CancellationError ? "Local transcription stopped before completion." : error.localizedDescription
+                update(.failed, reason + " Audio and completed segments are saved. Retry resumes unfinished segments; recovery copies only.")
             }
         }
     }

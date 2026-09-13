@@ -19,8 +19,13 @@ public struct Configuration: Codable {
 public enum VellaError: LocalizedError {
     case message(String)
     case noSpeech
+    case unrecognizedAudio
     public var errorDescription: String? {
-        switch self { case .message(let s): return s; case .noSpeech: return "No speech detected. Try recording again." }
+        switch self {
+        case .message(let s): return s
+        case .noSpeech: return "No speech detected. Try recording again."
+        case .unrecognizedAudio: return "Some audio was not recognized. An explicitly marked incomplete transcript is available; nothing was automatically pasted. Retry missing segments or review the saved audio."
+        }
     }
 }
 public struct Microphone: Equatable {

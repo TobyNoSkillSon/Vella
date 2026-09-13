@@ -120,4 +120,43 @@ final class ModelDeletionTests: XCTestCase {
         let destination = try XCTUnwrap(trashed)
         XCTAssertEqual(try Data(contentsOf: destination.appendingPathComponent("weights.safetensors")), Data("fixture weights".utf8))
     }
+
+    @MainActor func testPartialDownloadCanBeRemovedWithoutRegisteringOrSelectingIt() throws {
+        let (library, id, folder) = try fixture()
+        try FileManager.default.removeItem(at: library.registryURL)
+        library.installed = [:]; library.currentModelPath = { "" }; library.activeModelPath = ""
+        XCTAssertEqual(library.modelFilePath(id), folder.path)
+        XCTAssertTrue(library.displayedModels.contains { $0.id == id })
+        XCTAssertNil(library.deletionBlockReason(id))
+        XCTAssertTrue(library.deleteModel(id, expectedPath: folder.path, expectedInstalled: false))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: library.registryURL.path))
+        XCTAssertTrue(library.installed.isEmpty)
+    }
+
+    @MainActor func testPartialThatBecameInstalledRequiresFreshConfirmation() throws {
+        let (library, id, folder) = try fixture()
+        library.installed = [:] // User confirmed a partial; disk now says installed.
+        XCTAssertFalse(library.deleteModel(id, expectedPath: folder.path, expectedInstalled: false))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
+    }
+
+    @MainActor func testProtectedDeleteClickExplainsWhyWithoutTouchingFiles() async throws {
+        _ = NSApplication.shared
+        let (library, id, folder) = try fixture()
+        library.currentModelPath = { folder.path }
+        let menus = ModelsMenu(library: library)
+        let root = menus.modelItem()
+        let host = try XCTUnwrap(root.submenu?.items.first?.view as? MenuTableHostingView)
+        let explained = expectation(description: "Blocked deletion explains the active-model protection")
+        menus.presentDeletionConfirmation = { alert in
+            XCTAssertEqual(alert.buttons.map(\.title), ["OK"])
+            XCTAssertTrue(alert.informativeText.contains("Switch to another model"))
+            explained.fulfill(); return .alertFirstButtonReturn
+        }
+        host.rootView.requestDelete(id)
+        await fulfillment(of: [explained], timeout: 2)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
+        XCTAssertNotNil(library.installed[id])
+    }
 }
