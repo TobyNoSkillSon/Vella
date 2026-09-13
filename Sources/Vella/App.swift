@@ -46,9 +46,15 @@ final class GlobalShortcut {
     @Published var backendStatus = "Local MLX Audio"
     let insertionPermission: InsertionPermission
     private let pasteboard: NSPasteboard
-    init(insertionPermission: InsertionPermission? = nil, pasteboard: NSPasteboard = .general) {
+    private let stopCapture: (Recorder) async throws -> Void
+    private var finishingCapture = false
+    private var captureDrainWaiters: [CheckedContinuation<Void, Never>] = []
+    var captureIsFinalizing: Bool { finishingCapture }
+    init(insertionPermission: InsertionPermission? = nil, pasteboard: NSPasteboard = .general,
+         stopCapture: ((Recorder) async throws -> Void)? = nil) {
         self.insertionPermission = insertionPermission ?? InsertionPermission()
         self.pasteboard = pasteboard
+        self.stopCapture = stopCapture ?? { recorder in _ = try await recorder.stopAsync(userStopped: true) }
     }
     @discardableResult func ensureAutomaticInsertion() -> Bool {
         guard insertionPermission.ensure() else {
@@ -70,7 +76,7 @@ final class GlobalShortcut {
     private var successTask: Task<Void, Never>?
     private var config: Configuration?
     private var operation = UUID()
-    var busy: Bool { phase == .preparing || phase == .transcribing }
+    var busy: Bool { finishingCapture || phase == .preparing || phase == .transcribing }
     var title: String {
         switch phase {
         case .idle: return "Ready to listen"
@@ -170,15 +176,31 @@ final class GlobalShortcut {
     func finish() {
         guard phase == .recording else { return }
         timer?.invalidate(); timer = nil
-        do {
-            _ = try recorder.stop(userStopped: true)
-            guard let session = recorder.recordingSession else { throw VellaError.message("Missing recording journal. Open Vella Files to recover audio.") }
-            savedSession = session
-            allowAutomaticInsertion = true
-            runTranscription(session)
-        } catch {
-            savedSession = recorder.recordingSession; allowAutomaticInsertion = false
-            update(.failed, error.localizedDescription + " Saved audio was kept.")
+        finishingCapture = true
+        processingProgress = ""
+        allowAutomaticInsertion = false
+        // Acknowledge the shortcut before draining capture or synchronizing files.
+        update(.transcribing, "Finishing capture and preparing local transcription…")
+        let operation = self.operation
+        task = Task {
+            defer {
+                let waiters = captureDrainWaiters; captureDrainWaiters.removeAll()
+                waiters.forEach { $0.resume() }
+            }
+            do {
+                try await stopCapture(recorder)
+                finishingCapture = false
+                savedSession = recorder.recordingSession
+                guard self.operation == operation, !Task.isCancelled else { cancel(); return }
+                guard let session = savedSession else { throw VellaError.message("Missing recording journal. Open Vella Files to recover audio.") }
+                allowAutomaticInsertion = true
+                runTranscription(session)
+            } catch {
+                finishingCapture = false
+                savedSession = recorder.recordingSession; allowAutomaticInsertion = false
+                guard self.operation == operation, !Task.isCancelled else { cancel(); return }
+                update(.failed, error.localizedDescription + " Saved audio was kept.")
+            }
         }
     }
     private func runTranscription(_ session: RecordingSession) {
@@ -264,6 +286,12 @@ final class GlobalShortcut {
     func cancel() {
         operation = UUID(); task?.cancel(); task = nil; backend.stop(); timer?.invalidate(); timer = nil
         progressTimer?.invalidate(); progressTimer = nil; allowAutomaticInsertion = false
+        if finishingCapture {
+            // The capture queue still owns the journal. Settle cancellation only
+            // after its drain finishes; don't race a manifest write or new capture.
+            update(.transcribing, "Stopping capture and keeping saved audio…")
+            return
+        }
         if phase == .recording {
             _ = try? recorder.stop(userStopped: false); savedSession = recorder.recordingSession
         }
@@ -287,14 +315,26 @@ final class GlobalShortcut {
         return (value as! AXUIElement)
     }
     private func captureTargetFocus() {
+        AccessibilityFocus.prepare(target)
         targetElement = focused(kAXFocusedUIElementAttribute as CFString)
         targetWindow = focused(kAXFocusedWindowAttribute as CFString)
+        if let element = targetElement {
+            var role: CFTypeRef?
+            _ = AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
+            if !AccessibilityFocus.isFieldRole(role as? String) { targetElement = nil }
+        }
     }
-    private var targetFocusMatches: Bool {
-        guard let targetElement, let targetWindow,
-              let element = focused(kAXFocusedUIElementAttribute as CFString),
-              let window = focused(kAXFocusedWindowAttribute as CFString) else { return false }
-        return CFEqual(targetElement, element) && CFEqual(targetWindow, window)
+    private var targetFocusBlockReason: String? {
+        guard let targetElement, let targetWindow else {
+            return "The original text field wasn't available through accessibility. Focus the field, wait a moment, then start a new recording."
+        }
+        guard let element = focused(kAXFocusedUIElementAttribute as CFString),
+              let window = focused(kAXFocusedWindowAttribute as CFString) else {
+            return "The target application isn't exposing its focused text field."
+        }
+        guard CFEqual(targetWindow, window) else { return "The original window is no longer focused." }
+        guard CFEqual(targetElement, element) else { return "The original text field changed or is no longer focused." }
+        return nil
     }
     func preparePasteCheck(to target: NSRunningApplication) {
         self.target = target; captureTargetFocus(); allowAutomaticInsertion = true
@@ -316,24 +356,31 @@ final class GlobalShortcut {
         guard pasteboard.changeCount == changeCount else { return }
         pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
     }
-    private var automaticInsertionEligible: Bool {
-        allowAutomaticInsertion && targetFocusMatches && AXIsProcessTrusted()
-            && target?.isTerminated == false
-            && target?.processIdentifier != ProcessInfo.processInfo.processIdentifier
-            && target?.processIdentifier == NSWorkspace.shared.frontmostApplication?.processIdentifier
+    private var automaticInsertionBlockReason: String? {
+        guard allowAutomaticInsertion else { return "Recovered or cancelled recordings are clipboard-only." }
+        guard AXIsProcessTrusted() else { return "Enable Accessibility for Vella to insert automatically." }
+        guard let target, !target.isTerminated, target.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
+            return "The original application is unavailable."
+        }
+        guard target.processIdentifier == NSWorkspace.shared.frontmostApplication?.processIdentifier else {
+            return "The original application is no longer in front."
+        }
+        return targetFocusBlockReason
     }
     private func insert(_ text: String) {
         insertionWasAutomatic = false
         let pasteboard = self.pasteboard
-        let eligible = automaticInsertionEligible
+        let initialBlockReason = automaticInsertionBlockReason
+        let eligible = initialBlockReason == nil
         let down = eligible ? CGEvent(keyboardEventSource: nil, virtualKey: 9, keyDown: true) : nil
         let up = eligible ? CGEvent(keyboardEventSource: nil, virtualKey: 9, keyDown: false) : nil
         let original = Self.clipboardTextToRestore(pasteboard, eligible: eligible && down != nil && up != nil)
         pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
         let count = pasteboard.changeCount
         // A lazy text provider can take time: recheck focus before posting any key.
-        guard eligible && automaticInsertionEligible else {
-            update(.success, "Copied to clipboard. Paste with ⌘V. Enable Accessibility for automatic insertion; stay in the original app while dictating.")
+        let finalBlockReason = automaticInsertionBlockReason
+        guard eligible && finalBlockReason == nil else {
+            update(.success, "Copied to clipboard. Paste with ⌘V. " + (initialBlockReason ?? finalBlockReason ?? "Automatic insertion is unavailable."))
             return
         }
         // Never send Return. Do not switch focus back if the user moved elsewhere.
@@ -360,6 +407,13 @@ final class GlobalShortcut {
         } catch { update(.failed, error.localizedDescription) }
     }
     func shutdown() { cancel(); backend.shutdown() }
+    func shutdownAfterCaptureDrain() async {
+        cancel()
+        if finishingCapture {
+            await withCheckedContinuation { captureDrainWaiters.append($0) }
+        }
+        backend.shutdown()
+    }
 }
 
 @main struct VellaMain {
@@ -409,6 +463,12 @@ final class GlobalShortcut {
             return
         }
         #endif
+        if CommandLine.arguments.contains("--check-browser-accessibility") || CommandLine.arguments.contains("--check-browser-paste") {
+            application.setActivationPolicy(.accessory)
+            Task { await BrowserPasteProbe.run() }
+            application.run()
+            return
+        }
         if CommandLine.arguments.contains("--check-paste") {
             application.setActivationPolicy(.accessory)
             Task { await PasteProbe.run() }

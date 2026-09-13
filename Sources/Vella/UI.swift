@@ -34,6 +34,7 @@ final class HUDPanel: NSPanel {
     private(set) var permissionTimer: Timer?
     private var permissionDeadline: TimeInterval?
     private var lastPermission: Bool?
+    private var applicationFocusObserver: NSObjectProtocol?
     @discardableResult private func checkPermission() -> Bool {
         let granted = model.insertionPermission.granted
         guard lastPermission != granted else { return granted }
@@ -100,6 +101,14 @@ final class HUDPanel: NSPanel {
         shortcut.action = { [weak self] in
             self?.menu.cancelTracking(); self?.checkPermission(); self?.model.toggle()
         }
+        // Prepare browser accessibility on activation, before the recording's
+        // immutable app/window/field snapshot. Never retarget an ongoing recording.
+        AccessibilityFocus.prepare(NSWorkspace.shared.frontmostApplication)
+        applicationFocusObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { notification in
+                let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                Task { @MainActor in AccessibilityFocus.prepare(app) }
+            }
         if !shortcut.register() { model.update(.failed, "⌃⌘N is already reserved or could not be registered. Free it in the other application, then restart Vella.") }
         DispatchQueue.main.async { [weak self] in
             self?.model.ensureAutomaticInsertion()
@@ -263,12 +272,21 @@ final class HUDPanel: NSPanel {
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard model.phase == .recording || model.busy || modelMenus.library.busy else { return .terminateNow }
-        let alert = NSAlert(); alert.messageText = "Discard this dictation and quit?"
-        alert.informativeText = "Vella is recording or transcribing. Quitting cancels it."
-        alert.addButton(withTitle: "Keep Dictating"); alert.addButton(withTitle: "Discard and Quit")
-        return alert.runModal() == .alertSecondButtonReturn ? .terminateNow : .terminateCancel
+        let alert = NSAlert(); alert.messageText = "Stop dictation and quit?"
+        alert.informativeText = "Saved audio and completed text will be kept. Unfinished text will not be inserted."
+        alert.addButton(withTitle: "Keep Dictating"); alert.addButton(withTitle: "Stop and Quit")
+        guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
+        if model.captureIsFinalizing {
+            Task {
+                await model.shutdownAfterCaptureDrain()
+                sender.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
+        }
+        return .terminateNow
     }
     func applicationWillTerminate(_ notification: Notification) {
+        if let applicationFocusObserver { NSWorkspace.shared.notificationCenter.removeObserver(applicationFocusObserver) }
         dismissal?.cancel(); stopPermissionPolling(); model.hudVisible = false
         modelMenus.library.shutdown(); modelMenus.library.calibration.shutdown(); model.shutdown()
     }
