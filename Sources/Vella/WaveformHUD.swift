@@ -131,10 +131,10 @@ struct HUDView: View {
     @ObservedObject var model: Model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @State private var entered = Date()
-    @State private var finished: Date?
-    @State private var previousPhase = Model.Phase.idle
-    @State private var lastVoiceLevel = 0.45
+    @VellaState private var entered = Date()
+    @VellaState private var finished: Date?
+    @VellaState private var previousPhase = Model.Phase.idle
+    @VellaState private var lastVoiceLevel = 0.45
     var previewTime: Double? = nil
     var previewEntryAge: Double? = nil
     var previewFinishAge: Double? = nil

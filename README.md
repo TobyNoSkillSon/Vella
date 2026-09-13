@@ -28,10 +28,12 @@ For **Apple Silicon Macs running macOS 14 or newer**.
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' \
-  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.6.0/scripts/install.sh | bash
+  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.2/scripts/install.sh | bash
 ```
 
 The installer builds Vella and puts it in `~/Applications`. It needs Apple's free Command Line Tools and Python 3.12–3.14; if either is missing, it'll tell you how to install it. No paid developer membership is needed.
+
+It checks the selected Apple tools before building, verifies the source archive, and preserves existing models, recordings and settings during updates. Run the same command again to retry an interrupted installation. It does not change your selected toolchain or disable macOS security checks.
 
 Vella is a beta. macOS will ask for Microphone and Accessibility access, and you may need to approve permissions again after an update.
 
@@ -53,7 +55,7 @@ Streaming uses bounded audio/text queues and incremental checkpoints rather than
 
 Each mode remembers its own model. Select the mode, open **Models**, then **Install** and **Use**. Streaming offers **Nemotron 3.5 8-bit, Nemotron 3.5 BF16, and Voxtral Realtime 4-bit**: three precision choices across two 2026 model families. Nemotron 8-bit remains the starting choice. Mode/model changes are blocked while recording or finalizing. Quiet intervals pause recognition, not capture; the gate measures volume, not whether background sound is speech. Saved streaming audio can be replayed for clipboard-only recovery.
 
-The pinned curl installer above still installs **v0.6.0**, without Streaming.
+The pinned installer above installs **v0.8.2**, including Streaming and the short-fragment dictation recovery fix.
 
 ## Measured performance
 

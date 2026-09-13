@@ -1,6 +1,7 @@
 #!/bin/bash
 # Local source build: no developer account, certificate, sudo, or security bypass.
 set -euo pipefail
+VERSION="0.8.2"
 fail() { echo "Vella: $*" >&2; exit 1; }
 [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || fail 'Apple Silicon macOS is required.'
 [[ "$(sw_vers -productVersion | cut -d. -f1)" -ge 14 ]] || fail 'macOS 14 or newer is required.'
@@ -22,10 +23,10 @@ SOURCE_SHA="${VELLA_SOURCE_SHA256:-}"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/vella-install.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 if [[ -z "$SOURCE_URL" && ( -z "${BASH_SOURCE[0]:-}" || ! -f "${BASH_SOURCE[0]}" ) ]]; then
-  RELEASE="https://github.com/TobyNoSkillSon/Vella/releases/download/v0.6.0"
-  SOURCE_URL="$RELEASE/Vella-0.6.0-source.tar.gz"
+  RELEASE="https://github.com/TobyNoSkillSon/Vella/releases/download/v$VERSION"
+  SOURCE_URL="$RELEASE/Vella-$VERSION-source.tar.gz"
   curl --fail --location --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 60 "$RELEASE/SHA256SUMS" -o "$WORK/SHA256SUMS"
-  SOURCE_SHA="$("$PYTHON" -c 'import pathlib,sys; rows=[x.split() for x in pathlib.Path(sys.argv[1]).read_text().splitlines()]; print(next(r[0] for r in rows if len(r)==2 and r[1]=="Vella-0.6.0-source.tar.gz"))' "$WORK/SHA256SUMS")"
+  SOURCE_SHA="$("$PYTHON" -c 'import pathlib,sys; rows=[x.split() for x in pathlib.Path(sys.argv[1]).read_text().splitlines()]; matches=[r[0] for r in rows if len(r)==2 and r[1]==sys.argv[2]]; sys.exit("Release checksum is missing or ambiguous; nothing installed.") if len(matches)!=1 else print(matches[0])' "$WORK/SHA256SUMS" "Vella-$VERSION-source.tar.gz")"
 fi
 if [[ -n "$SOURCE_URL" ]]; then
   [[ "$SOURCE_URL" == https://* ]] || fail 'The source archive URL must use HTTPS.'

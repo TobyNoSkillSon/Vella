@@ -1,9 +1,12 @@
 """Transactional per-user installation, called by install.sh after prerequisite checks."""
 import os
+import fcntl
+from contextlib import contextmanager
 import pathlib
 import shutil
 import subprocess
 import sys
+import tempfile
 
 
 def run(args, **kwargs):
@@ -14,22 +17,62 @@ def restore(path, data):
     if data is None:
         path.unlink(missing_ok=True)
     else:
-        pending = path.with_suffix('.install-pending')
-        pending.write_bytes(data)
-        pending.chmod(0o600)
-        pending.replace(path)
+        fd, name = tempfile.mkstemp(prefix='.vella-restore-', dir=path.parent)
+        pending = pathlib.Path(name)
+        try:
+            with os.fdopen(fd, 'wb') as output:
+                output.write(data)
+            pending.replace(path)
+        finally:
+            pending.unlink(missing_ok=True)
+
+
+def reject_link(path, boundary):
+    # Do not follow linked destinations or linked user-data ancestors. System
+    # aliases above the user's home (for example /var) are outside this check.
+    for candidate in (path, *path.parents):
+        if candidate == boundary:
+            break
+        if candidate.is_symlink():
+            sys.exit(f'Linked installer destination preserved: {candidate}. Choose an unlinked location.')
+
+
+@contextmanager
+def installation_lock(support):
+    support.mkdir(parents=True, exist_ok=True)
+    # Keep this inode permanently: unlinking it allows two independent locks.
+    fd = os.open(support / '.installer.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            sys.exit('Another Vella installer is running. Wait for it to finish, then rerun this installer.')
+        yield
+    finally:
+        os.close(fd)
 
 
 def install(source, work):
     home = pathlib.Path.home()
     support = home / 'Library/Application Support/Vella'
     app = pathlib.Path(os.environ.get('VELLA_APP_PATH', str(home / 'Applications/Vella.app'))).absolute()
+    reject_link(app, home)
+    reject_link(support, home)
+    for name in ('config.json', 'config.before-runtime.json', 'config.runtime-pending.json', 'Runtimes', '.installer.lock'):
+        reject_link(support / name, home)
+    with installation_lock(support):
+        install_locked(source, work, support, app)
+
+
+def install_locked(source, work, support, app):
     if app.name != 'Vella.app' or app.is_symlink():
         sys.exit('Choose an unlinked destination named Vella.app.')
     if app.exists():
         details = subprocess.run(['codesign', '-dv', str(app)], capture_output=True, text=True, timeout=10)
         if 'Authority=' in details.stderr + details.stdout:
             sys.exit('Certificate-signed installation preserved. Update it using its existing signing workflow; this installer creates ad-hoc builds.')
+        if details.returncode:
+            sys.exit('Cannot inspect the existing app signing identity. Existing installation preserved; repair or inspect it before retrying.')
         info = app / 'Contents/Info.plist'
         import plistlib
         if not info.is_file() or plistlib.loads(info.read_bytes()).get('CFBundleIdentifier') != 'dev.vella.dictation':
@@ -61,12 +104,11 @@ let deadline = Date().addingTimeInterval(5)
 while apps.contains(where: { !$0.isTerminated }) && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }
 if apps.contains(where: { !$0.isTerminated }) { exit(1) }
 '''
-    run(['swift', '-e', stop], env=dict(os.environ, VELLA_DESTINATION=str(app)))
+    run(['xcrun', 'swift', '-e', stop], env=dict(os.environ, VELLA_DESTINATION=str(app)))
     tracked = [support / 'config.json', support / 'config.before-runtime.json']
     snapshots = {p: p.read_bytes() if p.exists() else None for p in tracked}
     app.parent.mkdir(parents=True, exist_ok=True)
     # Same-volume staging keeps the final directory swaps atomic.
-    import tempfile
     transaction = pathlib.Path(tempfile.mkdtemp(prefix='.vella-update-', dir=app.parent))
     previous = transaction / 'previous.app'
     replacement = transaction / 'replacement.app'
@@ -92,11 +134,22 @@ if apps.contains(where: { !$0.isTerminated }) { exit(1) }
         if not committed and previous.exists():
             print(f'Previous app retained for recovery at {previous}', file=sys.stderr)
         else:
-            shutil.rmtree(transaction)
+            try:
+                shutil.rmtree(transaction)
+            except OSError as error:
+                message = f'Cleanup incomplete at {transaction}: {error}.'
+                if committed:
+                    message += ' The installed app was not rolled back.'
+                print(message, file=sys.stderr)
     print(f'Installed {app}. Models, recordings and microphone choices preserved.')
     print('Open Models, click Install, then Use. Approve microphone and Accessibility when requested.')
     print('Ad-hoc updates can require renewing macOS privacy approval. No security settings were disabled.')
-    run(['open', str(app)])
+    try:
+        run(['open', str(app)])
+    except (OSError, subprocess.SubprocessError) as error:
+        sys.exit(f'Installation completed, but Vella could not be opened: {error}. '
+                 f'Open {app} in Finder and check System Settings > Privacy & Security if macOS blocks it. '
+                 'The installed app and migrated configuration were retained; no rollback occurred.')
 
 
 if __name__ == '__main__':
