@@ -1,9 +1,72 @@
 import XCTest
 import AppKit
 import SwiftUI
+import VellaCore
 @testable import Vella
 
 final class HUDTests: XCTestCase {
+    @MainActor func testFailureCategoriesPersistAndSuccessfulRecoveryClearsThem() async throws {
+        let cases: [(Float, Error, String)] = [
+            (0, VellaError.noSpeech, "no_speech"),
+            (0.1, VellaError.noSpeech, "unrecognized_audio"),
+            (0.1, URLError(.timedOut), "timeout"),
+            (0.1, VellaError.message("Fixture failure"), "local_failure")]
+        for (level, error, code) in cases {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-failure-fixture-\(UUID())")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let session = try RecordingSession(root: root, config: Configuration(executable: "/unused", model: "/fixture"))
+            let writer = try SegmentedPCMWriter(session: session)
+            try [Float](repeating: level, count: 1600).withUnsafeBufferPointer { try writer.append($0) }
+            try writer.finish(userStopped: true)
+            let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
+            let failed = expectation(description: code)
+            var shouldFail = true
+            let model = Model(pasteboard: clipboard, transcriptionRequest: { _, _ in
+                if shouldFail { throw error }; return "Recovered fixture speech."
+            })
+            model.onChange = { if model.phase == .failed { failed.fulfill() } }
+            model.recover(session.directory)
+            await fulfillment(of: [failed], timeout: 2)
+            model.onChange = nil
+            XCTAssertEqual(try RecordingSession(directory: session.directory).manifest.failureCode, code)
+            XCTAssertNil(clipboard.string(forType: .string))
+            // Silence remains silence; never turn it into invented text on Retry.
+            if level == 0 { continue }
+            shouldFail = false
+            let recovered = expectation(description: "Recovery clears failure category")
+            model.onChange = { if model.phase == .success { recovered.fulfill() } }
+            model.retry()
+            await fulfillment(of: [recovered], timeout: 2)
+            model.onChange = nil
+            XCTAssertNil(try RecordingSession(directory: session.directory).manifest.failureCode)
+            XCTAssertFalse(model.insertionWasAutomatic)
+            XCTAssertEqual(clipboard.string(forType: .string), "Recovered fixture speech.")
+        }
+    }
+    @MainActor func testBackendOriginatedCancellationSettlesWithoutPasting() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-cancel-fixture-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let session = try RecordingSession(root: root, config: Configuration(executable: "/unused", model: "/fixture"))
+        let writer = try SegmentedPCMWriter(session: session)
+        try [Float](repeating: 0.1, count: 1600).withUnsafeBufferPointer { try writer.append($0) }
+        try writer.finish(userStopped: true)
+        let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
+        let settled = expectation(description: "Backend cancellation exits busy state")
+        let model = Model(pasteboard: clipboard, transcriptionRequest: { _, _ in throw CancellationError() })
+        model.referenceSpeed = { _ in 0.001 } // Exercise the progress-timer path.
+        model.onChange = { if model.phase == .failed { settled.fulfill() } }
+        model.recover(session.directory)
+        await fulfillment(of: [settled], timeout: 2)
+        model.onChange = nil
+        XCTAssertFalse(model.busy)
+        XCTAssertTrue(model.processingProgress.isEmpty)
+        XCTAssertTrue(model.message.contains("stopped before completion"))
+        XCTAssertFalse(model.insertionWasAutomatic)
+        XCTAssertNil(clipboard.string(forType: .string))
+        let saved = try RecordingSession(directory: session.directory)
+        XCTAssertEqual(saved.manifest.failureCode, "cancelled")
+        XCTAssertNil(saved.manifest.segments.first?.text)
+    }
     @MainActor private func privateClipboard() -> NSPasteboard {
         NSPasteboard(name: .init("vella-hud-test-\(UUID())"))
     }

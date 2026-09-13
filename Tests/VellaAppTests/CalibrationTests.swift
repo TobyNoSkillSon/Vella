@@ -157,7 +157,9 @@ final class CalibrationTests: XCTestCase {
         let library = ModelLibrary(registryURL: dir.appendingPathComponent("registry.json"), calibration: store)
         let active = library.activeModelPath, id = "Qwen3-ASR-1.7B-4bit"
         library.downloadingID = id; library.busy = true
-        let event: [String: Any] = ["event": "installed", "modelID": id, "path": Backend.support.appendingPathComponent("Models/\(id)").path]
+        let event: [String: Any] = ["event": "installed", "modelID": id,
+                                  "revision": library.models.first { $0.id == id }!.revision,
+                                  "path": library.modelsDirectory.appendingPathComponent(id).path]
         var data = try JSONSerialization.data(withJSONObject: event); data.append(10)
         library.receive(data); library.finished(code: 0)
         XCTAssertNotNil(library.installed[id]); XCTAssertTrue(library.busy)

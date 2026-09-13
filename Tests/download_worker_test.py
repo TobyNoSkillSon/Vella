@@ -41,4 +41,34 @@ class ValidationTests(unittest.TestCase):
    self.assertEqual(events[-1]['event'],'installed')
    self.assertTrue(any(e.get('completed')==512 for e in events))
    self.assertTrue(all(e['completed']<e['total'] for e in events if 'completed' in e))
+ def test_interrupted_transfer_resumes_and_corrupt_content_never_installs(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   entry={'id':'test','repository':'fixture/test','revision':'pinned','architecture':'qwen3_asr','quantization':'4-bit'}
+   content={'config.json':b'{"model_type":"qwen3_asr","quantization":{"bits":4}}','model.safetensors':b'x'*1024}
+   etags={k:hashlib.sha1(f'blob {len(v)}\0'.encode()+v).hexdigest() for k,v in content.items()}
+   class API:
+    def model_info(self,*a,**kw):
+     return types.SimpleNamespace(siblings=[types.SimpleNamespace(rfilename=k,size=len(v),lfs=None,blob_id=etags[k]) for k,v in content.items()])
+   def paths(folder,name):
+    p=pathlib.Path(folder)
+    return types.SimpleNamespace(file_path=p/name,metadata_path=p/'.cache'/f'{name}.metadata',incomplete_path=lambda etag:p/'.cache'/f'{etag}.incomplete')
+   attempts=0;corrupt=False
+   def snapshot(repo,revision,local_dir,**kw):
+    nonlocal attempts
+    attempts+=1;p=pathlib.Path(local_dir);(p/'.cache').mkdir(parents=True,exist_ok=True)
+    part=paths(p,'model.safetensors').incomplete_path(etags['model.safetensors'])
+    if attempts==1:
+     part.write_bytes(b'x'*512);raise OSError('Fixture interrupted transfer')
+    self.assertEqual(part.stat().st_size,512)
+    for name,data in content.items():(p/name).write_bytes(data)
+    if corrupt:(p/'model.safetensors').write_bytes(b'y'*1024)
+   events=[];fake=types.SimpleNamespace(HfApi=API,snapshot_download=snapshot)
+   with patch.dict(sys.modules,{'huggingface_hub':fake,'huggingface_hub._local_folder':types.SimpleNamespace(get_local_download_paths=paths)}),patch.object(worker,'emit',side_effect=lambda event,**kw:events.append(event)):
+    with self.assertRaises(OSError):worker.download(types.SimpleNamespace(models_dir=tmp),entry)
+    self.assertNotIn('installed',events)
+    worker.download(types.SimpleNamespace(models_dir=tmp),entry)
+    self.assertEqual(events[-1],'installed')
+    events.clear();corrupt=True
+    with self.assertRaisesRegex(ValueError,'checksum'):worker.download(types.SimpleNamespace(models_dir=tmp),entry)
+    self.assertNotIn('installed',events)
 if __name__=='__main__':unittest.main()

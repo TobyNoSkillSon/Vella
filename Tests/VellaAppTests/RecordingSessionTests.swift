@@ -199,7 +199,9 @@ final class RecordingSessionTests: XCTestCase {
             return "Recognized segment \(index)."
         }
         runner.onChunk = { _, _, current, _ in index = current }
-        do { _ = try await runner.run(record); XCTFail() } catch { }
+        do { _ = try await runner.run(record); XCTFail() }
+        catch VellaError.unrecognizedAudio { }
+        catch { XCTFail("Expected the diagnostic category for missing audio, not \(error)") }
         XCTAssertNil(record.manifest.segments[1].text)
         XCTAssertNotNil(record.manifest.segments.last?.text)
         let partial = try String(contentsOf: record.directory.appendingPathComponent("partial-transcript.txt"))

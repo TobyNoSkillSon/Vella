@@ -12,6 +12,7 @@ import VellaCore
     private var retired: [Process] = []
     private var input: FileHandle?
     private var epoch = UUID()
+    private var stopGeneration = UUID()
     private var activeCall: UUID?
     private var pending: (UUID, CheckedContinuation<String, Error>)?
     private var buffer = Data()
@@ -61,11 +62,13 @@ import VellaCore
         }
         return url
     }
-    private func ensureWorker(model: String) async throws {
+    private func ensureWorker(model: String, generation: UUID) async throws {
         try await CalibrationStore.shared.cancelAndWait()
+        try checkStartup(generation)
         if process?.isRunning == true, loadedModel == model { return }
         retireWorker()
-        try await waitForRetired()
+        try await waitForRetired(generation: generation)
+        try checkStartup(generation)
         let python = try pythonURL()
         let script = scriptOverride ?? ModelLibrary.resourceDirectory().appendingPathComponent("inference_worker.py")
         guard FileManager.default.fileExists(atPath: script.path) else { throw VellaError.message("Vella's inference worker is missing. Reinstall the app.") }
@@ -96,10 +99,12 @@ import VellaCore
             throw VellaError.message("Audio exceeds the bounded segment size. Saved audio is retained.")
         }
         let call = UUID(); activeCall = call; idle?.cancel(); idle = nil
+        let generation = stopGeneration
         defer { if activeCall == call { activeCall = nil }; scheduleIdleUnload() }
         return try await withTaskCancellationHandler(operation: {
             try Task.checkCancellation()
-            try await ensureWorker(model: config.model)
+            try await ensureWorker(model: config.model, generation: generation)
+            try checkStartup(generation)
             try Task.checkCancellation()
             return try await withCheckedThrowingContinuation { continuation in
                 pending = (call, continuation)
@@ -176,10 +181,15 @@ import VellaCore
         retired.removeAll { !$0.isRunning }
         process = nil; loadedModel = ""; buffer.removeAll(keepingCapacity: false); ownership = "Vella runtime unloaded"
     }
-    private func waitForRetired() async throws {
+    private func checkStartup(_ generation: UUID) throws {
+        try Task.checkCancellation()
+        guard stopGeneration == generation else { throw CancellationError() }
+    }
+    private func waitForRetired(generation: UUID? = nil) async throws {
         let until = ProcessInfo.processInfo.systemUptime + 3
         while retired.contains(where: { $0.isRunning }) {
             try Task.checkCancellation()
+            if let generation { try checkStartup(generation) }
             guard ProcessInfo.processInfo.systemUptime < until else { throw VellaError.message("The previous Vella worker has not exited. Try again.") }
             try await Task.sleep(nanoseconds: 20_000_000)
         }
@@ -191,5 +201,5 @@ import VellaCore
         for child in retired where child.isRunning { kill(child.processIdentifier, SIGKILL) }
         retired.removeAll()
     }
-    func stop() { finish(.failure(CancellationError())); retireWorker() }
+    func stop() { stopGeneration = UUID(); finish(.failure(CancellationError())); retireWorker() }
 }

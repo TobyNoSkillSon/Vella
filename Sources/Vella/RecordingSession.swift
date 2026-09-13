@@ -23,6 +23,8 @@ final class RecordingSession {
         var config: Configuration
         var state = "recording"
         var userStopped = false
+        // Bounded diagnostic category only; never exception text or recognized speech.
+        var failureCode: String?
         var segments: [Segment] = []
     }
     let directory: URL
@@ -113,7 +115,7 @@ final class RecordingSession {
             if !next.isEmpty { pieces.append(next); tail = String((tail + " " + next).suffix(2048)) }
         }
         let text = pieces.joined(separator: " ")
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw VellaError.message("No speech detected. Saved audio is still available.") }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw VellaError.noSpeech }
         return text
     }
     @discardableResult func savePartialTranscript() throws -> String? {

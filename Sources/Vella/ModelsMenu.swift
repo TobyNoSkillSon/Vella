@@ -11,7 +11,10 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
 @MainActor final class ModelsMenu: NSObject {
     let library: ModelLibrary
     private weak var tableMenu: NSMenu?
-    var presentDeletionConfirmation: (NSAlert) -> NSApplication.ModalResponse = { $0.runModal() }
+    var presentDeletionConfirmation: (NSAlert) -> NSApplication.ModalResponse = {
+        NSApp.activate(ignoringOtherApps: true)
+        return $0.runModal()
+    }
     init(library: ModelLibrary? = nil) { self.library = library ?? ModelLibrary(); super.init() }
     func modelItem() -> NSMenuItem {
         library.reload()
@@ -28,20 +31,28 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         return root
     }
     private func confirmDeletion(_ id: String) {
-        guard let local = library.installed[id], library.deletionBlockReason(id) == nil else { return }
+        guard let path = library.modelFilePath(id) else { return }
+        let wasInstalled = library.installed[id] != nil
         let name = library.models.first(where: { $0.id == id }).map { "\($0.name) \($0.quantization)" } ?? id
         tableMenu?.cancelTracking()
         DispatchQueue.main.async { [self] in
+            if let reason = library.deletionBlockReason(id) {
+                let blocked = NSAlert(); blocked.messageText = "Model cannot be deleted here"
+                blocked.informativeText = reason
+                blocked.addButton(withTitle: "OK")
+                _ = presentDeletionConfirmation(blocked)
+                return
+            }
             let alert = NSAlert(); alert.alertStyle = .warning
-            alert.messageText = "Delete \(name)?"
-            alert.informativeText = "Move this model's local files to Trash. Empty Trash to reclaim disk space. You can download it again later. Recordings, transcripts and reference scores are kept; recovering older audio may require reinstalling this model. Shared server memory is not unloaded."
+            alert.messageText = wasInstalled ? "Delete \(name)?" : "Delete unfinished \(name) download?"
+            alert.informativeText = "Move these local files to Trash. Empty Trash to reclaim disk space. You can download them again later. Recordings, transcripts and reference scores are kept."
             alert.addButton(withTitle: "Cancel")
             alert.addButton(withTitle: "Move to Trash")
             guard presentDeletionConfirmation(alert) == .alertSecondButtonReturn else { return }
-            if !library.deleteModel(id, expectedPath: local.path) {
+            if !library.deleteModel(id, expectedPath: path, expectedInstalled: wasInstalled) {
                 let failure = NSAlert(); failure.messageText = "Model was not deleted"
                 failure.informativeText = library.downloadError ?? "Reopen Models and try again."
-                failure.runModal()
+                _ = presentDeletionConfirmation(failure)
             }
         }
     }
@@ -77,6 +88,7 @@ struct ModelTable: View {
                     ForEach(rows) { model in
                         let result = results[model.id]
                         let installed = library.installed[model.id]
+                        let localPath = library.modelFilePath(model.id)
                         let active = installed?.path == library.activeModelPath
                         HStack(spacing: 8) {
                             HStack(spacing: 5) {
@@ -89,18 +101,18 @@ struct ModelTable: View {
                                 .help(result.map { library.formattingDescription($0) } ?? "Not measured")
                             Text(result.map { String(format: "%.1f×", $0.realtimeFactor) } ?? "—").frame(width: 56, alignment: .trailing)
                             Text(result?.runtimePeakMLXBytes.map { String(format: "%.2f GB", Double($0) / 1_000_000_000) } ?? "—").frame(width: 56, alignment: .trailing)
-                            Button(library.busy && library.downloadingID == model.id ? library.progress.map { "\(Int($0 * 100))%" } ?? "…" : active ? "In use" : installed == nil ? "Install" : "Use") {
+                            Button(library.busy && library.downloadingID == model.id ? library.progress.map { "\(Int($0 * 100))%" } ?? "…" : active ? "In use" : installed == nil ? (localPath == nil ? "Install" : "Resume") : "Use") {
                                 library.selectedID = model.id
                                 if installed == nil { library.download() }
                                 else if library.useSelected() { dismiss() }
                             }.buttonStyle(.bordered).controlSize(.small).frame(width: 52)
-                                .disabled(active || library.busy || (installed == nil && model.repository.isEmpty))
+                                .disabled(active || library.busy || !library.mayChangeModel() || (installed == nil && model.repository.isEmpty))
                                 .help(installed == nil ? "Download \(ByteCountFormatter.string(fromByteCount: model.downloadBytes, countStyle: .file)) from Hugging Face: \(model.repository). License: \(model.license). Selecting for dictation is separate." : "Use this model for your next dictation")
                             Button { requestDelete(model.id) } label: {
                                 Image(systemName: "trash").frame(width: 20)
                             }.buttonStyle(.plain)
-                                .opacity(installed == nil ? 0 : 1)
-                                .disabled(installed == nil || library.deletionBlockReason(model.id) != nil)
+                                .opacity(localPath == nil ? 0 : 1)
+                                .disabled(localPath == nil)
                                 .help(library.deletionBlockReason(model.id) ?? "Delete this model's local files (with confirmation)")
                                 .accessibilityLabel("Delete \(model.name) \(model.quantization)")
                         }.font(.system(size: 11, design: .monospaced))
