@@ -6,6 +6,8 @@ Vella is a minimal, native menu-bar app for offline dictation and live speech-to
 
 Press **⌃⌘N** to open or close the microphone. Dictation inserts the transcript when you finish; Streaming inserts text as you speak.
 
+[All benchmark results](BENCHMARKS.md) · [Model integration guide](Resources/AGENT_GUIDE.md) · [License](LICENSE)
+
 ## A look inside
 
 The waveform appears while you speak. Longer jobs also show an estimated time remaining.
@@ -58,6 +60,8 @@ Each mode remembers its own model. Select the mode, open **Models**, then **Inst
 The pinned installer above installs **v0.8.4**, including keep-open settings menus and conservative quiet-pause/short-tail recovery. Mode, microphone, and model choices stay open; click-away and Escape retain native dismissal. Uncertain audio remains saved and may still require Retry.
 
 ## Measured performance
+
+**[Complete benchmark table](BENCHMARKS.md)** — all 37 published reference runs plus the qualification control rerun, including historical suites, native Streaming, memory provenance, and links to the underlying measurements. The tables below show the current comparison suite.
 
 The two error columns answer different questions. **Lower is better for both.**
 
@@ -129,4 +133,4 @@ To uninstall, quit Vella and move the app to Trash. Your recordings and models r
 
 ---
 
-[Releases](https://github.com/TobyNoSkillSon/Vella/releases) · [Benchmarks](Resources/ReferenceResults/) · [Developer guide](Resources/AGENT_GUIDE.md) · [Apache 2.0 license](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+[Releases](https://github.com/TobyNoSkillSon/Vella/releases) · [Benchmark table](BENCHMARKS.md) · [Raw results](Resources/ReferenceResults/) · [Developer guide](Resources/AGENT_GUIDE.md) · [Apache 2.0 license](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
