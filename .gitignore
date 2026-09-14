@@ -18,3 +18,6 @@ __pycache__/
 *.key
 
 /logs/
+
+# Local promotional work is not part of the source distribution.
+/Marketing/

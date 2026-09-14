@@ -10,7 +10,7 @@ For **Apple Silicon Macs running macOS 14 or newer**.
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' \
-  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.6/scripts/install.sh | bash
+  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.7/scripts/install.sh | bash
 ```
 
 The installer builds Vella and puts it in `~/Applications`. It needs Apple's free Command Line Tools and Python 3.12–3.14; if either is missing, it'll tell you how to install it. No paid developer membership is needed.
