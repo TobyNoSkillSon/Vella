@@ -11,6 +11,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Keep local marketing out of source distribution
+        run: |
+          if git ls-files -- Marketing/ | grep -q .; then
+            echo "Marketing files belong in the local workspace, not this repository."
+            exit 1
+          fi
       - name: Swift tests (hardware and inference tests are opt-in)
         run: swift test
       - name: SwiftUI property-wrapper and package-manager compatibility
