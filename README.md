@@ -10,10 +10,12 @@ For **Apple Silicon Macs running macOS 14 or newer**.
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' \
-  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.7/scripts/install.sh | bash
+  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.8/scripts/install.sh | bash
 ```
 
 The installer builds Vella and puts it in `~/Applications`. It needs Apple's free Command Line Tools and Python 3.12–3.14; if either is missing, it'll tell you how to install it. No paid developer membership is needed.
+
+Checksums detect archive corruption or mismatches; they do not independently authenticate the downloaded bootstrap script.
 
 It checks the selected Apple tools before building, verifies the source archive, and preserves existing models, recordings and settings during updates. For an update, run the command from the newer release, after finishing any recording or transcription. Running the same pinned command again retries or reinstalls that version; it does not discover newer releases. It does not change your selected toolchain or disable macOS security checks.
 
@@ -61,7 +63,7 @@ Streaming uses bounded audio/text queues and incremental checkpoints rather than
 
 Each mode remembers its own model. Select the mode, open **Models**, then **Install** and **Use**. Streaming offers **Nemotron 3.5 8-bit, Nemotron 3.5 BF16, and Voxtral Realtime 4-bit**: three precision choices across two 2026 model families. Nemotron 8-bit remains the starting choice. Mode/model changes are blocked while recording or finalizing. Quiet intervals pause recognition, not capture; the gate measures volume, not whether background sound is speech. Saved streaming audio can be replayed for clipboard-only recovery.
 
-The installer above installs **v0.8.6**. Successful model output is accepted, including no text. Empty recognition is not an error; Retry is for actual execution failures, not pauses or suspected missing words. Transcription accuracy depends on the selected model.
+Successful model output is accepted, including no text. Empty recognition is not an error; Retry is for actual execution failures, not pauses or suspected missing words. Transcription accuracy depends on the selected model.
 
 ## Measured performance
 
@@ -129,7 +131,7 @@ The September 2026 VibeVoice streaming release and Moonshine v2 were screened bu
 
 ## Your recordings
 
-Transcription works offline once you've downloaded a model. **Recordings and transcripts stay on your Mac until you delete them**, even after a successful paste. Choose **Open Saved Recordings** to find them.
+Transcription works offline once you've downloaded a model. **Vella stores recordings and transcripts locally until you delete them**, even after a successful paste. Vella does not upload them; apps you insert text into may sync or send that text according to their own settings. Choose **Open Saved Recordings** to find them.
 
 There's no recording timer, but you'll need enough disk space. If transcription fails, your saved audio is there to retry. Clipboard managers and Universal Clipboard can still see text you copy or paste.
 
