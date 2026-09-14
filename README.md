@@ -29,15 +29,15 @@ The waveform appears while you speak. Longer jobs also show an estimated time re
 
 | Recording | Transcribing |
 |:---:|:---:|
-| <img src="docs/images/recording.png" alt="Vella’s lavender waveform while recording" width="320"> | <img src="docs/images/transcribing.png" alt="Vella’s waveform and time estimate while transcribing" width="320"> |
+| <img src="docs/images/recording-0.8.6.png" alt="Vella’s lavender waveform while recording" width="320"> | <img src="docs/images/transcribing-0.8.6.png" alt="Vella’s waveform and time estimate while transcribing" width="320"> |
 
-<img src="docs/images/menu-preview.png" alt="Vella’s menu after a recording, including Copy Last Transcript and Delete This Saved Recording" width="360">
+<img src="docs/images/menu-0.8.6.png" alt="Vella’s current native menu with Mode, Microphone, Models, saved files and developer support" width="304">
 
 Pick a microphone, start recording, or open your saved transcripts from the menu. Open **Models** to choose what handles the transcription.
 
-<img src="docs/images/models-preview.png" alt="Rendered preview of Vella’s Models table" width="680">
+<img src="docs/images/models-0.8.6.png" alt="Vella’s current native Models menu" width="580">
 
-*Rendered interface previews. The table shows reference benchmarks; results vary by Mac.*
+*Captured from the native v0.8.6 interface, with example waveform and progress states. The table shows reference benchmarks; results vary by Mac.*
 
 ## Get started
 
