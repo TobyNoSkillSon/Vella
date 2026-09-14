@@ -106,6 +106,7 @@ final class GlobalShortcut {
     let recorder = Recorder()
     private let recordingPower = RecordingPower()
     var onChange: (() -> Void)?
+    var onTranscriptionCompleted: (() -> Void)?
     private var timer: Timer?
     private var meterTimer: Timer?
     private var task: Task<Void, Never>?
@@ -369,6 +370,7 @@ final class GlobalShortcut {
                         update(.success, "Streaming text sent as you spoke. Full transcript saved; no duplicate final paste and no Enter or Send.")
                     }
                 } else { insert(text) }
+                onTranscriptionCompleted?()
             } catch {
                 guard self.operation == operation else { return }
                 streamingBackend.onEvent = nil; streamingJournal?.close(); streamingJournal = nil
@@ -437,6 +439,7 @@ final class GlobalShortcut {
                 lastText = text; lastTranscriptIncomplete = false; backendStatus = backend.ownership
                 // Audio and transcript are durable BEFORE attempting insertion; retained until explicit deletion.
                 insert(text)
+                onTranscriptionCompleted?()
             } catch {
                 guard self.operation == operation else { return }
                 progressTimer?.invalidate(); progressTimer = nil

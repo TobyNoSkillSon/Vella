@@ -58,6 +58,8 @@ Performance qualification covers whole-process physical footprint and its lifeti
 
 ## Download state
 
+The first source installation downloads and selects **Parakeet Q4** for Dictation automatically, using its existing catalog pin and verified download worker. Show progress and download size; do not require a model-choice step. Select only verified complete weights. Failed downloads remain resumable, and rerunning an interrupted first install must not select partial files. Existing installations retain all model selections and registrations. The initial model download is part of installation; later model changes remain user-controlled.
+
 Unfinished downloads in canonical Vella-owned model folders remain visible as Resume, with confirmed Trash available even before registration or first model selection. They are not usable installations. Active, external, shared and linked files remain protected; clicking their deletion control explains the reason. Successful worker exit and an exact model/revision/location match are required before registration. Custom registries keep download destinations inside their own Models directory for isolated tests.
 
 Install downloads Hugging Face data directly without opening a browser. Fill only the downloading row from actual pinned-content bytes, respecting Reduce Motion; use indeterminate status while resolving metadata. Cache accounting must exclude unrelated revisions and avoid double-counting completed files. Reserve 100% for verified successful installation. Cancellation retains resumable partials and leaves model selection unchanged. Register a download only after a successful worker exit; errors remain visible. Use selects separately and retains the native blue active-row highlight.

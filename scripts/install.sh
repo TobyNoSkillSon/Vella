@@ -1,7 +1,7 @@
 #!/bin/bash
 # Local source build: no developer account, certificate, sudo, or security bypass.
 set -euo pipefail
-VERSION="0.8.5"
+VERSION="0.8.6"
 fail() { echo "Vella: $*" >&2; exit 1; }
 [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || fail 'Apple Silicon macOS is required.'
 [[ "$(sw_vers -productVersion | cut -d. -f1)" -ge 14 ]] || fail 'macOS 14 or newer is required.'

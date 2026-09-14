@@ -38,8 +38,8 @@ PY
 mkdir -p "$ROOT/Runtimes"
 if [[ ! -f "$TARGET/.vella-ready" ]]; then
   "$PYTHON" -m venv "$TARGET"
-  "$TARGET/bin/python" -m pip install --disable-pip-version-check -r "$LOCK"
-  "$TARGET/bin/python" -m pip check
+  "$TARGET/bin/python" -m pip install --disable-pip-version-check -r "$LOCK" >&2
+  "$TARGET/bin/python" -m pip check >&2
   "$TARGET/bin/python" -c 'import mlx.core; from mlx_audio.stt.utils import load_model'
   touch "$TARGET/.vella-ready"
 fi
@@ -60,12 +60,17 @@ if mode=='--runtime-only':
     print('Prepared Vella runtime:',target/'bin/python');sys.exit(0)
 config=root/'config.json'
 old=config.read_bytes() if config.exists() else None
-settings=json.loads(old) if old else dict(model='',preferredMicrophone='MacBook Pro Microphone',fallbackMicrophone='MacBook Pro Microphone')
+# Only the installer supplies this after the pinned download is verified.
+# Seed it in the first atomic config write: interruption must not leave an
+# empty model configuration that looks like an existing installation on retry.
+settings=json.loads(old) if old else dict(model=os.environ.get('VELLA_INITIAL_MODEL',''),preferredMicrophone='MacBook Pro Microphone',fallbackMicrophone='MacBook Pro Microphone')
 settings['executable']=str(target/'bin/python');settings.pop('port',None)
 if old is not None and settings==json.loads(old):
     print('Vella runtime already selected; configuration and rollback copy unchanged.');sys.exit(0)
 if old is not None:
     backup=root/'config.before-runtime.json';backup.write_bytes(old)
 pending=root/'config.runtime-pending.json';pending.write_text(json.dumps(settings,indent=2));pending.replace(config)
-print('Vella private runtime ready. Existing model and microphone choices retained.' if old else 'Runtime ready. Open Vella, then Install a model and choose Use.')
+print('Vella private runtime ready. Existing model and microphone choices retained.' if old else
+      'Runtime ready. Verified default model selected.' if settings.get('model') else
+      'Runtime ready. Open Vella, then Install a model and choose Use.')
 PY
