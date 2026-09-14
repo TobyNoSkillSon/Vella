@@ -7,7 +7,6 @@ import VellaCore
 final class HUDTests: XCTestCase {
     @MainActor func testFailureCategoriesPersistAndSuccessfulRecoveryClearsThem() async throws {
         let cases: [(Float, Error, String)] = [
-            (0, VellaError.noSpeech, "no_speech"),
             (0.1, VellaError.noSpeech, "unrecognized_audio"),
             (0.1, URLError(.timedOut), "timeout"),
             (0.1, VellaError.message("Fixture failure"), "local_failure")]
@@ -42,6 +41,33 @@ final class HUDTests: XCTestCase {
             XCTAssertFalse(model.insertionWasAutomatic)
             XCTAssertEqual(clipboard.string(forType: .string), "Recovered fixture speech.")
         }
+    }
+    @MainActor func testResolvedSilenceSettlesWithoutWarningOrClipboardMutation() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-silence-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let session = try RecordingSession(root: root, config: Configuration(executable: "/unused", model: "/fixture"))
+        let writer = try SegmentedPCMWriter(session: session)
+        try [Float](repeating: 0, count: 1600).withUnsafeBufferPointer { try writer.append($0) }
+        try writer.finish(userStopped: true)
+        let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
+        clipboard.setString("Keep the clipboard", forType: .string)
+        let count = clipboard.changeCount
+        let settled = expectation(description: "Silence is a normal no-op")
+        let model = Model(pasteboard: clipboard, transcriptionRequest: { _, _ in
+            XCTFail("Digital silence must not trigger recognition"); return ""
+        })
+        model.onChange = {
+            XCTAssertNotEqual(model.phase, .failed)
+            if model.phase == .idle && model.message.contains("No speech") { settled.fulfill() }
+        }
+        model.recover(session.directory)
+        await fulfillment(of: [settled], timeout: 2)
+        model.onChange = nil
+        XCTAssertEqual(clipboard.changeCount, count)
+        XCTAssertEqual(clipboard.string(forType: .string), "Keep the clipboard")
+        XCTAssertFalse(model.insertionWasAutomatic)
+        XCTAssertEqual(try RecordingSession(directory: session.directory).manifest.state, "transcribed")
+        XCTAssertNil(try RecordingSession(directory: session.directory).manifest.failureCode)
     }
     @MainActor func testBackendOriginatedCancellationSettlesWithoutPasting() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-cancel-fixture-\(UUID())")

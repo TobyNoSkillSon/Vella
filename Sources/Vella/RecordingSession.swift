@@ -14,6 +14,7 @@ final class RecordingSession {
         var text: String?
         var sha256: String?
         var quietSlices: Int?
+        var textThroughIndex: Int?
         var filename: String { String(format: "%06d.pcm", index) }
         var seconds: Double { Double(max(0, frames - overlapFrames)) / 16_000 }
     }

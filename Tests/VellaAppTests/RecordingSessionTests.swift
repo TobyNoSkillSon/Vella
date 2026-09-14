@@ -168,7 +168,9 @@ final class RecordingSessionTests: XCTestCase {
         do { _ = try await SessionTranscriber { _, _ in "" }.run(audible); XCTFail() } catch { }
         XCTAssertNil(audible.manifest.segments[0].text)
         let silent = try session(blocks: [[Float](repeating: 0, count: 1000)])
-        do { _ = try await SessionTranscriber { _, _ in XCTFail("Digital silence must not hallucinate"); return "" }.run(silent); XCTFail() } catch { }
+        let empty = try await SessionTranscriber { _, _ in XCTFail("Digital silence must not hallucinate"); return "" }.run(silent)
+        XCTAssertEqual(empty, "")
+        XCTAssertEqual(silent.manifest.state, "transcribed")
         XCTAssertEqual(silent.manifest.segments[0].text, "")
     }
     @MainActor func testPaddingFallbackIsBoundedAndDoesNotModifyArchive() async throws {
@@ -232,7 +234,8 @@ final class RecordingSessionTests: XCTestCase {
     }
     @MainActor func testModelEmptyResultOnQuietIntervalIsRecordedWithoutLosingAudio() async throws {
         let record = try session(blocks: [[Float](repeating: 0.0005, count: 16_000)])
-        do { _ = try await SessionTranscriber { _, _ in throw VellaError.noSpeech }.run(record); XCTFail("An entirely unrecognized recording must not count as success") } catch { }
+        let text = try await SessionTranscriber { _, _ in throw VellaError.noSpeech }.run(record)
+        XCTAssertEqual(text, "", "Model-confirmed quiet audio is a normal no-op")
         let recovered = try RecordingSession(directory: record.directory)
         XCTAssertEqual(recovered.manifest.segments[0].text, "")
         XCTAssertEqual(recovered.manifest.segments[0].quietSlices, 1)

@@ -49,6 +49,8 @@ final class HUDPanel: NSPanel {
     private var permissionDeadline: TimeInterval?
     private var lastPermission: Bool?
     private var applicationFocusObserver: NSObjectProtocol?
+    private var spaceObserver: NSObjectProtocol?
+    private var settingsMenuIsTracking = false
     @discardableResult private func checkPermission() -> Bool {
         let granted = model.insertionPermission.granted
         guard lastPermission != granted else { return granted }
@@ -105,6 +107,10 @@ final class HUDPanel: NSPanel {
         menu.delegate = self; menu.autoenablesItems = false
         // Real NSMenu tracking handles click-away, Escape, and standard macOS keyboard navigation.
         status.menu = menu
+        spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.menu.cancelTracking() }
+            }
         panel = HUDPanel(contentRect: NSRect(x: 0, y: 0, width: HUDView.panelSize.width, height: HUDView.panelSize.height), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.level = .floating
         panel.hasShadow = false; panel.ignoresMouseEvents = true
@@ -162,8 +168,14 @@ final class HUDPanel: NSPanel {
         }
     }
 
+    func menuWillOpen(_ menu: NSMenu) {
+        if menu === self.menu { settingsMenuIsTracking = true }
+    }
+    func menuDidClose(_ menu: NSMenu) {
+        if menu === self.menu { settingsMenuIsTracking = false }
+    }
     func menuNeedsUpdate(_ menu: NSMenu) {
-        guard menu === self.menu else { return }
+        guard menu === self.menu, !settingsMenuIsTracking else { return }
         if checkPermission() { stopPermissionPolling() }
         rebuildMenu()
     }
@@ -194,10 +206,10 @@ final class HUDPanel: NSPanel {
         let modes = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
         let modeMenu = NSMenu(); modeMenu.autoenablesItems = false
         for mode in RecognitionMode.allCases {
-            let entry = NSMenuItem(title: mode.title, action: #selector(selectMode(_:)), keyEquivalent: "")
+            let entry = SettingsMenuItem(title: mode.title, target: self, action: #selector(selectMode(_:)))
             entry.target = self; entry.representedObject = mode.rawValue
             entry.state = model.mode == mode ? .on : .off
-            entry.isEnabled = canChangeMode
+            entry.isEnabled = canChangeMode; entry.synchronize()
             modeMenu.addItem(entry)
         }
         modes.submenu = modeMenu; menu.addItem(modes)
@@ -206,10 +218,10 @@ final class HUDPanel: NSPanel {
         let devices = NSMenu(); devices.autoenablesItems = false
         let selected = try? model.backend.configuration(requiresModel: false).preferredMicrophone
         for device in Recorder.devices() {
-            let entry = NSMenuItem(title: device.name, action: #selector(selectMicrophone(_:)), keyEquivalent: "")
+            let entry = SettingsMenuItem(title: device.name, target: self, action: #selector(selectMicrophone(_:)))
             entry.target = self; entry.representedObject = device.name
             entry.state = device.name == selected ? .on : .off
-            entry.isEnabled = canChangeMode
+            entry.isEnabled = canChangeMode; entry.synchronize()
             devices.addItem(entry)
         }
         devices.addItem(.separator())
@@ -259,10 +271,37 @@ final class HUDPanel: NSPanel {
     @objc private func accessibility() { model.accessibility(); beginPermissionPolling() }
     @objc private func selectMode(_ sender: NSMenuItem) {
         guard canChangeMode, let raw = sender.representedObject as? String, let mode = RecognitionMode(rawValue: raw) else { return }
-        do { try model.selectMode(mode); rebuildMenu() }
+        do {
+            try model.selectMode(mode)
+            // Keep the tracked root and Mode submenu alive. Only update their
+            // contents and replace the inactive Models submenu for the new mode.
+            for entry in sender.menu?.items ?? [] {
+                entry.state = entry.representedObject as? String == mode.rawValue ? .on : .off
+                (entry as? SettingsMenuItem)?.synchronize()
+            }
+            let summary = "\(mode.title): " + (model.insertionPermission.granted ? "ready" : "Accessibility required")
+            if let header = menu.items.first {
+                header.title = summary; header.toolTip = model.message
+                header.action = model.insertionPermission.granted ? nil : #selector(accessibility)
+                header.isEnabled = !model.insertionPermission.granted
+                header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.insertionPermission.granted ? NSColor.systemGreen : NSColor.systemOrange])
+            }
+            menu.items.first { $0.action == #selector(toggle) }?.title = "Start \(mode.title)"
+            let replacement = modelMenus.modelItem()
+            let table = replacement.submenu; replacement.submenu = nil
+            menu.item(withTitle: "Models…")?.submenu = table
+        }
         catch { model.update(.failed, error.localizedDescription) }
     }
-    @objc private func selectMicrophone(_ sender: NSMenuItem) { if let name = sender.representedObject as? String { model.chooseMicrophone(name) } }
+    @objc private func selectMicrophone(_ sender: NSMenuItem) {
+        guard canChangeMode, let name = sender.representedObject as? String else { return }
+        model.chooseMicrophone(name)
+        let selected = try? model.backend.configuration(requiresModel: false).preferredMicrophone
+        for entry in sender.menu?.items ?? [] {
+            entry.state = entry.representedObject as? String == selected ? .on : .off
+            (entry as? SettingsMenuItem)?.synchronize()
+        }
+    }
     @objc private func files() { NSWorkspace.shared.open(Backend.support) }
     @objc private func supportDeveloper() {
         DispatchQueue.main.async {
@@ -328,6 +367,7 @@ final class HUDPanel: NSPanel {
     }
     func applicationWillTerminate(_ notification: Notification) {
         if let applicationFocusObserver { NSWorkspace.shared.notificationCenter.removeObserver(applicationFocusObserver) }
+        if let spaceObserver { NSWorkspace.shared.notificationCenter.removeObserver(spaceObserver) }
         dismissal?.cancel(); stopPermissionPolling(); model.hudVisible = false
         dictationMenus.library.shutdown(); streamingMenus.library.shutdown(); model.shutdown()
     }

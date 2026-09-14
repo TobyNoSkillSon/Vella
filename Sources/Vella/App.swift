@@ -585,6 +585,12 @@ final class GlobalShortcut {
     }
     private func insert(_ text: String) {
         insertionWasAutomatic = false
+        // A fully resolved quiet recording is a normal no-op, not a failed
+        // transcription or an empty paste that erases the user's selection.
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            update(.idle, "No speech recognized. Audio remains saved.")
+            return
+        }
         let pasteboard = self.pasteboard
         let initialBlockReason = automaticInsertionBlockReason
         let eligible = initialBlockReason == nil
