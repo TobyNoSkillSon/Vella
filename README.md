@@ -4,6 +4,21 @@
 
 Vella is a minimal, native menu-bar app for offline dictation and live speech-to-text on Apple Silicon Macs. It supports selectable local MLX models, a global keyboard shortcut, and saved recordings with transcription recovery.
 
+## Install or update
+
+For **Apple Silicon Macs running macOS 14 or newer**.
+
+```sh
+curl --fail --location --proto '=https' --proto-redir '=https' \
+  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.6/scripts/install.sh | bash
+```
+
+The installer builds Vella and puts it in `~/Applications`. It needs Apple's free Command Line Tools and Python 3.12–3.14; if either is missing, it'll tell you how to install it. No paid developer membership is needed.
+
+It checks the selected Apple tools before building, verifies the source archive, and preserves existing models, recordings and settings during updates. For an update, run the command from the newer release, after finishing any recording or transcription. Running the same pinned command again retries or reinstalls that version; it does not discover newer releases. It does not change your selected toolchain or disable macOS security checks.
+
+Vella is a beta. macOS will ask for Microphone and Accessibility access, and you may need to approve permissions again after an update.
+
 Press **⌃⌘N** to open or close the microphone. Dictation inserts the transcript when you finish; Streaming inserts text as you speak.
 
 [**Interactive benchmarks ↗**](https://tobynoskillson.github.io/Vella/) · [Model integration guide](Resources/AGENT_GUIDE.md) · [License](LICENSE)
@@ -24,26 +39,15 @@ Pick a microphone, start recording, or open your saved transcripts from the menu
 
 *Rendered interface previews. The table shows reference benchmarks; results vary by Mac.*
 
-## Install
-
-For **Apple Silicon Macs running macOS 14 or newer**.
-
-```sh
-curl --fail --location --proto '=https' --proto-redir '=https' \
-  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.5/scripts/install.sh | bash
-```
-
-The installer builds Vella and puts it in `~/Applications`. It needs Apple's free Command Line Tools and Python 3.12–3.14; if either is missing, it'll tell you how to install it. No paid developer membership is needed.
-
-It checks the selected Apple tools before building, verifies the source archive, and preserves existing models, recordings and settings during updates. Run the same command again to retry an interrupted installation. It does not change your selected toolchain or disable macOS security checks.
-
-Vella is a beta. macOS will ask for Microphone and Accessibility access, and you may need to approve permissions again after an update.
-
 ## Get started
 
-1. Open Vella, then **Models**.
-2. Click **Install** beside **Parakeet Q4**, then **Use**. That's a good starting point for English.
-3. Press **Control + Command + N** to record. You can browse other apps and Spaces; click your destination text field, then press the shortcut again to finish.
+**Update notices:** After a completed transcription, Vella checks GitHub’s latest stable release only if it has not attempted a check that calendar day. The last attempt and a detected update are remembered across restarts; there is no startup request or polling timer. A newer version turns the menu-bar icon yellow and adds a yellow **Update available…** immediately above **Support the developer…**, opening its release page in your browser. Nothing is installed automatically, and this check needs no additional permissions. Offline or failed checks are silent and do not clear a known update. The indicator remains until you install that version or newer. GitHub receives a normal HTTPS request, never audio or transcripts.
+
+A new installation automatically downloads and selects **Parakeet Q4** (about 637 MB). Existing installations retain their model choices.
+
+1. Open Vella and approve Microphone and Accessibility access when requested.
+2. Press **Control + Command + N** to record. Click your destination text field, then press the shortcut again to finish.
+3. For live transcription, choose **Mode → Streaming**, then **Models** to install and select a supported Streaming model. You can also change the Dictation model there.
 
 A small waveform appears while you speak. Vella pastes the finished text but never presses Enter or Send. If you change the selected window or field after Finish but before insertion, it leaves the text on your clipboard instead.
 
@@ -57,7 +61,7 @@ Streaming uses bounded audio/text queues and incremental checkpoints rather than
 
 Each mode remembers its own model. Select the mode, open **Models**, then **Install** and **Use**. Streaming offers **Nemotron 3.5 8-bit, Nemotron 3.5 BF16, and Voxtral Realtime 4-bit**: three precision choices across two 2026 model families. Nemotron 8-bit remains the starting choice. Mode/model changes are blocked while recording or finalizing. Quiet intervals pause recognition, not capture; the gate measures volume, not whether background sound is speech. Saved streaming audio can be replayed for clipboard-only recovery.
 
-The installer above installs **v0.8.5**. Successful model output is accepted, including no text. Empty recognition is not an error; Retry is for actual execution failures, not pauses or suspected missing words. Transcription accuracy depends on the selected model.
+The installer above installs **v0.8.6**. Successful model output is accepted, including no text. Empty recognition is not an error; Retry is for actual execution failures, not pauses or suspected missing words. Transcription accuracy depends on the selected model.
 
 ## Measured performance
 

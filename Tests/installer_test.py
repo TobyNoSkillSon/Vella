@@ -32,6 +32,8 @@ class InstallerTests(unittest.TestCase):
                 support = home/'Library/Application Support/Vella'; support.mkdir(parents=True)
                 config = support/'config.json'; config.write_bytes(b'original config')
                 backup = support/'config.before-runtime.json'; backup.write_bytes(b'original backup')
+                registry = support/'models-installed.json'; registry.write_bytes(b'{"external": {"path": "/shared/model"}}')
+                original_registry = registry.read_bytes()
                 model = support/'Models/weights'; model.parent.mkdir(); model.write_bytes(b'weights')
                 recording = support/'Recordings/audio'; recording.parent.mkdir(); recording.write_bytes(b'audio')
                 def run(args, **kwargs):
@@ -49,7 +51,7 @@ class InstallerTests(unittest.TestCase):
                     if path.name == 'replacement.app' and failure == 'swap':
                         raise OSError('fixture swap failure')
                     return original_rename(path, target)
-                with patch.object(pathlib.Path, 'rename', rename), patch.object(pathlib.Path,'home',return_value=home), patch.dict(os.environ,{'VELLA_APP_PATH':str(app)}), patch.object(installer,'run',side_effect=run), patch.object(installer.subprocess,'run',return_value=subprocess.CompletedProcess([],0,stdout='',stderr='')):
+                with patch.object(pathlib.Path, 'rename', rename), patch.object(pathlib.Path,'home',return_value=home), patch.dict(os.environ,{'VELLA_APP_PATH':str(app)}), patch.object(installer,'download_default') as download, patch.object(installer,'run',side_effect=run), patch.object(installer.subprocess,'run',return_value=subprocess.CompletedProcess([],0,stdout='',stderr='')):
                     if failure in ('migration', 'swap'):
                         with self.assertRaises((subprocess.CalledProcessError, OSError)): installer.install(ROOT,work)
                         self.assertEqual(config.read_bytes(),b'original config')
@@ -63,6 +65,8 @@ class InstallerTests(unittest.TestCase):
                     else:
                         installer.install(ROOT,work)
                         self.assertTrue((app/'new').exists())
+                    download.assert_not_called()
+                    self.assertEqual(registry.read_bytes(), original_registry)
                     self.assertEqual(recording.read_bytes(),b'audio')
                     self.assertEqual(model.read_bytes(), b'weights')
                     self.assertFalse(list(app.parent.glob('.vella-update-*')))
@@ -144,7 +148,7 @@ class InstallerTests(unittest.TestCase):
             self.assertTrue((support/'.installer.lock').is_file())
 
     def test_linked_parent_and_user_data_refused_before_build(self):
-        for location in ('Applications', 'Library', 'config.json', 'config.before-runtime.json', 'config.runtime-pending.json', 'Runtimes', '.installer.lock'):
+        for location in ('Applications', 'Library', 'config.json', 'config.before-runtime.json', 'config.runtime-pending.json', 'Runtimes', '.installer.lock', 'Models', 'models-installed.json'):
             with self.subTest(location=location), tempfile.TemporaryDirectory() as directory:
                 home = pathlib.Path(directory)
                 support = home/'Library/Application Support/Vella'

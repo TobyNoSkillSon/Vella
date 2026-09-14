@@ -11,7 +11,12 @@ final class HUDPanel: NSPanel {
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let model: Model
     var openExternalURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
-    init(model: Model? = nil) { self.model = model ?? Model(); super.init() }
+    let releaseUpdates: ReleaseUpdateChecker
+    init(model: Model? = nil, releaseUpdates: ReleaseUpdateChecker? = nil) {
+        self.model = model ?? Model()
+        self.releaseUpdates = releaseUpdates ?? ReleaseUpdateChecker()
+        super.init()
+    }
     let shortcut = GlobalShortcut()
     private lazy var dictationMenus = makeModelMenus(.dictation)
     private lazy var streamingMenus = makeModelMenus(.streaming)
@@ -114,6 +119,13 @@ final class HUDPanel: NSPanel {
         configureHUDPanel()
         model.onChange = { [weak self] in self?.refresh() }
         rebuildMenu()
+        releaseUpdates.onChange = { [weak self] in self?.refreshUpdateIndicator() }
+        refreshUpdateIndicator()
+        if !CommandLine.arguments.contains("--check-hud") {
+            model.onTranscriptionCompleted = { [weak self] in
+                Task { [weak self] in await self?.releaseUpdates.checkAfterUse() }
+            }
+        }
         shortcut.action = { [weak self] in
             self?.menu.cancelTracking(); self?.checkPermission(); self?.model.toggle()
         }
@@ -229,6 +241,13 @@ final class HUDPanel: NSPanel {
         item("Open Saved Recordings", "folder", #selector(savedRecordings))
         item("Open Vella Files", "folder", #selector(files))
         menu.addItem(.separator())
+        if let update = releaseUpdates.available {
+            item("Update available — \(update.tag)…", "arrow.down.circle", #selector(openReleaseUpdate))
+            if let entry = menu.items.last {
+                entry.attributedTitle = NSAttributedString(string: entry.title, attributes: [.foregroundColor: NSColor.systemYellow])
+                entry.image = entry.image?.withSymbolConfiguration(.init(paletteColors: [.systemYellow]))
+            }
+        }
         item("Support the developer…", "heart", #selector(supportDeveloper))
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
     }
@@ -298,6 +317,17 @@ final class HUDPanel: NSPanel {
         }
     }
     @objc private func files() { NSWorkspace.shared.open(Backend.support) }
+    @objc private func openReleaseUpdate() {
+        guard let url = releaseUpdates.available?.url else { return }
+        DispatchQueue.main.async {
+            if !self.openExternalURL(url) {
+                let alert = NSAlert()
+                alert.messageText = "Could not open the release page"
+                alert.informativeText = url.absoluteString
+                alert.runModal()
+            }
+        }
+    }
     @objc private func supportDeveloper() {
         DispatchQueue.main.async {
             let url = URL(string: "https://github.com/sponsors/TobyNoSkillSon")!
@@ -340,6 +370,12 @@ final class HUDPanel: NSPanel {
     func restoreHUDOpacity() {
         panel.alphaValue = 1
         panel.contentView?.alphaValue = 1
+    }
+
+    func refreshUpdateIndicator() {
+        status?.button?.contentTintColor = releaseUpdates.available == nil ? nil : .systemYellow
+        // Do not rebuild a menu while the user is tracking it. Next opening reads the cache.
+        if !settingsMenuIsTracking { rebuildMenu() }
     }
 
     func refresh() {
