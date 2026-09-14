@@ -109,20 +109,15 @@ final class HUDPanel: NSPanel {
         status.menu = menu
         spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.menu.cancelTracking() }
+                Task { @MainActor in self?.activeSpaceChanged() }
             }
-        panel = HUDPanel(contentRect: NSRect(x: 0, y: 0, width: HUDView.panelSize.width, height: HUDView.panelSize.height), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.isOpaque = false; panel.backgroundColor = .clear; panel.level = .floating
-        panel.hasShadow = false; panel.ignoresMouseEvents = true
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.contentView = NSHostingView(rootView: HUDView(model: model))
+        configureHUDPanel()
         model.onChange = { [weak self] in self?.refresh() }
         rebuildMenu()
         shortcut.action = { [weak self] in
             self?.menu.cancelTracking(); self?.checkPermission(); self?.model.toggle()
         }
-        // Prepare browser accessibility on activation, before the recording's
-        // immutable app/window/field snapshot. Never retarget an ongoing recording.
+        // Prepare accessibility on activation; Dictation chooses its field at Finish.
         AccessibilityFocus.prepare(NSWorkspace.shared.frontmostApplication)
         applicationFocusObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { notification in
@@ -324,10 +319,34 @@ final class HUDPanel: NSPanel {
         }
     }
 
+    func configureHUDPanel() {
+        panel = HUDPanel(contentRect: NSRect(x: 0, y: 0, width: HUDView.panelSize.width, height: HUDView.panelSize.height), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.isOpaque = false; panel.backgroundColor = .clear; panel.level = .floating
+        panel.hasShadow = false; panel.ignoresMouseEvents = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.contentView = NSHostingView(rootView: HUDView(model: model))
+        panel.hidesOnDeactivate = false
+        panel.animationBehavior = .none
+    }
+
+    func activeSpaceChanged() {
+        menu.cancelTracking()
+        guard [.preparing, .recording, .transcribing].contains(model.phase) else { return }
+        // Restore presentation only. System occlusion is not an opacity command:
+        // a transparent window may never receive the "visible again" event.
+        refresh()
+    }
+
+    func restoreHUDOpacity() {
+        panel.alphaValue = 1
+        panel.contentView?.alphaValue = 1
+    }
+
     func refresh() {
-        status.button?.toolTip = "Vella · " + model.title
+        status?.button?.toolTip = "Vella · " + model.title
         dismissal?.cancel(); visibilityRevision += 1
         if model.phase == .idle { model.hudVisible = false; panel.orderOut(nil); return }
+        restoreHUDOpacity()
         if !panel.isVisible {
             let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
             if let rect = screen?.visibleFrame {

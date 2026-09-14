@@ -40,8 +40,10 @@ final class GlobalShortcut {
     private(set) var savedSession: RecordingSession?
     private var progressTimer: Timer?
     var referenceSpeed: ((String) -> Double?)?
-    private var targetElement: AXUIElement?
-    private var targetWindow: AXUIElement?
+    // A capture returns a recheck bound to that snapshot, never to a later destination.
+    typealias DestinationCheck = () -> String?
+    private let captureDestination: () -> DestinationCheck
+    private var destinationCheck: DestinationCheck?
     private var allowAutomaticInsertion = false
     @Published var insertionWasAutomatic = false
     @Published var backendStatus = "Local MLX Audio"
@@ -61,7 +63,9 @@ final class GlobalShortcut {
     init(insertionPermission: InsertionPermission? = nil, pasteboard: NSPasteboard = .general,
          stopCapture: ((Recorder) async throws -> Void)? = nil,
          transcriptionRequest: SessionTranscriber.Request? = nil, configurationURL: URL? = nil,
-         streamingBackend: StreamingBackend? = nil) {
+         streamingBackend: StreamingBackend? = nil,
+         captureDestination: (() -> DestinationCheck)? = nil) {
+        self.captureDestination = captureDestination ?? { Self.captureNativeDestination(NSWorkspace.shared.frontmostApplication) }
         self.streamingBackend = streamingBackend ?? StreamingBackend()
         self.configurationURL = configurationURL ?? Backend.configURL
         self.insertionPermission = insertionPermission ?? InsertionPermission()
@@ -102,7 +106,6 @@ final class GlobalShortcut {
     let recorder = Recorder()
     private let recordingPower = RecordingPower()
     var onChange: (() -> Void)?
-    private var target: NSRunningApplication?
     private var timer: Timer?
     private var meterTimer: Timer?
     private var task: Task<Void, Never>?
@@ -164,11 +167,8 @@ final class GlobalShortcut {
         let operation = self.operation
         recorder.discard()
         savedSession = nil
-        // Dictation owns an original target. Streaming deliberately follows the
-        // system keyboard focus and does not take a field/window snapshot.
-        target = mode == .dictation ? NSWorkspace.shared.frontmostApplication : nil
-        if mode == .dictation { captureTargetFocus() }
-        else { targetElement = nil; targetWindow = nil }
+        // Recording may roam freely. Only Finish chooses a Dictation destination.
+        destinationCheck = nil
         allowAutomaticInsertion = false
         update(.preparing, "Checking microphone permission…")
         task = Task {
@@ -226,6 +226,8 @@ final class GlobalShortcut {
     }
     func finish() {
         guard phase == .recording else { return }
+        // Synchronous, before UI callbacks, capture drain, or recognition can yield.
+        destinationCheck = mode == .dictation ? captureDestination() : nil
         timer?.invalidate(); timer = nil
         finishingCapture = true
         processingProgress = ""
@@ -466,7 +468,7 @@ final class GlobalShortcut {
         guard !busy, phase != .recording else { return }
         liveInsertion?.cancel(); liveInsertion = nil
         operation = UUID(); let operation = self.operation
-        target = nil; allowAutomaticInsertion = false
+        destinationCheck = nil; allowAutomaticInsertion = false
         update(.preparing, "Checking saved audio integrity…")
         task = Task {
             do {
@@ -482,7 +484,7 @@ final class GlobalShortcut {
     func cancel() {
         let liveTextWasSent = liveInsertion?.didSend == true
         operation = UUID(); task?.cancel(); task = nil; stopWorkers(); timer?.invalidate(); timer = nil
-        progressTimer?.invalidate(); progressTimer = nil; allowAutomaticInsertion = false
+        progressTimer?.invalidate(); progressTimer = nil; destinationCheck = nil; allowAutomaticInsertion = false
         if finishingCapture {
             // The capture queue still owns the journal. Settle cancellation only
             // after its drain finishes; don't race a manifest write or new capture.
@@ -506,37 +508,46 @@ final class GlobalShortcut {
         self.savedSession = nil; recorder.discard(); lastText = ""
         update(.idle, "Saved recording deleted.")
     }
-    private func focused(_ attribute: CFString) -> AXUIElement? {
-        guard let target else { return nil }
+    private static func focused(_ attribute: CFString, in target: NSRunningApplication) -> AXUIElement? {
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(AXUIElementCreateApplication(target.processIdentifier), attribute, &value) == .success,
+        let app = AXUIElementCreateApplication(target.processIdentifier)
+        AXUIElementSetMessagingTimeout(app, 0.25) // A stalled target must not hang Finish.
+        guard AXUIElementCopyAttributeValue(app, attribute, &value) == .success,
               let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
         return (value as! AXUIElement)
     }
-    private func captureTargetFocus() {
+    private static func captureNativeDestination(_ target: NSRunningApplication?) -> DestinationCheck {
         AccessibilityFocus.prepare(target)
-        targetElement = focused(kAXFocusedUIElementAttribute as CFString)
-        targetWindow = focused(kAXFocusedWindowAttribute as CFString)
-        if let element = targetElement {
-            var role: CFTypeRef?
+        let element = target.flatMap { focused(kAXFocusedUIElementAttribute as CFString, in: $0) }
+        let window = target.flatMap { focused(kAXFocusedWindowAttribute as CFString, in: $0) }
+        var role: CFTypeRef?
+        if let element {
+            AXUIElementSetMessagingTimeout(element, 0.25)
             _ = AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
-            if !AccessibilityFocus.isFieldRole(role as? String) { targetElement = nil }
         }
-    }
-    private var targetFocusBlockReason: String? {
-        guard let targetElement, let targetWindow else {
-            return "The original text field wasn't available through accessibility. Focus the field, wait a moment, then start a new recording."
+        let isField = AccessibilityFocus.isFieldRole(role as? String)
+        return {
+            guard AXIsProcessTrusted() else { return "Enable Accessibility for Vella to insert automatically." }
+            guard let target, !target.isTerminated, target.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
+                return "The application selected at Finish is unavailable."
+            }
+            guard target.processIdentifier == NSWorkspace.shared.frontmostApplication?.processIdentifier else {
+                return "The application selected at Finish is no longer in front."
+            }
+            guard let element, let window, isField else {
+                return "The text field selected at Finish wasn't available through accessibility. Paste with ⌘V."
+            }
+            guard let currentElement = focused(kAXFocusedUIElementAttribute as CFString, in: target),
+                  let currentWindow = focused(kAXFocusedWindowAttribute as CFString, in: target) else {
+                return "The target application isn't exposing its focused text field."
+            }
+            guard CFEqual(window, currentWindow) else { return "The window selected at Finish is no longer focused." }
+            guard CFEqual(element, currentElement) else { return "The text field selected at Finish changed or is no longer focused." }
+            return nil
         }
-        guard let element = focused(kAXFocusedUIElementAttribute as CFString),
-              let window = focused(kAXFocusedWindowAttribute as CFString) else {
-            return "The target application isn't exposing its focused text field."
-        }
-        guard CFEqual(targetWindow, window) else { return "The original window is no longer focused." }
-        guard CFEqual(targetElement, element) else { return "The original text field changed or is no longer focused." }
-        return nil
     }
     func preparePasteCheck(to target: NSRunningApplication) {
-        self.target = target; captureTargetFocus(); allowAutomaticInsertion = true
+        destinationCheck = Self.captureNativeDestination(target); allowAutomaticInsertion = true
     }
     func finishPasteCheck() { insert("Vella paste verification.") }
     func checkPaste(to target: NSRunningApplication) { preparePasteCheck(to: target); finishPasteCheck() }
@@ -555,19 +566,13 @@ final class GlobalShortcut {
         guard pasteboard.changeCount == changeCount else { return }
         pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
     }
-    private var automaticInsertionBlockReason: String? {
+    var automaticInsertionBlockReason: String? {
         guard allowAutomaticInsertion else { return "Recovered or cancelled recordings are clipboard-only." }
         return currentTargetBlockReason
     }
-    private var currentTargetBlockReason: String? {
-        guard AXIsProcessTrusted() else { return "Enable Accessibility for Vella to insert automatically." }
-        guard let target, !target.isTerminated, target.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
-            return "The original application is unavailable."
-        }
-        guard target.processIdentifier == NSWorkspace.shared.frontmostApplication?.processIdentifier else {
-            return "The original application is no longer in front."
-        }
-        return targetFocusBlockReason
+    var currentTargetBlockReason: String? {
+        guard let destinationCheck else { return "No Dictation destination was selected at Finish." }
+        return destinationCheck()
     }
     private func prepareLiveInsertion() {
         let insertion = LiveInsertion(targetIsCurrent: { [weak self] in

@@ -43,19 +43,21 @@ Vella is a beta. macOS will ask for Microphone and Accessibility access, and you
 
 1. Open Vella, then **Models**.
 2. Click **Install** beside **Parakeet Q4**, then **Use**. That's a good starting point for English.
-3. Click a text field and press **Control + Command + N** to record. Press it again when you're done.
+3. Press **Control + Command + N** to record. You can browse other apps and Spaces; click your destination text field, then press the shortcut again to finish.
 
-A small waveform appears while you speak. Vella pastes the finished text but never presses Enter or Send. If you move to another window or field, it leaves the text on your clipboard instead.
+A small waveform appears while you speak. Vella pastes the finished text but never presses Enter or Send. If you change the selected window or field after Finish but before insertion, it leaves the text on your clipboard instead.
 
 ### Dictation and Streaming
 
 Version 0.8.0 source builds offer **Mode → Dictation / Streaming**. Dictation transcribes and inserts after you finish. **Streaming inserts text continuously wherever keyboard focus is**, using native incremental recognition. The shortcut stays **⌃⌘N**: open or close the microphone. Finish sends only the remaining suffix, never a duplicate full transcript.
 
-Streaming follows window and field changes without stopping for clicks or manual typing. It deliberately does not bind words to a field or utterance: words still being processed when you switch will go to the new focus. Pause your speech or close the microphone while navigating as needed. Streaming sends native Unicode text without touching the clipboard or pressing Enter. Dictation keeps its original-target checks; terminal and custom-editor acceptance depends on the target application.
+Streaming follows window and field changes without stopping for clicks or manual typing. It deliberately does not bind words to a field or utterance: words still being processed when you switch will go to the new focus. Pause your speech or close the microphone while navigating as needed. Streaming sends native Unicode text without touching the clipboard or pressing Enter. Dictation uses the field focused when you finish, with a final safety check before pasting; terminal and custom-editor acceptance depends on the target application.
 
 Streaming uses bounded audio/text queues and incremental checkpoints rather than rewriting the whole transcript on every update. Saved audio and transcripts still consume disk space; recordings are retained until you delete them, and low disk space stops capture safely.
 
 Each mode remembers its own model. Select the mode, open **Models**, then **Install** and **Use**. Streaming offers **Nemotron 3.5 8-bit, Nemotron 3.5 BF16, and Voxtral Realtime 4-bit**: three precision choices across two 2026 model families. Nemotron 8-bit remains the starting choice. Mode/model changes are blocked while recording or finalizing. Quiet intervals pause recognition, not capture; the gate measures volume, not whether background sound is speech. Saved streaming audio can be replayed for clipboard-only recovery.
+
+Finish-time destination selection and the restored HUD are currently on **`main`**; the pinned v0.8.4 release still selects the Dictation destination at recording start.
 
 The pinned installer above installs **v0.8.4**, including keep-open settings menus and conservative quiet-pause/short-tail recovery. Mode, microphone, and model choices stay open; click-away and Escape retain native dismissal. Uncertain audio remains saved and may still require Retry.
 
