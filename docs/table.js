@@ -1,6 +1,6 @@
 'use strict';
 const columns = [
- ['name','Model'],['quantization','Precision'],['mode','Mode'],['suite','Test'],
+ ['name','Model'],['quantization','Precision'],['mode','Mode'],
  ['words','Word errors','Word error rate; ignores case and punctuation. Lower is better.'],
  ['text','Text errors','Character error rate including case and punctuation. Lower is better.'],
  ['punctuation','Punct. F1','Conditional on aligned boundaries; coverage is in the source record. Higher is better.'],
@@ -8,13 +8,12 @@ const columns = [
  ['speed','Speed','Warm compute throughput; not microphone-to-word latency. Higher is better.'],
  ['seconds','Compute time','Sum of per-clip median compute times, excluding loading.'],
  ['ram','MLX memory','Decimal GB allocated through MLX, not total process RAM.'],
- ['memory','Memory basis','Legacy peaks lack the newer warm-reset protocol. Timing-run and separate-run peaks are distinguished.'],
+ ['memory','Memory basis','Warm peaks from timing runs and separate memory profiles are distinguished.'],
  ['date','Measured']
 ];
 const all = VELLA_RESULTS.rows;
 let key = 'text', ascending = true;
-const search = document.querySelector('#search'), suite = document.querySelector('#suite'), mode = document.querySelector('#mode');
-for (const label of [...new Set(all.map(row => row.suite))].sort()) suite.add(new Option(label,label));
+const search = document.querySelector('#search'), mode = document.querySelector('#mode');
 for (const [field,label,hint] of columns) {
  const th = document.createElement('th'); th.scope='col'; th.setAttribute('aria-sort','none');
  const button=document.createElement('button'); button.type='button'; button.dataset.key=field; button.textContent=label; button.title=hint || `Sort by ${label.toLowerCase()}`;
@@ -35,7 +34,7 @@ function display(row,field) {
 }
 function render() {
  const query=search.value.trim().toLowerCase();
- const rows=all.filter(row=>(!query||`${row.name} ${row.quantization}`.toLowerCase().includes(query))&&(!suite.value||row.suite===suite.value)&&(!mode.value||row.mode===mode.value));
+ const rows=all.filter(row=>(!query||`${row.name} ${row.quantization}`.toLowerCase().includes(query))&&(!mode.value||row.mode===mode.value));
  rows.sort((a,b)=>{
   const x=value(a,key),y=value(b,key);
   if(x==null||y==null)return x==null?(y==null?a.id.localeCompare(b.id):1):-1;
@@ -57,5 +56,5 @@ function render() {
  document.querySelector('#count').textContent=`${rows.length} / ${all.length} runs`;
  for(const button of document.querySelectorAll('th button'))button.parentElement.setAttribute('aria-sort',button.dataset.key===key?(ascending?'ascending':'descending'):'none');
 }
-search.addEventListener('input',render);suite.addEventListener('change',render);mode.addEventListener('change',render);
-document.querySelector('#reset').addEventListener('click',()=>{search.value='';suite.value='';mode.value='';key='text';ascending=true;render();document.querySelector('.table-wrap').scrollTo(0,0)});render();
+search.addEventListener('input',render);mode.addEventListener('change',render);
+document.querySelector('#reset').addEventListener('click',()=>{search.value='';mode.value='';key='text';ascending=true;render();document.querySelector('.table-wrap').scrollTo(0,0)});render();
