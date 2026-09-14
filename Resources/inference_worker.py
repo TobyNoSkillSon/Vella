@@ -20,7 +20,6 @@ MAX_LINE = 16 * 1024
 REQUEST_SECONDS = 120
 MAX_AUDIO = 2 * 1024 * 1024
 MESSAGES = {'invalid': 'Invalid local transcription request.',
-            'no_speech': 'No speech was recognized.',
             'memory': 'Insufficient memory for transcription.',
             'inference': 'Local transcription failed.'}
 
@@ -91,9 +90,11 @@ def process_memory():
 
 
 def text_of(value):
-    value = value.get('text', '') if isinstance(value, dict) else (
-        value if isinstance(value, str) else getattr(value, 'text', ''))
-    return value if isinstance(value, str) else ''
+    value = value.get('text') if isinstance(value, dict) else (
+        value if isinstance(value, str) else getattr(value, 'text', None))
+    if not isinstance(value, str):
+        raise ValueError('Malformed model response')
+    return value
 
 
 class Worker:
@@ -179,10 +180,7 @@ class Worker:
         # Never forward exception messages: model exceptions may contain recognized speech.
         try:
             text = self.perform(request, metrics)
-            if text:
-                response.update(text=text, metrics=metrics)
-            else:
-                response['error'] = {'code': 'no_speech', 'message': MESSAGES['no_speech']}
+            response.update(text=text, metrics=metrics)
         except Exception as error:
             code = 'invalid' if isinstance(error, Invalid) else 'memory' if (
                 isinstance(error, MemoryError) or any(token in str(error).lower() for token in

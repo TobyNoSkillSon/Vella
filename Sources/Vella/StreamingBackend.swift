@@ -57,7 +57,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     private var deadline: DispatchWorkItem?
     private var receivedDone = false
     private var incomplete = false
-    var hasUnrecognizedAudio: Bool { incomplete }
+    var hasIncompleteExecution: Bool { incomplete }
     private var pressure: DispatchSourceMemoryPressure?
     private(set) var frames = 0
     private(set) var committed = ""
@@ -122,10 +122,10 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         try Task.checkCancellation()
         guard epoch == generation else { throw CancellationError() }
         guard result.done == true, partial.isEmpty else { throw VellaError.message("Streaming did not finalize all words. Saved audio is retained.") }
-        guard !incomplete else { throw VellaError.unrecognizedAudio }
-        let text = committed.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { throw VellaError.noSpeech }
-        return text
+        // Retain fail-closed handling for explicit legacy protocol failures,
+        // never infer failure from successful empty model output.
+        guard !incomplete else { throw VellaError.message("Streaming worker reported an incomplete result. Saved audio is retained.") }
+        return committed.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     private func exchange(_ fields: [String: Any]) async throws -> Reply {
         guard pending == nil else { throw VellaError.message("A streaming request is already in progress.") }

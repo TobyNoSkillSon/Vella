@@ -140,7 +140,6 @@ final class RecordingSession {
             if !next.isEmpty { pieces.append(next); tail = String((tail + " " + next).suffix(2048)) }
         }
         let text = pieces.joined(separator: " ")
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw VellaError.noSpeech }
         return text
     }
     @discardableResult func savePartialTranscript() throws -> String? {
@@ -155,7 +154,7 @@ final class RecordingSession {
         var pieces = ["[Incomplete transcript — retry missing audio segments]"]
         for segment in manifest.segments {
             if let text = segment.text { if !text.isEmpty { pieces.append(text) } }
-            else { pieces.append("[Unrecognized audio — segment \(segment.index + 1)]") }
+            else { pieces.append("[Pending transcription — segment \(segment.index + 1)]") }
         }
         let text = pieces.joined(separator: "\n")
         try durableWrite(Data(text.utf8), to: directory.appendingPathComponent("partial-transcript.txt"))

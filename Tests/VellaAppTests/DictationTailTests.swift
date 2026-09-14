@@ -46,63 +46,77 @@ final class DictationTailTests: XCTestCase {
         try session.save()
         return session
     }
-    @MainActor func testContextRecoversRealShortWordWithoutReplayingAnchor() async throws {
+    @MainActor func testShortTailUsesOnlyItsExactUnpaddedFramesAndPreservesPCM() async throws {
         let session = try fixture()
+        let original = try session.manifest.segments.map { try Data(contentsOf: session.directory.appendingPathComponent($0.filename)) }
         let hashes = session.manifest.segments.map(\.sha256)
         var calls = 0
-        let transcriber = SessionTranscriber { url, _ in
+        let text = try await SessionTranscriber { url, _ in
             calls += 1
             let wav = try AVAudioFile(forReading: url)
-            if calls <= 3 { throw VellaError.noSpeech }
-            XCTAssertEqual(wav.length, 80000 + 1877 + 8000)
-            return "A synthetic sentence. Yes."
-        }
-        transcriber.onObservation = { _, _, _ in XCTFail("Context retries must not calibrate tail speed") }
-        let text = try await transcriber.run(session)
+            XCTAssertEqual(wav.length, 1877)
+            let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: wav.processingFormat, frameCapacity: AVAudioFrameCount(wav.length)))
+            try wav.read(into: buffer)
+            let samples = try XCTUnwrap(buffer.floatChannelData)[0]
+            XCTAssertEqual(samples[0], 0.0042, accuracy: 0.0001)
+            XCTAssertEqual(samples[1876], 0.0042, accuracy: 0.0001)
+            return "Yes."
+        }.run(session)
         XCTAssertEqual(text, "A synthetic sentence. Yes.")
-        XCTAssertEqual(calls, 4)
-        XCTAssertEqual(session.manifest.segments[1].text, "Yes.")
-        XCTAssertEqual(try RecordingSession(directory: session.directory).manifest.segments.map(\.sha256), hashes)
-        let data = try Data(contentsOf: session.directory.appendingPathComponent("context-retry-000001.json"))
-        let provenance = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        XCTAssertEqual(provenance["tailRange"] as? [Int], [0, 1877])
-        XCTAssertEqual(provenance["outcome"] as? String, "recognizedSuffix")
+        XCTAssertEqual(calls, 1)
+        XCTAssertEqual(session.manifest.segments.map(\.text), ["A synthetic sentence.", "Yes."])
+        let restored = try RecordingSession(directory: session.directory)
+        XCTAssertEqual(restored.manifest.segments.map(\.sha256), hashes)
+        XCTAssertEqual(try restored.manifest.segments.map { try Data(contentsOf: restored.directory.appendingPathComponent($0.filename)) }, original)
     }
-    @MainActor func testContextRecognizesAnchorOnlyRatherThanDurationBasedDiscard() async throws {
+
+    @MainActor func testFreshTinyTailIsNeverGroupedWithPredecessor() async throws {
         let session = try fixture()
+        session.manifest.segments[0].text = nil
+        try session.save()
         var calls = 0
-        let transcriber = SessionTranscriber { _, _ in
+        let text = try await SessionTranscriber { url, _ in
             calls += 1
-            if calls <= 3 { throw VellaError.noSpeech }
-            return "A synthetic sentence."
-        }
-        let text = try await transcriber.run(session)
-        XCTAssertEqual(text, "A synthetic sentence.")
-        XCTAssertEqual(calls, 4)
-        XCTAssertEqual(session.manifest.segments[1].text, "")
+            XCTAssertEqual(try AVAudioFile(forReading: url).length, calls == 1 ? 80000 : 1877)
+            if calls == 2 {
+                let disk = try RecordingSession(directory: session.directory)
+                XCTAssertEqual(disk.manifest.segments[0].text, "Fresh sentence.")
+                XCTAssertNil(disk.manifest.segments[1].text)
+            }
+            return calls == 1 ? "Fresh sentence." : "Yes."
+        }.run(session)
+        XCTAssertEqual(text, "Fresh sentence. Yes.")
+        XCTAssertEqual(calls, 2)
+        XCTAssertEqual(session.manifest.segments.map(\.text), ["Fresh sentence.", "Yes."])
+        XCTAssertTrue(session.manifest.segments.allSatisfy { $0.textThroughIndex == nil })
     }
-    @MainActor func testUncertainContextPreservesMissingSpeechWarning() async throws {
-        for response in ["", "A different sentence.", "A synthetic"] {
+
+    @MainActor func testSuccessfulTailResponseNeedsNoAnchorAgreement() async throws {
+        for response in ["", "A different sentence.", "A synthetic", "Now! Now!"] {
             let session = try fixture()
             var calls = 0
-            let transcriber = SessionTranscriber { _, _ in
-                calls += 1
-                if calls <= 3 || response.isEmpty { throw VellaError.noSpeech }
-                return response
-            }
-            do { _ = try await transcriber.run(session); XCTFail("Must retain uncertainty") }
-            catch VellaError.unrecognizedAudio {}
-            XCTAssertEqual(calls, 6)
-            XCTAssertNil(session.manifest.segments[1].text)
-            let partial = try String(contentsOf: session.directory.appendingPathComponent("partial-transcript.txt"), encoding: .utf8)
-            XCTAssertTrue(partial.contains("[Unrecognized audio — segment 2]"))
+            let text = try await SessionTranscriber { _, _ in calls += 1; return response }.run(session)
+            XCTAssertEqual(calls, 1)
+            XCTAssertEqual(session.manifest.segments[1].text, response)
+            XCTAssertEqual(text, response.isEmpty ? "A synthetic sentence." : "A synthetic sentence. " + response)
         }
     }
-    @MainActor func testAlignmentPreservesRepeatedNewWords() {
-        XCTAssertEqual(SessionTranscriber.contextSuffix(anchor: "Go now.", decoded: "Go now. Now!"), "Now!")
-        XCTAssertNil(SessionTranscriber.contextSuffix(anchor: "Go now.", decoded: "Go."))
-        XCTAssertNil(SessionTranscriber.contextSuffix(anchor: "We're ready.", decoded: "Were ready."))
-        XCTAssertNil(SessionTranscriber.contextSuffix(anchor: "Please re-sign.", decoded: "Please resign."))
-        XCTAssertEqual(SessionTranscriber.contextSuffix(anchor: "“We’re ready.”", decoded: "We're ready! Yes."), "Yes.")
+
+    @MainActor func testTailFailureDoesNotRetryOrReplayCachedPredecessor() async throws {
+        let session = try fixture()
+        var calls = 0
+        do {
+            _ = try await SessionTranscriber { url, _ in
+                calls += 1
+                XCTAssertEqual(try AVAudioFile(forReading: url).length, 1877)
+                throw VellaError.message("Synthetic worker failure")
+            }.run(session)
+            XCTFail("Actual failure must propagate")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("Synthetic worker failure"))
+        }
+        XCTAssertEqual(calls, 1)
+        XCTAssertEqual(session.manifest.segments.map(\.text), ["A synthetic sentence.", nil])
+        XCTAssertEqual(try RecordingSession(directory: session.directory).manifest.segments.map(\.text), ["A synthetic sentence.", nil])
     }
 }

@@ -7,7 +7,7 @@ final class CoreTests: XCTestCase {
     func testFallback() { XCTAssertEqual(selectMicrophone([mac], preferred: shure.name, fallback: mac.name), mac) }
     func testNoUnrelatedDevice() { XCTAssertNil(selectMicrophone([Microphone(id: 3, name: "iPhone Microphone")], preferred: shure.name, fallback: mac.name)) }
     func testTranscript() throws { XCTAssertEqual(try transcript(from: Data("{\"text\":\" hello \"}".utf8)), "hello") }
-    func testEmptyTranscript() { XCTAssertThrowsError(try transcript(from: Data("{\"text\":\" \"}".utf8))) }
+    func testEmptyTranscript() throws { XCTAssertEqual(try transcript(from: Data(#"{"text":" "}"#.utf8)), "") }
     func testMalformedTranscript() { XCTAssertThrowsError(try transcript(from: Data("{}".utf8))) }
     func testMultipart() {
         let body = multipart(audio: Data([0, 1, 255]), model: "local-model", boundary: "test")

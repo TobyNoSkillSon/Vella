@@ -137,14 +137,14 @@ import VellaCore
             lastMetrics = (object["metrics"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? NSNumber)?.doubleValue }
             if let error = object["error"] as? [String: Any] {
                 let code = error["code"] as? String
-                if code == "no_speech" { finish(.failure(VellaError.noSpeech)) }
+                if code == "no_speech" { finish(.success("")) } // Legacy worker: empty recognition is success.
                 else {
                     let message = code == "memory" ? "This model needs more available memory. Choose a smaller model; saved audio is retained." : "Local inference failed. Saved audio is retained; try again or choose another model."
                     finish(.failure(VellaError.message(message))); retireWorker(); return
                 }
             } else if let text = object["text"] as? String {
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                finish(trimmed.isEmpty ? .failure(VellaError.noSpeech) : .success(trimmed))
+                finish(.success(trimmed))
             } else { failProtocol(); return }
         }
     }

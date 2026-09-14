@@ -50,13 +50,9 @@ public struct Configuration: Codable {
 }
 public enum VellaError: LocalizedError {
     case message(String)
-    case noSpeech
-    case unrecognizedAudio
     public var errorDescription: String? {
         switch self {
         case .message(let s): return s
-        case .noSpeech: return "No speech detected. Try recording again."
-        case .unrecognizedAudio: return "Some audio was not recognized. An explicitly marked incomplete transcript is available; nothing was automatically pasted. Retry missing segments or review the saved audio."
         }
     }
 }
@@ -81,7 +77,6 @@ public func multipart(audio: Data, model: String, boundary: String) -> Data {
 public func transcript(from data: Data) throws -> String {
     struct Response: Decodable { let text: String }
     let text = try JSONDecoder().decode(Response.self, from: data).text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !text.isEmpty else { throw VellaError.noSpeech }
     return text
 }
 

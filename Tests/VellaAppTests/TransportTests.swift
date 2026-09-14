@@ -24,6 +24,7 @@ for line in sys.stdin:
  obj={'id':r['id'],'text':'Fixture recognized speech.','metrics':{'pid':os.getpid()}}
  if mode=='failure': obj={'id':r['id'],'error':{'code':'inference','message':'not persisted'}}
  if mode=='empty': obj['text']=''
+ if mode=='legacyempty': obj={'id':r['id'],'error':{'code':'no_speech'}}
  if mode=='wrongid': obj['id']='wrong'
  print(json.dumps(obj),flush=True)
 """#.write(to: script, atomically: true, encoding: .utf8)
@@ -38,7 +39,7 @@ for line in sys.stdin:
         XCTFail("Test-owned worker did not exit")
     }
     @MainActor func testIPCFailuresPreserveAudioAndNeverCommitInvalidText() async throws {
-        for mode in ["timeout", "failure", "malformed", "empty", "exit", "oversize", "wrongid"] {
+        for mode in ["timeout", "failure", "malformed", "exit", "oversize", "wrongid"] {
             let (script, record) = try fixture()
             record.manifest.config.model = "/fixture/\(mode)"
             let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script, requestTimeout: 0.4)
@@ -48,6 +49,18 @@ for line in sys.stdin:
             let recovered = try RecordingSession(directory: record.directory)
             XCTAssertEqual(recovered.manifest.segments[0].frames, 1600)
             XCTAssertNil(recovered.manifest.segments[0].text)
+        }
+    }
+    @MainActor func testEmptyAndLegacyEmptyIPCResponsesAreSuccessful() async throws {
+        for mode in ["empty", "legacyempty"] {
+            let (script, record) = try fixture()
+            record.manifest.config.model = "/fixture/\(mode)"
+            let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script)
+            defer { backend.stop() }
+            let text = try await SessionTranscriber { url, config in try await backend.transcribe(url, config: config) }.run(record)
+            XCTAssertEqual(text, "")
+            XCTAssertEqual(try RecordingSession(directory: record.directory).manifest.segments[0].text, "")
+            XCTAssertEqual(record.manifest.state, "transcribed")
         }
     }
     @MainActor func testWarmReuseSwitchAndIdleExit() async throws {
@@ -155,7 +168,7 @@ for line in sys.stdin:
             let first = try XCTUnwrap(backend.processID)
             _ = try await backend.transcribe(wav, config: record.manifest.config)
             XCTAssertEqual(backend.processID, first)
-            record.manifest.config.model = "/fixture/" + ["failure", "malformed", "exit", "empty"][cycle % 4]
+            record.manifest.config.model = "/fixture/" + ["failure", "malformed", "exit", "wrongid"][cycle % 4]
             do { _ = try await backend.transcribe(wav, config: record.manifest.config); XCTFail("Expected fixture failure") }
             catch { }
             try await backend.releaseAndWait()

@@ -63,20 +63,50 @@ class StreamingTests(unittest.TestCase):
         self.assertEqual(s.handle(request('finish'))['committed'], '')
         self.assertEqual(s.native.calls, [])
 
-    def test_empty_nonquiet_utterance_marks_incomplete_but_keeps_later_words(self):
+    def test_empty_nonquiet_endpoint_succeeds_and_keeps_later_words(self):
         s = self.session()
         original = s.native.push
         s.native.push = lambda samples, final=False: None
         for _ in range(4):
             s.handle(audio([0.2]*1600))
         replies = [s.handle(audio([0.0]*1600)) for _ in range(8)]
-        self.assertTrue(replies[-1]['incomplete'])
-        self.assertIn('[Unrecognized audio]', ' '.join(r['committed'] for r in replies))
+        self.assertTrue(all(not r.get('incomplete', False) for r in replies))
+        self.assertTrue(all(r['committed'] == '' for r in replies))
+        self.assertEqual(s.native.resets, 1)
         s.native.push = original
         s.handle(audio([0.2]*1600))
         final = s.handle(request('finish'))
-        self.assertTrue(final['incomplete'])
+        self.assertFalse(final.get('incomplete', False))
+        self.assertTrue(final['done'])
         self.assertEqual(final['committed'], 'A complete prefix and suffix.')
+
+    def test_empty_nonquiet_finish_succeeds_without_retry_or_marker(self):
+        s = self.session()
+        def push(samples, final=False):
+            s.native.calls.append((tuple(samples), final))
+        s.native.push = push
+        for _ in range(4):
+            s.handle(audio([0.2]*1600))
+        final = s.handle(request('finish'))
+        self.assertEqual(final['frames'], 6400)
+        self.assertEqual(final['committed'], '')
+        self.assertEqual(final['partial'], '')
+        self.assertTrue(final['done'])
+        self.assertFalse(final.get('incomplete', False))
+        self.assertEqual(sum(len(samples) for samples, _ in s.native.calls), 6400)
+        self.assertEqual(sum(final for _, final in s.native.calls), 1)
+        self.assertEqual(s.native.resets, 1)
+
+    def test_native_finish_failure_is_not_empty_success(self):
+        s = self.session()
+        def push(samples, final=False):
+            if final:
+                raise RuntimeError('Native stream failed to finish')
+        s.native.push = push
+        s.handle(audio([0.2]*1600))
+        with self.assertRaisesRegex(RuntimeError, 'failed to finish'):
+            s.handle(request('finish'))
+        self.assertFalse(s.done)
 
     def test_framing_and_endpoint(self):
         signal = [0.0]*6400 + [0.2]*6400 + [0.0]*16000

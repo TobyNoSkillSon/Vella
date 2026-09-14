@@ -55,10 +55,10 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(first['frames'], second['frames'])
         self.assertEqual(native.resets, 5)  # initial + clip start + endpoint per pass
 
-    def test_incomplete_audio_retained_and_scored(self):
+    def test_empty_model_output_is_complete_and_scored(self):
         result = b.replay(Fake(silent=True), b.requests([.1] * 3200))
-        self.assertTrue(result['incomplete'])
-        self.assertEqual(result['transcript'], '[Unrecognized audio]')
+        self.assertFalse(result['incomplete'])
+        self.assertEqual(result['transcript'], '')
         self.assertGreater(b.errors('Hello world', result['transcript'])[0], 0)
         self.assertGreater(b.formatting.score('Hello world', result['transcript'])['characterErrors'], 0)
 
