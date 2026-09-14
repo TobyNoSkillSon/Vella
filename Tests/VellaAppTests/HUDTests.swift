@@ -7,7 +7,6 @@ import VellaCore
 final class HUDTests: XCTestCase {
     @MainActor func testFailureCategoriesPersistAndSuccessfulRecoveryClearsThem() async throws {
         let cases: [(Float, Error, String)] = [
-            (0.1, VellaError.noSpeech, "unrecognized_audio"),
             (0.1, URLError(.timedOut), "timeout"),
             (0.1, VellaError.message("Fixture failure"), "local_failure")]
         for (level, error, code) in cases {
@@ -29,8 +28,6 @@ final class HUDTests: XCTestCase {
             model.onChange = nil
             XCTAssertEqual(try RecordingSession(directory: session.directory).manifest.failureCode, code)
             XCTAssertNil(clipboard.string(forType: .string))
-            // Silence remains silence; never turn it into invented text on Retry.
-            if level == 0 { continue }
             shouldFail = false
             let recovered = expectation(description: "Recovery clears failure category")
             model.onChange = { if model.phase == .success { recovered.fulfill() } }
@@ -54,7 +51,7 @@ final class HUDTests: XCTestCase {
         let count = clipboard.changeCount
         let settled = expectation(description: "Silence is a normal no-op")
         let model = Model(pasteboard: clipboard, transcriptionRequest: { _, _ in
-            XCTFail("Digital silence must not trigger recognition"); return ""
+            return ""
         })
         model.onChange = {
             XCTAssertNotEqual(model.phase, .failed)

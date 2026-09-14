@@ -30,7 +30,7 @@ For **Apple Silicon Macs running macOS 14 or newer**.
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' \
-  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.4/scripts/install.sh | bash
+  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.5/scripts/install.sh | bash
 ```
 
 The installer builds Vella and puts it in `~/Applications`. It needs Apple's free Command Line Tools and Python 3.12–3.14; if either is missing, it'll tell you how to install it. No paid developer membership is needed.
@@ -49,7 +49,7 @@ A small waveform appears while you speak. Vella pastes the finished text but nev
 
 ### Dictation and Streaming
 
-Version 0.8.0 source builds offer **Mode → Dictation / Streaming**. Dictation transcribes and inserts after you finish. **Streaming inserts text continuously wherever keyboard focus is**, using native incremental recognition. The shortcut stays **⌃⌘N**: open or close the microphone. Finish sends only the remaining suffix, never a duplicate full transcript.
+Choose **Mode → Dictation / Streaming**. Dictation transcribes and inserts after you finish. **Streaming inserts text continuously wherever keyboard focus is**, using native incremental recognition. The shortcut stays **⌃⌘N**: open or close the microphone. Finish sends only the remaining suffix, never a duplicate full transcript.
 
 Streaming follows window and field changes without stopping for clicks or manual typing. It deliberately does not bind words to a field or utterance: words still being processed when you switch will go to the new focus. Pause your speech or close the microphone while navigating as needed. Streaming sends native Unicode text without touching the clipboard or pressing Enter. Dictation uses the field focused when you finish, with a final safety check before pasting; terminal and custom-editor acceptance depends on the target application.
 
@@ -57,9 +57,7 @@ Streaming uses bounded audio/text queues and incremental checkpoints rather than
 
 Each mode remembers its own model. Select the mode, open **Models**, then **Install** and **Use**. Streaming offers **Nemotron 3.5 8-bit, Nemotron 3.5 BF16, and Voxtral Realtime 4-bit**: three precision choices across two 2026 model families. Nemotron 8-bit remains the starting choice. Mode/model changes are blocked while recording or finalizing. Quiet intervals pause recognition, not capture; the gate measures volume, not whether background sound is speech. Saved streaming audio can be replayed for clipboard-only recovery.
 
-Finish-time destination selection and the restored HUD are currently on **`main`**; the pinned v0.8.4 release still selects the Dictation destination at recording start.
-
-The pinned installer above installs **v0.8.4**, including keep-open settings menus and conservative quiet-pause/short-tail recovery. Mode, microphone, and model choices stay open; click-away and Escape retain native dismissal. Uncertain audio remains saved and may still require Retry.
+The installer above installs **v0.8.5**. Successful model output is accepted, including no text. Empty recognition is not an error; Retry is for actual execution failures, not pauses or suspected missing words. Transcription accuracy depends on the selected model.
 
 ## Measured performance
 

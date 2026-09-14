@@ -301,9 +301,6 @@ class Session:
         self.pending = []
         self.preroll = collections.deque(maxlen=PRE_ROLL)
         self.done = False
-        self.incomplete = False
-        self.nonquiet_frames = 0
-        self.had_text = False
 
     def block(self, samples):
         quiet = sum(x*x for x in samples) / len(samples) < ENERGY**2
@@ -317,9 +314,6 @@ class Session:
             self.preroll.clear()
         else:
             self.native.push(samples)
-        if not quiet:
-            self.nonquiet_frames += len(samples)
-        self.had_text = self.had_text or bool(self.native.text.strip())
         self.silent = self.silent + 1 if quiet else 0
         if self.silent >= TRAILING:
             return self.endpoint()
@@ -330,14 +324,9 @@ class Session:
             return ''
         self.native.push([], final=True)
         text = self.native.drain(final=True)
-        # Sustained non-quiet audio without any words is uncertain, not proven
-        # silence. Retain later recognition but block complete/automatic insertion.
-        if not text and not self.had_text and self.nonquiet_frames >= 3200:
-            self.incomplete = True
-            text = '[Unrecognized audio]'
+        # Successful native completion is authoritative, including empty text.
         self.native.reset()
         self.active, self.silent = False, 0
-        self.had_text, self.nonquiet_frames = False, 0
         return text
 
     def handle(self, request):
@@ -373,7 +362,7 @@ class Session:
         else:
             raise Invalid()
         reply.update(frames=self.frames, partial=self.native.text.strip() if self.active else '',
-                     committed=' '.join(x for x in committed if x), incomplete=self.incomplete)
+                     committed=' '.join(x for x in committed if x))
         if len((reply['committed'] + reply['partial']).encode('utf-8')) > 8192:
             raise RuntimeError('Streaming text delivery bound exceeded')
         if self.done:

@@ -103,13 +103,32 @@ final class StreamingTests: XCTestCase {
         await insertion.finish(final)
         XCTAssertEqual(writes.joined(), "hello world", "Finish sends only the suffix, not another full transcript")
     }
-    @MainActor func testIncompleteFlagIsStickyAndNeverReturnsCompleteText() async throws {
+    @MainActor func testSuccessfulEmptyFinishAcceptsAudioWithoutInventingText() async throws {
+        let backend = try worker("r.update(partial='',committed='')")
+        defer { backend.shutdown() }
+        try await backend.start(config: config().forRecording())
+        let pcm = [Float](repeating: 0.2, count: 1600).withUnsafeBytes { Data($0) }
+        try await backend.feed(pcm)
+        let final = try await backend.finish(expectedFrames: 1600)
+        XCTAssertEqual(final, "")
+        XCTAssertEqual(backend.frames, 1600)
+        XCTAssertEqual(backend.text, "")
+        XCTAssertFalse(backend.hasIncompleteExecution)
+    }
+    @MainActor func testExplicitWorkerErrorStillFailsWithEmptyText() async throws {
+        let backend = try worker("if q['op']=='finish': r.update(committed='',error='Native runtime failed')")
+        defer { backend.shutdown() }
+        try await backend.start(config: config().forRecording())
+        do { _ = try await backend.finish(expectedFrames: 0); XCTFail("Runtime failure was accepted") }
+        catch { XCTAssertTrue(error.localizedDescription.contains("Native runtime failed")) }
+    }
+    @MainActor func testLegacyIncompleteFlagIsStickyAndNeverReturnsCompleteText() async throws {
         let backend = try worker("if q['op']=='audio': r['incomplete']=True")
         defer { backend.shutdown() }
         try await backend.start(config: config().forRecording())
         try await backend.feed(Data(repeating: 0, count: 4))
         do { _ = try await backend.finish(expectedFrames: 1); XCTFail("Incomplete text was accepted") }
-        catch { guard case VellaError.unrecognizedAudio = error else { return XCTFail("Wrong error: \(error)") } }
+        catch { XCTAssertTrue(error.localizedDescription.contains("incomplete result")) }
         XCTAssertEqual(backend.committed, "hello world", "Recognized words remain recoverable")
     }
     @MainActor func testTimeoutAndCancellationRetireChild() async throws {

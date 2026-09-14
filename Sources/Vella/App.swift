@@ -269,7 +269,7 @@ final class GlobalShortcut {
             // queue continues to own its separate PCM files and manifest.
             try journal.append(committed: committed, partial: partial, frames: self.streamingBackend.frames)
             if incomplete {
-                self.liveInsertion?.pause("Some audio was not recognized. Live insertion stopped; audio is still saved.")
+                self.liveInsertion?.pause("The streaming worker reported incomplete execution. Live insertion stopped; audio is still saved.")
             } else {
                 self.liveInsertion?.offer(committed: committed, partial: partial)
             }
@@ -359,7 +359,9 @@ final class GlobalShortcut {
                     try Task.checkCancellation()
                     guard self.operation == operation else { return }
                     insertionWasAutomatic = insertion.didSend
-                    if let reason = insertion.blockedReason {
+                    if text.isEmpty && !insertion.didSend {
+                        insert("") // Drain delivery first; empty recognition preserves the clipboard.
+                    } else if let reason = insertion.blockedReason {
                         insertionWasAutomatic = false
                         copyLast()
                         update(.success, "Live insertion stopped. \(reason) Full transcript copied; previously sent text was not inserted again.")
@@ -374,17 +376,12 @@ final class GlobalShortcut {
                 streamingBackend.stop(); streamingBuffer?.abort(); streamingTask = nil
                 session.manifest.state = "interrupted"
                 if error is CancellationError { session.manifest.failureCode = "cancelled" }
-                else if case VellaError.noSpeech = error { session.manifest.failureCode = "no_speech" }
-                else if case VellaError.unrecognizedAudio = error { session.manifest.failureCode = "unrecognized_audio" }
                 else if (error as? URLError)?.code == .timedOut { session.manifest.failureCode = "timeout" }
                 else { session.manifest.failureCode = "local_failure" }
                 try? session.saveStreamingPartial(streamingBackend.text); try? session.save()
                 if let partial = try? session.savePartialTranscript() { lastText = partial; lastTranscriptIncomplete = true }
                 allowAutomaticInsertion = false
-                let reason: String
-                if case VellaError.unrecognizedAudio = error {
-                    reason = "Some non-quiet audio returned no words. The transcript is marked incomplete."
-                } else { reason = error is CancellationError ? "Streaming stopped before completion." : error.localizedDescription }
+                let reason = error is CancellationError ? "Streaming stopped before completion." : error.localizedDescription
                 update(.failed, reason + " Audio is saved. Text already sent stays in the target; it will not be replayed automatically. Retry copies only.")
             }
         }
@@ -440,16 +437,12 @@ final class GlobalShortcut {
                 lastText = text; lastTranscriptIncomplete = false; backendStatus = backend.ownership
                 // Audio and transcript are durable BEFORE attempting insertion; retained until explicit deletion.
                 insert(text)
-                let quiet = session.manifest.segments.reduce(0) { $0 + ($1.quietSlices ?? 0) }
-                if quiet > 0 { message += " \(quiet) very quiet interval(s) returned no recognized speech; original audio remains saved." }
             } catch {
                 guard self.operation == operation else { return }
                 progressTimer?.invalidate(); progressTimer = nil
                 processingProgress = ""
                 session.manifest.state = "interrupted"
                 if error is CancellationError { session.manifest.failureCode = "cancelled" }
-                else if case VellaError.noSpeech = error { session.manifest.failureCode = "no_speech" }
-                else if case VellaError.unrecognizedAudio = error { session.manifest.failureCode = "unrecognized_audio" }
                 else if (error as? URLError)?.code == .timedOut { session.manifest.failureCode = "timeout" }
                 else { session.manifest.failureCode = "local_failure" }
                 try? session.save()

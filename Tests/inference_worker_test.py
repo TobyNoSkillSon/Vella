@@ -122,13 +122,22 @@ class Tests(unittest.TestCase):
         class Empty:
             def generate(self, audio): return {'text': '  '}
         self.worker.loader = lambda path: Empty()
-        self.assertEqual(self.worker.handle(self.request())['error']['code'], 'no_speech')
+        result = self.worker.handle(self.request())
+        self.assertEqual(result['text'], '')
+        self.assertIn('metrics', result)
+        self.assertNotIn('error', result)
         self.worker.release()
         def fail(path): raise RuntimeError('SECRET SPEECH')
         self.worker.loader = fail
         result = self.worker.handle(self.request())
         self.assertEqual(result['error']['code'], 'inference')
         self.assertNotIn('SECRET', json.dumps(result))
+
+    def test_malformed_model_output_is_not_empty_success(self):
+        for value in (None, {}, {'text': None}, {'text': 42}):
+            self.worker.release()
+            self.worker.loader = lambda path: type('Bad', (), {'generate': lambda self, audio: value})()
+            self.assertEqual(self.worker.handle(self.request())['error']['code'], 'inference')
 
     def test_invalid_protocol_and_paths_do_not_load(self):
         requests = [None, [], {}, self.request(operation='shutdown')]

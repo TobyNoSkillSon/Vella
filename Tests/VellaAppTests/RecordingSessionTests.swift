@@ -163,52 +163,49 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertNil(recovered.manifest.segments[0].text)
         XCTAssertGreaterThan(recovered.seconds, 0)
     }
-    @MainActor func testEmptyAudibleResultFailsButSilentChunksAreSkipped() async throws {
-        let audible = try session(blocks: [[Float](repeating: 0.1, count: 1000)])
-        do { _ = try await SessionTranscriber { _, _ in "" }.run(audible); XCTFail() } catch { }
-        XCTAssertNil(audible.manifest.segments[0].text)
-        let silent = try session(blocks: [[Float](repeating: 0, count: 1000)])
-        let empty = try await SessionTranscriber { _, _ in XCTFail("Digital silence must not hallucinate"); return "" }.run(silent)
-        XCTAssertEqual(empty, "")
-        XCTAssertEqual(silent.manifest.state, "transcribed")
-        XCTAssertEqual(silent.manifest.segments[0].text, "")
+    @MainActor func testEmptyResponseIsSuccessfulAtAnyEnergy() async throws {
+        for level: Float in [0, 0.0005, 0.1] {
+            let record = try session(blocks: [[Float](repeating: level, count: 1000)])
+            var calls = 0
+            let text = try await SessionTranscriber { url, _ in
+                calls += 1
+                XCTAssertEqual(try AVAudioFile(forReading: url).length, 1000)
+                return ""
+            }.run(record)
+            XCTAssertEqual(text, ""); XCTAssertEqual(calls, 1)
+            XCTAssertEqual(record.manifest.state, "transcribed")
+            XCTAssertEqual(record.manifest.segments[0].text, "")
+        }
     }
-    @MainActor func testPaddingFallbackIsBoundedAndDoesNotModifyArchive() async throws {
+    @MainActor func testRealFailureIsNotRetriedAndPreservesArchive() async throws {
         let record = try session(blocks: [[Float](repeating: 0.1, count: 32_000)])
         let hash = record.manifest.segments[0].sha256
         var calls = 0
         let runner = SessionTranscriber { url, _ in
             calls += 1
-            let wav = try AVAudioFile(forReading: url)
-            if calls == 1 { XCTAssertEqual(wav.length, 40_000); throw VellaError.noSpeech }
-            XCTAssertEqual(wav.length, 35_200)
-            return "Speech recovered with context."
+            XCTAssertEqual(try AVAudioFile(forReading: url).length, 32_000)
+            throw URLError(.timedOut)
         }
-        let text = try await runner.run(record)
-        XCTAssertEqual(text, "Speech recovered with context.")
-        XCTAssertEqual(calls, 2)
+        do { _ = try await runner.run(record); XCTFail() }
+        catch { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
+        XCTAssertEqual(calls, 1)
+        XCTAssertNil(record.manifest.segments[0].text)
         XCTAssertEqual(try RecordingSession(directory: record.directory).manifest.segments[0].sha256, hash)
-        record.manifest.segments[0].text = nil; calls = 0
-        do { _ = try await SessionTranscriber { _, _ in calls += 1; throw VellaError.noSpeech }.run(record); XCTFail() } catch { }
-        XCTAssertEqual(calls, 3, "Unrecognized loud audio must fail with retained audio, not retry forever")
     }
-    @MainActor func testUnrecognizedChunkDoesNotLoseLaterSpeechOrPretendCompletion() async throws {
+    @MainActor func testEmptyChunkDoesNotBlockLaterSpeechOrCompletion() async throws {
         var policy = SegmentedPCMWriter.Policy(); policy.preferredSeconds = 1; policy.maximumSeconds = 2; policy.overlapSeconds = 0.1
-        let record = try session(policy: policy, blocks: [[Float](repeating: 0.1, count: 64_000)])
+        let record = try session(policy: policy, blocks: [[Float](repeating: 0.1, count: 96_000)])
         var index = 0
         let runner = SessionTranscriber { _, _ in
-            if index == 2 { throw VellaError.noSpeech }
-            return "Recognized segment \(index)."
+            index == 2 ? "" : "Recognized segment \(index)."
         }
         runner.onChunk = { _, _, current, _ in index = current }
-        do { _ = try await runner.run(record); XCTFail() }
-        catch VellaError.unrecognizedAudio { }
-        catch { XCTFail("Expected the diagnostic category for missing audio, not \(error)") }
-        XCTAssertNil(record.manifest.segments[1].text)
-        XCTAssertNotNil(record.manifest.segments.last?.text)
-        let partial = try String(contentsOf: record.directory.appendingPathComponent("partial-transcript.txt"))
-        XCTAssertTrue(partial.contains("Incomplete transcript")); XCTAssertTrue(partial.contains("Unrecognized audio"))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: record.transcriptURL.path))
+        let text = try await runner.run(record)
+        XCTAssertEqual(record.manifest.segments[1].text, "")
+        XCTAssertTrue(text.contains("Recognized segment 3."))
+        XCTAssertFalse(text.contains("Unrecognized"))
+        XCTAssertEqual(record.manifest.state, "transcribed")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: record.transcriptURL.path))
     }
     @MainActor func testRecoveryAndShutdownUseDurableTextWithoutAutomaticInsertion() async throws {
         let record = try session(blocks: [[Float](repeating: 0.1, count: 1000)])
@@ -234,11 +231,11 @@ final class RecordingSessionTests: XCTestCase {
     }
     @MainActor func testModelEmptyResultOnQuietIntervalIsRecordedWithoutLosingAudio() async throws {
         let record = try session(blocks: [[Float](repeating: 0.0005, count: 16_000)])
-        let text = try await SessionTranscriber { _, _ in throw VellaError.noSpeech }.run(record)
+        let text = try await SessionTranscriber { _, _ in "" }.run(record)
         XCTAssertEqual(text, "", "Model-confirmed quiet audio is a normal no-op")
         let recovered = try RecordingSession(directory: record.directory)
         XCTAssertEqual(recovered.manifest.segments[0].text, "")
-        XCTAssertEqual(recovered.manifest.segments[0].quietSlices, 1)
+        XCTAssertNil(recovered.manifest.segments[0].quietSlices)
         XCTAssertEqual(recovered.manifest.segments[0].frames, 16_000)
     }
     func testDefaultSegmentationTakesEarlyPauseButDoesNotCutOngoingSpeechEarly() throws {
