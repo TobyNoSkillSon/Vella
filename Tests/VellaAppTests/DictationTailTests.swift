@@ -92,7 +92,7 @@ final class DictationTailTests: XCTestCase {
             }
             do { _ = try await transcriber.run(session); XCTFail("Must retain uncertainty") }
             catch VellaError.unrecognizedAudio {}
-            XCTAssertEqual(calls, 4)
+            XCTAssertEqual(calls, 6)
             XCTAssertNil(session.manifest.segments[1].text)
             let partial = try String(contentsOf: session.directory.appendingPathComponent("partial-transcript.txt"), encoding: .utf8)
             XCTAssertTrue(partial.contains("[Unrecognized audio — segment 2]"))

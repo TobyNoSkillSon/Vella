@@ -22,7 +22,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         root.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
         let menu = NSMenu(); menu.autoenablesItems = false; tableMenu = menu
         let item = NSMenuItem()
-        let view = MenuTableHostingView(rootView: ModelTable(library: library, dismiss: { [weak self] in self?.tableMenu?.cancelTracking() }, requestDelete: { [weak self] id in self?.confirmDeletion(id) }))
+        let view = MenuTableHostingView(rootView: ModelTable(library: library, requestDelete: { [weak self] id in self?.confirmDeletion(id) }))
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.clear.cgColor
         view.layer?.isOpaque = false
@@ -61,7 +61,6 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
 
 struct ModelTable: View {
     @ObservedObject var library: ModelLibrary
-    var dismiss: () -> Void = {}
     var requestDelete: (String) -> Void = { _ in }
     @VellaState private var sortColumn: ModelSortColumn = .formattedError
     @VellaState private var ascending = true
@@ -106,7 +105,7 @@ struct ModelTable: View {
                             Button(library.busy && library.downloadingID == model.id ? library.progress.map { "\(Int($0 * 100))%" } ?? "…" : active ? "In use" : installed == nil ? (localPath == nil ? "Install" : "Resume") : "Use") {
                                 library.selectedID = model.id
                                 if installed == nil { library.download() }
-                                else if library.useSelected() { dismiss() }
+                                else { _ = library.useSelected() }
                             }.buttonStyle(.bordered).controlSize(.small).frame(width: 52)
                                 .disabled(active || library.busy || !library.mayChangeModel() || (installed == nil && model.repository.isEmpty))
                                 .help(installed == nil ? "Download \(ByteCountFormatter.string(fromByteCount: model.downloadBytes, countStyle: .file)) from Hugging Face: \(model.repository). License: \(model.license). Selecting for \(library.mode.title.lowercased()) is separate." : "Use this model for your next \(library.mode.title.lowercased())")

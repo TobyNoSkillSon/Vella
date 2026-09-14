@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Local candidates may carry a newer version without changing public bootstrap pins.
+[[ "${VELLA_BUILD_VERSION:-0.0.0}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid local build version' >&2; exit 1; }
+[[ "${VELLA_BUILD_NUMBER:-0}" =~ ^[0-9]+$ ]] || { echo 'Invalid local build number' >&2; exit 1; }
 # Source builds need no Apple account or certificate. Maintainers can opt into signing.
 LOCAL_IDENTITY="$HOME/Library/Application Support/Vella/signing-identity"
 if [[ -n "${VELLA_SIGN_IDENTITY:-}" ]]; then
@@ -29,7 +32,15 @@ xcrun swift build -c release
 RELAUNCH="$(VELLA_TARGET_APP="$APP" xcrun swift -e '
 import AppKit
 let path = ProcessInfo.processInfo.environment["VELLA_TARGET_APP"]!
-let apps = NSWorkspace.shared.runningApplications.filter { $0.bundleURL?.path == path }
+let target = URL(fileURLWithPath: path)
+let identity = (try? target.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier) as? NSObject
+let apps = NSWorkspace.shared.runningApplications.filter {
+    guard let url = $0.bundleURL else { return false }
+    if url.path == path { return true }
+    // The same bundle can be reached with different path casing or symlinks.
+    guard let identity, let other = (try? url.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier) as? NSObject else { return false }
+    return identity.isEqual(other)
+}
 if apps.count > 1 { fputs("Multiple instances found; refusing an ambiguous update.\n", stderr); exit(1) }
 let stateURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Vella/dictation-status.json")
 if !apps.isEmpty, let data = try? Data(contentsOf: stateURL),
@@ -46,6 +57,12 @@ print(apps.isEmpty ? "0" : "1")
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Vella "$APP/Contents/MacOS/Vella"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+if [[ -n "${VELLA_BUILD_VERSION:-}" ]]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VELLA_BUILD_VERSION" "$APP/Contents/Info.plist"
+fi
+if [[ -n "${VELLA_BUILD_NUMBER:-}" ]]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VELLA_BUILD_NUMBER" "$APP/Contents/Info.plist"
+fi
 if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $VELLA_BUNDLE_ID" "$APP/Contents/Info.plist"
 fi
