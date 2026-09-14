@@ -46,7 +46,7 @@ function render() {
   const tr=document.createElement('tr');tr.dataset.id=row.id;tr.title=row.provenance;
   for(const [field] of columns){
    const td=document.createElement('td');td.dataset.key=field;
-   if(field==='name'){const a=document.createElement('a');a.textContent=row.name;a.href=row.source;a.title='Open measured result';td.append(a)}
+   if(field==='name'){const a=document.createElement('a');a.textContent=row.name;a.href=row.modelURL;a.title='View model on Hugging Face';td.append(a)}
    else td.textContent=display(row,field);
    tr.append(td);
   }

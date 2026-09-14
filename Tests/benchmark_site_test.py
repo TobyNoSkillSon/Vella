@@ -8,6 +8,10 @@ class BenchmarkSiteTests(unittest.TestCase):
     def test_only_full_current_runs_have_matching_interactive_values(self):
         payload = (ROOT / 'docs/data.js').read_text().removeprefix('const VELLA_RESULTS = ').strip().removesuffix(';')
         rows = json.loads(payload)['rows']
+        catalogs = {}
+        for catalog in ['models.json', 'streaming-models.json', 'Benchmarks/additional-models.json']:
+            for model in json.loads((ROOT / 'Resources' / catalog).read_text()):
+                catalogs[model['id']] = model
         indexed = {r['id']: r for r in rows}
         self.assertEqual(len(indexed), len(rows), 'Duplicate benchmark row IDs')
         policy = json.loads((ROOT / 'Resources/benchmark-policy.json').read_text())
@@ -27,6 +31,7 @@ class BenchmarkSiteTests(unittest.TestCase):
                 self.assertEqual(row['mode'], 'Streaming' if data.get('recognitionMode') == 'streaming' else 'Batch')
                 self.assertEqual(row['date'], data['measuredAt'][:10])
                 self.assertTrue(row['source'].endswith('/Resources/ReferenceResults/' + path.name))
+                self.assertEqual(row['modelURL'], 'https://huggingface.co/' + catalogs[data['modelID']]['repository'])
                 for field, key in [('text','formattedCharacterErrorRate'), ('punctuation','punctuationF1'), ('casing','capitalizationAccuracy')]:
                     value = data.get('formatting', {}).get(key)
                     self.assertEqual(row[field], value * 100 if value is not None else None)

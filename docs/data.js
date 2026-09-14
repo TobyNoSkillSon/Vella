@@ -14,6 +14,7 @@ const VELLA_RESULTS = {
       "ram": 1.932469492,
       "memory": "Warm · separate run",
       "date": "2026-09-13",
+      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-0.6B-4bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -31,6 +32,7 @@ const VELLA_RESULTS = {
       "ram": 3.031126908,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-4bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-4bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -48,6 +50,7 @@ const VELLA_RESULTS = {
       "ram": 3.891352444,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-8bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-8bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -65,6 +68,7 @@ const VELLA_RESULTS = {
       "ram": 5.50425894,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-bf16",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-bf16.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -82,6 +86,7 @@ const VELLA_RESULTS = {
       "ram": 0.884919208,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/vanch007/SenseVoiceSmall-4bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-SenseVoiceSmall-4bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -99,6 +104,7 @@ const VELLA_RESULTS = {
       "ram": 1.794116544,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/mlx-community/SenseVoiceSmall",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-SenseVoiceSmall.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -116,6 +122,7 @@ const VELLA_RESULTS = {
       "ram": 5.938638088,
       "memory": "Warm · separate run",
       "date": "2026-09-13",
+      "modelURL": "https://huggingface.co/mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Voxtral-Mini-4B-Realtime-2602-4bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -133,6 +140,7 @@ const VELLA_RESULTS = {
       "ram": 7.640377766,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/mlx-community/granite-4.0-1b-speech-4bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-granite-4.0-1b-speech-4bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -150,6 +158,7 @@ const VELLA_RESULTS = {
       "ram": 8.558930342,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/mlx-community/granite-4.0-1b-speech-8bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-granite-4.0-1b-speech-8bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -167,6 +176,7 @@ const VELLA_RESULTS = {
       "ram": 1.586632787,
       "memory": "Warm · separate run",
       "date": "2026-09-13",
+      "modelURL": "https://huggingface.co/iky1e/granite-speech-5.0-470m-turboctc-mlx-fp16",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-granite-speech-5.0-470m-turboctc-mlx-fp16.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -184,6 +194,7 @@ const VELLA_RESULTS = {
       "ram": 0.994208316,
       "memory": "Warm · separate run",
       "date": "2026-09-13",
+      "modelURL": "https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-nemotron-3.5-asr-streaming-0.6b-8bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -201,6 +212,7 @@ const VELLA_RESULTS = {
       "ram": 1.34155212,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-parakeet-tdt-0.6b-v3-mlx-4bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -218,6 +230,7 @@ const VELLA_RESULTS = {
       "ram": 1.613674752,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-parakeet-tdt-0.6b-v3-mlx-8bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -235,6 +248,7 @@ const VELLA_RESULTS = {
       "ram": 2.522148778,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/mlx-community/whisper-large-v3-8bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-whisper-large-v3-8bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -252,6 +266,7 @@ const VELLA_RESULTS = {
       "ram": 1.754945674,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/mlx-community/whisper-large-v3-asr-4bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-whisper-large-v3-asr-4bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -269,6 +284,7 @@ const VELLA_RESULTS = {
       "ram": 4.028225754,
       "memory": "Warm · separate run",
       "date": "2026-09-12",
+      "modelURL": "https://huggingface.co/mlx-community/whisper-large-v3-asr-fp16",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-whisper-large-v3-asr-fp16.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -286,6 +302,7 @@ const VELLA_RESULTS = {
       "ram": 5.55727814,
       "memory": "Warm · timing run",
       "date": "2026-09-13",
+      "modelURL": "https://huggingface.co/mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-streaming-M5Max-Voxtral-Mini-4B-Realtime-2602-4bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -303,6 +320,7 @@ const VELLA_RESULTS = {
       "ram": 0.980055816,
       "memory": "Warm · separate run",
       "date": "2026-09-13",
+      "modelURL": "https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-streaming-M5Max-nemotron-3.5-asr-streaming-0.6b-8bit.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     },
@@ -320,6 +338,7 @@ const VELLA_RESULTS = {
       "ram": 2.215282152,
       "memory": "Warm · separate run",
       "date": "2026-09-13",
+      "modelURL": "https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b",
       "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-streaming-M5Max-nemotron-3.5-asr-streaming-0.6b-bf16.json",
       "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
     }
