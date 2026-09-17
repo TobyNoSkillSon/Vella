@@ -62,6 +62,10 @@ final class LiveInsertion {
     private var pending: Task<Void, Never>?
     private var globalMonitor: Any?
     private var localMonitor: Any?
+    /// Custom activation chord to ignore (exact match only; supersets still pause).
+    /// Default preserves the legacy ⌃⌘N behavior. Updated per recording from Model.
+    var ignoredChordKeyCode: UInt16 = 45
+    var ignoredChordModifiers: NSEvent.ModifierFlags = [.control, .command]
 
     init(targetIsCurrent: @escaping () -> Bool,
          send: ((String) throws -> Void)? = nil,
@@ -256,8 +260,13 @@ final class LiveInsertion {
                           modifiers: NSEvent.ModifierFlags = [], marker: Int64 = 0) {
         guard marker != Self.eventMarker else { return }
         if type == .keyDown {
-            let relevant = modifiers.intersection([.control, .command, .shift, .option])
-            if keyCode == 45 && relevant == [.control, .command] { return }
+            let relevant = modifiers.intersection([.control, .command, .shift, .option, .function])
+            let ignoredRelevant = ignoredChordModifiers.intersection([.control, .command, .shift, .option, .function])
+            if keyCode == ignoredChordKeyCode && relevant == ignoredRelevant { return }
+            // Legacy default preserved when custom equals default; superset chords still pause.
+            if ignoredChordKeyCode != 45 || ignoredChordModifiers != [.control, .command] {
+                if keyCode == 45 && relevant == [.control, .command] { return }
+            }
             pause("Typing interrupted live insertion.")
         } else if [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(type) {
             pause("A mouse click interrupted live insertion.")

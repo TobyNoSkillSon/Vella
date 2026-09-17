@@ -9,18 +9,85 @@ import VellaCore
 final class GlobalShortcut {
     private var ref: EventHotKeyRef?
     private var handler: EventHandlerRef?
+    private var currentID: EventHotKeyID?
+    private var callbackGeneration: UInt64 = 0
+    var registeredHotKeyID: EventHotKeyID? { currentID }
+    private static var nextHotKeyID: UInt32 = 1
     var action: (() -> Void)?
+    var onPress: (() -> Void)?
+    var onRelease: (() -> Void)?
     func register() -> Bool {
-        var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        do {
+            try registerChord(keyCode: UInt32(kVK_ANSI_N), modifiers: UInt32(controlKey | cmdKey), onPress: { [weak self] in self?.action?() }, onRelease: {})
+            return true
+        } catch { return false }
+    }
+    func registerChord(keyCode: UInt32, modifiers: UInt32, onPress: @escaping () -> Void, onRelease: @escaping () -> Void) throws {
+        unregister()
+        // Capture the generation via unique hotkey ID: async delivery checks the ID
+        // at event time so a queued old press can never invoke a rebind's closure.
+        let assigned = EventHotKeyID(signature: 0x56454C41, id: Self.nextHotKeyID)
+        Self.nextHotKeyID &+= 1
+        self.onPress = onPress
+        self.onRelease = onRelease
+        self.currentID = assigned
+        var pressType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        var releaseType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))
         let context = Unmanaged.passUnretained(self).toOpaque()
-        let installed = InstallEventHandler(GetApplicationEventTarget(), { _, _, data in
-            guard let data else { return OSStatus(eventNotHandledErr) }
+        // Non-capturing Carbon handler: all state arrives via `data`.
+        // Foreign hotkey IDs are ignored; closures are captured at event time so a
+        // queued old press can never invoke a rebind's new closure.
+        let handlerUPP: EventHandlerUPP = { _, event, data in
+            guard let data, let event else { return OSStatus(eventNotHandledErr) }
             let hotkey = Unmanaged<GlobalShortcut>.fromOpaque(data).takeUnretainedValue()
-            DispatchQueue.main.async { hotkey.action?() }
+            var received = EventHotKeyID(signature: 0, id: 0)
+            let paramStatus = withUnsafeMutablePointer(to: &received) { ptr in
+                GetEventParameter(event, UInt32(kEventParamDirectObject), UInt32(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, ptr)
+            }
+            guard paramStatus == noErr, let expected = hotkey.currentID,
+                  received.signature == expected.signature, received.id == expected.id else {
+                return OSStatus(eventNotHandledErr)
+            }
+            let generation = hotkey.callbackGeneration
+            let kind = GetEventKind(event)
+            guard kind == UInt32(kEventHotKeyPressed) || kind == UInt32(kEventHotKeyReleased) else {
+                return OSStatus(eventNotHandledErr)
+            }
+            let action = kind == UInt32(kEventHotKeyPressed) ? (hotkey.onPress ?? hotkey.action) : hotkey.onRelease
+            DispatchQueue.main.async { [weak hotkey] in
+                guard let hotkey, hotkey.callbackGeneration == generation,
+                      let current = hotkey.currentID,
+                      current.signature == expected.signature, current.id == expected.id else { return }
+                action?()
+            }
             return noErr
-        }, 1, &type, context, &handler)
-        guard installed == noErr else { return false }
-        return RegisterEventHotKey(UInt32(kVK_ANSI_N), UInt32(controlKey | cmdKey), EventHotKeyID(signature: 0x56454C41, id: 1), GetApplicationEventTarget(), 0, &ref) == noErr
+        }
+        var specs = [pressType, releaseType]
+        let installed: OSStatus = withUnsafeMutablePointer(to: &handler) { handlerPtr in
+            specs.withUnsafeMutableBufferPointer { buffer in
+                InstallEventHandler(GetApplicationEventTarget(), handlerUPP, buffer.count, buffer.baseAddress, context, handlerPtr)
+            }
+        }
+        guard installed == noErr else {
+            unregister()
+            throw VellaError.message("Could not register \(ShortcutLabels.keyChordDisplay(keyCode: keyCode, modifiers: modifiers)). Choose another shortcut.")
+        }
+        let status = RegisterEventHotKey(keyCode, modifiers, assigned, GetApplicationEventTarget(), 0, &ref)
+        guard status == noErr else {
+            unregister()
+            throw VellaError.message("\(ShortcutLabels.keyChordDisplay(keyCode: keyCode, modifiers: modifiers)) is already in use or unavailable. Choose another shortcut.")
+        }
+    }
+    func unregister() {
+        callbackGeneration &+= 1
+        if let ref { UnregisterEventHotKey(ref); self.ref = nil }
+        if let handler { RemoveEventHandler(handler); self.handler = nil }
+        onPress = nil; onRelease = nil; currentID = nil
+    }
+    func updateHandlers(onPress: @escaping () -> Void, onRelease: @escaping () -> Void) {
+        callbackGeneration &+= 1
+        self.onPress = onPress
+        self.onRelease = onRelease
     }
     deinit { if let ref { UnregisterEventHotKey(ref) }; if let handler { RemoveEventHandler(handler) } }
 }
@@ -83,7 +150,7 @@ final class GlobalShortcut {
         try FileManager.default.createDirectory(at: configurationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder().encode(config).write(to: configurationURL, options: .atomic)
         stopWorkers(); self.mode = mode
-        update(.idle, "\(mode.title) selected. Press ⌃⌘N to start; press it again to finish.")
+        update(.idle, "\(mode.title) selected. Press \(shortcutHint) to start; press it again to finish.")
     }
     func stopWorkers() {
         liveInsertion?.cancel(); streamingTask?.cancel(); streamingBuffer?.abort(); backend.stop(); streamingBackend.stop()
@@ -114,6 +181,24 @@ final class GlobalShortcut {
     private(set) var failureStartedAt = Date()
     private var config: Configuration?
     private var operation = UUID()
+    /// Monotonic capture ownership for shortcut release binding. Bumped on every
+    /// user-visible capture transition (start/finish/cancel/recover) so a stale
+    /// hold release can never finish or cancel an unrelated newer capture.
+    private(set) var captureGeneration: UInt64 = 0
+    /// Current activation hint reflecting the configured binding (default ⌃⌘N).
+    /// Updated by AppDelegate from ShortcutManager; never a stale chord.
+    var shortcutHint = "⌃⌘N"
+    var shortcutChordKeyCode: UInt32 = 45
+    var shortcutChordModifiers: UInt32 = 4352
+    static func nsModifiers(fromCarbon carbon: UInt32) -> NSEvent.ModifierFlags {
+        var flags: NSEvent.ModifierFlags = []
+        if carbon & 4096 != 0 { flags.insert(.control) }
+        if carbon & 256 != 0 { flags.insert(.command) }
+        if carbon & 2048 != 0 { flags.insert(.option) }
+        if carbon & 512 != 0 { flags.insert(.shift) }
+        if carbon & 0x800000 != 0 { flags.insert(.function) }
+        return flags
+    }
     var busy: Bool { finishingCapture || phase == .preparing || phase == .transcribing }
     var title: String {
         switch phase {
@@ -163,7 +248,7 @@ final class GlobalShortcut {
         guard !busy else { NSSound.beep(); return }
         guard ensureAutomaticInsertion() else { return }
         if CalibrationStore.shared.isRunning { CalibrationStore.shared.cancel() }
-        task?.cancel(); operation = UUID()
+        task?.cancel(); operation = UUID(); captureGeneration &+= 1
         liveInsertion?.cancel(); liveInsertion = nil
         let operation = self.operation
         recorder.discard()
@@ -190,7 +275,7 @@ final class GlobalShortcut {
                 if config.mode == .streaming { prepareLiveInsertion() }
                 if let pcm, let session = recorder.recordingSession { beginStreaming(session, config: config, pcm: pcm, operation: operation) }
                 elapsed = 0
-                update(.recording, "\(microphone) · ⌃⌘N to finish")
+                update(.recording, "\(microphone) · \(shortcutHint) to finish")
                 meterTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
                     Task { @MainActor in
                         guard let self, self.phase == .recording else { return }
@@ -227,6 +312,7 @@ final class GlobalShortcut {
     }
     func finish() {
         guard phase == .recording else { return }
+        captureGeneration &+= 1
         // Synchronous, before UI callbacks, capture drain, or recognition can yield.
         destinationCheck = mode == .dictation ? captureDestination() : nil
         timer?.invalidate(); timer = nil
@@ -275,7 +361,7 @@ final class GlobalShortcut {
                 self.liveInsertion?.offer(committed: committed, partial: partial)
             }
             if self.phase == .recording {
-                self.message = self.liveInsertion?.blockedReason ?? "Inserting live · ⌃⌘N to close the microphone."
+                self.message = self.liveInsertion?.blockedReason ?? "Inserting live · \(self.shortcutHint) to close the microphone."
             }
         }
     }
@@ -462,6 +548,7 @@ final class GlobalShortcut {
     }
     func recover(_ directory: URL) {
         guard !busy, phase != .recording else { return }
+        captureGeneration &+= 1
         liveInsertion?.cancel(); liveInsertion = nil
         operation = UUID(); let operation = self.operation
         destinationCheck = nil; allowAutomaticInsertion = false
@@ -479,7 +566,7 @@ final class GlobalShortcut {
     }
     func cancel() {
         let liveTextWasSent = liveInsertion?.didSend == true
-        operation = UUID(); task?.cancel(); task = nil; stopWorkers(); timer?.invalidate(); timer = nil
+        operation = UUID(); captureGeneration &+= 1; task?.cancel(); task = nil; stopWorkers(); timer?.invalidate(); timer = nil
         progressTimer?.invalidate(); progressTimer = nil; destinationCheck = nil; allowAutomaticInsertion = false
         if finishingCapture {
             // The capture queue still owns the journal. Settle cancellation only
@@ -577,6 +664,8 @@ final class GlobalShortcut {
             // Delayed words may cross fields; the user controls speech/navigation.
             return AXIsProcessTrusted()
         }, send: LiveInsertion.nativeSend, monitorUserInput: false)
+        insertion.ignoredChordKeyCode = UInt16(shortcutChordKeyCode)
+        insertion.ignoredChordModifiers = Self.nsModifiers(fromCarbon: shortcutChordModifiers)
         insertion.onBlocked = { [weak self] reason in
             guard let self, self.phase == .recording else { return }
             self.message = "Live insertion paused: \(reason) Microphone capture continues."
