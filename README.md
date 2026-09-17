@@ -1,85 +1,108 @@
-<img src="docs/images/icon.png" alt="Vella icon" width="96">
+<p align="center">
+  <img src="docs/images/icon.png" alt="" width="64">
+</p>
 
-# Vella — Minimal offline transcription for macOS
+<h1 align="center">Vella</h1>
 
-Vella is a minimal, native menu-bar app for offline dictation and live speech-to-text on Apple Silicon Macs. It supports selectable local MLX models, a global keyboard shortcut, and saved recordings with transcription recovery.
+<p align="center">Offline dictation and live transcription for Apple Silicon Macs.</p>
 
-## Install or update
+<p align="center">
+  <a href="#install"><img src="docs/images/install.svg" alt="Install Vella" width="152" height="42"></a>
+  &nbsp;
+  <a href="https://github.com/sponsors/TobyNoSkillSon"><img src="docs/images/support.svg" alt="Support Vella on GitHub Sponsors" width="176" height="42"></a>
+</p>
 
-For **Apple Silicon Macs running macOS 14 or newer**.
+<p align="center">
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#benchmarks">Benchmarks</a> ·
+  <a href="#questions">Questions</a> ·
+  <a href="docs/USAGE.md">User guide</a>
+</p>
+
+Vella lives in your menu bar. Insert a finished transcript or let words appear as you speak—with selectable local models and no audio uploads.
+
+<p align="center">
+  <img src="docs/images/recording-current.png" alt="Recording: Vella’s lavender waveform" width="320">
+  <img src="docs/images/transcribing-current.png" alt="Transcribing: Vella’s waveform with progress and estimated time remaining" width="320">
+</p>
+
+*Captured from the current native interface using sample recording and progress states.*
+
+- **Two ways to dictate.** Insert after Finish, or stream text as you speak.
+- **Choose your model.** Keep different local models for Dictation and Streaming.
+- **Recover your work.** Audio and transcripts are saved locally; retry failed transcription from the recording.
+- **No automatic Send.** Vella inserts text, never presses Enter or sends the message.
+
+## Install
+
+**Apple Silicon · macOS 14 or newer · Beta**
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' \
   https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.8/scripts/install.sh | bash
 ```
 
-The installer builds Vella and puts it in `~/Applications`. It needs Apple's free Command Line Tools and Python 3.12–3.14; if either is missing, it'll tell you how to install it. No paid developer membership is needed.
+Builds Vella into `~/Applications` using Apple's free Command Line Tools and Python 3.12–3.14. If a prerequisite is missing, the installer explains what to install. A new installation downloads **Parakeet Q4 (~637 MB)**; existing models and settings are preserved. No paid developer membership is needed.
 
-Checksums detect archive corruption or mismatches; they do not independently authenticate the downloaded bootstrap script.
+Open Vella, approve Microphone and Accessibility access, then press **Control + Command + N** to start. Press again to finish.
 
-It checks the selected Apple tools before building, verifies the source archive, and preserves existing models, recordings and settings during updates. For an update, run the command from the newer release, after finishing any recording or transcription. Running the same pinned command again retries or reinstalls that version; it does not discover newer releases. It does not change your selected toolchain or disable macOS security checks.
+<details>
+<summary>Updating an existing installation</summary>
 
-Vella is a beta. macOS will ask for Microphone and Accessibility access, and you may need to approve permissions again after an update.
+Finish any recording or transcription first, then use the command from the newer release. The command above is pinned to **v0.8.8**: running it again reinstalls that version, not the newest source. Models, recordings and settings are preserved. You may need to approve macOS permissions again after an update.
 
-Press **⌃⌘N** to open or close the microphone. Dictation inserts the transcript when you finish; Streaming inserts text as you speak.
+Vella checks for a newer stable release after use, at most once per calendar day, and links to its release page. It never installs updates automatically.
 
-[**Interactive benchmarks ↗**](https://tobynoskillson.github.io/Vella/) · [Model integration guide](Resources/AGENT_GUIDE.md) · [License](LICENSE)
+[Releases](https://github.com/TobyNoSkillSon/Vella/releases) · [Installer details and verification limits](docs/USAGE.md)
 
-## A look inside
+</details>
 
-The waveform appears while you speak. Longer jobs also show an estimated time remaining.
+## How it works
 
-| Recording | Transcribing |
-|:---:|:---:|
-| <img src="docs/images/recording-0.8.6.png" alt="Vella’s lavender waveform while recording" width="320"> | <img src="docs/images/transcribing-0.8.6.png" alt="Vella’s waveform and time estimate while transcribing" width="320"> |
+| Mode | What happens |
+|---|---|
+| **Dictation** | Speak, click your destination field, then finish. Vella transcribes and pastes there. If focus changes before insertion, the text stays on your clipboard instead. |
+| **Streaming** | Text appears as it is recognized, wherever keyboard focus is. Pending words follow focus when you switch fields. Pause speech or close the microphone while navigating. |
 
-<img src="docs/images/menu-0.8.6.png" alt="Vella’s current native menu with Mode, Microphone, Models, saved files and developer support" width="304">
+Choose **Mode**, then open **Models** to install and select a model for that mode. Streaming needs a supported Streaming model; **Nemotron 8-bit** is the starting choice.
 
-Pick a microphone, start recording, or open your saved transcripts from the menu. Open **Models** to choose what handles the transcription.
+<details>
+<summary>Explore the menu, shortcuts and model picker</summary>
 
-<img src="docs/images/models-0.8.6.png" alt="Vella’s current native Models menu" width="580">
+<p align="center">
+  <img src="docs/images/menu-current.png" alt="Current Vella menu with Shortcuts directly below Microphone" width="304">
+  <img src="docs/images/shortcuts-current.png" alt="Shortcuts menu with Toggle, Hold to Talk, Tap or Hold, key chords, modifier-only and mouse-button options" width="254">
+</p>
 
-*Captured from the native v0.8.6 interface, with example waveform and progress states. The table shows reference benchmarks; results vary by Mac.*
+<img src="docs/images/models-current.png" alt="Current Vella model picker with Parakeet Q4 selected and reference measurements" width="580">
 
-## Get started
+Captured from current source with sample settings. The model table displays reference benchmarks, not measurements of your Mac. Shortcut customization is not included in the pinned v0.8.8 installer yet.
 
-**Update notices:** After a completed transcription, Vella checks GitHub’s latest stable release only if it has not attempted a check that calendar day. The last attempt and a detected update are remembered across restarts; there is no startup request or polling timer. A newer version turns the menu-bar icon yellow and adds a yellow **Update available…** immediately above **Support the developer…**, opening its release page in your browser. Nothing is installed automatically, and this check needs no additional permissions. Offline or failed checks are silent and do not clear a known update. The indicator remains until you install that version or newer. GitHub receives a normal HTTPS request, never audio or transcripts.
+</details>
 
-A new installation automatically downloads and selects **Parakeet Q4** (about 637 MB). Existing installations retain their model choices.
+<details>
+<summary>Custom shortcuts — available in source builds</summary>
 
-1. Open Vella and approve Microphone and Accessibility access when requested.
-2. Press **Control + Command + N** to record. Click your destination text field, then press the shortcut again to finish. This remains the default; **Shortcuts**, directly below **Microphone**, lets you change activation.
-3. For live transcription, choose **Mode → Streaming**, then **Models** to install and select a supported Streaming model. You can also change the Dictation model there.
+The current source adds **Shortcuts** directly below **Microphone**. This is **not yet included in the pinned v0.8.8 installer**.
 
-A small waveform appears while you speak. Vella pastes the finished text but never presses Enter or Send. If you change the selected window or field after Finish but before insertion, it leaves the text on your clipboard instead.
+Choose a key combination, a left/right modifier, or a middle/side mouse button. Keep **Toggle**, use **Hold to Talk**, or combine both with **Tap or Hold** (300 ms). The default remains **⌃⌘N · Toggle**.
 
-### Shortcuts
+Mouse buttons are confirmed with one press and release in the menu; that click never starts recording. If Vella does not detect the requested button within 10 seconds, it keeps your previous shortcut. Fn and mouse-event delivery depend on your hardware and macOS configuration.
 
-These options are in the current source checkout. The pinned v0.8.8 installer does not include them yet.
+<img src="docs/images/mouse-current.png" alt="Mouse-button menu with the red inline prompt to press side button 4 to confirm" width="452">
 
-Choose a key combination, a left/right modifier key, or a middle/side mouse button. The primary and secondary mouse buttons remain ordinary clicks.
+[Shortcut behavior, confirmation and troubleshooting](docs/USAGE.md)
 
-Selecting a mouse button shows a red confirmation prompt in that same menu row. Press and release the requested button once to save it; the confirming click does not start recording. A different button adds feedback such as “Button 5 detected” while Vella keeps waiting for the requested button. If no matching click arrives within 10 seconds, the row reports that the button was not detected and your previous shortcut is unchanged. Closing the menu cancels confirmation. Mouse remapping software may prevent a standard button event from reaching Vella; a timeout alone cannot identify the cause.
+</details>
 
-- **Toggle:** activate once to start and again to finish.
-- **Hold to Talk:** hold to record, release to finish.
-- **Tap or Hold:** a short tap toggles recording; holding for at least 300 ms finishes on release.
+## Benchmarks
 
-Modifier-only triggers are recognized when used alone, with a brief guard before hold activation so normal key combinations do not start recording. Fn availability depends on the keyboard and macOS settings. Permission or registration failures are shown rather than silently replacing a working shortcut. Shortcut changes are disabled during capture and processing; **Reset to Default** restores **⌃⌘N · Toggle**. Model and microphone choices are unchanged.
+**[Explore the interactive model comparison →](https://tobynoskillson.github.io/Vella/)**
 
-### Dictation and Streaming
+Sort by recognition error, speed or memory, and inspect the source measurements. The published runs use 144 English reading clips from 34 speakers on an **Apple M5 Max with 128 GiB RAM**. They are not a comparison against competing apps or a guarantee for noisy rooms and other languages.
 
-Choose **Mode → Dictation / Streaming**. Dictation transcribes and inserts after you finish. **Streaming inserts text continuously wherever keyboard focus is**, using native incremental recognition. Both modes use your configured activation, **⌃⌘N** by default. Finish sends only the remaining suffix, never a duplicate full transcript.
-
-Streaming follows window and field changes without stopping for clicks or manual typing. It deliberately does not bind words to a field or utterance: words still being processed when you switch will go to the new focus. Pause your speech or close the microphone while navigating as needed. Streaming sends native Unicode text without touching the clipboard or pressing Enter. Dictation uses the field focused when you finish, with a final safety check before pasting; terminal and custom-editor acceptance depends on the target application.
-
-Streaming uses bounded audio/text queues and incremental checkpoints rather than rewriting the whole transcript on every update. Saved audio and transcripts still consume disk space; recordings are retained until you delete them, and low disk space stops capture safely.
-
-Each mode remembers its own model. Select the mode, open **Models**, then **Install** and **Use**. Streaming offers **Nemotron 3.5 8-bit, Nemotron 3.5 BF16, and Voxtral Realtime 4-bit**: three precision choices across two 2026 model families. Nemotron 8-bit remains the starting choice. Mode/model changes are blocked while recording or finalizing. Quiet intervals pause recognition, not capture; the gate measures volume, not whether background sound is speech. Saved streaming audio can be replayed for clipboard-only recovery.
-
-Successful model output is accepted, including no text. Empty recognition is not an error; Retry is for actual execution failures, not pauses or suspected missing words. Transcription accuracy depends on the selected model.
-
-## Measured performance
+<details>
+<summary>Full measurements and test conditions</summary>
 
 **[Open the sortable benchmark table ↗](https://tobynoskillson.github.io/Vella/)**
 
@@ -143,14 +166,44 @@ Streaming speed is accelerated compute throughput, excluding loading, IPC and in
 
 The September 2026 VibeVoice streaming release and Moonshine v2 were screened but not benchmarked: Vella's pinned MLX runtime lacks their native input-streaming implementations. Moonshine's current official engine would require a separate runtime integration. No untested scores or placeholder model choices are included.
 
-## Your recordings
+</details>
 
-Transcription works offline once you've downloaded a model. **Vella stores recordings and transcripts locally until you delete them**, even after a successful paste. Vella does not upload them; apps you insert text into may sync or send that text according to their own settings. Choose **Open Saved Recordings** to find them.
+## Questions
 
-There's no recording timer, but you'll need enough disk space. If transcription fails, your saved audio is there to retry. Clipboard managers and Universal Clipboard can still see text you copy or paste.
+<details>
+<summary>Does Vella work without an internet connection?</summary>
 
-To uninstall, quit Vella and move the app to Trash. Your recordings and models remain in `~/Library/Application Support/Vella`; delete that folder separately only if you want to remove them too.
+Yes, after the model and runtime downloads. Vella does not upload audio or transcripts. Model downloads and the release-update check use the network; the latter sends a normal GitHub HTTPS request, never speech data. Apps you dictate into may sync your text under their own settings. Clipboard managers and Universal Clipboard may also see copied or pasted text.
+
+</details>
+
+<details>
+<summary>Where are my recordings? What happens if transcription fails?</summary>
+
+Choose **Open Saved Recordings** in the menu. Vella retains audio and transcripts locally until you delete them, including after successful insertion. Genuine transcription failures can be retried from saved audio; recovery copies text to the clipboard instead of inserting it into an old destination.
+
+There is no recording timer, but available disk space limits recording length. Empty recognition is a normal successful result, not an automatic reason to retry.
+
+</details>
+
+<details>
+<summary>Why does it need Microphone and Accessibility access?</summary>
+
+Microphone access captures your voice. Accessibility lets Vella insert text into other apps and observe supported optional activation inputs. Text insertion depends on the target app; some terminals and custom editors behave differently. Vella never presses Enter or Send.
+
+</details>
+
+<details>
+<summary>How do I uninstall it?</summary>
+
+Quit Vella and move the app to Trash. Models, settings and recordings remain in `~/Library/Application Support/Vella`. Delete that folder separately only if you want to remove those files too.
+
+</details>
 
 ---
 
-[Releases](https://github.com/TobyNoSkillSon/Vella/releases) · [Interactive benchmarks](https://tobynoskillson.github.io/Vella/) · [Raw results](Resources/ReferenceResults/) · [Developer guide](Resources/AGENT_GUIDE.md) · [Apache 2.0 license](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+[Support Vella](https://github.com/sponsors/TobyNoSkillSon) · [User guide](docs/USAGE.md) · [Model integration guide](Resources/AGENT_GUIDE.md) · [Report a bug](https://github.com/TobyNoSkillSon/Vella/issues) · [Releases](https://github.com/TobyNoSkillSon/Vella/releases) · [Apache 2.0 license](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+
+<p align="center">
+  <a href="https://github.com/TobyNoSkillSon/Vella/actions/workflows/source-checks.yml"><img src="https://github.com/TobyNoSkillSon/Vella/actions/workflows/source-checks.yml/badge.svg" alt="Source checks"></a>
+</p>
