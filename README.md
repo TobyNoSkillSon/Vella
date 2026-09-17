@@ -66,19 +66,20 @@ Vella checks for a newer stable release after use, at most once per calendar day
 
 Choose **Mode**, then open **Models** to install and select a model for that mode. Streaming needs a supported Streaming model; **Nemotron 8-bit** is the starting choice.
 
-<details>
-<summary>Explore the menu, shortcuts and model picker</summary>
-
 <p align="center">
   <img src="docs/images/menu-current.png" alt="Current Vella menu with Shortcuts directly below Microphone" width="304">
   <img src="docs/images/shortcuts-current.png" alt="Shortcuts menu with Toggle, Hold to Talk, Tap or Hold, key chords, modifier-only and mouse-button options" width="254">
 </p>
 
-<img src="docs/images/models-current.png" alt="Current Vella model picker with Parakeet Q4 selected and reference measurements" width="580">
+<p align="center">
+  <img src="docs/images/models-current.png" alt="Current Vella model picker with Parakeet Q4 selected and reference measurements" width="580">
+</p>
+
+<p align="center">
+  <img src="docs/images/mouse-current.png" alt="Mouse-button menu with the red inline prompt to press side button 4 to confirm" width="452">
+</p>
 
 Captured from current source with sample settings. The model table displays reference benchmarks, not measurements of your Mac. Shortcut customization is not included in the pinned v0.8.8 installer yet.
-
-</details>
 
 <details>
 <summary>Custom shortcuts — available in source builds</summary>
@@ -88,8 +89,6 @@ The current source adds **Shortcuts** directly below **Microphone**. This is **n
 Choose a key combination, a left/right modifier, or a middle/side mouse button. Keep **Toggle**, use **Hold to Talk**, or combine both with **Tap or Hold** (300 ms). The default remains **⌃⌘N · Toggle**.
 
 Mouse buttons are confirmed with one press and release in the menu; that click never starts recording. If Vella does not detect the requested button within 10 seconds, it keeps your previous shortcut. Fn and mouse-event delivery depend on your hardware and macOS configuration.
-
-<img src="docs/images/mouse-current.png" alt="Mouse-button menu with the red inline prompt to press side button 4 to confirm" width="452">
 
 [Shortcut behavior, confirmation and troubleshooting](docs/USAGE.md)
 
