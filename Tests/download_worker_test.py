@@ -1,5 +1,5 @@
 import hashlib
-import importlib.util,pathlib,unittest,tempfile,json,types,sys,time
+import importlib.util,pathlib,unittest,tempfile,json,types,sys,threading
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('worker',pathlib.Path(__file__).parents[1]/'Resources/benchmark_worker.py')
 worker=importlib.util.module_from_spec(spec);spec.loader.exec_module(worker)
@@ -29,14 +29,20 @@ class ValidationTests(unittest.TestCase):
    def local_paths(folder,name):
     p=pathlib.Path(folder)
     return types.SimpleNamespace(file_path=p/name,metadata_path=p/'.cache'/f'{name}.metadata',incomplete_path=lambda etag:p/'.cache/huggingface/download'/f'{etag}.incomplete')
+   observed_partial=threading.Event()
    def snapshot(repo,revision,local_dir,**kwargs):
     self.assertEqual(revision,'pinned-revision');p=pathlib.Path(local_dir);etag=hashlib.sha1(b'blob 1024\0'+content['model.safetensors']).hexdigest();part=p/'.cache/huggingface/download'/f'{etag}.incomplete';part.parent.mkdir(parents=True)
-    part.write_bytes(b'x'*512);part.with_name('stale-revision.incomplete').write_bytes(b'x'*4096);time.sleep(.35)
+    part.write_bytes(b'x'*512);part.with_name('stale-revision.incomplete').write_bytes(b'x'*4096)
+    # Keep the partial present until the real monitor observes it, even on a busy runner.
+    self.assertTrue(observed_partial.wait(5), 'Progress monitor never reported the pinned partial')
     for k,v in content.items():(p/k).write_bytes(v)
     part.unlink()
    events=[]
+   def record_event(event,**kw):
+    events.append(dict(event=event,**kw))
+    if kw.get('completed')==512:observed_partial.set()
    fake=types.SimpleNamespace(HfApi=API,snapshot_download=snapshot)
-   with patch.dict(sys.modules,{'huggingface_hub':fake,'huggingface_hub._local_folder':types.SimpleNamespace(get_local_download_paths=local_paths)}),patch.object(worker,'emit',side_effect=lambda event,**kw:events.append(dict(event=event,**kw))):
+   with patch.dict(sys.modules,{'huggingface_hub':fake,'huggingface_hub._local_folder':types.SimpleNamespace(get_local_download_paths=local_paths)}),patch.object(worker,'emit',side_effect=record_event):
     worker.download(types.SimpleNamespace(models_dir=tmp),entry)
    self.assertEqual(events[-1]['event'],'installed')
    self.assertTrue(any(e.get('completed')==512 for e in events))
