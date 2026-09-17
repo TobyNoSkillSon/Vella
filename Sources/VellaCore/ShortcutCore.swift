@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - Activation customization core (pure Foundation, no AppKit/Carbon/taps)
-// Public contract for spark implementation + vella-qa-spark adversarial tests.
+// Shared activation configuration, validation and deterministic input state machine.
 
 public enum ShortcutBehavior: String, Codable, CaseIterable, Equatable {
     case toggle
@@ -366,7 +366,7 @@ public final class ShortcutStore {
             lastError = nil
             return true
         } catch {
-            configuration = previous // rollback in-memory; disk keeps previous atomic file
+            configuration = previous // Restore memory; a post-write verification failure may leave the new file.
             lastError = "Could not save shortcut; kept \(ShortcutLabels.display(previous)). \(error.localizedDescription)"
             return false
         }

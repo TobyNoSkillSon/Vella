@@ -36,7 +36,6 @@ final class ModeLibraryTests: XCTestCase {
         XCTAssertEqual(streaming.selectedID, model.id)
         XCTAssertTrue(streaming.references.values.allSatisfy { $0.recognitionMode == .streaming && $0.streamingQualified == true })
         XCTAssertTrue(dictation.references.values.allSatisfy { ($0.recognitionMode ?? .dictation) == .dictation })
-        XCTAssertTrue(streaming.localResults.isEmpty)
         XCTAssertFalse(streaming.supports("qwen3_asr"))
         XCTAssertFalse(dictation.supports("nemotron_asr"))
     }

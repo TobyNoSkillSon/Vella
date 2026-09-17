@@ -12,7 +12,6 @@ import VellaCore
     }
     @Published var models: [ModelRecommendation] = []
     @Published var installed: [String: InstalledModel] = [:]
-    @Published var localResults: [String: BenchmarkResult] = [:]
     @Published var references: [String: BenchmarkResult] = [:]
     @Published var selectedID = "Qwen3-ASR-1.7B-bf16"
     @Published var message = "Choose a model. Compare it on the same audio."
@@ -88,7 +87,6 @@ import VellaCore
         return rows
     }
     var selected: ModelRecommendation? { models.first { $0.id == selectedID } }
-    var result: BenchmarkResult? { references[selectedID] }
     static let processor: String = {
         var size = 0
         guard sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0) == 0, size > 0 else { return "Unknown processor" }
@@ -106,7 +104,6 @@ import VellaCore
         func percent(_ value: Double?) -> String { value.map { String(format: "%.1f%%", $0 * 100) } ?? "Not measured" }
         return "Text = case- and punctuation-sensitive character errors. Punctuation F1: \(percent(f.punctuationF1)); casing agreement: \(percent(f.capitalizationAccuracy)), on correctly aligned words. Coverage: words \(percent(f.matchedWordCoverage)), boundaries \(percent(f.boundaryCoverage)), reference punctuation \(percent(f.punctuationCoverage)). Quote F1: \(percent(f.quotationF1)); only \(f.quotedReferenceClips) quote-bearing clips, exploratory. Clean book reading; editorial choices can differ. \(referenceDescription(result))"
     }
-    var resultOrigin: String { result.map(referenceDescription) ?? "Not measured" }
     func reload() {
         let decoder = JSONDecoder()
         do {
@@ -125,12 +122,11 @@ import VellaCore
                 activeModelPath = mode == .dictation ? config.model : config.streamingModel
             }
             if !models.contains(where: { $0.id == selectedID }) { selectedID = models.first?.id ?? "" }
-            references = [:]; localResults = [:]
+            references = [:]
             let streamHash = (try? Data(contentsOf: resources.appendingPathComponent("streaming_worker.py"))).map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
             let policyData = try Data(contentsOf: resources.appendingPathComponent("benchmark-policy.json"))
             let policy = try JSONDecoder().decode(BenchmarkPolicy.self, from: policyData)
             var candidates: [String: [BenchmarkResult]] = [:]
-            references = [:]; localResults = [:]
             for folder in [resources.appendingPathComponent("ReferenceResults"), Backend.support.appendingPathComponent("ReferenceResults")] {
                 for url in (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? [] where url.pathExtension == "json" {
                     if let data = try? Data(contentsOf: url), let result = try? decoder.decode(BenchmarkResult.self, from: data), result.suiteID == policy.suiteID, result.suiteHash == policy.suiteHash, result.repeats >= policy.minimumRepeats, policy.scorerSHA256 == nil || result.formatting?.scorerSHA256 == policy.scorerSHA256, policy.lexicalNormalizerSHA256 == nil || result.formatting?.lexicalNormalizerSHA256 == policy.lexicalNormalizerSHA256 {
@@ -145,7 +141,6 @@ import VellaCore
                 }
             }
             references = candidates.compactMapValues { preferredBenchmark($0, processor: Self.processor) }
-            if !models.contains(where: { $0.id == selectedID }) { selectedID = models.first?.id ?? "" }
         } catch { message = error.localizedDescription }
     }
     // Merge only explicitly changed IDs into the latest shared registry. The other

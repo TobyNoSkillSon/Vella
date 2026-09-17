@@ -23,6 +23,8 @@ jobs:
         run: python3 scripts/check_toolchain.py
       - name: Python tests
         run: python3 -m unittest discover -s Tests -p '*_test.py'
+      - name: Benchmark website DOM regression
+        run: node Tests/benchmark_site_dom.cjs
       - name: Ad-hoc source build; no credentials or release publication
         env:
           VELLA_SIGN_IDENTITY: '-'

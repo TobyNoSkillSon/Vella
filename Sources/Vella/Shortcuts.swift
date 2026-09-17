@@ -671,8 +671,6 @@ public final class ShortcutManager: ObservableObject {
     /// Concise generic observation failure (tapCreate/source nil with AX true).
     /// Never claims AX denial; no remapping/hardware diagnosis.
     nonisolated public static var mouseConfirmationUnavailableMessage: String { "Could not observe input" }
-    /// Legacy alias (generic, no AX claim). Prefer the two distinct messages above.
-    nonisolated public static var mouseConfirmationMonitorFailureMessage: String { mouseConfirmationUnavailableMessage }
     nonisolated public static func mouseConfirmationPrompt(for button: MouseButton) -> String {
         switch button {
         case .middle: return "Press middle button to confirm…"
@@ -753,9 +751,8 @@ public final class ShortcutManager: ObservableObject {
     }
     public var canEdit: Bool { engine.canChangeSettings && !isCapturingKeys }
 
-    /// Production init wired to a Model. The store is owned as given but NOT loaded
-    /// here, so unit tests never touch the home directory: launch explicitly calls
-    /// reloadFromStore() before registering.
+    /// Load the supplied store; the default is memory-only. Production launch
+    /// supplies its file-backed store and explicitly reloads before registering.
     init(model: Model? = nil, store: ShortcutStore? = nil) {
         let resolved = store ?? ShortcutStore(fileURL: nil)
         resolved.load()
@@ -768,19 +765,18 @@ public final class ShortcutManager: ObservableObject {
         self.modelRef = model
         self.injectedRegistrar = nil
         self.activeRegistrar = nil
-        weak var weakModel = model
         self.engine = ShortcutEngine(configuration: resolved.configuration, sinks: .init(
-            start: { [weak weakModel, weak box] in
+            start: { [weak model, weak box] in
                 box?.handler?("start")
-                guard let m = weakModel else { return }
+                guard let m = model else { return }
                 _ = m.ensureAutomaticInsertion()
                 m.toggle()
             },
-            finish: { [weak weakModel, weak box] in box?.handler?("finish"); weakModel?.finish() },
-            cancel: { [weak weakModel, weak box] in box?.handler?("cancel"); weakModel?.cancel() },
-            isRecording: { [weak weakModel] in weakModel?.phase == .recording },
-            isBusy: { [weak weakModel] in weakModel?.busy == true },
-            currentOperation: { [weak weakModel] in weakModel?.captureGeneration ?? 0 }
+            finish: { [weak model, weak box] in box?.handler?("finish"); model?.finish() },
+            cancel: { [weak model, weak box] in box?.handler?("cancel"); model?.cancel() },
+            isRecording: { [weak model] in model?.phase == .recording },
+            isBusy: { [weak model] in model?.busy == true },
+            currentOperation: { [weak model] in model?.captureGeneration ?? 0 }
         ))
         // Delayed solo confirmation carries the physical down time into the engine.
         eventTap.confirmedPressHandler = { [weak self] down in self?.handlePress(downTime: down) }
@@ -853,7 +849,7 @@ public final class ShortcutManager: ObservableObject {
             // Preserve the stored choice; fall back to a working default chord.
             if config.trigger.requiresEventTap {
                 do {
-                    let fallback: ShortcutConfiguration = .default
+                    let fallback = ShortcutConfiguration(trigger: ShortcutConfiguration.default.trigger, behavior: config.behavior)
                     let fallbackRegistrar = registrarFor(fallback)
                     try fallbackRegistrar.register(fallback, onPress: { [weak self] in self?.handlePress() }, onRelease: { [weak self] in self?.handleRelease() })
                     activeRegistrar = fallbackRegistrar
@@ -911,7 +907,7 @@ public final class ShortcutManager: ObservableObject {
             }
             guard store.save(config) else {
                 // Save failed: restore prior registration before reporting.
-                try? registrar.unregister()
+                registrar.unregister()
                 if let previousRegistrar, let prev = previousActive ?? Optional(previous) {
                     try? previousRegistrar.register(prev, onPress: { [weak self] in self?.handlePress() }, onRelease: { [weak self] in self?.handleRelease() })
                 }
@@ -1309,6 +1305,22 @@ public final class ShortcutManager: ObservableObject {
 
 @MainActor
 enum ShortcutMenuFactory {
+    static let permissionNoteID = NSUserInterfaceItemIdentifier("shortcut.permissionNote")
+    static let settingsID = NSUserInterfaceItemIdentifier("shortcut.settings")
+    static let errorID = NSUserInterfaceItemIdentifier("shortcut.error")
+
+    static func refreshStatus(in menu: NSMenu, manager: ShortcutManager) {
+        for item in menu.items {
+            if item.identifier == permissionNoteID || item.identifier == settingsID {
+                item.isHidden = !manager.requiresEventTap
+            } else if item.identifier == errorID {
+                item.title = String((manager.lastError ?? "").prefix(96))
+                item.toolTip = manager.lastError
+                item.isHidden = manager.lastError == nil
+            }
+        }
+    }
+
     static func shortcutsItem(manager: ShortcutManager, model: Model, target: AnyObject,
                               selectBehavior: Selector, recordKeys: Selector, cancelCapture: Selector,
                               selectModifier: Selector, selectMouse: Selector, resetDefault: Selector,
@@ -1414,21 +1426,21 @@ enum ShortcutMenuFactory {
         reset.target = target as? NSObject
         reset.isEnabled = canEdit
         menu.addItem(reset)
-        if manager.requiresEventTap {
-            let note = NSMenuItem(title: "Needs Accessibility access.", action: nil, keyEquivalent: "")
-            note.isEnabled = false
-            menu.addItem(note)
-            let open = NSMenuItem(title: "Open System Settings…", action: openSettings, keyEquivalent: "")
-            open.target = target as? NSObject
-            open.isEnabled = true
-            menu.addItem(open)
-        }
-        if let err = manager.lastError {
-            let item = NSMenuItem(title: String(err.prefix(96)), action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            item.toolTip = err
-            menu.addItem(item)
-        }
+        // Keep bounded status slots alive while native menu tracking updates them.
+        let note = NSMenuItem(title: "Needs Accessibility access.", action: nil, keyEquivalent: "")
+        note.identifier = permissionNoteID
+        note.isEnabled = false
+        menu.addItem(note)
+        let open = NSMenuItem(title: "Open System Settings…", action: openSettings, keyEquivalent: "")
+        open.identifier = settingsID
+        open.target = target as? NSObject
+        open.isEnabled = true
+        menu.addItem(open)
+        let error = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        error.identifier = errorID
+        error.isEnabled = false
+        menu.addItem(error)
+        refreshStatus(in: menu, manager: manager)
         root.submenu = menu
         return root
     }

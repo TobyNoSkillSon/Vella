@@ -6,7 +6,6 @@ import pathlib
 import tempfile
 import unittest
 import sys
-from unittest.mock import patch
 
 RESOURCES = pathlib.Path(__file__).resolve().parents[1] / 'Resources'
 sys.path.insert(0, str(RESOURCES))
@@ -51,9 +50,13 @@ class CalibrationTests(unittest.TestCase):
 
     def test_invalid_timing_rejected(self):
         class Model:
-            def generate(self, path): return object()
-        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(ValueError):
-            worker.measure(Model(), 'sample', 8, lambda: None, lambda: 1)
+            def generate(self, path): return {'text': 'Synthetic calibration speech.'}
+        for elapsed in (0, -1, float('nan'), float('inf')):
+            with self.subTest(elapsed=elapsed):
+                times = iter([0, elapsed])
+                with contextlib.redirect_stdout(io.StringIO()), self.assertRaisesRegex(
+                        ValueError, '^Invalid inference timing$'):
+                    worker.measure(Model(), 'sample', 8, lambda: None, lambda: next(times))
 
     def test_empty_inference_is_not_a_fast_calibration(self):
         class Model:
