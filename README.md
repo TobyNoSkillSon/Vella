@@ -38,8 +38,7 @@ Vella lives in your menu bar. Insert a finished transcript or let words appear a
 **Apple Silicon · macOS 14 or newer · Beta**
 
 ```sh
-curl --fail --location --proto '=https' --proto-redir '=https' \
-  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.8/scripts/install.sh | bash
+curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
 ```
 
 Builds Vella into `~/Applications` using Apple's free Command Line Tools and Python 3.12–3.14. If a prerequisite is missing, the installer explains what to install. A new installation downloads **Parakeet Q4 (~637 MB)**; existing models and settings are preserved. No paid developer membership is needed.
@@ -49,7 +48,7 @@ Open Vella, approve Microphone and Accessibility access, then press **Control + 
 <details>
 <summary>Updating an existing installation</summary>
 
-Finish any recording or transcription first, then use the command from the newer release. The command above is pinned to **v0.8.8**: running it again reinstalls that version, not the newest source. Models, recordings and settings are preserved. You may need to approve macOS permissions again after an update.
+Finish any recording or transcription first, then rerun the command above. The stable URL currently serves **v0.8.8** and may advance after a future verified release. Models, recordings and settings are preserved. You may need to approve macOS permissions again after an update.
 
 Vella checks for a newer stable release after use, at most once per calendar day, and links to its release page. It never installs updates automatically.
 
