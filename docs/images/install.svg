@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="152" height="42" viewBox="0 0 152 42" role="img" aria-labelledby="title">
+  <title id="title">Install Vella</title>
+  <rect x="0.5" y="0.5" width="151" height="41" rx="10" fill="#c4b5fd" stroke="#d8ccff"/>
+  <g fill="none" stroke="#201b30" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M24 12v13m-5-5 5 5 5-5M16 27v3h16v-3"/>
+  </g>
+  <text x="91" y="26" text-anchor="middle" fill="#201b30" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="14" font-weight="600">Install Vella</text>
+</svg>
