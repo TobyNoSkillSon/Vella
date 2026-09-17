@@ -1221,7 +1221,7 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     // MARK: Recorder panel QA (actual production NSPanel, offscreen, synthetic events only)
 
-    @MainActor func testL1RecorderErrorTextMustBeReadable() {
+    @MainActor func testL1RecorderErrorTextMustBeReadable() throws {
         // Actual invalid/conflict error state on real production contentView.
         // Fixed: multiline wrapping (3 lines, 260x56) keeps full text visible.
         let panel = ShortcutKeyRecorderPanel()
@@ -1236,8 +1236,10 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(error.maximumNumberOfLines, 3)
         XCTAssertGreaterThanOrEqual(error.frame.height, 50, "Error field tall enough for 3 lines")
         XCTAssertEqual(error.stringValue, longError, "Full text retained")
-        Self.writeQAViewImage(view: content, filename: "qa-recorder-error.png")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: ".build/qa/shortcuts-20260916/spark/qa-recorder-error.png"))
+        let image = try tempRoot().appendingPathComponent("recorder-error.png")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: image.path))
+        try Self.writeQAViewImage(view: content, to: image)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: image.path))
     }
 
     @MainActor func testL2RecorderPanelKeyDownAndCancelSynthetic() {
@@ -1334,16 +1336,21 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertNotNil(menu.items.first(where: { $0.title == "Mouse Button" })?.submenu, "Nested Mouse Button picker")
         XCTAssertEqual(menu.items.first(where: { $0.title == "Modifier-Only" })?.submenu?.items.count, 9)
         XCTAssertEqual(menu.items.first(where: { $0.title == "Mouse Button" })?.submenu?.items.count, 3)
-        Self.writeQAComponentImage(views: settingsViews, filename: "qa-menu.png", header: "Shortcuts controls (component capture, not full menu)")
+        let images = try tempRoot()
+        let menuImage = images.appendingPathComponent("menu.png")
+        let recorderImage = images.appendingPathComponent("recorder.png")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: menuImage.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: recorderImage.path))
+        try Self.writeQAComponentImage(views: settingsViews, to: menuImage, header: "Shortcuts controls (component capture, not full menu)")
         // Actual production recorder contentView, offscreen.
         let panel = ShortcutKeyRecorderPanel()
         XCTAssertEqual(panel.title, "Record Shortcut")
-        Self.writeQAViewImage(view: panel.contentView!, filename: "qa-recorder.png")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: ".build/qa/shortcuts-20260916/spark/qa-menu.png"))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: ".build/qa/shortcuts-20260916/spark/qa-recorder.png"))
+        try Self.writeQAViewImage(view: XCTUnwrap(panel.contentView), to: recorderImage)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: menuImage.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: recorderImage.path))
     }
 
-    @MainActor private static func writeQAComponentImage(views: [NSView], filename: String, header: String) {
+    @MainActor private static func writeQAComponentImage(views: [NSView], to url: URL, header: String) throws {
         // Composite bitmaps of the REAL production views (each via caching display).
         var reps: [NSBitmapImageRep] = []
         var headerRep: NSBitmapImageRep? = nil
@@ -1370,6 +1377,7 @@ final class ShortcutAdversarialTests: XCTestCase {
             v.cacheDisplay(in: bounds, to: rep)
             reps.append(rep)
         }
+        XCTAssertFalse(reps.isEmpty, "Production controls must produce image representations")
         guard !reps.isEmpty else { return }
         let w = reps.map(\.pixelsWide).max() ?? 400
         let headerH = headerRep?.pixelsHigh ?? 0
@@ -1391,20 +1399,18 @@ final class ShortcutAdversarialTests: XCTestCase {
             }
         }
         NSGraphicsContext.restoreGraphicsState()
-        if let png = out.representation(using: .png, properties: [:]) {
-            try? png.write(to: URL(fileURLWithPath: ".build/qa/shortcuts-20260916/spark/\(filename)"))
-        }
+        let png = try XCTUnwrap(out.representation(using: .png, properties: [:]))
+        try png.write(to: url, options: .atomic)
     }
 
-    @MainActor private static func writeQAViewImage(view: NSView, filename: String) {
+    @MainActor private static func writeQAViewImage(view: NSView, to url: URL) throws {
         view.layoutSubtreeIfNeeded()
         let bounds = view.bounds
         guard bounds.width > 0, bounds.height > 0,
               let rep = view.bitmapImageRepForCachingDisplay(in: bounds) else { return }
         view.cacheDisplay(in: bounds, to: rep)
-        if let png = rep.representation(using: .png, properties: [:]) {
-            try? png.write(to: URL(fileURLWithPath: ".build/qa/shortcuts-20260916/spark/\(filename)"))
-        }
+        let png = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+        try png.write(to: url, options: .atomic)
     }
 
     @MainActor private static func writeQAImage(lines: [String], filename: String, title: String) {
