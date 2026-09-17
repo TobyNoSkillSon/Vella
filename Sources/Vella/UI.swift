@@ -34,7 +34,6 @@ final class HUDPanel: NSPanel {
             DispatchQueue.main.async { self?.refreshTrackedMouseConfirmation() }
         }
     }
-    let shortcut = GlobalShortcut()
     private lazy var dictationMenus = makeModelMenus(.dictation)
     private lazy var streamingMenus = makeModelMenus(.streaming)
     private var modelMenus: ModelsMenu { model.mode == .dictation ? dictationMenus : streamingMenus }
@@ -161,11 +160,10 @@ final class HUDPanel: NSPanel {
         if !shortcutManager.registerStoredOrDefault() {
             // Preserve the legacy conflict message when the default chord cannot register.
             if !shortcutManager.requiresEventTap {
-                model.update(.failed, shortcutManager.lastError ?? "\u{2318}\u{2325}N is already reserved or could not be registered. Free it in the other application, then restart Vella.")
+                model.update(.failed, shortcutManager.lastError ?? "⌃⌘N is already reserved or could not be registered. Free it in the other application, then restart Vella.")
             }
         }
         rebuildMenu()
-        // Legacy GlobalShortcut kept for PasteProbe compatibility; activation uses shortcutManager.
         // Prepare accessibility on activation; Dictation chooses its field at Finish.
         AccessibilityFocus.prepare(NSWorkspace.shared.frontmostApplication)
         applicationFocusObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -174,8 +172,6 @@ final class HUDPanel: NSPanel {
                 Task { @MainActor in AccessibilityFocus.prepare(app) }
             }
         // Activation is owned by shortcutManager (Carbon press/release, no new permissions).
-        // The legacy `shortcut` property is retained for compatibility but not registered here
-        // to avoid double-registering the same chord.
         DispatchQueue.main.async { [weak self] in
             self?.model.ensureAutomaticInsertion()
             self?.beginPermissionPolling()
@@ -382,8 +378,15 @@ final class HUDPanel: NSPanel {
         if let sup = sender.menu?.supermenu, sup.items.first?.title.hasPrefix("Current:") == true { return sup }
         return menu.item(withTitle: "Shortcuts")?.submenu
     }
-    /// Refresh Current label + radio states without rebuilding tracked menus.
+    /// Refresh shortcut labels, equivalents and status without replacing tracked items.
     private func refreshShortcutsMenuInPlace(_ shortcutsMenu: NSMenu) {
+        let working = shortcutManager.isUsingFallback ? (shortcutManager.activeConfiguration ?? .default) : shortcutManager.configuration
+        let equivalent = ShortcutManager.menuKeyEquivalent(for: working)
+        if let start = menu.items.first(where: { $0.action == #selector(toggle) }) {
+            start.keyEquivalent = equivalent.key
+            start.keyEquivalentModifierMask = equivalent.modifiers
+        }
+        ShortcutMenuFactory.refreshStatus(in: shortcutsMenu, manager: shortcutManager)
         if let current = shortcutsMenu.items.first {
             var title = "Current: \(shortcutManager.currentLabel)"
             if shortcutManager.isUsingFallback {
@@ -500,15 +503,6 @@ final class HUDPanel: NSPanel {
         }
     }
     @objc private func quit() { NSApp.terminate(nil) }
-    @objc private func details() {
-        DispatchQueue.main.async {
-            let alert = NSAlert(); alert.messageText = self.model.title
-            alert.informativeText = self.model.message + "\n\n" + self.model.backendStatus
-            alert.addButton(withTitle: "OK")
-            NSApp.activate(ignoringOtherApps: true); alert.runModal()
-        }
-    }
-
     func configureHUDPanel() {
         panel = HUDPanel(contentRect: NSRect(x: 0, y: 0, width: HUDView.panelSize.width, height: HUDView.panelSize.height), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.level = .floating

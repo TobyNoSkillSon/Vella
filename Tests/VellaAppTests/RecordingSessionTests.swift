@@ -99,6 +99,74 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertEqual(recovered.manifest.segments[0].frames, 32_032)
         XCTAssertEqual(try AVAudioFile(forReading: recovered.wav(for: recovered.manifest.segments[0])).length, 32_032)
     }
+    func testUnalignedPartialWritesFailCloseAndRecoveryWithoutChangingAudio() throws {
+        for count in [129, 130, 131] {
+            let record = try RecordingSession(root: root(), config: config)
+            let writer = try SegmentedPCMWriter(session: record)
+            writer.writeBytes = { file, bytes in
+                try file.write(contentsOf: bytes.prefix(count))
+                throw CocoaError(.fileWriteOutOfSpace)
+            }
+            XCTAssertThrowsError(try [Float](repeating: 0.2, count: 320).withUnsafeBufferPointer { try writer.append($0) })
+            let audio = record.directory.appendingPathComponent(record.manifest.segments[0].filename)
+            let original = try Data(contentsOf: audio)
+            let metadata = try Data(contentsOf: record.directory.appendingPathComponent("session.json"))
+            XCTAssertEqual(original.count, count)
+            XCTAssertThrowsError(try writer.finish(userStopped: false)) { error in
+                XCTAssertTrue(error.localizedDescription.contains("incomplete Float32 sample"))
+                XCTAssertTrue(error.localizedDescription.contains("retained"))
+            }
+            XCTAssertFalse(record.manifest.segments[0].finalized)
+            XCTAssertThrowsError(try RecordingSession(directory: record.directory))
+            XCTAssertEqual(try Data(contentsOf: audio), original)
+            XCTAssertEqual(try Data(contentsOf: record.directory.appendingPathComponent("session.json")), metadata)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: record.transcriptURL.path))
+        }
+    }
+    @MainActor func testUnalignedFinalizedAudioRejectsRecoveryAndInferenceWithOrWithoutHash() async throws {
+        for count in [129, 130, 131] {
+            for hashed in [false, true] {
+                let record = try RecordingSession(root: root(), config: config)
+                let raw = Data(repeating: 0, count: count)
+                let segment = RecordingSession.Segment(index: 0, frames: 32, finalized: true,
+                    sha256: hashed ? RecordingSession.digest(raw) : nil)
+                let audio = record.directory.appendingPathComponent(segment.filename)
+                try record.durableWrite(raw, to: audio)
+                record.manifest.segments = [segment]; record.manifest.state = "ready"
+                try record.save()
+                let metadata = try Data(contentsOf: record.directory.appendingPathComponent("session.json"))
+                var requests = 0
+                let runner = SessionTranscriber { _, _ in requests += 1; return "Must not be accepted." }
+                do {
+                    let recovered = try await RecordingSession.recover(record.directory)
+                    _ = try await runner.run(recovered)
+                    XCTFail("Unaligned audio must not recover successfully")
+                } catch {
+                    XCTAssertTrue(error.localizedDescription.contains("incomplete Float32 sample"))
+                }
+                XCTAssertEqual(requests, 0)
+                XCTAssertEqual(try Data(contentsOf: record.directory.appendingPathComponent("session.json")), metadata)
+                // Also exercise export without recovery, as the current session can
+                // still be in memory when capture finalization reports an error.
+                XCTAssertThrowsError(try record.wav(for: segment))
+                do {
+                    _ = try await runner.run(record)
+                    XCTFail("Unaligned audio must not reach inference")
+                } catch {
+                    XCTAssertTrue(error.localizedDescription.contains("incomplete Float32 sample"))
+                }
+                XCTAssertEqual(requests, 0)
+                XCTAssertNil(record.manifest.segments[0].text)
+                let saved = try JSONDecoder().decode(RecordingSession.Manifest.self,
+                    from: Data(contentsOf: record.directory.appendingPathComponent("session.json")))
+                XCTAssertNil(saved.segments[0].text)
+                XCTAssertNotEqual(saved.state, "transcribed")
+                XCTAssertEqual(try Data(contentsOf: audio), raw)
+                XCTAssertFalse(FileManager.default.fileExists(atPath: record.transcriptURL.path))
+                XCTAssertFalse(FileManager.default.fileExists(atPath: record.directory.appendingPathComponent("request.wav").path))
+            }
+        }
+    }
     func testWriteFailureAndTamperNeverDeleteOriginalAudio() throws {
         let record = try session(blocks: [[Float](repeating: 0.1, count: 1000)])
         let segment = record.manifest.segments[0]

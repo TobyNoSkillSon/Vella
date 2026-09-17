@@ -4,6 +4,12 @@ import VellaCore
 @testable import Vella
 
 final class SettingsMenuTests: XCTestCase {
+    @MainActor private func trackingTimer(_ delay: TimeInterval, action: @escaping @MainActor () -> Void) -> Timer {
+        Timer(timeInterval: delay, repeats: false) { _ in
+            MainActor.assumeIsolated { action() }
+        }
+    }
+
     @MainActor func testModeControlUpdatesWithoutReplacingTrackedMenus() throws {
         _ = NSApplication.shared
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-menu-\(UUID())")
@@ -48,20 +54,18 @@ final class SettingsMenuTests: XCTestCase {
         item.synchronize()
         let menu = NSMenu(); menu.autoenablesItems = false; menu.addItem(item)
         var stayedOpen = false, escapeSent = false, timedOut = false
-        let click = Timer(timeInterval: 0.15, repeats: false) { _ in
-            MainActor.assumeIsolated { item.control.performClick(nil) }
+        let click = trackingTimer(0.15) {
+            item.control.performClick(nil)
         }
-        let escape = Timer(timeInterval: 0.5, repeats: false) { _ in
-            MainActor.assumeIsolated {
-                stayedOpen = item.view?.window?.isVisible == true && target.calls == 1
-                if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                    windowNumber: item.view?.window?.windowNumber ?? 0, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53) {
-                    escapeSent = true; NSApplication.shared.postEvent(event, atStart: true)
-                }
+        let escape = trackingTimer(0.5) {
+            stayedOpen = item.view?.window?.isVisible == true && target.calls == 1
+            if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: item.view?.window?.windowNumber ?? 0, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53) {
+                escapeSent = true; NSApplication.shared.postEvent(event, atStart: true)
             }
         }
-        let watchdog = Timer(timeInterval: 2, repeats: false) { _ in
-            MainActor.assumeIsolated { timedOut = true; menu.cancelTracking() }
+        let watchdog = trackingTimer(2) {
+            timedOut = true; menu.cancelTracking()
         }
         for timer in [click, escape, watchdog] { RunLoop.main.add(timer, forMode: .eventTracking) }
         defer { for timer in [click, escape, watchdog] { timer.invalidate() } }

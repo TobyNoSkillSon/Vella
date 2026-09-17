@@ -754,7 +754,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         let store = ShortcutStore(fileURL: url)
         XCTAssertTrue(store.save(.default))
         let mock = MockShortcutRegistrar()
-        let (engine, _, _) = engineFixture(config: .default)
+        _ = engineFixture(config: .default)
         // Rebuild engine with throwaway sinks for manager test init (manager mirrors store config).
         let managerEngine = ShortcutEngine(configuration: .default, sinks: .init(start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false }))
         let manager = ShortcutManager(engine: managerEngine, store: store, registrar: mock)
@@ -829,7 +829,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         let menu = try XCTUnwrap(item.submenu)
         XCTAssertTrue(menu.items.first?.title.hasPrefix("Current:") == true)
         XCTAssertTrue(menu.items.first?.isEnabled == false)
-        let titles = menu.items.map(\.title)
+        let titles = menu.items.filter { !$0.isHidden }.map(\.title)
         XCTAssertTrue(titles.contains("Toggle"))
         XCTAssertTrue(titles.contains("Tap or Hold"), "Compact behavior row (no oversized explanatory suffix)")
         XCTAssertTrue(titles.contains("Record Key Chord…"))
@@ -1025,25 +1025,6 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertNotNil(ShortcutValidation.validateKeyChord(keyCode: 8, modifiers: 0), "Bare C rejected")
         XCTAssertNil(ShortcutValidation.validateKeyChord(keyCode: 8, modifiers: 4352), "Ctrl+Cmd+C allowed")
         XCTAssertNil(MouseButton(rawValue: 2).map { _ in ShortcutValidation.validate(ShortcutConfiguration(trigger: .mouseButton(button: .middle), behavior: .toggle)) } ?? "x")
-    }
-
-    func testJ2RebindGenerationIdentityRequirement() {
-        // Source: GlobalShortcut.registerChord reuses EventHotKeyID(id:1) and handler
-        // ignores EventHotKeyID; async dispatch reads onPress/onRelease at execution time.
-        // Required: unique IDs + generation capture so old queued press never calls new closure.
-        // Coordinator-owned ShortcutNativeDispatchTests foreign-ID test fails for this (not run here).
-        // This spec locks the requirement without real Carbon posting:
-        var calls: [String] = []
-        var generation: UInt64 = 1
-        let pressGen = generation
-        // Simulate old queued press captured at event time (gen 1).
-        generation = 2 // rebind to new closure before async executes
-        let currentGen = generation
-        // Old queued callback must be suppressed when generations differ.
-        XCTAssertNotEqual(pressGen, currentGen)
-        XCTAssertTrue(calls.isEmpty, "Old queued press suppressed after rebind (spec)")
-        // Native ID and generation checks are covered by ShortcutNativeDispatchTests.
-        XCTAssertEqual(EventHotKeyID(signature: 0x56454C41, id: 1).id, 1, "Documents hardcoded ID requiring uniqueness fix")
     }
 
     @MainActor func testJ3KeyCaptureLifecycleSuspendsAndRestores() throws {
@@ -1258,7 +1239,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(chords.first?.0, 8)
         XCTAssertEqual(chords.first?.1, 4352)
         // Repeat ignored.
-        panel.keyDown(with: keyEvent(keyCode: 8, flags: [.control, .command], `repeat`: true))
+        panel.keyDown(with: keyEvent(keyCode: 8, flags: [.control, .command], repeat: true))
         XCTAssertEqual(chords.count, 1, "Repeat must be ignored")
         // Esc cancels (keyCode 53).
         panel.keyDown(with: keyEvent(keyCode: 53, flags: []))

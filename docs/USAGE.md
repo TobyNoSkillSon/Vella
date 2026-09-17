@@ -159,7 +159,7 @@ Each mode remembers its own model. Select the mode first, open **Models**, then 
 
 The Models table shows recommended variants plus installed or imported models so they remain manageable. Unfinished downloads in Vella-owned folders appear as Resume. External, shared, linked, active, or in-use model files are protected; the delete control explains why when deletion is blocked. Deleting an installed model moves its local files to Trash; recordings, transcripts, and reference scores are kept. Empty Trash to reclaim disk space.
 
-For benchmark numbers and scoring definitions, see [README](../README.md), the [interactive benchmarks](https://tobynoskillson.github.io/Vella/), [raw results](../Resources/ReferenceResults/), and [how scores are calculated](../Resources/benchmark-policy.json). This guide does not duplicate those tables.
+For benchmark numbers and scoring definitions, see [README](../README.md), the [interactive benchmarks](https://tobynoskillson.github.io/Vella/), [raw results](../Resources/ReferenceResults/), and [how scores are calculated](../Resources/benchmark-policy.json). This guide does not duplicate those tables. For Streaming, the app hides measurements made with a different worker version; the website retains the dated source records.
 
 ## When little or no text appears
 

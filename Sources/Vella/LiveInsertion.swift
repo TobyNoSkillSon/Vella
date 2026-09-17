@@ -8,7 +8,7 @@ final class LiveInsertion {
     var didSend: Bool { !sentText.isEmpty }
     var onBlocked: ((String) -> Void)?
 
-    static let eventMarker: Int64 = 0x56454C4C414C4956
+    nonisolated static let eventMarker: Int64 = 0x56454C4C414C4956
     private let targetIsCurrent: () -> Bool
     private let send: (String) throws -> Void
     private var latest = ""

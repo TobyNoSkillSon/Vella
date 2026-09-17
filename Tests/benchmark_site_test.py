@@ -1,10 +1,21 @@
 import json
 from pathlib import Path
+import shutil
+import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 
 class BenchmarkSiteTests(unittest.TestCase):
+    def test_rendered_links_sorting_and_filters(self):
+        node = shutil.which('node')
+        if node is None:
+            self.skipTest('Node is unavailable; benchmark DOM regression runs explicitly in CI')
+        result = subprocess.run(
+            [node, str(ROOT / 'Tests/benchmark_site_dom.cjs')],
+            capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_only_full_current_runs_have_matching_interactive_values(self):
         payload = (ROOT / 'docs/data.js').read_text().removeprefix('const VELLA_RESULTS = ').strip().removesuffix(';')
         rows = json.loads(payload)['rows']

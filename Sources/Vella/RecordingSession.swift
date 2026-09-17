@@ -55,6 +55,7 @@ final class RecordingSession {
                   file.lastPathComponent == String(format: "%06d.pcm", index) else { continue }
             var segment = indexed[index] ?? Segment(index: index, peakRMS: 1)
             let bytes = (try file.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
+            try Self.validatePCMByteCount(bytes)
             if segment.finalized, segment.frames != bytes / 4 {
                 throw VellaError.message("A finalized audio segment changed length. Files were preserved for recovery.")
             }
@@ -100,6 +101,11 @@ final class RecordingSession {
         }
     }
     static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
+    fileprivate static func validatePCMByteCount(_ count: Int) throws {
+        guard count % 4 == 0 else {
+            throw VellaError.message("Saved audio contains an incomplete Float32 sample. All original audio bytes are retained; transcription was stopped.")
+        }
+    }
     func save() throws {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         try durableWrite(encoder.encode(manifest), to: directory.appendingPathComponent("session.json"))
@@ -198,8 +204,9 @@ final class RecordingSession {
         let next = trimOverlap(left, right, overlaps: overlaps)
         return left.isEmpty ? next : left + (next.isEmpty ? "" : " " + next)
     }
-    func wav(for segment: Segment, range: Range<Int>? = nil, paddingFrames: Int = 0) throws -> URL {
+    func wav(for segment: Segment) throws -> URL {
         let raw = try Data(contentsOf: directory.appendingPathComponent(segment.filename))
+        try Self.validatePCMByteCount(raw.count)
         guard raw.count / 4 == segment.frames, raw.count < 16_000 * 4 * 31 else {
             throw VellaError.message("Saved audio segment has an unexpected size. Original audio is preserved.")
         }
@@ -207,17 +214,14 @@ final class RecordingSession {
         // Keep lossless Float32 on disk, but send canonical signed PCM16. This
         // matches the calibration/backend input contract and avoids decoder-dependent
         // floating-WAV conversion. Transport quantization never changes saved audio.
-        let range = range ?? 0..<segment.frames
-        guard range.lowerBound >= 0, range.upperBound <= segment.frames, !range.isEmpty else { throw VellaError.message("Invalid audio slice. Original audio is retained.") }
-        guard (0...8000).contains(paddingFrames) else { throw VellaError.message("Invalid request padding") }
-        var pcm = [Int16](repeating: 0, count: paddingFrames); pcm.reserveCapacity(range.count + paddingFrames * 2)
+        guard segment.frames > 0 else { throw VellaError.message("Saved audio segment is empty. Original audio is retained.") }
+        var pcm: [Int16] = []; pcm.reserveCapacity(segment.frames)
         raw.withUnsafeBytes { bytes in
-            for i in range {
+            for i in 0..<segment.frames {
                 let sample = bytes.loadUnaligned(fromByteOffset: i * 4, as: Float.self)
                 pcm.append(Int16(max(-32767, min(32767, (sample.isFinite ? sample : 0) * 32767))))
             }
         }
-        pcm.append(contentsOf: repeatElement(0, count: paddingFrames))
         let bytes = pcm.withUnsafeBytes { Data($0) }
         var data = Data()
         func ascii(_ s: String) { data.append(Data(s.utf8)) }
@@ -321,6 +325,7 @@ final class SegmentedPCMWriter {
         if !session.manifest.segments.isEmpty {
             let i = session.manifest.segments.count - 1
             let raw = try Data(contentsOf: session.directory.appendingPathComponent(session.manifest.segments[i].filename))
+            try RecordingSession.validatePCMByteCount(raw.count)
             // A failed write may still have persisted complete samples. Disk is authoritative.
             session.manifest.segments[i].frames = raw.count / 4
             session.manifest.segments[i].sha256 = RecordingSession.digest(raw)

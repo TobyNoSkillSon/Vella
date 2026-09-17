@@ -65,21 +65,6 @@ public func selectMicrophone(_ devices: [Microphone], preferred: String, fallbac
     devices.first { $0.name == preferred } ?? devices.first { $0.name == fallback }
         ?? devices.first { $0.name.contains("MacBook") && $0.name.contains("Microphone") }
 }
-public func multipart(audio: Data, model: String, boundary: String) -> Data {
-    var result = Data()
-    func append(_ text: String) { result.append(Data(text.utf8)) }
-    append("--\(boundary)\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n\(model)\r\n")
-    append("--\(boundary)\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n")
-    append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"recording.wav\"\r\nContent-Type: audio/wav\r\n\r\n")
-    result.append(audio); append("\r\n--\(boundary)--\r\n")
-    return result
-}
-public func transcript(from data: Data) throws -> String {
-    struct Response: Decodable { let text: String }
-    let text = try JSONDecoder().decode(Response.self, from: data).text.trimmingCharacters(in: .whitespacesAndNewlines)
-    return text
-}
-
 /// Map microphone RMS to a visible, bounded level. Silence stays still.
 public func visualLevel(rms: Double) -> Double {
     guard rms.isFinite, rms > 0 else { return 0 }

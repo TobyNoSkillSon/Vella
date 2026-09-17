@@ -31,8 +31,8 @@ final class GlobalShortcut {
         self.onPress = onPress
         self.onRelease = onRelease
         self.currentID = assigned
-        var pressType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        var releaseType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))
+        let pressType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        let releaseType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))
         let context = Unmanaged.passUnretained(self).toOpaque()
         // Non-capturing Carbon handler: all state arrives via `data`.
         // Foreign hotkey IDs are ignored; closures are captured at event time so a
@@ -113,7 +113,6 @@ final class GlobalShortcut {
     private var destinationCheck: DestinationCheck?
     private var allowAutomaticInsertion = false
     @Published var insertionWasAutomatic = false
-    @Published var backendStatus = "Local MLX Audio"
     let insertionPermission: InsertionPermission
     private let pasteboard: NSPasteboard
     private let stopCapture: (Recorder) async throws -> Void
@@ -150,7 +149,7 @@ final class GlobalShortcut {
         try FileManager.default.createDirectory(at: configurationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder().encode(config).write(to: configurationURL, options: .atomic)
         stopWorkers(); self.mode = mode
-        update(.idle, "\(mode.title) selected. Press \(shortcutHint) to start; press it again to finish.")
+        update(.idle, "\(mode.title) selected.")
     }
     func stopWorkers() {
         liveInsertion?.cancel(); streamingTask?.cancel(); streamingBuffer?.abort(); backend.stop(); streamingBackend.stop()
@@ -163,7 +162,7 @@ final class GlobalShortcut {
     @discardableResult func ensureAutomaticInsertion() -> Bool {
         guard insertionPermission.ensure() else {
             if phase != .recording && !busy {
-                update(.idle, "macOS has not granted this running Vella build Accessibility access. Use Enable Automatic Insertion in the menu. Recording has not started.")
+                update(.idle, "macOS has not granted this running Vella build Accessibility access. Click “Accessibility required” in Vella’s menu. Recording has not started.")
             }
             return false
         }
@@ -179,7 +178,6 @@ final class GlobalShortcut {
     private var task: Task<Void, Never>?
     private var successTask: Task<Void, Never>?
     private(set) var failureStartedAt = Date()
-    private var config: Configuration?
     private var operation = UUID()
     /// Monotonic capture ownership for shortcut release binding. Bumped on every
     /// user-visible capture transition (start/finish/cancel/recover) so a stale
@@ -262,7 +260,7 @@ final class GlobalShortcut {
                 let allowed = await AVCaptureDevice.requestAccess(for: .audio)
                 try Task.checkCancellation()
                 guard allowed else { throw VellaError.message("Allow Vella under System Settings → Privacy & Security → Microphone.") }
-                let config = try backend.configuration().forRecording(); self.config = config; mode = config.mode
+                let config = try backend.configuration().forRecording(); mode = config.mode
                 try await CalibrationStore.shared.cancelAndWait()
                 try await streamingBackend.releaseAndWait()
                 try Task.checkCancellation()
@@ -276,18 +274,18 @@ final class GlobalShortcut {
                 if let pcm, let session = recorder.recordingSession { beginStreaming(session, config: config, pcm: pcm, operation: operation) }
                 elapsed = 0
                 update(.recording, "\(microphone) · \(shortcutHint) to finish")
-                meterTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
-                    Task { @MainActor in
-                        guard let self, self.phase == .recording else { return }
+                meterTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak model = self] _ in
+                    Task { @MainActor [weak model] in
+                        guard let self = model, self.phase == .recording else { return }
                         let level = self.recorder.level()
                         // Fast attack and gentle release, driven by actual microphone RMS.
                         self.audioLevel += (level - self.audioLevel) * (level > self.audioLevel ? 0.55 : 0.18)
                     }
                 }
                 RunLoop.main.add(meterTimer!, forMode: .common)
-                timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-                    Task { @MainActor in
-                        guard let self, self.phase == .recording else { return }
+                timer = Timer(timeInterval: 1, repeats: true) { [weak model = self] _ in
+                    Task { @MainActor [weak model] in
+                        guard let self = model, self.phase == .recording else { return }
                         self.recorder.writeDiagnostics()
                         self.recordingTick(error: self.recorder.captureFailure())
                     }
@@ -439,7 +437,6 @@ final class GlobalShortcut {
                 streamingBackend.onEvent = nil; streamingJournal?.close(); streamingJournal = nil
                 _ = try session.finalizeTranscript(text)
                 lastText = text; lastTranscriptIncomplete = false
-                backendStatus = "Vella streaming worker unloaded"
                 streamingTask = nil; streamingBuffer = nil
                 if live, let insertion = liveInsertion {
                     await insertion.finishStream()
@@ -489,8 +486,8 @@ final class GlobalShortcut {
                     ?? referenceSpeed?(session.manifest.config.model)
                 let pendingAudio = session.manifest.segments.filter { $0.text == nil }.reduce(0.0) { $0 + $1.seconds }
                 let showEstimate = TranscriptionEstimate.shouldDisplay(pendingAudioSeconds: pendingAudio, speed: speed)
-                runner.onChunk = { [weak self] completed, current, index, count in
-                    guard let self, self.operation == operation else { return }
+                runner.onChunk = { [weak model = self] completed, current, index, count in
+                    guard let self = model, self.operation == operation else { return }
                     self.progressTimer?.invalidate(); self.progressTimer = nil
                     guard showEstimate else { self.processingProgress = ""; return }
                     let start = ProcessInfo.processInfo.systemUptime
@@ -522,7 +519,7 @@ final class GlobalShortcut {
                 try Task.checkCancellation()
                 guard self.operation == operation else { return }
                 progressTimer?.invalidate(); progressTimer = nil; processingProgress = showEstimate ? "100%" : ""
-                lastText = text; lastTranscriptIncomplete = false; backendStatus = backend.ownership
+                lastText = text; lastTranscriptIncomplete = false
                 // Audio and transcript are durable BEFORE attempting insertion; retained until explicit deletion.
                 insert(text)
                 onTranscriptionCompleted?()

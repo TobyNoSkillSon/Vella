@@ -274,17 +274,17 @@ final class MouseConfirmationTests: XCTestCase {
         XCTAssertEqual(registrar.registerCalls, 2)
     }
 
-    @MainActor func testConfirmationNeverLeaksIntoActivation() {
+    @MainActor func testConfirmationNeverLeaksIntoActivation() throws {
         let (manager, registrar, monitor, _, state) = makeManager(behavior: .holdToTalk)
         XCTAssertTrue(manager.beginMouseButtonConfirmation(.button3))
         // Drive via stored fake-monitor handler (real manager reducer, no posting).
         guard let handler = monitor.handler else { return XCTFail("no handler") }
-        let down = try! CGEvent(mouseEventSource: nil, mouseType: .otherMouseDown, mouseCursorPosition: .zero, mouseButton: .center)!
+        let down = try XCTUnwrap(CGEvent(mouseEventSource: nil, mouseType: .otherMouseDown, mouseCursorPosition: .zero, mouseButton: .center))
         down.setIntegerValueField(.mouseEventButtonNumber, value: 3)
         XCTAssertTrue(handler(.otherMouseDown, down))
         XCTAssertEqual(state.starts, 0)
         XCTAssertEqual(registrar.pressFires, 0)
-        let up = try! CGEvent(mouseEventSource: nil, mouseType: .otherMouseUp, mouseCursorPosition: .zero, mouseButton: .center)!
+        let up = try XCTUnwrap(CGEvent(mouseEventSource: nil, mouseType: .otherMouseUp, mouseCursorPosition: .zero, mouseButton: .center))
         up.setIntegerValueField(.mouseEventButtonNumber, value: 3)
         XCTAssertTrue(handler(.otherMouseUp, up))
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))

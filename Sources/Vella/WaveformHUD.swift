@@ -143,6 +143,8 @@ struct HUDView: View {
         reduced || !visible || phase == .idle
     }
 
+    var recordingAccessibilityLabel: String { model.phase == .recording ? "Vella is recording." : model.title }
+
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60, paused: Self.animationPaused(phase: model.phase, visible: model.hudVisible, reduced: reduceMotion))) { timeline in
             let time = previewTime ?? timeline.date.timeIntervalSinceReferenceDate
@@ -165,17 +167,17 @@ struct HUDView: View {
                 }
             }.frame(width: Self.panelSize.width, height: Self.panelSize.height)
         }
-        .onChange(of: model.phase) { phase in
+        .onChange(of: model.phase, initial: false) { _, phase in
             if phase == .preparing || (phase == .recording && previousPhase != .preparing) || (phase == .transcribing && previousPhase == .failed) {
                 entered = Date(); lastVoiceLevel = 0.45
             }
             finished = phase == .success ? Date() : nil
             previousPhase = phase
         }
-        .onChange(of: model.audioLevel) { level in
+        .onChange(of: model.audioLevel, initial: false) { _, level in
             if model.phase == .recording && level > 0.02 { lastVoiceLevel = level }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(model.phase == .recording ? "Vella is recording. Control Command N to finish." : model.title)
+        .accessibilityLabel(recordingAccessibilityLabel)
     }
 }

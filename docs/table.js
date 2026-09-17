@@ -47,6 +47,7 @@ function render() {
   for(const [field] of columns){
    const td=document.createElement('td');td.dataset.key=field;
    if(field==='name'){const a=document.createElement('a');a.textContent=row.name;a.href=row.modelURL;a.title='View model on Hugging Face';td.append(a)}
+   else if(field==='date'){const a=document.createElement('a');a.textContent=display(row,field);a.href=row.source;a.title='View source measurement';a.setAttribute('aria-label',`${row.date}: source measurement for ${row.name} ${row.quantization} (${row.mode})`);td.append(a)}
    else td.textContent=display(row,field);
    tr.append(td);
   }
