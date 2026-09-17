@@ -4,7 +4,24 @@
 
 ## Install or update
 
-Use the pinned install command in [README](../README.md). It is pinned to a release; running the same command again retries or reinstalls that version. It does not discover newer releases. For an update, run the command from the newer release.
+Use the install command in [README](../README.md). The stable URL currently serves **v0.8.8** and may advance after a future verified release; rerunning it retries or installs the current stable version.
+
+To inspect before running, or to pin **v0.8.8**:
+
+```sh
+installer="$(mktemp)"
+curl --fail --location --proto '=https' --proto-redir '=https' \
+  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.8/scripts/install.sh -o "$installer"
+```
+
+Inspect the file with `less "$installer"`. To install after reviewing it, run `bash < "$installer"`, then remove the temporary file with `rm -f "$installer"`. Reading it through stdin selects the release-download path rather than treating the file as a source checkout.
+
+Or pipe the pinned script directly:
+
+```sh
+curl --fail --location --proto '=https' --proto-redir '=https' \
+  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.8/scripts/install.sh | bash
+```
 
 Requirements:
 
