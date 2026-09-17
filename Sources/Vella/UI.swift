@@ -12,10 +12,27 @@ final class HUDPanel: NSPanel {
     let model: Model
     var openExternalURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     let releaseUpdates: ReleaseUpdateChecker
-    init(model: Model? = nil, releaseUpdates: ReleaseUpdateChecker? = nil) {
-        self.model = model ?? Model()
+    private(set) var shortcutManager: ShortcutManager
+    init(model: Model? = nil, releaseUpdates: ReleaseUpdateChecker? = nil, shortcutManager: ShortcutManager? = nil, shortcutStoreURL: URL? = nil) {
+        let resolved = model ?? Model()
+        self.model = resolved
         self.releaseUpdates = releaseUpdates ?? ReleaseUpdateChecker()
+        if let shortcutManager {
+            self.shortcutManager = shortcutManager
+        } else if let url = shortcutStoreURL {
+            // Synthetic file-backed store (tests): isolated persistence through the
+            // real factory path without touching the home directory.
+            self.shortcutManager = ShortcutManager(model: resolved, store: ShortcutStore(fileURL: url))
+        } else {
+            // Memory-only until launch swaps in the production file-backed store,
+            // so unit tests never touch ~/Library through this factory.
+            self.shortcutManager = ShortcutManager(model: resolved, store: ShortcutStore(fileURL: nil))
+        }
         super.init()
+        // Inline confirmation updates while tracking (no rebuild, identities kept).
+        self.shortcutManager.onMouseConfirmationChange = { [weak self] in
+            DispatchQueue.main.async { self?.refreshTrackedMouseConfirmation() }
+        }
     }
     let shortcut = GlobalShortcut()
     private lazy var dictationMenus = makeModelMenus(.dictation)
@@ -74,7 +91,7 @@ final class HUDPanel: NSPanel {
             try? data.write(to: Backend.support.appendingPathComponent("permission-status.json"), options: .atomic)
         }
         if granted && previous == false && model.phase == .idle {
-            model.update(.idle, "Automatic insertion is enabled. Press ⌃⌘N in your text field.")
+            model.update(.idle, "Automatic insertion is enabled. Press \(model.shortcutHint) in your text field.")
         }
         return granted
     }
@@ -126,9 +143,29 @@ final class HUDPanel: NSPanel {
                 Task { [weak self] in await self?.releaseUpdates.checkAfterUse() }
             }
         }
-        shortcut.action = { [weak self] in
-            self?.menu.cancelTracking(); self?.checkPermission(); self?.model.toggle()
+        shortcutManager = ShortcutManager(model: model, store: ShortcutStore(fileURL: ShortcutManager.shortcutsFileURL))
+        shortcutManager.menuCancel = { [weak self] in self?.menu.cancelTracking() }
+        shortcutManager.onMouseConfirmationChange = { [weak self] in
+            DispatchQueue.main.async { self?.refreshTrackedMouseConfirmation() }
         }
+        shortcutManager.permissionCheck = { [weak self] in
+            guard let self else { return false }
+            self.menu.cancelTracking()
+            self.checkPermission()
+            return self.model.ensureAutomaticInsertion()
+        }
+        shortcutManager.beginObservingSystemInterruptions()
+        // Production file-backed shortcuts owned by shortcutManager.store.
+        // Never prompts at startup; event-tap failures surface as menu errors only.
+        shortcutManager.reloadFromStore()
+        if !shortcutManager.registerStoredOrDefault() {
+            // Preserve the legacy conflict message when the default chord cannot register.
+            if !shortcutManager.requiresEventTap {
+                model.update(.failed, shortcutManager.lastError ?? "\u{2318}\u{2325}N is already reserved or could not be registered. Free it in the other application, then restart Vella.")
+            }
+        }
+        rebuildMenu()
+        // Legacy GlobalShortcut kept for PasteProbe compatibility; activation uses shortcutManager.
         // Prepare accessibility on activation; Dictation chooses its field at Finish.
         AccessibilityFocus.prepare(NSWorkspace.shared.frontmostApplication)
         applicationFocusObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -136,7 +173,9 @@ final class HUDPanel: NSPanel {
                 let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
                 Task { @MainActor in AccessibilityFocus.prepare(app) }
             }
-        if !shortcut.register() { model.update(.failed, "⌃⌘N is already reserved or could not be registered. Free it in the other application, then restart Vella.") }
+        // Activation is owned by shortcutManager (Carbon press/release, no new permissions).
+        // The legacy `shortcut` property is retained for compatibility but not registered here
+        // to avoid double-registering the same chord.
         DispatchQueue.main.async { [weak self] in
             self?.model.ensureAutomaticInsertion()
             self?.beginPermissionPolling()
@@ -179,7 +218,11 @@ final class HUDPanel: NSPanel {
         if menu === self.menu { settingsMenuIsTracking = true }
     }
     func menuDidClose(_ menu: NSMenu) {
-        if menu === self.menu { settingsMenuIsTracking = false }
+        if menu === self.menu {
+            settingsMenuIsTracking = false
+            // Root close/Escape cancels bounded confirmation; prior binding stays.
+            shortcutManager.cancelMouseButtonConfirmation()
+        }
     }
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard menu === self.menu, !settingsMenuIsTracking else { return }
@@ -204,7 +247,9 @@ final class HUDPanel: NSPanel {
         header.toolTip = model.message
         header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.phase == .failed || needsPermission ? NSColor.systemOrange : NSColor.systemGreen])
         menu.addItem(header); menu.addItem(.separator())
-        item(model.phase == .recording ? "Finish \(model.mode.title)" : "Start \(model.mode.title)", "waveform", #selector(toggle), enabled: !model.busy, key: "n", modifiers: [.control, .command])
+        let workingShortcut = shortcutManager.isUsingFallback ? (shortcutManager.activeConfiguration ?? .default) : shortcutManager.configuration
+        let startKey = ShortcutManager.menuKeyEquivalent(for: workingShortcut)
+        item(model.phase == .recording ? "Finish \(model.mode.title)" : "Start \(model.mode.title)", "waveform", #selector(toggle), enabled: !model.busy, key: startKey.key, modifiers: startKey.modifiers)
         if model.phase == .recording || model.busy { item("Stop and Keep Audio", "pause.circle", #selector(cancel)) }
         if model.phase == .failed, model.savedSession != nil { item("Retry Saved Recording", "arrow.clockwise", #selector(retry)) }
         if model.savedSession != nil, !model.busy, model.phase != .recording {
@@ -235,6 +280,12 @@ final class HUDPanel: NSPanel {
         let fallback = NSMenuItem(title: "Falls back to MacBook microphone", action: nil, keyEquivalent: "")
         fallback.isEnabled = false; devices.addItem(fallback)
         microphones.submenu = devices; menu.addItem(microphones)
+        // Activation customization lives immediately below Microphone (compact native menu preserved).
+        menu.addItem(ShortcutMenuFactory.shortcutsItem(manager: shortcutManager, model: model, target: self,
+            selectBehavior: #selector(selectShortcutBehavior(_:)), recordKeys: #selector(recordShortcutKeys),
+            cancelCapture: #selector(cancelShortcutCapture), selectModifier: #selector(selectShortcutModifier(_:)),
+            selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
+            openSettings: #selector(accessibility)))
         menu.addItem(.separator())
         if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast)) }
         menu.addItem(modelMenus.modelItem())
@@ -258,8 +309,15 @@ final class HUDPanel: NSPanel {
         menu.addItem(entry)
     }
     // Wait until native menu tracking ends before microphone capture or opening panels.
-    @objc private func toggle() { DispatchQueue.main.async { self.checkPermission(); self.model.toggle() } }
-    @objc private func cancel() { model.cancel() }
+    @objc private func toggle() {
+        // Starting capture makes settings busy: cancel bounded confirmation first.
+        shortcutManager.cancelMouseButtonConfirmation()
+        DispatchQueue.main.async { self.checkPermission(); self.model.toggle() }
+    }
+    @objc private func cancel() {
+        shortcutManager.cancelMouseButtonConfirmation()
+        model.cancel()
+    }
     @objc private func retry() { DispatchQueue.main.async { self.model.retry() } }
     @objc private func savedRecordings() {
         DispatchQueue.main.async {
@@ -316,6 +374,108 @@ final class HUDPanel: NSPanel {
             (entry as? SettingsMenuItem)?.synchronize()
         }
     }
+    // MARK: Shortcuts submenu (activation customization; disabled while busy).
+    private var canChangeShortcuts: Bool { shortcutManager.canEdit && !model.busy && model.phase != .recording }
+    /// The Shortcuts submenu owning sender (sender may live in a nested picker).
+    private func shortcutsMenu(containing sender: NSMenuItem) -> NSMenu? {
+        if let m = sender.menu, m.items.first?.title.hasPrefix("Current:") == true { return m }
+        if let sup = sender.menu?.supermenu, sup.items.first?.title.hasPrefix("Current:") == true { return sup }
+        return menu.item(withTitle: "Shortcuts")?.submenu
+    }
+    /// Refresh Current label + radio states without rebuilding tracked menus.
+    private func refreshShortcutsMenuInPlace(_ shortcutsMenu: NSMenu) {
+        if let current = shortcutsMenu.items.first {
+            var title = "Current: \(shortcutManager.currentLabel)"
+            if shortcutManager.isUsingFallback {
+                let working = shortcutManager.activeConfiguration ?? .default
+                title += " (using \(ShortcutLabels.triggerDisplay(working.trigger)))"
+            }
+            current.title = title
+        }
+        for entry in shortcutsMenu.items {
+            if entry.action == #selector(selectShortcutBehavior(_:)) {
+                entry.state = entry.representedObject as? String == shortcutManager.configuration.behavior.rawValue ? .on : .off
+                (entry as? SettingsMenuItem)?.synchronize()
+            }
+            guard let sub = entry.submenu else { continue }
+            if entry.title == "Modifier-Only" {
+                for mod in sub.items {
+                    guard let raw = mod.representedObject as? String else { continue }
+                    let parts = raw.split(separator: ":").map(String.init)
+                    guard parts.count == 2, let k = ModifierKey(rawValue: parts[0]),
+                          let s = ModifierSide(rawValue: parts[1]) else { continue }
+                    if case .modifierOnly(let ck, let cs) = shortcutManager.configuration.trigger, ck == k, (k == .function || cs == s) {
+                        mod.state = .on
+                    } else { mod.state = .off }
+                    (mod as? SettingsMenuItem)?.synchronize()
+                }
+            } else if entry.title == "Mouse Button" {
+                for m in sub.items {
+                    guard let raw = m.representedObject as? String, let v = Int(raw),
+                          let b = MouseButton(rawValue: v) else { continue }
+                    if case .mouseButton(let cb) = shortcutManager.configuration.trigger, cb == b {
+                        m.state = .on
+                    } else { m.state = .off }
+                    (m as? SettingsMenuItem)?.synchronize()
+                    // Bounded confirmation renders inline in the same row (red).
+                    // Same instance helper as factory; updates during tracking.
+                    if let settings = m as? SettingsMenuItem {
+                        if shortcutManager.pendingMouseButton == b {
+                            settings.showConfirmationPrompt(shortcutManager.mouseConfirmationRowText(for: b))
+                        } else if shortcutManager.mouseConfirmationErrorButton == b, let err = shortcutManager.mouseConfirmationError {
+                            settings.showConfirmationError(err, toolTip: shortcutManager.mouseConfirmationRowToolTip(for: b))
+                        } else {
+                            settings.restoreBaseTitle()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    @objc private func selectShortcutBehavior(_ sender: NSMenuItem) {
+        guard canChangeShortcuts, let raw = sender.representedObject as? String,
+              let behavior = ShortcutBehavior(rawValue: raw) else { return }
+        guard shortcutManager.applyBehavior(behavior) else {
+            if let shortcutsMenu = shortcutsMenu(containing: sender) { refreshShortcutsMenuInPlace(shortcutsMenu) }
+            return
+        }
+        // Keep tracked menu/items alive like selectMode: update states in place.
+        if let shortcutsMenu = shortcutsMenu(containing: sender) { refreshShortcutsMenuInPlace(shortcutsMenu) }
+    }
+    @objc private func recordShortcutKeys() {
+        guard canChangeShortcuts else { return }
+        shortcutManager.beginKeyCapture()
+        // The transient panel owns the keyboard now; never rebuild tracked menus here.
+    }
+    @objc private func cancelShortcutCapture() {
+        shortcutManager.cancelKeyCapture()
+    }
+    @objc private func selectShortcutModifier(_ sender: NSMenuItem) {
+        guard canChangeShortcuts, let raw = sender.representedObject as? String else { return }
+        let parts = raw.split(separator: ":").map(String.init)
+        guard parts.count == 2, let key = ModifierKey(rawValue: parts[0]),
+              let side = ModifierSide(rawValue: parts[1]) else { return }
+        _ = shortcutManager.applyModifierOnly(key: key, side: side)
+        if let shortcutsMenu = shortcutsMenu(containing: sender) { refreshShortcutsMenuInPlace(shortcutsMenu) }
+    }
+    @objc private func selectShortcutMouse(_ sender: NSMenuItem) {
+        guard canChangeShortcuts, let raw = sender.representedObject as? String,
+              let int = Int(raw), let button = MouseButton(rawValue: int) else { return }
+        // Bounded confirmation: never applies immediately; same row prompts.
+        _ = shortcutManager.beginMouseButtonConfirmation(button)
+        if let shortcutsMenu = shortcutsMenu(containing: sender) { refreshShortcutsMenuInPlace(shortcutsMenu) }
+    }
+    @objc private func resetShortcutDefault() {
+        guard canChangeShortcuts else { return }
+        shortcutManager.resetToDefault()
+        if let shortcutsMenu = menu.item(withTitle: "Shortcuts")?.submenu { refreshShortcutsMenuInPlace(shortcutsMenu) }
+    }
+    /// Async inline refresh for confirmation monitor/timer callbacks while tracking.
+    /// Preserves tracked identities; never rebuilds menus here.
+    private func refreshTrackedMouseConfirmation() {
+        guard let submenu = menu.item(withTitle: "Shortcuts")?.submenu else { return }
+        refreshShortcutsMenuInPlace(submenu)
+    }
     @objc private func files() { NSWorkspace.shared.open(Backend.support) }
     @objc private func openReleaseUpdate() {
         guard let url = releaseUpdates.available?.url else { return }
@@ -361,7 +521,7 @@ final class HUDPanel: NSPanel {
 
     func activeSpaceChanged() {
         menu.cancelTracking()
-        guard [.preparing, .recording, .transcribing].contains(model.phase) else { return }
+        guard panel != nil, [.preparing, .recording, .transcribing].contains(model.phase) else { return }
         // Restore presentation only. System occlusion is not an opacity command:
         // a transparent window may never receive the "visible again" event.
         refresh()
@@ -379,8 +539,14 @@ final class HUDPanel: NSPanel {
     }
 
     func refresh() {
+        // Bounded mouse confirmation cancels when capture turns busy;
+        // prior binding stays. Before the panel guard so panel-nil tests still cancel.
+        if shortcutManager.isConfirmingMouseButton, model.phase == .recording || model.busy {
+            shortcutManager.cancelMouseButtonConfirmation()
+        }
         status?.button?.toolTip = "Vella · " + model.title
         dismissal?.cancel(); visibilityRevision += 1
+        guard panel != nil else { return }
         if model.phase == .idle { model.hudVisible = false; panel.orderOut(nil); return }
         restoreHUDOpacity()
         if !panel.isVisible {

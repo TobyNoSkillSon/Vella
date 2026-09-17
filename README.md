@@ -48,14 +48,28 @@ Pick a microphone, start recording, or open your saved transcripts from the menu
 A new installation automatically downloads and selects **Parakeet Q4** (about 637 MB). Existing installations retain their model choices.
 
 1. Open Vella and approve Microphone and Accessibility access when requested.
-2. Press **Control + Command + N** to record. Click your destination text field, then press the shortcut again to finish.
+2. Press **Control + Command + N** to record. Click your destination text field, then press the shortcut again to finish. This remains the default; **Shortcuts**, directly below **Microphone**, lets you change activation.
 3. For live transcription, choose **Mode → Streaming**, then **Models** to install and select a supported Streaming model. You can also change the Dictation model there.
 
 A small waveform appears while you speak. Vella pastes the finished text but never presses Enter or Send. If you change the selected window or field after Finish but before insertion, it leaves the text on your clipboard instead.
 
+### Shortcuts
+
+These options are in the current source checkout. The pinned v0.8.8 installer does not include them yet.
+
+Choose a key combination, a left/right modifier key, or a middle/side mouse button. The primary and secondary mouse buttons remain ordinary clicks.
+
+Selecting a mouse button shows a red confirmation prompt in that same menu row. Press and release the requested button once to save it; the confirming click does not start recording. A different button adds feedback such as “Button 5 detected” while Vella keeps waiting for the requested button. If no matching click arrives within 10 seconds, the row reports that the button was not detected and your previous shortcut is unchanged. Closing the menu cancels confirmation. Mouse remapping software may prevent a standard button event from reaching Vella; a timeout alone cannot identify the cause.
+
+- **Toggle:** activate once to start and again to finish.
+- **Hold to Talk:** hold to record, release to finish.
+- **Tap or Hold:** a short tap toggles recording; holding for at least 300 ms finishes on release.
+
+Modifier-only triggers are recognized when used alone, with a brief guard before hold activation so normal key combinations do not start recording. Fn availability depends on the keyboard and macOS settings. Permission or registration failures are shown rather than silently replacing a working shortcut. Shortcut changes are disabled during capture and processing; **Reset to Default** restores **⌃⌘N · Toggle**. Model and microphone choices are unchanged.
+
 ### Dictation and Streaming
 
-Choose **Mode → Dictation / Streaming**. Dictation transcribes and inserts after you finish. **Streaming inserts text continuously wherever keyboard focus is**, using native incremental recognition. The shortcut stays **⌃⌘N**: open or close the microphone. Finish sends only the remaining suffix, never a duplicate full transcript.
+Choose **Mode → Dictation / Streaming**. Dictation transcribes and inserts after you finish. **Streaming inserts text continuously wherever keyboard focus is**, using native incremental recognition. Both modes use your configured activation, **⌃⌘N** by default. Finish sends only the remaining suffix, never a duplicate full transcript.
 
 Streaming follows window and field changes without stopping for clicks or manual typing. It deliberately does not bind words to a field or utterance: words still being processed when you switch will go to the new focus. Pause your speech or close the microphone while navigating as needed. Streaming sends native Unicode text without touching the clipboard or pressing Enter. Dictation uses the field focused when you finish, with a final safety check before pasting; terminal and custom-editor acceptance depends on the target application.
 

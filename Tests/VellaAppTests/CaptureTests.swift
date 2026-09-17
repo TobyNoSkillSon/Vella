@@ -51,9 +51,12 @@ final class CaptureTests: XCTestCase {
         XCTAssertEqual(input.processingFormat.sampleRate, 48000)
         let speech = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: AVAudioFrameCount(input.length)))
         try input.read(into: speech)
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("capture-pipeline-\(UUID()).wav")
-        defer { try? FileManager.default.removeItem(at: url) }
-        var sink: CaptureSink? = try CaptureSink(url: url)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("capture-pipeline-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let backend = Backend()
+        defer { backend.shutdown() }
+        let session = try RecordingSession(root: root, config: backend.configuration())
+        var sink: CaptureSink? = try CaptureSink(session: session)
         var asbd = AudioStreamBasicDescription(mSampleRate: 48000, mFormatID: kAudioFormatLinearPCM,
             mFormatFlags: kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsAlignedHigh,
             mBytesPerPacket: 8, mFramesPerPacket: 1, mBytesPerFrame: 8, mChannelsPerFrame: 2, mBitsPerChannel: 24, mReserved: 0)
@@ -74,15 +77,18 @@ final class CaptureTests: XCTestCase {
         XCTAssertNil(sink?.error)
         XCTAssertGreaterThan(sink?.peakLevel ?? 0, 0.4)
         sink?.finish()
-        sink = nil // Finalize the actual capture-created Float32 WAV, not an external int16 substitute.
+        sink = nil
+        // Use the production journal → bounded PCM16 WAV export, not the old
+        // Float32 direct-file transport that predates the private worker.
+        let url = try session.wav(for: XCTUnwrap(session.manifest.segments.first))
         let recorded = try AVAudioFile(forReading: url)
         XCTAssertEqual(recorded.processingFormat.sampleRate, 16000)
         XCTAssertEqual(recorded.processingFormat.channelCount, 1)
         XCTAssertEqual(Double(recorded.length), Double(speech.frameLength)/3, accuracy: 40)
-        let backend = Backend()
-        let text = try await backend.transcribe(url, config: backend.configuration())
+        let transcriber = SessionTranscriber { file, config in try await backend.transcribe(file, config: config) }
+        let text = try await transcriber.run(session)
         XCTAssertTrue(text.lowercased().contains("dictation"))
-        XCTAssertEqual(backend.ownership, "Using existing local server")
+        XCTAssertEqual(backend.ownership, "Vella private worker")
         backend.stop()
     }
     func testRatesChannelsAndLayouts() throws {
