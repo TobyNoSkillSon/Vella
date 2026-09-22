@@ -76,6 +76,11 @@ import VellaCore
         if let bundled = Bundle.main.resourceURL, FileManager.default.fileExists(atPath: bundled.appendingPathComponent("models.json").path) { return bundled }
         return URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("Resources")
     }
+    /// Menu-header label for the selected model, e.g. "Parakeet v3 4b"; nil when none is selected.
+    var activeModelLabel: String? {
+        guard !activeModelPath.isEmpty, let model = models.first(where: { installed[$0.id]?.path == activeModelPath }) else { return nil }
+        return "\(model.name.replacingOccurrences(of: " ASR \u{B7}", with: "")) \(model.quantization.replacingOccurrences(of: "-bit", with: "b"))"
+    }
     var displayedModels: [ModelRecommendation] {
         var rows = models.filter { $0.recommended == true || modelFilePath($0.id) != nil }
         if rows.isEmpty { return models } // Legacy catalogs without recommendation metadata.
