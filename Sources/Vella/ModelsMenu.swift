@@ -73,7 +73,7 @@ struct ModelTable: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                heading("Model", .name, 122)
+                heading("Model", .name, 122, .leading)
                 heading("Q", .quantization, 32)
                 heading("Words", .errorRate, 54)
                 heading("Text", .formattedError, 54)
@@ -102,13 +102,20 @@ struct ModelTable: View {
                                 .help(result.map { library.referenceDescription($0) } ?? "Not measured")
                             Text(result?.runtimePeakMLXBytes.map { String(format: "%.2f GB", Double($0) / 1_000_000_000) } ?? "—").frame(width: 56, alignment: .trailing)
                                 .help("Peak MLX allocation after warmup, not total app or system RAM. Python, native libraries and other apps need additional memory.")
-                            Button(library.busy && library.downloadingID == model.id ? library.progress.map { "\(Int($0 * 100))%" } ?? "…" : active ? "In use" : installed == nil ? (localPath == nil ? "Install" : "Resume") : "Use") {
+                            // The selected row already shows the accent fill and checkmark; a disabled
+                            // pill there reads as broken, so the action column is plain text instead.
+                            if active {
+                                Text("In use").frame(width: 52).opacity(0.75)
+                                    .help("Selected for \(library.mode.title.lowercased())")
+                            } else {
+                            Button(library.busy && library.downloadingID == model.id ? library.progress.map { "\(Int($0 * 100))%" } ?? "…" : installed == nil ? (localPath == nil ? "Install" : "Resume") : "Use") {
                                 library.selectedID = model.id
                                 if installed == nil { library.download() }
                                 else { _ = library.useSelected() }
                             }.buttonStyle(.bordered).controlSize(.small).frame(width: 52)
-                                .disabled(active || library.busy || !library.mayChangeModel() || (installed == nil && model.repository.isEmpty))
+                                .disabled(library.busy || !library.mayChangeModel() || (installed == nil && model.repository.isEmpty))
                                 .help(installed == nil ? "Download \(ByteCountFormatter.string(fromByteCount: model.downloadBytes, countStyle: .file)) from Hugging Face: \(model.repository). License: \(model.license). Selecting for \(library.mode.title.lowercased()) is separate." : "Use this model for your next \(library.mode.title.lowercased())")
+                            }
                             Button { requestDelete(model.id) } label: {
                                 Image(systemName: "trash").frame(width: 20)
                             }.buttonStyle(.plain)
@@ -185,12 +192,12 @@ struct ModelTable: View {
                 }
             }
     }
-    private func heading(_ text: String, _ column: ModelSortColumn, _ width: CGFloat) -> some View {
+    private func heading(_ text: String, _ column: ModelSortColumn, _ width: CGFloat, _ alignment: Alignment = .center) -> some View {
         Button {
             if sortColumn == column { ascending.toggle() }
             else { sortColumn = column; ascending = column != .speed }
         } label: {
-            Text(text).frame(width: width, alignment: .center)
+            Text(text).frame(width: width, alignment: alignment)
                 .overlay(alignment: .trailing) {
                     Image(systemName: ascending ? "arrow.up" : "arrow.down")
                         .font(.system(size: 8, weight: .semibold)).frame(width: 9)

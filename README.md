@@ -66,7 +66,7 @@ Vella checks for a newer stable release after use, at most once per calendar day
 Choose **Mode**, then open **Models** to install and select a model for that mode. Streaming needs a supported Streaming model; **Nemotron 8-bit** is the starting choice.
 
 <p align="center">
-  <img src="docs/images/menu-current.png" alt="Current Vella menu with Shortcuts directly below Microphone" width="304">
+  <img src="docs/images/menu-current.png" alt="Current Vella menu: status with the selected model, then Mode, Microphone and Shortcuts" width="360">
   <img src="docs/images/shortcuts-current.png" alt="Shortcuts menu with Toggle, Hold to Talk, Tap or Hold, key chords, modifier-only and mouse-button options" width="254">
 </p>
 

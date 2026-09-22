@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import QuartzCore
+import ServiceManagement
 import VellaCore
 
 final class HUDPanel: NSPanel {
@@ -227,7 +228,7 @@ final class HUDPanel: NSPanel {
     }
     func rebuildMenu() {
         menu.removeAllItems()
-        let summary: String
+        var summary: String
         switch model.phase {
         case .idle: summary = model.insertionPermission.granted ? "\(model.mode.title): ready" : "\(model.mode.title): Accessibility required"
         case .preparing: summary = "\(model.mode.title): preparing…"
@@ -236,6 +237,8 @@ final class HUDPanel: NSPanel {
         case .success: summary = model.insertionWasAutomatic ? "\(model.mode.title): paste sent" : "\(model.mode.title): copied—press ⌘V"
         case .failed: summary = "\(model.mode.title): needs attention…"
         }
+        // The loaded model is the fact most worth knowing before opening Models.
+        if let activeModel = modelMenus.library.activeModelLabel { summary += " · \(activeModel)" }
         let needsPermission = !model.insertionPermission.granted
         let header = NSMenuItem(title: summary, action: needsPermission ? #selector(accessibility) : model.phase == .failed ? #selector(showCaptureError) : nil, keyEquivalent: "")
         header.target = self
@@ -252,6 +255,7 @@ final class HUDPanel: NSPanel {
             item("Delete This Saved Recording…", "trash", #selector(deleteSaved))
         }
         let modes = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
+        modes.image = NSImage(systemSymbolName: "switch.2", accessibilityDescription: nil)
         let modeMenu = NSMenu(); modeMenu.autoenablesItems = false
         for mode in RecognitionMode.allCases {
             let entry = SettingsMenuItem(title: mode.title, target: self, action: #selector(selectMode(_:)))
@@ -287,6 +291,10 @@ final class HUDPanel: NSPanel {
         menu.addItem(modelMenus.modelItem())
         item("Open Saved Recordings", "folder", #selector(savedRecordings))
         item("Open Vella Files", "folder", #selector(files))
+        let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
+        login.target = self; login.image = NSImage(systemSymbolName: "power.circle", accessibilityDescription: nil)
+        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        menu.addItem(login)
         menu.addItem(.separator())
         if let update = releaseUpdates.available {
             item("Update available — \(update.tag)…", "arrow.down.circle", #selector(openReleaseUpdate))
@@ -480,6 +488,12 @@ final class HUDPanel: NSPanel {
         refreshShortcutsMenuInPlace(submenu)
     }
     @objc private func files() { NSWorkspace.shared.open(Backend.support) }
+    @objc private func toggleLogin() {
+        do {
+            if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() } else { try SMAppService.mainApp.register() }
+        } catch { NSAlert(error: error).runModal() }
+        rebuildMenu()
+    }
     @objc private func openReleaseUpdate() {
         guard let url = releaseUpdates.available?.url else { return }
         DispatchQueue.main.async {
