@@ -68,6 +68,10 @@ cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" .build/release/V
 rm -f "$APP/Contents/MacOS/mlx.metallib"
 rm -rf "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
 cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$APP/Contents/Resources/"
+# Kernel self-test clips (public, CC BY 4.0); SwiftPM's Bundle.module looks in the app's Resources.
+[[ -s "$WORKER_BIN/VellaWorker_VellaWorker.bundle/clip-a.wav" || -s "$WORKER_BIN/VellaWorker_VellaWorker.bundle/Contents/Resources/clip-a.wav" ]] || { echo 'VellaWorker self-test resources are missing.' >&2; exit 1; }
+rm -rf "$APP/Contents/Resources/VellaWorker_VellaWorker.bundle"
+cp -R "$WORKER_BIN/VellaWorker_VellaWorker.bundle" "$APP/Contents/Resources/"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 if [[ -n "${VELLA_BUILD_VERSION:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VELLA_BUILD_VERSION" "$APP/Contents/Info.plist"
@@ -104,6 +108,7 @@ done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vella.icns"
 codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaStreamingWorker" "$APP/Contents/MacOS/VellaModelTool"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
+codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/VellaWorker_VellaWorker.bundle" 2>/dev/null || true
 codesign --force --sign "$IDENTITY" "$APP"
 codesign --verify --strict "$APP"
 if [[ "${VELLA_REGISTER_APP:-1}" == "1" ]]; then
