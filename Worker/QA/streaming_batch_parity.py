@@ -65,6 +65,7 @@ class Peer:
         if success and self.p.returncode:raise RuntimeError('worker nonzero exit '+str(self.p.returncode))
 def main():
     p=argparse.ArgumentParser();p.add_argument('--model',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--limit',type=int,default=144)
+    p.add_argument('--native',type=Path,default=ROOT/'Worker/.build/release/VellaStreamingProbe')
     p.add_argument('--paced',action='store_true');p.add_argument('--silence-gaps',action='store_true')
     p.add_argument('--resume',action='store_true');p.add_argument('--wait-for-idle',action='store_true')
     a=p.parse_args();a.output.mkdir(parents=True,exist_ok=True)
@@ -79,7 +80,7 @@ def main():
         chunks=[(len(samples[i:i+1600]),dict(id=str(uuid.UUID(int=i//1600+1)),op='audio',pcm=base64.b64encode(samples[i:i+1600].astype('<f4').tobytes()).decode())) for i in range(0,len(samples),1600)]
         packets.append((clip,chunks))
     summary=dict(model=str(a.model),suite=manifest['id'],policy=policy,mode='retained weights / fresh production Sessions',paced=a.paced,silenceGaps=a.silence_gaps,complete=False)
-    seals=dict(modelConfigSHA256=hashlib.sha256((a.model/'config.json').read_bytes()).hexdigest(),probeSHA256=hashlib.sha256((ROOT/'Worker/.build/release/VellaStreamingProbe').read_bytes()).hexdigest(),referenceSHA256=hashlib.sha256((ROOT/'Resources/streaming_worker.py').read_bytes()).hexdigest())
+    seals=dict(modelConfigSHA256=hashlib.sha256((a.model/'config.json').read_bytes()).hexdigest(),probeSHA256=hashlib.sha256(a.native.read_bytes()).hexdigest(),referenceSHA256=hashlib.sha256((ROOT/'Resources/streaming_worker.py').read_bytes()).hexdigest())
     if a.resume and (a.output/'summary.json').exists():
         old=json.loads((a.output/'summary.json').read_text())
         for key in ('model','suite','policy','paced','silenceGaps'):
@@ -90,7 +91,7 @@ def main():
     summary.update(seals)
     (a.output/'summary.json').write_text(json.dumps(summary,indent=2))
     # One loaded model at a time; never hold Python and Swift resident together.
-    for name,command in [('python',[str(RUNTIME),'-B',str(Path(__file__).resolve()),'--reference-probe']),('swift',[str(ROOT/'Worker/.build/release/VellaStreamingProbe')])]:
+    for name,command in [('python',[str(RUNTIME),'-B',str(Path(__file__).resolve()),'--reference-probe']),('swift',[str(a.native)])]:
         remaining=[]
         for clip,chunks in packets:
             record=a.output/(name+'-'+clip['id']+'.json')

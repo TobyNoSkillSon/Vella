@@ -12,5 +12,6 @@ let package = Package(name: "VellaWorker", platforms: [.macOS(.v14)], products: 
     .target(name: "MLXAudioSTT", dependencies: ["MLXAudioCore", .product(name: "MLX", package: "mlx-swift"), .product(name: "MLXNN", package: "mlx-swift"), .product(name: "MLXFast", package: "mlx-swift"), .product(name: "MLXLMCommon", package: "mlx-swift-lm"), .product(name: "Tokenizers", package: "swift-transformers")], exclude: ["Parakeet/README.md", "Qwen3ASR/README.md", "Whisper/README.md", "GraniteSpeech/README.md", "SenseVoice/README.md", "NemotronASR/README.md", "VoxtralRealtime/README.md"]),
     .executableTarget(name: "VellaWorker", dependencies: ["MLXAudioSTT"]),
     .executableTarget(name: "VellaStreamingWorker", dependencies: ["MLXAudioSTT"]),
-    .executableTarget(name: "VellaStreamingProbe", dependencies: ["MLXAudioSTT"], path: "QA/StreamingProbe")
+    .executableTarget(name: "VellaStreamingProbe", dependencies: ["MLXAudioSTT"], path: "QA/StreamingProbe"),
+    .executableTarget(name: "VellaStreamingDiagnostics", dependencies: ["MLXAudioSTT"], path: "QA/StreamingDiagnostics")
 ], swiftLanguageModes: [.v5])
