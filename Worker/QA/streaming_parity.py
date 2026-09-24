@@ -71,6 +71,7 @@ def main():
     p.add_argument('--model', type=Path, required=True); p.add_argument('--output', type=Path, required=True)
     p.add_argument('--native', type=Path, default=ROOT/'Worker/.build/release/VellaStreamingWorker')
     p.add_argument('--limit', type=int, default=144); p.add_argument('--paced', action='store_true')
+    p.add_argument('--clip-id', help='One exact public manifest clip, for isolated repeat diagnostics')
     p.add_argument('--silence-gaps', action='store_true')
     p.add_argument('--gpu-slot-released', action='store_true', required=True)
     a = p.parse_args(); a.output.mkdir(parents=True, exist_ok=True)
@@ -78,7 +79,9 @@ def main():
     manifest, policy = frozen_suite(suite)
     summary = dict(model=str(a.model), modelConfigSHA256=hashlib.sha256((a.model/'config.json').read_bytes()).hexdigest(),
                    suite=manifest['id'], policy=policy, paced=a.paced, silenceGaps=a.silence_gaps, clips=[])
-    for clip in manifest['clips'][:a.limit]:
+    selected = [c for c in manifest['clips'] if c['id'] == a.clip_id] if a.clip_id else manifest['clips'][:a.limit]
+    if not selected: p.error('No matching manifest clip')
+    for clip in selected:
         samples, rate = read_audio(str(suite/clip['file'])); assert rate == 16000 and samples.ndim == 1
         if a.silence_gaps:
             import numpy as np
@@ -95,7 +98,7 @@ def main():
         pair['textEqual'] = not failed and pair['python']['text'] == pair['swift']['text']
         (a.output/(clip['id']+'.json')).write_text(json.dumps(pair,ensure_ascii=False,indent=2))
         summary['clips'].append({k:v for k,v in pair.items() if k not in ('python','swift')})
-        summary['complete'] = len(summary['clips']) == a.limit and not failed
+        summary['complete'] = len(summary['clips']) == len(selected) and not failed
         (a.output/'summary.json').write_text(json.dumps(summary,indent=2))
         print(clip['id'], 'ERROR' if failed else 'exact' if pair['eventsEqual'] else 'events differ; text='+str(pair['textEqual']), flush=True)
         if failed: raise SystemExit(json.dumps(pair.get('swift', pair['python']).get('error')))
