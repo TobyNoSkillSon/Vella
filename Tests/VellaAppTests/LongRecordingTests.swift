@@ -153,7 +153,11 @@ final class LongRecordingTests: XCTestCase {
         for path in [original, replacement, original] {
             try Self.checkUserIdle()
             config.model = path
-            _ = try await backend.transcribe(audio, config: config)
+            let text = try await backend.transcribe(audio, config: config)
+            let reference = path == replacement
+                ? (ProcessInfo.processInfo.environment["VELLA_TEST_SWITCH_EXPECTED_TEXT"] ?? "Saturday, august fifteenth. The sea unbroken all round. No land in sight,")
+                : "Saturday, august fifteenth. The sea unbroken all round. No land in sight,"
+            XCTAssertEqual(text, reference, "Model switch must retain the public clip's reference-path transcript")
             let current = try XCTUnwrap(backend.processID)
             if let previous {
                 XCTAssertNotEqual(current, previous)
@@ -167,16 +171,13 @@ final class LongRecordingTests: XCTestCase {
         try Self.checkUserIdle()
         let backend = Backend(helper: URL(fileURLWithPath: path))
         defer { backend.shutdown() }
-        let config = try backend.configuration()
+        var config = try backend.configuration()
+        if let model = ProcessInfo.processInfo.environment["VELLA_TEST_IDLE_MODEL"] { config.model = model }
         let audio = ModelLibrary.resourceDirectory().appendingPathComponent("Calibration/speech.wav")
-        let started = ProcessInfo.processInfo.systemUptime
         _ = try await backend.transcribe(audio, config: config)
-        let cold = ProcessInfo.processInfo.systemUptime - started
         let pid = try XCTUnwrap(backend.processID)
-        let warmStart = ProcessInfo.processInfo.systemUptime
         try Self.checkUserIdle()
         _ = try await backend.transcribe(audio, config: config)
-        print("Private worker cold/warm wall seconds: \(cold) / \(ProcessInfo.processInfo.systemUptime - warmStart)")
         XCTAssertEqual(backend.processID, pid)
         try await Task.sleep(nanoseconds: 63_000_000_000)
         XCTAssertNil(backend.processID)
