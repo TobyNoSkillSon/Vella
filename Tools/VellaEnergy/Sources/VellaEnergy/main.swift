@@ -221,15 +221,23 @@ case "sample":
     }
     output(report)
 case "measure":
-    var baselineMs = 5000, i = 1, handshake = false
+    var baselineMs = 5000, i = 1, handshake = false, requireIdle = false
     while i < args.count && args[i] != "--" {
         if args[i] == "--baseline-ms" && i+1 < args.count { baselineMs = number(args[i+1], "baseline"); i += 2 }
         else if args[i] == "--handshake" { handshake = true; i += 1 }
+        else if args[i] == "--require-idle" { requireIdle = true; i += 1 }
         else { fail("unexpected option \(args[i])") }
     }
     guard i < args.count, args[i] == "--", i+1 < args.count else { fail("measure [--baseline-ms N] -- command [args...]") }
     let command = Array(args.dropFirst(i+1))
-    let baseline = energy.capture { delay(baselineMs) }
+    if requireIdle { requireVellaIdle() }
+    let baseline = energy.capture {
+        var remaining = baselineMs
+        while remaining > 0 {
+            let n = min(remaining, 1000); delay(n); remaining -= n
+            if requireIdle { requireVellaIdle() }
+        }
+    }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: command[0])
     process.arguments = Array(command.dropFirst())
@@ -248,6 +256,7 @@ case "measure":
         process.standardInput = input
         process.standardOutput = stdout
         let cold = energy.capture {
+            if requireIdle { requireVellaIdle() }
             do { try process.run() } catch { fail("failed to launch child: \(error)") }
             var line = Data()
             while true {
@@ -259,8 +268,15 @@ case "measure":
             }
             guard String(data: line, encoding: .utf8) == "READY" else { fail("child did not signal READY") }
         }
-        let loadedIdle = energy.capture { delay(baselineMs) }
+        let loadedIdle = energy.capture {
+            var remaining = baselineMs
+            while remaining > 0 {
+                let n = min(remaining, 1000); delay(n); remaining -= n
+                if requireIdle { requireVellaIdle() }
+            }
+        }
         let work = energy.capture {
+            if requireIdle { requireVellaIdle() }
             input.fileHandleForWriting.write(Data("GO\n".utf8))
             input.fileHandleForWriting.closeFile()
             process.waitUntilExit()
@@ -272,6 +288,7 @@ case "measure":
         exit(process.terminationStatus == 0 ? 0 : 1)
     }
     let measured = energy.capture {
+        if requireIdle { requireVellaIdle() }
         do { try process.run() } catch { fail("failed to launch child: \(error)") }
         process.waitUntilExit()
     }
