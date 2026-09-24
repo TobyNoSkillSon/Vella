@@ -124,7 +124,7 @@ final class ShortcutAdversarialTests: XCTestCase {
     }
 
     @MainActor func testA5EmptyTriggerAnalogueIsInvalid() throws {
-        // Analogue: empty model + empty executable fails validation, so a future
+        // Analogue: empty model fails validation, so a future
         // "empty trigger (no key/modifiers/mouse)" must likewise be rejected
         // and fall back to ⌃⌘N rather than registering nothing (A5).
         let empty = Configuration(executable: "", model: "")

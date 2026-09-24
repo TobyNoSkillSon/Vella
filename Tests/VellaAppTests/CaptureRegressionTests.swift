@@ -71,7 +71,7 @@ final class CaptureRegressionTests: XCTestCase {
         let record = try RecordingSession(root: root(), config: config)
         let queue = StreamingPCMBuffer()
         let sink = try CaptureSink(session: record, onPCM: { queue.append($0) })
-        let backend = StreamingBackend()
+        let backend = StreamingBackend(helper: ProcessInfo.processInfo.environment["VELLA_TEST_STREAMING_HELPER"].map { URL(fileURLWithPath: $0) })
         defer { backend.shutdown() }
         let audio = try AVAudioFile(forReading: cwd.appendingPathComponent("Resources/Calibration/speech.wav"))
         let pcm = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: audio.processingFormat, frameCapacity: 1600))

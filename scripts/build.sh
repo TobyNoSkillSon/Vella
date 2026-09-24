@@ -27,8 +27,15 @@ if [[ "$IDENTITY" == "-" ]]; then
   echo 'Local ad-hoc build: replacing this build can invalidate macOS privacy permissions.' >&2
 fi
 xcrun swift scripts/prepare-build.swift check
-xcrun swift build -c release
-[[ -x .build/release/VellaWorker ]] || { echo 'Native VellaWorker helper missing; build left installed app unchanged.' >&2; exit 1; }
+# Xcode's Metal compiler produces the pinned MLX shaders. The existing CLT
+# Swift 6.3.3 compiler produces binaries that launch on this macOS release.
+CLT=/Library/Developer/CommandLineTools
+DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build -c release
+Worker/build-split.sh
+WORKER_BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build --package-path Worker -c release --build-system native --show-bin-path)"
+[[ -x "$WORKER_BIN/VellaWorker" && -x "$WORKER_BIN/VellaStreamingWorker" && -s "$WORKER_BIN/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]] || {
+  echo 'Native workers or pinned MLX shaders missing; build left installed app unchanged.' >&2; exit 1;
+}
 # Compile first, then close only this exact installed app before replacing files.
 RELAUNCH="$(VELLA_TARGET_APP="$APP" xcrun swift -e '
 import AppKit
@@ -57,7 +64,10 @@ print(apps.isEmpty ? "0" : "1")
 ')"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Vella "$APP/Contents/MacOS/Vella"
-cp .build/release/VellaWorker .build/release/VellaModelTool "$APP/Contents/MacOS/"
+cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" .build/release/VellaModelTool "$APP/Contents/MacOS/"
+rm -f "$APP/Contents/MacOS/mlx.metallib"
+rm -rf "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
+cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$APP/Contents/Resources/"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 if [[ -n "${VELLA_BUILD_VERSION:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VELLA_BUILD_VERSION" "$APP/Contents/Info.plist"
@@ -70,9 +80,9 @@ if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
 fi
 cp Resources/models.json Resources/benchmark-policy.json Resources/AGENT_GUIDE.md "$APP/Contents/Resources/"
 cp Resources/streaming-models.json "$APP/Contents/Resources/"
-# Existing streaming reference records are hash-sealed to this historical source.
-# Bundled as read-only provenance only; the native app never launches it.
-cp Resources/streaming_worker.py "$APP/Contents/Resources/"
+# Remove stale Python resources from in-place app updates; model weights and
+# legacy user-owned Runtimes outside the app are intentionally untouched.
+find "$APP/Contents/Resources" -type f \( -name '*.py' -o -name '*.pyc' \) -delete
 mkdir -p "$APP/Contents/Resources/Calibration"
 cp Resources/Calibration/manifest.json Resources/Calibration/text.txt Resources/Calibration/speech.wav Resources/Calibration/ATTRIBUTION.md Resources/Calibration/LICENSE-CC-BY-4.0.txt "$APP/Contents/Resources/Calibration/"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
@@ -89,7 +99,8 @@ for size in 16 32 128 256 512; do
   sips -z "$double" "$double" .build/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vella.icns"
-codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaModelTool"
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaStreamingWorker" "$APP/Contents/MacOS/VellaModelTool"
+codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
 codesign --force --sign "$IDENTITY" "$APP"
 codesign --verify --strict "$APP"
 if [[ "${VELLA_REGISTER_APP:-1}" == "1" ]]; then

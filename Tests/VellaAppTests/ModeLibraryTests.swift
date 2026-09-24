@@ -64,7 +64,10 @@ final class ModeLibraryTests: XCTestCase {
             try FileManager.default.copyItem(at: source.appendingPathComponent(file), to: root.appendingPathComponent(file))
         }
         let policy = try JSONSerialization.jsonObject(with: Data(contentsOf: source.appendingPathComponent("benchmark-policy.json"))) as! [String: Any]
-        let workerHash = SHA256.hash(data: try Data(contentsOf: root.appendingPathComponent("streaming_worker.py"))).map { String(format: "%02x", $0) }.joined()
+        let helper = root.appendingPathComponent("VellaStreamingWorker")
+        try Data("native fixture helper".utf8).write(to: helper)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let workerHash = SHA256.hash(data: try Data(contentsOf: helper)).map { String(format: "%02x", $0) }.joined()
         let sourceResults = try FileManager.default.contentsOfDirectory(at: source.appendingPathComponent("ReferenceResults"), includingPropertiesForKeys: nil)
         let candidate = try XCTUnwrap(sourceResults.first { $0.lastPathComponent.hasPrefix("formatted-M5Max-") })
         var record = try JSONSerialization.jsonObject(with: Data(contentsOf: candidate)) as! [String: Any]
@@ -73,7 +76,7 @@ final class ModeLibraryTests: XCTestCase {
         record["repeats"] = 2; record["recognitionMode"] = "streaming"
         record["streamingQualified"] = true; record["streamingWorkerSHA256"] = workerHash
         record["complete"] = true; record["measurementKind"] = "timing"
-        let library = ModelLibrary(mode: .streaming, resources: root, registryURL: root.appendingPathComponent("registry.json"))
+        let library = ModelLibrary(mode: .streaming, resources: root, registryURL: root.appendingPathComponent("registry.json"), streamingHelper: helper)
         let path = references.appendingPathComponent("fixture.json")
         func write(_ data: [String: Any]) throws {
             try JSONSerialization.data(withJSONObject: data).write(to: path)

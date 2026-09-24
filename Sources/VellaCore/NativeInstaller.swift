@@ -81,7 +81,9 @@ public final class NativeInstaller {
               plist["CFBundleIdentifier"] as? String == "dev.vella.dictation",
               FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/Vella").path),
               FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/VellaWorker").path),
-              FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/VellaModelTool").path) else {
+              FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/VellaStreamingWorker").path),
+              FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/VellaModelTool").path),
+              (try preparedApp.appendingPathComponent("Contents/Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib").resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) > 0 else {
             throw NativeInstallError.message("Prepared Vella bundle or native helper is incomplete.")
         }
         return try verify(preparedApp)
@@ -99,7 +101,8 @@ public final class NativeInstaller {
             }
             config = existing
         }
-        config["executable"] = destination.appendingPathComponent("Contents/MacOS/VellaWorker").path
+        // Legacy Python runtime paths are inert. Preserve them in old settings;
+        // never bind a configuration to a particular app bundle or remove Runtimes.
         config.removeValue(forKey: "port")
         if firstInstall, let initialModel {
             config["model"] = initialModel.path

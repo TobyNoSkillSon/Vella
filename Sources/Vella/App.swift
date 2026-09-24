@@ -144,7 +144,7 @@ final class GlobalShortcut {
         guard !busy, phase != .recording else { throw VellaError.message("Finish or stop recording before switching modes.") }
         var config = FileManager.default.fileExists(atPath: configurationURL.path)
             ? try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configurationURL))
-            : Configuration(executable: configurationURL.deletingLastPathComponent().appendingPathComponent("runtime/bin/python").path, model: "")
+            : Configuration(model: "")
         config.mode = mode
         try FileManager.default.createDirectory(at: configurationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder().encode(config).write(to: configurationURL, options: .atomic)

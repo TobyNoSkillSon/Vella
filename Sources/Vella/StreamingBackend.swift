@@ -45,8 +45,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         let error: String?
         let incomplete: Bool?
     }
-    private let python: URL?
-    private let script: URL?
+    private let helperOverride: URL?
     private let timeout: TimeInterval
     private var process: Process?
     private var retired: [Process] = []
@@ -67,8 +66,8 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     var onUpdate: (() throws -> Void)?
     // Fixed-size worker deltas: the live path never rescans all earlier speech.
     var onEvent: ((String, String, Bool) throws -> Void)?
-    init(python: URL? = nil, script: URL? = nil, timeout: TimeInterval = 120) {
-        self.python = python; self.script = script; self.timeout = timeout
+    init(helper: URL? = nil, timeout: TimeInterval = 120) {
+        self.helperOverride = helper; self.timeout = timeout
         let source = DispatchSource.makeMemoryPressureSource(eventMask: .critical, queue: .main)
         pressure = source
         source.setEventHandler { [weak self] in
@@ -83,21 +82,18 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         try Task.checkCancellation()
         guard epoch == generation else { throw CancellationError() }
         guard config.mode == .streaming, !config.model.isEmpty else { throw VellaError.message("Choose a dedicated streaming model first.") }
-        let executable = python ?? URL(fileURLWithPath: config.executable)
-        guard executable.lastPathComponent.hasPrefix("python"), FileManager.default.isExecutableFile(atPath: executable.path) else {
-            throw VellaError.message("Vella's Python runtime is unavailable. Repair the runtime setup.")
-        }
+        let executable = try workerURL()
         let child = Process(), stdout = Pipe(), stdin = Pipe()
         child.executableURL = executable
-        child.arguments = [(script ?? ModelLibrary.resourceDirectory().appendingPathComponent("streaming_worker.py")).path]
         var env = ProcessInfo.processInfo.environment
-        env["PYTHONDONTWRITEBYTECODE"] = "1"
-        env["PYTHONUNBUFFERED"] = "1"; env["HF_HUB_OFFLINE"] = "1"
+        env["HF_HUB_OFFLINE"] = "1"
         env["TRANSFORMERS_OFFLINE"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
         child.environment = env; child.standardInput = stdin; child.standardOutput = stdout
         child.standardError = FileHandle.nullDevice
         frames = 0; committed = ""; partial = ""; buffer.removeAll(); receivedDone = false
-        try child.run(); process = child; input = stdin.fileHandleForWriting
+        do { try child.run() }
+        catch { throw VellaError.message("Vella's native streaming helper could not start. Reinstall the app; saved audio is retained. (\(error.localizedDescription))") }
+        process = child; input = stdin.fileHandleForWriting
         Task.detached { [weak self] in
             while true {
                 let data = stdout.fileHandleForReading.availableData
@@ -109,6 +105,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         }
         _ = try await exchange(["op": "start", "model": config.model])
     }
+    func workerURL() throws -> URL { try NativeHelper.executable("VellaStreamingWorker", override: helperOverride) }
     func feed(_ pcm: Data) async throws {
         guard !pcm.isEmpty, pcm.count <= 6400, pcm.count % 4 == 0 else { throw VellaError.message("Invalid streaming audio packet.") }
         frames += pcm.count / 4

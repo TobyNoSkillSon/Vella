@@ -36,6 +36,7 @@ import VellaCore
     private var calibrationLaunch: Task<Void, Never>?
     let resources: URL
     let registryURL: URL
+    private let streamingHelperHash: String?
     // Injectable filesystem operations keep deletion tests away from real models/Trash.
     var currentModelPath: () throws -> String = { try Backend().configuration(requiresModel: false).model }
     var protectedModelPaths: () throws -> [String] = {
@@ -59,8 +60,15 @@ import VellaCore
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &directory), directory.boolValue else { return nil }
         return folder.path // An unfinished download is manageable, but NOT installed.
     }
-    init(mode: RecognitionMode = .dictation, resources: URL? = nil, registryURL: URL? = nil, calibration: CalibrationStore? = nil) {
+    init(mode: RecognitionMode = .dictation, resources: URL? = nil, registryURL: URL? = nil, calibration: CalibrationStore? = nil, streamingHelper: URL? = nil) {
         self.mode = mode
+        // Signed bundle contents cannot change while this library is live.
+        // Hash the ~36 MB helper once, not on every menu/registry reload.
+        if mode == .streaming,
+           let helper = try? NativeHelper.executable("VellaStreamingWorker", override: streamingHelper),
+           let bytes = try? Data(contentsOf: helper) {
+            self.streamingHelperHash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        } else { self.streamingHelperHash = nil }
         if registryURL != nil { protectedModelPaths = { [] } }
         // Custom registries are an isolation boundary; callers inject their calibration runner.
         automaticallyCalibrates = mode == .dictation && (registryURL == nil || calibration != nil)
@@ -125,7 +133,9 @@ import VellaCore
             }
             if !models.contains(where: { $0.id == selectedID }) { selectedID = models.first?.id ?? "" }
             references = [:]
-            let streamHash = (try? Data(contentsOf: resources.appendingPathComponent("streaming_worker.py"))).map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
+            // Old Python results are historical only: native streaming needs
+            // independent qualification against this exact bundled executable.
+            let streamHash = streamingHelperHash
             let policyData = try Data(contentsOf: resources.appendingPathComponent("benchmark-policy.json"))
             let policy = try JSONDecoder().decode(BenchmarkPolicy.self, from: policyData)
             var candidates: [String: [BenchmarkResult]] = [:]

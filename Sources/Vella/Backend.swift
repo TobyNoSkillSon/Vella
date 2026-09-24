@@ -6,8 +6,7 @@ import VellaCore
 @MainActor final class Backend {
     let requestTimeout: TimeInterval
     let idleTimeout: TimeInterval
-    private let pythonOverride: URL?
-    private let scriptOverride: URL?
+    private let helperOverride: URL?
     private var process: Process?
     private var retired: [Process] = []
     private var input: FileHandle?
@@ -23,8 +22,8 @@ import VellaCore
     private(set) var lastMetrics: [String: Double] = [:]
     private(set) var ownership = "Vella runtime unloaded"
     var processID: Int32? { process?.isRunning == true ? process?.processIdentifier : nil }
-    init(python: URL? = nil, workerScript: URL? = nil, requestTimeout: TimeInterval = 120, idleTimeout: TimeInterval = 60) {
-        self.pythonOverride = python; self.scriptOverride = workerScript
+    init(helper: URL? = nil, requestTimeout: TimeInterval = 120, idleTimeout: TimeInterval = 60) {
+        self.helperOverride = helper
         self.requestTimeout = requestTimeout; self.idleTimeout = idleTimeout
         let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         memoryPressure = pressure
@@ -50,18 +49,12 @@ import VellaCore
         if FileManager.default.fileExists(atPath: Self.configURL.path) {
             config = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: Self.configURL))
         } else {
-            config = Configuration(executable: Self.support.appendingPathComponent("runtime/bin/python").path, model: "")
+            config = Configuration(model: "")
         }
         try config.validate(requiresModel: requiresModel)
         return config
     }
-    private func pythonURL() throws -> URL {
-        let url = try pythonOverride ?? URL(fileURLWithPath: configuration(requiresModel: false).executable)
-        guard url.lastPathComponent.hasPrefix("python"), FileManager.default.isExecutableFile(atPath: url.path) else {
-            throw VellaError.message("Vella's Python runtime is not ready. Run Vella's installer/setup; no external transcription server is used.")
-        }
-        return url
-    }
+    func workerURL() throws -> URL { try NativeHelper.executable("VellaWorker", override: helperOverride) }
     private func ensureWorker(model: String, generation: UUID) async throws {
         try await CalibrationStore.shared.cancelAndWait()
         try checkStartup(generation)
@@ -69,19 +62,17 @@ import VellaCore
         retireWorker()
         try await waitForRetired(generation: generation)
         try checkStartup(generation)
-        let python = try pythonURL()
-        let script = scriptOverride ?? ModelLibrary.resourceDirectory().appendingPathComponent("inference_worker.py")
-        guard FileManager.default.fileExists(atPath: script.path) else { throw VellaError.message("Vella's inference worker is missing. Reinstall the app.") }
+        let helper = try workerURL()
         let child = Process(), stdout = Pipe(), stdin = Pipe()
-        child.executableURL = python; child.arguments = [script.path]
+        child.executableURL = helper
         var env = ProcessInfo.processInfo.environment
-        env["PYTHONDONTWRITEBYTECODE"] = "1" // The signed app bundle is immutable.
-        env["PYTHONUNBUFFERED"] = "1"; env["HF_HUB_OFFLINE"] = "1"; env["TRANSFORMERS_OFFLINE"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
+        env["HF_HUB_OFFLINE"] = "1"; env["TRANSFORMERS_OFFLINE"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
         child.environment = env; child.standardInput = stdin; child.standardOutput = stdout
         // Third-party diagnostics can contain speech; never persist them.
         child.standardError = FileHandle.nullDevice
         let generation = UUID(); epoch = generation; buffer.removeAll(keepingCapacity: false)
-        try child.run()
+        do { try child.run() }
+        catch { throw VellaError.message("Vella's native dictation helper could not start. Reinstall the app; saved audio is retained. (\(error.localizedDescription))") }
         process = child; input = stdin.fileHandleForWriting; loadedModel = model; ownership = "Vella private worker"
         Task.detached { [weak self] in
             while true {

@@ -9,12 +9,15 @@ final class NativeInstallerTests: XCTestCase {
         let app = root.appendingPathComponent("Applications/Vella.app")
         let support = root.appendingPathComponent("Library/Application Support/Vella")
         let catalog = root.appendingPathComponent("models.json")
-        for name in ["Vella", "VellaWorker", "VellaModelTool"] {
+        for name in ["Vella", "VellaWorker", "VellaStreamingWorker", "VellaModelTool"] {
             let path = prepared.appendingPathComponent("Contents/MacOS/\(name)")
             try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
             try "#!/bin/sh\nexit 0\n".write(to: path, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path.path)
         }
+        let metallib = prepared.appendingPathComponent("Contents/Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib")
+        try FileManager.default.createDirectory(at: metallib.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("fixture shader".utf8).write(to: metallib)
         let info = try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": "dev.vella.dictation"], format: .xml, options: 0)
         try info.write(to: prepared.appendingPathComponent("Contents/Info.plist"))
         let model = ModelRecommendation(id: NativeInstaller.defaultModelID, name: "Parakeet v3", quantization: "4-bit",
@@ -41,7 +44,7 @@ final class NativeInstallerTests: XCTestCase {
         try installer.install()
         let config = try JSONSerialization.jsonObject(with: Data(contentsOf: support.appendingPathComponent("config.json"))) as! [String: Any]
         XCTAssertEqual(config["model"] as? String, support.appendingPathComponent("Models/\(model.id)").path)
-        XCTAssertEqual(config["executable"] as? String, app.appendingPathComponent("Contents/MacOS/VellaWorker").path)
+        XCTAssertNil(config["executable"])
         let registry = try JSONSerialization.jsonObject(with: Data(contentsOf: support.appendingPathComponent("models-installed.json"))) as! [String: [String: String]]
         XCTAssertEqual(registry[model.id]?["revision"], model.revision)
         XCTAssertEqual(try String(contentsOf: runtime), "retain")
@@ -102,7 +105,7 @@ final class NativeInstallerTests: XCTestCase {
         try installer.install()
         let config = try JSONSerialization.jsonObject(with: Data(contentsOf: support.appendingPathComponent("config.json"))) as! [String: Any]
         for key in ["model", "streamingModel", "custom", "preferredMicrophone"] { XCTAssertEqual(String(describing: config[key]!), String(describing: saved[key]!)) }
-        XCTAssertEqual(config["executable"] as? String, app.appendingPathComponent("Contents/MacOS/VellaWorker").path)
+        XCTAssertNil(config["executable"])
         XCTAssertFalse(FileManager.default.fileExists(atPath: support.appendingPathComponent("models-installed.json").path))
     }
     func testSigningMismatchAndMalformedConfigArePreserved() throws {

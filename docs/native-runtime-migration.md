@@ -1,6 +1,6 @@
 # Native runtime migration
 
-The native installer replaces the Vella app bundle and updates `config.json`'s `executable` to that bundle's `Contents/MacOS/VellaWorker`. It preserves the selected Dictation and Streaming model paths, microphone settings, model registry, weights and recordings. A fresh installation downloads and selects the pinned Parakeet Q4 only after validation.
+The native installer replaces the Vella app bundle. It ignores any legacy `config.json` `executable` path and preserves existing settings, selected Dictation and Streaming models, model registry, weights, recordings, and the old Runtimes folder. A fresh installation downloads and selects the pinned Parakeet Q4 only after validation.
 
 Existing `~/Library/Application Support/Vella/Runtimes/` folders are **not deleted**. They are legacy Python environments, not the native worker. Leave them in place while qualifying the new app and any rollback; remove them only as a separate, explicitly approved cleanup after confirming no old installation needs them.
 

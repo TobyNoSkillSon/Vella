@@ -55,8 +55,8 @@ final class LongRecordingTests: XCTestCase {
         } else { selectedClips = suite.clips }
         XCTAssertFalse(selectedClips.isEmpty)
         guard !selectedClips.isEmpty else { return }
-        let python = ProcessInfo.processInfo.environment["VELLA_TEST_RUNTIME_PYTHON"].map { URL(fileURLWithPath: $0) }
-        let backend = Backend(python: python), config = try backend.configuration()
+        let helper = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"].map { URL(fileURLWithPath: $0) }
+        let backend = Backend(helper: helper), config = try backend.configuration()
         defer { backend.stop() }
         let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/qa/hour-recording-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
@@ -138,8 +138,8 @@ final class LongRecordingTests: XCTestCase {
         print("Hour replay: \(Int(recovered.seconds)) audio seconds; \(requests) real requests; sample hashes match; \(Int(processing)) seconds transcription.")
     }
     @MainActor func testRealWorkerReplacementExitsPredecessor() async throws {
-        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_RUNTIME_PYTHON"], ProcessInfo.processInfo.environment["VELLA_REAL_SWITCH_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker replacement check; uses two paths to the same weights, not a second model") }
-        let backend = Backend(python: URL(fileURLWithPath: path))
+        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"], ProcessInfo.processInfo.environment["VELLA_REAL_SWITCH_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker replacement check") }
+        let backend = Backend(helper: URL(fileURLWithPath: path))
         defer { backend.shutdown() }
         var config = try backend.configuration()
         let original = config.model
@@ -148,7 +148,8 @@ final class LongRecordingTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: alias) }
         let audio = ModelLibrary.resourceDirectory().appendingPathComponent("Calibration/speech.wav")
         var previous: Int32?
-        for path in [original, alias.path, original] {
+        let replacement = ProcessInfo.processInfo.environment["VELLA_TEST_SWITCH_MODEL"] ?? alias.path
+        for path in [original, replacement, original] {
             config.model = path
             _ = try await backend.transcribe(audio, config: config)
             let current = try XCTUnwrap(backend.processID)
@@ -160,8 +161,8 @@ final class LongRecordingTests: XCTestCase {
         }
     }
     @MainActor func testRealWorkerUnloadsAfterSixtySecondsIdle() async throws {
-        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_RUNTIME_PYTHON"], ProcessInfo.processInfo.environment["VELLA_REAL_IDLE_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker idle-memory check") }
-        let backend = Backend(python: URL(fileURLWithPath: path))
+        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"], ProcessInfo.processInfo.environment["VELLA_REAL_IDLE_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker idle-memory check") }
+        let backend = Backend(helper: URL(fileURLWithPath: path))
         defer { backend.shutdown() }
         let config = try backend.configuration()
         let audio = ModelLibrary.resourceDirectory().appendingPathComponent("Calibration/speech.wav")

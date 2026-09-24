@@ -12,11 +12,14 @@ final class TransportTests: XCTestCase {
         roots.append(root); try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let script = root.appendingPathComponent("worker.py")
         try #"""
+#!/usr/bin/env python3
 import json,sys,time,os,signal
 for line in sys.stdin:
  r=json.loads(line); mode=r['model'].split('/')[-1]
  if mode in ('timeout','stubborn'):
-  if mode=='stubborn': signal.signal(signal.SIGTERM,signal.SIG_IGN)
+  if mode=='stubborn':
+   signal.signal(signal.SIGTERM,signal.SIG_IGN)
+   open(os.path.join(os.path.dirname(__file__),'stubborn-ready'),'w').close()
   time.sleep(10)
  if mode=='exit': sys.exit(2)
  if mode=='malformed': print('{bad',flush=True); continue
@@ -28,6 +31,7 @@ for line in sys.stdin:
  if mode=='wrongid': obj['id']='wrong'
  print(json.dumps(obj),flush=True)
 """#.write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
         let record = try RecordingSession(root: root, config: Configuration(executable: "/unused", model: "/fixture/normal"))
         let writer = try SegmentedPCMWriter(session: record)
         try [Float](repeating: 0.1, count: 1600).withUnsafeBufferPointer { try writer.append($0) }
@@ -42,7 +46,7 @@ for line in sys.stdin:
         for mode in ["timeout", "failure", "malformed", "exit", "oversize", "wrongid"] {
             let (script, record) = try fixture()
             record.manifest.config.model = "/fixture/\(mode)"
-            let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script, requestTimeout: 0.4)
+            let backend = Backend(helper: script, requestTimeout: 0.4)
             defer { backend.stop() }
             do { _ = try await SessionTranscriber { url, config in try await backend.transcribe(url, config: config) }.run(record); XCTFail(mode) }
             catch { if mode == "timeout" { XCTAssertEqual((error as? URLError)?.code, .timedOut) } }
@@ -55,7 +59,7 @@ for line in sys.stdin:
         for mode in ["empty", "legacyempty"] {
             let (script, record) = try fixture()
             record.manifest.config.model = "/fixture/\(mode)"
-            let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script)
+            let backend = Backend(helper: script)
             defer { backend.stop() }
             let text = try await SessionTranscriber { url, config in try await backend.transcribe(url, config: config) }.run(record)
             XCTAssertEqual(text, "")
@@ -65,7 +69,7 @@ for line in sys.stdin:
     }
     @MainActor func testWarmReuseSwitchAndIdleExit() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script, idleTimeout: 0.15)
+        let backend = Backend(helper: script, idleTimeout: 0.15)
         defer { backend.stop() }
         let wav = try record.wav(for: record.manifest.segments[0])
         _ = try await backend.transcribe(wav, config: record.manifest.config)
@@ -84,7 +88,7 @@ for line in sys.stdin:
     }
     @MainActor func testCancellationKillsOnlyItsOwnWorkerAndAllowsRestart() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script)
+        let backend = Backend(helper: script)
         defer { backend.stop() }
         let wav = try record.wav(for: record.manifest.segments[0])
         record.manifest.config.model = "/fixture/stubborn"
@@ -101,7 +105,7 @@ for line in sys.stdin:
     }
     @MainActor func testMemoryPressureReleasesIdleWorkerAndShutdownDoesNotNeedDelayedCallbacks() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script)
+        let backend = Backend(helper: script)
         let wav = try record.wav(for: record.manifest.segments[0])
         _ = try await backend.transcribe(wav, config: record.manifest.config)
         let idlePID = try XCTUnwrap(backend.processID)
@@ -120,7 +124,7 @@ for line in sys.stdin:
     }
     @MainActor func testConcurrentRequestIsRejectedWithoutStoppingOriginal() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script)
+        let backend = Backend(helper: script)
         defer { backend.stop() }
         let wav = try record.wav(for: record.manifest.segments[0])
         record.manifest.config.model = "/fixture/timeout"
@@ -134,14 +138,19 @@ for line in sys.stdin:
 
     @MainActor func testStopDuringStartupCannotLaunchAReplacement() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script)
+        let backend = Backend(helper: script)
         defer { backend.shutdown() }
         let wav = try record.wav(for: record.manifest.segments[0])
         record.manifest.config.model = "/fixture/stubborn"
         let first = Task { try await backend.transcribe(wav, config: record.manifest.config) }
         for _ in 0..<100 { if backend.processID != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         let pid = try XCTUnwrap(backend.processID)
-        try await Task.sleep(nanoseconds: 150_000_000)
+        let ready = script.deletingLastPathComponent().appendingPathComponent("stubborn-ready")
+        for _ in 0..<200 {
+            if FileManager.default.fileExists(atPath: ready.path) { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: ready.path))
         backend.stop(); _ = try? await first.value
         XCTAssertEqual(kill(pid, 0), 0, "Fixture predecessor must still be retiring")
         record.manifest.config.model = "/fixture/normal"
@@ -157,7 +166,7 @@ for line in sys.stdin:
 
     @MainActor func testRepeatedWorkerFailuresRecoverWithoutLosingAudioOrLeakingChildren() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(python: URL(fileURLWithPath: "/usr/bin/python3"), workerScript: script)
+        let backend = Backend(helper: script)
         defer { backend.shutdown() }
         let wav = try record.wav(for: record.manifest.segments[0])
         let archive = record.directory.appendingPathComponent(record.manifest.segments[0].filename)
