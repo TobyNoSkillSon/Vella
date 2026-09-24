@@ -180,10 +180,10 @@ final class LongRecordingTests: XCTestCase {
     @MainActor func testRealCalibrationForActiveModel() async throws {
         guard ProcessInfo.processInfo.environment["VELLA_REAL_CALIBRATION"] == "1" else { throw XCTSkip("Opt-in bounded local calibration") }
         let model = try Backend().configuration().model
-        guard let path = ProcessInfo.processInfo.environment["VELLA_CALIBRATION_TEST_PYTHON"] else { throw XCTSkip("Set the private runtime interpreter") }
+        guard let path = ProcessInfo.processInfo.environment["VELLA_CALIBRATION_TEST_WORKER"] else { throw XCTSkip("Set the native helper executable") }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let store = CalibrationStore(directory: directory, python: { URL(fileURLWithPath: path) })
+        let store = CalibrationStore(directory: directory, worker: { URL(fileURLWithPath: path) })
         if store.speed(modelPath: model) != nil { return }
         let done = expectation(description: "calibration completion")
         XCTAssertTrue(store.calibrate(modelPath: model, status: { _ in }, completion: { error in
