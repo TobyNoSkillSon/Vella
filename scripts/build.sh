@@ -89,6 +89,9 @@ cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 # Only compact table measurements ship. Source benchmark audio/raw transcripts stay in the repo.
 # Remove generated copies left by earlier installers, not any source or user recordings.
 rm -rf "$APP/Contents/Resources/Benchmarks" "$APP/Contents/Resources/ReferenceResults"
+# In-place updates from Python-era builds must not keep their runtime files.
+rm -f "$APP/Contents/Resources/"*.py "$APP/Contents/Resources/setup-backend.sh" "$APP/Contents/Resources/runtime-requirements.txt"
+rm -rf "$APP/Contents/Resources/__pycache__"
 xcrun swift scripts/prepare-build.swift compact "$APP/Contents/Resources/ReferenceResults"
 ICONSET="$PWD/.build/Vella.iconset"
 mkdir -p "$ICONSET"
