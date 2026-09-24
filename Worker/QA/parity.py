@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+"""Developer-only parity qualification; NEVER packaged, installed, or used to build Vella.
+Uses the explicitly selected existing reference interpreter, worker and Vella scorers.
+"""
+import argparse, hashlib, json, os, pathlib, select, subprocess, sys, time, uuid
+
+
+def idle(status):
+    # Missing/unreadable status is not permission to contend with the user's app.
+    if json.loads(status.read_text()).get('phase') != 'idle':
+        raise RuntimeError('Vella is not idle; stop qualification')
+
+
+def request(child, model, audio, status):
+    idle(status)
+    identifier = str(uuid.uuid4())
+    child.stdin.write((json.dumps(dict(id=identifier, model=str(model), audio=str(audio)))+'\n').encode())
+    child.stdin.flush()
+    deadline = time.monotonic()+125
+    data = bytearray()
+    while not data.endswith(b'\n'):
+        idle(status)
+        if time.monotonic() >= deadline: raise TimeoutError('Worker deadline')
+        if select.select([child.stdout], [], [], .25)[0]:
+            block = os.read(child.stdout.fileno(), 65536)
+            if not block: raise RuntimeError(f'Worker EOF, code={child.poll()}')
+            data.extend(block)
+            if len(data) > 2*1024*1024: raise RuntimeError('Unbounded worker output')
+    result = json.loads(data)
+    if result.get('id') != identifier: raise RuntimeError('Response identifier mismatch')
+    return result
+
+
+def run(command, model, clips, args, output):
+    idle(args.status)
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
+    child = subprocess.Popen(['sandbox-exec', '-p', '(version 1)(allow default)(deny network*)', *command], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env)
+    rows = []
+    try:
+        cold = request(child, model, clips[0][1], args.status)
+        if 'error' in cold: return dict(cold=cold, clips=[], qualified=False)
+        for clip, audio in clips:
+            responses = [request(child, model, audio, args.status) for _ in range(args.repeats)]
+            rows.append(dict(id=clip['id'], reference=clip['reference'], responses=responses))
+            output.write_text(json.dumps(dict(cold=cold, clips=rows, complete=False), indent=2)+'\n')
+            if any('error' in r for r in responses): break
+        child.stdin.close()
+        child.wait(timeout=10)
+        if child.returncode: raise RuntimeError(f'Nonzero EOF exit {child.returncode}')
+        return dict(cold=cold, clips=rows, complete=len(rows)==144, exitCode=child.returncode)
+    finally:
+        if child.poll() is None:
+            child.terminate()
+            try: child.wait(timeout=5)
+            except subprocess.TimeoutExpired: child.kill(); child.wait(timeout=5)
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument('--swift-worker', type=pathlib.Path, required=True)
+    p.add_argument('--python', type=pathlib.Path, required=True)
+    p.add_argument('--resources', type=pathlib.Path, required=True)
+    p.add_argument('--manifest', type=pathlib.Path, required=True)
+    p.add_argument('--model', type=pathlib.Path, required=True)
+    p.add_argument('--output', type=pathlib.Path, required=True)
+    p.add_argument('--repeats', type=int, default=2, choices=range(1,21))
+    p.add_argument('--status', type=pathlib.Path, default=pathlib.Path.home()/'Library/Application Support/Vella/dictation-status.json')
+    args = p.parse_args()
+    for name in ('swift_worker', 'python', 'resources', 'manifest', 'model', 'output', 'status'):
+        setattr(args, name, getattr(args,name).absolute() if name == "python" else getattr(args,name).resolve())
+    idle(args.status)
+    args.output.mkdir(parents=True, exist_ok=True)
+    manifest = json.loads(args.manifest.read_text())
+    if manifest['id'] != 'english-formatted-20m-v1' or len(manifest['clips']) != 144: raise ValueError('Wrong corpus')
+    sys.path.insert(0, str(args.resources))
+    from benchmark_worker import errors, fingerprint
+    from formatting_metrics import score, aggregate
+    import soundfile as sf
+    clips=[]
+    for clip in manifest['clips']:
+        source = args.manifest.parent/clip['file']
+        if hashlib.sha256(source.read_bytes()).hexdigest() != clip['sha256']: raise ValueError('Audio hash mismatch')
+        audio, rate = sf.read(source, dtype='int16')
+        if rate != 16000 or audio.ndim != 1: raise ValueError('Unexpected reference format')
+        target=args.output/(clip['id']+'.wav'); sf.write(target, audio, rate, subtype='PCM_16')
+        clips.append((clip,target))
+    commands={'python':[str(args.python), '-B', str(args.resources/'inference_worker.py')], 'swift':[str(args.swift_worker)]}
+    runs={}
+    for name, command in commands.items():
+        runs[name] = run(command, args.model, clips, args, args.output/(name+'.json'))
+        (args.output/(name+'.json')).write_text(json.dumps(runs[name],indent=2)+'\n')
+    summary=dict(model=str(args.model), modelFingerprint=fingerprint(args.model), manifestSHA256=hashlib.sha256(args.manifest.read_bytes()).hexdigest(), repeats=args.repeats,
+                 scorerSHA256=hashlib.sha256((args.resources/'formatting_metrics.py').read_bytes()).hexdigest(), lexicalWorkerSHA256=hashlib.sha256((args.resources/'benchmark_worker.py').read_bytes()).hexdigest(), models={})
+    import statistics
+    for name, run_data in runs.items():
+        rows=run_data['clips']
+        if not run_data.get('complete') or any('error' in r for row in rows for r in row['responses']):
+            summary['models'][name] = dict(qualified=False, reason='Incomplete/error run'); continue
+        pairs=[errors(row['reference'],row['responses'][0]['text']) for row in rows]
+        formatted=aggregate([score(row['reference'],row['responses'][0]['text']) for row in rows])
+        metrics=[r['metrics'] for row in rows for r in row['responses']]
+        summary['models'][name]=dict(wer=sum(x[0] for x in pairs)/sum(x[1] for x in pairs), cer=formatted['formattedCharacterErrorRate'], formatting=formatted,
+            cold=run_data['cold']['metrics'], warmSpeed=manifest['audioSeconds']/sum(statistics.median(r['metrics']['inferenceSeconds'] for r in row['responses']) for row in rows),
+            peakFootprint=max(m.get('processPeakFootprintBytes',0) for m in metrics), peakMLX=max(m['peakMLXBytes'] for m in metrics),
+            repeatDifferences=[row['id'] for row in rows if len({r['text'] for r in row['responses']})>1])
+    if all('wer' in x for x in summary['models'].values()):
+        differences=[dict(id=a['id'], python=a['responses'][0]['text'], swift=b['responses'][0]['text']) for a,b in zip(runs['python']['clips'],runs['swift']['clips']) if a['responses'][0]['text']!=b['responses'][0]['text']]
+        summary['differences']=differences
+        summary['exactParity']=not differences
+        summary['nonRegression']=all(summary['models']['swift'][metric]<=summary['models']['python'][metric] for metric in ('wer','cer'))
+    (args.output/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
+    print(json.dumps(summary))
+
+if __name__ == '__main__': main()
