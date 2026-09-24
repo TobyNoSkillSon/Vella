@@ -7,7 +7,7 @@ final class DiagnosticNative: StreamingNative {
     var session: VellaNemotronSession?
     init(_ path: URL) throws {
         model = try NemotronASRModel.fromDirectory(path)
-        VellaNemotronDiagnostics.useReferencePositionTable(model!)
+        VellaNemotronNumerics.useReferencePositionTable(model!)
         try reset()
     }
     func reset() throws { session = nil; text = ""; session = try VellaNemotronSession(model: model!); Memory.clearCache() }
@@ -19,7 +19,7 @@ final class DiagnosticNative: StreamingNative {
         Memory.cacheLimit = 64 * 1024 * 1024
         if CommandLine.arguments.count == 6 && CommandLine.arguments[1] == "--dump-front" {
             let a = CommandLine.arguments
-            try VellaNemotronDiagnostics.dump(configURL: URL(fileURLWithPath: a[2]), pcmURL: URL(fileURLWithPath: a[3]), lengthsURL: URL(fileURLWithPath: a[4]), output: URL(fileURLWithPath: a[5])); return
+            try VellaNemotronNumerics.dump(configURL: URL(fileURLWithPath: a[2]), pcmURL: URL(fileURLWithPath: a[3]), lengthsURL: URL(fileURLWithPath: a[4]), output: URL(fileURLWithPath: a[5])); return
         }
         var resident: DiagnosticNative?
         var path: URL?

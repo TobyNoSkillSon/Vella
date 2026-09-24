@@ -8,6 +8,7 @@ final class NemotronNative: StreamingNative {
     private var session: VellaNemotronSession?
     init(_ path: URL) throws {
         model = try NemotronASRModel.fromDirectory(path)
+        VellaNemotronNumerics.useReferencePositionTable(model!)
         try reset()
     }
     func reset() throws {

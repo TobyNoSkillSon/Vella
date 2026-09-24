@@ -2,7 +2,7 @@
 """Warm-weight parity via real Session implementations, like repository benchmark.
 Production executable framing/retirement is qualified separately by streaming_parity.py.
 """
-import base64, json, os, select, subprocess, sys, time, uuid, argparse, hashlib
+import base64, json, os, select, subprocess, sys, time, uuid, argparse, hashlib, shutil
 from pathlib import Path
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[2]
@@ -66,6 +66,7 @@ class Peer:
 def main():
     p=argparse.ArgumentParser();p.add_argument('--model',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--limit',type=int,default=144)
     p.add_argument('--native',type=Path,default=ROOT/'Worker/.build/release/VellaStreamingProbe')
+    p.add_argument('--reference-from',type=Path,help='Reuse a complete sealed Python oracle; no Python inference is claimed')
     p.add_argument('--paced',action='store_true');p.add_argument('--silence-gaps',action='store_true')
     p.add_argument('--resume',action='store_true');p.add_argument('--wait-for-idle',action='store_true')
     a=p.parse_args();a.output.mkdir(parents=True,exist_ok=True)
@@ -89,6 +90,19 @@ def main():
             if key in old and old[key]!=value:raise RuntimeError('Resume seal mismatch: '+key)
         if 'probeSHA256' not in old and list(a.output.glob('swift-*.json')):raise RuntimeError('Unsealed prior native results cannot be resumed')
     summary.update(seals)
+    if a.reference_from:
+        if not a.resume:p.error('--reference-from requires --resume')
+        oracle_path=a.reference_from/'summary.json';oracle_bytes=oracle_path.read_bytes();oracle=json.loads(oracle_bytes)
+        if not oracle.get('complete'):raise RuntimeError('Oracle corpus is incomplete')
+        for key in ('model','suite','policy','paced','silenceGaps','modelConfigSHA256','referenceSHA256'):
+            if oracle.get(key)!=summary.get(key):raise RuntimeError('Oracle seal mismatch: '+key)
+        summary['pythonOracleReuse']=dict(directory=str(a.reference_from),summarySHA256=hashlib.sha256(oracle_bytes).hexdigest())
+        for clip,chunks in packets:
+            source=a.reference_from/('python-'+clip['id']+'.json');destination=a.output/source.name
+            saved=json.loads(source.read_text())
+            if saved.get('frames')!=sum(n for n,_ in chunks) or not saved['events'][-1].get('done'):raise RuntimeError('Invalid oracle checkpoint')
+            if destination.exists() and destination.read_bytes()!=source.read_bytes():raise RuntimeError('Oracle checkpoint changed')
+            if not destination.exists():shutil.copyfile(source,destination)
     (a.output/'summary.json').write_text(json.dumps(summary,indent=2))
     # One loaded model at a time; never hold Python and Swift resident together.
     for name,command in [('python',[str(RUNTIME),'-B',str(Path(__file__).resolve()),'--reference-probe']),('swift',[str(a.native)])]:

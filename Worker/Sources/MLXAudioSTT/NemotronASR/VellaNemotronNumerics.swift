@@ -1,7 +1,7 @@
-// QA entry points only; no production adapter calls these.
+// Python-compatible streaming numerics; dump() is a QA-only entry point.
 import Foundation
 import MLX
-public enum VellaNemotronDiagnostics {
+public enum VellaNemotronNumerics {
     public static func referencePositionTable(dModel: Int, maxLen: Int = 5000) -> MLXArray {
         let positions = MLX.arange(maxLen - 1, -maxLen, step: -1, dtype: .int32).expandedDimensions(axis: 1).asType(.float32)
         let channels = MLX.arange(0, dModel, step: 2, dtype: .float32)
