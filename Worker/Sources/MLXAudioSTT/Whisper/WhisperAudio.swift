@@ -16,6 +16,12 @@ enum WhisperAudio {
     private static let filterCacheLock = NSLock()
     nonisolated(unsafe) private static var filterCache: [Int: MLXArray] = [:]
 
+    static func clearFilterCache() {
+        filterCacheLock.lock()
+        defer { filterCacheLock.unlock() }
+        filterCache.removeAll()
+    }
+
     static func melFilters(nMels: Int) -> MLXArray {
         filterCacheLock.lock()
         defer { filterCacheLock.unlock() }

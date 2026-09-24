@@ -35,4 +35,8 @@ The stock Swift models required three compatibility changes to reproduce the Pyt
 
 The protocol parity suite splits its sole >30-second clip (`7021-79730-0003`, 32.88 seconds) into 30 + 2.88 seconds for both workers and joins their text, because both real workers reject an intact request longer than 30 seconds. Do not label these results as published intact-clip direct-generation benchmarks.
 
-Current qualification is incomplete: the Q4 protocol corpus matches all 144 clips, but Ultra BF16 has two residual differences and repeated in-process model switching retains increasing active allocations. SenseVoice weights were unavailable locally. Do not ship this checkpoint; verified worker exit remains the hard memory-release boundary.
+Current qualification: recorded Q4 protocol parity is 144/144; Ultra differences are explained by AOT/JIT power arithmetic and accepted for this milestone. Retirement tests now return to a flat 8-byte global RNG baseline and zero allocator cache, with no retained model tensors. Whisper remains the active parity blocker. SenseVoice is an unfinished download and is not qualified.
+
+### Calibration
+
+`VellaWorker calibrate --model /absolute/model --sample /absolute/Calibration` accepts the calibration folder or its `speech.wav`. It verifies the frozen audio/text SHA-256 and manifest, emits four progress events then `result.result`, measures one first request plus two warm passes, and uses their median for speed. The whole command has a 120-second deadline; failure emits `error` and exits nonzero. Model version provenance identifies the vendored Swift revision, not a fictitious Python version.
