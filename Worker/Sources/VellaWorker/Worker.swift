@@ -1,6 +1,7 @@
 import Foundation
 import Darwin
 import MLX
+import Cmlx
 import MLXAudioSTT
 
 @main struct Main {
@@ -14,8 +15,8 @@ import MLXAudioSTT
         do { try withError { Memory.cacheLimit = cacheBytes } } catch { exit(1) }
         let worker = Worker()
         while let line = readBoundedLine(stdin) {
-            alarm(120)
-            let request = line.count <= maximumLine ? try? JSONSerialization.jsonObject(with: line) : nil
+            if line.count <= maximumLine { alarm(120) }
+            let request = line.count <= maximumLine ? try? decodeJSON(line) : nil
             let response = await worker.handle(request)
             if let data = try? responseBytes(response) {
                 data.withUnsafeBytes { raw in
@@ -36,11 +37,23 @@ final class Worker {
     var model: (any STTGenerationModel)?
     var path: URL?
     func cleanup() throws { try withError { Stream.gpu.synchronize(); Memory.clearCache() } }
-    func release() throws { model = nil; path = nil; try cleanup() }
+    func release() throws {
+        model = nil; path = nil
+        try withError {
+            Stream.gpu.synchronize()
+            // This process owns every compiled graph. Clear captured weight constants
+            // as well as allocator buffers before admitting the next model.
+            var cache = mlx_compile_cache_new()
+            mlx_detail_compile_cache(&cache)
+            defer { mlx_compile_cache_free(cache) }
+            mlx_detail_compile_clear_cache(cache)
+        }
+        try cleanup()
+    }
     func load(_ path: URL, architecture: String) async throws -> any STTGenerationModel {
         switch architecture {
-        case "parakeet": return try ParakeetModel.fromDirectory(path)
-        case "sensevoice": return try SenseVoiceModel.fromDirectory(path)
+        case "parakeet": return try autoreleasepool { try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true) }
+        case "sensevoice": return try autoreleasepool { try SenseVoiceModel.fromDirectory(path) }
         case "whisper": return try await WhisperModel.fromDirectory(path)
         case "qwen3_asr": return try await Qwen3ASRModel.fromModelDirectory(path)
         case "granite_speech": return try await GraniteSpeechModel.fromDirectory(path)
@@ -73,11 +86,14 @@ final class Worker {
                 metrics["loadPeakMLXBytes"] = Memory.peakMemory
             }
             let t = ProcessInfo.processInfo.systemUptime
-            let result = try withError {
-                let output = model!.generate(audio: MLXArray(audio.samples), generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
+            let result = try autoreleasepool { try withError {
+                // Python Parakeet.generate defaults its waveform dtype to bfloat16.
+                let samples = MLXArray(audio.samples)
+                let input = model is ParakeetModel ? samples.asType(.bfloat16) : samples
+                let output = model!.generate(audio: input, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
                 Stream.gpu.synchronize()
                 return output
-            }
+            } }
             Stream.gpu.synchronize()
             metrics["inferenceSeconds"] = ProcessInfo.processInfo.systemUptime-t
             metrics["peakMLXBytes"] = Memory.peakMemory
@@ -87,7 +103,7 @@ final class Worker {
             let memory = ["out of memory", "memory allocation", "metal allocation", "insufficient memory"].contains { text.contains($0) }
             let code = error is RequestError ? "invalid" : memory ? "memory" : "inference"
             response["error"] = ["code": code, "message": code == "invalid" ? "Invalid local transcription request." : code == "memory" ? "Insufficient memory for transcription." : "Local transcription failed."]
-            if code != "invalid" { model = nil; path = nil }
+            if code != "invalid" { try? release() }
         }
         let t = ProcessInfo.processInfo.systemUptime
         do { try cleanup() } catch {

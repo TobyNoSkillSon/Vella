@@ -11,6 +11,9 @@ import Foundation
         for id in [UUID().uuidString, "00112233445566778899aabbccddeeff", "urn:uuid:00112233-4455-6677-8899-aabbccddeeff", "{00112233-4455-6677-8899-aabbccddeeff}"] { precondition(validIdentifier(id) == id) }
         for id in ["", "not-a-uuid", "00112233445566778899aabbccddeezz"] { precondition(validIdentifier(id) == nil) }
         precondition(validIdentifier(12) == nil)
+        let constants = try decodeJSON(Data(#"{"value":NaN,"positive":Infinity,"negative":-Infinity,"literal":"NaN Infinity"}"#.utf8)) as! [String: Any]
+        precondition(pythonTruthy(constants["value"]) && constants["literal"] as? String == "NaN Infinity")
+        precondition(!pythonTruthy([] as [Any]) && !pythonTruthy([:] as [String: Any]) && !pythonTruthy(NSNull()))
         func writeConfig(_ config: [String: Any]) throws { try JSONSerialization.data(withJSONObject: config).write(to: folder.appendingPathComponent("config.json")) }
         try Data().write(to: folder.appendingPathComponent("model.safetensors"))
         for arch in ["whisper", "qwen3_asr", "parakeet", "granite_speech"] {

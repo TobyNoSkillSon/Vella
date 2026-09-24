@@ -32,23 +32,18 @@ enum ParakeetAudio {
         )
 
         let power = MLX.abs(stftOutput).square().asType(originalDType)
-        let filters = melFilters(
-            sampleRate: config.sampleRate,
-            nFft: config.nFft,
-            nMels: config.features,
-            norm: "slaney",
-            melScale: .slaney
-        )
-
-        var mel = MLX.matmul(power, filters.asType(power.dtype))
+        // Match mlx-audio 0.5.1's MLX filter construction and matrix orientation.
+        // CPU Float loops and transposing this GEMM change BF16 rounding near token ties.
+        let filters = referenceMelFilters(sampleRate: config.sampleRate, nFft: config.nFft, nMels: config.features)
+        var mel = MLX.matmul(filters.asType(power.dtype), power.transposed())
         mel = MLX.log(mel + MLXArray(config.logZeroGuardValue, dtype: mel.dtype))
 
         let normalized: MLXArray
         if config.normalize == "per_feature" {
-            let mean = MLX.mean(mel, axis: 0, keepDims: true)
-            let denominator = max(mel.dim(0) - 1, 1)
+            let mean = MLX.mean(mel, axis: 1, keepDims: true)
+            let denominator = max(mel.dim(1) - 1, 1)
             let variance = MLX.sum(
-                (mel - mean).square(), axis: 0, keepDims: true
+                (mel - mean).square(), axis: 1, keepDims: true
             ) / Float(denominator)
             let std = MLX.sqrt(variance)
             normalized = (mel - mean) / (std + MLXArray(1e-5, dtype: mel.dtype))
@@ -58,14 +53,36 @@ enum ParakeetAudio {
             normalized = (mel - mean) / (std + MLXArray(1e-5, dtype: mel.dtype))
         }
 
-        return normalized.expandedDimensions(axis: 0).asType(originalDType)
+        return normalized.transposed().expandedDimensions(axis: 0).asType(originalDType)
+    }
+
+    // Adapted from mlx-audio 0.5.1 dsp.mel_filters (MIT, Prince Canuma).
+    // Standard MLX operations only: no custom kernels or optimization.
+    private static func referenceMelFilters(sampleRate: Int, nFft: Int, nMels: Int) -> MLXArray {
+        let fSp = 200.0 / 3.0
+        let minLogMel = 1000.0 / fSp
+        let logStep = log(6.4) / 27.0
+        let maxMel = minLogMel + log(Double(sampleRate) / 2000.0) / logStep
+        let frequencies = MLX.linspace(Float(0), Float(sampleRate / 2), count: nFft / 2 + 1)
+        let mels = MLX.linspace(Double(0), maxMel, count: nMels + 2, dtype: .float32)
+        let points = MLX.where(mels .>= Float(minLogMel),
+                               Float(1000) * MLX.exp(Float(logStep) * (mels - Float(minLogMel))),
+                               Float(fSp) * mels)
+        let differences = points[1...] - points[..<(nMels + 1)]
+        let slopes = points.expandedDimensions(axis: 0) - frequencies.expandedDimensions(axis: 1)
+        let down = -slopes[0..., ..<nMels] / differences[..<nMels]
+        let up = slopes[0..., 2...] / differences[1...]
+        var filters = MLX.maximum(MLXArray.zeros(like: down), MLX.minimum(down, up))
+        let normalization = Float(2) / (points[2...] - points[..<nMels])
+        filters = filters * normalization.expandedDimensions(axis: 0)
+        return filters.transposed()
     }
 
     private static func makeWindow(name: String, winLength: Int, fftLength: Int) -> MLXArray {
         let base: MLXArray
         switch name.lowercased() {
         case "hann", "hanning":
-            base = hanningWindow(size: winLength)
+            base = MLXArray((0..<winLength).map { Float(0.5 * (1 - cos(2 * Double.pi * Double($0) / Double(winLength - 1)))) })
         case "hamming":
             base = hammingWindow(size: winLength)
         case "blackman":
@@ -73,7 +90,7 @@ enum ParakeetAudio {
         case "bartlett":
             base = bartlettWindow(size: winLength)
         default:
-            base = hanningWindow(size: winLength)
+            base = MLXArray((0..<winLength).map { Float(0.5 * (1 - cos(2 * Double.pi * Double($0) / Double(winLength - 1)))) })
         }
 
         if winLength >= fftLength {

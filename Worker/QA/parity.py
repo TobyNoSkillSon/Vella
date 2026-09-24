@@ -31,16 +31,30 @@ def request(child, model, audio, status):
     return result
 
 
+def clip_request(child, model, paths, status):
+    parts = [request(child, model, path, status) for path in paths]
+    if len(parts) == 1: return parts[0]
+    failure = next((part for part in parts if 'error' in part), None)
+    if failure: return dict(failure, segments=parts)
+    metrics = dict(parts[0]['metrics'])
+    for key in ('audioSeconds', 'inferenceSeconds', 'cleanupSeconds', 'requestSeconds', 'loadSeconds'):
+        metrics[key] = sum(part['metrics'][key] for part in parts)
+    for key in metrics:
+        if key.endswith('Bytes'): metrics[key] = max(part['metrics'].get(key, 0) for part in parts)
+    metrics['modelLoaded'] = any(part['metrics']['modelLoaded'] for part in parts)
+    return dict(id=parts[0]['id'], text=' '.join(part['text'] for part in parts if part['text']), metrics=metrics, segments=parts)
+
+
 def run(command, model, clips, args, output):
     idle(args.status)
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
     child = subprocess.Popen(['sandbox-exec', '-p', '(version 1)(allow default)(deny network*)', *command], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env)
     rows = []
     try:
-        cold = request(child, model, clips[0][1], args.status)
+        cold = clip_request(child, model, clips[0][1], args.status)
         if 'error' in cold: return dict(cold=cold, clips=[], qualified=False)
         for clip, audio in clips:
-            responses = [request(child, model, audio, args.status) for _ in range(args.repeats)]
+            responses = [clip_request(child, model, audio, args.status) for _ in range(args.repeats)]
             rows.append(dict(id=clip['id'], reference=clip['reference'], responses=responses))
             output.write_text(json.dumps(dict(cold=cold, clips=rows, complete=False), indent=2)+'\n')
             if any('error' in r for r in responses): break
@@ -75,21 +89,34 @@ def main():
     sys.path.insert(0, str(args.resources))
     from benchmark_worker import errors, fingerprint
     from formatting_metrics import score, aggregate
-    import soundfile as sf
+    import wave
     clips=[]
     for clip in manifest['clips']:
         source = args.manifest.parent/clip['file']
         if hashlib.sha256(source.read_bytes()).hexdigest() != clip['sha256']: raise ValueError('Audio hash mismatch')
-        audio, rate = sf.read(source, dtype='int16')
-        if rate != 16000 or audio.ndim != 1: raise ValueError('Unexpected reference format')
-        target=args.output/(clip['id']+'.wav'); sf.write(target, audio, rate, subtype='PCM_16')
-        clips.append((clip,target))
+        target=args.output/(clip['id']+'.wav')
+        subprocess.run(['/usr/bin/afconvert', '-f', 'WAVE', '-d', 'LEI16', str(source), str(target)], check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        with wave.open(str(target), 'rb') as wav:
+            if (wav.getframerate(), wav.getnchannels(), wav.getsampwidth()) != (16000,1,2): raise ValueError('Unexpected converted reference format')
+        paths = []
+        with wave.open(str(target), 'rb') as wav:
+            pcm = wav.readframes(wav.getnframes())
+        if len(pcm) <= 960000:
+            paths = [target]
+        else:
+            for index, start in enumerate(range(0, len(pcm), 960000)):
+                segment = args.output/(clip['id']+f'.segment{index}.wav')
+                with wave.open(str(segment), 'wb') as out:
+                    out.setnchannels(1); out.setsampwidth(2); out.setframerate(16000); out.writeframes(pcm[start:start+960000])
+                paths.append(segment)
+        clips.append((clip,paths))
+
     commands={'python':[str(args.python), '-B', str(args.resources/'inference_worker.py')], 'swift':[str(args.swift_worker)]}
     runs={}
     for name, command in commands.items():
         runs[name] = run(command, args.model, clips, args, args.output/(name+'.json'))
         (args.output/(name+'.json')).write_text(json.dumps(runs[name],indent=2)+'\n')
-    summary=dict(model=str(args.model), modelFingerprint=fingerprint(args.model), manifestSHA256=hashlib.sha256(args.manifest.read_bytes()).hexdigest(), repeats=args.repeats,
+    summary=dict(model=str(args.model), modelFingerprint=fingerprint(args.model), manifestSHA256=hashlib.sha256(args.manifest.read_bytes()).hexdigest(), repeats=args.repeats, segmentation="Protocol-safe nonoverlap 30 s; only 7021-79730-0003 (32.88 s) splits; concatenate nonempty texts with spaces",
                  scorerSHA256=hashlib.sha256((args.resources/'formatting_metrics.py').read_bytes()).hexdigest(), lexicalWorkerSHA256=hashlib.sha256((args.resources/'benchmark_worker.py').read_bytes()).hexdigest(), models={})
     import statistics
     for name, run_data in runs.items():

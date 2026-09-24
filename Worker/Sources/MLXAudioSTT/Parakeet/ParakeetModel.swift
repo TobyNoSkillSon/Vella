@@ -405,7 +405,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
 
             var t = 0
             var newSymbols = 0
-            var state = makeInitialDecoderState(batchSize: 1, dtype: computeDType)
+            var state = makeInitialDecoderState(batchSize: 1, dtype: featureSeq.dtype)
             var currentToken = MLXArray(Int32(lastToken)).reshaped([1, 1]).asType(.int32)
 
             while t < maxLength {
@@ -944,7 +944,8 @@ public extension ParakeetModel {
 
     static func fromDirectory(
         _ modelDir: URL,
-        computeDType: DType = .bfloat16
+        computeDType: DType = .bfloat16,
+        preserveCheckpointDTypes: Bool = false
     ) throws -> ParakeetModel {
         let configURL = modelDir.appendingPathComponent("config.json")
         let rawConfigData = try Data(contentsOf: configURL)
@@ -1032,6 +1033,8 @@ public extension ParakeetModel {
 
         model.computeDType = computeDType
 
+        // Vella mirrors Python base_load_model, which retains checkpoint dtypes.
+        if !preserveCheckpointDTypes {
         // Cast all floating-point params to computeDType after load.
         // Skips params already matching target dtype and leaves non-float (e.g. uint32
         // packed quantized) weights untouched.
@@ -1044,6 +1047,7 @@ public extension ParakeetModel {
             }
         )
         try model.update(parameters: ModuleParameters.unflattened(casted), verify: .noUnusedKeys)
+        }
 
         model.train(false)
         eval(model)

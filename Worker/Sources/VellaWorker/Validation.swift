@@ -20,9 +20,40 @@ func localPath(_ value: Any?) throws -> URL {
     defer { free(resolved) }
     return URL(fileURLWithPath: String(cString: resolved))
 }
+// CPython JSON accepts these nonstandard constants. None is meaningful to
+// model admission/request fields; use a truthy, non-admissible numeric sentinel.
+// Do not replace quoted text (including paths or tokenizer configuration).
+func decodeJSON(_ data: Data) throws -> Any {
+    let bytes = Array(data)
+    var normalized = Data(); var index = 0; var quoted = false; var escaped = false
+    let tokens = [Array("-Infinity".utf8), Array("Infinity".utf8), Array("NaN".utf8)]
+    while index < bytes.count {
+        let byte = bytes[index]
+        if quoted {
+            normalized.append(byte)
+            if escaped { escaped = false }
+            else if byte == 92 { escaped = true }
+            else if byte == 34 { quoted = false }
+            index += 1
+        } else if byte == 34 {
+            quoted = true; normalized.append(byte); index += 1
+        } else if let token = tokens.first(where: { index + $0.count <= bytes.count && Array(bytes[index..<index+$0.count]) == $0 }) {
+            normalized.append(49); index += token.count
+        } else { normalized.append(byte); index += 1 }
+    }
+    return try JSONSerialization.jsonObject(with: normalized, options: [.fragmentsAllowed])
+}
+func pythonTruthy(_ value: Any?) -> Bool {
+    guard let value, !(value is NSNull) else { return false }
+    if let number = value as? NSNumber { return number.doubleValue != 0 }
+    if let string = value as? String { return !string.isEmpty }
+    if let array = value as? [Any] { return !array.isEmpty }
+    if let object = value as? [String: Any] { return !object.isEmpty }
+    return true
+}
 func jsonObject(_ url: URL) throws -> [String: Any] {
     let data = try Data(contentsOf: url)
-    guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw RequestError.invalid }
+    guard let object = try decodeJSON(data) as? [String: Any] else { throw RequestError.invalid }
     return object
 }
 func admit(_ path: URL) throws -> String {
@@ -31,10 +62,9 @@ func admit(_ path: URL) throws -> String {
     var architecture = config["model_type"] as? String
     if architecture == nil, config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" { architecture = "parakeet" }
     guard let architecture, ["parakeet", "qwen3_asr", "whisper", "sensevoice", "granite_speech"].contains(architecture) else { throw RequestError.invalid }
-    for key in ["quantization", "quantization_config"] {
-        if let value = config[key], !(value is NSNull), !(value is [String: Any]), (value as? NSNumber) != 0, (value as? String) != "" { throw RequestError.invalid }
-    }
-    let quant = (config["quantization"] as? [String: Any]).flatMap { $0.isEmpty ? nil : $0 } ?? (config["quantization_config"] as? [String: Any]) ?? [:]
+    let rawQuant = pythonTruthy(config["quantization"]) ? config["quantization"] :
+        pythonTruthy(config["quantization_config"]) ? config["quantization_config"] : [:]
+    guard let quant = rawQuant as? [String: Any] else { throw RequestError.invalid }
     if let bits = quant["bits"], !(bits is NSNull) {
         guard let n = bits as? NSNumber, n == 4 || n == 8 else { throw RequestError.invalid }
     }
@@ -42,10 +72,7 @@ func admit(_ path: URL) throws -> String {
         let url = path.appendingPathComponent(name)
         if FileManager.default.fileExists(atPath: url.path) {
             let object = try jsonObject(url)
-            if let auto = object["auto_map"], !(auto is NSNull) {
-                let empty = (auto as? [String: Any])?.isEmpty == true || (auto as? [Any])?.isEmpty == true || (auto as? String) == "" || (auto as? NSNumber) == 0
-                guard empty else { throw RequestError.invalid }
-            }
+            if pythonTruthy(object["auto_map"]) { throw RequestError.invalid }
         }
     }
     guard let entries = FileManager.default.enumerator(at: path, includingPropertiesForKeys: nil) else { throw RequestError.invalid }
