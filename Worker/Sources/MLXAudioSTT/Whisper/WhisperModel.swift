@@ -1,4 +1,7 @@
+// Whisper decoding-policy adaptation: Copyright © 2023 Apple Inc.
+// MIT license; see LICENSE-mlx-whisper. Based on pinned mlx-audio 0.5.1.
 import Foundation
+import zlib
 import MLX
 import MLXNN
 import MLXAudioCore
@@ -187,97 +190,120 @@ public final class WhisperModel: Module, STTGenerationModel {
         generationParameters: STTGenerateParameters,
         onTokenDelta: ((String) -> Void)? = nil
     ) -> (text: String, promptTokens: Int, generationTokens: Int, language: String?) {
-        guard let tokenizer else {
-            fatalError("WhisperTokenizer not loaded — call fromPretrained / fromDirectory before generate.")
-        }
-        let features = WhisperAudio.encoderFeatures(audio: audio, nMels: config.numMelBins)
+        guard let tokenizer else { fatalError("Whisper tokenizer not loaded") }
+        // Python DecodingOptions.fp16 defaults to true, including quantized models.
+        let features = WhisperAudio.encoderFeatures(audio: audio, nMels: config.numMelBins).asType(.float16)
         let encoderHidden = model.encoder(features)
-
-        var caches = (0..<config.decoderLayers).map { _ in WhisperLayerCache() }
-        let promptIds = tokenizer.buildPromptTokens(
-            language: generationParameters.language,
-            task: "transcribe"
-        )
-
-        let promptArray = MLXArray(promptIds.map(Int32.init)).expandedDimensions(axis: 0)
-        var hidden = model.decoder(
-            tokens: promptArray,
-            startPosition: 0,
-            encoderHidden: encoderHidden,
-            caches: &caches
-        )
-        var logits = model.decoder.projectToVocab(hidden[0, -1])
-        eval(logits)
-
-        var generated: [Int] = []
-        // Decode-and-diff: re-decode the full token list each step and emit only
-        // the new suffix, so multi-token UTF-8 sequences stream cleanly.
-        var previousText = ""
-        let beginSuppress = generationConfig?.beginSuppressTokens ?? [tokenizer.endOfTextId]
-        let suppress = generationConfig?.suppressTokens ?? []
-
-        let maxTokens = max(
-            1,
-            min(
-                generationParameters.maxTokens,
-                config.maxTargetPositions - promptIds.count - 1
-            )
-        )
-
-        for step in 0..<maxTokens {
-            var stepLogits = logits
-            if step == 0, !beginSuppress.isEmpty {
-                stepLogits = suppressLogits(stepLogits, ids: beginSuppress)
-            }
-            if !suppress.isEmpty {
-                stepLogits = suppressLogits(stepLogits, ids: suppress)
-            }
-            stepLogits = suppressFromIndex(stepLogits, fromIndex: tokenizer.timestampBeginId)
-
-            let nextToken = sample(stepLogits, temperature: generationParameters.temperature)
-            if nextToken == tokenizer.endOfTextId { break }
-            generated.append(nextToken)
-
-            if let onTokenDelta {
-                let textSoFar = tokenizer.decode(tokens: generated)
-                if textSoFar != previousText {
-                    let delta: String
-                    if textSoFar.hasPrefix(previousText) {
-                        delta = String(textSoFar.dropFirst(previousText.count))
-                    } else {
-                        delta = textSoFar
+        var language = generationParameters.language
+        var detectionCaches = (0..<config.decoderLayers).map { _ in WhisperLayerCache() }
+        let sot = MLXArray([Int32(tokenizer.startOfTranscriptId)]).expandedDimensions(axis: 0)
+        let detectionHidden = model.decoder(tokens: sot, startPosition: 0, encoderHidden: encoderHidden, caches: &detectionCaches)
+        let detectionLogits = model.decoder.projectToVocab(detectionHidden[0, -1]).asType(.float32)
+        eval(detectionLogits)
+        let noSpeechProbability: Float = tokenizer.noSpeechId.map { softmax(detectionLogits)[$0].item(Float.self) } ?? 0
+        if tokenizer.isMultilingual, tokenizer.resolveLanguage(language) == nil {
+            var mask = [Float](repeating: -.infinity, count: detectionLogits.dim(0))
+            for id in tokenizer.languageToId.values where id < mask.count { mask[id] = 0 }
+            let languageID = (detectionLogits + MLXArray(mask)).argMax().item(Int.self)
+            language = tokenizer.languageToId.first(where: { $0.value == languageID })?.key
+        }
+        detectionCaches.removeAll()
+        let promptIds = tokenizer.buildPromptTokens(language: language, task: "transcribe", withoutTimestamps: false)
+        let beginSuppress = generationConfig?.beginSuppressTokens ?? [220, tokenizer.endOfTextId]
+        var suppress = generationConfig?.suppressTokens ?? []
+        suppress += [tokenizer.transcribeId, tokenizer.translateId, tokenizer.prevSotId,
+                     tokenizer.sotLMId, tokenizer.noSpeechId, tokenizer.startOfTranscriptId].compactMap { $0 }
+        suppress = Array(Set(suppress)).sorted()
+        // The reference worker filters out max_tokens: Whisper receives its
+        // default sample_len = n_text_ctx / 2, not a 1024-token decode budget.
+        let maxTokens = max(1, min(generationParameters.maxTokens, config.maxTargetPositions / 2))
+        let temperatures: [Float] = generationParameters.temperature == 0 && onTokenDelta == nil
+            ? [0, 0.2, 0.4, 0.6, 0.8, 1] : [generationParameters.temperature]
+        var finalText = ""
+        var finalCount = 0
+        for temperature in temperatures {
+            var caches = (0..<config.decoderLayers).map { _ in WhisperLayerCache() }
+            let prompt = MLXArray(promptIds.map(Int32.init)).expandedDimensions(axis: 0)
+            var hidden = model.decoder(tokens: prompt, startPosition: 0, encoderHidden: encoderHidden, caches: &caches)
+            var logits = model.decoder.projectToVocab(hidden[0, -1]).asType(.float32)
+            var generated: [Int] = []
+            var previousText = ""
+            var sumLogProbability: Float = 0
+            for step in 0..<maxTokens {
+                eval(logits)
+                var filtered = logits
+                if step == 0 { filtered = suppressLogits(filtered, ids: beginSuppress) }
+                filtered = suppressLogits(filtered, ids: suppress)
+                filtered = applyTimestampRules(filtered, generated: generated, tokenizer: tokenizer)
+                let next = sample(filtered, temperature: temperature)
+                sumLogProbability += (filtered[next] - filtered.logSumExp()).item(Float.self)
+                if next == tokenizer.endOfTextId { break }
+                generated.append(next)
+                if let onTokenDelta {
+                    let text = tokenizer.decode(tokens: generated)
+                    if text != previousText {
+                        onTokenDelta(text.hasPrefix(previousText) ? String(text.dropFirst(previousText.count)) : text)
+                        previousText = text
                     }
-                    onTokenDelta(delta)
-                    previousText = textSoFar
                 }
+                let token = MLXArray([Int32(next)]).expandedDimensions(axis: 0)
+                hidden = model.decoder(tokens: token, startPosition: promptIds.count + step, encoderHidden: encoderHidden, caches: &caches)
+                logits = model.decoder.projectToVocab(hidden[0, -1]).asType(.float32)
             }
+            finalText = tokenizer.decode(tokens: generated)
+            finalCount = generated.count
+            let average = sumLogProbability / Float(generated.count + 1)
+            if noSpeechProbability > 0.6 && average < -1 {
+                finalText = ""; break
+            }
+            if average >= -1 && compressionRatio(finalText) <= 2.4 { break }
+        }
+        return (finalText, promptIds.count, finalCount, language)
+    }
 
-            let position = promptIds.count + step
-            let tokenArray = MLXArray([Int32(nextToken)]).expandedDimensions(axis: 0)
-            hidden = model.decoder(
-                tokens: tokenArray,
-                startPosition: position,
-                encoderHidden: encoderHidden,
-                caches: &caches
-            )
-            logits = model.decoder.projectToVocab(hidden[0, -1])
-            eval(logits)
-            if generated.count % 256 == 0 {
-                Memory.clearCache()
+    private func applyTimestampRules(_ logits: MLXArray, generated: [Int], tokenizer: WhisperTokenizer) -> MLXArray {
+        let begin = tokenizer.timestampBeginId
+        let count = logits.dim(0)
+        var mask = [Float](repeating: 0, count: count)
+        mask[tokenizer.noTimestampsId] = -.infinity
+        let lastIsTimestamp = generated.last.map { $0 >= begin } ?? false
+        let penultimateIsTimestamp = generated.count < 2 || generated[generated.count - 2] >= begin
+        if lastIsTimestamp {
+            let range = penultimateIsTimestamp ? begin..<count : 0..<tokenizer.endOfTextId
+            for id in range { mask[id] = -.infinity }
+        }
+        // Reproduce pinned mlx-audio 0.5.1 literally: this rule uses sequence
+        // indices, not timestamp IDs, so its range is empty for <=224 tokens.
+        if let index = generated.indices.last(where: { generated[$0] > begin }) {
+            let end = index + ((index == 0 || penultimateIsTimestamp) ? 1 : 0)
+            if end > begin { for id in begin..<min(end, count) { mask[id] = -.infinity } }
+        }
+        if generated.isEmpty {
+            for id in 0..<begin { mask[id] = -.infinity }
+            let lastAllowed = begin + Int((Double(config.maxSourcePositions) / 30).rounded())
+            if lastAllowed + 1 < count { for id in (lastAllowed + 1)..<count { mask[id] = -.infinity } }
+        }
+        // Reference compares the original logits before adding this timestamp mask.
+        let logProbabilities = logits - logits.logSumExp()
+        let timestampMass = logProbabilities[begin...].logSumExp()
+        let maxText = logProbabilities[..<begin].max()
+        if (timestampMass .> maxText).item(Bool.self) {
+            for id in 0..<begin { mask[id] = -.infinity }
+        }
+        return logits + MLXArray(mask)
+    }
+
+    private func compressionRatio(_ text: String) -> Double {
+        let input = Array(text.utf8)
+        if input.isEmpty { return 0 }
+        var length = compressBound(uLong(input.count))
+        var compressed = [UInt8](repeating: 0, count: Int(length))
+        let status = input.withUnsafeBufferPointer { source in
+            compressed.withUnsafeMutableBufferPointer { destination in
+                compress2(destination.baseAddress, &length, source.baseAddress, uLong(input.count), Z_DEFAULT_COMPRESSION)
             }
         }
-
-        let text = tokenizer.decode(tokens: generated)
-        // The language token sits at prompt index 1 for multilingual models.
-        var language: String? = nil
-        if tokenizer.isMultilingual, promptIds.count > 1 {
-            let langTokenId = promptIds[1]
-            for (code, id) in tokenizer.languageToId where id == langTokenId {
-                language = code
-                break
-            }
-        }
-        return (text, promptIds.count, generated.count, language)
+        return status == Z_OK ? Double(input.count) / Double(length) : 0
     }
 
     private func sample(_ logits: MLXArray, temperature: Float) -> Int {
@@ -294,9 +320,9 @@ public final class WhisperModel: Module, STTGenerationModel {
         let length = logits.dim(-1)
         var mask = [Float](repeating: 0, count: length)
         for id in ids where id >= 0 && id < length {
-            mask[id] = -1e9
+            mask[id] = -.infinity
         }
-        return logits + MLXArray(mask).asType(logits.dtype)
+        return logits + MLXArray(mask)
     }
 
     private func suppressFromIndex(_ logits: MLXArray, fromIndex: Int) -> MLXArray {
@@ -304,7 +330,7 @@ public final class WhisperModel: Module, STTGenerationModel {
         if fromIndex >= length { return logits }
         var mask = [Float](repeating: 0, count: length)
         for i in fromIndex..<length { mask[i] = -1e9 }
-        return logits + MLXArray(mask).asType(logits.dtype)
+        return logits + MLXArray(mask)
     }
 
     // MARK: - Loading

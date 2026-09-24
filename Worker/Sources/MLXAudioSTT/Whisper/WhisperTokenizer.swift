@@ -12,6 +12,8 @@ public final class WhisperTokenizer {
     let transcribeId: Int?
     let translateId: Int?
     let timestampBeginId: Int
+    let noSpeechId: Int?
+    let sotLMId: Int?
 
     let languageToId: [String: Int]
     let specialTokenIds: Set<Int>
@@ -50,6 +52,9 @@ public final class WhisperTokenizer {
         } else {
             self.noTimestampsId = baseConfig.decoderStartTokenId + (baseConfig.vocabSize > 51864 ? 105 : 104)
         }
+
+        self.noSpeechId = Self.tokenId(in: addedTokens, name: "<|nospeech|>")
+        self.sotLMId = Self.tokenId(in: addedTokens, name: "<|startoflm|>")
 
         self.prevSotId = generationConfig?.prevSotTokenId
             ?? Self.tokenId(in: addedTokens, name: "<|startofprev|>")
@@ -95,7 +100,7 @@ public final class WhisperTokenizer {
     /// Build the decoder prefix for a transcription request. `language` may be
     /// an ISO code ("en") or a full name ("English"); pass `nil` to let
     /// multilingual variants auto-detect.
-    public func buildPromptTokens(language: String?, task: String = "transcribe") -> [Int] {
+    public func buildPromptTokens(language: String?, task: String = "transcribe", withoutTimestamps: Bool = false) -> [Int] {
         var tokens: [Int] = [startOfTranscriptId]
         if isMultilingual {
             if let resolved = resolveLanguage(language) {
@@ -108,7 +113,7 @@ public final class WhisperTokenizer {
                 if let id = transcribeId { tokens.append(id) }
             }
         }
-        tokens.append(noTimestampsId)
+        if withoutTimestamps { tokens.append(noTimestampsId) }
         return tokens
     }
 
