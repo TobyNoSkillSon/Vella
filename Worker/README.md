@@ -35,8 +35,11 @@ The stock Swift models required three compatibility changes to reproduce the Pyt
 
 The protocol parity suite splits its sole >30-second clip (`7021-79730-0003`, 32.88 seconds) into 30 + 2.88 seconds for both workers and joins their text, because both real workers reject an intact request longer than 30 seconds. Do not label these results as published intact-clip direct-generation benchmarks.
 
-Current qualification: recorded Q4 protocol parity is 144/144; Ultra differences are explained by AOT/JIT power arithmetic and accepted for this milestone. Retirement tests now return to a flat 8-byte global RNG baseline and zero allocator cache, with no retained model tensors. Whisper remains the active parity blocker. SenseVoice is an unfinished download and is not qualified.
+Current qualification: recorded Q4 protocol parity is 144/144; Ultra differences are explained by AOT/JIT power arithmetic and accepted for this milestone. Retirement tests now return to a flat 8-byte global RNG baseline and zero allocator cache, with no retained model tensors. Whisper's accuracy regression is corrected by matching reference language/timestamp/FP16/decode-budget settings; output is not bit-identical. SenseVoice is an unfinished download and is not qualified.
 
 ### Calibration
 
 `VellaWorker calibrate --model /absolute/model --sample /absolute/Calibration` accepts the calibration folder or its `speech.wav`. It verifies the frozen audio/text SHA-256 and manifest, emits four progress events then `result.result`, measures one first request plus two warm passes, and uses their median for speed. The whole command has a 120-second deadline; failure emits `error` and exits nonzero. Model version provenance identifies the vendored Swift revision, not a fictitious Python version.
+
+
+Whisper now uses automatic language detection with the language/task prefix, timestamp decoding and the pinned timestamp filters, the reference 224-token default sample limit, Float16 encoder inputs, special-token suppression, temperature fallback and model no-speech thresholds. The 144-clip/two-repeat protocol run passes aggregate WER/CER non-regression (104 exact clips); the Python baseline itself varied on two clips. These are protocol QA results, not an isolated performance claim.
