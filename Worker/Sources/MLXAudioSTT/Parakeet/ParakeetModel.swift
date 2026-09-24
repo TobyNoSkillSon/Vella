@@ -53,6 +53,40 @@ public final class ParakeetModel: Module, STTGenerationModel {
     var encoderExecutionImplementation: EncoderExecutionImplementation?
     var tdtTraceEmitter: (@Sendable (TDTTraceStep) -> Void)?
     private var compiledEncoderFeaturesByShape: [String: @Sendable (MLXArray) -> MLXArray] = [:]
+    private var fastEncoder: FastParakeetEncoder?
+    private var fastDecoder: FastParakeetTDT?
+    private var fastTokenSink: ((Int) -> Void)?
+    public private(set) var fastPathFinite = true
+
+    /// Only the worker's isolated two-clip qualification may enable these paths.
+    public func configureFastPath(enabled: Bool, component: String = "both") -> Bool {
+        fastEncoder = nil
+        fastDecoder = nil
+        guard enabled else { return false }
+        if !component.hasPrefix("encoder") {
+            guard let prepared = FastParakeetTDT(self) else { fastEncoder = nil; return false }
+            fastDecoder = prepared
+        }
+        if component != "decoder" {
+            guard let prepared = FastParakeetEncoder(encoder, fusedConvolution: component != "encoder-no-fused-conv") else {
+                fastDecoder = nil
+                return false
+            }
+            fastEncoder = prepared
+        }
+        return true
+    }
+
+    /// Qualification compares emitted token IDs, not formatted transcripts.
+    public func qualificationTokens(audio: MLXArray) -> [Int] {
+        final class Sink: @unchecked Sendable { var ids: [Int] = [] }
+        let sink = Sink()
+        tdtTraceEmitter = { step in if step.committedState { sink.ids.append(step.token) } }
+        fastTokenSink = { sink.ids.append($0) }
+        defer { tdtTraceEmitter = nil; fastTokenSink = nil }
+        _ = generate(audio: audio, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
+        return sink.ids
+    }
 
     public var defaultGenerationParameters: STTGenerateParameters {
         STTGenerateParameters(
@@ -122,6 +156,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
         audio: MLXArray,
         generationParameters: STTGenerateParameters
     ) -> STTOutput {
+        fastPathFinite = true
         let audio1D = normalizeAudioToMono(audio)
         let sampleRate = preprocessConfig.sampleRate
         let totalSamples = audio1D.shape[0]
@@ -310,6 +345,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
 
     func encodeBatchFeatures(_ features: MLXArray, lengths: MLXArray? = nil) -> (MLXArray, MLXArray) {
         let resolvedLengths = lengths ?? MLXArray(Array(repeating: Int32(features.shape[1]), count: features.shape[0])).asType(.int32)
+        if features.shape[0] == 1, let fastEncoder { return fastEncoder.call(features, lengths: resolvedLengths) }
         switch encoderExecutionImplementation ?? .plain {
         case .plain:
             return encoder(features, lengths: resolvedLengths)
@@ -381,6 +417,13 @@ public final class ParakeetModel: Module, STTGenerationModel {
             "Parakeet TDT encoder output shape mismatch: expected last dim \(encoderConfig.dModel), got \(batchFeatures.shape)"
         )
         eval(batchFeatures, lengths)
+
+        if batchFeatures.shape[0] == 1, let fastDecoder {
+            let result = fastDecoder.decode(batchFeatures, length: Int(lengths[0].item(Int32.self)), onToken: fastTokenSink)
+            fastPathFinite = fastPathFinite && fastDecoder.lastFinite
+                && MLX.all(MLX.isFinite(batchFeatures)).item(Bool.self)
+            return [result]
+        }
 
         switch tdtDecoderImplementation ?? .serial {
         case .serial:

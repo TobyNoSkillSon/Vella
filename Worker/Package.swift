@@ -9,5 +9,5 @@ let package = Package(name: "VellaWorker", platforms: [.macOS(.v14)], products: 
 ], targets: [
     .target(name: "MLXAudioCore", dependencies: [.product(name: "MLX", package: "mlx-swift"), .product(name: "MLXFFT", package: "mlx-swift")]),
     .target(name: "MLXAudioSTT", dependencies: ["MLXAudioCore", .product(name: "MLX", package: "mlx-swift"), .product(name: "MLXNN", package: "mlx-swift"), .product(name: "MLXFast", package: "mlx-swift"), .product(name: "MLXLMCommon", package: "mlx-swift-lm"), .product(name: "Tokenizers", package: "swift-transformers")], exclude: ["Parakeet/README.md", "Qwen3ASR/README.md", "Whisper/README.md", "GraniteSpeech/README.md", "SenseVoice/README.md"]),
-    .executableTarget(name: "VellaWorker", dependencies: ["MLXAudioSTT"])
+    .executableTarget(name: "VellaWorker", dependencies: ["MLXAudioSTT"], resources: [.copy("Resources/clip-a.wav"), .copy("Resources/clip-b.wav"), .copy("Resources/ATTRIBUTION.md"), .copy("Resources/LICENSE-CC-BY-4.0.txt")])
 ], swiftLanguageModes: [.v5])

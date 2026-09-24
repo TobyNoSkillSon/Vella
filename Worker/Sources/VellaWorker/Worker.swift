@@ -12,6 +12,20 @@ import MLXAudioSTT
         dup2(sink, STDOUT_FILENO); dup2(sink, STDERR_FILENO); close(sink)
         guard installOfflineSandbox() else { exit(1) }
         signal(SIGALRM, SIG_DFL)
+        if CommandLine.arguments.dropFirst().first == "fast-selftest" {
+            let values = Array(CommandLine.arguments.dropFirst(2))
+            guard values.count == 2, values[0] == "--model", let path = try? localPath(values[1]),
+                  (try? admit(path)) == "parakeet" else { exit(1) }
+            let passed: Bool
+            do { passed = try withError { try FastPathGate.runSelfTest(path) } }
+            catch {
+                if let log = ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"], log.hasPrefix("/") {
+                    try? String(describing: error).write(toFile: log, atomically: true, encoding: .utf8)
+                }
+                passed = false
+            }
+            exit(passed ? 0 : 1)
+        }
         if CommandLine.arguments.dropFirst().first == "calibrate" {
             let status = await CalibrationCommand.run(arguments: Array(CommandLine.arguments.dropFirst(2)), output: output)
             close(output)
@@ -67,6 +81,7 @@ import MLXAudioSTT
 final class Worker {
     var model: (any STTGenerationModel)?
     var path: URL?
+    private var fastStatus: URL?
     #if VELLA_QUALIFICATION
     var qualificationRetirement: [String: Any] = [:]
     #endif
@@ -97,7 +112,7 @@ final class Worker {
         let references = qualificationReferences(model)
         let cacheThreads = Array(compilationCaches.keys)
         #endif
-        model = nil; path = nil
+        model = nil; path = nil; fastStatus = nil
         try withError {
             Stream.gpu.synchronize()
             STTRuntime.clearModelIndependentCaches()
@@ -117,7 +132,16 @@ final class Worker {
         trackCompilationCache()
         defer { trackCompilationCache() }
         switch architecture {
-        case "parakeet": return try autoreleasepool { try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true) }
+        case "parakeet":
+            let (qualified, status) = FastPathGate.qualify(path)
+            fastStatus = status
+            return try autoreleasepool {
+                let loaded = try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true)
+                if qualified && !loaded.configureFastPath(enabled: true) {
+                    if let status { FastPathGate.persist("stock", to: status) }
+                }
+                return loaded
+            }
         case "sensevoice": return try autoreleasepool { try SenseVoiceModel.fromDirectory(path) }
         case "whisper": return try await WhisperModel.fromDirectory(path)
         case "qwen3_asr": return try await Qwen3ASRModel.fromModelDirectory(path)
@@ -131,7 +155,23 @@ final class Worker {
             trackCompilationCache()
             let samples = MLXArray(audio.samples)
             let input = model is ParakeetModel ? samples.asType(.bfloat16) : samples
-            let output = model.generate(audio: input, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
+            let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30)
+            var output: STTOutput
+            if let parakeet = model as? ParakeetModel, let status = fastStatus, FastPathGate.status(status) == "fast" {
+                do {
+                    output = try withError { parakeet.generate(audio: input, generationParameters: parameters) }
+                    if !parakeet.fastPathFinite { throw FastPathNonFinite.invalid }
+                } catch {
+                    FastPathGate.persist("stock", to: status)
+                    _ = parakeet.configureFastPath(enabled: false)
+                    Stream.gpu.synchronize()
+                    clearCompilationCaches()
+                    trackCompilationCache()
+                    output = try withError { parakeet.generate(audio: input, generationParameters: parameters) }
+                }
+            } else {
+                output = model.generate(audio: input, generationParameters: parameters)
+            }
             Stream.gpu.synchronize()
             return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
         } }
