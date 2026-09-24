@@ -1082,7 +1082,7 @@ public class GraniteSpeechModel: Module {
         let sanitizedWeights = GraniteSpeechModel.sanitize(weights: weights)
 
         if let perLayerQuantization = config.perLayerQuantization {
-            quantize(model: model) { path, module in
+            try installCheckpointQuantization(model: model, weights: sanitizedWeights) { path, module in
                 if sanitizedWeights["\(path).scales"] != nil {
                     return perLayerQuantization.quantization(layer: path)?.asTuple
                 }
@@ -1161,7 +1161,7 @@ extension GraniteSpeechModel {
         let sanitizedWeights = GraniteSpeechModel.sanitize(weights: weights)
 
         if let perLayerQuantization = config.perLayerQuantization {
-            quantize(model: model) { path, module in
+            try installCheckpointQuantization(model: model, weights: sanitizedWeights) { path, module in
                 if sanitizedWeights["\(path).scales"] != nil {
                     return perLayerQuantization.quantization(layer: path)?.asTuple
                 }

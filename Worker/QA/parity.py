@@ -46,22 +46,33 @@ def clip_request(child, model, paths, status):
 
 
 def run(command, model, clips, args, output):
+    identity = dict(model=str(model), configSHA256=hashlib.sha256((model/'config.json').read_bytes()).hexdigest(), command=command,
+                    executableSHA256=hashlib.sha256(pathlib.Path(command[-1]).read_bytes()).hexdigest(), repeats=args.repeats,
+                    manifestSHA256=hashlib.sha256(args.manifest.read_bytes()).hexdigest())
+    previous = json.loads(output.read_text()) if args.resume and output.exists() else {}
+    if previous.get('identity', identity) != identity: raise RuntimeError('Resume identity changed')
+    rows = previous.get('clips', [])
+    if [row['id'] for row in rows] != [clip['id'] for clip, _ in clips[:len(rows)]]: raise RuntimeError('Resume clip order changed')
+    if any('error' in r for row in rows for r in row['responses']): raise RuntimeError('Cannot resume a completed error response')
+    if previous.get('complete'): return dict(previous, identity=identity)
     idle(args.status)
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
     child = subprocess.Popen(['sandbox-exec', '-p', '(version 1)(allow default)(deny network*)', *command], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env)
-    rows = []
+    warmups = previous.get('resumeWarmups', [])
     try:
         cold = clip_request(child, model, clips[0][1], args.status)
         if 'error' in cold: return dict(cold=cold, clips=[], qualified=False)
-        for clip, audio in clips:
+        if previous.get('cold'):
+            warmups.append(cold); cold = previous['cold']
+        for clip, audio in clips[len(rows):]:
             responses = [clip_request(child, model, audio, args.status) for _ in range(args.repeats)]
             rows.append(dict(id=clip['id'], reference=clip['reference'], responses=responses))
-            output.write_text(json.dumps(dict(cold=cold, clips=rows, complete=False), indent=2)+'\n')
+            output.write_text(json.dumps(dict(identity=identity, cold=cold, resumeWarmups=warmups, clips=rows, complete=False), indent=2)+'\n')
             if any('error' in r for r in responses): break
         child.stdin.close()
         child.wait(timeout=10)
         if child.returncode: raise RuntimeError(f'Nonzero EOF exit {child.returncode}')
-        return dict(cold=cold, clips=rows, complete=len(rows)==144, exitCode=child.returncode)
+        return dict(identity=identity, cold=cold, resumeWarmups=warmups, clips=rows, complete=len(rows)==144, exitCode=child.returncode)
     finally:
         if child.poll() is None:
             child.terminate()
@@ -77,6 +88,7 @@ def main():
     p.add_argument('--manifest', type=pathlib.Path, required=True)
     p.add_argument('--model', type=pathlib.Path, required=True)
     p.add_argument('--output', type=pathlib.Path, required=True)
+    p.add_argument('--resume', action='store_true', help='Resume task-owned partial rows; never mix changed model/worker identities')
     p.add_argument('--repeats', type=int, default=2, choices=range(1,21))
     p.add_argument('--status', type=pathlib.Path, default=pathlib.Path.home()/'Library/Application Support/Vella/dictation-status.json')
     args = p.parse_args()
@@ -95,7 +107,7 @@ def main():
         source = args.manifest.parent/clip['file']
         if hashlib.sha256(source.read_bytes()).hexdigest() != clip['sha256']: raise ValueError('Audio hash mismatch')
         target=args.output/(clip['id']+'.wav')
-        subprocess.run(['/usr/bin/afconvert', '-f', 'WAVE', '-d', 'LEI16', str(source), str(target)], check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        if not target.exists(): subprocess.run(['/usr/bin/afconvert', '-f', 'WAVE', '-d', 'LEI16', str(source), str(target)], check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         with wave.open(str(target), 'rb') as wav:
             if (wav.getframerate(), wav.getnchannels(), wav.getsampwidth()) != (16000,1,2): raise ValueError('Unexpected converted reference format')
         paths = []
@@ -138,4 +150,9 @@ def main():
     (args.output/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
     print(json.dumps(summary))
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    try: main()
+    except RuntimeError as error:
+        if str(error) == 'Vella is not idle; stop qualification':
+            print(str(error), file=sys.stderr); raise SystemExit(75)
+        raise

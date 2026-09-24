@@ -1844,7 +1844,7 @@ public class Qwen3ASRModel: Module {
 
         // Quantize if needed
         if perLayerQuantization != nil {
-            quantize(model: model) { path, module in
+            try installCheckpointQuantization(model: model, weights: sanitizedWeights) { path, module in
                 // Don't quantize audio tower
                 if path.hasPrefix("audio_tower") {
                     return nil

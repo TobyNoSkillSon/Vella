@@ -494,20 +494,6 @@ public final class WhisperModel: Module, STTGenerationModel {
         }
 
         let model = WhisperModel(config: config, generationConfig: generationConfig)
-        if let quantization = try? JSONDecoder().decode(
-            WhisperQuantizedModelConfig.self,
-            from: configData
-        ).quantization {
-            quantize(
-                model: model,
-                groupSize: quantization.groupSize,
-                bits: quantization.bits,
-                filter: { path, module in
-                    module is Linear || path.hasSuffix("decoder.embed_tokens")
-                }
-            )
-        }
-
         let files = try FileManager.default.contentsOfDirectory(
             at: modelDirectory,
             includingPropertiesForKeys: nil
@@ -529,6 +515,12 @@ public final class WhisperModel: Module, STTGenerationModel {
             weights.merge(shard) { _, new in new }
         }
         let sanitized = sanitize(weights: weights, config: config)
+        if let quantization = try? JSONDecoder().decode(WhisperQuantizedModelConfig.self, from: configData).quantization {
+            try installCheckpointQuantization(model: model, weights: sanitized) { path, module in
+                guard module is Linear || path.hasSuffix("decoder.embed_tokens") else { return nil }
+                return (quantization.groupSize, quantization.bits, .affine)
+            }
+        }
         try model.update(parameters: ModuleParameters.unflattened(sanitized), verify: .all)
 
         let tokenizerDir = modelDirectory

@@ -71,6 +71,11 @@ public final class ParakeetModel: Module, STTGenerationModel {
         vocabulary.count
     }
 
+    #if VELLA_QUALIFICATION
+    private var qualificationMelOverride: MLXArray?
+    private var qualificationObserver: (([MLXArray], MLXArray) -> Void)?
+    #endif
+
     private lazy var compiledTDTStep = makeCompiledTDTStep(
         decoder: self.decoder,
         joint: self.joint,
@@ -421,6 +426,9 @@ public final class ParakeetModel: Module, STTGenerationModel {
                 let hidden = stepOutputs[1]
                 let cell = stepOutputs[2]
                 MLX.eval(decisions, hidden, cell)
+                #if VELLA_QUALIFICATION
+                qualificationObserver?([frame, currentToken, state.hidden!, state.cell!], decisions)
+                #endif
                 let decisionPair = decisions.asArray(Int32.self)
                 let token = Int(decisionPair[0])
                 let decisionIndex = Int(decisionPair[1])
@@ -866,6 +874,9 @@ public final class ParakeetModel: Module, STTGenerationModel {
     }
 
     private func decodeChunk(_ chunkAudio: MLXArray) -> ParakeetAlignedResult {
+        #if VELLA_QUALIFICATION
+        if let qualificationMelOverride { return decode(mel: qualificationMelOverride)[0] }
+        #endif
         let mel = ParakeetAudio.logMelSpectrogram(chunkAudio, config: preprocessConfig)
         return decode(mel: mel)[0]
     }
@@ -893,7 +904,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
 private func makeCompiledTDTStep(
     decoder: ParakeetPredictNetwork?,
     joint: ParakeetJointNetwork?,
-    blankTokenId: Int
+    blankTokenId: Int, includeLogits: Bool = false
 ) -> @Sendable ([MLXArray]) -> [MLXArray] {
     guard let decoder, let joint else {
         return { arrays in
@@ -903,7 +914,8 @@ private func makeCompiledTDTStep(
 
     let blankTokenArray = MLXArray(Int32(blankTokenId)).reshaped([1, 1])
 
-    return compile { arrays in
+    // Treat model weights as explicit state inputs, not captured constants in TLS tapes.
+    return compile(inputs: [decoder, joint]) { arrays in
         let feature = arrays[0]
         let currentToken = arrays[1]
         let hidden = arrays[2]
@@ -925,7 +937,7 @@ private func makeCompiledTDTStep(
         let predToken = tokenLogits.argMax(axis: -1).asType(.int32)
         let decision = durationLogits.argMax(axis: -1).asType(.int32)
         let decisions = MLX.stacked([predToken, decision], axis: 0)
-        return [decisions, hiddenOut, cellOut]
+        return includeLogits ? [decisions, hiddenOut, cellOut, jointOut] : [decisions, hiddenOut, cellOut]
     }
 }
 
@@ -1021,7 +1033,7 @@ public extension ParakeetModel {
         let sanitized = sanitize(weights: weights, variant: model.variant)
 
         if let perLayerQuant = quantConfig.perLayerQuantization {
-            quantize(model: model) { path, _ in
+            try installCheckpointQuantization(model: model, weights: sanitized) { path, _ in
                 if sanitized["\(path).scales"] != nil {
                     return perLayerQuant.quantization(layer: path)?.asTuple
                 }
@@ -1180,3 +1192,53 @@ private extension Array {
         return self[index]
     }
 }
+
+#if VELLA_QUALIFICATION
+private final class ParakeetQualificationCapture {
+    var arrays: [String: MLXArray] = [:]
+    var steps: [[String: Any]] = []
+}
+public extension ParakeetModel {
+    /// Developer-only stage capture, omitted from production builds.
+    func qualificationSnapshot(audio: MLXArray, directory: URL, referenceMel: MLXArray? = nil) throws -> [String: Any] {
+        let capture = ParakeetQualificationCapture()
+        let nativeMel = ParakeetAudio.logMelSpectrogram(audio, config: preprocessConfig) { capture.arrays[$0] = $1 }
+        let mel = referenceMel ?? nativeMel
+        capture.arrays["native_mel"] = nativeMel
+        qualificationMelOverride = referenceMel
+        let encoded = encodeBatchFeatures(mel.asType(computeDType))
+        eval(mel, encoded.0, encoded.1)
+        capture.arrays["mel"] = mel
+        capture.arrays["encoder"] = encoded.0
+        capture.arrays["lengths"] = encoded.1
+        if let posEnc = encoder.posEnc {
+            capture.arrays["positional"] = posEnc.pe
+            let time = encoded.0.dim(1), middle = posEnc.pe.dim(1) / 2
+            capture.arrays["used_positional"] = posEnc.pe[0..., (middle-time+1)..<(middle+time), 0...].asType(encoded.0.dtype)
+        }
+        let logitsProbe = makeCompiledTDTStep(decoder: decoder, joint: joint, blankTokenId: blankTokenId, includeLogits: true)
+        qualificationObserver = { inputs, actualDecisions in
+            let index = capture.steps.count
+            guard index < 2048 else { return }
+            let probed = logitsProbe(inputs)
+            eval(probed)
+            let decision = actualDecisions.asArray(Int32.self)
+            let probeDecision = probed[0].asArray(Int32.self)
+            let prefix = String(format: "step_%04d", index)
+            capture.arrays[prefix + "_feature"] = inputs[0]
+            capture.arrays[prefix + "_token"] = inputs[1]
+            capture.arrays[prefix + "_hidden"] = inputs[2]
+            capture.arrays[prefix + "_cell"] = inputs[3]
+            capture.arrays[prefix + "_logits"] = probed[3]
+            capture.steps.append(["token": Int(decision[0]), "duration": Int(decision[1]), "probeDecisionMatches": decision == probeDecision])
+        }
+        defer { qualificationObserver = nil; qualificationMelOverride = nil }
+        let output = generate(audio: audio, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try MLX.save(arrays: capture.arrays, url: directory.appendingPathComponent("stages.safetensors"))
+        let result: [String: Any] = ["text": output.text, "steps": capture.steps, "referenceMelInjected": referenceMel != nil]
+        try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]).write(to: directory.appendingPathComponent("trace.json"))
+        return ["text": output.text, "steps": capture.steps.count, "arrays": capture.arrays.count]
+    }
+}
+#endif

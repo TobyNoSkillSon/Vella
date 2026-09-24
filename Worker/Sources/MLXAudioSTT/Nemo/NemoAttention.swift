@@ -156,22 +156,15 @@ final class NemoRelPositionalEncoding {
 
     private func calculatePE() {
         let rows = 2 * maxLen - 1
-        var values = [Float](repeating: 0, count: rows * dModel)
-        let logDiv = Float(log(10000.0)) / Float(dModel)
-
-        for r in 0..<rows {
-            let pos = Float(maxLen - 1 - r)
-            for c in stride(from: 0, to: dModel, by: 2) {
-                let div = exp(-Float(c) * logDiv)
-                let angle = pos * div
-                values[r * dModel + c] = sin(angle)
-                if c + 1 < dModel {
-                    values[r * dModel + c + 1] = cos(angle)
-                }
-            }
-        }
-
-        pe = MLXArray(values).reshaped([1, rows, dModel])
+        // Match Python's MLX float32 sin/cos path. CPU Float libm changes
+        // values near BF16 rounding boundaries, even for short utterances.
+        let positions = MLX.arange(maxLen - 1, -maxLen, step: -1, dtype: .int32)
+            .expandedDimensions(axis: 1).asType(.float32)
+        let channels = MLX.arange(0, dModel, step: 2, dtype: .float32)
+        let divisor = MLX.exp(channels * Float(-(log(10000.0) / Double(dModel))))
+        let angles = positions * divisor
+        pe = MLX.stacked([MLX.sin(angles), MLX.cos(angles)], axis: -1)
+            .reshaped([1, rows, dModel])
         eval(pe)
     }
 

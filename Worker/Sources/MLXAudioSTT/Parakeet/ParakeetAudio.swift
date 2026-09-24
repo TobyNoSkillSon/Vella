@@ -5,10 +5,12 @@ import MLXAudioCore
 enum ParakeetAudio {
     static func logMelSpectrogram(
         _ audio: MLXArray,
-        config: ParakeetPreprocessConfig
+        config: ParakeetPreprocessConfig,
+        capture: ((String, MLXArray) -> Void)? = nil
     ) -> MLXArray {
         let originalDType = audio.dtype
         var x = audio
+        capture?("waveform", audio)
 
         if config.padTo > 0 && x.shape[0] < config.padTo {
             let padLength = config.padTo - x.shape[0]
@@ -22,7 +24,9 @@ enum ParakeetAudio {
             x = MLX.concatenated([first, rest], axis: 0)
         }
 
+        capture?("preemphasis", x)
         let window = makeWindow(name: config.window, winLength: config.winLength, fftLength: config.nFft)
+        capture?("window", window)
         let stftOutput = stft(
             audio: x,
             window: window,
@@ -31,21 +35,30 @@ enum ParakeetAudio {
             padMode: .constant
         )
 
+        capture?("stft_abs", MLX.abs(stftOutput))
         let power = MLX.abs(stftOutput).square().asType(originalDType)
+        capture?("power", power)
         // Match mlx-audio 0.5.1's MLX filter construction and matrix orientation.
         // CPU Float loops and transposing this GEMM change BF16 rounding near token ties.
         let filters = referenceMelFilters(sampleRate: config.sampleRate, nFft: config.nFft, nMels: config.features)
+        capture?("filters", filters)
         var mel = MLX.matmul(filters.asType(power.dtype), power.transposed())
+        capture?("mel_linear", mel)
         mel = MLX.log(mel + MLXArray(config.logZeroGuardValue, dtype: mel.dtype))
 
+        capture?("mel_log", mel)
         let normalized: MLXArray
         if config.normalize == "per_feature" {
             let mean = MLX.mean(mel, axis: 1, keepDims: true)
             let denominator = max(mel.dim(1) - 1, 1)
-            let variance = MLX.sum(
-                (mel - mean).square(), axis: 1, keepDims: true
-            ) / Float(denominator)
+            capture?("difference", mel - mean)
+            let deviations = MLX.pow(mel - mean, 2)
+            let varianceSum = MLX.sum(deviations, axis: 1, keepDims: true)
+            let variance = varianceSum / Float(denominator)
+            capture?("deviations", deviations); capture?("variance_sum", varianceSum)
+            capture?("denominator", MLXArray(Float(denominator), dtype: mel.dtype))
             let std = MLX.sqrt(variance)
+            capture?("mel_mean", mean); capture?("mel_variance", variance); capture?("mel_std", std)
             normalized = (mel - mean) / (std + MLXArray(1e-5, dtype: mel.dtype))
         } else {
             let mean = MLX.mean(mel)
