@@ -30,7 +30,10 @@ class NativeBuildTests(unittest.TestCase):
         build = (ROOT/'scripts/build.sh').read_text()
         self.assertNotIn('${PYTHON', build)
         self.assertNotIn('check_toolchain.py', build)
-        self.assertNotIn('setup-backend.sh', build)
+        # The only allowed mention is deleting the stale file left by Python-era app bundles.
+        mentions = [line for line in build.splitlines() if 'setup-backend.sh' in line]
+        self.assertTrue(all(line.lstrip().startswith('rm -f ') for line in mentions), mentions)
+        self.assertNotIn('cp scripts/setup-backend.sh', build)
         for file in ['scripts/build.sh', 'scripts/install-native.sh', 'docs/install-native.sh']:
             subprocess.run(['bash', '-n', str(ROOT/file)], check=True, timeout=5)
 
