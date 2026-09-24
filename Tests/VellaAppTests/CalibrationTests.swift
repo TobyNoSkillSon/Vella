@@ -1,4 +1,5 @@
 import XCTest
+import VellaCore
 @testable import Vella
 
 final class CalibrationTests: XCTestCase {
@@ -55,10 +56,10 @@ final class CalibrationTests: XCTestCase {
         let config = model.appendingPathComponent("config.json")
         try Data("{\"model_type\":\"whisper\"}".utf8).write(to: config)
         try Data("fake".utf8).write(to: model.appendingPathComponent("model.safetensors"))
-        guard let runtimePath = ProcessInfo.processInfo.environment["VELLA_CALIBRATION_TEST_PYTHON"] else { throw XCTSkip("Set VELLA_CALIBRATION_TEST_PYTHON for the read-only runtime identity check") }
+        guard let runtimePath = ProcessInfo.processInfo.environment["VELLA_CALIBRATION_TEST_WORKER"] else { throw XCTSkip("Set VELLA_CALIBRATION_TEST_WORKER for the read-only runtime identity check") }
         let runtime = URL(fileURLWithPath: runtimePath)
         guard FileManager.default.isExecutableFile(atPath: runtime.path) else { throw XCTSkip("Local runtime not installed") }
-        let store = CalibrationStore(directory: dir.appendingPathComponent("results"), python: { runtime })
+        let store = CalibrationStore(directory: dir.appendingPathComponent("results"), worker: { runtime })
         let start = Date()
         let original = try XCTUnwrap(store.identity(modelPath: model.path))
         print("Calibration runtime identity check (no inference): \(Date().timeIntervalSince(start)) seconds")
@@ -72,25 +73,25 @@ final class CalibrationTests: XCTestCase {
         let dir = try temporary(); defer { try? FileManager.default.removeItem(at: dir) }
         let model = dir.appendingPathComponent("model")
         let bin = dir.appendingPathComponent("bin")
-        let package = dir.appendingPathComponent("lib/python3/site-packages/mlx_audio")
-        for folder in [model, bin, package] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        for folder in [model, bin] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
         try Data("{\"model_type\":\"whisper\"}".utf8).write(to: model.appendingPathComponent("config.json"))
         try Data("fake".utf8).write(to: model.appendingPathComponent("model.safetensors"))
-        let code = package.appendingPathComponent("utils.py")
-        try Data("before".utf8).write(to: code)
-        let python = bin.appendingPathComponent("python")
-        try FileManager.default.createSymbolicLink(at: python, withDestinationURL: URL(fileURLWithPath: "/bin/sh"))
-        let store = CalibrationStore(directory: dir.appendingPathComponent("results"), python: { python })
+        let worker = bin.appendingPathComponent("VellaWorker")
+        try Data("#!/bin/sh\necho before\n".utf8).write(to: worker)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: worker.path)
+        let store = CalibrationStore(directory: dir.appendingPathComponent("results"), worker: { worker })
         store.observe(modelPath: model.path, audioSeconds: 10, processingSeconds: 2)
         XCTAssertEqual(store.speed(modelPath: model.path), 5)
-        try Data("after!".utf8).write(to: code)
+        try Data("#!/bin/sh\necho after!\n".utf8).write(to: worker, options: .atomic)
         XCTAssertNil(store.speed(modelPath: model.path))
     }
     @MainActor private func fakeStore(_ dir: URL, script: String) throws -> CalibrationStore {
-        try script.write(to: dir.appendingPathComponent("calibration_worker.py"), atomically: true, encoding: .utf8)
-        // Deliberately use shell as the injected runtime: no Python/MLX/model load occurs.
+        let worker = dir.appendingPathComponent("VellaWorker")
+        try ("#!/bin/sh\n" + script).write(to: worker, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: worker.path)
+        // Inject a synthetic native helper; no Python/MLX/model load occurs.
         return CalibrationStore(directory: dir.appendingPathComponent("results"), resources: dir,
-                                python: { URL(fileURLWithPath: "/bin/sh") }, identity: { _ in "isolated-test" })
+                                worker: { worker }, identity: { _ in "isolated-test" })
     }
     private var success: String {
         """
@@ -128,10 +129,11 @@ final class CalibrationTests: XCTestCase {
     }
     @MainActor func testChangedIdentityDuringWorkerDiscardsResult() async throws {
         let dir = try temporary(); defer { try? FileManager.default.removeItem(at: dir) }
-        try success.write(to: dir.appendingPathComponent("calibration_worker.py"), atomically: true, encoding: .utf8)
+        try ("#!/bin/sh\n" + success).write(to: dir.appendingPathComponent("VellaWorker"), atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.appendingPathComponent("VellaWorker").path)
         var identity = "before"
         let store = CalibrationStore(directory: dir.appendingPathComponent("results"), resources: dir,
-                                     python: { URL(fileURLWithPath: "/bin/sh") }, identity: { _ in identity })
+                                     worker: { dir.appendingPathComponent("VellaWorker") }, identity: { _ in identity })
         var completed = false
         XCTAssertTrue(store.calibrate(modelPath: "/fake", status: { _ in }, completion: { error in XCTAssertNotNil(error); completed = true }))
         identity = "after"
@@ -156,17 +158,15 @@ final class CalibrationTests: XCTestCase {
         let store = try fakeStore(dir, script: "exit 3\n")
         let library = ModelLibrary(registryURL: dir.appendingPathComponent("registry.json"), calibration: store)
         let active = library.activeModelPath, id = "Qwen3-ASR-1.7B-4bit"
-        library.downloadingID = id; library.busy = true
-        let event: [String: Any] = ["event": "installed", "modelID": id,
-                                  "revision": library.models.first { $0.id == id }!.revision,
-                                  "path": library.modelsDirectory.appendingPathComponent(id).path]
-        var data = try JSONSerialization.data(withJSONObject: event); data.append(10)
-        library.receive(data); library.finished(code: 0)
-        XCTAssertNotNil(library.installed[id]); XCTAssertTrue(library.busy)
-        for _ in 0..<100 where library.busy { try await Task.sleep(nanoseconds: 20_000_000) }
-        XCTAssertNotNil(library.installed[id]); XCTAssertFalse(library.busy)
+        let path = library.modelsDirectory.appendingPathComponent(id).path
+        library.installed[id] = InstalledModel(path: path, revision: library.models.first(where: { $0.id == id })!.revision)
+        try library.saveRegistry(updating: id)
+        var completed = false, failure: String?
+        XCTAssertTrue(store.calibrate(modelPath: path, status: { _ in }, completion: { error in failure = error; completed = true }))
+        for _ in 0..<100 where !completed { try await Task.sleep(nanoseconds: 20_000_000) }
+        XCTAssertNotNil(library.installed[id]); XCTAssertFalse(store.isRunning)
         XCTAssertEqual(library.activeModelPath, active)
-        XCTAssertNotNil(library.downloadError)
+        XCTAssertNotNil(failure)
         XCTAssertTrue(FileManager.default.fileExists(atPath: library.registryURL.path))
     }
 }

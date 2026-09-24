@@ -40,14 +40,11 @@ class DefaultModelTests(unittest.TestCase):
                     self.assertEqual(actual['model'], '/verified/default')
                     self.assertFalse((root/'config.before-runtime.json').exists())
 
-    def test_worker_protocol_and_validation(self):
-        for failure in ('none', 'id', 'revision', 'path', 'exit', 'weights', 'quantization', 'timeout'):
+    def test_native_worker_protocol_and_exit(self):
+        for failure in ('none', 'id', 'revision', 'path', 'exit', 'timeout'):
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
                 root = pathlib.Path(directory); support = root/'support'
                 destination = support/'Models'/ENTRY['id']; destination.mkdir(parents=True)
-                config = {'model_type': 'parakeet', 'quantization': {'bits': 8 if failure == 'quantization' else 4}}
-                (destination/'config.json').write_text(json.dumps(config))
-                if failure != 'weights': (destination/'model.safetensors').write_bytes(b'fixture only')
                 event = dict(event='installed', modelID=ENTRY['id'], revision=ENTRY['revision'], path=str(destination))
                 if failure in ('id', 'revision', 'path'):
                     event[{'id': 'modelID', 'revision': 'revision', 'path': 'path'}[failure]] = 'wrong'
@@ -57,6 +54,7 @@ class DefaultModelTests(unittest.TestCase):
                                   + 'print(json.dumps({"event":"progress","message":"Fixture download","completed":50,"total":100}),flush=True)\n'
                                   + f'print({json.dumps(event)!r},flush=True)\n'
                                   + f'sys.exit({1 if failure == "exit" else 0})\n')
+                script.chmod(0o755)
                 real_popen = subprocess.Popen
                 calls = []
                 def popen(args, **kwargs):
@@ -64,12 +62,12 @@ class DefaultModelTests(unittest.TestCase):
                     return real_popen([sys.executable, '-B', str(script)], **kwargs)
                 with patch.object(installer.subprocess, 'Popen', side_effect=popen):
                     if failure == 'none':
-                        result = installer.download_default(ROOT, support, sys.executable)
+                        result = installer.download_default(ROOT, support, script)
                         self.assertEqual(result['path'], str(destination))
                     else:
                         with self.assertRaises((ValueError, subprocess.SubprocessError)):
-                            installer.download_default(ROOT, support, sys.executable, timeout=.1 if failure == 'timeout' else 5)
-                self.assertEqual(calls[0][0:4], [sys.executable, '-B', str(ROOT/'Resources/benchmark_worker.py'), 'download'])
+                            installer.download_default(ROOT, support, script, timeout=.1 if failure == 'timeout' else 5)
+                self.assertEqual(calls[0][0:3], [str(script), 'download', '--catalog'])
                 self.assertFalse((support/'config.json').exists())
                 self.assertFalse((support/'models-installed.json').exists())
 
@@ -86,8 +84,8 @@ class DefaultModelTests(unittest.TestCase):
                     if args[-1] == '--migrate-runtime':
                         (support/'config.json').write_text(json.dumps({'model': kwargs['env']['VELLA_INITIAL_MODEL'], 'streamingModel': '', 'preferredMicrophone': 'fixture'}))
                     return subprocess.CompletedProcess(args, 0, stdout=f'Prepared Vella runtime: {sys.executable}\n' if args[-1] == '--runtime-only' else '')
-                def download(source, target, python):
-                    self.assertEqual(python, sys.executable)
+                def download(source, target, worker=None):
+                    self.assertIsNone(worker)
                     attempts.append(1)
                     destination = target/'Models'/ENTRY['id']; destination.mkdir(parents=True, exist_ok=True)
                     (destination/'partial').write_bytes(b'resumable')
