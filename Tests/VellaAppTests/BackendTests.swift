@@ -15,7 +15,7 @@ final class BackendTests: XCTestCase {
         let backend = Backend(helper: URL(fileURLWithPath: helper), idleTimeout: 0.2)
         defer { backend.shutdown() }
         let result = try await backend.transcribe(URL(fileURLWithPath: clip), config: Configuration(model: weights))
-        XCTAssertFalse(result.isEmpty)
+        XCTAssertEqual(result, "Saturday, august fifteenth. The sea unbroken all round. No land in sight,")
         let pid = try XCTUnwrap(backend.processID)
         try await backend.releaseAndWait()
         XCTAssertNil(backend.processID)
