@@ -11,7 +11,9 @@ The Swift application has no third-party Swift package dependencies. Explicit ba
 - LibriSpeech: Vassil Panayotov, Guoguo Chen, Daniel Povey and Sanjeev Khudanpur, https://www.openslr.org/12/ — CC BY 4.0, derived from LibriVox recordings.
 - LibriSpeech-PC formatted references: A. Meister et al., NVIDIA, https://www.openslr.org/145/ — CC BY 4.0.
 
-`Resources/Benchmarks/english-mini-v1`, `english-20m-v1` and `english-formatted-20m-v1` retain their manifests, hashes, source attribution and license notices. Selected FLACs are unchanged. Formatting/scoring transformations and limitations are documented in README.md. No endorsement is implied. Full benchmark audio is not included in the app bundle.
+`Resources/Benchmarks/v1/english-mini-v1`, `english-20m-v1` and `english-formatted-20m-v1` retain their manifests, hashes, source attribution and license notices. Selected FLACs are unchanged. Formatting/scoring transformations and limitations are documented in README.md. No endorsement is implied. Full benchmark audio is not included in the app bundle.
+
+`Resources/Benchmarks/v2` (in development) contains reference-text excerpts, hashes and provenance from the sources listed in its README.md, each under its own licence (CC BY 4.0, CC BY-SA 4.0, CC BY-NC-ND 4.0, CDLA-Permissive-1.0, Apache-2.0). It contains no audio; `tools/build.py fetch` downloads the audio from the pinned upstream sources.
 
 ## Calibration sample (included in the app)
 

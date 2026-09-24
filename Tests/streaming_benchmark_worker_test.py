@@ -101,7 +101,7 @@ class BenchmarkTests(unittest.TestCase):
                 b.idle(path)
 
     def test_frozen_complete_corpus(self):
-        manifest, policy = b.frozen_suite(b.ROOT / 'Benchmarks/english-formatted-20m-v1')
+        manifest, policy = b.frozen_suite(b.ROOT / 'Benchmarks/v1/english-formatted-20m-v1')
         self.assertEqual(len(manifest['clips']), 144)
         self.assertEqual(policy['scorerSHA256'], b.formatting.SCORER_SHA256)
 

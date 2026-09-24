@@ -1,0 +1,33 @@
+"""Four distinct Rev16 podcast episodes, human verbatim text with time-only aligned cuts."""
+import csv, hashlib, io
+from common import Candidate, decode
+REV='c05ab6fd8b4b627d123c922a22a39e993dd37635'
+HF='sanchit-gandhi/rev16_csv';HFREV='acad9372c439d3d538f846e1c4df9bb9a2730ba1'
+BASE=f'https://raw.githubusercontent.com/revdotcom/speech-datasets/{REV}/rev16/verbatim_transcripts/nlp_references'
+# Fixed by separate time-only Parakeet alignment against verbatim Rev tokens. At each
+# boundary, 3+ reference/hypothesis words agree on both sides around an audible pause.
+CUTS={
+ '9':(2058,3165,635.44,930.0,.964),
+ '10':(1923,2882,658.48,959.12,.959),
+ '17':(2113,3140,654.24,957.76,.911),
+ '21':(2366,3550,626.32,924.88,.856),
+}
+SOURCE=dict(id='rev16',name='Rev16 verbatim podcast episodes',url='https://github.com/revdotcom/speech-datasets/tree/'+REV+'/rev16',revision=f'Rev text {REV}; podcast mirror {HF}@{HFREV}',licence='CC BY-SA 4.0 text only; podcast audio rights unclear',licenceUrl=f'https://raw.githubusercontent.com/revdotcom/speech-datasets/{REV}/rev16/LICENSE.md',redistributable=False,released='2023',attribution='Radford et al. (2023), Rev transcriptionists; underlying podcast creators retain media rights.',referenceProduction='Professional human verbatim Rev transcription; case, punctuation and fillers reconstructed solely from nlp token columns. Parakeet used only for cut times, never text.')
+def candidates(ctx):
+    out=[]
+    for n,(first,last,start,end,density) in sorted(CUTS.items(),key=lambda x:int(x[0])):
+        url=f'{BASE}/{n}.nlp';p=ctx.http_file(url,name=f'rev16-{n}.nlp')
+        rows=list(csv.DictReader(io.StringIO(p.read_text(encoding='utf-8-sig')),delimiter='|'))
+        if len(rows)<last: raise ValueError('reference token count changed')
+        text=' '.join((r['prepunctuation'] or '')+r['token']+(r['punctuation'] or '') for r in rows[first:last])
+        if '<' in text or '[' in text: raise ValueError('markup inside reference window')
+        out.append(Candidate(key=f'{n}-{first}-{last}',language='en',duration=end-start,reference=text,referenceType='formatted',group=f'rev16-episode-{n}',conditions=('podcast','spontaneous','conversational'),stratum=f'episode-{n}',origin=dict(referenceUrl=url,referenceSha256=hashlib.sha256(p.read_bytes()).hexdigest(),audioRepo=HF,audioRevision=HFREV,audioPath=f'{n}.mp3',start=start,end=end,firstToken=first,lastTokenExclusive=last,anchorDensity=density,channel='mean'),extra={}))
+    return out
+def select(ctx,cands,target_seconds):return cands
+def extract(ctx,cand):
+    path=ctx.hf_file(HF,cand.origin['audioPath'],HFREV)
+    sha=hashlib.sha256(path.read_bytes()).hexdigest()
+    if cand.origin.get('sourceSha256') and sha!=cand.origin['sourceSha256']:raise ValueError('podcast audio SHA mismatch')
+    cand.origin['sourceSha256']=sha
+    a,rate=decode(path,cand.origin['start'],cand.origin['end'])
+    return a,rate,'mean'

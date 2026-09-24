@@ -1,0 +1,11 @@
+# Builder environment (tools/build.py). Use a dedicated venv, never Vella's runtime Python.
+# soundfile bundles libsndfile (1.2.2 in this wheel); FLAC bytes and MP3 decoding depend on it,
+# so keep these pins when reproducing file SHA-256s. PCM SHA-256 is the encoder-independent identity.
+fsspec==2026.9.0
+huggingface_hub==1.32.0
+numpy==2.5.3
+pyarrow==25.0.1
+requests==2.34.2
+soundfile==0.14.0
+soxr==1.1.0
+# scoring.py uses only the Python standard library plus the hash-pinned in-tree formatting_metrics.py.

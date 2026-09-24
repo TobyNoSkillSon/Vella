@@ -1,0 +1,161 @@
+{
+ "allocation": {
+  "id": "en-earnings22",
+  "source": "rev_earnings",
+  "minutes": 12,
+  "tracks": [
+   "words",
+   "formatting"
+  ],
+  "scoring": "wer",
+  "params": {
+   "corpus": "earnings22"
+  }
+ },
+ "source": {
+  "id": "rev-earnings",
+  "name": "Earnings-22/21 Rev verbatim",
+  "url": "https://github.com/revdotcom/speech-datasets",
+  "revision": "c05ab6fd8b4b627d123c922a22a39e993dd37635",
+  "licence": "CC BY-SA 4.0 text only; audio rights unclear",
+  "licenceUrl": "https://raw.githubusercontent.com/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings22/LICENSE.md",
+  "redistributable": false,
+  "released": "2022",
+  "attribution": "Rev, Earnings-22 and Earnings-21 human verbatim transcripts.",
+  "referenceProduction": "Professional Rev verbatim transcription; case, prepunctuation and punctuation are original token columns; aligned timestamps never supply text."
+ },
+ "candidateCount": 3,
+ "selectedSeconds": 721.27,
+ "clips": [
+  {
+   "id": "en-earnings22-2020-03-0230487MTN-Ghana-2019-Annual-Results-Call-557-1113",
+   "allocation": "en-earnings22",
+   "source": "rev-earnings",
+   "file": "audio/en-earnings22/2020-03-0230487MTN-Ghana-2019-Annual-Results-Call-557-1113.flac",
+   "sha256": "24995eb62aeb73ed249a2a2cbd629a091f71bde901a28e0b2b7f615b475c741d",
+   "pcmSha256": "11a3afb7da7de799c512869a62c808384c4708cea38a648da067c5ef6ff3384e",
+   "samples": 3851040,
+   "duration": 240.69,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "then like for like EBITDA margin expanded by 5.9 percentage points to 43.5%. The margin improvements were supported by tight controls on our operating expenses as well as distribution efficiencies. In terms of capex, we invested GH1 .1 billion in support of the growth in the core business and improving the participation of and quality of service to our customers. MTN Ghana acknowledges the outbreak of coronavirus worldwide and its potential impact on our supply chain. While we monitor unfolding developments, we're exploring multiple scenarios in a bid to mitigate the impact on our business. On the regulatory front, the Payment Systems and Services Act 2019 was passed, in May last year, into law. This governs the way Mobile Money services are conducted. As required of existing players such as us, we have duly applied for the new license. MTN Ghana maintains ongoing engagement with regulatory stakeholders with a firm focus of sustaining cordial relationships and achieving continued improvement in customer experience. Follow- following the expiring of certain technology licenses in 2019, the NCA regulator has renewed our TV license for 15 years. We have submitted applications for the renewal of our international gateway and fixed access licenses, which are pending NCA approval. We continue to invest in our communities with the MTN Ghana Foundation, and support reaching a total of 149 projects since inception in 2, in 2007. In 2019, the foundation initiated eight new projects in education, three in health, and one in economic empowerment. The board declared an interim dividend of two pesewas per share after reviewing the midyear performance of the company. After reviewing the full year performance of the company, the board shall, shall be recommending a final dividend of four pesewas per share, bringing the total dividend for 2019 to six pesewas per share. This corresponds, this represents 73% of profit after tax and a 20% increase in dividend per share. Before I comment briefly on, on prospects for the outlook, I would like to take this opportunity to highlight some changes in our management, which Jeremiah touched on a little earlier. As you may be aware from our release to the market last week, our CFO Modupe Kadri, and executive director of MTN Ghana, has been appointed to the chief financial officer and executive director role of MTN Nigeria effective 1st March 2020. As a result, Kobina Bentsi-Enchill has been appointed to act as chief financial officer until the replacement process is completed. This process is underway, and we'll update the market once it's finalized. On this note, I would like to wish both gentlemen the very best in their new roles. In terms of the outlook for 2020, 2019 marked the year of the customer for MTN Ghana. And in 2020, we're building on that foundation as we transition from a traditional mobile telecoms operator to an emerging digital operator. As a business, we're well-positioned for continued growth as we invest in ongoing improvements in quality of service in a drive to increase participation of Ghanaians in all our service offerings. In line with our, with our transition journey, MTN Ghana has declared 2020 as the year of the customer, the digital experience, with a firm focus on digital. The focus on digital is a tool to enhance customer experience, as well as create value for our shareholders.",
+   "referenceType": "formatted",
+   "group": "2020-03-0230487MTN-Ghana-2019-Annual-Results-Call",
+   "speaker": null,
+   "conditions": [
+    "spontaneous",
+    "earnings-call",
+    "accented"
+   ],
+   "stratum": "2020-03-0230487MTN-Ghana-2019-Annual-Results-Call",
+   "origin": {
+    "repo": "revdotcom/speech-datasets",
+    "revision": "c05ab6fd8b4b627d123c922a22a39e993dd37635",
+    "path": "earnings22/transcripts/nlp_references/2020-03-0230487MTN-Ghana-2019-Annual-Results-Call.nlp",
+    "referenceSha256": "583aee87abd0f21d614cfe2edbfa3d43cc0160b35e9a75fb2e4d74f62356e06a",
+    "alignedPath": "earnings22/transcripts/force_aligned_nlp_references/2020-03-0230487MTN-Ghana-2019-Annual-Results-Call.aligned.nlp",
+    "alignedSha256": "25934cf353ac1cc236f96815db7bd2fa0a13909827ed4b71a487abda6114f172",
+    "audioUrl": "https://media.githubusercontent.com/media/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings22/media/2020-03-0230487MTN-Ghana-2019-Annual-Results-Call.mp3",
+    "start": 243.61,
+    "end": 484.3,
+    "firstToken": 557,
+    "lastTokenExclusive": 1113,
+    "channel": "mean",
+    "sourceSha256": "9e9d04c89fad67d2734b657cba92bad50e18ddeac3549d68659665ad01e83a91"
+   },
+   "extra": {},
+   "key": "2020-03-0230487MTN-Ghana-2019-Annual-Results-Call-557-1113"
+  },
+  {
+   "id": "en-earnings22-4423872-3552-4051",
+   "allocation": "en-earnings22",
+   "source": "rev-earnings",
+   "file": "audio/en-earnings22/4423872-3552-4051.flac",
+   "sha256": "2adf36b58b299d92774df9b2f98b6790786d8cb75dc359d3923eb6356c43ceab",
+   "pcmSha256": "d25340cbaad8e996514174250d3de51b32a9f7c257640da37724e25687ec8a1e",
+   "samples": 3807679,
+   "duration": 237.9799,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Uh, we still have some challenges on the consumer portfolio. And as I mentioned before, when I think about the, the potential, potential of return on tangible equity for operation Chile, I think 16% is something achievable from what I see here and the projections that we have. So we don't have any specific guidance for the year, but I'm hoping for better numbers than the ones that you mentioned for the return that we have for this year. And we hope for better returns approaching the 15, 16% return on tangible equity on a sustainable basis for the bankers. At least this is the plan that we have. For Rappi, we have negotiated for six months, uh, with Simon Borrero, who is the CEO with Rappi globally for this joint venture that we have with them. We have exclusivity over the application of Rappi for the distribution of financial services both for the clients that Rappi has, it has over one million clients in Chile, as well as on the company side all the providers that Rappi has of companies that are selling these, these services through, through the platform. We also have the exclusivity for the distribution of financial services. It's a new model. We… If you take our experience in Itau Unibanco of doing partnerships with retail, with retailers, we were quite successful in, in, in achieving that. We are developing this model with Chile with Rappi. So I think there are good opportunities for us with all the flow of clients that they have incorporating a new attraction model for the bank, as well as to learn more from a company that has been wildly successful in developing its digital model for all Latin America, to learn from them and apply what we learn into our business. That's at least the, the, the ambition that we have for Rappi. Thank you very much. Sure. Your next question is from Sebastian from Credicorp, Credicorp, corp, Capital. Your line is now open. Hello, everyone. Gabriel, Claudia, uh, and the rest of the team, Rodrigo, uh, thank you for the presentation. I have several questions today. The first one on Capitol. Gabriel, you mentioned during the presentation that the new information will be disclosed when it is available. Uh, the key question is here is what are your initial thoughts, uh, considering the recovery of profitability, uh, the potential needs that the bank may have? Uh, and when do you expect, uh, to be, to, to have disclosures, uh, for the market? That will be the initial question. Uh, the second question, uh, is regarding overall profitability, going back to the question of Jason. Uh, because you talk a lot about how, uh, the sustainable RE, return on tangible equity will be between 15 to 16% in Chile, uh, but, but you are, you continue to fail to talk about consolidated profitability and talk about, uh, the picture in Colombia. So my, my specific question here would be,",
+   "referenceType": "formatted",
+   "group": "4423872",
+   "speaker": null,
+   "conditions": [
+    "spontaneous",
+    "earnings-call",
+    "accented"
+   ],
+   "stratum": "4423872",
+   "origin": {
+    "repo": "revdotcom/speech-datasets",
+    "revision": "c05ab6fd8b4b627d123c922a22a39e993dd37635",
+    "path": "earnings22/transcripts/nlp_references/4423872.nlp",
+    "referenceSha256": "b965e521fea0b88f939e428226f4abdc5b7ede30d8e8c2c860faf2d16720ed09",
+    "alignedPath": "earnings22/transcripts/force_aligned_nlp_references/4423872.aligned.nlp",
+    "alignedSha256": "d0d1d4de7a829c64f95c591369c827455cc77f3f157d9f2a5f13cf1b2cdead0c",
+    "audioUrl": "https://media.githubusercontent.com/media/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings22/media/4423872.mp3",
+    "start": 1607.5601,
+    "end": 1845.54,
+    "firstToken": 3552,
+    "lastTokenExclusive": 4051,
+    "channel": "mean",
+    "sourceSha256": "4c5bb39b40e28b02a32ace1235cc4c425dbbbae4e5137aee8a792f5505a65532"
+   },
+   "extra": {},
+   "key": "4423872-3552-4051"
+  },
+  {
+   "id": "en-earnings22-4481952-791-1396",
+   "allocation": "en-earnings22",
+   "source": "rev-earnings",
+   "file": "audio/en-earnings22/4481952-791-1396.flac",
+   "sha256": "b786e9b152fcbfbe8e043a5a3d7da58aca84517daa2b849d987bd498bfee094b",
+   "pcmSha256": "739db46f6b9388c1cbb0da9b08f2e150cbb87fbf829fb96b7dd431ff62d510ec",
+   "samples": 3881600,
+   "duration": 242.6,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The foundations for the transaction were put in place in 2016 when we secured the economic interest in the assets. And since then it built a strong and mutually respectful relationship with Glencore that allowed us to negotiate this deal on a bilateral exclusive basis over the course of, of a few months last year. Our economic interest delivered 79.5 million in cash flow last quarter. And now with 100% of the operation being included from one January, we expect its impact to be even bigger going forward. The cave extension prefeasibility study will be a priority, and with intersections 400 meters below the study area and still open below that, Ernest Henry has a long and very exciting future. Carl performed extremely well and managed to deliver to plan in spite of unprecedented rainfall and, and COVID interruptions. The underground project which will grow Carl's production to 350,000 ounces per annum remains on schedule and budget. I was also fortunate to be able to visit Red Lake in November last year. Due to COVID travel restrictions, this was my first visit since we took ownership of the asset in April, 2020. Red Lake is one of the best commercial opportunities I've seen in the gold sector in my career. For the combined purchase price of $650 million being Red Lake and Battle North, we have secured a district scale tenem- tenement position with 11 million ounce of resource and significant exploration upside, seven kilometers of prospective strike with associated mining infrastructure, three mills and $700 million of Canadian tax losses. In time, this asset will be transformed into plus 350,000 ounce a year low cost producer. This is our values created in our sector. As you will hear from Bob, who has just returned from his third visit in the last five months, progress is being made. Last quarter we consistently achieved over 1200 meters of development each month. And as a result of this and other improvements, we have confidence of a material and sustainable improvement to production in the next two quarters. We expect this higher production to drive the cost per ounce lower, and I'm looking forward to visiting the operation again with Lawrie in the next few weeks. Frustratingly Mungari remains the only asset in our portfolio that we cannot, cannot currently visit. We are fortunate to have a good team in Western Australia who've led the Kundana integration, which has gone well. And we are growing increasingly confident about the future and the potential of this operation. Mt. Rawdon was impacted by heavy rainfall and was forced to process low, the low grade stock power material. Strategically we continue to assess the potential of Mt. Rawdon to be converted into pumped hydro generator, which could be a significant contributor of renewable energy to the Southeast Queensland grid at the end of its mine life. This last quarter, the highlights for the discovery team were good intersections at Q and Western Australia, and also more intriguing and exciting intersections at Red Lake where there is plenty of open space and interesting geology to discover another high grade zone. Glen and his team are also plotting and planning the next phase of drilling at Earnest Henry. Whilst we are managing industry headwinds, we should not ignore the significant commodity price tailwinds. A gold price of over A$ 2,500 and a copper price, which going forward will represent around 20% of our revenue of over A$ 13,500 per ton. Evolution is well positioned to benefit from this. I'll now hand over to Bob to provide some more detail on the operational performance.",
+   "referenceType": "formatted",
+   "group": "4481952",
+   "speaker": null,
+   "conditions": [
+    "spontaneous",
+    "earnings-call",
+    "accented"
+   ],
+   "stratum": "4481952",
+   "origin": {
+    "repo": "revdotcom/speech-datasets",
+    "revision": "c05ab6fd8b4b627d123c922a22a39e993dd37635",
+    "path": "earnings22/transcripts/nlp_references/4481952.nlp",
+    "referenceSha256": "dd9546396f0412171bc324231deb87e2944a8b14606b96ac344e38b68004d26a",
+    "alignedPath": "earnings22/transcripts/force_aligned_nlp_references/4481952.aligned.nlp",
+    "alignedSha256": "636137833e811e232b8ea5b81390a3d09424a7f82784b0b651f81e6302b10a51",
+    "audioUrl": "https://media.githubusercontent.com/media/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings22/media/4481952.mp3",
+    "start": 298.89,
+    "end": 541.49,
+    "firstToken": 791,
+    "lastTokenExclusive": 1396,
+    "channel": "mean",
+    "sourceSha256": "3259fb7bb9023612d8d29cce71d198e4b23f75c10f1fa8947fa61aab0e9949f9"
+   },
+   "extra": {},
+   "key": "4481952-791-1396"
+  }
+ ],
+ "builtAt": "2026-09-24T10:10:59Z"
+}

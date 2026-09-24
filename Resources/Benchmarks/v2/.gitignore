@@ -1,0 +1,3 @@
+# Audio is rebuilt from pinned upstream sources by tools/build.py fetch; see README.md.
+/audio/
+/.cache/

@@ -1,0 +1,452 @@
+{
+ "allocation": {
+  "id": "pl-mls",
+  "source": "mls",
+  "minutes": 3,
+  "tracks": [
+   "multilingual"
+  ],
+  "scoring": "wer",
+  "params": {
+   "language": "pl",
+   "config": "polish"
+  }
+ },
+ "source": {
+  "id": "mls",
+  "name": "Multilingual LibriSpeech",
+  "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech",
+  "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+  "licence": "CC BY 4.0",
+  "licenceUrl": "https://www.openslr.org/94/",
+  "redistributable": true,
+  "released": "2020",
+  "attribution": "Pratap et al., MLS (2020); source LibriVox readers and works.",
+  "referenceProduction": "Aligned audiobook text; test transcripts were human-listened and corrected."
+ },
+ "candidateCount": 520,
+ "selectedSeconds": 182.79,
+ "clips": [
+  {
+   "id": "pl-mls-1889_1447_000002",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/1889_1447_000002.flac",
+   "sha256": "dd38b2c3e05ba164088eac0177cf60bf8b22b6d1b7e5412c5a5b7fbd39841d91",
+   "pcmSha256": "0139788164676c224ce61308bacade09f825898b981964e82e51662ac23c7924",
+   "samples": 293120,
+   "duration": 18.32,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "staliśmy pod drzwiami i nasłuchiwali w lamentach wichru dawały się słyszeć wszelkie głosy perswazje nawoływania i gawędy zdawało się nam że słyszymy wołanie o pomoc ojca zbłąkanego w wichurze to znowu że brat z teodorem gwarzą beztrosko pod drzwiami",
+   "referenceType": "normalised",
+   "group": "1889",
+   "speaker": "1889",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "1889",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/1889_1447_000.tar.gz",
+    "member": "1889_1447_000002.flac",
+    "sourceUrl": "http://www.archive.org/download/sklepy_cynamonowe_1004_librivox/sklepy_cynamonowe_alt-14_schulz_64kb.mp3",
+    "archiveSha256": "4c7c31026e688797d8830f20f7bc25c1821632ac96b143412424cfdf606fb0db"
+   },
+   "extra": {},
+   "key": "1889_1447_000002"
+  },
+  {
+   "id": "pl-mls-1889_1447_000025",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/1889_1447_000025.flac",
+   "sha256": "8067190aab6f4ebcdee2c151cc0ce6d97a34d0e88d2c751aa562ff5750a7aa5e",
+   "pcmSha256": "3a84a01499c6da0defaa0d424ada0a116e9b963bfb36df7ec96562d84fca726d",
+   "samples": 190720,
+   "duration": 11.92,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "mnożył się i sycił potężny kapitał jesieni tam rósł i ciemniał ten kapitał i rozsiadał się coraz szerzej na półkach jak na galeriach jakiego wielkiego teatru",
+   "referenceType": "normalised",
+   "group": "1889",
+   "speaker": "1889",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "1889",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/1889_1447_000.tar.gz",
+    "member": "1889_1447_000025.flac",
+    "sourceUrl": "http://www.archive.org/download/sklepy_cynamonowe_1004_librivox/sklepy_cynamonowe_15_schulz_64kb.mp3",
+    "archiveSha256": "4c7c31026e688797d8830f20f7bc25c1821632ac96b143412424cfdf606fb0db"
+   },
+   "extra": {},
+   "key": "1889_1447_000025"
+  },
+  {
+   "id": "pl-mls-1889_1447_000099",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/1889_1447_000099.flac",
+   "sha256": "38302e1c4f24bcc13b1047526dd3683abaab559629c5c67ac1787c3f79330bc7",
+   "pcmSha256": "9f0bb6228eaab3ed1b022d52acc15ad5a471d36e1690a983f26fdc00849eb503",
+   "samples": 188480,
+   "duration": 11.78,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "ale te papierowe ślepe ptaki nie mogły już poznać ojca na darmo wołał na nie dawnym zaklęciem zapomnianą mową ptasią nie słyszały go i nie widziały",
+   "referenceType": "normalised",
+   "group": "1889",
+   "speaker": "1889",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "1889",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/1889_1447_000.tar.gz",
+    "member": "1889_1447_000099.flac",
+    "sourceUrl": "http://www.archive.org/download/sklepy_cynamonowe_1004_librivox/sklepy_cynamonowe_15_schulz_64kb.mp3",
+    "archiveSha256": "4c7c31026e688797d8830f20f7bc25c1821632ac96b143412424cfdf606fb0db"
+   },
+   "extra": {},
+   "key": "1889_1447_000099"
+  },
+  {
+   "id": "pl-mls-8758_8338_000037",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/8758_8338_000037.flac",
+   "sha256": "78574967727323a8c16abcad3cb786645eebe2efc9d1bff84de4e7a03de35a6a",
+   "pcmSha256": "e04ff4ed194b48a43d93b5015ca7223bec8f2fe91bd8bc999644ca737cb024b4",
+   "samples": 276000,
+   "duration": 17.25,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "zajmują się wszystkiem w nowopowstającem mrowisku nie mają jeszcze pomocnic więc same zajęte są pielęgnowaniem dzieci żywieniem siebie i spełniają te wszystkie obowiązki dopóty dopóki mrowisko nie powiększy się o tyle że wylęgłe nijakie mrówki przyjmą na siebie trudy wychowywania dzieci i gospodarowania",
+   "referenceType": "normalised",
+   "group": "8758",
+   "speaker": "8758",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "8758",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/8758_8338_000.tar.gz",
+    "member": "8758_8338_000037.flac",
+    "sourceUrl": "http://www.archive.org/download/doktormuchoapski_1604_librivox/doktormucholapski_11_erazm_64kb.mp3",
+    "archiveSha256": "cab723dcca2dc5babd1c087c310028215dde25f43995cf2d1685eec43cc4337e"
+   },
+   "extra": {},
+   "key": "8758_8338_000037"
+  },
+  {
+   "id": "pl-mls-8758_8338_000076",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/8758_8338_000076.flac",
+   "sha256": "b431b60443941fbaf34ee29f2773570ec33b6a7d5b879fb2506e77276f15f9b3",
+   "pcmSha256": "16a8669586f2c29fcbe7d7274775dc5c104ba3d2ced361ba1a24d00690bfe375",
+   "samples": 178400,
+   "duration": 11.15,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "rozum nasz plącze się w tłumie trudnych do wyjaśnienia zagadek nie możemy pojąć dlaczego i jakim sposobem jeden i ten sam żołądek owadu może trawić w pierwszej epoce życia ogromne ilości zielska",
+   "referenceType": "normalised",
+   "group": "8758",
+   "speaker": "8758",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "8758",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/8758_8338_000.tar.gz",
+    "member": "8758_8338_000076.flac",
+    "sourceUrl": "http://www.archive.org/download/doktormuchoapski_1604_librivox/doktormucholapski_12_erazm_64kb.mp3",
+    "archiveSha256": "cab723dcca2dc5babd1c087c310028215dde25f43995cf2d1685eec43cc4337e"
+   },
+   "extra": {},
+   "key": "8758_8338_000076"
+  },
+  {
+   "id": "pl-mls-8758_8338_000120",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/8758_8338_000120.flac",
+   "sha256": "e1e70da97ded0541311d1c98ea02ca79bb4887d1dd7ad9fbba23165e6b70d0d1",
+   "pcmSha256": "b4af949c34aee5ee189ac7709c423f21bc10417967524177035364128d6cd400",
+   "samples": 295200,
+   "duration": 18.45,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "że nie jest on tak rażącym jak się na razie wydaje osmyki bowiem chwytają tylko świeżo wyklute z poczwarki i miękkie jeszcze wołki liszki zaś ze swej strony umieją doskonale wyszukiwać na ciele ofiar miejsca okryte miękką powłoką aby przeniknąć przez nie z łatwością do wnętrza są gatunki osmyków napadające także na inne owady",
+   "referenceType": "normalised",
+   "group": "8758",
+   "speaker": "8758",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "8758",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/8758_8338_000.tar.gz",
+    "member": "8758_8338_000120.flac",
+    "sourceUrl": "http://www.archive.org/download/doktormuchoapski_1604_librivox/doktormucholapski_13_erazm_64kb.mp3",
+    "archiveSha256": "cab723dcca2dc5babd1c087c310028215dde25f43995cf2d1685eec43cc4337e"
+   },
+   "extra": {},
+   "key": "8758_8338_000120"
+  },
+  {
+   "id": "pl-mls-9098_8338_000064",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/9098_8338_000064.flac",
+   "sha256": "23a5051acc3d4662c7e891d976255074c9914503ea861505cf71d25bd26e6e7e",
+   "pcmSha256": "a29ad88123d7c12d125d711603590ca2fd8ef9db694bd88f6fb95960f73f75cd",
+   "samples": 255840,
+   "duration": 15.99,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "panie zawołałem oczekując aż się na głos ludzki odwróci ale żadnej nie otrzymałem odpowiedzi śpi czy nie żyje pomyślałem i powtórzyłem wezwanie znowu napróżno wołając bezskutecznie zbliżyłem się nareszcie o dwa kroki i położyłem rękę na jego ramieniu",
+   "referenceType": "normalised",
+   "group": "9098",
+   "speaker": "9098",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "9098",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/9098_8338_000.tar.gz",
+    "member": "9098_8338_000064.flac",
+    "sourceUrl": "http://www.archive.org/download/doktormuchoapski_1604_librivox/doktormucholapski_23_erazm_64kb.mp3",
+    "archiveSha256": "7d0309aad6db10c794d657c6cd598f4927db57914db1d05b36ba02e37584123e"
+   },
+   "extra": {},
+   "key": "9098_8338_000064"
+  },
+  {
+   "id": "pl-mls-9098_8338_000072",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/9098_8338_000072.flac",
+   "sha256": "c02df51e7080c5398544dc34c1c74b6ae92583faa4561b542c27e13eb9ec7fd4",
+   "pcmSha256": "fbc5be35c9aa91975e3e37cd9ca0064b8f31b1ee8b333dec229a968b53cad7ae",
+   "samples": 170400,
+   "duration": 10.65,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "zwrócona bokiem do mnie siedziała na przezroczystem ziarnku kwarcu w głębokiem zadumaniu czy też śnie pogrążona oparta łokciem o kolano twarz ukryta była w dłoni",
+   "referenceType": "normalised",
+   "group": "9098",
+   "speaker": "9098",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "9098",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/9098_8338_000.tar.gz",
+    "member": "9098_8338_000072.flac",
+    "sourceUrl": "http://www.archive.org/download/doktormuchoapski_1604_librivox/doktormucholapski_23_erazm_64kb.mp3",
+    "archiveSha256": "7d0309aad6db10c794d657c6cd598f4927db57914db1d05b36ba02e37584123e"
+   },
+   "extra": {},
+   "key": "9098_8338_000072"
+  },
+  {
+   "id": "pl-mls-9098_8338_000077",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/9098_8338_000077.flac",
+   "sha256": "c30c3e386c34d87a9eae3b7e74329be89bccab88f0e2c628d3419903bcd92e98",
+   "pcmSha256": "933556da30eb5c37ee2e3714e351f7183c56723d1a81efee8f3dcf99dab2b1cf",
+   "samples": 301600,
+   "duration": 18.85,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "nie mogłem pojąć przyczyny nagromadzenia tak różnorodnych ofiar i dopiero baczniejsze rozejrzenie się po okolicy pozwoliło mi dostrzec naprzeciwko granitowej ściany ślady zniszczenia na okolicznych mchach i ziołach do połowy poopalane szkielety zwisłe łodygi i pokurczone liście zbyt wyraźnie świadczyły że zapoznały się z ogniem",
+   "referenceType": "normalised",
+   "group": "9098",
+   "speaker": "9098",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "9098",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/9098_8338_000.tar.gz",
+    "member": "9098_8338_000077.flac",
+    "sourceUrl": "http://www.archive.org/download/doktormuchoapski_1604_librivox/doktormucholapski_23_erazm_64kb.mp3",
+    "archiveSha256": "7d0309aad6db10c794d657c6cd598f4927db57914db1d05b36ba02e37584123e"
+   },
+   "extra": {},
+   "key": "9098_8338_000077"
+  },
+  {
+   "id": "pl-mls-9860_8338_000009",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/9860_8338_000009.flac",
+   "sha256": "30aced45095edff2d5561ff2d864a5203083e3ad33e9cd8ca04f5fc18bf90173",
+   "pcmSha256": "cf55bde1764ccfaf72598011ef0c3acfa49477555beea5cd680650423ea68936",
+   "samples": 285120,
+   "duration": 17.82,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "dopiero niedawno została zdartą a i to nie we wszystkich szczegółach jego życia wiele się do tego przyczynił nasz znakomity zoolog dr maksymilian nowicki a przed nim hohman thon z eisenachu i berthold",
+   "referenceType": "normalised",
+   "group": "9860",
+   "speaker": "9860",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "9860",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/9860_8338_000.tar.gz",
+    "member": "9860_8338_000009.flac",
+    "sourceUrl": "http://www.archive.org/download/doktormuchoapski_1604_librivox/doktormucholapski_27_erazm_64kb.mp3",
+    "archiveSha256": "d8efbaafa62cc8dbc5d70823bf986ee39001ea5765bb656998f1b4d8789d6149"
+   },
+   "extra": {},
+   "key": "9860_8338_000009"
+  },
+  {
+   "id": "pl-mls-9860_8338_000117",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/9860_8338_000117.flac",
+   "sha256": "09a26390860380bb5b331ee2c79c9e2a13945911f9c84cb965187ce6b2239c23",
+   "pcmSha256": "e73c469af5d42357b9cd4ffc2af7d69e8c2fabdfb8eb559e292d78a807d15917",
+   "samples": 225760,
+   "duration": 14.11,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "gdyby zapytać plantatora jaki dźwięk w lesie bardziej go przeraża ryki jaguarów czy brzęk komarów co straszniejsze czy sąsiedztwo dzikich bestyj czy życie wśród mustyków",
+   "referenceType": "normalised",
+   "group": "9860",
+   "speaker": "9860",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "9860",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/9860_8338_000.tar.gz",
+    "member": "9860_8338_000117.flac",
+    "sourceUrl": "http://www.archive.org/download/doktormuchoapski_1604_librivox/doktormucholapski_20_erazm_64kb.mp3",
+    "archiveSha256": "d8efbaafa62cc8dbc5d70823bf986ee39001ea5765bb656998f1b4d8789d6149"
+   },
+   "extra": {},
+   "key": "9860_8338_000117"
+  },
+  {
+   "id": "pl-mls-9860_8338_000121",
+   "allocation": "pl-mls",
+   "source": "mls",
+   "file": "audio/pl-mls/9860_8338_000121.flac",
+   "sha256": "ec0920ce90c3a47306119eeedd58315f30b9345879de81a508ce6b380159fa62",
+   "pcmSha256": "2607f9c7cfdd82f9b3112a6fdd3bb6367fa26f68cdf362adca10b88e8596a84a",
+   "samples": 264000,
+   "duration": 16.5,
+   "language": "pl",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "nigdzie prawie nie spotyka się ich w tak niezmiernej ilości jak właśnie w krainach wiecznej zimy w laplandyi tumany komarów można porównywać do płatków śniegu lub kłębów dymu",
+   "referenceType": "normalised",
+   "group": "9860",
+   "speaker": "9860",
+   "conditions": [
+    "read",
+    "audiobook",
+    "close-mic"
+   ],
+   "stratum": "9860",
+   "origin": {
+    "repo": "facebook/multilingual_librispeech",
+    "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+    "archive": "data/mls_polish/test/audio/9860_8338_000.tar.gz",
+    "member": "9860_8338_000121.flac",
+    "sourceUrl": "http://www.archive.org/download/doktormuchoapski_1604_librivox/doktormucholapski_20_erazm_64kb.mp3",
+    "archiveSha256": "d8efbaafa62cc8dbc5d70823bf986ee39001ea5765bb656998f1b4d8789d6149"
+   },
+   "extra": {},
+   "key": "9860_8338_000121"
+  }
+ ],
+ "builtAt": "2026-09-24T10:11:13Z"
+}

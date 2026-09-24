@@ -20,7 +20,7 @@ class BenchmarkSiteTests(unittest.TestCase):
         payload = (ROOT / 'docs/data.js').read_text().removeprefix('const VELLA_RESULTS = ').strip().removesuffix(';')
         rows = json.loads(payload)['rows']
         catalogs = {}
-        for catalog in ['models.json', 'streaming-models.json', 'Benchmarks/additional-models.json']:
+        for catalog in ['models.json', 'streaming-models.json', 'Benchmarks/v1/additional-models.json']:
             for model in json.loads((ROOT / 'Resources' / catalog).read_text()):
                 catalogs[model['id']] = model
         indexed = {r['id']: r for r in rows}

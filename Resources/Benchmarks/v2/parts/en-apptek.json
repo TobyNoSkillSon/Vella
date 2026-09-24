@@ -1,0 +1,154 @@
+{
+ "allocation": {
+  "id": "en-apptek",
+  "source": "apptek",
+  "minutes": 22.5,
+  "tracks": [
+   "words"
+  ],
+  "scoring": "wer"
+ },
+ "source": {
+  "id": "apptek",
+  "name": "AppTek Call-Center Dialogues",
+  "url": "https://huggingface.co/datasets/apptek-com/apptek_callcenter_dialogues",
+  "revision": "b98967d9946f7f59f58d08624a2a00fe98fe0219",
+  "licence": "CC BY-SA 4.0",
+  "licenceUrl": "https://huggingface.co/datasets/apptek-com/apptek_callcenter_dialogues/blob/b98967d9946f7f59f58d08624a2a00fe98fe0219/README.md",
+  "redistributable": true,
+  "released": "2026-04",
+  "attribution": "AppTek, Call-Center Dialogues (2026); role-played customer-service recordings.",
+  "referenceProduction": "Manually transcribed verbatim, diarized turn-level references."
+ },
+ "candidateCount": 3,
+ "selectedSeconds": 1351.8,
+ "clips": [
+  {
+   "id": "en-apptek-en_CN_Travel_1584563-13540-466840",
+   "allocation": "en-apptek",
+   "source": "apptek",
+   "file": "audio/en-apptek/en_CN_Travel_1584563-13540-466840.flac",
+   "sha256": "887d22ae46709f5f04f4247c64e0f3a0d2cf6e9249d61614ced49c8c8d0e7d7d",
+   "pcmSha256": "6241a591e4946c50defbbf23e105d42021ba0272e82dc72cba26d9a1f67b8875",
+   "samples": 7252800,
+   "duration": 453.3,
+   "language": "en",
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer",
+   "reference": "Hello. Welcome to Fun Getaway Travel. It's Brian. Ready to help you plan your awesome theme park vacation. How can I help you today? Hi, Brian. uh I want to book a vacation package to the Biggs Theme Park, you know. the one all with roller uh coasters and kids zones. My family and I are planning a summer trip, So I need to figure out dates and details first. Yes. A summer in the theme park is so fun, I know. Let's start with the dates. We have packages available from early June to late August But, to give you a quick tip, early June and late August are less easy because it is before school gets out and also after most camps end. Mid-July is super cramped. Wait times for rides can be two plus more hours. Do we have a rough time in mind? Ohh, um less busy sounds way better. We have a ten-year-old, so Long wait times weren't it. uh Originally, like, uh the first weeks work uh Can you also check if there are any packages available then? Okay. Let me pull up the calendar. hm Perfect. We have packages for June third to June seventh. hm And June tenth to June fourteenth. Both are wide open. Five days because it lets them see the whole park without rushing. Does five days work for your family? um I think five day's perfect. We don't want to cram too much. Now, uh what's included in the package? Like, does it have a hotel, meals, and park tickets? I don't want to book those separately. hm It's all included. No separate booking needed. Let's break it down. First, the hotel is a park built-in. It's a ten-minute walk from the theme park entrance. So, you don't have to drive. Each room has two baths, and it fits four people, and a mini fridge. Then, park tickets. Five day unlimited passes. You can go in and out of the park as much as you want each day. And for meals, breakfast at the hotel every morning. It has pancakes, eggs, fruit, kid-friendly stuff, Many, many more. And one meal was per person per day for lunch for dinner inside the park Ohh. Ohh, that's everything we need. um No having to buy meals every day. Saves me so much time. uh Do you have any summer discounts? Like, family deals or early booking savings? Yes we do. Right now if you book before May first, you get fifteen percent off the total package So for the June third to seventh package, the regular package price is one thousand and two hundred dollars for a family of four So with the discount, it drops to one hundred and twenty dollars. That's one hundred eighty dollars saved. We also throw in a free park souvenir pack for kids Includes a hat, a water bottle, and a small toy Ohh, fifteen percent off is a huge deal, okay. I've definitely booked before May First. But what if something comes up, like my kid gets sick or something else, and we have to cancel? um What's the refund policy? hm That's a really great question, smart. We know plans change. If you cancel thirty days before your trip, So before, let's say before, May third for uh June third, you get a full refund minus a small fifty-dollars fee If you cancel fifteen to twenty-nine days before, you will still get seventy percent of your money back. If it's less than fifteen days, We can't give a refund, unfortunately, but we can move your trip to another summer date, like late August, with no extra cost. That way, you don't lose the whole package Ohh. That's fair. Fifteen-dollars fee is okay, uh and moving day is helpful. Okay uh Do I need to pay the whole thing upfront? Or just a deposit? I'd rather pay a little now and the rest later Ohh. We just need a we just need a deposit for the booking. Two hundred dollars for the package, and the deposit is non-refundable if you cancel. The cost cover the fee if you cancel. Then the rest uh is due fourteen days before the trip. So it will be eight hundred and twenty dollars for the discounted package uh Let's see. So by May twentieth or June third, you can pay the deposit and the balance online, over the phone, or even by chat Ohh, two hundred deposit is easy. Okay I can pay that today. um Let's book the June third to through seventh pass uh package, please uh Can you see uh can you send me the itinerary via email? I need to show my husband all the details. hm Yeah, awesome, let's log that in. I will process the two hundred deposit now. Can you confirm your email address? I will send the itenerary right away. It will have the hotel address, park ticket info, meal voucher details, and the payment schedules, so Perfect. Thank you so much. My email is Lyn dot dot Chang C H A N G Chang at Email dot com Ohh. Okay And just to recap: a five-day package from June third to seventh. um pa uh We're living in Parkview Inn for five days, and we still have the tickets for five days, as well? uh We have breakfast at Davvy Meal at fifteen percent discount, so uh I just have to spend two hundred money. Deposit today. And the balance due May",
+   "referenceType": "formatted",
+   "group": "en_CN_Travel_1584563.wav",
+   "speaker": null,
+   "conditions": [
+    "role-played",
+    "conversational",
+    "accented:en-CN",
+    "long-form"
+   ],
+   "stratum": "en-CN",
+   "origin": {
+    "repo": "apptek-com/apptek_callcenter_dialogues",
+    "revision": "b98967d9946f7f59f58d08624a2a00fe98fe0219",
+    "metadata": "diarization/en-CN/metadata.jsonl",
+    "audio": "diarization/en-CN/audio/en_CN_Travel_1584563.wav",
+    "start": 13.54,
+    "end": 466.84,
+    "turnStart": 0,
+    "turnEnd": 53,
+    "channel": "mean"
+   },
+   "extra": {
+    "accent": "en-CN",
+    "domain": "travel"
+   },
+   "key": "en_CN_Travel_1584563-13540-466840"
+  },
+  {
+   "id": "en-apptek-en_IN_Aviation_003_20250917-180740-629540",
+   "allocation": "en-apptek",
+   "source": "apptek",
+   "file": "audio/en-apptek/en_IN_Aviation_003_20250917-180740-629540.flac",
+   "sha256": "e649f7b7cacf5b27101cac93764d51380814a903f00739b2002e254724cb9667",
+   "pcmSha256": "87fb1795cb674895cf9ec59058da901a8f3d931c0e8287b5158ddbdf42a093e4",
+   "samples": 7180800,
+   "duration": 448.8,
+   "language": "en",
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer",
+   "reference": "Hello? Hello. Yeah are you, can you hear me? Yeah they, yeah, yeah, yeah I can hear you now, I guess there was an server issue. Okay. uh Sir, I have found your luggage. Both of your luggage. And our feedback says sir, these two were unclaimed at the airport. I think but that wasn't on baggage shelf number five. Baggage belt number five, b but it says sir it was on belt number six, sir. But I was told the baggage would be on belt number five, and waited, I waited there for like one hour. uh Really sorry for the inconvenience sir. But its fr from our side, it say, it was scheduled for belt number six. uh Okay whoev whoever is that faulty side but the luggage was mine and it's now not with me. It contained the mos my most important documents and uh items that we have purchased there. uh Really sorry sir. Maybe, this can happen because some technical issue at the airport, maybe at the last time they had to change the belt and you did not get updated. So, this is clearly our, our fault. So, no one is to blame sir. It is our, our fault and, are you in the airport vicinity right now? No, I am currently in the hotel in Greater Noida. Okay. uh Can you get me the exact details of your hotel sir? For your inconvenience, we are really sorry but, for the most I can do now is, I can send you one IndiGo staff with your luggage to your hotel sir. That would be awesome. Sure sir, we can, we can arrange that for you. Sir, can, can you get me the details? Okay so. Yeah sure ah fine. You can write the hotel name. It's Hotel Luxe Inn, L U X E L U X E. Yeah, it's lima uniform X-Ray echo Lima uniform X-Ray echo. Sorry sir? Okay sir. L U X E lima uniform X-Ray echo. Okay sir. Next? And there is I double N. India November November. I, India November November. Sir so, this is in Gurugram sector four, right? No, no, not that one, it's in Greater Noida actually. Okay. Greater Noida. Can you spell the hotel name again sir? Hotel L U X E lima uniform X-Ray echo. L U X E, I double N sir. Is that correct? Yeah. Okay sir. Greater Noida, hotel Luxe Inn. At, at what time you will be available at the hotel sir to receive the baggage sir? You can drop that off by reception. uh Sorry sir. We can do, but it is an unclaimed baggage. So, we would like to see some identity proof while, while you receive this. So, I do not think we can do that like drop it at the reception. Will we good if you personally receive that. Okay. You can schedule it for nine PM. Okay, nine PM. Okay sir. I have scheduled it for nine PM, it will be there at your hotel at nine PM at your reception. uh The guy will call you and you have to come down and Show him the proper ID and he will hand it over to you. Will that be okay sir? That would be great. Can you provide me the guy's contact number so that I can contact. Sir, I will share you his identity with proper photo proof and the phone number. Okay, and what if there is some issue with my luggage as something is stolen or something missing from that? uh Sir, I have just received the image of the, your unclaimed baggage and the seals are proper sir. And you can check it personally also while you receive. The seals are proper till now. Okay. And if anything happens, if anything stolen you can surely claim your insurance. T he baggage inq insurance sir. So you have ah, Indigo provides the baggage insurance or I'll have to purchase it separately from any insurance company? uh Actually it is included in your ticket price sir. So, you have already paid for that. Okay, that's great I didn't knew about that. Ohh yes sir. So you don't worry have to about any stolen luggage. You have to just claim your insurance. So, I have sended to you the delivery guy details and he will be there at your hotel on time sir. Okay. Okay and yeah I have provided all the details ah like both of the baggage are in hand with him? Yeah sir. Of course these were the only two bags that were remained unclaimed at the airport. um Its fine then, just let me know when you are releasing the baggage. Okay sir. Surely we will notify. uh Is there anything else we can help you with? No thank you. Thank you for calling IndiGo sir. Have a good day.",
+   "referenceType": "formatted",
+   "group": "en_IN_Aviation_003_20250917.wav",
+   "speaker": null,
+   "conditions": [
+    "role-played",
+    "conversational",
+    "accented:en-IN",
+    "long-form"
+   ],
+   "stratum": "en-IN",
+   "origin": {
+    "repo": "apptek-com/apptek_callcenter_dialogues",
+    "revision": "b98967d9946f7f59f58d08624a2a00fe98fe0219",
+    "metadata": "diarization/en-IN/metadata.jsonl",
+    "audio": "diarization/en-IN/audio/en_IN_Aviation_003_20250917.wav",
+    "start": 180.74,
+    "end": 629.54,
+    "turnStart": 29,
+    "turnEnd": 92,
+    "channel": "mean"
+   },
+   "extra": {
+    "accent": "en-IN",
+    "domain": "aviation"
+   },
+   "key": "en_IN_Aviation_003_20250917-180740-629540"
+  },
+  {
+   "id": "en-apptek-en_US_Aave_Banking_1591807-116340-566040",
+   "allocation": "en-apptek",
+   "source": "apptek",
+   "file": "audio/en-apptek/en_US_Aave_Banking_1591807-116340-566040.flac",
+   "sha256": "03c3ff7adab96fe0640c0c95747dc793a94860c5784096784da6979244539b72",
+   "pcmSha256": "0075a7f26e4787438056bec43193b4f9d8254ef90eca9098ea276d02acbcdd39",
+   "samples": 7195200,
+   "duration": 449.7,
+   "language": "en",
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer",
+   "reference": "I should have known, okay Shamekka, I need your um, I need to make sure that it's you, so I need you to give me your full address including the state and the zip. My full address is five five seven Hello? Are you there, ma'am? Okay I am here, go ahead. Okay, I'm sorry. It's so much g going on over here I couldn't hardly, it sound like the phone cut out. um It's five five seven, Kurich. That's K U R I C H Avenue. That's in um Lake Arrowhead. And my zip code is nine two three two five. And can I have the last four of your account number please? The last four of my account number is uh ohh ohh one nine. So that's zero zero one nine, Yes. Hmm, okay. That's what I said. Ohh ohh ohh ohh one nine. That's what it is. okay, hold on one second ma'am, I'm looking up right now, okay, What, did it come up? Ohh, okay. um Ms. Thomas, I I see that you have um three dollars and fifty-eight cents, now where do you want me to send this to? uh No, I actually should have more money in my account than three dollars and fifty-eight cents. Are you looking at the right account, ma'am? It's Shamekka Thomas. Ohh, Shamekka, it looks like you have two accounts here, ohh my bad, I see, I see what's going on, ohh okay, I see what's going on, Yes. so wh wh where, you have two accounts here, which one you're trying, what you're trying to do? So in my savings account, I should have at least ten thousand dollars in that account, and I need to make the transfer into my checking, the one that has the three dollars and some change in there. okay, how much you're tryna do? I'm thinking about four thousand That's good, 'cause anything over nin uh nine thousand nine hundred ninety-nine, we gotta report that, Alright. What? uh it's the government, they just, they, you know, they be trying to make sure you're not doing nothing illegal and stuff, But it's my money. I can do whatever I want with my money. I know, it's just like, you can, but they watching, you know how they do, Mhm Well, I don't think tha that's right. They they shouldn't even know what's in my account. Why they gotta know what's going on? I should be able to transfer what I wanna transfer when I wanna transfer it. Ohh. y you can, but they stay banked, so, Okay, it's whatever. As long as we can get this transfer done so I can pay my bills, I will be happy 'cause I wanna get it done before Thanksgiving. Otherwise, I'mma have a situation. So well, hold on one second, what would what would normally be the transfer limit? Like, let's say you said nine thousand, but let's say I wanted you to transfer all ten thousand. I couldn't do that? no, a I'm not saying that, Ms. Thomas, I'm saying that anything over nine thousand nine hundred ninety-nine, we flag it, it doesn't mean you can't do it, it just means that they're gon' be watching, that's all, For what? ah because they got a lot of money laundering, you know how that is, these drug dealers and stuff, and so they just, that's their way of thinking, they're gon' catch them doing something illegal, so they're flagging any large amounts of money moving, it's just the, it's the government, Girl, are you serious? girl they always been doing this, So so they So they think that you know me, fresh out of college, just barely saved ten thousand dollars. I'm laundering some money. If I was laundering money, honey, I'd be laundering more than ten thousand dollars. uh uh right, right, 'cause you know, you know ho you know how it is, I don't have to tell you, but you know, 'cause I already can tell that you know what's up, I know that that don't make no sense. But okay, as long as I get my stuff done, I'm cool. yeah, I just sent that right now, Is there an What? I just sent this right now, do you see that your confirmation, you should, you should have got something on your phone. Ohh, hold on. Let me look, ma'am. No, you didn't tell me. You just, okay uh. I thought you was gonna at least tell me you were sending it to me, but Ma'am, ma'am, you called me to do the transfer, that's I'm doing my job. let me see. Okay Yes, but how was I supposed to know that you was gon' send me a confirmation? What if I didn't want that? You know, I could be trying to do something shady. Maybe I don't want my husband to know what's all going on and you sending confirmations, but it's cool. No shade no shade. Do your job. Make your little paper. Ma'am, I, I I ma'am, I'm just doing my job, that's what I'm doing. Can I help you with something else? Yes, I'm I am not done. I would like to know when my funds gon' be there. Are they gon' be there immediately or do I have to wait? Your phones are in your account right now, ma'am, you just moved from one account to another account, it's the same bank, You know, I really don't like the way you talking to me, but I'mma let it go 'cause I know it's the end of the day and you probably tired and I'm not trying to make your day worse than what it is. But don't make mine worse than what it is. Okay, boo boo. I'm just trying to tell you, I'm not trying to do nothing, I'm just telling you what it is. Now, can you answer this question, it's my last question and then I will let you go. I just wanted to know if I run into this situation again, or maybe I'm thinking hmm I could do like a automatic thing every month. Is it possible that I could do like a automatic transfer for the future? Like, let's say next month, I know that I'm gonna have to pay some bills and they gon' range around the same amount of money. So could I set that up automatically without it being forever? Like, can I do a future transfer? Yes, you can, you can either call and do that with me or another customer service rep or you could just go online and do it yourself, it's up to you, you tell me which way and that's what Imma tell you, Okay. Well, thank you. So which way you're gonna do it? I d I would rather just go online and do it myself. I I didn't know it was gon' be all this. No, it's not all this, it's it's however you want it to be,",
+   "referenceType": "formatted",
+   "group": "en_US_Aave_Banking_1591807.wav",
+   "speaker": null,
+   "conditions": [
+    "role-played",
+    "conversational",
+    "accented:en-US_Aave",
+    "long-form"
+   ],
+   "stratum": "en-US_Aave",
+   "origin": {
+    "repo": "apptek-com/apptek_callcenter_dialogues",
+    "revision": "b98967d9946f7f59f58d08624a2a00fe98fe0219",
+    "metadata": "diarization/en-US_Aave/metadata.jsonl",
+    "audio": "diarization/en-US_Aave/audio/en_US_Aave_Banking_1591807.wav",
+    "start": 116.34,
+    "end": 566.04,
+    "turnStart": 24,
+    "turnEnd": 117,
+    "channel": "mean"
+   },
+   "extra": {
+    "accent": "en-US_Aave",
+    "domain": "banking"
+   },
+   "key": "en_US_Aave_Banking_1591807-116340-566040"
+  }
+ ],
+ "builtAt": "2026-09-24T09:53:09Z"
+}

@@ -74,7 +74,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(preferredBenchmark([original], processor: "Apple M4 Pro")?.machine, original.machine)
     }
     func testTwentyMinuteSuiteHasDiverseSpeakersAndAlignedClips() throws {
-        let data = try Data(contentsOf: URL(fileURLWithPath: "Resources/Benchmarks/english-20m-v1/manifest.json"))
+        let data = try Data(contentsOf: URL(fileURLWithPath: "Resources/Benchmarks/v1/english-20m-v1/manifest.json"))
         let manifest = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let clips = try XCTUnwrap(manifest["clips"] as? [[String: Any]])
         XCTAssertEqual(clips.count, 141)

@@ -1,0 +1,1589 @@
+{
+ "allocation": {
+  "id": "en-librispeech-pc",
+  "source": "librispeech_pc",
+  "minutes": 5,
+  "tracks": [
+   "words",
+   "formatting"
+  ],
+  "scoring": "wer"
+ },
+ "source": {
+  "id": "librispeech-pc",
+  "name": "LibriSpeech-PC test-other",
+  "url": "https://www.openslr.org/145/",
+  "revision": "OpenSLR145 manifests sha256:96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0; openslr/librispeech_asr parquet@2b9f39377850ffce6bf6358257ae9f84b2349497",
+  "licence": "CC BY 4.0",
+  "licenceUrl": "https://www.openslr.org/resources/145/about.html",
+  "redistributable": true,
+  "released": "2023",
+  "attribution": "Mehri et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.",
+  "referenceProduction": "Printed source-book text aligned by researchers to LibriSpeech; text_raw keeps original orthography, text is ASR-normalized."
+ },
+ "candidateCount": 2348,
+ "selectedSeconds": 305.265,
+ "clips": [
+  {
+   "id": "en-librispeech-pc-1688-142285-0072",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/1688-142285-0072.flac",
+   "sha256": "66792807c8b204994be14428363ca0cac24f522bce13fa2e8b2c3db3530b600f",
+   "pcmSha256": "103181a22a7719931dd46d36e4749ec3b330b46f04fb757f938bf4fba86f851a",
+   "samples": 93600,
+   "duration": 5.85,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Margaret held her in her arms, and put the weary head to rest upon her bosom.",
+   "referenceType": "formatted",
+   "group": "speaker-1688",
+   "speaker": "1688",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-1688",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 20,
+    "row": 20,
+    "upstreamId": "1688-142285-0072",
+    "channel": "mean",
+    "sourceSha256": "d95997ac827dc6bae68fcd91053cad9a29774bdcc92aaf9ed73a59f60927c79f"
+   },
+   "extra": {},
+   "key": "1688-142285-0072",
+   "lexicalReference": "Margaret held her in her arms, and put the weary head to rest upon her bosom."
+  },
+  {
+   "id": "en-librispeech-pc-1998-29455-0037",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/1998-29455-0037.flac",
+   "sha256": "67cef6895692e92fec150b6339345ac5ef12f18db77db0b6d9c65df78bba6dbc",
+   "pcmSha256": "bd53e60cbbbfabf278ffeadff09fad7bb42604892729ed02ae8b68a535585a29",
+   "samples": 106400,
+   "duration": 6.65,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Nor was it Sunday, on which they took a rest and washed their shirts, according to mister Beale's rule of life.",
+   "referenceType": "formatted",
+   "group": "speaker-1998",
+   "speaker": "1998",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-1998",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 22,
+    "row": 69,
+    "upstreamId": "1998-29455-0037",
+    "channel": "mean",
+    "sourceSha256": "f1f033ee1890d9e813dbc78112d5cd2e145e3498ac9c4488618a8a0aeb7172aa"
+   },
+   "extra": {},
+   "key": "1998-29455-0037",
+   "lexicalReference": "Nor was it Sunday, on which they took a rest and washed their shirts, according to mister Beale's rule of life."
+  },
+  {
+   "id": "en-librispeech-pc-2033-164915-0006",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/2033-164915-0006.flac",
+   "sha256": "5e3637fa1cd1bc02a9ce9bcbe8a6d0760c1e8fbb42831acfd949dd548c3067b7",
+   "pcmSha256": "78d28d70b3535934e8571857ff3c3855a58f279143c8877f01342136c541acf2",
+   "samples": 348320,
+   "duration": 21.77,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The Chamberlain called the Castrato and charged him to do accordingly; so he replied, \"I hear and I obey;\" and he took his pages with him and went out in search of the Stoker till he found him in the rear of the caravan, girthing his ass and preparing for flight.",
+   "referenceType": "formatted",
+   "group": "speaker-2033",
+   "speaker": "2033",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-2033",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 6,
+    "row": 49,
+    "upstreamId": "2033-164915-0006",
+    "channel": "mean",
+    "sourceSha256": "eb4a6575aa2004da0518e5a3a91a2d9421f2308f563d3ee4b3596abcb75a23eb"
+   },
+   "extra": {},
+   "key": "2033-164915-0006",
+   "lexicalReference": "The Chamberlain called the Castrato and charged him to do accordingly so he replied, I hear and I obey and he took his pages with him and went out in search of the Stoker till he found him in the rear of the caravan, girthing his ass and preparing for flight."
+  },
+  {
+   "id": "en-librispeech-pc-2033-164915-0013",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/2033-164915-0013.flac",
+   "sha256": "ef390ba6e8ca1c742c887131447504b4f514a956855b9239f5707960168a3049",
+   "pcmSha256": "0d32c13e98e0a68247d80a8ec0d76d62803d53792cf3696ff5e59c623e5de7c1",
+   "samples": 284800,
+   "duration": 17.8,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "and he answered, \"I am the Chamberlain of the Emir of Damascus, King Sharrkan, son of Omar bin al Nu'uman, Lord of Baghdad and of the land of Khorasan, and I bring tribute and presents from him to his father in Baghdad\".",
+   "referenceType": "formatted",
+   "group": "speaker-2033",
+   "speaker": "2033",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-2033",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 6,
+    "row": 56,
+    "upstreamId": "2033-164915-0013",
+    "channel": "mean",
+    "sourceSha256": "22ae07d8fe58586e241975048b8c753c3392b869cf725201689377e98a91dc15"
+   },
+   "extra": {},
+   "key": "2033-164915-0013",
+   "lexicalReference": "and he answered, I am the Chamberlain of the Emir of Damascus, King Sharrkan, son of Omar bin al Nu'uman, Lord of Baghdad and of the land of Khorasan, and I bring tribute and presents from him to his father in Baghdad."
+  },
+  {
+   "id": "en-librispeech-pc-2414-128291-0010",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/2414-128291-0010.flac",
+   "sha256": "a7a67fe3fa734cbe45993d7ec5766b64083e05d5c6625f1e58857c7a2dea6cb6",
+   "pcmSha256": "caf51b191bd7134adc25440b7503776f38f4ad4f955fe5c0c0547ed36571fd24",
+   "samples": 90400,
+   "duration": 5.65,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The kine, however, gazed at it all and wondered.",
+   "referenceType": "formatted",
+   "group": "speaker-2414",
+   "speaker": "2414",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-2414",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 26,
+    "row": 99,
+    "upstreamId": "2414-128291-0010",
+    "channel": "mean",
+    "sourceSha256": "c498ea8094015f7d6cfbeaf3cea3cf4b1e7ec362fe1f97e2e198a238fc4fedfe"
+   },
+   "extra": {},
+   "key": "2414-128291-0010",
+   "lexicalReference": "The kine, however, gazed at it all and wondered."
+  },
+  {
+   "id": "en-librispeech-pc-2609-156975-0008",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/2609-156975-0008.flac",
+   "sha256": "b83afb5c2da387d3d374fea1e1d4701b8e3f3eda1f5b1e8cebb103d4c03af06d",
+   "pcmSha256": "d32f01b5a322c8633e6b75dd4d24d4597a5d6661c10d8d640824c194eaf3db67",
+   "samples": 113760,
+   "duration": 7.11,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The Biblical narratives apparently disagree regarding the duration of the sojourn in Egypt.",
+   "referenceType": "formatted",
+   "group": "speaker-2609",
+   "speaker": "2609",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-2609",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 23,
+    "row": 75,
+    "upstreamId": "2609-156975-0008",
+    "channel": "mean",
+    "sourceSha256": "83c275cd9720ca58353835ae86b948f611e69355d1764124189341941f0c0517"
+   },
+   "extra": {},
+   "key": "2609-156975-0008",
+   "lexicalReference": "The Biblical narratives apparently disagree regarding the duration of the sojourn in Egypt."
+  },
+  {
+   "id": "en-librispeech-pc-2609-156975-0023",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/2609-156975-0023.flac",
+   "sha256": "2622dd0a22bd2d4721cb1a87e4ea4272caf49daf1e9e19b70eb3ee57f083ab72",
+   "pcmSha256": "e94576856a2b730b5bc5e6a0981768ecc012c52190908fb7bdb3f058a535e813",
+   "samples": 198880,
+   "duration": 12.43,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Later he found his way to the court of one of the local kings in central Palestine where he married and became in time a prosperous local prince.",
+   "referenceType": "formatted",
+   "group": "speaker-2609",
+   "speaker": "2609",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-2609",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 23,
+    "row": 90,
+    "upstreamId": "2609-156975-0023",
+    "channel": "mean",
+    "sourceSha256": "4703aebabb2d393fd19e4b61f3b026633a57c4bcea1ac91a3ff0bec61725cc5d"
+   },
+   "extra": {},
+   "key": "2609-156975-0023",
+   "lexicalReference": "Later he found his way to the court of one of the local kings in central Palestine where he married and became in time a prosperous local prince."
+  },
+  {
+   "id": "en-librispeech-pc-3005-163390-0005",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/3005-163390-0005.flac",
+   "sha256": "40a84ef47310a2850257ccbed9fa032759e6699439e8eec422706b24f47aded7",
+   "pcmSha256": "58fbbcf74711f9075d0326c8c1f8e52de509912f93636475996b342a838198fe",
+   "samples": 92480,
+   "duration": 5.78,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "But a big, fine looking man jumps up on a bench and shouts: \"Hold on!",
+   "referenceType": "formatted",
+   "group": "speaker-3005",
+   "speaker": "3005",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-3005",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 11,
+    "row": 90,
+    "upstreamId": "3005-163390-0005",
+    "channel": "mean",
+    "sourceSha256": "a565f382cf2f2a206a38557329606fce80fc78f5d5574908d41080d8d77eaf17"
+   },
+   "extra": {},
+   "key": "3005-163390-0005",
+   "lexicalReference": "But a big, fine looking man jumps up on a bench and shouts Hold on"
+  },
+  {
+   "id": "en-librispeech-pc-3080-5032-0021",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/3080-5032-0021.flac",
+   "sha256": "64ecb06e18a1959f70fbaa42d0a700c2ff60483b18018f0540e59c2eb923ebad",
+   "pcmSha256": "ec38c6152309137d6dbdd23782ccd15775e53d4a5d34781b0d9062886da93587",
+   "samples": 134080,
+   "duration": 8.38,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "how can you talk of defying fortune; nobody lives without it, and therefore why should you imagine you could?",
+   "referenceType": "formatted",
+   "group": "speaker-3080",
+   "speaker": "3080",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-3080",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 3,
+    "row": 33,
+    "upstreamId": "3080-5032-0021",
+    "channel": "mean",
+    "sourceSha256": "1a2aa507165f92d03fc4fa53d30c1fb00a208e003571c1711ed05e979c457efa"
+   },
+   "extra": {},
+   "key": "3080-5032-0021",
+   "lexicalReference": "how can you talk of defying fortune nobody lives without it, and therefore why should you imagine you could?"
+  },
+  {
+   "id": "en-librispeech-pc-3331-159605-0027",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/3331-159605-0027.flac",
+   "sha256": "88a343285f6493b003742f6e1d1eda9c08f6e78f9882afd85879fbabb7f56882",
+   "pcmSha256": "078b3b67e0101d635ddc91fb06c9772313199a153c4965b1da6020414d94593b",
+   "samples": 75520,
+   "duration": 4.72,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "asked the artful young man, laying a trap, into which Polly immediately fell.",
+   "referenceType": "formatted",
+   "group": "speaker-3331",
+   "speaker": "3331",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-3331",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 7,
+    "row": 22,
+    "upstreamId": "3331-159605-0027",
+    "channel": "mean",
+    "sourceSha256": "189e44cec77bd7519f86bd1bf032f2fa871fd78dc4830190cb055d4ab5153818"
+   },
+   "extra": {},
+   "key": "3331-159605-0027",
+   "lexicalReference": "asked the artful young man, laying a trap, into which Polly immediately fell."
+  },
+  {
+   "id": "en-librispeech-pc-3331-159609-0005",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/3331-159609-0005.flac",
+   "sha256": "0670aab91e5cc026ad18d9177f85a716aa147987e59121fd6dd06ef5fb9d730c",
+   "pcmSha256": "97662635b60a267ac5b0ecf753cb7c2ec3f1b942da3f1bd2209e107726724861",
+   "samples": 106240,
+   "duration": 6.64,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "No, I'm only tired, had a good deal to do lately, and the dull weather makes me just a trifle blue.",
+   "referenceType": "formatted",
+   "group": "speaker-3331",
+   "speaker": "3331",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-3331",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 7,
+    "row": 47,
+    "upstreamId": "3331-159609-0005",
+    "channel": "mean",
+    "sourceSha256": "5149fd8c98b907e25eacbbef9d6152ca8190fd1c25aef7f3452149e8a3e15047"
+   },
+   "extra": {},
+   "key": "3331-159609-0005",
+   "lexicalReference": "No, I'm only tired, had a good deal to do lately, and the dull weather makes me just a trifle blue."
+  },
+  {
+   "id": "en-librispeech-pc-3528-168669-0022",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/3528-168669-0022.flac",
+   "sha256": "534cd38cd2a9659b17f5d148062d21fa537fe3ee85afe8305658e880071a7f9a",
+   "pcmSha256": "37c7476c286fd5bc771f12e9b5837a8ef497d1c4168bc276d91a70a18a01fcff",
+   "samples": 59040,
+   "duration": 3.69,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "When the vault is open-\" \"I will close it again\".",
+   "referenceType": "formatted",
+   "group": "speaker-3528",
+   "speaker": "3528",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-3528",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 8,
+    "row": 99,
+    "upstreamId": "3528-168669-0022",
+    "channel": "mean",
+    "sourceSha256": "c7c04051d299c2c5fee1a4c6b5cd868e577cdb74621c077481fcdd42c289f541"
+   },
+   "extra": {},
+   "key": "3528-168669-0022",
+   "lexicalReference": "When the vault is open I will close it again."
+  },
+  {
+   "id": "en-librispeech-pc-3538-142836-0019",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/3538-142836-0019.flac",
+   "sha256": "1a71a4c6ea830266021f6b053dc4086536ef4e49968e856391019ae5ec46f621",
+   "pcmSha256": "de8490b3086c64f301a47c2b2dbd7019429142a04e78b94f406a415ba71d892a",
+   "samples": 472400,
+   "duration": 29.525,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "In speaking of confectionary, it should be remarked that all the various preparations above named come, strictly speaking, under that head; for the various fruits, flowers, herbs, roots, and juices, which, when boiled with sugar, were formerly employed in pharmacy as well as for sweetmeats, were called confections, from the Latin word conficere, 'to make up;' but the term confectionary embraces a very large class indeed of sweet food, many kinds of which should not be attempted in the ordinary cuisine.",
+   "referenceType": "formatted",
+   "group": "speaker-3538",
+   "speaker": "3538",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-3538",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 15,
+    "row": 86,
+    "upstreamId": "3538-142836-0019",
+    "channel": "mean",
+    "sourceSha256": "10539902b8f34fc75ed6046ec13e7e19e22e5f496d741fd67aca2d763061f035"
+   },
+   "extra": {},
+   "key": "3538-142836-0019",
+   "lexicalReference": "In speaking of confectionary, it should be remarked that all the various preparations above named come, strictly speaking, under that head for the various fruits, flowers, herbs, roots, and juices, which, when boiled with sugar, were formerly employed in pharmacy as well as for sweetmeats, were called confections, from the Latin word conficere, 'to make up ' but the term confectionary embraces a very large class indeed of sweet food, many kinds of which should not be attempted in the ordinary cuisine."
+  },
+  {
+   "id": "en-librispeech-pc-3538-163622-0023",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/3538-163622-0023.flac",
+   "sha256": "400e7adfeb768e9370510fc759b555a8674e0c424268582ab1d9a6b9682373b0",
+   "pcmSha256": "626ae084370b050fcf4a135fa9553b2a4494b3d1df5c2e02074bc9f4245ba7f4",
+   "samples": 56720,
+   "duration": 3.545,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "That is a river,' said the Foal, 'and we have to cross it.",
+   "referenceType": "formatted",
+   "group": "speaker-3538",
+   "speaker": "3538",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-3538",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 15,
+    "row": 38,
+    "upstreamId": "3538-163622-0023",
+    "channel": "mean",
+    "sourceSha256": "53bd789f2bc381d79961b94a72f1086aa40ea83fcbd75cf756f9b40fdb2bac4f"
+   },
+   "extra": {},
+   "key": "3538-163622-0023",
+   "lexicalReference": "That is a river, ' said the Foal, 'and we have to cross it."
+  },
+  {
+   "id": "en-librispeech-pc-367-293981-0001",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/367-293981-0001.flac",
+   "sha256": "645413c7045dbef7f880184e141dc16d35ad98bc599d5da5e1dd3d4536733a31",
+   "pcmSha256": "8f8f92faa76f6d4a516b627448a9f6996a6ccc3a8e608647915dc36fbdc7be0b",
+   "samples": 79360,
+   "duration": 4.96,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "I say so,\" continued Don Quixote, \"because I hate taking away anyone's good name\".",
+   "referenceType": "formatted",
+   "group": "speaker-367",
+   "speaker": "367",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-367",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 14,
+    "row": 46,
+    "upstreamId": "367-293981-0001",
+    "channel": "mean",
+    "sourceSha256": "d7cb52759a206e14989ace1e17861a62acbf38b5337eb740ce94728ed544190b"
+   },
+   "extra": {},
+   "key": "367-293981-0001",
+   "lexicalReference": "I say so, continued Don Quixote, because I hate taking away anyone's good name."
+  },
+  {
+   "id": "en-librispeech-pc-3764-168671-0005",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/3764-168671-0005.flac",
+   "sha256": "2e42a9b1457e1d0343e7ecd93753e8ad1bfdacedb7ce19b1ccfde870919eed8d",
+   "pcmSha256": "d5b3d94cc1ac613104ca52a4b19afe1277f7d2a3919a45ade56ceb56368f23e6",
+   "samples": 140160,
+   "duration": 8.76,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "These gates, therefore, swung inexorably on their hinges at the instant when the sun disappeared behind the dome of the Invalides.",
+   "referenceType": "formatted",
+   "group": "speaker-3764",
+   "speaker": "3764",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-3764",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 17,
+    "row": 29,
+    "upstreamId": "3764-168671-0005",
+    "channel": "mean",
+    "sourceSha256": "58d8d86af87cae490b7e6bf5ae5208416461134453f0fd844046a99e5c86bcf2"
+   },
+   "extra": {},
+   "key": "3764-168671-0005",
+   "lexicalReference": "These gates, therefore, swung inexorably on their hinges at the instant when the sun disappeared behind the dome of the Invalides."
+  },
+  {
+   "id": "en-librispeech-pc-3997-180297-0028",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/3997-180297-0028.flac",
+   "sha256": "5333dbdb2b6a17523b81179d44103f557f136d327eeac8c21366a97195189b19",
+   "pcmSha256": "1767a29d2a815c8e4fda86a8349dc0c257f6f40da8212dd4a84732b37505f16c",
+   "samples": 84560,
+   "duration": 5.285,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Look here, Prudence; do you know what he wants\"? said Marguerite.",
+   "referenceType": "formatted",
+   "group": "speaker-3997",
+   "speaker": "3997",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-3997",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 18,
+    "row": 62,
+    "upstreamId": "3997-180297-0028",
+    "channel": "mean",
+    "sourceSha256": "160805b79801cc02078e24585b31ff9e216f5b66b58b53c0120cfaf54fc5d7dc"
+   },
+   "extra": {},
+   "key": "3997-180297-0028",
+   "lexicalReference": "Look here, Prudence do you know what he wants? said Marguerite."
+  },
+  {
+   "id": "en-librispeech-pc-4198-12259-0020",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/4198-12259-0020.flac",
+   "sha256": "53071ad2ae95dbe3767b80773ed1fde6adca599d787ebb004453e17f0d6230c7",
+   "pcmSha256": "1512dc0c0a3122e1b1f76f289b35c71927f6f3a2ceef118e7a9b5b25985d4e37",
+   "samples": 53920,
+   "duration": 3.37,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Give me a synonymon for a gammon of bacon.",
+   "referenceType": "formatted",
+   "group": "speaker-4198",
+   "speaker": "4198",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-4198",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 2,
+    "row": 23,
+    "upstreamId": "4198-12259-0020",
+    "channel": "mean",
+    "sourceSha256": "5defeb42c106e0308b06fc330fa9b19ff22fb903a5145c3682e0a6a68e01a56b"
+   },
+   "extra": {},
+   "key": "4198-12259-0020",
+   "lexicalReference": "Give me a synonymon for a gammon of bacon."
+  },
+  {
+   "id": "en-librispeech-pc-4294-35475-0010",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/4294-35475-0010.flac",
+   "sha256": "158cd36b5f32a3ac4b2233abf9f3d4d911998b89b0da8c76b2d88a5881298ed8",
+   "pcmSha256": "b3cf0d18e40d61ddb798772cefef4b9566c2ef1059c4c51ce9db9e7ee10cdf73",
+   "samples": 65600,
+   "duration": 4.1,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Scissors, grow a giant's height And save us from the Ogre's might\"!",
+   "referenceType": "formatted",
+   "group": "speaker-4294",
+   "speaker": "4294",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-4294",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 18,
+    "row": 95,
+    "upstreamId": "4294-35475-0010",
+    "channel": "mean",
+    "sourceSha256": "6030fec242f2f599d73ffd4283786d7932bc4c051b537849bce64bd7a008c2f9"
+   },
+   "extra": {},
+   "key": "4294-35475-0010",
+   "lexicalReference": "Scissors, grow a giant's height And save us from the Ogre's might"
+  },
+  {
+   "id": "en-librispeech-pc-4294-35475-0023",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/4294-35475-0023.flac",
+   "sha256": "603b9f11ccba767ff42e06b1212288846b317a0583233f36fcb743699b775135",
+   "pcmSha256": "b4c65875ad08cb6f67af6307b7bed38fdf26904d9c6bd144269a3858c812e689",
+   "samples": 251040,
+   "duration": 15.69,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "To him who could bring her back to her father's castle should be given the throne and kingdom, as well as the Princess herself. So from far and near, indeed from almost every country under the sun, came knights and princes to fight the Ogre.",
+   "referenceType": "formatted",
+   "group": "speaker-4294",
+   "speaker": "4294",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-4294",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 19,
+    "row": 8,
+    "upstreamId": "4294-35475-0023",
+    "channel": "mean",
+    "sourceSha256": "a371251e09393430b68fe7d0ee914d5533e4c44c2ebc5ae0d2e51d7caa51cf22"
+   },
+   "extra": {},
+   "key": "4294-35475-0023",
+   "lexicalReference": "To him who could bring her back to her father's castle should be given the throne and kingdom, as well as the Princess herself. So from far and near, indeed from almost every country under the sun, came knights and princes to fight the Ogre."
+  },
+  {
+   "id": "en-librispeech-pc-4350-9170-0006",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/4350-9170-0006.flac",
+   "sha256": "930fdbf884cdf07be1bf60b91af848b0640d311cb8d874c261d73c3bf0068f01",
+   "pcmSha256": "25b371b905735cd1cf1759be97f18437833555787255c0c3b51122ac3059f76c",
+   "samples": 130240,
+   "duration": 8.14,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The possibility of applying bodily violence to people is provided above all by an organization of armed men, trained to act in unison in submission to one will.",
+   "referenceType": "formatted",
+   "group": "speaker-4350",
+   "speaker": "4350",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-4350",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 27,
+    "row": 56,
+    "upstreamId": "4350-9170-0006",
+    "channel": "mean",
+    "sourceSha256": "3e61cd237dce82c99581db14b857247f144fead0ee50f91c78672397245fdb86"
+   },
+   "extra": {},
+   "key": "4350-9170-0006",
+   "lexicalReference": "The possibility of applying bodily violence to people is provided above all by an organization of armed men, trained to act in unison in submission to one will."
+  },
+  {
+   "id": "en-librispeech-pc-4852-28330-0011",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/4852-28330-0011.flac",
+   "sha256": "89a124b7ae6707bddede904a152ec9a9ed17cfa1f7dff572068018ec884871bf",
+   "pcmSha256": "e3128f0570386b7c67aae0087e6e167a395041c373b2379e0457b56eb953a504",
+   "samples": 84800,
+   "duration": 5.3,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Then he said: \"Well, I do not care for it, I cannot say I do.",
+   "referenceType": "formatted",
+   "group": "speaker-4852",
+   "speaker": "4852",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-4852",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 20,
+    "row": 55,
+    "upstreamId": "4852-28330-0011",
+    "channel": "mean",
+    "sourceSha256": "955b4b4ef34c8bcf3dc1022bbd16c96f12c8e70c5f5fbe4ed663c490c2579bdd"
+   },
+   "extra": {},
+   "key": "4852-28330-0011",
+   "lexicalReference": "Then he said Well, I do not care for it, I cannot say I do."
+  },
+  {
+   "id": "en-librispeech-pc-533-131556-0017",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/533-131556-0017.flac",
+   "sha256": "57ce660c7ae9d33ecc3817b42d02ca61c38d94f54044b8ab0aeb0d32b6a511b9",
+   "pcmSha256": "ee30493e1fe60b05f99ab72b0d25c717af215527b1e93023f960ca6d891b7637",
+   "samples": 102720,
+   "duration": 6.42,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "She paused, in evident disconcertion and perplexity, mingled with anger she dared not show.",
+   "referenceType": "formatted",
+   "group": "speaker-533",
+   "speaker": "533",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-533",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 8,
+    "row": 38,
+    "upstreamId": "533-131556-0017",
+    "channel": "mean",
+    "sourceSha256": "f88fb5c8570b8a6e7bfb9e61eeb99bb1cb2caffba7d716a924516917d0b95a63"
+   },
+   "extra": {},
+   "key": "533-131556-0017",
+   "lexicalReference": "She paused, in evident disconcertion and perplexity, mingled with anger she dared not show."
+  },
+  {
+   "id": "en-librispeech-pc-533-131562-0007",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/533-131562-0007.flac",
+   "sha256": "f3078b8e6e96cdb7392de6aa4eb4d95a4db975e281a6e04914e07b5750e3556d",
+   "pcmSha256": "f97d411d6521d20c4c3483807bbc9a158d8ff1b1cef5ecbf0944d941253dfbbd",
+   "samples": 74560,
+   "duration": 4.66,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "muttered he, starting back; \"she's the very devil for spite.",
+   "referenceType": "formatted",
+   "group": "speaker-533",
+   "speaker": "533",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-533",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 8,
+    "row": 54,
+    "upstreamId": "533-131562-0007",
+    "channel": "mean",
+    "sourceSha256": "a540dd47fdfc26488ac0e6ce26d292f2236ed239a1aeb3b767e1e4cafcdbb5f5"
+   },
+   "extra": {},
+   "key": "533-131562-0007",
+   "lexicalReference": "muttered he, starting back she's the very devil for spite."
+  },
+  {
+   "id": "en-librispeech-pc-5442-32873-0019",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/5442-32873-0019.flac",
+   "sha256": "fe156fe731b9858ee67985726404c492ee9752247e2ec201c7026d134c79ea2e",
+   "pcmSha256": "1dbf58132bf369a04c28ef1df81105deae51c619cdaaaafbc4bb1fb204f394f6",
+   "samples": 89040,
+   "duration": 5.565,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "If I thought you'd fail me now, Tamar, I should never come back. Good night, Tamar.",
+   "referenceType": "formatted",
+   "group": "speaker-5442",
+   "speaker": "5442",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-5442",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 13,
+    "row": 84,
+    "upstreamId": "5442-32873-0019",
+    "channel": "mean",
+    "sourceSha256": "bd1ff0fb3769c8d75df03b4b1bd04d88c214965e1b3913b48bff79c81a4110e4"
+   },
+   "extra": {},
+   "key": "5442-32873-0019",
+   "lexicalReference": "If I thought you'd fail me now, Tamar, I should never come back. Good night, Tamar."
+  },
+  {
+   "id": "en-librispeech-pc-5484-24318-0019",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/5484-24318-0019.flac",
+   "sha256": "99d270d6d52fca204c07ea9b500b821d6879243959eca8dce0fc0eb557bd14f3",
+   "pcmSha256": "4616d9b80b60e1c89d6d2fcbcc0d2854a7690aa689bc773cee7aac7f8b330d6f",
+   "samples": 343040,
+   "duration": 21.44,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "He might now have been permitted to bind forever to his life the woman who had just rescued him from the greatest danger, but the confession he must make to his fellow artists in the palaestra the following morning still sealed his lips. Yet in this hour he felt that he was united to her, and ought not to conceal what awaited him; so, obeying a strong impulse, he exclaimed: \"You know that I love you!",
+   "referenceType": "formatted",
+   "group": "speaker-5484",
+   "speaker": "5484",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-5484",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 6,
+    "row": 24,
+    "upstreamId": "5484-24318-0019",
+    "channel": "mean",
+    "sourceSha256": "10317faf983ebcac0bea1c8d831dcb8b89afe0d75680352ddbaa2568a7cdc431"
+   },
+   "extra": {},
+   "key": "5484-24318-0019",
+   "lexicalReference": "He might now have been permitted to bind forever to his life the woman who had just rescued him from the greatest danger, but the confession he must make to his fellow artists in the palaestra the following morning still sealed his lips. Yet in this hour he felt that he was united to her, and ought not to conceal what awaited him so, obeying a strong impulse, he exclaimed You know that I love you"
+  },
+  {
+   "id": "en-librispeech-pc-5764-299665-0009",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/5764-299665-0009.flac",
+   "sha256": "c0697f560a994d0fabd5ef036b6c6d3f7125ad25027f448e791831c3e959f49b",
+   "pcmSha256": "53b81f9601c156541664b70812a1e7421f886cdeaa0e2b0a13d5187b7754b5c0",
+   "samples": 95920,
+   "duration": 5.995,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Did this God allow the cruel and vile to destroy the brave and virtuous?",
+   "referenceType": "formatted",
+   "group": "speaker-5764",
+   "speaker": "5764",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-5764",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 4,
+    "row": 14,
+    "upstreamId": "5764-299665-0009",
+    "channel": "mean",
+    "sourceSha256": "1d5bc3528c163acc91b58c9e9dd4ce7e3935e94f5dcdf73ef143431683167030"
+   },
+   "extra": {},
+   "key": "5764-299665-0009",
+   "lexicalReference": "Did this God allow the cruel and vile to destroy the brave and virtuous?"
+  },
+  {
+   "id": "en-librispeech-pc-6070-86745-0007",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/6070-86745-0007.flac",
+   "sha256": "6f3c02089e39464691edc8e10d1bd600920ba05ecf551aeceb9613ef9e3893a8",
+   "pcmSha256": "06e7ded83aa0478f9cc1f5526267dfcf12909d5cfb48b64cff234f1ff2d55b1f",
+   "samples": 112720,
+   "duration": 7.045,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Good morning, Lucien, good morning,\" said Albert; \"your punctuality really alarms me.",
+   "referenceType": "formatted",
+   "group": "speaker-6070",
+   "speaker": "6070",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-6070",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 25,
+    "row": 56,
+    "upstreamId": "6070-86745-0007",
+    "channel": "mean",
+    "sourceSha256": "568ee1cd3d4d109a31b2651594f787b8e7029fce257149ebb6663b59f138701a"
+   },
+   "extra": {},
+   "key": "6070-86745-0007",
+   "lexicalReference": "Good morning, Lucien, good morning, said Albert your punctuality really alarms me."
+  },
+  {
+   "id": "en-librispeech-pc-6128-63240-0026",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/6128-63240-0026.flac",
+   "sha256": "420b6ad611378d4c5b77d3e378a732bae1334ce554eba8279f05352612dd0352",
+   "pcmSha256": "af8a7e323c825d2fc7a1bde0cacd5a440ba35046cba92d0a17972ebfe63213d6",
+   "samples": 92320,
+   "duration": 5.77,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "I shall be back very late; we are going to a theatre party; that's why we dine so early.",
+   "referenceType": "formatted",
+   "group": "speaker-6128",
+   "speaker": "6128",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-6128",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 5,
+    "row": 29,
+    "upstreamId": "6128-63240-0026",
+    "channel": "mean",
+    "sourceSha256": "d0d9b639c2731d325e2f2ce890e95ec379fba6e780001d953512b92c8c5085f0"
+   },
+   "extra": {},
+   "key": "6128-63240-0026",
+   "lexicalReference": "I shall be back very late we are going to a theatre party that's why we dine so early."
+  },
+  {
+   "id": "en-librispeech-pc-6432-63723-0011",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/6432-63723-0011.flac",
+   "sha256": "2b4532a8f93965ffeb054e3cdcf9cb8c99c601a4d89c431b7e8543496c9f27c8",
+   "pcmSha256": "2ecdad81678bfff63f524b7e515831f91f562df4591bc01ddd53a2c752899499",
+   "samples": 64400,
+   "duration": 4.025,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "He remembered that Cynthia and Grafton had once been in love with each other.",
+   "referenceType": "formatted",
+   "group": "speaker-6432",
+   "speaker": "6432",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-6432",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 25,
+    "row": 2,
+    "upstreamId": "6432-63723-0011",
+    "channel": "mean",
+    "sourceSha256": "8ed8c3a255f6ea5b57f2d868252c4738b1471099e9eb2453a10e6b3586aba9a5"
+   },
+   "extra": {},
+   "key": "6432-63723-0011",
+   "lexicalReference": "He remembered that Cynthia and Grafton had once been in love with each other."
+  },
+  {
+   "id": "en-librispeech-pc-6938-70848-0006",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/6938-70848-0006.flac",
+   "sha256": "1e911238d61b74204054a01fe64b50e7db27c4c1d867d02e346a73343c8dde1f",
+   "pcmSha256": "50f36ef13c5172dacc1bf1824ed87e9b07e94752229b6f27e623af719cdd009b",
+   "samples": 88480,
+   "duration": 5.53,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Who are you? A counter revolutionist! A provocator\"! they bellowed at him.",
+   "referenceType": "formatted",
+   "group": "speaker-6938",
+   "speaker": "6938",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-6938",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 12,
+    "row": 22,
+    "upstreamId": "6938-70848-0006",
+    "channel": "mean",
+    "sourceSha256": "7ef7ac48b06a5fe9375300a1f77aafff9c389331ff077e7c295843b24682cd04"
+   },
+   "extra": {},
+   "key": "6938-70848-0006",
+   "lexicalReference": "Who are you? A counter revolutionist A provocator they bellowed at him."
+  },
+  {
+   "id": "en-librispeech-pc-7018-75789-0023",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/7018-75789-0023.flac",
+   "sha256": "a24cc10c4adefab09483cc9c106461d1214c9019267b292fe5f9056f95a742c6",
+   "pcmSha256": "388eb0ee36b73f299d648cd7ee1c15c17259fc320da4720375805b1f43555077",
+   "samples": 56640,
+   "duration": 3.54,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "When it was the Five Hundred and Sixty third Night,",
+   "referenceType": "formatted",
+   "group": "speaker-7018",
+   "speaker": "7018",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-7018",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 1,
+    "row": 78,
+    "upstreamId": "7018-75789-0023",
+    "channel": "mean",
+    "sourceSha256": "da8f9742c905ee6e0187237424da3a740e6d79dc787e9803f2879d6d7a70bf11"
+   },
+   "extra": {},
+   "key": "7018-75789-0023",
+   "lexicalReference": "When it was the Five Hundred and Sixty third Night,"
+  },
+  {
+   "id": "en-librispeech-pc-7105-2330-0015",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/7105-2330-0015.flac",
+   "sha256": "3536595ab3989c726af5155a8ebb7ca161d334f470da6e18a42b6d123a642d2a",
+   "pcmSha256": "e856401240d0df8d1ba13b0093ca1d669b46f2351f40b384219591891a91af5e",
+   "samples": 84080,
+   "duration": 5.255,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "He said it was our only chance of getting a telegram 'Radprop is In' to night\".",
+   "referenceType": "formatted",
+   "group": "speaker-7105",
+   "speaker": "7105",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-7105",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 23,
+    "row": 25,
+    "upstreamId": "7105-2330-0015",
+    "channel": "mean",
+    "sourceSha256": "4b9c38b8bd4572fcbe004eb63748713ac690b9bc400bf873ec7f124161d151ca"
+   },
+   "extra": {},
+   "key": "7105-2330-0015",
+   "lexicalReference": "He said it was our only chance of getting a telegram 'Radprop is In' to night."
+  },
+  {
+   "id": "en-librispeech-pc-7902-96592-0050",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/7902-96592-0050.flac",
+   "sha256": "a3d79d09ec4a9d70f77d5be6d2101208a20bd91e76ec0cca08a492d548220105",
+   "pcmSha256": "87c89f2b407d45cce696c851388db8770715f5bcc05b6a8242ef710876cb7e57",
+   "samples": 122640,
+   "duration": 7.665,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "To his astonishment the boy did not flinch, but thrust his own arms through, placing them about the middy's waist, clenching his hands behind, and uttering a sharp whistle.",
+   "referenceType": "formatted",
+   "group": "speaker-7902",
+   "speaker": "7902",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-7902",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 0,
+    "row": 75,
+    "upstreamId": "7902-96592-0050",
+    "channel": "mean",
+    "sourceSha256": "41a868b8a8dc918c0d347f75d2dab38fe3ccd3c9bf77ee041193b29183b5fc2e"
+   },
+   "extra": {},
+   "key": "7902-96592-0050",
+   "lexicalReference": "To his astonishment the boy did not flinch, but thrust his own arms through, placing them about the middy's waist, clenching his hands behind, and uttering a sharp whistle."
+  },
+  {
+   "id": "en-librispeech-pc-7975-280084-0010",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/7975-280084-0010.flac",
+   "sha256": "53b1d4b4bddf052e52db11692460c6bbfaec7bc2a2c8deed7082d9f829f6cc37",
+   "pcmSha256": "9307f89b8ff5f6185b77d9efea224367448643b6ead7312b0b8fbdcdd4fc49da",
+   "samples": 120720,
+   "duration": 7.545,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Every time I saw any one with a bead on me I would drop off my horse and try to drive the shooter inside, but I could not see in every direction.",
+   "referenceType": "formatted",
+   "group": "speaker-7975",
+   "speaker": "7975",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-7975",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 11,
+    "row": 0,
+    "upstreamId": "7975-280084-0010",
+    "channel": "mean",
+    "sourceSha256": "617a5dee89e29e974c852180d1b0603415db7ad7a2b19b107508fe94dc1955f6"
+   },
+   "extra": {},
+   "key": "7975-280084-0010",
+   "lexicalReference": "Every time I saw any one with a bead on me I would drop off my horse and try to drive the shooter inside, but I could not see in every direction."
+  },
+  {
+   "id": "en-librispeech-pc-8131-117016-0021",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/8131-117016-0021.flac",
+   "sha256": "8bfc28ee5d33f083133e466a653e0d03fb31badf5d980645ac7d41a33bb14bdb",
+   "pcmSha256": "cb7299e9946eb7c91a36e16135019207ebde61b0b19ea8d044b3504796c9068a",
+   "samples": 107360,
+   "duration": 6.71,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Moving in two groups of threes, at opposite sides of the street, they began their beat.",
+   "referenceType": "formatted",
+   "group": "speaker-8131",
+   "speaker": "8131",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-8131",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 13,
+    "row": 24,
+    "upstreamId": "8131-117016-0021",
+    "channel": "mean",
+    "sourceSha256": "b9a4b579a83e6683812cd4ac8818a43a614550c2eb7509768086f430d0e6cb25"
+   },
+   "extra": {},
+   "key": "8131-117016-0021",
+   "lexicalReference": "Moving in two groups of threes, at opposite sides of the street, they began their beat."
+  },
+  {
+   "id": "en-librispeech-pc-8188-269290-0012",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/8188-269290-0012.flac",
+   "sha256": "2cdf63e04205ba32f2414844a7a6218d887c4540efb5454b7f3ad7b887edd4eb",
+   "pcmSha256": "73126e42365c8b3d3c52ce6b7f327aebde5d5bc51a6abdca41a47a076731b7b7",
+   "samples": 62800,
+   "duration": 3.925,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "I took it out,\" said Leslie. \"Took it out!",
+   "referenceType": "formatted",
+   "group": "speaker-8188",
+   "speaker": "8188",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-8188",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 28,
+    "row": 35,
+    "upstreamId": "8188-269290-0012",
+    "channel": "mean",
+    "sourceSha256": "503e1e49f181fb351cd80998c4ddb47267c9b7739e0380a885d6c1c7c22e0f6a"
+   },
+   "extra": {},
+   "key": "8188-269290-0012",
+   "lexicalReference": "I took it out, said Leslie. Took it out"
+  },
+  {
+   "id": "en-librispeech-pc-8280-266249-0025",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/8280-266249-0025.flac",
+   "sha256": "262b80afa3c1770d56789f76ea9d5cd25a52a902ca748555b808f7e986563ce7",
+   "pcmSha256": "9ee52396f1d719f2b68e4f8c4927c9332f72cfa67ad5753abf358f25c2448302",
+   "samples": 93200,
+   "duration": 5.825,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "We certainly have no right to injure our bodies either by neglect or self indulgence.",
+   "referenceType": "formatted",
+   "group": "speaker-8280",
+   "speaker": "8280",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-8280",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 3,
+    "row": 64,
+    "upstreamId": "8280-266249-0025",
+    "channel": "mean",
+    "sourceSha256": "82f41fe923f8d2b7e84e5437ad9a36a5083cd0b6602284ebe1ceae5f573f63e5"
+   },
+   "extra": {},
+   "key": "8280-266249-0025",
+   "lexicalReference": "We certainly have no right to injure our bodies either by neglect or self indulgence."
+  },
+  {
+   "id": "en-librispeech-pc-8461-281231-0003",
+   "allocation": "en-librispeech-pc",
+   "source": "librispeech-pc",
+   "file": "audio/en-librispeech-pc/8461-281231-0003.flac",
+   "sha256": "408a347a846d71cb7f21b7eb7741d6b646db7622b942323ddf02d16173ea0125",
+   "pcmSha256": "1da9b8e04149e336530a5804772eade3c46bb86e2376f0b4eb27cf1f96d07b14",
+   "samples": 51280,
+   "duration": 3.205,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "What art thou\"? he exclaimed in terror.",
+   "referenceType": "formatted",
+   "group": "speaker-8461",
+   "speaker": "8461",
+   "conditions": [
+    "read",
+    "audiobook"
+   ],
+   "stratum": "speaker-8461",
+   "origin": {
+    "manifestUrl": "https://www.openslr.org/resources/145/manifests.tar.gz",
+    "manifestSha256": "96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0",
+    "repo": "openslr/librispeech_asr",
+    "revision": "2b9f39377850ffce6bf6358257ae9f84b2349497",
+    "path": "other/test/0000.parquet",
+    "rowGroup": 15,
+    "row": 97,
+    "upstreamId": "8461-281231-0003",
+    "channel": "mean",
+    "sourceSha256": "fe914ac7496ae07ffad8a1ca66876b9228788fcf8d9be2b704956a5d9bff1869"
+   },
+   "extra": {},
+   "key": "8461-281231-0003",
+   "lexicalReference": "What art thou? he exclaimed in terror."
+  }
+ ],
+ "builtAt": "2026-09-24T10:01:29Z"
+}

@@ -1,0 +1,293 @@
+{
+ "id": "vella-v2",
+ "version": "2.0.0-dev",
+ "seed": 20260924,
+ "description": "About 4 hours: ~70% English (Words: spontaneous, accented, far-field, noisy, domain, long-form; Formatting: human-written case/punctuation subset) and ~30% across Polish, German, French, Spanish, Swedish, Turkish, Japanese, Mandarin and Korean. Every clip is rebuilt from a pinned upstream source and verified by PCM SHA-256.",
+ "tracks": {
+  "words": "English lexical WER over every English clip (case/punctuation ignored).",
+  "formatting": "English case- and punctuation-sensitive CER over clips whose references were written by humans with case and punctuation.",
+  "multilingual": "Per-language lexical WER (CER for ja, zh, ko); aggregate is the unweighted mean over languages, reported with language coverage."
+ },
+ "allocations": [
+  {
+   "id": "en-apptek",
+   "source": "apptek",
+   "minutes": 22.5,
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "en-monsoon",
+   "source": "monsoon",
+   "minutes": 15,
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "en-edacc",
+   "source": "edacc",
+   "minutes": 20,
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "en-notsofar",
+   "source": "notsofar",
+   "minutes": 15,
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "en-dipco",
+   "source": "dipco",
+   "minutes": 12,
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "en-ami",
+   "source": "ami",
+   "minutes": 8,
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "en-earnings25",
+   "source": "earnings25",
+   "minutes": 25,
+   "tracks": [
+    "words"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "en-rev16",
+   "source": "rev16",
+   "minutes": 20,
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "en-earnings22",
+   "source": "rev_earnings",
+   "minutes": 12,
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "params": {
+    "corpus": "earnings22"
+   }
+  },
+  {
+   "id": "en-earnings21",
+   "source": "rev_earnings",
+   "minutes": 8,
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "params": {
+    "corpus": "earnings21"
+   }
+  },
+  {
+   "id": "en-librispeech-pc",
+   "source": "librispeech_pc",
+   "minutes": 5,
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "en-fleurs",
+   "source": "fleurs",
+   "minutes": 5,
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "params": {
+    "language": "en",
+    "config": "en_us"
+   }
+  },
+  {
+   "id": "pl-tedx",
+   "source": "polish_tedx",
+   "minutes": 6,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "pl-mls",
+   "source": "mls",
+   "minutes": 3,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "params": {
+    "language": "pl",
+    "config": "polish"
+   }
+  },
+  {
+   "id": "pl-fleurs",
+   "source": "fleurs",
+   "minutes": 3,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "params": {
+    "language": "pl",
+    "config": "pl_pl"
+   }
+  },
+  {
+   "id": "de-muscat",
+   "source": "muscat",
+   "minutes": 7.5,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "params": {
+    "language": "de"
+   }
+  },
+  {
+   "id": "fr-mediaspeech",
+   "source": "mediaspeech",
+   "minutes": 7.5,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "params": {
+    "language": "fr"
+   }
+  },
+  {
+   "id": "es-mediaspeech",
+   "source": "mediaspeech",
+   "minutes": 7.5,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "params": {
+    "language": "es"
+   }
+  },
+  {
+   "id": "sv-klang",
+   "source": "klang",
+   "minutes": 7.5,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer"
+  },
+  {
+   "id": "tr-muscat",
+   "source": "muscat",
+   "minutes": 2.5,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "params": {
+    "language": "tr"
+   }
+  },
+  {
+   "id": "tr-mediaspeech",
+   "source": "mediaspeech",
+   "minutes": 5,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "params": {
+    "language": "tr"
+   }
+  },
+  {
+   "id": "ja-fleurs",
+   "source": "fleurs",
+   "minutes": 7.5,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "params": {
+    "language": "ja",
+    "config": "ja_jp"
+   }
+  },
+  {
+   "id": "zh-meeting",
+   "source": "zh_meeting",
+   "minutes": 3.5,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer"
+  },
+  {
+   "id": "zh-fleurs",
+   "source": "fleurs",
+   "minutes": 4,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "params": {
+    "language": "zh",
+    "config": "cmn_hans_cn"
+   }
+  },
+  {
+   "id": "ko-zeroth",
+   "source": "zeroth",
+   "minutes": 4,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer"
+  },
+  {
+   "id": "ko-hike",
+   "source": "hike",
+   "minutes": 3.5,
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer"
+  }
+ ]
+}

@@ -1,0 +1,1582 @@
+{
+ "allocation": {
+  "id": "zh-meeting",
+  "source": "zh_meeting",
+  "minutes": 3.5,
+  "tracks": [
+   "multilingual"
+  ],
+  "scoring": "cer"
+ },
+ "source": {
+  "id": "aishell4",
+  "name": "AISHELL-4 test (utterance mirror)",
+  "url": "https://www.openslr.org/111/",
+  "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+  "licence": "CC BY-SA 4.0",
+  "licenceUrl": "https://www.openslr.org/111/",
+  "redistributable": true,
+  "released": "2021",
+  "attribution": "AISHELL-4, Beijing Shell Shell Technology Co., Ltd.; OpenSLR SLR111; utterance files redistributed by shenyunhang/AISHELL-4.",
+  "referenceProduction": "Human TextGrid meeting annotation; first annotated speaker tier only; silence markup removed."
+ },
+ "candidateCount": 1410,
+ "selectedSeconds": 210.508,
+ "clips": [
+  {
+   "id": "zh-meeting-L_R003S01C02-000000075",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S01C02-000000075.flac",
+   "sha256": "41176fae80de42899092a60408208ded3a682f9cc5d2c610d67350b9516ee71f",
+   "pcmSha256": "b30de6a2fd717fc10a3c33d8f5da559379c88d4a6754ff79a5903f5cd09e1661",
+   "samples": 93188,
+   "duration": 5.8243,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "我不允许你过夜，我只允许你呃停多长时间，要晚上几点几点你就",
+   "referenceType": "normalised",
+   "group": "L_R003S01C02",
+   "speaker": "L_R003S01C02/006-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S01C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S01C02/000000075.wav",
+    "textGrid": "test/TextGrid/L_R003S01C02.TextGrid",
+    "tier": "006-M",
+    "interval": 75,
+    "start": 640.60702,
+    "end": 646.43121,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S01C02-000000075"
+  },
+  {
+   "id": "zh-meeting-L_R003S01C02-000000137",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S01C02-000000137.flac",
+   "sha256": "27a889d1da27eb9829d6c29d85795ff7537c56db63740645e1633bec8a0fa3d0",
+   "pcmSha256": "f77b03ab8b8bf8891a5c5b8e31c1f2a112746b375b285fb0ba8220ab3ea95a28",
+   "samples": 102441,
+   "duration": 6.4026,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "这个检讨的事儿让人家跟，你看这东西，给我捡起来，咱不要说，你看咱说话要委婉一些。",
+   "referenceType": "normalised",
+   "group": "L_R003S01C02",
+   "speaker": "L_R003S01C02/006-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S01C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S01C02/000000137.wav",
+    "textGrid": "test/TextGrid/L_R003S01C02.TextGrid",
+    "tier": "006-M",
+    "interval": 137,
+    "start": 1313.105,
+    "end": 1319.5075,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S01C02-000000137"
+  },
+  {
+   "id": "zh-meeting-L_R003S02C02-000000003",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S02C02-000000003.flac",
+   "sha256": "4fddcb15e9912909253d72ea9ff28ea8c93590e9d79540a3c2b9768147113f47",
+   "pcmSha256": "6f63f0ab78043ed1aab5d4a4c13185b5f0b9c622e92a342a02e8ad023dde942f",
+   "samples": 96651,
+   "duration": 6.0407,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "好今天把大家大家招叫过来就是开一个一个不是快过年了吗",
+   "referenceType": "normalised",
+   "group": "L_R003S02C02",
+   "speaker": "L_R003S02C02/007-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S02C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S02C02/000000003.wav",
+    "textGrid": "test/TextGrid/L_R003S02C02.TextGrid",
+    "tier": "007-M",
+    "interval": 3,
+    "start": 20.83667,
+    "end": 26.87729,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S02C02-000000003"
+  },
+  {
+   "id": "zh-meeting-L_R003S02C02-000000011",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S02C02-000000011.flac",
+   "sha256": "d42790833565954a55d8ddc60f64cf2977d19af80d5c595ccbc6ee5ea41e6d2f",
+   "pcmSha256": "b31fd68539a0a9350a952f3d1a9670ff6779d3c8b07d7f9d461cc4a34297e2ed",
+   "samples": 221623,
+   "duration": 13.8514,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "嗯也有一些那老司机，哎呀很多借口我赶时间啦啊送孩子上学啦这些等等等等借口我们都进行了严肃的处理以防他下次再犯",
+   "referenceType": "normalised",
+   "group": "L_R003S02C02",
+   "speaker": "L_R003S02C02/007-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S02C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S02C02/000000011.wav",
+    "textGrid": "test/TextGrid/L_R003S02C02.TextGrid",
+    "tier": "007-M",
+    "interval": 11,
+    "start": 305.97916,
+    "end": 319.83055,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S02C02-000000011"
+  },
+  {
+   "id": "zh-meeting-L_R003S03C02-000000003",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S03C02-000000003.flac",
+   "sha256": "96e7dfbce1bffda5b5b6e02f4076853ba804bf24325544e152f043606f0dc638",
+   "pcmSha256": "6e662195cec32fced8b2b14dc6b2965a3f26c0fadfe4ea423bc7598b05884684",
+   "samples": 157361,
+   "duration": 9.8351,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "哦元旦要来啦，我们这个业绩想想办法怎么提升一下儿嗯",
+   "referenceType": "normalised",
+   "group": "L_R003S03C02",
+   "speaker": "L_R003S03C02/007-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S03C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S03C02/000000003.wav",
+    "textGrid": "test/TextGrid/L_R003S03C02.TextGrid",
+    "tier": "007-M",
+    "interval": 3,
+    "start": 24.07499,
+    "end": 33.90998,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S03C02-000000003"
+  },
+  {
+   "id": "zh-meeting-L_R003S03C02-000000005",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S03C02-000000005.flac",
+   "sha256": "594d9fde6e3355a4dc690d11dde833516cec96bdc869b0e63e2697a2b439c121",
+   "pcmSha256": "0c833c962cf938e041499454260dd1090d67a0c5fb9b8e0a6ca4e4893dec59c9",
+   "samples": 56241,
+   "duration": 3.5151,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "大家都有什么意见和建议呀",
+   "referenceType": "normalised",
+   "group": "L_R003S03C02",
+   "speaker": "L_R003S03C02/007-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S03C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S03C02/000000005.wav",
+    "textGrid": "test/TextGrid/L_R003S03C02.TextGrid",
+    "tier": "007-M",
+    "interval": 5,
+    "start": 37.02498,
+    "end": 40.53998,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S03C02-000000005"
+  },
+  {
+   "id": "zh-meeting-L_R003S03C02-000000013",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S03C02-000000013.flac",
+   "sha256": "4df05f9ce69e35e0ed0aa7138db468b93bb5f0ac7607e82f0553bcc349f9ecaf",
+   "pcmSha256": "28552010b42aa90f4d9140df8409791ec93107bc14e97f32d94f89ee9d9d25f9",
+   "samples": 116721,
+   "duration": 7.2951,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "还有那个还有那个超市那个提的抽奖。大家都可以参与参与。",
+   "referenceType": "normalised",
+   "group": "L_R003S03C02",
+   "speaker": "L_R003S03C02/007-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S03C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S03C02/000000013.wav",
+    "textGrid": "test/TextGrid/L_R003S03C02.TextGrid",
+    "tier": "007-M",
+    "interval": 13,
+    "start": 2227.62877,
+    "end": 2234.92377,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S03C02-000000013"
+  },
+  {
+   "id": "zh-meeting-L_R003S04C02-000000027",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S04C02-000000027.flac",
+   "sha256": "c3d168a31d863902dff2e34be822dcbf0663b66b9f73dc29e74ffa7298a744c8",
+   "pcmSha256": "9d5879c7e3c164527387b739de10d3c996c52704103cdc28915c01327afa2e11",
+   "samples": 68321,
+   "duration": 4.2701,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "解决解决看大家还有",
+   "referenceType": "normalised",
+   "group": "L_R003S04C02",
+   "speaker": "L_R003S04C02/007-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S04C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S04C02/000000027.wav",
+    "textGrid": "test/TextGrid/L_R003S04C02.TextGrid",
+    "tier": "007-M",
+    "interval": 27,
+    "start": 1935.78283,
+    "end": 1940.05282,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S04C02-000000027"
+  },
+  {
+   "id": "zh-meeting-L_R003S04C02-000000035",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S04C02-000000035.flac",
+   "sha256": "acdaaed1d15a19d77c482b70439b867af4f50c8e2d281f4b10f4b69871fe417e",
+   "pcmSha256": "bb2a660dcdde0bce4a5ba50e64aea080098232eb8079cdfe9ed28e17b9ec72cb",
+   "samples": 42641,
+   "duration": 2.6651,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "这儿批评啊或者建议",
+   "referenceType": "normalised",
+   "group": "L_R003S04C02",
+   "speaker": "L_R003S04C02/007-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S04C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S04C02/000000035.wav",
+    "textGrid": "test/TextGrid/L_R003S04C02.TextGrid",
+    "tier": "007-M",
+    "interval": 35,
+    "start": 2163.51257,
+    "end": 2166.17757,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S04C02-000000035"
+  },
+  {
+   "id": "zh-meeting-L_R003S04C02-000000043",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R003S04C02-000000043.flac",
+   "sha256": "904c03fa53cf664e6e5133031dfcb89da17c07f3ee03b11f5d330790035fc1ba",
+   "pcmSha256": "bb442d21f2f75fbbdf614c61bb250c8bd2d385b4a239525a396ec5d90a273c47",
+   "samples": 74881,
+   "duration": 4.6801,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "咱们都是为了酒店的更好的经营对不对",
+   "referenceType": "normalised",
+   "group": "L_R003S04C02",
+   "speaker": "L_R003S04C02/007-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R003S04C02",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R003S04C02/000000043.wav",
+    "textGrid": "test/TextGrid/L_R003S04C02.TextGrid",
+    "tier": "007-M",
+    "interval": 43,
+    "start": 2191.36254,
+    "end": 2196.04253,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R003S04C02-000000043"
+  },
+  {
+   "id": "zh-meeting-L_R004S01C01-000000249",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R004S01C01-000000249.flac",
+   "sha256": "cfacdfb266b1c1d692cd6b4271d1bcece0ac29ec5739eee3f138c183598eead8",
+   "pcmSha256": "a7327aca7c6dfb35139900a219fb30e0ae047bca066f9057665491be81c21460",
+   "samples": 94721,
+   "duration": 5.9201,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "不要是说就认为啊我就是这个负负责这块儿嘞，你要负责这块儿的话就",
+   "referenceType": "normalised",
+   "group": "L_R004S01C01",
+   "speaker": "L_R004S01C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R004S01C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R004S01C01/000000249.wav",
+    "textGrid": "test/TextGrid/L_R004S01C01.TextGrid",
+    "tier": "001-M",
+    "interval": 249,
+    "start": 1170.23111,
+    "end": 1176.15111,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R004S01C01-000000249"
+  },
+  {
+   "id": "zh-meeting-L_R004S01C01-000000451",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R004S01C01-000000451.flac",
+   "sha256": "03e3a7e246fa5048f43c3e867d5be90c1477bb2bfe9c49ed7c6d09f04fb7a3c4",
+   "pcmSha256": "eab1b9a9d52e8affd6dc8abc8a7eaa6ec996ac57918a5a884ea703872142f73b",
+   "samples": 42001,
+   "duration": 2.6251,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "这也体现了咱这个服务的一个态度对吧",
+   "referenceType": "normalised",
+   "group": "L_R004S01C01",
+   "speaker": "L_R004S01C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R004S01C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R004S01C01/000000451.wav",
+    "textGrid": "test/TextGrid/L_R004S01C01.TextGrid",
+    "tier": "001-M",
+    "interval": 451,
+    "start": 2149.21424,
+    "end": 2151.83924,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R004S01C01-000000451"
+  },
+  {
+   "id": "zh-meeting-L_R004S02C01-000000011",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R004S02C01-000000011.flac",
+   "sha256": "6a43b20f09ade1129b6f5f7ddc43e14d5beedc891ef2d282d2de23c4bfd92d0c",
+   "pcmSha256": "11b0e857fdbcbff9b798beeba39ae30cba0bcb4fc5fbdf1387cccea5b4602181",
+   "samples": 100731,
+   "duration": 6.2957,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "很大，呃，至于哪些原因呢。呃我们会一一的咱解释，",
+   "referenceType": "normalised",
+   "group": "L_R004S02C01",
+   "speaker": "L_R004S02C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R004S02C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R004S02C01/000000011.wav",
+    "textGrid": "test/TextGrid/L_R004S02C01.TextGrid",
+    "tier": "001-M",
+    "interval": 11,
+    "start": 33.32233,
+    "end": 39.61796,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R004S02C01-000000011"
+  },
+  {
+   "id": "zh-meeting-L_R004S02C01-000000123",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R004S02C01-000000123.flac",
+   "sha256": "a40c3e6470c86229226f18d5b02b04fd4eb40a5ebb8b1d21ae37c0cef9243cd4",
+   "pcmSha256": "46a47afa7907d398e2e909a50fb2408972dad3126fb3582c4d3912285e175671",
+   "samples": 117053,
+   "duration": 7.3158,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "这个你热水器的是因为我们这个只通到你这个像水管只通到你们家那个主管儿上",
+   "referenceType": "normalised",
+   "group": "L_R004S02C01",
+   "speaker": "L_R004S02C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R004S02C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R004S02C01/000000123.wav",
+    "textGrid": "test/TextGrid/L_R004S02C01.TextGrid",
+    "tier": "001-M",
+    "interval": 123,
+    "start": 911.34587,
+    "end": 918.66161,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R004S02C01-000000123"
+  },
+  {
+   "id": "zh-meeting-L_R004S03C01-000000123",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R004S03C01-000000123.flac",
+   "sha256": "aedb37fd283112decb0455248d3bdaa4ea67e8cfa83d511d7cae7e784d42404b",
+   "pcmSha256": "d4ec4e2f7e2afb1a2f1c5ee4ac53c5a1c3c46d51a2d58f285f1b9460b3f43cb2",
+   "samples": 86250,
+   "duration": 5.3906,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "咱小学这个有可能就是他在课堂上没做完的",
+   "referenceType": "normalised",
+   "group": "L_R004S03C01",
+   "speaker": "L_R004S03C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R004S03C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R004S03C01/000000123.wav",
+    "textGrid": "test/TextGrid/L_R004S03C01.TextGrid",
+    "tier": "001-M",
+    "interval": 123,
+    "start": 957.99547,
+    "end": 963.38602,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R004S03C01-000000123"
+  },
+  {
+   "id": "zh-meeting-L_R004S03C01-000000283",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R004S03C01-000000283.flac",
+   "sha256": "20585c6bb952ec336cfe95b157d3036e199e815ea66a9608f66fc3558f2e7a1d",
+   "pcmSha256": "9e2961465d8d108bd5b9f2350a2fc2824bc7c79bcb5c71ad68f3678f59a31e29",
+   "samples": 59607,
+   "duration": 3.7254,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "哦就是说你比较比较傻",
+   "referenceType": "normalised",
+   "group": "L_R004S03C01",
+   "speaker": "L_R004S03C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R004S03C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R004S03C01/000000283.wav",
+    "textGrid": "test/TextGrid/L_R004S03C01.TextGrid",
+    "tier": "001-M",
+    "interval": 283,
+    "start": 1881.14842,
+    "end": 1884.8738,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R004S03C01-000000283"
+  },
+  {
+   "id": "zh-meeting-L_R004S06C01-000000027",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R004S06C01-000000027.flac",
+   "sha256": "ed8c7fddc723a4336bc4e6d59bc143f43a8ea7aa65c9f5ed30e3cf2256f95b81",
+   "pcmSha256": "f00cdf33b87b30e04faf1ebdd6559ddea43b8732245d9d685980d1451df7b2bb",
+   "samples": 141669,
+   "duration": 8.8543,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "很好这是咱这个厨房这个。也是挺重要的。下边儿啊。还有哪位来说说其它的一些安全，",
+   "referenceType": "normalised",
+   "group": "L_R004S06C01",
+   "speaker": "L_R004S06C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R004S06C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R004S06C01/000000027.wav",
+    "textGrid": "test/TextGrid/L_R004S06C01.TextGrid",
+    "tier": "001-M",
+    "interval": 27,
+    "start": 1207.17553,
+    "end": 1216.0298066321266,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R004S06C01-000000027"
+  },
+  {
+   "id": "zh-meeting-L_R004S06C01-000000035",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/L_R004S06C01-000000035.flac",
+   "sha256": "469b0a20966738b828c0e3cbe2fcc253224011772ab093a2543da934c317fe7b",
+   "pcmSha256": "5085f127855c9cae8d656a87dc5801e4f88c6d497a4fe03446f50a4ecbe34124",
+   "samples": 105531,
+   "duration": 6.5957,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "在百忙之中。今天参加过来调研。呃非常感谢。好嘞",
+   "referenceType": "normalised",
+   "group": "L_R004S06C01",
+   "speaker": "L_R004S06C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "L_R004S06C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/L_R004S06C01/000000035.wav",
+    "textGrid": "test/TextGrid/L_R004S06C01.TextGrid",
+    "tier": "001-M",
+    "interval": 35,
+    "start": 2197.23909,
+    "end": 2203.83473,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "L_R004S06C01-000000035"
+  },
+  {
+   "id": "zh-meeting-M_R003S01C01-000000019",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/M_R003S01C01-000000019.flac",
+   "sha256": "a78e774fba9f0503bd81fc19d8781873bab80669c5877dad8edc6e30dce024a2",
+   "pcmSha256": "1343797fc769cf10e01e7caef81ff509564f81dbf3995ac796a295af06ccebb8",
+   "samples": 117693,
+   "duration": 7.3558,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "呃还有一些为这这个饮食呃情况包括呃教师这边儿对孩子的一些健康啊",
+   "referenceType": "normalised",
+   "group": "M_R003S01C01",
+   "speaker": "M_R003S01C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "M_R003S01C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/M_R003S01C01/000000019.wav",
+    "textGrid": "test/TextGrid/M_R003S01C01.TextGrid",
+    "tier": "001-M",
+    "interval": 19,
+    "start": 90.02171,
+    "end": 97.37745,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "M_R003S01C01-000000019"
+  },
+  {
+   "id": "zh-meeting-M_R003S01C01-000000275",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/M_R003S01C01-000000275.flac",
+   "sha256": "899646c0ceae3c2993ad764214be8ef43554b341d694e331802cea88996358a7",
+   "pcmSha256": "8c2f2dfd2d6dbe364f650ec0ac10fb81c1278ba86e03afb0c96985e9a9faa30c",
+   "samples": 40161,
+   "duration": 2.5101,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "发现孩子剩饭剩菜咱及时处理",
+   "referenceType": "normalised",
+   "group": "M_R003S01C01",
+   "speaker": "M_R003S01C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "M_R003S01C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/M_R003S01C01/000000275.wav",
+    "textGrid": "test/TextGrid/M_R003S01C01.TextGrid",
+    "tier": "001-M",
+    "interval": 275,
+    "start": 1461.54227,
+    "end": 1464.05227,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "M_R003S01C01-000000275"
+  },
+  {
+   "id": "zh-meeting-M_R003S02C01-000000015",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/M_R003S02C01-000000015.flac",
+   "sha256": "37aab88d8e84edadcf3caa676f163cc8056218dc11fb51cee688a76daa07d56c",
+   "pcmSha256": "010412225d83fd59871aa67d22bc04a47f959ce26032f55a1338fbb1a4701a38",
+   "samples": 81681,
+   "duration": 5.1051,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "人不多，周六周日还行，呃再说咱",
+   "referenceType": "normalised",
+   "group": "M_R003S02C01",
+   "speaker": "M_R003S02C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "M_R003S02C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/M_R003S02C01/000000015.wav",
+    "textGrid": "test/TextGrid/M_R003S02C01.TextGrid",
+    "tier": "001-M",
+    "interval": 15,
+    "start": 69.0887,
+    "end": 74.19372,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "M_R003S02C01-000000015"
+  },
+  {
+   "id": "zh-meeting-M_R003S02C01-000000025",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/M_R003S02C01-000000025.flac",
+   "sha256": "35f6f7688d9073c5c71f8a898ae54b7ac74189c3ea883c409957309d00374c5a",
+   "pcmSha256": "9d19749f8e5452b442243d5a1fa06984a541fe65a5831cdd249273f597f29b15",
+   "samples": 139841,
+   "duration": 8.7401,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "这个销售过程中或者是呃呃人流量比较少的情况下呃，有没有建议",
+   "referenceType": "normalised",
+   "group": "M_R003S02C01",
+   "speaker": "M_R003S02C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "M_R003S02C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/M_R003S02C01/000000025.wav",
+    "textGrid": "test/TextGrid/M_R003S02C01.TextGrid",
+    "tier": "001-M",
+    "interval": 25,
+    "start": 110.20547,
+    "end": 118.94549,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "M_R003S02C01-000000025"
+  },
+  {
+   "id": "zh-meeting-M_R003S04C01-000000337",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/M_R003S04C01-000000337.flac",
+   "sha256": "28f2ea3737ce567d1de653db5b9b3174c292066633b18e03e3b9893ae76a3f50",
+   "pcmSha256": "c93ca51f7ca9c27d1e1a946cdbead20ff04817cf2ed4b0b0fe69a536714ec943",
+   "samples": 38321,
+   "duration": 2.3951,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "那我需要一个",
+   "referenceType": "normalised",
+   "group": "M_R003S04C01",
+   "speaker": "M_R003S04C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "M_R003S04C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/M_R003S04C01/000000337.wav",
+    "textGrid": "test/TextGrid/M_R003S04C01.TextGrid",
+    "tier": "001-M",
+    "interval": 337,
+    "start": 1175.96785,
+    "end": 1178.36285,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "M_R003S04C01-000000337"
+  },
+  {
+   "id": "zh-meeting-M_R003S04C01-000000597",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/M_R003S04C01-000000597.flac",
+   "sha256": "6a2b9f711524fd06f19a3c60e0c6701a1996dda578c3bfb464817bf00d507bb3",
+   "pcmSha256": "d3a5a6b4c53ba376344e58cf5d6d1ab100d89d1aeb61ccd40e890a2ab3051444",
+   "samples": 41602,
+   "duration": 2.6001,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "行吧。你们下去啊该",
+   "referenceType": "normalised",
+   "group": "M_R003S04C01",
+   "speaker": "M_R003S04C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "M_R003S04C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/M_R003S04C01/000000597.wav",
+    "textGrid": "test/TextGrid/M_R003S04C01.TextGrid",
+    "tier": "001-M",
+    "interval": 597,
+    "start": 2233.25924,
+    "end": 2235.85927,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "M_R003S04C01-000000597"
+  },
+  {
+   "id": "zh-meeting-M_R003S05C01-000000043",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/M_R003S05C01-000000043.flac",
+   "sha256": "8712adc57e0391a1326b39ffb0841a87343b7792273a097232001fb3bdca706e",
+   "pcmSha256": "2298ea433b289f715abbc496b486375ec33fe567217bba4f68c4c0e4c26ff915",
+   "samples": 38536,
+   "duration": 2.4085,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "那还是要保留一下儿这个休息区",
+   "referenceType": "normalised",
+   "group": "M_R003S05C01",
+   "speaker": "M_R003S05C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "M_R003S05C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/M_R003S05C01/000000043.wav",
+    "textGrid": "test/TextGrid/M_R003S05C01.TextGrid",
+    "tier": "001-M",
+    "interval": 43,
+    "start": 899.57902,
+    "end": 901.9874906050252,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "M_R003S05C01-000000043"
+  },
+  {
+   "id": "zh-meeting-M_R003S05C01-000000241",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/M_R003S05C01-000000241.flac",
+   "sha256": "78902c496085d0a6039513db63a1e13ef75f223c9265401129c1d4724b89aeff",
+   "pcmSha256": "f73d91c9818d0eca96338a8d55dabf69aa1e985d7192c3a9685e3b46a078ad52",
+   "samples": 40321,
+   "duration": 2.5201,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "你甚至可以做成抽奖的时候儿，就抽这些",
+   "referenceType": "normalised",
+   "group": "M_R003S05C01",
+   "speaker": "M_R003S05C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "M_R003S05C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/M_R003S05C01/000000241.wav",
+    "textGrid": "test/TextGrid/M_R003S05C01.TextGrid",
+    "tier": "001-M",
+    "interval": 241,
+    "start": 2053.26231,
+    "end": 2055.78231,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "M_R003S05C01-000000241"
+  },
+  {
+   "id": "zh-meeting-S_R003S01C01-000000171",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R003S01C01-000000171.flac",
+   "sha256": "4c39ed3c47625fa4d507d5b2cfba7a3c9c2b73d657899455915087438468aa92",
+   "pcmSha256": "784872dd1c0cc8f8a8cfd754c53a43619dc7a6a03410ad6ccce3c69b3eaa46c1",
+   "samples": 45281,
+   "duration": 2.8301,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "老年人就是上岁数儿这个",
+   "referenceType": "normalised",
+   "group": "S_R003S01C01",
+   "speaker": "S_R003S01C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R003S01C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R003S01C01/000000171.wav",
+    "textGrid": "test/TextGrid/S_R003S01C01.TextGrid",
+    "tier": "001-M",
+    "interval": 171,
+    "start": 1130.98342,
+    "end": 1133.81342,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R003S01C01-000000171"
+  },
+  {
+   "id": "zh-meeting-S_R003S01C01-000000277",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R003S01C01-000000277.flac",
+   "sha256": "05994f3392c68719822eb6b2ea7fd0f9a26e7d6527ee3f3215b186b457657fe5",
+   "pcmSha256": "93690022690832a94209502d9ec9a985ce885572b50d2eff76de2df6cd5a7a49",
+   "samples": 60161,
+   "duration": 3.7601,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "别的部门儿没什么问题了是吗",
+   "referenceType": "normalised",
+   "group": "S_R003S01C01",
+   "speaker": "S_R003S01C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R003S01C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R003S01C01/000000277.wav",
+    "textGrid": "test/TextGrid/S_R003S01C01.TextGrid",
+    "tier": "001-M",
+    "interval": 277,
+    "start": 1521.91872,
+    "end": 1525.67872,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R003S01C01-000000277"
+  },
+  {
+   "id": "zh-meeting-S_R003S02C01-000000095",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R003S02C01-000000095.flac",
+   "sha256": "17d82a02392d348a09a45daf8ecaa6764ce2e65139040cc7d8c1da834537c152",
+   "pcmSha256": "298c2cf8bbefeb96f0be5ed316123896d761e160c1e6e2b2dd94825fafe2a741",
+   "samples": 69999,
+   "duration": 4.3749,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "因为在学校啊，我看不见孩子们打手机",
+   "referenceType": "normalised",
+   "group": "S_R003S02C01",
+   "speaker": "S_R003S02C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R003S02C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R003S02C01/000000095.wav",
+    "textGrid": "test/TextGrid/S_R003S02C01.TextGrid",
+    "tier": "001-M",
+    "interval": 95,
+    "start": 875.4134,
+    "end": 879.7883,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R003S02C01-000000095"
+  },
+  {
+   "id": "zh-meeting-S_R003S02C01-000000593",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R003S02C01-000000593.flac",
+   "sha256": "27ef70644580df7b25d264f7b655c14184c3fe248fba29666046609883091156",
+   "pcmSha256": "ebe76165e5d9d646f99dcf86701fbe320e9ee6f3684f7e81be81c3580cb3081e",
+   "samples": 48566,
+   "duration": 3.0354,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "说句不好听的话，有有新闻上有就说",
+   "referenceType": "normalised",
+   "group": "S_R003S02C01",
+   "speaker": "S_R003S02C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R003S02C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R003S02C01/000000593.wav",
+    "textGrid": "test/TextGrid/S_R003S02C01.TextGrid",
+    "tier": "001-M",
+    "interval": 593,
+    "start": 2176.76523,
+    "end": 2179.80054,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R003S02C01-000000593"
+  },
+  {
+   "id": "zh-meeting-S_R003S03C01-000000105",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R003S03C01-000000105.flac",
+   "sha256": "f90bb79c2c88f0653d9487c7e7833e3821f2a9b5200d80d11ea86fdb291f81a8",
+   "pcmSha256": "e12957012c89b37f21e5a5f0b326c6d1c6626aef814de7b9ebe3453c59c1b966",
+   "samples": 48321,
+   "duration": 3.0201,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "嗯车间这块儿啊，就是还是是",
+   "referenceType": "normalised",
+   "group": "S_R003S03C01",
+   "speaker": "S_R003S03C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R003S03C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R003S03C01/000000105.wav",
+    "textGrid": "test/TextGrid/S_R003S03C01.TextGrid",
+    "tier": "001-M",
+    "interval": 105,
+    "start": 1265.18088,
+    "end": 1268.20088,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R003S03C01-000000105"
+  },
+  {
+   "id": "zh-meeting-S_R003S03C01-000000159",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R003S03C01-000000159.flac",
+   "sha256": "615a0456ddd3aa889fb11315a5d18a17120dda072a689edade8ff9c03dcd7fae",
+   "pcmSha256": "63be378680c9ecbad4426083b8b93ddec4973bfc40a6aef0f0e737b08ed771fc",
+   "samples": 45041,
+   "duration": 2.8151,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "分散一下就是呃",
+   "referenceType": "normalised",
+   "group": "S_R003S03C01",
+   "speaker": "S_R003S03C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R003S03C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R003S03C01/000000159.wav",
+    "textGrid": "test/TextGrid/S_R003S03C01.TextGrid",
+    "tier": "001-M",
+    "interval": 159,
+    "start": 1355.33166,
+    "end": 1358.14666,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R003S03C01-000000159"
+  },
+  {
+   "id": "zh-meeting-S_R003S04C01-000000023",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R003S04C01-000000023.flac",
+   "sha256": "c0416bff27f0ab96b00a7e5d9bea87362461d7f0fe282b5f1e08e0bc7d8e389b",
+   "pcmSha256": "7afff38a0e424adf0daaeac2353f5c06f8b04285aa78ef7e1a60d54cbabf53d6",
+   "samples": 91281,
+   "duration": 5.7051,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "一个住户家里三辆车。那你说咱这个。",
+   "referenceType": "normalised",
+   "group": "S_R003S04C01",
+   "speaker": "S_R003S04C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R003S04C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R003S04C01/000000023.wav",
+    "textGrid": "test/TextGrid/S_R003S04C01.TextGrid",
+    "tier": "001-M",
+    "interval": 23,
+    "start": 652.74976,
+    "end": 658.45476,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R003S04C01-000000023"
+  },
+  {
+   "id": "zh-meeting-S_R003S04C01-000000187",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R003S04C01-000000187.flac",
+   "sha256": "294a42013cfb803a19289358765fb958b6f8cb8686ac883c4a13e24528e332bb",
+   "pcmSha256": "8abe933641635d90879854685c3d153fac569ac3d21b81f815b476b7f5e226b6",
+   "samples": 64408,
+   "duration": 4.0255,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "就上去就，放下边儿没什么事，我就上去拿个东西下来就没了。",
+   "referenceType": "normalised",
+   "group": "S_R003S04C01",
+   "speaker": "S_R003S04C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R003S04C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R003S04C01/000000187.wav",
+    "textGrid": "test/TextGrid/S_R003S04C01.TextGrid",
+    "tier": "001-M",
+    "interval": 187,
+    "start": 2120.56322,
+    "end": 2124.58863,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R003S04C01-000000187"
+  },
+  {
+   "id": "zh-meeting-S_R004S01C01-000000025",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R004S01C01-000000025.flac",
+   "sha256": "0012daf2b15385870e7c12f45d86be0b6958840318b3c22d72fa4bb48e51d3ac",
+   "pcmSha256": "4f03d6aee2c5c837f1b411ba3fc8fd95931a5425ba13c7b9c56e0c3029fc66f4",
+   "samples": 113032,
+   "duration": 7.0645,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "看看这边儿本职工作做的也都不错。下来看我看看哪个比较做的更好一些。",
+   "referenceType": "normalised",
+   "group": "S_R004S01C01",
+   "speaker": "S_R004S01C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R004S01C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R004S01C01/000000025.wav",
+    "textGrid": "test/TextGrid/S_R004S01C01.TextGrid",
+    "tier": "001-M",
+    "interval": 25,
+    "start": 251.06584,
+    "end": 258.13029,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R004S01C01-000000025"
+  },
+  {
+   "id": "zh-meeting-S_R004S01C01-000000147",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R004S01C01-000000147.flac",
+   "sha256": "563608c626b0e89f95f8f959dba8d7cb71b9c225b3ce91e2c3ebfe6cb60521cd",
+   "pcmSha256": "fd15af90fb4f7c818213a721eb774874d878c04b4c4780aff10d50f9b31891b1",
+   "samples": 53601,
+   "duration": 3.3501,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "那你这边儿呃商务鞋给这个",
+   "referenceType": "normalised",
+   "group": "S_R004S01C01",
+   "speaker": "S_R004S01C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R004S01C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R004S01C01/000000147.wav",
+    "textGrid": "test/TextGrid/S_R004S01C01.TextGrid",
+    "tier": "001-M",
+    "interval": 147,
+    "start": 1680.91016,
+    "end": 1684.26016,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R004S01C01-000000147"
+  },
+  {
+   "id": "zh-meeting-S_R004S02C01-000000045",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R004S02C01-000000045.flac",
+   "sha256": "0118d5c4e766892fafe8e8daff1dc35be32e6f3e20530e7db7fc9621b267c11e",
+   "pcmSha256": "da8cfe8d107d3d2f80dd3972a6c626baae5f7e127b288eca5f8523c4a7defea4",
+   "samples": 51681,
+   "duration": 3.2301,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "我尽量把这个问题给你们解决了",
+   "referenceType": "normalised",
+   "group": "S_R004S02C01",
+   "speaker": "S_R004S02C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R004S02C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R004S02C01/000000045.wav",
+    "textGrid": "test/TextGrid/S_R004S02C01.TextGrid",
+    "tier": "001-M",
+    "interval": 45,
+    "start": 122.79489,
+    "end": 126.02488,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R004S02C01-000000045"
+  },
+  {
+   "id": "zh-meeting-S_R004S02C01-000000059",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R004S02C01-000000059.flac",
+   "sha256": "f378661453945fea0569ed1856676124dabbe4cbacb9cf0c99c5c3f369aaa314",
+   "pcmSha256": "e9594eb397e5a4ea7767c4d933f468282b2ccf5814b18ffeae47bf809f5983b8",
+   "samples": 83441,
+   "duration": 5.2151,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "你看看今年的招生各位有没有什么想法或者意见的",
+   "referenceType": "normalised",
+   "group": "S_R004S02C01",
+   "speaker": "S_R004S02C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R004S02C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R004S02C01/000000059.wav",
+    "textGrid": "test/TextGrid/S_R004S02C01.TextGrid",
+    "tier": "001-M",
+    "interval": 59,
+    "start": 153.26186,
+    "end": 158.47686,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R004S02C01-000000059"
+  },
+  {
+   "id": "zh-meeting-S_R004S03C01-000000059",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R004S03C01-000000059.flac",
+   "sha256": "e925a91db4821fb30967392508514889a3db6a75dc3f39a5f98fd927d589d26b",
+   "pcmSha256": "eb049905e62e79d4735116f6f24cb67ccab3c7d04a653900e278825d61260bd8",
+   "samples": 53117,
+   "duration": 3.3198,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "呃合作。",
+   "referenceType": "normalised",
+   "group": "S_R004S03C01",
+   "speaker": "S_R004S03C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R004S03C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R004S03C01/000000059.wav",
+    "textGrid": "test/TextGrid/S_R004S03C01.TextGrid",
+    "tier": "001-M",
+    "interval": 59,
+    "start": 2066.40337,
+    "end": 2069.72311,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R004S03C01-000000059"
+  },
+  {
+   "id": "zh-meeting-S_R004S03C01-000000087",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R004S03C01-000000087.flac",
+   "sha256": "a77dc82b186264243a7d4cecd30ed33515fde71b5faa5509bb9990ccf1930eee",
+   "pcmSha256": "b0326625949dd80466a3429ea25f2bbc1fa80ee64707183ac0839da9e9b043b2",
+   "samples": 119592,
+   "duration": 7.4745,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "呃到你们那哪个区域了，这有的客户儿啊，不用了，直接就放那儿了。这样的话影响就是咱那个。",
+   "referenceType": "normalised",
+   "group": "S_R004S03C01",
+   "speaker": "S_R004S03C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R004S03C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R004S03C01/000000087.wav",
+    "textGrid": "test/TextGrid/S_R004S03C01.TextGrid",
+    "tier": "001-M",
+    "interval": 87,
+    "start": 2205.96147,
+    "end": 2213.43589,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R004S03C01-000000087"
+  },
+  {
+   "id": "zh-meeting-S_R004S04C01-000000211",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R004S04C01-000000211.flac",
+   "sha256": "2739b157589f7a10fa0e08b4b8b47975b66fb1f84ac16914f6bcb4e453575f0d",
+   "pcmSha256": "a75a5e8703603e9eeb0d5511dca7d8eff11c120806b1c88730b61bd49aa16213",
+   "samples": 44401,
+   "duration": 2.7751,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "好多课本儿都没在还在家里呆着呢",
+   "referenceType": "normalised",
+   "group": "S_R004S04C01",
+   "speaker": "S_R004S04C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R004S04C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R004S04C01/000000211.wav",
+    "textGrid": "test/TextGrid/S_R004S04C01.TextGrid",
+    "tier": "001-M",
+    "interval": 211,
+    "start": 2121.58581,
+    "end": 2124.36081,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R004S04C01-000000211"
+  },
+  {
+   "id": "zh-meeting-S_R004S04C01-000000249",
+   "allocation": "zh-meeting",
+   "source": "aishell4",
+   "file": "audio/zh-meeting/S_R004S04C01-000000249.flac",
+   "sha256": "b09a4fcb0d4036f5a42ce879c5fd5b58948c96d40282ce97f803daa99e424ba7",
+   "pcmSha256": "02578c0adb66f7d868429388e7b2e1c8e36557f8214f2a41aaaa05c367685051",
+   "samples": 60401,
+   "duration": 3.7751,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "所以这家长在家督促一下，就是每天的作业",
+   "referenceType": "normalised",
+   "group": "S_R004S04C01",
+   "speaker": "S_R004S04C01/001-M",
+   "conditions": [
+    "meeting",
+    "far-field"
+   ],
+   "stratum": "S_R004S04C01",
+   "origin": {
+    "repo": "shenyunhang/AISHELL-4",
+    "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+    "path": "test/wav/S_R004S04C01/000000249.wav",
+    "textGrid": "test/TextGrid/S_R004S04C01.TextGrid",
+    "tier": "001-M",
+    "interval": 249,
+    "start": 2193.21826,
+    "end": 2196.99325,
+    "channel": "array-mic-1 (zero-based channel 0)"
+   },
+   "extra": {},
+   "key": "S_R004S04C01-000000249"
+  }
+ ],
+ "builtAt": "2026-09-24T10:10:46Z"
+}

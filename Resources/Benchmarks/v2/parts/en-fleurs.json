@@ -1,0 +1,978 @@
+{
+ "allocation": {
+  "id": "en-fleurs",
+  "source": "fleurs",
+  "minutes": 5,
+  "tracks": [
+   "words",
+   "formatting"
+  ],
+  "scoring": "wer",
+  "params": {
+   "language": "en",
+   "config": "en_us"
+  }
+ },
+ "source": {
+  "id": "fleurs",
+  "name": "FLEURS",
+  "url": "https://huggingface.co/datasets/google/fleurs",
+  "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+  "licence": "CC BY 4.0",
+  "licenceUrl": "https://huggingface.co/datasets/google/fleurs/blob/70bb2e84b976b7e960aa89f1c648e09c59f894dd/README.md",
+  "redistributable": true,
+  "released": "2022-05",
+  "attribution": "Conneau et al., FLEURS: Few-shot Learning Evaluation of Universal Representations of Speech (2022), Google.",
+  "referenceProduction": "FLoRes-101 sentences (human-written/translated prose) read aloud; raw_transcription keeps the written case and punctuation."
+ },
+ "candidateCount": 350,
+ "selectedSeconds": 317.44,
+ "clips": [
+  {
+   "id": "en-fleurs-en_us-10344335557154974057",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-10344335557154974057.flac",
+   "sha256": "19c12494c37d75acd9439e9f96ad2bad97759b3a00ae95407ea18be7e9d605ec",
+   "pcmSha256": "4794e93ade7be39cdd83a6cf63be7ba22eade50f6645a083e25c472eb06067c0",
+   "samples": 176640,
+   "duration": 11.04,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The aspect ratio of this format (dividing by twelve to obtain the simplest whole-number ratio) is therefore said to be 3:2.",
+   "referenceType": "formatted",
+   "group": "sentence-1846",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "10344335557154974057.wav",
+    "sentenceId": "1846"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-10344335557154974057"
+  },
+  {
+   "id": "en-fleurs-en_us-10938576782105608041",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-10938576782105608041.flac",
+   "sha256": "0024a4e5ade8c77ca0424b468806465fbaf4ca3eb5bcae81b6190774c71ef9ad",
+   "pcmSha256": "815d15ffc8612a2c60f33dccdc61961fd87c1054ec21de689b65a763370f4cfb",
+   "samples": 140160,
+   "duration": 8.76,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Blogs can also help improve student writing. While students often begin their blog experience with sloppy grammar and spelling, the presence of an audience generally changes that.",
+   "referenceType": "formatted",
+   "group": "sentence-1990",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "10938576782105608041.wav",
+    "sentenceId": "1990"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-10938576782105608041"
+  },
+  {
+   "id": "en-fleurs-en_us-11318597463051480163",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-11318597463051480163.flac",
+   "sha256": "8ccf70374ef772a2cca09fda8562ad14cf28bc3a48712d1605f1896d3c4b2087",
+   "pcmSha256": "fd671264a5990f382bfa132aebb173d21e3d8577370a12202625be2665bbb8be",
+   "samples": 305920,
+   "duration": 19.12,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Mrs. Kirchner announced her intention to run for president at the Argentine Theatre, the same location she used to start her 2005 campaign for the Senate as member of the Buenos Aires province delegation.",
+   "referenceType": "formatted",
+   "group": "sentence-1864",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "11318597463051480163.wav",
+    "sentenceId": "1864"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-11318597463051480163"
+  },
+  {
+   "id": "en-fleurs-en_us-11966709226632417907",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-11966709226632417907.flac",
+   "sha256": "739a585f06f95e4428d38acc0af05cbc6c7d1b26c0fe65c4074e0adc084f88d7",
+   "pcmSha256": "ce494fd23fd4170df0ec4a5c883de8755772daab2c79d676b4367e1dadcada3a",
+   "samples": 102720,
+   "duration": 6.42,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Everything in the Universe is made of matter. All matter is made of tiny particles called atoms.",
+   "referenceType": "formatted",
+   "group": "sentence-1698",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "11966709226632417907.wav",
+    "sentenceId": "1698"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-11966709226632417907"
+  },
+  {
+   "id": "en-fleurs-en_us-12190760535244332971",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-12190760535244332971.flac",
+   "sha256": "781e71b8baa0517a3a9d8fbb49fc295771a9b6875cbc26cccdb5e6e27f4278f3",
+   "pcmSha256": "af9ff7799f30e839b33613eaa13b5b55c3f0d754f1f23e828179915ed54b811e",
+   "samples": 240960,
+   "duration": 15.06,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The Giza Plateau, or \"Giza Necropolis\" in the Egyptian Valley of the Dead contains several pyramids (of which the great pyramid is the largest), several small tombs, several temples, and the great Sphinx.",
+   "referenceType": "formatted",
+   "group": "sentence-1824",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "12190760535244332971.wav",
+    "sentenceId": "1824"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-12190760535244332971"
+  },
+  {
+   "id": "en-fleurs-en_us-1273817225649957097",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-1273817225649957097.flac",
+   "sha256": "c5ea75426a2d43c596f66d95327dd35b0f23c5b50a3ed4ee34812eee7733cadb",
+   "pcmSha256": "e4a6f80afc8b164ad8e58a163b43a951c73b38d4458014ef45209db06a461e1b",
+   "samples": 197120,
+   "duration": 12.32,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Italian is also the everyday language used by most of those who work in the state while Latin is often used in religious ceremonies.",
+   "referenceType": "formatted",
+   "group": "sentence-1807",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "1273817225649957097.wav",
+    "sentenceId": "1807"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-1273817225649957097"
+  },
+  {
+   "id": "en-fleurs-en_us-12741024238657315067",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-12741024238657315067.flac",
+   "sha256": "e7305157593ddf7626c06cf32ed152723b885ec37e5476bb8566df760424fdeb",
+   "pcmSha256": "1a02c8ed3cdde876025be8bb00aebeb8ea0ffefd77dd510b2f5cc87b6bd8f0e4",
+   "samples": 202240,
+   "duration": 12.64,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Unfortunately, studying traffic flow is difficult because driver behavior cannot be predicted with one-hundred percent certainty.",
+   "referenceType": "formatted",
+   "group": "sentence-1980",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "12741024238657315067.wav",
+    "sentenceId": "1980"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-12741024238657315067"
+  },
+  {
+   "id": "en-fleurs-en_us-12906384443438076827",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-12906384443438076827.flac",
+   "sha256": "04895a3121f52822b660eb0e66953fbb1e2ebb2fe2bbd215eac69c7e3a0f95cb",
+   "pcmSha256": "e81da19f84ad264d6ec0e6c09816a1a2ae31f90107deb5e7db1f42d0f751e1ee",
+   "samples": 163520,
+   "duration": 10.22,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "In a carriage, they traveled back to Paris surrounded by a mob of people screaming and shouting threats against the King and Queen.",
+   "referenceType": "formatted",
+   "group": "sentence-1845",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "12906384443438076827.wav",
+    "sentenceId": "1845"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-12906384443438076827"
+  },
+  {
+   "id": "en-fleurs-en_us-13963903782504043145",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-13963903782504043145.flac",
+   "sha256": "9985529d03330b2a75d8ce5fe09016dd5415cc85efb19ea522badee3c765fdf9",
+   "pcmSha256": "f612d5a0aee8091a3486c3379d4634e8dbd0c71c8895a530a5074560c3d36611",
+   "samples": 161280,
+   "duration": 10.08,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "NextGen is a system the FAA claims would allow aircraft to fly shorter routes and save millions of gallons of fuel each year and cut carbon emissions.",
+   "referenceType": "formatted",
+   "group": "sentence-1862",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "13963903782504043145.wav",
+    "sentenceId": "1862"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-13963903782504043145"
+  },
+  {
+   "id": "en-fleurs-en_us-14693330690944350091",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-14693330690944350091.flac",
+   "sha256": "7ac15324ff38a5fc88ee7f0ea3907872f30797b5b49d6b1e7c1f2d47736d99fb",
+   "pcmSha256": "4d9a045e104078aec4f925a3c17efeb8948bb9d1af08260a20948e1623483235",
+   "samples": 143040,
+   "duration": 8.94,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Between 10:00-11:00 pm MDT, a fire was started by the inmates in the yard.",
+   "referenceType": "formatted",
+   "group": "sentence-1885",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "14693330690944350091.wav",
+    "sentenceId": "1885"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-14693330690944350091"
+  },
+  {
+   "id": "en-fleurs-en_us-14836289886440749215",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-14836289886440749215.flac",
+   "sha256": "250bb4575206f10fa5b70ebc88e4f201b578237ad3a3b7302344fd33133ffcb8",
+   "pcmSha256": "e9d999a5b543105a51015644ae957a6d10e0f515b094617f0be2e9d7703f65c0",
+   "samples": 137920,
+   "duration": 8.62,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The photographers later took the place of an aged lady as she needed the lavatory. Mendoza was gunned down.",
+   "referenceType": "formatted",
+   "group": "sentence-1761",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "14836289886440749215.wav",
+    "sentenceId": "1761"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-14836289886440749215"
+  },
+  {
+   "id": "en-fleurs-en_us-14993919225529607964",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-14993919225529607964.flac",
+   "sha256": "ed4232de24df07e4d214c5cd835367c893e944b078e5891abc9fd0a05b384692",
+   "pcmSha256": "94c365ca850f565de25e5ffa100080ce5b90ff102eeaaac9116e1d73019729f7",
+   "samples": 249600,
+   "duration": 15.6,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Australia's Mitchell Gourley finished eleventh in the men's standing Super-G. Czech competitor Oldrich Jelinek finished sixteenth in the men's sitting Super-G.",
+   "referenceType": "formatted",
+   "group": "sentence-1996",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "14993919225529607964.wav",
+    "sentenceId": "1996"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-14993919225529607964"
+  },
+  {
+   "id": "en-fleurs-en_us-15462197415062072209",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-15462197415062072209.flac",
+   "sha256": "f378b171121fa617c3ae76cdf6580e52166d31e00c1ebd9606d78c123314e5f7",
+   "pcmSha256": "6a2706f22a0f1fa9bb913005bc3fb75b0ced9a6dedf00a84ac9d3b58d9289e13",
+   "samples": 147840,
+   "duration": 9.24,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The central authority of the church had been in Rome for over a thousand years and this concentration of power and money led many to question whether this tenet was being met.",
+   "referenceType": "formatted",
+   "group": "sentence-1878",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "15462197415062072209.wav",
+    "sentenceId": "1878"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-15462197415062072209"
+  },
+  {
+   "id": "en-fleurs-en_us-16766787285057438836",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-16766787285057438836.flac",
+   "sha256": "32a1aad4fb11568caba3fd2d1ec3f38a7ccc42147d4b088ae6217adfafe5aa0c",
+   "pcmSha256": "7a2531db2f7ecdcbacbd8b743f6087a83f390a5805cfce52b17fd2db1bda98e6",
+   "samples": 179520,
+   "duration": 11.22,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Barcelona's official languages are Catalan and Spanish. About a half prefer to speak Catalan, a vast majority understands it, and virtually everyone knows Spanish.",
+   "referenceType": "formatted",
+   "group": "sentence-1813",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "16766787285057438836.wav",
+    "sentenceId": "1813"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-16766787285057438836"
+  },
+  {
+   "id": "en-fleurs-en_us-16989675193715509568",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-16989675193715509568.flac",
+   "sha256": "f3b02652f488b92496bc50727bdaa05705fb0a6d8f9a97e059281862d3e865e6",
+   "pcmSha256": "03f9ead941750fc99a1f48a516818c68322c8b63a6d51edde9ae0f52be1fa506",
+   "samples": 125760,
+   "duration": 7.86,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Their disciplined defence, ball handling skills and excellent team work made them stand out and it was clear that this was the team to beat.",
+   "referenceType": "formatted",
+   "group": "sentence-1954",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "16989675193715509568.wav",
+    "sentenceId": "1954"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-16989675193715509568"
+  },
+  {
+   "id": "en-fleurs-en_us-1722118868151836971",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-1722118868151836971.flac",
+   "sha256": "cb72db7ddb79963d001ed44d8c078014e9d0f1a86352890192809b76db0f744f",
+   "pcmSha256": "0b88e2b2412b2c18ce86e44bcb8cf8e88db532d2b43be35425210baa37ce8678",
+   "samples": 312960,
+   "duration": 19.56,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Current senator and Argentine First Lady Cristina Fernandez de Kirchner announced her presidential candidacy yesterday evening in La Plata, a city 50 kilometers (31 miles) away from Buenos Aires.",
+   "referenceType": "formatted",
+   "group": "sentence-1877",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "1722118868151836971.wav",
+    "sentenceId": "1877"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-1722118868151836971"
+  },
+  {
+   "id": "en-fleurs-en_us-17567046183557458641",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-17567046183557458641.flac",
+   "sha256": "8dc1b544c7f5d9a6256ae4b68c89bbc8899ab38d8fb7dda6c94f27f1c31edf7a",
+   "pcmSha256": "9c4754ec01add158909aa483edd2dea6a2b2607da51556855d4eac19177bdc6d",
+   "samples": 86400,
+   "duration": 5.4,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The disease is carried by pigs, which then migrates to humans through mosquitos.",
+   "referenceType": "formatted",
+   "group": "sentence-1762",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "17567046183557458641.wav",
+    "sentenceId": "1762"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-17567046183557458641"
+  },
+  {
+   "id": "en-fleurs-en_us-2880067776280655708",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-2880067776280655708.flac",
+   "sha256": "2ef15c56a6f8729199f55b3c98b91e0050c1af90407bb75ab6a22c4869c7276f",
+   "pcmSha256": "de50694cc8f0847923a5a2113578426b0b56bb27db78f0937b43b5f5fb61dd81",
+   "samples": 378240,
+   "duration": 23.64,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Dr. Malar Balasubramanian, 29, was found in Blue Ash, Ohio, a suburb approximately 15 miles north of Cincinnati lying on the ground beside the road in a T-shirt and underwear in an apparently heavily medicated state.",
+   "referenceType": "formatted",
+   "group": "sentence-1759",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "2880067776280655708.wav",
+    "sentenceId": "1759"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-2880067776280655708"
+  },
+  {
+   "id": "en-fleurs-en_us-3039867296204116367",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-3039867296204116367.flac",
+   "sha256": "3e6d8983091d6a6bfca3b08a5754124d11ea1f8e835c2761e55232fe545354b3",
+   "pcmSha256": "30bcc4cecd0dbb456b088c59578852bf0c340fbe33c87dd224fda870e7e49ade",
+   "samples": 279040,
+   "duration": 17.44,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "The job of navies has traditionally been to ensure that your country maintains the ability to move your people and goods, while at the same time, interfering with your enemy's ability to move his people and goods.",
+   "referenceType": "formatted",
+   "group": "sentence-1688",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "3039867296204116367.wav",
+    "sentenceId": "1688"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-3039867296204116367"
+  },
+  {
+   "id": "en-fleurs-en_us-3404855403082339212",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-3404855403082339212.flac",
+   "sha256": "4c5767e233bbb4aed30ab6544be482beca1367a7b5b527dda37549bb38588a12",
+   "pcmSha256": "4e51d72659e4bce2099eb1f82ec29d7ed838a748f49548deed37c6605148bef6",
+   "samples": 87360,
+   "duration": 5.46,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "One can only wonder what the keyboard will become when something newer comes along.",
+   "referenceType": "formatted",
+   "group": "sentence-1879",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "3404855403082339212.wav",
+    "sentenceId": "1879"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-3404855403082339212"
+  },
+  {
+   "id": "en-fleurs-en_us-3709475786289139797",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-3709475786289139797.flac",
+   "sha256": "c1b7179369d140598184f6651304789843b91cc48d7779a53dd8aa8e35f72049",
+   "pcmSha256": "34c63e3892f428401c57b8964e0c80a67d76003df4ce7187a9562e1b534bd0e7",
+   "samples": 134400,
+   "duration": 8.4,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "In many other cities of Italy and in the rest of the world, particularly in Poland, similar setups were made, which were viewed by a great number of people.",
+   "referenceType": "formatted",
+   "group": "sentence-1840",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "3709475786289139797.wav",
+    "sentenceId": "1840"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-3709475786289139797"
+  },
+  {
+   "id": "en-fleurs-en_us-3795099655869307739",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-3795099655869307739.flac",
+   "sha256": "2d83832bbdc731fd61a63904048d21540c1d9e8f47cc229a1cb2a43c19d395dd",
+   "pcmSha256": "a529e92467caf29915010ce6b8593ae483b9bfb1db9e439ccba955653ab4fbcf",
+   "samples": 249600,
+   "duration": 15.6,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "towards the end of the Middle Ages western Europe began to develop their own style. one of the biggest developments of the time as a result of the crusades people began to use buttons to fasten clothing.",
+   "referenceType": "formatted",
+   "group": "sentence-1859",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "3795099655869307739.wav",
+    "sentenceId": "1859"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-3795099655869307739"
+  },
+  {
+   "id": "en-fleurs-en_us-4838660681321542582",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-4838660681321542582.flac",
+   "sha256": "5a0fa89374ad965f8bff57fb6319e39c607b5092ba951557a9d7e3c78a7bf899",
+   "pcmSha256": "cecf5edbe016d58786ec4f29fd6c350bbe34c1e29c122eb82a76011dcf0c38f0",
+   "samples": 107520,
+   "duration": 6.72,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "In the warm climate of the Middle East, the house was not so important.",
+   "referenceType": "formatted",
+   "group": "sentence-1871",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "4838660681321542582.wav",
+    "sentenceId": "1871"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-4838660681321542582"
+  },
+  {
+   "id": "en-fleurs-en_us-5152804099019194563",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-5152804099019194563.flac",
+   "sha256": "c94fa0aee77b5c4487cafa5f093400d9e87993017777bf5c5db134cb293f6171",
+   "pcmSha256": "87294e99008e321551440b06ba8e033e7c95f55e253ea3c30941ef390c9a3137",
+   "samples": 214080,
+   "duration": 13.38,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Since 1988, ballot boxes must be transparent so that voters and observers can witness that no envelopes are present at the start of the vote and that no envelopes are added except those of the duly counted and authorized voters.",
+   "referenceType": "formatted",
+   "group": "sentence-1795",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "5152804099019194563.wav",
+    "sentenceId": "1795"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-5152804099019194563"
+  },
+  {
+   "id": "en-fleurs-en_us-5407053594615190090",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-5407053594615190090.flac",
+   "sha256": "3ffd33990941cb9306ee629c568f3c3a1b047679a51b3bd45fee6a08972ffbe8",
+   "pcmSha256": "656fbbe828b52a901a16ad517a6999ec272224440ebcc57131e93b8cc3a83b51",
+   "samples": 207040,
+   "duration": 12.94,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Ancient China had a unique way of showing different time periods; each stage of China or each family that was in power was a distinctive dynasty.",
+   "referenceType": "formatted",
+   "group": "sentence-1819",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "5407053594615190090.wav",
+    "sentenceId": "1819"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-5407053594615190090"
+  },
+  {
+   "id": "en-fleurs-en_us-6275116524641817120",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-6275116524641817120.flac",
+   "sha256": "be9bd869c870905ff46695b065a5fcee4e41d6e54795393bbe5e1e02ac6e9d50",
+   "pcmSha256": "9d9ebb4f6bb1ca69cd8a40787ea3ff975b366cbee573d992f7ce80ebad79786a",
+   "samples": 132480,
+   "duration": 8.28,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Angel (2006), explains the Continuum approach as a method being used to help organizations reach a higher level of performance.",
+   "referenceType": "formatted",
+   "group": "sentence-1927",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "6275116524641817120.wav",
+    "sentenceId": "1927"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-6275116524641817120"
+  },
+  {
+   "id": "en-fleurs-en_us-6354316372780583820",
+   "allocation": "en-fleurs",
+   "source": "fleurs",
+   "file": "audio/en-fleurs/en_us-6354316372780583820.flac",
+   "sha256": "9695e4a251a4f190b981f1e0ed77efc78aa2094839ddf2dcd94bc0f45eaf54a2",
+   "pcmSha256": "2059aca9f5ad28b7d7df497404e080ec7248a45dbe8f462f39bfab07a505e4d8",
+   "samples": 215680,
+   "duration": 13.48,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "Although AI has a strong connotation of science fiction, AI forms a very important branch of computer science, dealing with behavior, learning and intelligent adaptation in a machine.",
+   "referenceType": "formatted",
+   "group": "sentence-1901",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/en_us/audio/test.tar.gz",
+    "member": "6354316372780583820.wav",
+    "sentenceId": "1901"
+   },
+   "extra": {
+    "config": "en_us"
+   },
+   "key": "en_us-6354316372780583820"
+  }
+ ],
+ "builtAt": "2026-09-24T10:17:23Z"
+}

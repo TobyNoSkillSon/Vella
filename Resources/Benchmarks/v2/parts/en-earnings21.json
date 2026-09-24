@@ -1,0 +1,116 @@
+{
+ "allocation": {
+  "id": "en-earnings21",
+  "source": "rev_earnings",
+  "minutes": 8,
+  "tracks": [
+   "words",
+   "formatting"
+  ],
+  "scoring": "wer",
+  "params": {
+   "corpus": "earnings21"
+  }
+ },
+ "source": {
+  "id": "rev-earnings",
+  "name": "Earnings-22/21 Rev verbatim",
+  "url": "https://github.com/revdotcom/speech-datasets",
+  "revision": "c05ab6fd8b4b627d123c922a22a39e993dd37635",
+  "licence": "CC BY-SA 4.0 text only; audio rights unclear",
+  "licenceUrl": "https://raw.githubusercontent.com/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings22/LICENSE.md",
+  "redistributable": false,
+  "released": "2022",
+  "attribution": "Rev, Earnings-22 and Earnings-21 human verbatim transcripts.",
+  "referenceProduction": "Professional Rev verbatim transcription; case, prepunctuation and punctuation are original token columns; aligned timestamps never supply text."
+ },
+ "candidateCount": 2,
+ "selectedSeconds": 472.72,
+ "clips": [
+  {
+   "id": "en-earnings21-4320211-1340-1974",
+   "allocation": "en-earnings21",
+   "source": "rev-earnings",
+   "file": "audio/en-earnings21/4320211-1340-1974.flac",
+   "sha256": "742576281286f34ac7164a0cb702c3f35a833cf7d902636f57a0cac84e65deab",
+   "pcmSha256": "15c356f548a78ef288aad82a8cda2a7804927478b388115177078bc30e48eb30",
+   "samples": 3879680,
+   "duration": 242.48,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "with expanding this program across our base, we will continue to prioritize markets that we expect will drive the largest benefit to our sales performance and our approach will be measured in order to keep sales disruption to a minimum. Through the end of this fiscal year, we're focusing on finalizing the transformation of our recently acquired California stores while starting the transformation of approximately 80 more stores that will be completed in Q1 of FY21. Moving on to the performance of the stores we've completed so far, to help provide some additional granularity, we separated out how rebranded stores have performed versus the stores that have just been re-imaged. Importantly, this data only includes comp stores that had a full quarter of performance following the completion of their transformation. This is how we will speak to this performance, excuse me, of our transformed stores moving forward. As you can see, and in line with our expectations, we see a significant sales lift when we rebrand stores. This shift optimizes our brand awareness and increases our tire sales without sacrificing our service revenues. The stores that have been re-imaged were slightly down as these are located in our Northern markets, which were impacted by the mild weather conditions I mentioned earlier. We believe this performance clearly highlights the strong opportunity we have and the benefits to come with a streamlined brand portfolio. The 74 stores that we recently completed and are not included in this calculation, given they have not had a full quarter post transformation yet, but we are still, we are seeing early signs of strength at these stores and are pleased with the results. While we still have a while to go to roll this program out to our entire base, to sustain performance. we've seen at the stores that have completed the transformation to, date, underscores the impact of this important initiative. Turning to slide six and the remainder of our Monro Forward Initiatives, I'd like to focus my discussion on the initiatives that are top priority, which we believe will be critical to supporting our broader strategy. In the third quarter, we began modernizing our store IT infrastructure at all of our approximately 1300 locations. This new infrastructure enables state-of-the-art technology, including our new digital phone and texting system, which is a major step towards improving the overall customer experience. This system will allow us to better track customer execution, driving a more consistent phone strategy and improve conversion. Our store infrastructure monetization will be completed by the end of the first quarter of fiscal 2021, allowing us to leverage our new phone system, which will be critical to driving traffic to our stores. Another priority for us is the optimization of our tire category management. We are on track and by the end of this fiscal year, we expect our new pricing software will be operational. We believe this will be critical to driving long-term margin expansion by providing improved visibility into demand dynamics, allowing us to better refine our assortments and execute our strategy to become the number one destination for tires at any price point. Finally, we are right on track to roll out our cloud-based store scheduling model pilot by year end, gaining real time visibility into our labor model via the cloud will help us be more effective and strategic ensuring we are not understaffed and losing sales or overstaffed when there is a lack of demand. Regarding our other teammate initiatives, we have rolled out the Monro University program to all of our teammates and are continuing to expand and enhance the course content. We've also implemented mandatory onboard training to ensure that everyone who joins our team is trained on our Monro playbook operating procedures in order to provide a quality five-star",
+   "referenceType": "formatted",
+   "group": "4320211",
+   "speaker": null,
+   "conditions": [
+    "spontaneous",
+    "earnings-call",
+    "domain:finance"
+   ],
+   "stratum": "4320211",
+   "origin": {
+    "repo": "revdotcom/speech-datasets",
+    "revision": "c05ab6fd8b4b627d123c922a22a39e993dd37635",
+    "path": "earnings21/transcripts/nlp_references/4320211.nlp",
+    "referenceSha256": "a7d2c1e7362cc6af5317f75c855a9270c8cbbf95e04c1fe3e4834c3848e66ffb",
+    "audioUrl": "https://raw.githubusercontent.com/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings21/media/4320211.mp3",
+    "start": 530.08,
+    "end": 772.56,
+    "firstToken": 1340,
+    "lastTokenExclusive": 1974,
+    "anchorDensity": 0.97,
+    "channel": "mean",
+    "sourceSha256": "b943ebeefc16ef41ab7744d3cc46e9aa5b95245d85fb00dddd6e34e408dd7191"
+   },
+   "extra": {},
+   "key": "4320211-1340-1974"
+  },
+  {
+   "id": "en-earnings21-4341191-1347-1929",
+   "allocation": "en-earnings21",
+   "source": "rev-earnings",
+   "file": "audio/en-earnings21/4341191-1347-1929.flac",
+   "sha256": "9a32b80ae8077f0d09c18dbf376c9feb89f155e7a765af0a5ef7e9703023f116",
+   "pcmSha256": "7c0e771d8ad8ca6c10c00cd28c3a36d830b83fb89d77abd7a62e34f8b1e6a3e8",
+   "samples": 3683840,
+   "duration": 230.24,
+   "language": "en",
+   "tracks": [
+    "words",
+    "formatting"
+   ],
+   "scoring": "wer",
+   "reference": "with deep strategic relationships, especially through periods of volatility. So in the spirit embracing reality, let me frame for you what we're seeing right now at a high level, and then I'll do a deeper dive after Carolina reviews the first quarter. In aviation and at GECAS, airlines are conserving cash, not flying the planes they have, limiting maintenance spare, spend where they can and all the while deferring orders in many places, no one can predict when and how leisure and business travel will resume, but the reality is likely it's not soon. So we're redefining winning. For margin expansion in 2020 to improving our detrimental margins this year, which re- requires we aggressively adjust our cost structure. That's what winning looks like for aviation and they're moving forward with a comprehensive plan. To be clear, we'll get back to targeting those 20% operating margins, post pandemic. In healthcare, we've been on the front line combating COVID-19 since the early days in Wuhan. This is fundamental to our mission. While we've seen demand surge for certain products, other products, including those in our high margin, pharmaceutical diagnostics business have been negatively impacted as multiple procedures are deferred. Healthcare is likely to rebound faster than aviation, but we're still fast tracking additional cost out actions targeting an incremental $700 million since Kieran and the team spoke with you in December. In power and renewable energy the impact of COVID-19 has been more limited to date. Specifically at power we're experiencing outage delays and restrictions and field service travel and we're monitoring new unit orders and services. To offset this we're further rightSizing the cost structure and in power we already reduce head count by 700 in the first quarter. Now clearly across GE there are a number of large variables that are unknown at this point, including the full duration, magnitude and pace of rec- recovery across our end markets, operations and supply chains. We're also monitoring how the resulting interest rate environment will impact pension obligations and our run-off insurance business. So let me tell you what we do know. The second quarter will be the first full quarter with pressure from COVID-19, and we expect that our financial results will decline sequentially before they improve later this year. The bottom line is we have some challenging times ahead, but this too shall pass. I'm confident the underlying reset we took over the last 18 months to focus GE's portfolio, and instill a greater focus on customers and lean, give us a running start for what we face today. Moreover, I see in our response to COVID-19 signs of how we're moving faster to change GE for the good, more lean work, to help reduce inventories in the face of demand challenges in aviation. Travel restrictions spurring on the use of remote digital technology to complete field work and renewables and more capital discipline across the board. With new leaders assimilating faster and with real impact healthcare comes to mind. So all of this in combination with the planned actions we'll discuss later are accelerating our transformation of GE. With that, I'll turn it over to Carolina, but before I do let me say how pleased I am to have her on board. In two short months, it's clear we share the same perspectives of embracing reality and operational bias for action and executing with speed. Thank you, Larry. I'm proud to join my first call as CFO of GE and",
+   "referenceType": "formatted",
+   "group": "4341191",
+   "speaker": null,
+   "conditions": [
+    "spontaneous",
+    "earnings-call",
+    "domain:finance"
+   ],
+   "stratum": "4341191",
+   "origin": {
+    "repo": "revdotcom/speech-datasets",
+    "revision": "c05ab6fd8b4b627d123c922a22a39e993dd37635",
+    "path": "earnings21/transcripts/nlp_references/4341191.nlp",
+    "referenceSha256": "e494a1306b67355186bf4fff603ceebd0b95114bff11ce4b4ece544c7348de2f",
+    "audioUrl": "https://raw.githubusercontent.com/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings21/media/4341191.mp3",
+    "start": 527.92,
+    "end": 758.16,
+    "firstToken": 1347,
+    "lastTokenExclusive": 1929,
+    "anchorDensity": 0.969,
+    "channel": "mean",
+    "sourceSha256": "7ff1aa5211d7963779fcd1a60fc423d61774cd7c004a616d46ca5168308ca06e"
+   },
+   "extra": {},
+   "key": "4341191-1347-1929"
+  }
+ ],
+ "builtAt": "2026-09-24T10:16:23Z"
+}

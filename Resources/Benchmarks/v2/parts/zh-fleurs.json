@@ -1,0 +1,814 @@
+{
+ "allocation": {
+  "id": "zh-fleurs",
+  "source": "fleurs",
+  "minutes": 4,
+  "tracks": [
+   "multilingual"
+  ],
+  "scoring": "cer",
+  "params": {
+   "language": "zh",
+   "config": "cmn_hans_cn"
+  }
+ },
+ "source": {
+  "id": "fleurs",
+  "name": "FLEURS",
+  "url": "https://huggingface.co/datasets/google/fleurs",
+  "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+  "licence": "CC BY 4.0",
+  "licenceUrl": "https://huggingface.co/datasets/google/fleurs/blob/70bb2e84b976b7e960aa89f1c648e09c59f894dd/README.md",
+  "redistributable": true,
+  "released": "2022-05",
+  "attribution": "Conneau et al., FLEURS: Few-shot Learning Evaluation of Universal Representations of Speech (2022), Google.",
+  "referenceProduction": "FLoRes-101 sentences (human-written/translated prose) read aloud; raw_transcription keeps the written case and punctuation."
+ },
+ "candidateCount": 349,
+ "selectedSeconds": 245.08,
+ "clips": [
+  {
+   "id": "zh-fleurs-cmn_hans_cn-10112798408996336578",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-10112798408996336578.flac",
+   "sha256": "995c85f9c6495114f076f298d277e39548e1009f099c9931564a37b918efb15c",
+   "pcmSha256": "a4dc575987c7ad0355b9ea63c74629b4bf30e73f124be9347e68ff2b6fbb8c0d",
+   "samples": 121920,
+   "duration": 7.62,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "Scotturb 403 路公共汽车定期发车前往辛特拉 (Sintra)，在罗卡角停靠。",
+   "referenceType": "formatted",
+   "group": "sentence-1805",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "10112798408996336578.wav",
+    "sentenceId": "1805"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-10112798408996336578"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-10604423531103587528",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-10604423531103587528.flac",
+   "sha256": "e10a0f123a1b36d1f36c9470c2bb4ec744748559ad648b3160054ebf1f7bb494",
+   "pcmSha256": "22490f25a3b8c69a6428f05f7125b27ea1f7bfc700f1bde3bad131acbcd08010",
+   "samples": 168000,
+   "duration": 10.5,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "海地正义与民主研究所 (Haitian Institute for Justice and Democracy) 引用的独立研究表明，是尼泊尔的联合国维和部队在不知情的情况下将这种疾病带到了海地。",
+   "referenceType": "formatted",
+   "group": "sentence-1804",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "10604423531103587528.wav",
+    "sentenceId": "1804"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-10604423531103587528"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-1065812790870009684",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-1065812790870009684.flac",
+   "sha256": "1b95e7c439c5ba990061acd19e2240d304198a06036c6d4a5169b01fec80d7d5",
+   "pcmSha256": "b7bd69749344c63ac76f76367da581447aefeb93e04189ebc90b82350e486d0d",
+   "samples": 269760,
+   "duration": 16.86,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "2002 年，戈马被尼拉贡戈火山的熔岩所摧毁。火山熔岩掩埋了该镇的大部分街道，尤其是镇中心。",
+   "referenceType": "formatted",
+   "group": "sentence-1951",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "1065812790870009684.wav",
+    "sentenceId": "1951"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-1065812790870009684"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-10797488489095533876",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-10797488489095533876.flac",
+   "sha256": "514a7c0954e2d8634f1ebc4b31d6ae0155d366b2d8b9a085601337792775c11e",
+   "pcmSha256": "3b92c07864f19233a618f8e4d942c93ccd6cd72d24be0c3c5aa09e6ba1aee992",
+   "samples": 89280,
+   "duration": 5.58,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "沧龙是那个时代的顶级掠食者，除了同类它什么都不怕。",
+   "referenceType": "formatted",
+   "group": "sentence-1760",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "10797488489095533876.wav",
+    "sentenceId": "1760"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-10797488489095533876"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-11231516927974266547",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-11231516927974266547.flac",
+   "sha256": "833850a65adfbe064c0a00a0a1449e1933e1490563f33e0cc45dca9b6e7947bf",
+   "pcmSha256": "e527d64e2ee5f4cbf216fb4d3310dbacc8f9106c99217279d8df7f20cd75bef3",
+   "samples": 149760,
+   "duration": 9.36,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "昨天，马尔泰利在由 9 名成员组成的新临时选举委员会 (CEP)中宣誓就职。",
+   "referenceType": "formatted",
+   "group": "sentence-1703",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "11231516927974266547.wav",
+    "sentenceId": "1703"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-11231516927974266547"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-11354026069894527896",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-11354026069894527896.flac",
+   "sha256": "0d0fd99115ea3ec00deb651dd1741fc430f7ad4fc3ac1b1547d15954f5936e3b",
+   "pcmSha256": "002772dcd0950e33c327cd6be455a6e46528cc22033e52c66f0ccbc1d8513fe7",
+   "samples": 178560,
+   "duration": 11.16,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "香港岛是香港地区的代名词，也是众多游客心目中的焦点所在。",
+   "referenceType": "formatted",
+   "group": "sentence-1742",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "11354026069894527896.wav",
+    "sentenceId": "1742"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-11354026069894527896"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-11881689509934687775",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-11881689509934687775.flac",
+   "sha256": "25862ab2a7eb46b9844992668aac0f23673ea4466e3fb4d67106fa9d7ee6ac86",
+   "pcmSha256": "4b73b005c5550cf9dfb10002ede1c4c62555e4b485d3d844bb97933973eaaa7c",
+   "samples": 226560,
+   "duration": 14.16,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "我们同意美国奥委会的声明，与其吊销执照，不如在我们组织内部继续推进有意义的变革，可能更有利于维护运动员和俱乐部的利益及其运动。",
+   "referenceType": "formatted",
+   "group": "sentence-1690",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "11881689509934687775.wav",
+    "sentenceId": "1690"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-11881689509934687775"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-11912853219079674937",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-11912853219079674937.flac",
+   "sha256": "2230341471fec64ce930cbbc6a27ab2c89200e87a3dab13c806b96988b93e23e",
+   "pcmSha256": "c2c45542459042bafc31fb4f47d9dd53bb37d24fda419493aef5ecfc2736e854",
+   "samples": 223680,
+   "duration": 13.98,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "20 世纪 60 年代，布热津斯基先是为约翰·福特·肯尼迪效力，担任他的顾问，后来又为林登·贝恩斯·约翰逊政府工作。",
+   "referenceType": "formatted",
+   "group": "sentence-1999",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "11912853219079674937.wav",
+    "sentenceId": "1999"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-11912853219079674937"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-12040319549933401783",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-12040319549933401783.flac",
+   "sha256": "eba3e9fa489f263d28946dfe795a26300357f5e5bc5348b07e302e70817db66c",
+   "pcmSha256": "e01899a4e916931f11577fb05cd9eba4ff57a220ff85a3919880faa08c63eca1",
+   "samples": 251840,
+   "duration": 15.74,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "此外，在革命之后，官职面向全体男性开放申请，这使得最有抱负、最成功之人有机会飞黄腾达。",
+   "referenceType": "formatted",
+   "group": "sentence-1939",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "12040319549933401783.wav",
+    "sentenceId": "1939"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-12040319549933401783"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-1208858543369565748",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-1208858543369565748.flac",
+   "sha256": "20a65b61284f7b5ca66cc1e9a2ad08fbfd6e019094ecf4ab8222e9cbf10a859b",
+   "pcmSha256": "2a27a0b9c06e0df568ad78aa8c7829bb7792bf830c94882db82fca2c2b847a63",
+   "samples": 104640,
+   "duration": 6.54,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "它们脚上有鳞片和爪子，会产卵，还像霸王龙一样用两条后腿走路。",
+   "referenceType": "formatted",
+   "group": "sentence-1998",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "1208858543369565748.wav",
+    "sentenceId": "1998"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-1208858543369565748"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-12546458689759218123",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-12546458689759218123.flac",
+   "sha256": "64a1282d1fc22457033ac6c956e3a83df3df28982bff9b2169a4d8da8e7ebbab",
+   "pcmSha256": "1ef31dcb0729b3954be61ee16e880a94c2c6fa132169241f8ef2060c5d595c22",
+   "samples": 157440,
+   "duration": 9.84,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "同理，有了申根签证，你就不必分别向每个申根成员国申请签证，从而节省了时间、金钱和手续。",
+   "referenceType": "formatted",
+   "group": "sentence-1911",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "12546458689759218123.wav",
+    "sentenceId": "1911"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-12546458689759218123"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-13126348209565754873",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-13126348209565754873.flac",
+   "sha256": "e7733e699e22ca0a2f1aeff4e04f9dabd9ceff21c2d74d5843c014712e7576ba",
+   "pcmSha256": "cc5efc83031ae604613263a871390bbba52c8e669e9e8aec41d11ad1695208a9",
+   "samples": 152640,
+   "duration": 9.54,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "结果，演员在舞台上吸食大麻，剧院本身也鼓励观众一起加入。",
+   "referenceType": "formatted",
+   "group": "sentence-1861",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "13126348209565754873.wav",
+    "sentenceId": "1861"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-13126348209565754873"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-13333464656670504120",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-13333464656670504120.flac",
+   "sha256": "1c155a8ae5778284f30c42bcffce7b50d5f72ff02887a6680c90cce0e3fbe005",
+   "pcmSha256": "983272c48d24881706daae96daae25b50482577a1bc5bc41f136d1ed37bf018d",
+   "samples": 168000,
+   "duration": 10.5,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "除去表示您的“Sie”之外的所有名词都应以大写字母开头，即使在句子中间也应如此。",
+   "referenceType": "formatted",
+   "group": "sentence-1675",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "13333464656670504120.wav",
+    "sentenceId": "1675"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-13333464656670504120"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-13477915708028379558",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-13477915708028379558.flac",
+   "sha256": "761a5ca41e0b896580c7ebd36555caea9d2fe56a0fd78fbb3afaa019a6fa26c6",
+   "pcmSha256": "f16d059e7445a36edf512ec52401d4bfc65004d69e4a4e3b0791723d5f05d5d7",
+   "samples": 110400,
+   "duration": 6.9,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "该服务经常用于航运，包括游艇以及有远程数据和语音需求的探险。",
+   "referenceType": "formatted",
+   "group": "sentence-1931",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "13477915708028379558.wav",
+    "sentenceId": "1931"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-13477915708028379558"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-14288669610334440124",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-14288669610334440124.flac",
+   "sha256": "52b8640f7fa1c6cfda50fe6f7d7d73b0458f1a7b828e91a2d63ba32ed25c6be3",
+   "pcmSha256": "0d6a69a528ef5c9ea8e9d37ff2bd871c57e0419dc449eeda5b0780464f2e3412",
+   "samples": 126720,
+   "duration": 7.92,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "在欧洲历史上的这段时期，已然富有而强大起来的天主教会受到了密切监督。",
+   "referenceType": "formatted",
+   "group": "sentence-1991",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "14288669610334440124.wav",
+    "sentenceId": "1991"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-14288669610334440124"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-14341578705184191215",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-14341578705184191215.flac",
+   "sha256": "9b29c789919054cf62406ce560362de057458b0ef0f9616e771873fd6e33d191",
+   "pcmSha256": "2b5dabf93521751bc3d0353b68d8486718999b009188c65b13fc5e96e8deb12f",
+   "samples": 200640,
+   "duration": 12.54,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "从传统意义上讲，海军的任务是确保国家保持运输人员和货物的能力，同时，干扰敌人运输其人员和货物的能力。",
+   "referenceType": "formatted",
+   "group": "sentence-1688",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "14341578705184191215.wav",
+    "sentenceId": "1688"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-14341578705184191215"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-15209730399349565944",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-15209730399349565944.flac",
+   "sha256": "1777a0ae99bcc2f7ed3cd33636029672678e5bc6973cbe36715014a7336a3aae",
+   "pcmSha256": "21588c43581d20b2424b5bb944d491ccd2e193200b4b019d30283950cee456a5",
+   "samples": 250240,
+   "duration": 15.64,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "首先，大多数骑马人会穿带跟马靴，而且鞋底光滑及相当狭窄。",
+   "referenceType": "formatted",
+   "group": "sentence-1866",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "15209730399349565944.wav",
+    "sentenceId": "1866"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-15209730399349565944"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-16921044831201319487",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-16921044831201319487.flac",
+   "sha256": "d57b08b079db58be9b8ceb270a78e8a35774140e10f6f6be019e1e22c72a975f",
+   "pcmSha256": "27f0ee7495fbfcaa5a8bc1003deb291038cfbbc8c7e9cae20db4c19030a7f1e5",
+   "samples": 124800,
+   "duration": 7.8,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "任何在高纬度地区开车或翻越山口的人，都应该考虑到可能遭遇下雪、结冰或冻结温度的情况。",
+   "referenceType": "formatted",
+   "group": "sentence-1952",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "16921044831201319487.wav",
+    "sentenceId": "1952"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-16921044831201319487"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-18066249635479552429",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-18066249635479552429.flac",
+   "sha256": "b0581710a716256b17bfe7db499d6a45cf2b5e3b2f6781692b5cc0de89671e0e",
+   "pcmSha256": "0e5c484670fc3165fb0bb76982b63c1d7dbb3a4eeb5a4ab82c878fa9f2fcfc51",
+   "samples": 250240,
+   "duration": 15.64,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "一般来说，当管理者开始领导过去的同事时，会出现两种行为。一种情况是，他们会努力与团队成员保持“亲密关系”。",
+   "referenceType": "formatted",
+   "group": "sentence-1667",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "18066249635479552429.wav",
+    "sentenceId": "1667"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-18066249635479552429"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-2378996103615918493",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-2378996103615918493.flac",
+   "sha256": "16b08c0ae062bb710bacb62bad3effa39e69e464d43d0611e8b9b84cac894513",
+   "pcmSha256": "c20564b79f437d5ce8c42057992998a1befbfb57d3be23bccbf5fc27a29e47c1",
+   "samples": 188160,
+   "duration": 11.76,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "一名观察者形容比什凯克（Bishkek）正在陷入“无政府“ 状态，成群的人们在街上游荡，掠夺商店里的消费品。",
+   "referenceType": "formatted",
+   "group": "sentence-1699",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "2378996103615918493.wav",
+    "sentenceId": "1699"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-2378996103615918493"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-2457828970653407656",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-2457828970653407656.flac",
+   "sha256": "6f3e012a7258d18f83bc4d4e9f451016f1a288e62b25bccbfdaca28964be4d4c",
+   "pcmSha256": "2034656c137166dfdad06c844fbe00ec7ae57911ab3fad9cf6f5cbe4ba04d70c",
+   "samples": 77760,
+   "duration": 4.86,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "场景在金字塔上展示，不同的金字塔被点亮。",
+   "referenceType": "formatted",
+   "group": "sentence-1870",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "2457828970653407656.wav",
+    "sentenceId": "1870"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-2457828970653407656"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-3992452798174376877",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-3992452798174376877.flac",
+   "sha256": "0acfa65ecd6b2d85539f51e6b77622c7b0df4e703121eb187932f02fbf66aa44",
+   "pcmSha256": "447e56e2f6a769142281938652dfa60598cac852a173bdf1567095cbc81e87c1",
+   "samples": 192960,
+   "duration": 12.06,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "该群岛位于南极半岛以北 120 公里处。最大的岛屿是乔治国王岛，这里是“繁星村（Villa Las Estrellas）”的定居点。",
+   "referenceType": "formatted",
+   "group": "sentence-1758",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-MALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "3992452798174376877.wav",
+    "sentenceId": "1758"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-3992452798174376877"
+  },
+  {
+   "id": "zh-fleurs-cmn_hans_cn-6897063611136666657",
+   "allocation": "zh-fleurs",
+   "source": "fleurs",
+   "file": "audio/zh-fleurs/cmn_hans_cn-6897063611136666657.flac",
+   "sha256": "7cc32b6b0d6d24a718f01e912d7ee9f25c40b1f48c0b9c6e789dca5a6191a74f",
+   "pcmSha256": "2ce188379e77ec07357a7fb9ab514128bb0fffa91ecf057e82a3a2410e0f2256",
+   "samples": 137280,
+   "duration": 8.58,
+   "language": "zh",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "cer",
+   "reference": "在独立战争期间，十三个州最初根据《联邦条例》组成了弱小的中央政府（国会是其唯一的组成部分）。",
+   "referenceType": "formatted",
+   "group": "sentence-1673",
+   "speaker": null,
+   "conditions": [
+    "read"
+   ],
+   "stratum": "gender-FEMALE",
+   "origin": {
+    "repo": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "archive": "data/cmn_hans_cn/audio/test.tar.gz",
+    "member": "6897063611136666657.wav",
+    "sentenceId": "1673"
+   },
+   "extra": {
+    "config": "cmn_hans_cn"
+   },
+   "key": "cmn_hans_cn-6897063611136666657"
+  }
+ ],
+ "builtAt": "2026-09-24T10:03:06Z"
+}

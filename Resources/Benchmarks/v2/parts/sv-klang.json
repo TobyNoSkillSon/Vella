@@ -1,0 +1,1603 @@
+{
+ "allocation": {
+  "id": "sv-klang",
+  "source": "klang",
+  "minutes": 7.5,
+  "tracks": [
+   "multilingual"
+  ],
+  "scoring": "wer"
+ },
+ "source": {
+  "id": "klang",
+  "name": "Klang Dialects sv-clean",
+  "url": "https://huggingface.co/datasets/KlangAI/klang-dialects",
+  "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+  "licence": "CC BY 4.0",
+  "licenceUrl": "https://huggingface.co/datasets/KlangAI/klang-dialects/blob/4117db6f1c53f5c1ca03309ce2a8060b96653708/LICENSE",
+  "redistributable": true,
+  "released": "2026-09-14",
+  "attribution": "Klang AI, Klang Dialects (2026); opt-in Swedish speakers.",
+  "referenceProduction": "Prompts compared with audio; ASR ensemble/alignment and partial human correction; clean subset excludes ambiguous references."
+ },
+ "candidateCount": 737,
+ "selectedSeconds": 457.142,
+ "clips": [
+  {
+   "id": "sv-klang-00942a57d3cb_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/00942a57d3cb_2.flac",
+   "sha256": "595a5ced02d012b06794b9436049bec6586a96f276ac64c4e81c579a4f1b3e48",
+   "pcmSha256": "89f243f5c4b6b45942dd4d0f552ad039bb3abd70446cae3f159cd959fb151b51",
+   "samples": 176640,
+   "duration": 11.04,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Vi struntade i stormvarningen och seglade ut ändå men ångrade oss snabbt.",
+   "referenceType": "formatted",
+   "group": "00942a57d3cb",
+   "speaker": "00942a57d3cb",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "735-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 407,
+    "promptLevel": 3,
+    "region": "735",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "00942a57d3cb_2"
+  },
+  {
+   "id": "sv-klang-038ef7818b4e_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/038ef7818b4e_1.flac",
+   "sha256": "a8d6cbefc73524f1feef858959d9e5d7482fe8e63b41dd5ce4beaa0369913711",
+   "pcmSha256": "3e31cd65da8bb9e10ff41a8ade66a404216988644cfa9f8a8bcf97c89c9762f7",
+   "samples": 286600,
+   "duration": 17.9125,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Vi satt kvar på uteserveringen trots att det började dugga lite.",
+   "referenceType": "formatted",
+   "group": "038ef7818b4e",
+   "speaker": "038ef7818b4e",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "120-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 626,
+    "promptLevel": 2,
+    "region": "120",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "038ef7818b4e_1"
+  },
+  {
+   "id": "sv-klang-053f9e0651d6_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/053f9e0651d6_2.flac",
+   "sha256": "00cc5c743a68bf80d03f0d2672a1dcb81e60e8b1dd86e622645d068cc3e053d2",
+   "pcmSha256": "0e371c8fc1988eb18372a842fa88ee998b29c1b9c35f637ec2ee5c61033316cf",
+   "samples": 211200,
+   "duration": 13.2,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Vi försökte steka strömming på stranden men stormbyarna släckte elden gång på gång.",
+   "referenceType": "formatted",
+   "group": "053f9e0651d6",
+   "speaker": "053f9e0651d6",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "217-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 290,
+    "promptLevel": 3,
+    "region": "217",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "053f9e0651d6_2"
+  },
+  {
+   "id": "sv-klang-05c9f2a54789_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/05c9f2a54789_0.flac",
+   "sha256": "f3df1391f8d2fed36aa2f54ee7b563f6e6447ef1bbb5e3f4e6169913ce64fcfa",
+   "pcmSha256": "fbc1729356f451bf659d954ae862675616deaee334b5f4ad56f11161ad6a46bc",
+   "samples": 129600,
+   "duration": 8.1,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Vi brukar åka och handla på lördagarna.",
+   "referenceType": "formatted",
+   "group": "05c9f2a54789",
+   "speaker": "05c9f2a54789",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "633-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 119,
+    "promptLevel": 1,
+    "region": "633",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "05c9f2a54789_0"
+  },
+  {
+   "id": "sv-klang-07a5980b441c_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/07a5980b441c_1.flac",
+   "sha256": "354657bc741c751ec9431416b130c304e3013031f155f8504d2a4724efb50bcd",
+   "pcmSha256": "6a2410ef0be6725e7dbc2563e9e7b139402eeed9c0f75b2e3b47892f96b924ca",
+   "samples": 144000,
+   "duration": 9.0,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Det luktade nybakat bröd i hela trapphuset när jag kom hem.",
+   "referenceType": "formatted",
+   "group": "07a5980b441c",
+   "speaker": "07a5980b441c",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "836-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 449,
+    "promptLevel": 2,
+    "region": "836",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "07a5980b441c_1"
+  },
+  {
+   "id": "sv-klang-086e32d919a3_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/086e32d919a3_1.flac",
+   "sha256": "0f15b2aec6a484151b783d267c9a6e3ca4bad18889a482046b81954d058e5ed6",
+   "pcmSha256": "c49ffbbe2ee4be9715c2360d84459662a5fcb83d583c9f35611099ac4aff413e",
+   "samples": 130640,
+   "duration": 8.165,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Projektledaren föreslog ett uppföljningsmöte efter sommarsemestern.",
+   "referenceType": "formatted",
+   "group": "086e32d919a3",
+   "speaker": "086e32d919a3",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "826-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 518,
+    "promptLevel": 2,
+    "region": "826",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "086e32d919a3_1"
+  },
+  {
+   "id": "sv-klang-08fbc10ef12c_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/08fbc10ef12c_0.flac",
+   "sha256": "50a1a38d6dc30954bc804e22e5c63f1eae38527e588d3324ebc55be33c1fecbf",
+   "pcmSha256": "6984af746fa2908616c499aef76fcd19611fa4b72a70597c984c9ac9af4373c1",
+   "samples": 98880,
+   "duration": 6.18,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Tåget var fullpackat så vi fick stå hela vägen.",
+   "referenceType": "formatted",
+   "group": "08fbc10ef12c",
+   "speaker": "08fbc10ef12c",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "475-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 643,
+    "promptLevel": 1,
+    "region": "475",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "08fbc10ef12c_0"
+  },
+  {
+   "id": "sv-klang-0955e64386c5_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/0955e64386c5_0.flac",
+   "sha256": "f174a28e4deb456d3fdbacee5dccb6b6fb09384d57f6ec49f35b225fa1e34993",
+   "pcmSha256": "3013b43d6f4ddd712ad6eda54d376843112e8d3b46950330fe31f9f373e18f52",
+   "samples": 121920,
+   "duration": 7.62,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Jag måste ringa tandläkaren och boka en tid.",
+   "referenceType": "formatted",
+   "group": "0955e64386c5",
+   "speaker": "0955e64386c5",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "385-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 493,
+    "promptLevel": 1,
+    "region": "385",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "0955e64386c5_0"
+  },
+  {
+   "id": "sv-klang-0aea9a2f2ec2_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/0aea9a2f2ec2_0.flac",
+   "sha256": "a1f686b0c080d2ed9949b13d87eb780cb3d90a5033c10720788136b4f0ea7721",
+   "pcmSha256": "016ad909a5d1d7f506ddcdaf25d91199f8c6755a612b65457b37ecda0f36cd35",
+   "samples": 271040,
+   "duration": 16.94,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Barnen leker i trädgården medan solen skiner.",
+   "referenceType": "formatted",
+   "group": "0aea9a2f2ec2",
+   "speaker": "0aea9a2f2ec2",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "504-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 552,
+    "promptLevel": 1,
+    "region": "504",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "0aea9a2f2ec2_0"
+  },
+  {
+   "id": "sv-klang-0c6047050b3c_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/0c6047050b3c_0.flac",
+   "sha256": "b004a42751c90afb5b45661b05fce822940f5fb3785b104016d5a045d812776c",
+   "pcmSha256": "4e924231e91a922c9e73bccaf0086b2cf65160f84212893ed244b1a0eb40836c",
+   "samples": 156080,
+   "duration": 9.755,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Jag har ont i huvudet och tänkte gå hem lite tidigare.",
+   "referenceType": "formatted",
+   "group": "0c6047050b3c",
+   "speaker": "0c6047050b3c",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "113-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 336,
+    "promptLevel": 1,
+    "region": "113",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "0c6047050b3c_0"
+  },
+  {
+   "id": "sv-klang-0da944a8b166_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/0da944a8b166_1.flac",
+   "sha256": "5afc0f8fbf99ec18b981caabacf2c5405776b5fd26caa1b5c58e659cf9bd4a61",
+   "pcmSha256": "1f1e3ce74cb3e3035550da2c94c632f782854740313e06187ed8b0768b0d8c4d",
+   "samples": 127680,
+   "duration": 7.98,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Jag har försökt att ringa elbolaget hela dagen men det är upptaget varje gång.",
+   "referenceType": "formatted",
+   "group": "0da944a8b166",
+   "speaker": "0da944a8b166",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "263-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 20,
+    "promptLevel": 2,
+    "region": "263",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "0da944a8b166_1"
+  },
+  {
+   "id": "sv-klang-0ea8496269a2_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/0ea8496269a2_0.flac",
+   "sha256": "a63f91927eaf518020db786ce5f466145b5bec5d9a6376fe5cb089406a66e16c",
+   "pcmSha256": "1edb17d49f1a4525774bc258efbc63beadd355fc13845790cdcb4e7a29dbdbea",
+   "samples": 133160,
+   "duration": 8.3225,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Hon flyttade till Malmö förra året och trivs jättebra.",
+   "referenceType": "formatted",
+   "group": "0ea8496269a2",
+   "speaker": "0ea8496269a2",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "665-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 606,
+    "promptLevel": 1,
+    "region": "665",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "0ea8496269a2_0"
+  },
+  {
+   "id": "sv-klang-145aca3a5a44_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/145aca3a5a44_1.flac",
+   "sha256": "f7dbadac04c8e1df5f34687f3c1204f325c34dab918b660428ede0c432df6429",
+   "pcmSha256": "b91b74b59d24241dc7fe90a10cf16ea72beb69151ca7d022eb118c70c1a3a66d",
+   "samples": 156480,
+   "duration": 9.78,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Det var så halt på trottoaren att jag nästan ramlade framför alla.",
+   "referenceType": "formatted",
+   "group": "145aca3a5a44",
+   "speaker": "145aca3a5a44",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "857-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 143,
+    "promptLevel": 2,
+    "region": "857",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "145aca3a5a44_1"
+  },
+  {
+   "id": "sv-klang-15170ad0869c_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/15170ad0869c_2.flac",
+   "sha256": "da254c4ddac9a347278af7fcc1364b606940d01a306350e830949024d0cc1ade",
+   "pcmSha256": "8c9b627137e27e8e86b87240832481839e9fa394844e5b4269025e13a46e1dcf",
+   "samples": 245760,
+   "duration": 15.36,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Kyrkklockan slog precis när körsbärsträden började blomma längs kyrkogårdsmuren.",
+   "referenceType": "formatted",
+   "group": "15170ad0869c",
+   "speaker": "15170ad0869c",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "981-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 539,
+    "promptLevel": 3,
+    "region": "981",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "15170ad0869c_2"
+  },
+  {
+   "id": "sv-klang-152bb486c689_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/152bb486c689_2.flac",
+   "sha256": "b3d769951b93e995fb049c8892444367a61aa3a30dd468bb6ce18f94a32bebf4",
+   "pcmSha256": "dbbfa79185a3c2112bdd0fc1a472224ecf17b0996ee99a711179334c2b384829",
+   "samples": 237400,
+   "duration": 14.8375,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Skorstensfejaren klev försiktigt på de frostiga takpannorna medan skatan skrek från skorstenskrönet.",
+   "referenceType": "formatted",
+   "group": "152bb486c689",
+   "speaker": "152bb486c689",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "945-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 522,
+    "promptLevel": 3,
+    "region": "945",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "152bb486c689_2"
+  },
+  {
+   "id": "sv-klang-19924414ee3b_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/19924414ee3b_2.flac",
+   "sha256": "c79b3dc63a7bf1ee1693a75c3d622f0f27a8cd9049f2a61cb0475225351e810f",
+   "pcmSha256": "18677eec9e06eefd93be85933fb739708b57bd71fbb112b53a6c435064ac6bd7",
+   "samples": 133040,
+   "duration": 8.315,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Hela släkten samlades i stugan och det blev trångt om saligheten.",
+   "referenceType": "formatted",
+   "group": "19924414ee3b",
+   "speaker": "19924414ee3b",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "561-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 335,
+    "promptLevel": 3,
+    "region": "561",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "19924414ee3b_2"
+  },
+  {
+   "id": "sv-klang-1df532d77b9e_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/1df532d77b9e_1.flac",
+   "sha256": "43cc666e49af53576bd3af19440a5b9d787e741be15246c690e9ba0eac375d19",
+   "pcmSha256": "20f8679642f4aa59685406cc3a8cbce59c1eea5384159b64025e5df70a78ed63",
+   "samples": 106440,
+   "duration": 6.6525,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Mötet drog ut på tiden och jag hann inte hämta barnen.",
+   "referenceType": "formatted",
+   "group": "1df532d77b9e",
+   "speaker": "1df532d77b9e",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "302-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 167,
+    "promptLevel": 2,
+    "region": "302",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "1df532d77b9e_1"
+  },
+  {
+   "id": "sv-klang-1f243af5ffee_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/1f243af5ffee_0.flac",
+   "sha256": "6bd38f0cd0051784a3d1732752086940dc3a91c048c254eaac768bcc17563ba7",
+   "pcmSha256": "ff33851d637f1409b71a15c0461f8c5f96c021c3eff3d6578e3fd579a0f683f4",
+   "samples": 135360,
+   "duration": 8.46,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Jag vaknade sent och missade nästan bussen till jobbet.",
+   "referenceType": "formatted",
+   "group": "1f243af5ffee",
+   "speaker": "1f243af5ffee",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "296-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 29,
+    "promptLevel": 1,
+    "region": "296",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "1f243af5ffee_0"
+  },
+  {
+   "id": "sv-klang-225c63ce0a0b_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/225c63ce0a0b_0.flac",
+   "sha256": "670a7afbd30ad8a5c40a1174b131e8e54a15af12f94471076444e9d6e61e8dfe",
+   "pcmSha256": "c5b1379b81bcc7155aba75f7d4405ace4289678c57dd20d6eebf5e81af465168",
+   "samples": 144560,
+   "duration": 9.035,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Det luktar jättegott vad är det du lagar?",
+   "referenceType": "formatted",
+   "group": "225c63ce0a0b",
+   "speaker": "225c63ce0a0b",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "972-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 463,
+    "promptLevel": 1,
+    "region": "972",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "225c63ce0a0b_0"
+  },
+  {
+   "id": "sv-klang-293dbe136be5_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/293dbe136be5_2.flac",
+   "sha256": "d08e7616ad6e0dcf6a09440f7678a298376e46175f24ee8962363e4b3ff771bf",
+   "pcmSha256": "9a5d4913749aea1f2ec9f3597634467742ea45374f1af27fe17203f9b54e2d80",
+   "samples": 169920,
+   "duration": 10.62,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Rödspättans ryggfenor reflekterade regnbågens alla färger i regnrusket.",
+   "referenceType": "formatted",
+   "group": "293dbe136be5",
+   "speaker": "293dbe136be5",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "162-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 442,
+    "promptLevel": 3,
+    "region": "162",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "293dbe136be5_2"
+  },
+  {
+   "id": "sv-klang-2aada099e23b_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/2aada099e23b_0.flac",
+   "sha256": "ffe4e1bd6d1f778ee38fe7fa197fc7a13b0e27d82f3f1a5e73015c2dd54cf007",
+   "pcmSha256": "1e2238afd67d275d91f64e1a588729a189fd1f458525c8b04c3b330341b63ffb",
+   "samples": 295200,
+   "duration": 18.45,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Jag tycker vi ska ta den röda färgen istället.",
+   "referenceType": "formatted",
+   "group": "2aada099e23b",
+   "speaker": "2aada099e23b",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "426-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 0,
+    "promptLevel": 1,
+    "region": "426",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "2aada099e23b_0"
+  },
+  {
+   "id": "sv-klang-2cdb583c1db4_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/2cdb583c1db4_0.flac",
+   "sha256": "0cc4cc215755af1c6b616b10d1857d1b80136fc3463da8640ace8ddd3048c092",
+   "pcmSha256": "bfb451613d8e54a0e6f1ac171ae54acb2673232ff414c008fb6a392410fc5181",
+   "samples": 108480,
+   "duration": 6.78,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Jag dricker alltid te på morgonen istället för kaffe.",
+   "referenceType": "formatted",
+   "group": "2cdb583c1db4",
+   "speaker": "2cdb583c1db4",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "976-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 598,
+    "promptLevel": 1,
+    "region": "976",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "2cdb583c1db4_0"
+  },
+  {
+   "id": "sv-klang-31c5fc1ff065_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/31c5fc1ff065_0.flac",
+   "sha256": "e02ad0b95d76b43b3138e5b140ce84362cf0c6046b5be1fb909d052d9f16bdd6",
+   "pcmSha256": "8bd461a55e82e272e9b407a55a2f634329f6be840fe8eb7630046d00bd4e6909",
+   "samples": 209280,
+   "duration": 13.08,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Vi såg en riktigt bra film på bio förra veckan.",
+   "referenceType": "formatted",
+   "group": "31c5fc1ff065",
+   "speaker": "31c5fc1ff065",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "981-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 640,
+    "promptLevel": 1,
+    "region": "981",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "31c5fc1ff065_0"
+  },
+  {
+   "id": "sv-klang-3586a7732bc5_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/3586a7732bc5_0.flac",
+   "sha256": "140de7f03c53562b2eda51a3bbced2b7acd1b0c20dfc649e528a8257158d1eae",
+   "pcmSha256": "64d5ff77c9455e164591b05f959d3f934eb7cfaa7d2fe69f5a236eddba11dea4",
+   "samples": 264000,
+   "duration": 16.5,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Kan du skicka mig adressen så jag hittar dit?",
+   "referenceType": "formatted",
+   "group": "3586a7732bc5",
+   "speaker": "3586a7732bc5",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "438-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 195,
+    "promptLevel": 1,
+    "region": "438",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "3586a7732bc5_0"
+  },
+  {
+   "id": "sv-klang-3aec63dca8ce_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/3aec63dca8ce_0.flac",
+   "sha256": "c0b0e41c5a3f1eab3692e126926130ae6f27f6d7dc3adf4decc3905224ff0aec",
+   "pcmSha256": "ce7fcf299fcbe5f4ec1b71470c32e870e6cc4dfdca1a2fe767e460f314f6764b",
+   "samples": 126760,
+   "duration": 7.9225,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Det blev sent igår så jag är lite trött idag.",
+   "referenceType": "formatted",
+   "group": "3aec63dca8ce",
+   "speaker": "3aec63dca8ce",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "244-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 294,
+    "promptLevel": 1,
+    "region": "244",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "3aec63dca8ce_0"
+  },
+  {
+   "id": "sv-klang-44f3fde24401_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/44f3fde24401_0.flac",
+   "sha256": "e86d9a0657229bf2da415001fec1411ab16180c7e118d42ddf4215c994ef9048",
+   "pcmSha256": "cf8eb77aadb571c0d6164c812245b6f5ee41f067ae584dd584ea516ab26ecbd2",
+   "samples": 183360,
+   "duration": 11.46,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Bussen kommer om fem minuter enligt tidtabellen.",
+   "referenceType": "formatted",
+   "group": "44f3fde24401",
+   "speaker": "44f3fde24401",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "754-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 322,
+    "promptLevel": 1,
+    "region": "754",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "44f3fde24401_0"
+  },
+  {
+   "id": "sv-klang-4daca5037539_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/4daca5037539_1.flac",
+   "sha256": "bac4181584d29c618f497f476ad49addaef1e817f3ac52db59dce9a32de460b0",
+   "pcmSha256": "29635b7d5a608f152edfe985e1f40504bc5ebd1988ab9cb3f7345a8d683c13e2",
+   "samples": 160320,
+   "duration": 10.02,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Tvättmaskinen surrade konstigt hela natten och jag orkade inte kolla vad det var.",
+   "referenceType": "formatted",
+   "group": "4daca5037539",
+   "speaker": "4daca5037539",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "241-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 239,
+    "promptLevel": 2,
+    "region": "241",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "4daca5037539_1"
+  },
+  {
+   "id": "sv-klang-4e101f4e010b_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/4e101f4e010b_1.flac",
+   "sha256": "16272feb68f74fcf98ce1a2a5d472ded7d28bb09665862f24dcde9e248b8f93a",
+   "pcmSha256": "06fe36c5d0a7902e31bd4b8fe8c7d6fe2fe58e61817ed0d2e62aa4589096652a",
+   "samples": 112320,
+   "duration": 7.02,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Det visade sig att vi hade köpt exakt samma present till henne.",
+   "referenceType": "formatted",
+   "group": "4e101f4e010b",
+   "speaker": "4e101f4e010b",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "413-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 129,
+    "promptLevel": 2,
+    "region": "413",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "4e101f4e010b_1"
+  },
+  {
+   "id": "sv-klang-527e968757b4_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/527e968757b4_0.flac",
+   "sha256": "70fc03e8bf8ac6a3e655604525ab331a79e869245d95df7288fac214d41b628d",
+   "pcmSha256": "e51026a556fbab54671e351f886b6fbe9fa7fa68d8d53d13e3e1e4c0c295d8a2",
+   "samples": 162136,
+   "duration": 10.1335,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Det regnar ute så jag tar med mig ett paraply.",
+   "referenceType": "formatted",
+   "group": "527e968757b4",
+   "speaker": "527e968757b4",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "256-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 86,
+    "promptLevel": 1,
+    "region": "256",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "527e968757b4_0"
+  },
+  {
+   "id": "sv-klang-5418120e311d_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/5418120e311d_2.flac",
+   "sha256": "a0efdca9f95908a1eec1f709feb073797987882f14cd6270de70dc451aa41301",
+   "pcmSha256": "f2a92610f32ae3a8781683cc148a32bd72562145b5f32d3eea0a59ca2138fc4a",
+   "samples": 268800,
+   "duration": 16.8,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Kvällssolen sken genom skärgårdens skogklädda öar och allt blev alldeles stilla.",
+   "referenceType": "formatted",
+   "group": "5418120e311d",
+   "speaker": "5418120e311d",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "173-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 386,
+    "promptLevel": 3,
+    "region": "173",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "5418120e311d_2"
+  },
+  {
+   "id": "sv-klang-5a4a8b961663_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/5a4a8b961663_2.flac",
+   "sha256": "f1d358553660209807fbde76d996c8b408de1672e2315b63b1fe58c63b6cdebb",
+   "pcmSha256": "3b2f3f76de8f05b381c47fd9954e9833c71b1f65c990577d2af6b257e2af67e4",
+   "samples": 108160,
+   "duration": 6.76,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Stadsbibliotekariernas förslag om utökade öppettider väckte livlig diskussion på stämman.",
+   "referenceType": "formatted",
+   "group": "5a4a8b961663",
+   "speaker": "5a4a8b961663",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "215-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 498,
+    "promptLevel": 3,
+    "region": "215",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "5a4a8b961663_2"
+  },
+  {
+   "id": "sv-klang-5c554b8d7ed3_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/5c554b8d7ed3_1.flac",
+   "sha256": "757d2371bc693e7ddd45aa03e0aab60efc526c4134f529e505412893d9de9b25",
+   "pcmSha256": "ec24592ebb388f7877ce450b88d40ac9e88ea5e3e23d52d575b28ba1b9bba3a7",
+   "samples": 121920,
+   "duration": 7.62,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Jag var tvungen att springa till bussen och hann precis med knapp marginal.",
+   "referenceType": "formatted",
+   "group": "5c554b8d7ed3",
+   "speaker": "5c554b8d7ed3",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "611-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 581,
+    "promptLevel": 2,
+    "region": "611",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "5c554b8d7ed3_1"
+  },
+  {
+   "id": "sv-klang-5ca3324c9f56_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/5ca3324c9f56_0.flac",
+   "sha256": "7ed3cc7b281654e6f844c60d7b75687f4720c80dc9a98c74728ffd6f27184353",
+   "pcmSha256": "780867dc32ffa3f040f86b8165d2bbc2fc61170f9ce09409d3b4f424d1f79b0e",
+   "samples": 133240,
+   "duration": 8.3275,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Jag har inte sovit ordentligt på hela veckan.",
+   "referenceType": "formatted",
+   "group": "5ca3324c9f56",
+   "speaker": "5ca3324c9f56",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "719-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 514,
+    "promptLevel": 1,
+    "region": "719",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "5ca3324c9f56_0"
+  },
+  {
+   "id": "sv-klang-607c3d067684_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/607c3d067684_2.flac",
+   "sha256": "242f3df7314da48fb6e414516818bbd311a2dffd0cb77e7369bdb09bc434a4bd",
+   "pcmSha256": "f69c02d9430c4f8a364a828d9907355f6aed18ad37fe933de3b30bc2fd2b6263",
+   "samples": 86400,
+   "duration": 5.4,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Skvallerpressen skrev spaltmeter om den kända kockens spektakulära restaurangskrasch.",
+   "referenceType": "formatted",
+   "group": "607c3d067684",
+   "speaker": "607c3d067684",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "711-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 269,
+    "promptLevel": 3,
+    "region": "711",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "607c3d067684_2"
+  },
+  {
+   "id": "sv-klang-65042b21b00d_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/65042b21b00d_0.flac",
+   "sha256": "7c3bc90c07f1b536376742f71141b782627c425a929b9a5f7808909d1544cf7d",
+   "pcmSha256": "86864ff7b0254c755942d1fcbaed7f9a5d3914c1801f2734f6a2f4517656667b",
+   "samples": 211200,
+   "duration": 13.2,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Jag tappade mobilen i marken och skärmen sprack.",
+   "referenceType": "formatted",
+   "group": "65042b21b00d",
+   "speaker": "65042b21b00d",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "827-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 351,
+    "promptLevel": 1,
+    "region": "827",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "65042b21b00d_0"
+  },
+  {
+   "id": "sv-klang-685f4df1e5e6_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/685f4df1e5e6_1.flac",
+   "sha256": "e325367a8ba614b30cf31cc65db05438aa5e9236adc8883b61fcea876da217ee",
+   "pcmSha256": "ea9778a28ec4ce7cb722aec506f1abcd9a9bc8b7ec4563e7dbab183fe5c2bfbc",
+   "samples": 304320,
+   "duration": 19.02,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Tandläkaren sa att det såg bra ut men att jag borde använda tandtråd oftare.",
+   "referenceType": "formatted",
+   "group": "685f4df1e5e6",
+   "speaker": "685f4df1e5e6",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "838-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 343,
+    "promptLevel": 2,
+    "region": "838",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "685f4df1e5e6_1"
+  },
+  {
+   "id": "sv-klang-6ae2903ceeb9_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/6ae2903ceeb9_1.flac",
+   "sha256": "1bd62ee93a5a2b24f695416a8dd8c524db948c34b840fb2dea8906248742207a",
+   "pcmSha256": "cb0e901c15fb3b3edade2964802196c6286589d61bce85368feaff0a6baaab38",
+   "samples": 148800,
+   "duration": 9.3,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Diskmaskinen gick sönder mitt under middagsbjudningen och hela köket blev vått.",
+   "referenceType": "formatted",
+   "group": "6ae2903ceeb9",
+   "speaker": "6ae2903ceeb9",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "314-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 488,
+    "promptLevel": 2,
+    "region": "314",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "6ae2903ceeb9_1"
+  },
+  {
+   "id": "sv-klang-70667001c102_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/70667001c102_0.flac",
+   "sha256": "4e93ec1f65d8ff2ff68b8307e53b484e65561cea85f0d59b895e982551f8756f",
+   "pcmSha256": "10ffa1fb90d615a1bd6ed4d71ea9fa9ca5a230aa6d9219243a295f0021437a38",
+   "samples": 67200,
+   "duration": 4.2,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Ska vi ta en fika efter mötet eller har du bråttom?",
+   "referenceType": "formatted",
+   "group": "70667001c102",
+   "speaker": "70667001c102",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "291-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 44,
+    "promptLevel": 1,
+    "region": "291",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "70667001c102_0"
+  },
+  {
+   "id": "sv-klang-78374a74b9a9_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/78374a74b9a9_1.flac",
+   "sha256": "7734d08ff2972e689e1dd7cbed01352f46500768d6bb467feae030fd9a1b05e3",
+   "pcmSha256": "fb9495577089f4042ca9e141d4c78fd8ff3f887cb6d28769c83938f5eba6e30f",
+   "samples": 142296,
+   "duration": 8.8935,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Vi stod i kö på posten i en evighet bara för att hämta ett paket.",
+   "referenceType": "formatted",
+   "group": "78374a74b9a9",
+   "speaker": "78374a74b9a9",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "186-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 358,
+    "promptLevel": 2,
+    "region": "186",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "78374a74b9a9_1"
+  },
+  {
+   "id": "sv-klang-788f646672fa_1",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/788f646672fa_1.flac",
+   "sha256": "29e056c068101a50997f6d896ca5a58c365e2afb6a7aac3ff9e64e04b50dfb23",
+   "pcmSha256": "9f2877e2472275903510cc928c255f0d1afee93181ff396cd832b92126e84b57",
+   "samples": 150720,
+   "duration": 9.42,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Alla säger lagom men ingen vet vad det betyder i det här sammanhanget.",
+   "referenceType": "formatted",
+   "group": "788f646672fa",
+   "speaker": "788f646672fa",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "587-2",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 277,
+    "promptLevel": 2,
+    "region": "587",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "788f646672fa_1"
+  },
+  {
+   "id": "sv-klang-7ea7927de4d8_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/7ea7927de4d8_2.flac",
+   "sha256": "c26e10bf5d5af63d7beed390720e0c454b3e9c114e890f1ef3d309b87d0f296e",
+   "pcmSha256": "b3450990114d97ffea91238a539aaec6ad28eac2d81c6976dc8f393e5445f8e4",
+   "samples": 96800,
+   "duration": 6.05,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Trots skvalpet från sjösprutan stod vi kvar och tittade på vågorna.",
+   "referenceType": "formatted",
+   "group": "7ea7927de4d8",
+   "speaker": "7ea7927de4d8",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "131-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 124,
+    "promptLevel": 3,
+    "region": "131",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "7ea7927de4d8_2"
+  },
+  {
+   "id": "sv-klang-7f2216e44645_2",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/7f2216e44645_2.flac",
+   "sha256": "06bb3ede42dcf0a6e2c22e035cacb74ceaefeba5f59c9708b65ac4f4d8359d23",
+   "pcmSha256": "378b759bedec6a69f881683665e3e62ec66ba7a2c3587ba1a9c526069029fccf",
+   "samples": 196800,
+   "duration": 12.3,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Skvättregnet slog mot köksfönstret medan vi satt och skrapade morötter vid diskbänken.",
+   "referenceType": "formatted",
+   "group": "7f2216e44645",
+   "speaker": "7f2216e44645",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "585-3",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 234,
+    "promptLevel": 3,
+    "region": "585",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "7f2216e44645_2"
+  },
+  {
+   "id": "sv-klang-8951c8b0ebd5_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/8951c8b0ebd5_0.flac",
+   "sha256": "30cb8732e1b0cb6fc0a1ed2a2ecf54879c5b54c5962d245505e29f00508cdc67",
+   "pcmSha256": "a16326ea139f6d077dbfb313f98015e3e6fd895cfb55656c057c113c8386346f",
+   "samples": 115040,
+   "duration": 7.19,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Ska du med på middag ikväll eller har du andra planer?",
+   "referenceType": "formatted",
+   "group": "8951c8b0ebd5",
+   "speaker": "8951c8b0ebd5",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "416-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 475,
+    "promptLevel": 1,
+    "region": "416",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "8951c8b0ebd5_0"
+  },
+  {
+   "id": "sv-klang-897a1c24f101_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/897a1c24f101_0.flac",
+   "sha256": "a07c0c9b5e790a5192608bc44e980e0f544bed5b6197e283d456e9eacdbeded9",
+   "pcmSha256": "3cd5665fb05d4049e275b637152d196ca18237157ae04697074bb679b5b0fdee",
+   "samples": 105280,
+   "duration": 6.58,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Det var jättefint väder igår men idag ser det grått ut.",
+   "referenceType": "formatted",
+   "group": "897a1c24f101",
+   "speaker": "897a1c24f101",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "114-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 681,
+    "promptLevel": 1,
+    "region": "114",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "897a1c24f101_0"
+  },
+  {
+   "id": "sv-klang-8a7adb50f9e3_0",
+   "allocation": "sv-klang",
+   "source": "klang",
+   "file": "audio/sv-klang/8a7adb50f9e3_0.flac",
+   "sha256": "f1bfe36c1046a9a0fb1ea5630c481e7ff8702888b5dec6e385db6aa00daa9e3a",
+   "pcmSha256": "704f4e8191330054585c9578c686c9088eda43fc674f99c4daf7c4a5dee79daf",
+   "samples": 119040,
+   "duration": 7.44,
+   "language": "sv",
+   "tracks": [
+    "multilingual"
+   ],
+   "scoring": "wer",
+   "reference": "Hunden behöver gå ut men det är så mörkt ute.",
+   "referenceType": "formatted",
+   "group": "8a7adb50f9e3",
+   "speaker": "8a7adb50f9e3",
+   "conditions": [
+    "read",
+    "dialect"
+   ],
+   "stratum": "245-1",
+   "origin": {
+    "repo": "KlangAI/klang-dialects",
+    "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+    "path": "data/sv/clean/test-00001-of-00002.parquet",
+    "row": 669,
+    "promptLevel": 1,
+    "region": "245",
+    "parquetSha256": "70bdfc94578e8d28f244ed348dabf41dd3095ada76aec2927a8e50e4d66ffe8b"
+   },
+   "extra": {},
+   "key": "8a7adb50f9e3_0"
+  }
+ ],
+ "builtAt": "2026-09-24T10:11:16Z"
+}
