@@ -1,6 +1,7 @@
 import MLX
 
-// Ported verbatim from the validated Python/MLX reference; weights are kernel inputs.
+// Adapted from the Python/MLX reference for the checkpoint's actual dtypes.
+// All weights remain kernel inputs, never captured compilation constants.
 enum FastParakeetMetal {
     static let src = #"""
 uint c = thread_position_in_grid.x;
@@ -13,15 +14,15 @@ for (int k = 0; k < K; k++) {
     if (s < 0 || s >= T) continue;
     float a = float(y[s * 2 * C + c]);
     float g = float(y[s * 2 * C + C + c]);
-    // Swift's stock sigmoid materializes bf16 before the GLU multiply.
-    float gate = static_cast<float>(static_cast<bfloat16_t>(1.0f / (1.0f + metal::exp(-g))));
-    float glu = static_cast<float>(static_cast<bfloat16_t>(a * gate));
+    // Match the stock activation dtype (BF16 or FP32) at each materialized op.
+    float gate = static_cast<float>(static_cast<OT>(1.0f / (1.0f + metal::exp(-g))));
+    float glu = static_cast<float>(static_cast<OT>(a * gate));
     acc += glu * float(w[c * K + k]);
 }
-float v = static_cast<float>(static_cast<bfloat16_t>(acc));
-v = static_cast<float>(static_cast<bfloat16_t>(v + float(bias[c])));
+float v = static_cast<float>(static_cast<OT>(acc));
+v = static_cast<float>(static_cast<OT>(v + float(bias[c])));
 float o = v / (1.0f + metal::exp(-v));
-out[t * C + c] = static_cast<bfloat16_t>(o);
+out[t * C + c] = static_cast<OT>(o);
 """#
     static let header = #"""
 
@@ -31,12 +32,14 @@ inline void load8(const device bfloat16_t* p, thread float* o) {
     uint w[4] = {u.x, u.y, u.z, u.w};
     for (int i = 0; i < 4; i++) { o[2*i] = as_type<float>(w[i] << 16); o[2*i+1] = as_type<float>(w[i] & 0xffff0000u); }
 }
-inline float rb(float v) { return static_cast<float>(static_cast<bfloat16_t>(v)); }
+inline void load8(const device half* p, thread float* o) { for (int i = 0; i < 8; i++) o[i] = float(p[i]); }
+inline void load8(const device float* p, thread float* o) { for (int i = 0; i < 8; i++) o[i] = p[i]; }
 inline float sigm(float v) { return 1.0f / (1.0f + metal::exp(-v)); }
 // metal::tanh overflows to NaN for |v| > ~44; this form saturates to +/-1.
 inline float stanh(float v) { float e = metal::exp(-2.0f * metal::abs(v)); return metal::copysign((1.0f - e) / (1.0f + e), v); }
 """#
     static let joint = #"""
+#define rb(v) static_cast<float>(static_cast<RT>(v))
 uint lane = thread_position_in_threadgroup.x;
 uint sg = thread_position_in_threadgroup.y;
 uint row = thread_position_in_grid.y;
@@ -90,6 +93,7 @@ if (tid == 0) {
 }
 """#
     static let lstm1 = #"""
+#define rb(v) static_cast<float>(static_cast<RT>(v))
 uint lane = thread_position_in_grid.x;
 uint j = thread_position_in_grid.y;
 if (j >= H) return;
@@ -110,12 +114,14 @@ if (lane == 0) {
     int tk = tok[0];
     float g[4];
     for (int q = 0; q < 4; q++) g[q] = rb(float(table[tk * 4 * H + q * H + j]) + acc[q]);
-    float cn = rb(sigm(g[1]) * float(cc[j]) + sigm(g[0]) * stanh(g[2]));
-    float hn = rb(sigm(g[3]) * stanh(cn));
+    // MLX materializes each BF16 activation and product, then the sum.
+    float cn = rb(rb(rb(sigm(g[1])) * float(cc[j])) + rb(rb(sigm(g[0])) * rb(stanh(g[2]))));
+    float hn = rb(rb(sigm(g[3])) * rb(stanh(cn)));
     h_o[j] = ch[j]; c_o[j] = cc[j]; ch_o[j] = OT(hn); cc_o[j] = OT(cn);
 }
 """#
     static let lstm2 = #"""
+#define rb(v) static_cast<float>(static_cast<RT>(v))
 uint lane = thread_position_in_grid.x;
 uint j = thread_position_in_grid.y;
 if (j >= H) return;
@@ -124,25 +130,27 @@ if (!e) {
     if (lane == 0) { h_o[j] = h[j]; c_o[j] = c[j]; ch_o[j] = ch[j]; cc_o[j] = cc[j]; }
     return;
 }
-float acc[4] = {0, 0, 0, 0};
+float accX[4] = {0, 0, 0, 0};
+float accH[4] = {0, 0, 0, 0};
 float w[8];
 for (uint k = lane * 8; k < H; k += 256) {
     float xv[8], hv[8]; for (int i = 0; i < 8; i++) { xv[i] = float(x[k + i]); hv[i] = float(ch[k + i]); }
     for (int q = 0; q < 4; q++) {
-        load8(Wx + (q * H + j) * H + k, w); for (int i = 0; i < 8; i++) acc[q] += xv[i] * w[i];
-        load8(Wh + (q * H + j) * H + k, w); for (int i = 0; i < 8; i++) acc[q] += hv[i] * w[i];
+        load8(Wx + (q * H + j) * H + k, w); for (int i = 0; i < 8; i++) accX[q] += xv[i] * w[i];
+        load8(Wh + (q * H + j) * H + k, w); for (int i = 0; i < 8; i++) accH[q] += hv[i] * w[i];
     }
 }
-for (int q = 0; q < 4; q++) acc[q] = simd_sum(acc[q]);
+for (int q = 0; q < 4; q++) { accX[q] = simd_sum(accX[q]); accH[q] = simd_sum(accH[q]); }
 if (lane == 0) {
     float g[4];
-    for (int q = 0; q < 4; q++) g[q] = rb(float(bias[q * H + j]) + acc[q]);
-    float cn = rb(sigm(g[1]) * float(cc[j]) + sigm(g[0]) * stanh(g[2]));
-    float hn = rb(sigm(g[3]) * stanh(cn));
+    for (int q = 0; q < 4; q++) g[q] = rb(rb(float(bias[q * H + j]) + accX[q]) + accH[q]);
+    float cn = rb(rb(rb(sigm(g[1])) * float(cc[j])) + rb(rb(sigm(g[0])) * rb(stanh(g[2]))));
+    float hn = rb(rb(sigm(g[3])) * rb(stanh(cn)));
     h_o[j] = ch[j]; c_o[j] = cc[j]; ch_o[j] = OT(hn); cc_o[j] = OT(cn);
 }
 """#
     static let pred = #"""
+#define rb(v) static_cast<float>(static_cast<RT>(v))
 uint lane = thread_position_in_grid.x;
 uint j = thread_position_in_grid.y;
 if (j >= P) return;

@@ -8,12 +8,12 @@ enum FastPathNonFinite: Error { case invalid }
 
 /// Failure is sticky for this precise model/runtime key; never turn a failed test into a fast run.
 enum FastPathGate {
-    static let version = "native-kernels-4"
+    static let version = "native-kernels-7"
     private static func debug(_ line: String) {
         guard let path = ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"], path.hasPrefix("/") else { return }
         guard let handle = FileHandle(forWritingAtPath: path) else { return }
         defer { try? handle.close() }
-        try? handle.seekToEnd()
+        _ = try? handle.seekToEnd()
         try? handle.write(contentsOf: Data((line + "\n").utf8))
     }
     static var forcedStock: Bool {
@@ -68,13 +68,6 @@ enum FastPathGate {
             persist("stock", to: url)
             return (false, url)
         }
-        // Q4's packed joint/embedding and FP32 recurrent weights are not supported
-        // by the bf16 decoder kernel. Avoid loading it a second time in the probe.
-        if let config = try? jsonObject(path.appendingPathComponent("config.json")),
-           let quantization = config["quantization"] as? [String: Any], quantization["bits"] != nil {
-            persist("stock", to: url)
-            return (false, url)
-        }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
         process.arguments = ["fast-selftest", "--model", path.path]
@@ -105,7 +98,12 @@ enum FastPathGate {
     static func runSelfTest(_ path: URL) throws -> Bool {
         let model = try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true)
         debug("loaded")
-        let names = ProcessInfo.processInfo.environment["VELLA_KERNEL_DIAGNOSTIC_CLIP"].map { [$0] } ?? ["clip-a", "clip-b"]
+        // Encoder fusion is qualified against all five public edge cases;
+        // BF16 uses the stock encoder and only tests the fast decoder.
+        let quantized = (try? jsonObject(path.appendingPathComponent("config.json")))?["quantization"] as? [String: Any]
+        let fusedEncoder = quantized?["bits"] != nil
+        let clips = fusedEncoder ? ["clip-a", "clip-b", "clip-c", "clip-d", "clip-e"] : ["clip-a", "clip-b"]
+        let names = ProcessInfo.processInfo.environment["VELLA_KERNEL_DIAGNOSTIC_CLIP"].map { [$0] } ?? clips
         let component = ProcessInfo.processInfo.environment["VELLA_KERNEL_DIAGNOSTIC_COMPONENT"] ?? "both"
         for name in names {
             guard let url = name.hasPrefix("/") ? URL(fileURLWithPath: name) : Bundle.module.url(forResource: name, withExtension: "wav") else { return false }
@@ -116,8 +114,9 @@ enum FastPathGate {
             guard model.configureFastPath(enabled: true, component: component) else { debug("unsupported fast modules \(component)"); return false }
             let fast = model.qualificationTokens(audio: input)
             let finite = model.fastPathFinite
+            if let error = model.fastPathError { debug("kernel error: \(error)") }
             debug("\(name): fast \(fast.count); equal \(stock == fast); first different \(Array(zip(stock, fast)).firstIndex(where: { $0.0 != $0.1 }).map(String.init) ?? "none")")
-            model.configureFastPath(enabled: false)
+            _ = model.configureFastPath(enabled: false)
             guard stock == fast, !stock.isEmpty, finite else { return false }
         }
         return true

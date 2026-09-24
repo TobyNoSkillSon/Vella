@@ -34,7 +34,7 @@ final class FastParakeetEncoder {
         func call(_ x: MLXArray) -> MLXArray {
             let y: MLXArray
             if let scales {
-                y = MLX.quantizedMatmul(x, weight, scales: scales, biases: biases, groupSize: groupSize, bits: bits, mode: mode)
+                y = MLX.quantizedMM(x, weight, scales: scales, biases: biases, groupSize: groupSize, bits: bits, mode: mode)
             } else {
                 y = MLX.matmul(x, weight)
             }
@@ -134,7 +134,7 @@ final class FastParakeetEncoder {
             let middle: MLXArray
             if useFusedConvolution {
                 middle = fusedConv([y, l.dwWeight.reshaped([channels, kernel]), l.dwBias],
-                                   template: [("C", channels), ("K", kernel), ("PAD", (kernel-1)/2)],
+                                   template: [("C", channels), ("K", kernel), ("PAD", (kernel-1)/2), ("OT", y.dtype)],
                                    grid: (channels, time, 1), threadGroup: (256, 1, 1),
                                    outputShapes: [[batch, time, channels]], outputDTypes: [y.dtype])[0]
             } else {

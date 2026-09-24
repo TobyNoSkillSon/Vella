@@ -57,18 +57,25 @@ public final class ParakeetModel: Module, STTGenerationModel {
     private var fastDecoder: FastParakeetTDT?
     private var fastTokenSink: ((Int) -> Void)?
     public private(set) var fastPathFinite = true
+    public private(set) var fastPathError: String?
 
-    /// Only the worker's isolated two-clip qualification may enable these paths.
+    /// Only the worker's isolated model-specific token-ID qualification enables these paths.
     public func configureFastPath(enabled: Bool, component: String = "both") -> Bool {
         fastEncoder = nil
         fastDecoder = nil
         guard enabled else { return false }
-        if !component.hasPrefix("encoder") {
+        guard ["both", "decoder", "encoder", "encoder-no-fused-conv"].contains(component) else { return false }
+        let quantized = encoder.layers.first?.relSelfAttn?.linearQ is QuantizedLinear
+        let wantsDecoder = component == "both" || component == "decoder"
+        let wantsEncoder = component.hasPrefix("encoder") || (component == "both" && quantized)
+        if wantsDecoder {
             guard let prepared = FastParakeetTDT(self) else { fastEncoder = nil; return false }
             fastDecoder = prepared
         }
-        if component != "decoder" {
-            guard let prepared = FastParakeetEncoder(encoder, fusedConvolution: component != "encoder-no-fused-conv") else {
+        if wantsEncoder {
+            let dtype: DType = quantized ? .float32 : .bfloat16
+            guard let prepared = FastParakeetEncoder(encoder, dense: !quantized, dtype: dtype,
+                                                     fusedConvolution: component != "encoder-no-fused-conv") else {
                 fastDecoder = nil
                 return false
             }
@@ -157,6 +164,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
         generationParameters: STTGenerateParameters
     ) -> STTOutput {
         fastPathFinite = true
+        fastPathError = nil
         let audio1D = normalizeAudioToMono(audio)
         let sampleRate = preprocessConfig.sampleRate
         let totalSamples = audio1D.shape[0]
@@ -345,7 +353,19 @@ public final class ParakeetModel: Module, STTGenerationModel {
 
     func encodeBatchFeatures(_ features: MLXArray, lengths: MLXArray? = nil) -> (MLXArray, MLXArray) {
         let resolvedLengths = lengths ?? MLXArray(Array(repeating: Int32(features.shape[1]), count: features.shape[0])).asType(.int32)
-        if features.shape[0] == 1, let fastEncoder { return fastEncoder.call(features, lengths: resolvedLengths) }
+        if features.shape[0] == 1, let fastEncoder {
+            do {
+                return try MLX.withError {
+                    let encoded = fastEncoder.call(features, lengths: resolvedLengths)
+                    MLX.eval(encoded.0, encoded.1)
+                    return encoded
+                }
+            } catch {
+                fastPathFinite = false
+                fastPathError = String(describing: error)
+                return encoder(features, lengths: resolvedLengths)
+            }
+        }
         switch encoderExecutionImplementation ?? .plain {
         case .plain:
             return encoder(features, lengths: resolvedLengths)
@@ -420,6 +440,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
 
         if batchFeatures.shape[0] == 1, let fastDecoder {
             let result = fastDecoder.decode(batchFeatures, length: Int(lengths[0].item(Int32.self)), onToken: fastTokenSink)
+            fastPathError = fastDecoder.lastError
             fastPathFinite = fastPathFinite && fastDecoder.lastFinite
                 && MLX.all(MLX.isFinite(batchFeatures)).item(Bool.self)
             return [result]
