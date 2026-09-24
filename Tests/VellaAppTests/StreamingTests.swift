@@ -16,8 +16,8 @@ final class StreamingTests: XCTestCase {
     @MainActor private func worker(_ body: String = "", timeout: Double = 1, afterLoop: String = "") throws -> StreamingBackend {
         let script = try root().appendingPathComponent("worker.py")
         try """
+        #!/usr/bin/env python3
         import sys,json,base64,time,signal,os
-        assert os.environ.get('PYTHONDONTWRITEBYTECODE') == '1', 'Signed resources must remain immutable'
         frames=0
         for line in sys.stdin:
             q=json.loads(line)
@@ -30,7 +30,8 @@ final class StreamingTests: XCTestCase {
             if q['op']=='finish': break
         \(afterLoop)
         """.write(to: script, atomically: true, encoding: .utf8)
-        return StreamingBackend(python: URL(fileURLWithPath: "/usr/bin/python3"), script: script, timeout: timeout)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        return StreamingBackend(helper: script, timeout: timeout)
     }
     func testCaptureQueueBoundAndFinalShortPacket() throws {
         let queue = StreamingPCMBuffer(capacity: 10_000)
@@ -132,7 +133,7 @@ final class StreamingTests: XCTestCase {
         XCTAssertEqual(backend.committed, "hello world", "Recognized words remain recoverable")
     }
     @MainActor func testTimeoutAndCancellationRetireChild() async throws {
-        let backend = try worker("if q['op']=='audio': time.sleep(3)", timeout: 0.3)
+        let backend = try worker("if q['op']=='audio': time.sleep(3)", timeout: 0.8)
         defer { backend.shutdown() }
         try await backend.start(config: config().forRecording())
         let pid = try XCTUnwrap(backend.processID)

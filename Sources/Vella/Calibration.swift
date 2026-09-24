@@ -64,7 +64,7 @@ import Darwin
     nonisolated static let sampleHash = "e36af54bcd25cbbb9c1adba8ff28bc7a4001a91f6bfdbc3360df9efd395bafa2"
     let directory: URL
     let resources: URL
-    private let python: () -> URL?
+    private let nativeWorker: () -> URL?
     private let identityOverride: ((String) -> String?)?
     private let now: () -> Date
     private var process: Process?
@@ -72,14 +72,15 @@ import Darwin
     private var stopReason: String?
     var isRunning: Bool { job != nil }
 
-    init(directory: URL? = nil, resources: URL? = nil, python: (() -> URL?)? = nil,
+    init(directory: URL? = nil, resources: URL? = nil, worker: (() -> URL?)? = nil,
          identity: ((String) -> String?)? = nil, now: @escaping () -> Date = Date.init) {
         self.directory = directory ?? Backend.support.appendingPathComponent("Calibrations")
         self.resources = resources ?? ModelLibrary.resourceDirectory()
-        self.python = python ?? {
-            guard let config = try? Backend().configuration(requiresModel: false) else { return nil }
-            let python = URL(fileURLWithPath: config.executable)
-            return python.lastPathComponent.hasPrefix("python") ? python : nil
+        self.nativeWorker = worker ?? {
+            let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/VellaWorker")
+            if FileManager.default.isExecutableFile(atPath: bundled.path) { return bundled }
+            let sibling = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("VellaWorker")
+            return sibling.flatMap { FileManager.default.isExecutableFile(atPath: $0.path) ? $0 : nil }
         }
         identityOverride = identity; self.now = now
     }
@@ -101,7 +102,7 @@ import Darwin
     func identity(modelPath: String) -> String? {
         if let identityOverride { return identityOverride(modelPath) }
         do {
-            guard let python = python(), FileManager.default.isExecutableFile(atPath: python.path) else { return nil }
+            guard let worker = nativeWorker(), FileManager.default.isExecutableFile(atPath: worker.path) else { return nil }
             let model = URL(fileURLWithPath: modelPath).standardizedFileURL
             guard let config = try JSONSerialization.jsonObject(with: Data(contentsOf: model.appendingPathComponent("config.json"))) as? [String: Any],
                   config["auto_map"] == nil else { return nil }
@@ -109,6 +110,9 @@ import Darwin
             guard ["whisper", "qwen3_asr", "parakeet", "sensevoice", "granite_speech"].contains(architecture) else { return nil }
             let files = try FileManager.default.contentsOfDirectory(at: model, includingPropertiesForKeys: nil).filter { !$0.lastPathComponent.hasPrefix(".") }.sorted { $0.path < $1.path }
             guard files.contains(where: { $0.pathExtension == "safetensors" }), files.count < 1024 else { return nil }
+            if let all = FileManager.default.enumerator(at: model, includingPropertiesForKeys: nil) {
+                for case let file as URL in all where file.pathExtension == "py" { return nil }
+            }
             var parts = [try Self.stamp(model.appendingPathComponent("config.json"))]
             for file in files { parts.append(try Self.stamp(file)) }
             let modelKey = Self.hash(Data(parts.joined(separator: "\n").utf8))
@@ -117,32 +121,9 @@ import Darwin
             defer { IOObjectRelease(service) }
             guard let uuid = IORegistryEntryCreateCFProperty(service, "IOPlatformUUID" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? String, !uuid.isEmpty else { return nil }
             let deviceKey = Self.hash(Data([uuid, ModelLibrary.processor, String(ProcessInfo.processInfo.physicalMemory), ProcessInfo.processInfo.operatingSystemVersionString].joined(separator: "|").utf8))
-            parts = [try Self.stamp(python)]
-            let lib = python.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("lib")
-            let versions = try FileManager.default.contentsOfDirectory(at: lib, includingPropertiesForKeys: nil).filter { $0.lastPathComponent.hasPrefix("python") }
-            guard !versions.isEmpty else { return nil }
-            var runtimeFiles: [URL] = []
-            for version in versions {
-                let site = version.appendingPathComponent("site-packages")
-                for entry in try FileManager.default.contentsOfDirectory(at: site, includingPropertiesForKeys: nil) {
-                    let name = entry.lastPathComponent
-                    if name.hasSuffix(".dist-info") {
-                        runtimeFiles.append(entry.appendingPathComponent("METADATA"))
-                        runtimeFiles.append(entry.appendingPathComponent("RECORD"))
-                    } else if ["mlx", "mlx_audio", "transformers", "tokenizers", "safetensors"].contains(name) {
-                        guard let enumerator = FileManager.default.enumerator(at: entry, includingPropertiesForKeys: nil) else { return nil }
-                        for case let file as URL in enumerator where ["py", "so", "dylib"].contains(file.pathExtension) {
-                            runtimeFiles.append(file)
-                            if runtimeFiles.count > 12000 { return nil }
-                        }
-                    }
-                }
-            }
-            guard runtimeFiles.contains(where: { $0.path.contains("/mlx_audio/") }) else { return nil }
-            for file in runtimeFiles.sorted(by: { $0.path < $1.path }) { parts.append(try Self.stamp(file, contents: false)) }
-            let runtimeKey = Self.hash(Data(parts.joined(separator: "\n").utf8))
-            parts = ["vella-calibration-v1"]
-            for name in ["calibration_worker.py", "benchmark_worker.py", "Calibration/manifest.json", "Calibration/speech.wav", "Calibration/text.txt"] {
+            let runtimeKey = Self.hash(Data((try Self.stamp(worker)).utf8))
+            parts = ["vella-native-calibration-v2"]
+            for name in ["Calibration/manifest.json", "Calibration/speech.wav", "Calibration/text.txt"] {
                 parts.append(Self.hash(try Data(contentsOf: resources.appendingPathComponent(name))))
             }
             let sampleKey = Self.hash(Data(parts.joined(separator: "\n").utf8))
@@ -207,12 +188,12 @@ import Darwin
     @discardableResult func calibrate(modelPath: String, timeout: Double = 120,
         status: @escaping (String) -> Void, completion: @escaping (String?) -> Void) -> Bool {
         guard timeout.isFinite, timeout > 0, !isRunning, speed(modelPath: modelPath) == nil,
-              let identity = identity(modelPath: modelPath), let python = python() else { return false }
+              let identity = identity(modelPath: modelPath), let worker = nativeWorker() else { return false }
         let token = UUID(), child = Process(), pipe = Pipe()
-        child.executableURL = python
-        child.arguments = [resources.appendingPathComponent("calibration_worker.py").path, "--model", modelPath, "--sample", resources.appendingPathComponent("Calibration").path]
+        child.executableURL = worker
+        child.arguments = ["calibrate", "--model", modelPath, "--sample", resources.appendingPathComponent("Calibration").path]
         var env = ProcessInfo.processInfo.environment
-        for key in ["HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_HUB_DISABLE_TELEMETRY", "PYTHONUNBUFFERED", "PYTHONDONTWRITEBYTECODE"] { env[key] = "1" }
+        for key in ["HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_HUB_DISABLE_TELEMETRY"] { env[key] = "1" }
         child.environment = env; child.standardOutput = pipe; child.standardError = pipe
         do { try child.run() } catch { completion("Installed. Calibration could not start: \(error.localizedDescription)"); return false }
         job = token; process = child; stopReason = nil

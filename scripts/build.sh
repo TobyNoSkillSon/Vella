@@ -26,8 +26,16 @@ fi
 if [[ "$IDENTITY" == "-" ]]; then
   echo 'Local ad-hoc build: replacing this build can invalidate macOS privacy permissions.' >&2
 fi
-"${PYTHON:-python3}" scripts/check_toolchain.py
-xcrun swift build -c release
+xcrun swift scripts/prepare-build.swift check
+# Xcode's Metal compiler produces the pinned MLX shaders. The existing CLT
+# Swift 6.3.3 compiler produces binaries that launch on this macOS release.
+CLT=/Library/Developer/CommandLineTools
+DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build -c release
+Worker/build-split.sh
+WORKER_BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build --package-path Worker -c release --build-system native --show-bin-path)"
+[[ -x "$WORKER_BIN/VellaWorker" && -x "$WORKER_BIN/VellaStreamingWorker" && -s "$WORKER_BIN/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]] || {
+  echo 'Native workers or pinned MLX shaders missing; build left installed app unchanged.' >&2; exit 1;
+}
 # Compile first, then close only this exact installed app before replacing files.
 RELAUNCH="$(VELLA_TARGET_APP="$APP" xcrun swift -e '
 import AppKit
@@ -56,6 +64,14 @@ print(apps.isEmpty ? "0" : "1")
 ')"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Vella "$APP/Contents/MacOS/Vella"
+cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" .build/release/VellaModelTool "$APP/Contents/MacOS/"
+rm -f "$APP/Contents/MacOS/mlx.metallib"
+rm -rf "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
+cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$APP/Contents/Resources/"
+# Kernel self-test clips (public, CC BY 4.0); SwiftPM's Bundle.module looks in the app's Resources.
+[[ -s "$WORKER_BIN/VellaWorker_VellaWorker.bundle/clip-a.wav" || -s "$WORKER_BIN/VellaWorker_VellaWorker.bundle/Contents/Resources/clip-a.wav" ]] || { echo 'VellaWorker self-test resources are missing.' >&2; exit 1; }
+rm -rf "$APP/Contents/Resources/VellaWorker_VellaWorker.bundle"
+cp -R "$WORKER_BIN/VellaWorker_VellaWorker.bundle" "$APP/Contents/Resources/"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 if [[ -n "${VELLA_BUILD_VERSION:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VELLA_BUILD_VERSION" "$APP/Contents/Info.plist"
@@ -66,28 +82,21 @@ fi
 if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $VELLA_BUNDLE_ID" "$APP/Contents/Info.plist"
 fi
-cp scripts/setup-backend.sh "$APP/Contents/Resources/"
-cp Resources/models.json Resources/benchmark-policy.json Resources/benchmark_worker.py Resources/formatting_metrics.py Resources/AGENT_GUIDE.md "$APP/Contents/Resources/"
-cp Resources/calibration_worker.py Resources/inference_worker.py Resources/runtime-requirements.txt "$APP/Contents/Resources/"
-cp Resources/streaming_worker.py Resources/streaming-models.json "$APP/Contents/Resources/"
+cp Resources/models.json Resources/benchmark-policy.json Resources/AGENT_GUIDE.md "$APP/Contents/Resources/"
+cp Resources/streaming-models.json "$APP/Contents/Resources/"
+# Remove stale Python resources from in-place app updates; model weights and
+# legacy user-owned Runtimes outside the app are intentionally untouched.
+find "$APP/Contents/Resources" -type f \( -name '*.py' -o -name '*.pyc' \) -delete
 mkdir -p "$APP/Contents/Resources/Calibration"
 cp Resources/Calibration/manifest.json Resources/Calibration/text.txt Resources/Calibration/speech.wav Resources/Calibration/ATTRIBUTION.md Resources/Calibration/LICENSE-CC-BY-4.0.txt "$APP/Contents/Resources/Calibration/"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 # Only compact table measurements ship. Source benchmark audio/raw transcripts stay in the repo.
 # Remove generated copies left by earlier installers, not any source or user recordings.
 rm -rf "$APP/Contents/Resources/Benchmarks" "$APP/Contents/Resources/ReferenceResults"
-"${PYTHON:-python3}" - "$APP/Contents/Resources/ReferenceResults" <<'PYDATA'
-import json, pathlib, sys
-out = pathlib.Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
-policy = json.loads(pathlib.Path('Resources/benchmark-policy.json').read_text())
-for path in pathlib.Path('Resources/ReferenceResults').glob('*.json'):
-    value = json.loads(path.read_text())
-    if value['suiteID'] != policy['suiteID'] or value['suiteHash'] != policy['suiteHash'] or value['repeats'] < policy['minimumRepeats']: continue
-    if policy.get('scorerSHA256') and value.get('formatting', {}).get('scorerSHA256') != policy['scorerSHA256']: continue
-    if policy.get('lexicalNormalizerSHA256') and value.get('formatting', {}).get('lexicalNormalizerSHA256') != policy['lexicalNormalizerSHA256']: continue
-    value['clips'] = []
-    (out/path.name).write_text(json.dumps(value, separators=(',', ':')) + '\n')
-PYDATA
+# In-place updates from Python-era builds must not keep their runtime files.
+rm -f "$APP/Contents/Resources/"*.py "$APP/Contents/Resources/setup-backend.sh" "$APP/Contents/Resources/runtime-requirements.txt"
+rm -rf "$APP/Contents/Resources/__pycache__"
+xcrun swift scripts/prepare-build.swift compact "$APP/Contents/Resources/ReferenceResults"
 ICONSET="$PWD/.build/Vella.iconset"
 mkdir -p "$ICONSET"
 xcrun swift scripts/icon.swift "$PWD/.build/icon.png"
@@ -97,8 +106,9 @@ for size in 16 32 128 256 512; do
   sips -z "$double" "$double" .build/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vella.icns"
-# Generated Python caches are not app resources. Workers must not mutate the seal.
-find "$APP/Contents/Resources" -type d -name __pycache__ -prune -exec rm -rf {} +
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaStreamingWorker" "$APP/Contents/MacOS/VellaModelTool"
+codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
+codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/VellaWorker_VellaWorker.bundle" 2>/dev/null || true
 codesign --force --sign "$IDENTITY" "$APP"
 codesign --verify --strict "$APP"
 if [[ "${VELLA_REGISTER_APP:-1}" == "1" ]]; then

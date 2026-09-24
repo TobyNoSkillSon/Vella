@@ -55,8 +55,8 @@ final class LongRecordingTests: XCTestCase {
         } else { selectedClips = suite.clips }
         XCTAssertFalse(selectedClips.isEmpty)
         guard !selectedClips.isEmpty else { return }
-        let python = ProcessInfo.processInfo.environment["VELLA_TEST_RUNTIME_PYTHON"].map { URL(fileURLWithPath: $0) }
-        let backend = Backend(python: python), config = try backend.configuration()
+        let helper = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"].map { URL(fileURLWithPath: $0) }
+        let backend = Backend(helper: helper), config = try backend.configuration()
         defer { backend.stop() }
         let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/qa/hour-recording-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
@@ -138,8 +138,9 @@ final class LongRecordingTests: XCTestCase {
         print("Hour replay: \(Int(recovered.seconds)) audio seconds; \(requests) real requests; sample hashes match; \(Int(processing)) seconds transcription.")
     }
     @MainActor func testRealWorkerReplacementExitsPredecessor() async throws {
-        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_RUNTIME_PYTHON"], ProcessInfo.processInfo.environment["VELLA_REAL_SWITCH_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker replacement check; uses two paths to the same weights, not a second model") }
-        let backend = Backend(python: URL(fileURLWithPath: path))
+        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"], ProcessInfo.processInfo.environment["VELLA_REAL_SWITCH_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker replacement check") }
+        try Self.checkUserIdle()
+        let backend = Backend(helper: URL(fileURLWithPath: path))
         defer { backend.shutdown() }
         var config = try backend.configuration()
         let original = config.model
@@ -148,9 +149,15 @@ final class LongRecordingTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: alias) }
         let audio = ModelLibrary.resourceDirectory().appendingPathComponent("Calibration/speech.wav")
         var previous: Int32?
-        for path in [original, alias.path, original] {
+        let replacement = ProcessInfo.processInfo.environment["VELLA_TEST_SWITCH_MODEL"] ?? alias.path
+        for path in [original, replacement, original] {
+            try Self.checkUserIdle()
             config.model = path
-            _ = try await backend.transcribe(audio, config: config)
+            let text = try await backend.transcribe(audio, config: config)
+            let reference = path == replacement
+                ? (ProcessInfo.processInfo.environment["VELLA_TEST_SWITCH_EXPECTED_TEXT"] ?? "Saturday, august fifteenth. The sea unbroken all round. No land in sight,")
+                : "Saturday, august fifteenth. The sea unbroken all round. No land in sight,"
+            XCTAssertEqual(text, reference, "Model switch must retain the public clip's reference-path transcript")
             let current = try XCTUnwrap(backend.processID)
             if let previous {
                 XCTAssertNotEqual(current, previous)
@@ -160,18 +167,17 @@ final class LongRecordingTests: XCTestCase {
         }
     }
     @MainActor func testRealWorkerUnloadsAfterSixtySecondsIdle() async throws {
-        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_RUNTIME_PYTHON"], ProcessInfo.processInfo.environment["VELLA_REAL_IDLE_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker idle-memory check") }
-        let backend = Backend(python: URL(fileURLWithPath: path))
+        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"], ProcessInfo.processInfo.environment["VELLA_REAL_IDLE_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker idle-memory check") }
+        try Self.checkUserIdle()
+        let backend = Backend(helper: URL(fileURLWithPath: path))
         defer { backend.shutdown() }
-        let config = try backend.configuration()
+        var config = try backend.configuration()
+        if let model = ProcessInfo.processInfo.environment["VELLA_TEST_IDLE_MODEL"] { config.model = model }
         let audio = ModelLibrary.resourceDirectory().appendingPathComponent("Calibration/speech.wav")
-        let started = ProcessInfo.processInfo.systemUptime
         _ = try await backend.transcribe(audio, config: config)
-        let cold = ProcessInfo.processInfo.systemUptime - started
         let pid = try XCTUnwrap(backend.processID)
-        let warmStart = ProcessInfo.processInfo.systemUptime
+        try Self.checkUserIdle()
         _ = try await backend.transcribe(audio, config: config)
-        print("Private worker cold/warm wall seconds: \(cold) / \(ProcessInfo.processInfo.systemUptime - warmStart)")
         XCTAssertEqual(backend.processID, pid)
         try await Task.sleep(nanoseconds: 63_000_000_000)
         XCTAssertNil(backend.processID)
@@ -179,11 +185,12 @@ final class LongRecordingTests: XCTestCase {
     }
     @MainActor func testRealCalibrationForActiveModel() async throws {
         guard ProcessInfo.processInfo.environment["VELLA_REAL_CALIBRATION"] == "1" else { throw XCTSkip("Opt-in bounded local calibration") }
+        try Self.checkUserIdle()
         let model = try Backend().configuration().model
-        guard let path = ProcessInfo.processInfo.environment["VELLA_CALIBRATION_TEST_PYTHON"] else { throw XCTSkip("Set the private runtime interpreter") }
+        guard let path = ProcessInfo.processInfo.environment["VELLA_CALIBRATION_TEST_WORKER"] else { throw XCTSkip("Set the native helper executable") }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let store = CalibrationStore(directory: directory, python: { URL(fileURLWithPath: path) })
+        let store = CalibrationStore(directory: directory, worker: { URL(fileURLWithPath: path) })
         if store.speed(modelPath: model) != nil { return }
         let done = expectation(description: "calibration completion")
         XCTAssertTrue(store.calibrate(modelPath: model, status: { _ in }, completion: { error in
@@ -191,5 +198,13 @@ final class LongRecordingTests: XCTestCase {
         }))
         await fulfillment(of: [done], timeout: 130)
         XCTAssertNotNil(store.speed(modelPath: model))
+    }
+    private static func checkUserIdle() throws {
+        let status = Backend.support.appendingPathComponent("dictation-status.json")
+        guard let data = try? Data(contentsOf: status),
+              let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              state["phase"] as? String == "idle" else {
+            throw XCTSkip("User Vella is not idle; no test-owned inference started")
+        }
     }
 }

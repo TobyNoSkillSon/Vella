@@ -23,15 +23,12 @@ import VellaCore
     let calibration: CalibrationStore
     private let automaticallyCalibrates: Bool
     @Published var calibratingID: String?
-    var workerPython: () throws -> URL = {
-        URL(fileURLWithPath: try Backend().configuration(requiresModel: false).executable)
-    }
-    private var worker: Process?
-    private var deadline: DispatchWorkItem?
-    private var buffer = Data()
-    private var receivedResult = false
-    private var pendingInstallation: (String, InstalledModel)?
-    private var failureMessage: String?
+    var downloadBaseURL = URL(string: "https://huggingface.co")!
+    var downloadConfiguration: URLSessionConfiguration = .default
+    private var downloadClient: NativeModelDownload?
+    private var downloadTask: Task<Void, Never>?
+    private var downloadTimeout: Task<Void, Never>?
+    private var downloadToken: UUID?
     var mayChangeModel: () -> Bool = { true }
     var onUse: (() -> Void)?
     var beforeHeavyWork: (() -> Void)?
@@ -39,6 +36,7 @@ import VellaCore
     private var calibrationLaunch: Task<Void, Never>?
     let resources: URL
     let registryURL: URL
+    private let streamingHelperHash: String?
     // Injectable filesystem operations keep deletion tests away from real models/Trash.
     var currentModelPath: () throws -> String = { try Backend().configuration(requiresModel: false).model }
     var protectedModelPaths: () throws -> [String] = {
@@ -62,8 +60,15 @@ import VellaCore
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &directory), directory.boolValue else { return nil }
         return folder.path // An unfinished download is manageable, but NOT installed.
     }
-    init(mode: RecognitionMode = .dictation, resources: URL? = nil, registryURL: URL? = nil, calibration: CalibrationStore? = nil) {
+    init(mode: RecognitionMode = .dictation, resources: URL? = nil, registryURL: URL? = nil, calibration: CalibrationStore? = nil, streamingHelper: URL? = nil) {
         self.mode = mode
+        // Signed bundle contents cannot change while this library is live.
+        // Hash the ~36 MB helper once, not on every menu/registry reload.
+        if mode == .streaming,
+           let helper = try? NativeHelper.executable("VellaStreamingWorker", override: streamingHelper),
+           let bytes = try? Data(contentsOf: helper) {
+            self.streamingHelperHash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        } else { self.streamingHelperHash = nil }
         if registryURL != nil { protectedModelPaths = { [] } }
         // Custom registries are an isolation boundary; callers inject their calibration runner.
         automaticallyCalibrates = mode == .dictation && (registryURL == nil || calibration != nil)
@@ -128,7 +133,9 @@ import VellaCore
             }
             if !models.contains(where: { $0.id == selectedID }) { selectedID = models.first?.id ?? "" }
             references = [:]
-            let streamHash = (try? Data(contentsOf: resources.appendingPathComponent("streaming_worker.py"))).map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
+            // Old Python results are historical only: native streaming needs
+            // independent qualification against this exact bundled executable.
+            let streamHash = streamingHelperHash
             let policyData = try Data(contentsOf: resources.appendingPathComponent("benchmark-policy.json"))
             let policy = try JSONDecoder().decode(BenchmarkPolicy.self, from: policyData)
             var candidates: [String: [BenchmarkResult]] = [:]
@@ -222,8 +229,47 @@ import VellaCore
         guard mayChangeModel() else { message = "Finish or stop dictation before installing a model."; return }
         beforeHeavyWork?()
         downloadingID = selected.id; downloadError = nil
-        run(["download", "--catalog", resources.appendingPathComponent(catalogName).path,
-             "--model-id", selected.id, "--models-dir", modelsDirectory.path], timeout: 3600)
+        busy = true; progress = nil; message = "Starting…"
+        let token = UUID(); downloadToken = token
+        let client = NativeModelDownload(baseURL: downloadBaseURL, configuration: downloadConfiguration,
+            catalogURL: resources.appendingPathComponent(catalogName)) { [weak self] text, done, total in
+            Task { @MainActor [weak self] in
+                guard let self, self.downloadToken == token else { return }
+                self.message = text
+                if let done, let total, total > 0 { self.progress = min(0.99, max(0, Double(done) / Double(total))) }
+            }
+        }
+        downloadClient = client
+        downloadTimeout = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_600_000_000_000)
+            guard !Task.isCancelled, let self, self.downloadToken == token else { return }
+            self.cancel()
+            self.message = "Download timed out. Retry to resume."; self.downloadError = self.message
+        }
+        downloadTask = Task { [weak self] in
+            do {
+                guard let self else { return }
+                let folder = try await client.download(selected, modelsDirectory: self.modelsDirectory)
+                guard self.downloadToken == token, !Task.isCancelled,
+                      selected.id == self.downloadingID, folder.standardizedFileURL == self.modelsDirectory.appendingPathComponent(selected.id).standardizedFileURL else { return }
+                try NativeModelDownload.validate(folder, expected: selected)
+                let previous = self.installed[selected.id]
+                do {
+                    self.installed[selected.id] = InstalledModel(path: folder.path, revision: selected.revision, name: selected.name, quantization: selected.quantization)
+                    try self.saveRegistry(updating: selected.id)
+                    self.reload(); self.progress = 1; self.message = "Downloaded. Choose Use to select it for \(self.mode.title.lowercased())."
+                    self.downloadTimeout?.cancel(); self.downloadTimeout = nil
+                    self.downloadToken = nil; self.downloadTask = nil; self.downloadClient = nil; self.downloadingID = nil; self.busy = false
+                    self.beginCalibration(id: selected.id, path: folder.path)
+                } catch { self.installed[selected.id] = previous; throw error }
+            } catch {
+                guard let self, self.downloadToken == token else { return }
+                self.message = error is CancellationError ? "Cancelled. Partial downloads may be resumed; no model selection was changed." : error.localizedDescription
+                self.downloadError = self.message
+                self.downloadTimeout?.cancel(); self.downloadTimeout = nil
+                self.downloadingID = nil; self.busy = false; self.downloadToken = nil; self.downloadTask = nil; self.downloadClient = nil
+            }
+        }
     }
     func importModel() {
         guard let selected, !busy, !calibration.isRunning, mayChangeModel() else { return }
@@ -238,24 +284,8 @@ import VellaCore
         } catch { message = error.localizedDescription }
     }
     func validateModel(_ folder: URL, expected: ModelRecommendation) throws {
-        let data = try Data(contentsOf: folder.appendingPathComponent("config.json"))
-        let config = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        if let tokenData = try? Data(contentsOf: folder.appendingPathComponent("tokenizer_config.json")),
-           let tokenizer = try JSONSerialization.jsonObject(with: tokenData) as? [String: Any], tokenizer["auto_map"] != nil {
-            throw VellaError.message("Custom tokenizer code is not supported.")
-        }
-        if expected.architecture == "sensevoice" && !FileManager.default.fileExists(atPath: folder.appendingPathComponent("am.mvn").path) {
-            throw VellaError.message("SenseVoice normalization file is missing. Reinstall the model.")
-        }
-        let quant = (config?["quantization"] ?? config?["quantization_config"]) as? [String: Any]
-        let bits = quant?["bits"] as? Int
-        let expectedBits = Int(expected.quantization.split(separator: "-").first ?? "")
-        let architecture = config?["model_type"] as? String ?? ((config?["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel") ? "parakeet" : "")
-        guard supports(architecture), supports(expected.architecture), architecture == expected.architecture, config?["auto_map"] == nil,
-              expectedBits == nil ? bits == nil : bits == expectedBits,
-              (try FileManager.default.contentsOfDirectory(atPath: folder.path)).contains(where: { $0.hasSuffix(".safetensors") }) else {
-            throw VellaError.message("The folder does not match this model architecture/quantization or is missing weights.")
-        }
+        guard supports(expected.architecture) else { throw VellaError.message("The folder does not match this model architecture/quantization or is missing weights.") }
+        try NativeModelDownload.validate(folder, expected: expected)
     }
     @discardableResult func useSelected() -> Bool {
         guard !busy, !calibration.isRunning, mayChangeModel() else {
@@ -298,64 +328,11 @@ import VellaCore
             if !calibration.isRunning { calibratingID = nil; busy = false }
             return
         }
-        deadline?.cancel(); deadline = nil
         guard busy else { return }
-        failureMessage = "Cancelled. Partial downloads may be resumed; no model selection was changed."
-        guard let worker, worker.isRunning else { return } // Reject a queued successful-exit callback too.
-        worker.terminate()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { if worker.isRunning { kill(worker.processIdentifier, SIGKILL) } }
-    }
-    private func run(_ args: [String], timeout: Double) {
-        guard !busy else { return }
-        do {
-            let python = try workerPython()
-            guard FileManager.default.isExecutableFile(atPath: python.path) else { throw VellaError.message("Vella's Python runtime is unavailable. Repair the runtime setup before downloading a model.") }
-            let child = Process(); child.executableURL = python
-            child.arguments = [resources.appendingPathComponent("benchmark_worker.py").path] + args
-            var env = ProcessInfo.processInfo.environment; env["PYTHONUNBUFFERED"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
-            env["PYTHONDONTWRITEBYTECODE"] = "1"
-            child.environment = env
-            let pipe = Pipe(); child.standardOutput = pipe; child.standardError = pipe
-            buffer = Data(); receivedResult = false; pendingInstallation = nil; failureMessage = nil
-            busy = true; progress = nil; message = "Starting…"
-            try child.run(); worker = child
-            let deadline = DispatchWorkItem { [weak self] in self?.cancel() }; self.deadline = deadline
-            DispatchQueue.main.asyncAfter(deadline: .now() + timeout, execute: deadline)
-            Task.detached { [weak self] in
-                // availableData returns currently available pipe bytes. read(upToCount:)
-                // can wait for 4096 bytes, hiding short progress events until much later.
-                while true {
-                    let chunk = pipe.fileHandleForReading.availableData
-                    if chunk.isEmpty { break }
-                    await self?.receive(chunk)
-                }
-                child.waitUntilExit()
-                await self?.finished(code: child.terminationStatus)
-            }
-        } catch { busy = false; downloadingID = nil; downloadError = error.localizedDescription; message = error.localizedDescription }
-    }
-    func receive(_ data: Data) {
-        buffer.append(data)
-        while let newline = buffer.firstIndex(of: 10) {
-            let line = buffer.prefix(upTo: newline); buffer.removeSubrange(...newline)
-            guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any], let event = object["event"] as? String else { continue }
-            if event == "progress" {
-                message = object["message"] as? String ?? "Working…"
-                if let done = object["completed"] as? Double, let total = object["total"] as? Double, total > 0 { progress = min(0.99, max(0, done / total)) }
-            } else if event == "installed", let id = object["modelID"] as? String, let path = object["path"] as? String {
-                guard id == downloadingID,
-                      let expected = models.first(where: { $0.id == id }),
-                      object["revision"] as? String == expected.revision,
-                      URL(fileURLWithPath: path).standardizedFileURL == modelsDirectory.appendingPathComponent(id).standardizedFileURL else {
-                    failureMessage = "Download returned an unexpected model or location."; continue
-                }
-                let model = models.first { $0.id == id }
-                pendingInstallation = (id, InstalledModel(path: path, revision: object["revision"] as? String, name: model?.name, quantization: model?.quantization))
-                receivedResult = true
-            } else if event == "result" { receivedResult = true }
-            else if event == "error" { failureMessage = object["message"] as? String }
-        }
-        if buffer.count > 1_000_000 { buffer.removeAll(); failureMessage = "Worker emitted an oversized response." }
+        downloadToken = nil; downloadTimeout?.cancel(); downloadTimeout = nil
+        downloadClient?.cancel(); downloadTask?.cancel(); downloadTask = nil; downloadClient = nil
+        downloadingID = nil; busy = false
+        message = "Cancelled. Partial downloads may be resumed; no model selection was changed."; downloadError = message
     }
     private func beginCalibration(id: String, path: String) {
         guard automaticallyCalibrates else { return }
@@ -384,28 +361,10 @@ import VellaCore
         }
     }
     func shutdown() {
-        calibrationLaunch?.cancel(); calibrationLaunch = nil; deadline?.cancel(); deadline = nil
+        calibrationLaunch?.cancel(); calibrationLaunch = nil
         calibration.shutdown()
-        if let child = worker, child.isRunning { kill(child.processIdentifier, SIGKILL) }
-        worker = nil
-    }
-    func finished(code: Int32) {
-        deadline?.cancel(); deadline = nil; worker = nil; busy = false
-        downloadingID = nil
-        if let failureMessage { message = failureMessage; downloadError = failureMessage }
-        else if code == 0 && receivedResult, let (id, local) = pendingInstallation {
-            let previous = installed[id]
-            do {
-                installed[id] = local; try saveRegistry(updating: id)
-                reload(); progress = 1; downloadingID = nil
-                message = "Downloaded. Choose Use to select it for \(mode.title.lowercased())."
-                beginCalibration(id: id, path: local.path)
-            } catch {
-                installed[id] = previous
-                message = error.localizedDescription; downloadError = message
-            }
-        }
-        else { message = "Download stopped (exit \(code)). Retry to resume."; downloadError = message }
+        downloadToken = nil; downloadTimeout?.cancel(); downloadTimeout = nil
+        downloadClient?.cancel(); downloadTask?.cancel(); downloadTask = nil; downloadClient = nil
     }
 }
 

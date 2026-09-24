@@ -13,7 +13,7 @@ public struct Configuration: Codable {
     public var streamingModel: String
     public var preferredMicrophone: String
     public var fallbackMicrophone: String
-    public init(executable: String, model: String,
+    public init(executable: String = "", model: String,
                 preferredMicrophone: String = "MacBook Pro Microphone", fallbackMicrophone: String = "MacBook Pro Microphone",
                 mode: RecognitionMode = .dictation, streamingModel: String = "") {
         self.executable = executable; self.model = model
@@ -43,8 +43,8 @@ public struct Configuration: Codable {
         return snapshot
     }
     public func validate(requiresModel: Bool = true) throws {
-        guard !executable.isEmpty, !requiresModel || !selectedModel.isEmpty else {
-            throw VellaError.message("Set up Vella’s Python runtime, install a \(mode.title.lowercased()) model and choose Use.")
+        guard !requiresModel || !selectedModel.isEmpty else {
+            throw VellaError.message("Install a \(mode.title.lowercased()) model and choose Use.")
         }
     }
 }

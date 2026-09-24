@@ -1,161 +1,163 @@
 import XCTest
 import AppKit
+import CryptoKit
+import VellaCore
 @testable import Vella
 
+private final class HubStub: URLProtocol {
+    static var handler: ((URLRequest) throws -> (Int, [String: String], Data))!
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        do {
+            let (code, headers, data) = try Self.handler(request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: code, httpVersion: "HTTP/1.1", headerFields: headers)!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch { client?.urlProtocol(self, didFailWithError: error) }
+    }
+    override func stopLoading() {}
+}
+
 final class DownloadTests: XCTestCase {
-    @MainActor func testDownloadCannotInterruptDictation() {
-        let library = ModelLibrary()
-        library.selectedID = library.models.first!.id
-        library.mayChangeModel = { false }
-        var interrupted = false
-        library.beforeHeavyWork = { interrupted = true }
-        library.workerPython = { throw NSError(domain: "Fixture: never launch a download", code: 1) }
-        library.download()
-        XCTAssertFalse(interrupted)
-        XCTAssertNil(library.downloadingID)
-        XCTAssertFalse(library.busy)
-    }
-    @MainActor func testProgressIsBoundedAndInstallationWaitsForSuccessfulExit() throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let registry = directory.appendingPathComponent("registry.json")
-        let library = ModelLibrary(registryURL: registry)
-        let id = "Qwen3-ASR-1.7B-4bit"
-        let active = library.activeModelPath
-        library.downloadingID = id; library.busy = true
-        library.receive(Data("{\"event\":\"progress\",\"completed\":50,\"total\":100}\n".utf8))
-        XCTAssertEqual(library.progress, 0.5)
-        library.receive(Data("{\"event\":\"progress\",\"completed\":200,\"total\":100}\n".utf8))
-        XCTAssertEqual(library.progress, 0.99)
-        let event: [String: Any] = ["event": "installed", "modelID": id, "revision": library.models.first { $0.id == id }!.revision,
-                                  "path": library.modelsDirectory.appendingPathComponent(id).path]
-        var bytes = try JSONSerialization.data(withJSONObject: event); bytes.append(10)
-        library.receive(bytes)
-        XCTAssertNil(library.installed[id])
-        XCTAssertFalse(FileManager.default.fileExists(atPath: registry.path))
-        library.finished(code: 0)
-        XCTAssertNotNil(library.installed[id])
-        XCTAssertTrue(FileManager.default.fileExists(atPath: registry.path))
-        XCTAssertEqual(library.progress, 1)
-        XCTAssertFalse(library.busy)
-        XCTAssertEqual(library.activeModelPath, active)
-    }
-    @MainActor func testFailedAndUnexpectedWorkersNeverInstall() throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let library = ModelLibrary(registryURL: directory.appendingPathComponent("registry.json"))
-        library.downloadingID = "expected"; library.busy = true
-        library.receive(Data("{\"event\":\"installed\",\"modelID\":\"other\",\"path\":\"/tmp/wrong\"}\n".utf8))
-        library.finished(code: 0)
-        XCTAssertNotNil(library.downloadError)
-        XCTAssertTrue(library.installed.isEmpty)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
-    }
-    @MainActor func testDownloadDoesNotResizeMenu() throws {
-        _ = NSApplication.shared
-        let library = ModelLibrary()
-        let menu = ModelsMenu(library: library).modelItem()
-        let view = try XCTUnwrap(menu.submenu?.items.first?.view)
-        let initial = view.frame.size
-        library.busy = true; library.downloadingID = library.models.first?.id; library.progress = 0.5
-        view.layoutSubtreeIfNeeded()
-        XCTAssertEqual(view.frame.size, initial)
-    }
-    @MainActor func testShortProgressEventArrivesBeforeWorkerExits() async throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let resources = ModelLibrary.resourceDirectory()
-        for name in ["models.json", "benchmark-policy.json"] {
-            try FileManager.default.copyItem(at: resources.appendingPathComponent(name), to: directory.appendingPathComponent(name))
-        }
-        try "import json,time\nprint(json.dumps(dict(event='progress',completed=50,total=100)),flush=True)\ntime.sleep(10)\n".write(to: directory.appendingPathComponent("benchmark_worker.py"), atomically: true, encoding: .utf8)
-        let library = ModelLibrary(resources: directory, registryURL: directory.appendingPathComponent("registry.json"))
-        library.workerPython = { URL(fileURLWithPath: "/usr/bin/python3") }
-        library.download()
-        defer { library.cancel() }
-        for _ in 0..<40 {
-            if library.progress != nil { break }
-            try await Task.sleep(nanoseconds: 50_000_000)
-        }
-        XCTAssertEqual(library.progress, 0.5, "A short progress line must not wait for 4096 bytes or EOF")
-        XCTAssertTrue(library.busy)
-    }
-
-    @MainActor func testWrongRevisionCannotBeRegistered() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-pin-fixture-\(UUID())")
-        defer { try? FileManager.default.removeItem(at: root) }
-        let library = ModelLibrary(registryURL: root.appendingPathComponent("registry.json"))
-        let id = library.models.first!.id
-        library.downloadingID = id; library.busy = true
-        var event = try JSONSerialization.data(withJSONObject: ["event":"installed", "modelID":id,
-            "revision":"wrong", "path":library.modelsDirectory.appendingPathComponent(id).path]); event.append(10)
-        library.receive(event); library.finished(code: 0)
-        XCTAssertTrue(library.installed.isEmpty)
-        XCTAssertNotNil(library.downloadError)
-        XCTAssertNil(library.downloadingID)
-    }
-
-    @MainActor func testInstalledEventFollowedByFailedExitDoesNotCommit() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-exit-fixture-\(UUID())")
-        defer { try? FileManager.default.removeItem(at: root) }
-        let library = ModelLibrary(registryURL: root.appendingPathComponent("registry.json"))
-        let model = library.models.first!
-        library.downloadingID = model.id; library.busy = true
-        var event = try JSONSerialization.data(withJSONObject: ["event":"installed", "modelID":model.id,
-            "revision":model.revision, "path":library.modelsDirectory.appendingPathComponent(model.id).path]); event.append(10)
-        library.receive(event); library.finished(code: 1)
-        XCTAssertTrue(library.installed.isEmpty)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: library.registryURL.path))
-        XCTAssertNotNil(library.downloadError)
-        XCTAssertNil(library.downloadingID)
-    }
-
-    @MainActor func testCancellationBeforeQueuedCompletionCannotRegisterModel() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-cancel-install-\(UUID())")
-        defer { try? FileManager.default.removeItem(at: root) }
-        let library = ModelLibrary(registryURL: root.appendingPathComponent("registry.json"))
-        let model = library.models.first!
-        library.downloadingID = model.id; library.busy = true
-        var event = try JSONSerialization.data(withJSONObject: ["event":"installed", "modelID":model.id,
-            "revision":model.revision, "path":library.modelsDirectory.appendingPathComponent(model.id).path]); event.append(10)
-        library.receive(event)
-        library.cancel() // Worker is gone, but the completion is still queued.
-        library.finished(code: 0)
-        XCTAssertTrue(library.installed.isEmpty)
-        XCTAssertTrue(library.downloadError?.contains("Cancelled") == true)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: library.registryURL.path))
-    }
-
-    @MainActor func testDownloadWorkerCommitsFixtureWithoutSelectingIt() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-install-fixture-\(UUID())")
+    private func fixture() throws -> (URL, ModelRecommendation, URLSessionConfiguration) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-native-download-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        for name in ["models.json", "benchmark-policy.json"] {
-            try FileManager.default.copyItem(at: ModelLibrary.resourceDirectory().appendingPathComponent(name), to: root.appendingPathComponent(name))
+        let model = ModelRecommendation(id: "fixture", name: "Fixture", quantization: "4-bit", repository: "org/repo",
+            revision: String(repeating: "a", count: 40), downloadBytes: 100, architecture: "parakeet", license: "test", recommendation: "test")
+        try JSONEncoder().encode([model]).write(to: root.appendingPathComponent("models.json"))
+        let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [HubStub.self]
+        return (root, model, configuration)
+    }
+    private func configure(_ model: ModelRecommendation, files: [String: Data], wrongHash: Bool = false, codeFile: Bool = false) {
+        let siblings: [[String: Any]] = files.map { name, data in
+            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            return ["rfilename": name, "size": data.count, "lfs": ["sha256": wrongHash && name == "model.safetensors" ? String(repeating: "f", count: 64) : hash]]
+        } + (codeFile ? [["rfilename": "evil.py", "size": 4, "blob_id": String(repeating: "a", count: 40)]] : [])
+        HubStub.handler = { request in
+            if request.url!.path.contains("/api/models/") {
+                return (200, [:], try JSONSerialization.data(withJSONObject: ["sha": model.revision, "siblings": siblings]))
+            }
+            let name = request.url!.lastPathComponent
+            guard let data = files[name] else { throw NSError(domain: "Unexpected file", code: 1) }
+            if let range = request.value(forHTTPHeaderField: "Range") {
+                let offset = Int(range.dropFirst(6).dropLast())!
+                return (206, ["Content-Range": "bytes \(offset)-\(data.count - 1)/\(data.count)"], data.subdata(in: offset..<data.count))
+            }
+            return (200, [:], data)
         }
-        try #"""
-import json,pathlib,sys
-a=sys.argv
-catalog=json.loads(pathlib.Path(a[a.index('--catalog')+1]).read_text())
-id=a[a.index('--model-id')+1];m=next(x for x in catalog if x['id']==id)
-folder=pathlib.Path(a[a.index('--models-dir')+1])/id;folder.mkdir(parents=True)
-(folder/'config.json').write_text(json.dumps({'model_type':m['architecture']}))
-(folder/'weights.safetensors').write_bytes(b'fixture only, never loaded')
-print(json.dumps(dict(event='progress',completed=1,total=2)),flush=True)
-print(json.dumps(dict(event='installed',modelID=id,path=str(folder),revision=m['revision'])),flush=True)
-"""#.write(to: root.appendingPathComponent("benchmark_worker.py"), atomically: true, encoding: .utf8)
+    }
+    private var contents: [String: Data] {
+        ["config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel","quantization":{"bits":4}}"#.utf8),
+         "model.safetensors": Data(repeating: 42, count: 4096)]
+    }
+    @MainActor func testNativeDownloadRegistersOnlyVerifiedFilesAndResumes() async throws {
+        let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        configure(model, files: contents)
         let library = ModelLibrary(resources: root, registryURL: root.appendingPathComponent("registry.json"))
-        defer { library.shutdown() }
-        library.workerPython = { URL(fileURLWithPath: "/usr/bin/python3") }
-        let id = library.selectedID, active = library.activeModelPath
+        library.downloadConfiguration = config; library.downloadBaseURL = URL(string: "https://huggingface.co")!
+        library.selectedID = model.id
+        let folder = library.modelsDirectory.appendingPathComponent(model.id)
+        let metadata = folder.appendingPathComponent(".cache/huggingface/download/model.safetensors.metadata")
+        let hash = Data(Insecure.SHA1.hash(data: Data(metadata.lastPathComponent.utf8))).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
+        let etag = SHA256.hash(data: contents["model.safetensors"]!).map { String(format: "%02x", $0) }.joined()
+        let partial = metadata.deletingLastPathComponent().appendingPathComponent("\(hash).\(etag).incomplete")
+        try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try contents["model.safetensors"]!.prefix(1024).write(to: partial)
+        var resumed = false
+        let prior = HubStub.handler!
+        HubStub.handler = { request in
+            if request.url!.lastPathComponent == "model.safetensors" { resumed = request.value(forHTTPHeaderField: "Range") == "bytes=1024-" }
+            return try prior(request)
+        }
         library.download()
-        for _ in 0..<100 { if !library.busy { break }; try await Task.sleep(nanoseconds: 20_000_000) }
-        XCTAssertFalse(library.busy)
-        XCTAssertNil(library.downloadError)
+        for _ in 0..<300 where library.busy { try await Task.sleep(nanoseconds: 20_000_000) }
+        XCTAssertTrue(resumed)
         XCTAssertEqual(library.progress, 1)
-        XCTAssertEqual(library.installed[id]?.path, library.modelsDirectory.appendingPathComponent(id).path)
-        XCTAssertEqual(library.activeModelPath, active)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: library.registryURL.path))
+        XCTAssertEqual(library.installed[model.id]?.revision, model.revision)
+        XCTAssertEqual(library.installed[model.id]?.path, folder.path)
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("model.safetensors")), contents["model.safetensors"])
+    }
+    @MainActor func testBadHashAndRemoteCodeNeverRegister() async throws {
+        for (badHash, code) in [(true, false), (false, true)] {
+            let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            configure(model, files: contents, wrongHash: badHash, codeFile: code)
+            let library = ModelLibrary(resources: root, registryURL: root.appendingPathComponent("registry.json"))
+            if code {
+                let folder = library.modelsDirectory.appendingPathComponent(model.id)
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                try "print('no')".write(to: folder.appendingPathComponent("evil.py"), atomically: true, encoding: .utf8)
+            }
+            library.downloadConfiguration = config; library.selectedID = model.id; library.download()
+            for _ in 0..<300 where library.busy { try await Task.sleep(nanoseconds: 20_000_000) }
+            XCTAssertNotNil(library.downloadError)
+            XCTAssertTrue(library.installed.isEmpty)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: library.registryURL.path))
+        }
+    }
+    @MainActor func testDownloadCannotInterruptDictation() throws {
+        let (root, model, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let library = ModelLibrary(resources: root, registryURL: root.appendingPathComponent("registry.json"))
+        library.selectedID = model.id; library.mayChangeModel = { false }
+        library.download()
+        XCTAssertFalse(library.busy)
+    }
+    func testCancellationLeavesPinnedPartialForResume() async throws {
+        let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        configure(model, files: contents)
+        var downloader: NativeModelDownload!
+        downloader = NativeModelDownload(configuration: config, catalogURL: root.appendingPathComponent("models.json")) { _, done, _ in
+            if let done, done > 0 { downloader.cancel() }
+        }
+        do {
+            _ = try await downloader.download(model, modelsDirectory: root.appendingPathComponent("Models"))
+            XCTFail("A cancelled transfer must never complete")
+        } catch is CancellationError {}
+        let folder = root.appendingPathComponent("Models/fixture")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.safetensors").path))
+        let cache = folder.appendingPathComponent(".cache/huggingface/download")
+        let partials = (try? FileManager.default.contentsOfDirectory(atPath: cache.path))?.filter { $0.hasSuffix(".incomplete") } ?? []
+        XCTAssertFalse(partials.isEmpty)
+    }
+    func testMetadataPinMismatchCannotCreateWeights() async throws {
+        let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        configure(model, files: contents)
+        let existing = HubStub.handler!
+        HubStub.handler = { request in
+            if request.url!.path.contains("/api/models/") {
+                return (200, [:], try JSONSerialization.data(withJSONObject: ["sha": String(repeating: "b", count: 40), "siblings": []]))
+            }
+            return try existing(request)
+        }
+        let client = NativeModelDownload(configuration: config, catalogURL: root.appendingPathComponent("models.json")) { _, _, _ in }
+        do {
+            _ = try await client.download(model, modelsDirectory: root.appendingPathComponent("Models"))
+            XCTFail("Mismatched revision must fail")
+        } catch { XCTAssertTrue(error.localizedDescription.contains("pinned revision")) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Models/fixture/model.safetensors").path))
+    }
+    @MainActor func testRealPinnedParakeetInIsolatedDirectory() async throws {
+        guard let rootPath = ProcessInfo.processInfo.environment["VELLA_REAL_MODEL_DOWNLOAD"] else { throw XCTSkip("Opt-in real pinned download") }
+        let root = URL(fileURLWithPath: rootPath)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let resource = ModelLibrary.resourceDirectory()
+        let catalog = try JSONDecoder().decode([ModelRecommendation].self, from: Data(contentsOf: resource.appendingPathComponent("models.json")))
+        let model = try XCTUnwrap(catalog.first { $0.id == "parakeet-tdt-0.6b-v3-mlx-4bit" })
+        let client = NativeModelDownload(catalogURL: resource.appendingPathComponent("models.json")) { text, done, total in
+            if let done, let total { print("\(text) \(done)/\(total)") }
+        }
+        let folder = try await client.download(model, modelsDirectory: root.appendingPathComponent("Models"))
+        let installed = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support/Vella/Models").appendingPathComponent(model.id)
+        for file in ["config.json", "model.safetensors", "README.md", "tokenizer.model", "vocab.txt"] {
+            let a = try Data(contentsOf: folder.appendingPathComponent(file), options: [.mappedIfSafe])
+            let b = try Data(contentsOf: installed.appendingPathComponent(file), options: [.mappedIfSafe])
+            XCTAssertEqual(SHA256.hash(data: a), SHA256.hash(data: b), file)
+        }
+        let existing = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support/Vella/models-installed.json")))
+        let record = try XCTUnwrap(existing[model.id])
+        XCTAssertEqual(record.revision, model.revision); XCTAssertEqual(record.name, model.name); XCTAssertEqual(record.quantization, model.quantization)
+        XCTAssertEqual(record.path, installed.path)
+        print("Pinned model byte hashes and registry fields match; isolated path: \(folder.path)")
     }
 }

@@ -71,7 +71,7 @@ final class CaptureRegressionTests: XCTestCase {
         let record = try RecordingSession(root: root(), config: config)
         let queue = StreamingPCMBuffer()
         let sink = try CaptureSink(session: record, onPCM: { queue.append($0) })
-        let backend = StreamingBackend()
+        let backend = StreamingBackend(helper: ProcessInfo.processInfo.environment["VELLA_TEST_STREAMING_HELPER"].map { URL(fileURLWithPath: $0) })
         defer { backend.shutdown() }
         let audio = try AVAudioFile(forReading: cwd.appendingPathComponent("Resources/Calibration/speech.wav"))
         let pcm = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: audio.processingFormat, frameCapacity: 1600))
@@ -111,7 +111,9 @@ final class CaptureRegressionTests: XCTestCase {
         let first = try XCTUnwrap(firstPartial, "No partial arrived before Finish")
         XCTAssertLessThan(first, Double(audio.length) / audio.fileFormat.sampleRate)
         let text = try await backend.finish(expectedFrames: queue.totalFrames)
-        XCTAssertFalse(text.isEmpty)
+        // Frozen public-clip Python and native packet replays agreed on this
+        // exact Nemotron 8-bit text (nemo8-float32-full, 260-123286-0000).
+        XCTAssertEqual(text, "Saturday August fifteenth the sea and broken all round.  No land in sight.")
         let actual = try saved(record)
         XCTAssertEqual(SHA256.hash(data: actual), SHA256.hash(data: expected))
         XCTAssertEqual(queue.totalFrames, actual.count / 4)

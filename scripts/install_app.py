@@ -1,7 +1,6 @@
 """Transactional per-user installation, called by install.sh after prerequisite checks."""
 import os
 import json
-import importlib.util
 import selectors
 import time
 import signal
@@ -68,18 +67,20 @@ def check_model_destination(destination, support):
                 raise ValueError(f'Linked/shared model asset preserved: {path}')
 
 
-def download_default(source, support, python, timeout=1800):
+def download_default(source, support, worker=None, timeout=1800):
     """Download only; caller owns transactional registration and selection.
 
     Safe isolated qualification: supply a temporary support directory and the
-    prepared runtime Python. This function never reads/writes user settings.
+    prepared native downloader. This function never reads/writes user settings.
     """
     catalog = source / 'Resources/models.json'
     entry = next(x for x in json.loads(catalog.read_text()) if x['id'] == DEFAULT_MODEL_ID)
     destination = support / 'Models' / entry['id']
     check_model_destination(destination, support)
-    worker = source / 'Resources/benchmark_worker.py'
-    args = [str(python), '-B', str(worker), 'download', '--catalog', str(catalog),
+    worker = pathlib.Path(worker) if worker else source / '.build/release/VellaModelTool'
+    if not worker.is_file():
+        raise ValueError('Native model downloader is missing from the prepared build')
+    args = [str(worker), 'download', '--catalog', str(catalog),
             '--model-id', entry['id'], '--models-dir', str(support / 'Models')]
     print(f"Installing recommended Parakeet Q4 ({entry['downloadBytes']/1_000_000:.0f} MB). "
           'No Hugging Face account is required. Interrupted downloads resume when you rerun the installer.', flush=True)
@@ -138,16 +139,8 @@ def download_default(source, support, python, timeout=1800):
                           ('path', str(destination))]):
         raise ValueError('Default model result does not match the pinned ID, revision and destination')
     check_model_destination(destination, support)
-    spec = importlib.util.spec_from_file_location('vella_download_validation', worker)
-    validation = importlib.util.module_from_spec(spec)
-    # Import without ever leaving bytecode in signed/bundled resources.
-    previous = sys.dont_write_bytecode
-    try:
-        sys.dont_write_bytecode = True
-        spec.loader.exec_module(validation)
-    finally:
-        sys.dont_write_bytecode = previous
-    validation.validate_model(destination, entry)
+    # VellaModelTool verifies each size/content hash and the local architecture,
+    # quantization, code policy before emitting installed and exiting zero.
     print('Parakeet Q4 download verified: 100%.', flush=True)
     return dict(path=str(destination), revision=entry['revision'], name=entry['name'],
                 quantization=entry['quantization'])
@@ -225,11 +218,7 @@ if apps.contains(where: { !$0.isTerminated }) { exit(1) }
         run(['codesign', '--verify', '--strict', str(replacement)])
         default = None
         if first_install:
-            prefix = 'Prepared Vella runtime: '
-            runtimes = [line[len(prefix):] for line in (prepared.stdout or '').splitlines() if line.startswith(prefix)]
-            if len(runtimes) != 1 or not pathlib.Path(runtimes[0]).is_file():
-                raise ValueError('Prepared runtime did not report one usable Python executable')
-            default = download_default(source, support, runtimes[0])
+            default = download_default(source, support)
         run([str(source / 'scripts/setup-backend.sh'), '--migrate-runtime'], cwd=source,
             env=dict(os.environ, VELLA_SUPPORT_DIR=str(support),
                      VELLA_INITIAL_MODEL=default['path'] if default else ''))

@@ -2,6 +2,14 @@ import XCTest
 @testable import VellaCore
 
 final class RecognitionModeTests: XCTestCase {
+    func testLegacyAndNewConfigurationsDoNotRequireRuntimePath() throws {
+        let current = try JSONDecoder().decode(Configuration.self, from: Data(#"{"model":"/dictation"}"#.utf8))
+        XCTAssertNoThrow(try current.validate())
+        XCTAssertEqual(current.executable, "")
+        let old = try JSONDecoder().decode(Configuration.self, from: Data(#"{"executable":"/old/Runtimes/python","model":"/dictation"}"#.utf8))
+        XCTAssertNoThrow(try old.validate())
+        XCTAssertEqual(old.executable, "/old/Runtimes/python")
+    }
     func testOldConfigurationDefaultsToDictation() throws {
         let config = try JSONDecoder().decode(Configuration.self, from: Data(#"{"executable":"/python","model":"/dictation"}"#.utf8))
         XCTAssertEqual(config.mode, .dictation)
