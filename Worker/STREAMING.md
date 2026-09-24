@@ -23,6 +23,8 @@ https://github.com/Blaizzy/mlx-audio-swift
   pending mel frames, `(56,3)` cache-aware conformer chunks, persistent RNNT token
   and LSTM state. No utterance waveform/token list is retained. Production keeps
   Float32 mel input, as Python does; upstream's blanket BF16 mel cast is bypassed.
+  Relative-position tables use Python's MLX Float32 operation sequence rather
+  than upstream CPU Float trigonometry; this fixes the observed BF16 word delay.
 - **Voxtral:** `VellaVoxtralSession` implements 1280-frame feed buffering, 64-token
   step yields, 480-ms delay, close plus at most 32 extra steps. It retains causal
   convolution, projection tail, absolute encoder and decoder positions and sliding
@@ -37,6 +39,12 @@ The upstream convenience sessions remain available in the model library but are
 points were removed. `fromDirectory` is the only model loading route used.
 
 ## Developer checks
+
+Current verification is limited to unit/protocol checks and at most 3–5 short
+public clips per model. `QA/streaming_smoke.py` enforces that limit and records
+only protocol/transcript correctness, not scores or timings. Corpus benchmark
+tools below are retained for later explicitly authorized manual use; they are
+not part of builds or automatic verification.
 
 CPU-only checks compile `StreamingSession.swift` with
 `QA/StreamingChecks.swift`. `QA/streaming_protocol_parity.py` compares the real
