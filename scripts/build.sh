@@ -26,8 +26,9 @@ fi
 if [[ "$IDENTITY" == "-" ]]; then
   echo 'Local ad-hoc build: replacing this build can invalidate macOS privacy permissions.' >&2
 fi
-"${PYTHON:-python3}" scripts/check_toolchain.py
+xcrun swift scripts/prepare-build.swift check
 xcrun swift build -c release
+[[ -x .build/release/VellaWorker ]] || { echo 'Native VellaWorker helper missing; build left installed app unchanged.' >&2; exit 1; }
 # Compile first, then close only this exact installed app before replacing files.
 RELAUNCH="$(VELLA_TARGET_APP="$APP" xcrun swift -e '
 import AppKit
@@ -56,6 +57,7 @@ print(apps.isEmpty ? "0" : "1")
 ')"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Vella "$APP/Contents/MacOS/Vella"
+cp .build/release/VellaWorker .build/release/VellaModelTool "$APP/Contents/MacOS/"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 if [[ -n "${VELLA_BUILD_VERSION:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VELLA_BUILD_VERSION" "$APP/Contents/Info.plist"
@@ -66,28 +68,18 @@ fi
 if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $VELLA_BUNDLE_ID" "$APP/Contents/Info.plist"
 fi
-cp scripts/setup-backend.sh "$APP/Contents/Resources/"
-cp Resources/models.json Resources/benchmark-policy.json Resources/benchmark_worker.py Resources/formatting_metrics.py Resources/AGENT_GUIDE.md "$APP/Contents/Resources/"
-cp Resources/calibration_worker.py Resources/inference_worker.py Resources/runtime-requirements.txt "$APP/Contents/Resources/"
-cp Resources/streaming_worker.py Resources/streaming-models.json "$APP/Contents/Resources/"
+cp Resources/models.json Resources/benchmark-policy.json Resources/AGENT_GUIDE.md "$APP/Contents/Resources/"
+cp Resources/streaming-models.json "$APP/Contents/Resources/"
+# Existing streaming reference records are hash-sealed to this historical source.
+# Bundled as read-only provenance only; the native app never launches it.
+cp Resources/streaming_worker.py "$APP/Contents/Resources/"
 mkdir -p "$APP/Contents/Resources/Calibration"
 cp Resources/Calibration/manifest.json Resources/Calibration/text.txt Resources/Calibration/speech.wav Resources/Calibration/ATTRIBUTION.md Resources/Calibration/LICENSE-CC-BY-4.0.txt "$APP/Contents/Resources/Calibration/"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 # Only compact table measurements ship. Source benchmark audio/raw transcripts stay in the repo.
 # Remove generated copies left by earlier installers, not any source or user recordings.
 rm -rf "$APP/Contents/Resources/Benchmarks" "$APP/Contents/Resources/ReferenceResults"
-"${PYTHON:-python3}" - "$APP/Contents/Resources/ReferenceResults" <<'PYDATA'
-import json, pathlib, sys
-out = pathlib.Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
-policy = json.loads(pathlib.Path('Resources/benchmark-policy.json').read_text())
-for path in pathlib.Path('Resources/ReferenceResults').glob('*.json'):
-    value = json.loads(path.read_text())
-    if value['suiteID'] != policy['suiteID'] or value['suiteHash'] != policy['suiteHash'] or value['repeats'] < policy['minimumRepeats']: continue
-    if policy.get('scorerSHA256') and value.get('formatting', {}).get('scorerSHA256') != policy['scorerSHA256']: continue
-    if policy.get('lexicalNormalizerSHA256') and value.get('formatting', {}).get('lexicalNormalizerSHA256') != policy['lexicalNormalizerSHA256']: continue
-    value['clips'] = []
-    (out/path.name).write_text(json.dumps(value, separators=(',', ':')) + '\n')
-PYDATA
+xcrun swift scripts/prepare-build.swift compact "$APP/Contents/Resources/ReferenceResults"
 ICONSET="$PWD/.build/Vella.iconset"
 mkdir -p "$ICONSET"
 xcrun swift scripts/icon.swift "$PWD/.build/icon.png"
@@ -97,8 +89,7 @@ for size in 16 32 128 256 512; do
   sips -z "$double" "$double" .build/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vella.icns"
-# Generated Python caches are not app resources. Workers must not mutate the seal.
-find "$APP/Contents/Resources" -type d -name __pycache__ -prune -exec rm -rf {} +
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaModelTool"
 codesign --force --sign "$IDENTITY" "$APP"
 codesign --verify --strict "$APP"
 if [[ "${VELLA_REGISTER_APP:-1}" == "1" ]]; then
