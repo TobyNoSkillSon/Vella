@@ -14,6 +14,8 @@ enum FastPathGate {
     static let version = "native-kernels-7"
     /// Child exit status when the self-test could not start (not a verdict on the kernels).
     static let inconclusive: Int32 = 3
+    /// Child exit status for evidence against the optimized path.
+    static let verdictFailed: Int32 = 2
     private static func debug(_ line: String) {
         guard let path = ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"], path.hasPrefix("/") else { return }
         guard let handle = FileHandle(forWritingAtPath: path) else { return }
@@ -71,12 +73,22 @@ enum FastPathGate {
     }
 
     static func statusURL(_ path: URL, revision: String) throws -> URL { storage().appendingPathComponent(try key(path, revision: revision) + ".json") }
-    static func status(_ url: URL) -> String? {
+    static func status(_ url: URL) -> String? { record(url)?["status"] }
+    private static func record(_ url: URL) -> [String: String]? {
         guard let bytes = try? Data(contentsOf: url), let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: String] else { return nil }
-        return object["status"]
+        return object
     }
-    static func persist(_ value: String, to url: URL) {
-        guard let data = try? JSONSerialization.data(withJSONObject: ["status": value, "workerVersion": version]) else { return }
+    /// Consecutive inconclusive self-tests recorded for this key (0 when none).
+    static func inconclusiveCount(_ url: URL) -> Int {
+        guard let object = record(url), object["status"] == "inconclusive" else { return 0 }
+        return Int(object["count"] ?? "") ?? 0
+    }
+    /// After this many consecutive inconclusive self-tests for one key, the key is persisted as stock.
+    static let inconclusiveLimit = 2
+    static func persist(_ value: String, to url: URL, count: Int? = nil) {
+        var object = ["status": value, "workerVersion": version]
+        if let count { object["count"] = String(count) }
+        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: url, options: .atomic)
     }
@@ -92,7 +104,8 @@ enum FastPathGate {
         guard let url = try? statusURL(path, revision: type.fastPathRevision) else {
             return .stock("The optimized path could not be qualified for these model files.")
         }
-        if let previous = status(url) {
+        // "inconclusive" is not a verdict: the self-test runs again.
+        if let previous = status(url), previous != "inconclusive" {
             return previous == "fast" ? .fast : .stock("The optimized path failed its self-test against stock MLX on this Mac.")
         }
         guard gpuFamily == "apple9" else {
@@ -111,7 +124,7 @@ enum FastPathGate {
         let exited = DispatchSemaphore(value: 0)
         process.terminationHandler = { _ in exited.signal() }
         let failed = Verdict.stock("The optimized path failed its self-test against stock MLX on this Mac.")
-        do { try process.run() } catch { persist("stock", to: url); return failed }
+        do { try process.run() } catch { return recordInconclusive(url) }
         if exited.wait(timeout: .now() + 45) == .timedOut {
             process.terminate()
             if exited.wait(timeout: .now() + 2) == .timedOut {
@@ -121,17 +134,27 @@ enum FastPathGate {
             persist("stock", to: url)
             return .stock("The optimized path's self-test did not finish within 45 s on this Mac.")
         }
-        let success = process.terminationStatus == 0
         debug("self-test child exit \(process.terminationStatus) reason \(process.terminationReason.rawValue)")
-        // Could not load the model in the child: stock for this load only; the test runs again next load.
-        // A mismatch, non-finite output, kernel error, crash or hang stays sticky.
-        if process.terminationReason == .exit && process.terminationStatus == inconclusive {
-            return .stock("The optimized path's self-test could not run on this load; using stock MLX.")
+        // Verdicts are exit 0 (token-exact, finite on every clip) and exit 2 (mismatch, non-finite output or a kernel
+        // error). A timeout above is evidence too. Anything else (setup failure, crash, unexplained status) is
+        // inconclusive: stock for this load, retried next load, persisted as stock after two in a row.
+        guard process.terminationReason == .exit, [0, verdictFailed].contains(process.terminationStatus) else {
+            return recordInconclusive(url)
         }
+        let success = process.terminationStatus == 0
         persist(success ? "fast" : "stock", to: url)
         // If persistence failed, don't enable a path that won't be tested on restart.
         guard success else { return failed }
         return status(url) == "fast" ? .fast : .stock("The self-test result could not be saved, so the optimized path stays off.")
+    }
+    private static func recordInconclusive(_ url: URL) -> Verdict {
+        let count = inconclusiveCount(url) + 1
+        if count >= inconclusiveLimit {
+            persist("stock", to: url)
+            return .stock("The optimized path's self-test could not complete on this Mac \(count) times in a row; using stock MLX.")
+        }
+        persist("inconclusive", to: url, count: count)
+        return .stock("The optimized path's self-test could not complete on this load; using stock MLX and testing again next load.")
     }
 
     /// Child process: stock and fast must emit identical, non-empty, finite token IDs on every clip.

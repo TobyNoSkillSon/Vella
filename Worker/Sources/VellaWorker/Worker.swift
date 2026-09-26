@@ -16,6 +16,13 @@ import MLXAudioSTT
             let values = Array(CommandLine.arguments.dropFirst(2))
             guard values.count == 2, values[0] == "--model", let path = try? localPath(values[1]),
                   let architecture = try? admit(path), Worker.fastPathType(architecture) != nil else { exit(FastPathGate.inconclusive) }
+            // Test hook (reported in status): an unexplained child exit, or evidence against the fast path.
+            switch ProcessInfo.processInfo.environment["VELLA_TEST_SELFTEST_FAULT"] {
+            case "crash": abort()
+            case "exit": exit(9)
+            case "mismatch": exit(FastPathGate.verdictFailed)
+            default: break
+            }
             let passed: Bool
             do {
                 let worker = Worker()
@@ -29,7 +36,7 @@ import MLXAudioSTT
                 }
                 passed = false
             }
-            exit(passed ? 0 : 2)
+            exit(passed ? 0 : FastPathGate.verdictFailed)
         }
         if CommandLine.arguments.dropFirst().first == "calibrate" {
             let status = await CalibrationCommand.run(arguments: Array(CommandLine.arguments.dropFirst(2)), output: output)
@@ -271,7 +278,7 @@ final class Worker {
         return ["chip": chip, "family": FastPathGate.gpuFamily]
     }()
     static let hookNames = ["VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
-                            "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR", "VELLA_SUPPORT_DIR"]
+                            "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR", "VELLA_SUPPORT_DIR"]
     func status(_ event: String) -> [String: Any] {
         let hooks = ProcessInfo.processInfo.environment.filter { Self.hookNames.contains($0.key) && !$0.value.isEmpty }
         var memory: [String: Any] = ["mlx_active_mb": Double(Memory.activeMemory) / 1e6, "mlx_cache_mb": Double(Memory.cacheMemory) / 1e6]
