@@ -401,6 +401,9 @@ public class Qwen3ASRAudioEncoder: Module {
     @ModuleInfo(key: "proj2") var proj2: Linear
 
     let positionalEmbedding: Qwen3ASRSinusoidalPE
+    /// Dtype the transformer layers run in; nil = whatever the input promotes them to (the f32 log-mel makes that
+    /// f32). The optimized path sets the checkpoint's dtype (BF16), like the original PyTorch model.
+    var layerDType: DType?
 
     public init(_ config: Qwen3AudioEncoderConfig) {
         self.config = config
@@ -615,6 +618,7 @@ public class Qwen3ASRAudioEncoder: Module {
 
                 // [batchLen, windowLen, d_model] — full self-attention within each window
                 var batch = MLX.stacked(batchItems.map { $0.data }, axis: 0)
+                if let layerDType { batch = batch.asType(layerDType) }
                 for layer in layers {
                     batch = layer(batch, mask: nil)
                 }
@@ -718,6 +722,7 @@ public class Qwen3ASRAudioEncoder: Module {
 
         // Self-attention across the full window (no cross-window mask needed)
         hiddenStates = hiddenStates.expandedDimensions(axis: 0)  // [1, totalTokens, dModel]
+        if let layerDType { hiddenStates = hiddenStates.asType(layerDType) }
         for layer in layers {
             hiddenStates = layer(hiddenStates, mask: nil)
         }
@@ -1231,7 +1236,9 @@ public class Qwen3ASRModel: Module {
     public var profile = Profile()
     nonisolated(unsafe) static var encoderClock: (conv: Double, layers: Double) = (0, 0)
     /// Optimized path (FastPathCapable, off after load; the worker enables it once the gate qualified it).
-    /// decoder: pipelined greedy decode. encoder: audio tower held in f32.
+    /// decoder: pipelined greedy decode. encoder: audio transformer in BF16 like the original PyTorch model (default),
+    /// or with VELLA_QWEN_ENC_BF16=0 the audio tower held in f32 (the stock numerics without per-call weight casts).
+    public static let bf16Encoder = ProcessInfo.processInfo.environment["VELLA_QWEN_ENC_BF16"] != "0"
     public private(set) var fastDecode = false
     public private(set) var fastEncoder = false
     private var towerCheckpointDType: DType?
@@ -1970,29 +1977,45 @@ public class Qwen3ASRModel: Module {
 // MARK: - Optimized path
 
 extension Qwen3ASRModel: FastPathCapable {
-    public static var fastPathRevision: String { "qwen3-asr-1" }
+    /// r2: the encoder component is the BF16 audio transformer and the self-test's reference encodes in BF16 too.
+    /// VELLA_QWEN_ENC_BF16=0 keeps r1 (f32 tower, token-exact against f32 stock), so its old verdicts still apply.
+    public static var fastPathRevision: String { bf16Encoder ? "qwen3-asr-2-bf16-encoder" : "qwen3-asr-1" }
+
+    /// The floating dtype of the checkpoint's audio transformer (BF16 for every published Qwen3-ASR), nil for f32.
+    var towerHalfDType: DType? {
+        let dtypes = Set(audioTower.layers.flatMap { $0.parameters().flattened().map(\.1.dtype) })
+        return dtypes.contains(.bfloat16) ? .bfloat16 : dtypes.contains(.float16) ? .float16 : nil
+    }
 
     /// decoder: build step N+1 from the lazy token N before reading it (same kernels, token-exact).
-    /// encoder: the f32 log-mel promotes the audio tower to f32, and MLX re-casts every bf16 weight inside
-    /// every call; holding the tower in f32 runs the identical f32 graph without those casts
-    /// (bit-identical, +2 bytes/param resident, MLX peak unchanged). Disabling casts back exactly.
+    /// encoder (default): the f32 log-mel promotes the audio tower to f32 and MLX re-casts every BF16 weight inside
+    /// every call. The original PyTorch model runs the tower in BF16; so does this component: the transformer
+    /// layers take their input in the checkpoint dtype, weights untouched (no extra memory). Its numerics differ
+    /// from the f32 stock path, so the parity reference is the BF16 encoder (Toby, 26 Sep 2026): the self-test's
+    /// stock run encodes in BF16 too and must match the fast run token for token (the decoder), finite.
+    /// encoder with VELLA_QWEN_ENC_BF16=0: hold the tower in f32, the identical f32 graph without those casts
+    /// (bit-identical, +2 bytes/param resident). Disabling restores the checkpoint dtype exactly either way.
     public func configureFastPath(enabled: Bool, component: String) -> Bool {
         let decoder = component == "both" || component == "decoder"
         let encoder = component == "both" || component == "encoder"
         guard decoder || encoder else { return false }
         if decoder { fastDecode = enabled }
         if encoder && enabled != fastEncoder {
-            let parameters = audioTower.parameters()
-            if enabled {
-                towerCheckpointDType = parameters.flattened().first { $0.1.dtype.isFloatingPoint }?.1.dtype
-                audioTower.update(parameters: parameters.mapValues {
-                    $0.dtype == .bfloat16 || $0.dtype == .float16 ? $0.asType(.float32) : $0
-                })
-            } else if let original = towerCheckpointDType, original != .float32 {
-                audioTower.update(parameters: parameters.mapValues { $0.dtype == .float32 ? $0.asType(original) : $0 })
+            if Qwen3ASRModel.bf16Encoder {
+                audioTower.layerDType = enabled ? towerHalfDType : nil
+            } else {
+                let parameters = audioTower.parameters()
+                if enabled {
+                    towerCheckpointDType = parameters.flattened().first { $0.1.dtype.isFloatingPoint }?.1.dtype
+                    audioTower.update(parameters: parameters.mapValues {
+                        $0.dtype == .bfloat16 || $0.dtype == .float16 ? $0.asType(.float32) : $0
+                    })
+                } else if let original = towerCheckpointDType, original != .float32 {
+                    audioTower.update(parameters: parameters.mapValues { $0.dtype == .float32 ? $0.asType(original) : $0 })
+                }
+                eval(audioTower)
+                Memory.clearCache()
             }
-            eval(audioTower)
-            Memory.clearCache()
             fastEncoder = enabled
             lastEncoderFinite = true
         }
@@ -2004,8 +2027,13 @@ extension Qwen3ASRModel: FastPathCapable {
 
     public var fastPathComponents: [String: Bool] { ["decoder": fastDecode, "encoder": fastEncoder] }
 
-    /// Greedy token IDs for a self-test clip (<= 30 s, one chunk), exactly as the worker transcribes.
+    /// Greedy token IDs for a self-test clip (<= 30 s, one chunk), exactly as the worker transcribes. With the BF16
+    /// encoder, the stock reference also encodes in BF16 (the parity reference), so the comparison is exact.
     public func qualificationTokens(audio: MLXArray) -> [Int] {
+        let reference = Qwen3ASRModel.bf16Encoder && !fastEncoder
+        let saved = audioTower.layerDType
+        if reference { audioTower.layerDType = towerHalfDType }
+        defer { if reference { audioTower.layerDType = saved } }
         _ = generate(audio: audio, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
         return lastTokens
     }
