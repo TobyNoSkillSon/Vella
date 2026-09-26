@@ -189,6 +189,16 @@ import VellaCore
         if (!active.isEmpty && folder.resolvingSymlinksInPath() == URL(fileURLWithPath: active).resolvingSymlinksInPath()) || path == activeModelPath {
             return "Switch to another model before deleting the one in use."
         }
+        // A selected precision made on this Mac reads these weights; deleting them would leave the selection pointing
+        // at a model that can no longer load.
+        let selections = Set(([active, activeModelPath] + protected).filter { !$0.isEmpty })
+        if selections.contains(where: { selection in
+            derivedModelManifest(at: URL(fileURLWithPath: selection)).map {
+                URL(fileURLWithPath: $0.source).resolvingSymlinksInPath() == folder.resolvingSymlinksInPath()
+            } ?? false
+        }) {
+            return "Switch to another model in that mode before deleting the weights its selected precision is made from."
+        }
         let root = registryURL.deletingLastPathComponent().appendingPathComponent("Models").standardizedFileURL
         guard !id.isEmpty, id != ".", id != "..", !id.contains("/"),
               folder == root.appendingPathComponent(id).standardizedFileURL,
