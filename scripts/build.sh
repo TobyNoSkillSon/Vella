@@ -36,6 +36,20 @@ WORKER_BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build --package-path Wor
 [[ -x "$WORKER_BIN/VellaWorker" && -x "$WORKER_BIN/VellaStreamingWorker" && -s "$WORKER_BIN/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]] || {
   echo 'Native workers or pinned MLX shaders missing; build left installed app unchanged.' >&2; exit 1;
 }
+# Xcode 27's Swift 6.4 emits borrow symbols the macOS 26 Swift runtime lacks; such binaries die in dyld.
+for binary in .build/release/Vella .build/release/VellaModelTool "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker"; do
+  if nm -u "$binary" | grep -Eq '_swift_(init|end)Borrow'; then
+    echo "Unsupported Swift runtime borrow symbol in $(basename "$binary"); build left installed app unchanged." >&2; exit 1
+  fi
+done
+# Smoke the helpers before touching the installed app: headless, answer on their pipe, exit on stdin EOF.
+SMOKE="$PWD/.build/helper-smoke"
+rm -rf "$SMOKE" && mkdir -p "$SMOKE/Vella.app/Contents/MacOS" "$SMOKE/Vella.app/Contents/Resources"
+cp Resources/Info.plist "$SMOKE/Vella.app/Contents/Info.plist"
+cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" "$SMOKE/Vella.app/Contents/MacOS/"
+cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$WORKER_BIN/VellaWorker_VellaWorker.bundle" "$SMOKE/Vella.app/Contents/Resources/"
+DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swiftc" -O -sdk "$CLT/SDKs/MacOSX.sdk" scripts/check-helpers.swift -o "$SMOKE/check-helpers" 2>/dev/null
+"$SMOKE/check-helpers" "$SMOKE/Vella.app" || { echo 'Helper smoke failed; build left installed app unchanged.' >&2; exit 1; }
 # Compile first, then close only this exact installed app before replacing files.
 RELAUNCH="$(VELLA_TARGET_APP="$APP" xcrun swift -e '
 import AppKit
@@ -111,7 +125,7 @@ codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Cont
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/VellaWorker_VellaWorker.bundle" 2>/dev/null || true
 codesign --force --sign "$IDENTITY" "$APP"
-codesign --verify --strict "$APP"
+codesign --verify --deep --strict "$APP"
 if [[ "${VELLA_REGISTER_APP:-1}" == "1" ]]; then
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
 fi
