@@ -13,195 +13,108 @@
 </p>
 
 <p align="center">
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#benchmarks">Benchmarks</a> ·
-  <a href="#questions">Questions</a> ·
+  <a href="#models">Models</a> ·
+  <a href="#the-app">The app</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#using-it">Using it</a> ·
+  <a href="#privacy">Privacy</a> ·
   <a href="docs/USAGE.md">User guide</a>
 </p>
 
-Vella lives in your menu bar. Insert a finished transcript or let words appear as you speak—with selectable local models and no audio uploads.
+**Vella is a menu-bar app that turns speech into text on your Mac, with nothing leaving it.** Press a shortcut, speak, press it again: Vella transcribes with a local model and pastes the text where you were typing. Or switch to Streaming and watch words appear as you speak. Models run natively on Apple's MLX in sandboxed helper processes that have no network access.
 
 <p align="center">
-  <img src="docs/images/recording-current.png" alt="Recording: Vella’s lavender waveform" width="320">
-  <img src="docs/images/transcribing-current.png" alt="Transcribing: Vella’s waveform with progress and estimated time remaining" width="320">
+  <img src="docs/images/recording-current.png" alt="Recording: Vella's lavender waveform" width="320">
+  <img src="docs/images/transcribing-current.png" alt="Transcribing: the waveform with progress and estimated time remaining" width="320">
 </p>
 
-*Captured from the current native interface using sample recording and progress states.*
+- **Two ways to dictate.** Dictation inserts the transcript after you finish; Streaming types words as they are recognized.
+- **Your recording is never lost.** Audio is written to disk as you speak. If transcription fails, or no model is installed yet, the recording waits and can be transcribed or retried later.
+- **No automatic Send.** Vella inserts text; it never presses Enter.
+- **Measured, not claimed.** Every accuracy, speed, energy and memory figure in the app comes from a benchmark run on real hardware, with its date. Anything not measured shows `—`.
 
-- **Two ways to dictate.** Insert after Finish, or stream text as you speak.
-- **Choose your model.** Keep different local models for Dictation and Streaming.
-- **Recover your work.** Audio and transcripts are saved locally; retry failed transcription from the recording.
-- **No automatic Send.** Vella inserts text, never presses Enter or sends the message.
+## Models
+
+Vella offers a small set of open speech-recognition models, chosen for accuracy per joule: Macs run on batteries and power limits, so a model that is slightly more accurate but several times hungrier is not offered. Each model can run at the precisions its weights allow (for example `4b`, `8b`, `BF16`), never quantized below 4 bits.
+
+<!-- BENCHMARK_TABLE_START -->
+
+Measurements for this version are in progress; until they are published here, the app shows `—` for unmeasured figures.
+
+<!-- BENCHMARK_TABLE_END -->
+
+- **WER** is word error rate: wrong, missing or extra words, ignoring case and punctuation. **Format** is character error rate with case and punctuation kept: how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
+- **Speed** is audio length divided by transcription time after the model is loaded: 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Memory** is the loaded model's footprint.
+- **Recommended precision.** A model loads at its recommended precision unless you pick another: among its measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest energy per minute of audio (ties: faster, then more bits).
+- Figures were measured on an Apple M5 Max. On other Macs, speed, energy and memory differ; accuracy does not. The table says so on other chips.
+
+Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json).
+
+## The app
+
+Everything lives in the menu: the status line, **Mode · Microphone · Shortcuts**, then **Models… · Keep Hot · Memory**, then your last transcript, files and **Launch at Login**.
+
+**A fresh install downloads and loads nothing.** The first time you dictate without a model, Vella keeps the recording and shows one **Get <model> (<size>)** item for the recommended model; when the download finishes, it transcribes the waiting recording. **Models…** does the same ahead of time.
+
+**Models…** opens one table with Dictation and Streaming sections. Pick a precision in a row's segmented control; the recommended one is green. Selecting another precision shows its figures against the recommended one and reloads nothing; on a loaded model the button becomes a green **Reload**, which applies it. **Get** downloads, **Load** keeps a model ready, **Unload** frees its memory, and the trash icon deletes its weights.
+
+**Engine.** Under a loaded model's name, **Optimized · <your chip>** means Vella's optimized kernels passed a self-test against the stock path on this Mac when the model loaded. **MLX** means the stock MLX path: the same model, slower. If the optimized path fails during a transcription, Vella redoes that transcription on the stock path and keeps the model there until it is reloaded.
+
+**Keep Hot** sets how long an idle model stays loaded, timed per model from its last use:
+
+| | Loaded how | Idle window | Next launch |
+|---|---|---|---|
+| **Manually loaded** | **Load** or **Reload** in the table | Always (default), 5, 15, 30 or 60 min | Loaded again |
+| **Loaded on demand** | A dictation needed a model that was not loaded | 15 min (default), 5, 30, 60 min or Always | Not loaded |
+
+**Memory → Fit in free memory**, the default, checks before each load that the model fits in memory macOS can hand out without swapping. If it does not, Vella unloads idle models to make room (on-demand ones first, least recently used first) or refuses the load and says how much it needs, how much is free and what to do. The check is best effort at load time, not a guarantee. **Allow swap (slower)** skips it.
 
 ## Install
 
-**Apple Silicon · macOS 14 or newer · Beta**
+Apple Silicon, macOS 14 or newer. The prebuilt app needs no Xcode, Python or developer account.
 
 ```sh
-curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
+git clone https://github.com/TobyNoSkillSon/Vella && cd Vella
+scripts/install.sh
 ```
 
-Builds Vella into `~/Applications` using Apple's free Command Line Tools and Python 3.12–3.14. If a prerequisite is missing, the installer explains what to install. A new installation downloads **Parakeet Q4 (~637 MB)**; existing models and settings are preserved. No paid developer membership is needed.
+`scripts/install.sh` downloads the prebuilt app for this version with curl, checks its SHA-256 and code signature, installs it in `~/Applications`, starts it, and waits until it is ready. It prints a few short lines and ends with `ready: …`. Coding agents can follow [AGENTS.md](AGENTS.md).
 
-Open Vella, approve Microphone and Accessibility access, then press **Control + Command + N** to start. Press again to finish.
+Open Vella from the menu bar, approve Microphone and Accessibility access, and press **Control + Command + N** to start dictating. Press it again to finish.
 
 <details>
-<summary>Updating an existing installation</summary>
+<summary>Updating, verification and uninstalling</summary>
 
-Finish any recording or transcription first, then rerun the command above. The stable URL currently serves **v0.8.8** and may advance after a future verified release. Models, recordings and settings are preserved. You may need to approve macOS permissions again after an update.
+**Updating.** `git pull && scripts/install.sh`. Models, recordings and settings are kept. The installer refuses while Vella is recording, transcribing or loading a model ("try again in a moment"); otherwise it quits Vella, swaps the app in place and restarts it. The previous app is kept until the new one reports ready, and restored if the swap fails. A certificate-signed installation is only replaced by an app with the same signing identity, so macOS privacy permissions carry over.
 
-Vella checks for a newer stable release after use, at most once per calendar day, and links to its release page. It never installs updates automatically.
+**Verification.** `scripts/install-release.sh <version> --dry-run` downloads and verifies a release without installing it. The SHA-256 detects a corrupted download; it comes from the same release, so it is not a signature. Download releases with the installer, not a browser: a browser adds the quarantine flag, and Gatekeeper then blocks the app.
 
-[Releases](https://github.com/TobyNoSkillSon/Vella/releases) · [Installer details and verification limits](docs/USAGE.md)
+**Uninstalling.** Quit Vella and move `~/Applications/Vella.app` to the Trash. Models, settings and recordings stay in `~/Library/Application Support/Vella`; delete that folder too if you want them gone.
 
 </details>
 
-## How it works
+## Using it
 
 | Mode | What happens |
 |---|---|
-| **Dictation** | Speak, click your destination field, then finish. Vella transcribes and pastes there. If focus changes before insertion, the text stays on your clipboard instead. |
-| **Streaming** | Text appears as it is recognized, wherever keyboard focus is. Pending words follow focus when you switch fields. Pause speech or close the microphone while navigating. |
+| **Dictation** | Speak, click the field you want the text in, then finish. Vella transcribes and pastes there. If focus changed before insertion, the text goes to the clipboard instead. |
+| **Streaming** | Text appears as it is recognized, wherever keyboard focus is. Pause speaking while you move between fields. |
 
-Choose **Mode**, then open **Models** to install and select a model for that mode. Streaming needs a supported Streaming model; **Nemotron 8-bit** is the starting choice.
+**Shortcuts** (below **Microphone**) sets the key chord, a single modifier key or a mouse button, and **Toggle**, **Hold to Talk** or **Tap or Hold**. **Copy Last Transcript** recovers the most recent text; **Open Vella Files** shows saved recordings and transcripts. The [user guide](docs/USAGE.md) covers every menu item, recovery and troubleshooting.
 
-<p align="center">
-  <img src="docs/images/menu-current.png" alt="Current Vella menu: status with the selected model, then Mode, Microphone and Shortcuts" width="360">
-  <img src="docs/images/shortcuts-current.png" alt="Shortcuts menu with Toggle, Hold to Talk, Tap or Hold, key chords, modifier-only and mouse-button options" width="254">
-</p>
+## Privacy
 
-<p align="center">
-  <img src="docs/images/models-current.png" alt="Current Vella model picker with Parakeet Q4 selected and reference measurements" width="580">
-</p>
+Audio and transcripts never leave your Mac. The recognition helpers run in a sandbox that denies all network access. The only network traffic is model downloads from Hugging Face when you choose **Get**, and a once-a-day check for a newer release after a transcription (an ordinary GitHub request, no speech data). There is no telemetry. Apps you dictate into, clipboard managers and Universal Clipboard see the text you insert or copy.
 
-<p align="center">
-  <img src="docs/images/mouse-current.png" alt="Mouse-button menu with the red inline prompt to press side button 4 to confirm" width="452">
-</p>
+## Building from source
 
-Captured from current source with sample settings. The model table displays reference benchmarks, not measurements of your Mac. Shortcut customization is not included in the pinned v0.8.8 installer yet.
+```sh
+VELLA_BUILD=source scripts/install.sh    # build this checkout and install it
+scripts/build.sh                         # build dist/Vella.app only
+```
 
-<details>
-<summary>Custom shortcuts — available in source builds</summary>
+A source build needs the Command Line Tools Swift (`xcode-select --install`), full Xcode and its Metal Toolchain (`xcodebuild -downloadComponent MetalToolchain`); the installer checks each and prints the command that fixes a missing one. Swift compiles with the Command Line Tools and the MLX shaders with Xcode's Metal compiler. The app is a Swift menu-bar process (`Sources/Vella`) that supervises the recognition helpers (`Worker/`), one process per loaded model, and `VellaModelTool` for downloads. `xcrun swift test` runs the unit tests.
 
-The current source adds **Shortcuts** directly below **Microphone**. This is **not yet included in the pinned v0.8.8 installer**.
+## License
 
-Choose a key combination, a left/right modifier, or a middle/side mouse button. Keep **Toggle**, use **Hold to Talk**, or combine both with **Tap or Hold** (300 ms). The default remains **⌃⌘N · Toggle**.
-
-Mouse buttons are confirmed with one press and release in the menu; that click never starts recording. If Vella does not detect the requested button within 10 seconds, it keeps your previous shortcut. Fn and mouse-event delivery depend on your hardware and macOS configuration.
-
-[Shortcut behavior, confirmation and troubleshooting](docs/USAGE.md)
-
-</details>
-
-## Benchmarks
-
-**[Explore the interactive model comparison →](https://tobynoskillson.github.io/Vella/)**
-
-Sort by recognition error, speed or memory, and inspect the source measurements. The published runs use 144 English reading clips from 34 speakers on an **Apple M5 Max with 128 GiB RAM**. They are not a comparison against competing apps or a guarantee for noisy rooms and other languages.
-
-<details>
-<summary>Full measurements and test conditions</summary>
-
-**[Open the sortable benchmark table ↗](https://tobynoskillson.github.io/Vella/)**
-
-The two error columns answer different questions. **Lower is better for both.**
-
-- **Word-only error** (“Words” in the menu): how many words were wrong, missing or added. It ignores punctuation and capitals. This is word error rate, or WER.
-- **Full-text error** (“Text” in the menu): how closely the finished transcript matches the reference, **including punctuation and capitals**. It counts edits per character, not per word. This is character error rate, or CER.
-
-**Sorted by full-text error, lowest first**—the same default used in the app. That makes punctuation and capitalization part of the comparison, rather than ranking on word recognition alone.
-
-Recorded on **Apple M5 Max · 128 GiB RAM**, using 144 English reading clips from 34 speakers (20m 15s). ★ marks a Dictation recommendation. † marks a batch-benchmarked candidate outside the Dictation catalog; native Streaming measurements appear separately below.
-
-### Dictation / batch inference
-
-<!-- BENCHMARK_RESULTS_START -->
-
-| Model | Word-only error | Full-text error ↓ | Warm speed | Warm MLX memory |
-|---|---:|---:|---:|---:|
-| [Parakeet v3 4-bit](https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit) ★ | 1.54% | 1.77% | 233.7× | 1.34 GB |
-| [Parakeet v3 8-bit](https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit) | 1.60% | 1.85% | 237.4× | 1.61 GB |
-| [Qwen3 0.6B 4-bit](https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit) † | 1.54% | 2.07% | 88.6× | 1.93 GB |
-| [Qwen3 1.7B BF16](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-bf16) | 1.41% | 2.08% | 30.5× | 5.50 GB |
-| [Qwen3 1.7B 4-bit](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-4bit) ★ | 1.51% | 2.12% | 59.5× | 3.03 GB |
-| [Qwen3 1.7B 8-bit](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-8bit) | 1.57% | 2.14% | 44.5× | 3.89 GB |
-| [Nemotron 3.5 ASR 0.6B 8-bit](https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit) † | 2.64% | 2.53% | 52.9× | 0.99 GB |
-| [Voxtral Mini Realtime 4B 4-bit](https://huggingface.co/mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit) † | 2.26% | 2.57% | 5.1× | 5.94 GB |
-| [Whisper large-v3 8-bit](https://huggingface.co/mlx-community/whisper-large-v3-8bit) ★ | 2.60% | 4.50% | 21.0× | 2.52 GB |
-| [Granite 4.0 1B 4-bit](https://huggingface.co/mlx-community/granite-4.0-1b-speech-4bit) ★ | 1.29% | 4.61% | 44.1× | 7.64 GB |
-| [Granite 4.0 1B 8-bit](https://huggingface.co/mlx-community/granite-4.0-1b-speech-8bit) | 1.19% | 4.61% | 37.4× | 8.56 GB |
-| [Whisper large-v3 FP16](https://huggingface.co/mlx-community/whisper-large-v3-asr-fp16) | 2.82% | 4.76% | 19.7× | 4.03 GB |
-| [SenseVoice FP32](https://huggingface.co/mlx-community/SenseVoiceSmall) ★ | 2.45% | 5.05% | 631.6× | 1.79 GB |
-| [SenseVoice 4-bit](https://huggingface.co/vanch007/SenseVoiceSmall-4bit) | 3.45% | 5.40% | 582.3× | 0.88 GB |
-| [Granite Speech 5.0 TurboCTC 470M FP16](https://huggingface.co/iky1e/granite-speech-5.0-470m-turboctc-mlx-fp16) † | 3.70% | 5.87% | 654.0× | 1.59 GB |
-| [Whisper large-v3 4-bit](https://huggingface.co/mlx-community/whisper-large-v3-asr-4bit) | 4.14% | 6.30% | 22.2× | 1.75 GB |
-
-<!-- BENCHMARK_RESULTS_END -->
-
-Speed compares audio length with transcription time after the model is loaded; 60× means a minute of audio takes about a second of inference. Memory is the measured MLX allocation, **not total app memory**. Accuracy and speed use two passes per clip; memory was measured separately. These are clean-reading results, not a guarantee for every voice or noisy room.
-
-[Full measurements](Resources/ReferenceResults/) · [How the scores are calculated](Resources/benchmark-policy.json)
-
-### Streaming / native incremental input
-
-**The same 144 clips, audio hashes, references and scoring as the table above**, fed through Vella's actual streaming worker in 100-ms packets. Two timing passes per clip. Nemotron uses its supported 320-ms context; Voxtral uses a configured 480-ms delay. Neither setting is measured microphone-to-word latency.
-
-<!-- STREAMING_RESULTS_START -->
-
-| Model | Word-only error | Full-text error ↓ | Streaming compute speed | Warm MLX memory |
-|---|---:|---:|---:|---:|
-| [Nemotron 3.5 ASR 0.6B 8-bit](https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit) | 2.95% | 2.66% | 15.3× | 0.98 GB |
-| [Nemotron 3.5 ASR 0.6B BF16](https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b) | 2.86% | 2.66% | 8.1× | 2.22 GB |
-| [Voxtral Mini Realtime 4B 4-bit](https://huggingface.co/mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit) | 2.35% | 2.71% | 1.2× | 5.56 GB ‡ |
-
-<!-- STREAMING_RESULTS_END -->
-
-‡ Voxtral's warm MLX peak was measured during its completed two-pass timing run, not a separate memory profile. Nemotron memory uses separate full-suite one-pass measurements. All values are actual MLX allocation peaks, not total process RAM.
-
-On this corpus, Nemotron 8-bit is the efficient starting choice. BF16 changes a few words without lowering full-text error; Voxtral improves word recognition but runs only slightly faster than real time.
-
-Streaming speed is accelerated compute throughput, excluding loading, IPC and inter-clip reset—not how quickly words appear after you speak. Accuracy includes the normal streaming gate, partials and final flush; these are not the batch scores reused under another label. This clean-English corpus does not establish multilingual accuracy or day-long microphone endurance.
-
-The September 2026 VibeVoice streaming release and Moonshine v2 were screened but not benchmarked: Vella's pinned MLX runtime lacks their native input-streaming implementations. Moonshine's current official engine would require a separate runtime integration. No untested scores or placeholder model choices are included.
-
-</details>
-
-## Questions
-
-<details>
-<summary>Does Vella work without an internet connection?</summary>
-
-Yes, after the model and runtime downloads. Vella does not upload audio or transcripts. Model downloads and the release-update check use the network; the latter sends a normal GitHub HTTPS request, never speech data. Apps you dictate into may sync your text under their own settings. Clipboard managers and Universal Clipboard may also see copied or pasted text.
-
-</details>
-
-<details>
-<summary>Where are my recordings? What happens if transcription fails?</summary>
-
-Choose **Open Saved Recordings** in the menu. Vella retains audio and transcripts locally until you delete them, including after successful insertion. Genuine transcription failures can be retried from saved audio; recovery copies text to the clipboard instead of inserting it into an old destination.
-
-There is no recording timer, but available disk space limits recording length. Empty recognition is a normal successful result, not an automatic reason to retry.
-
-</details>
-
-<details>
-<summary>Why does it need Microphone and Accessibility access?</summary>
-
-Microphone access captures your voice. Accessibility lets Vella insert text into other apps and observe supported optional activation inputs. Text insertion depends on the target app; some terminals and custom editors behave differently. Vella never presses Enter or Send.
-
-</details>
-
-<details>
-<summary>How do I uninstall it?</summary>
-
-Quit Vella and move the app to Trash. Models, settings and recordings remain in `~/Library/Application Support/Vella`. Delete that folder separately only if you want to remove those files too.
-
-</details>
-
----
-
-[Support Vella](https://github.com/sponsors/TobyNoSkillSon) · [User guide](docs/USAGE.md) · [Model integration guide](Resources/AGENT_GUIDE.md) · [Report a bug](https://github.com/TobyNoSkillSon/Vella/issues) · [Releases](https://github.com/TobyNoSkillSon/Vella/releases) · [Apache 2.0 license](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
-
-<p align="center">
-  <a href="https://github.com/TobyNoSkillSon/Vella/actions/workflows/source-checks.yml"><img src="https://github.com/TobyNoSkillSon/Vella/actions/workflows/source-checks.yml/badge.svg" alt="Source checks"></a>
-</p>
+[Apache-2.0](LICENSE). Keep the [NOTICE](NOTICE) when you redistribute. Vella ships no model weights; each model's licence is shown in its table tooltip and in [`Resources/models.json`](Resources/models.json). The helpers include code adapted from mlx-audio-swift, mlx-audio and mlx-whisper (MIT) and link MLX and swift-transformers; [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) has each licence, and Vella.app carries it with LICENSE and NOTICE in `Contents/Resources`.
