@@ -7,7 +7,7 @@ import VellaCore
 @main struct VellaInstallTool {
     static let usage = """
     Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> [--keep-previous]
-           VellaInstallTool ready --app <installed Vella.app> --support <Vella support> [--timeout seconds] [--interval seconds]
+           VellaInstallTool ready --app <installed Vella.app> --support <Vella support> [--timeout seconds] [--interval seconds] [--settle seconds]
 
     """
     static func value(_ key: String, in args: [String]) -> String? {
@@ -39,10 +39,20 @@ import VellaCore
             let interval = value("--interval", in: args).flatMap(Double.init) ?? 5
             let file = support.appendingPathComponent(InstallReadiness.statusFileName)
             let deadline = Date().addingTimeInterval(timeout)
+            // A launch-set model failing with an error is accepted once it has stayed that way
+            // this long (the app retries a crashed worker 3 times within ~12 s).
+            let settle = value("--settle", in: args).flatMap(Double.init) ?? 60
             var state = InstallReadiness.State.waiting("not checked")
+            var failingSince: Date?
             repeat {
                 state = InstallReadiness.evaluate(status: try? Data(contentsOf: file)) { InstallReadiness.runs($0, app: app) }
-                if case .ready(let line) = state { print("ready: \(line)"); exit(0) }
+                switch state {
+                case .ready(let line): print("ready: \(line)"); exit(0)
+                case .failing(let reason):
+                    let since = failingSince ?? Date(); failingSince = since
+                    if Date().timeIntervalSince(since) >= settle { print("ready: Vella running, \(reason)"); exit(0) }
+                case .waiting: failingSince = nil
+                }
                 Thread.sleep(forTimeInterval: interval)
             } while Date() < deadline
             if case .waiting(let reason) = state {

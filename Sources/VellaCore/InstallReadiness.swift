@@ -4,23 +4,28 @@ import Darwin
 /// The installer's readiness rule, read from the app's `worker-status.json`:
 /// the running app wrote it (its pid is alive and is the installed app), nothing is
 /// loading, and every model in the launch set is loaded. A fresh install has an empty
-/// launch set, so it is ready with nothing loaded.
+/// launch set, so it is ready with nothing loaded. A launch-set model the app refused for
+/// memory counts as settled (ready, with the refusal); one that failed with an error is
+/// `.failing` so the caller can wait briefly for a restart before accepting it.
 public enum InstallReadiness {
     public static let statusFileName = "worker-status.json"
 
     public enum State: Equatable {
         case ready(String)
         case waiting(String)
+        case failing(String)
         public var isReady: Bool { if case .ready = self { return true }; return false }
     }
 
     struct Status: Decodable {
         struct Model: Decodable { let precision: String? }
+        struct Refusal: Decodable { let model: String?; let message: String? }
         let app_pid: Int32?
         let loading: String?
         let error: String?
         let models: [String: Model]?
         let launch_set: [String]?
+        let refused: Refusal?
     }
 
     /// `isInstalledApp(pid)`: the pid is alive and runs the installed app's executable.
@@ -32,8 +37,13 @@ public enum InstallReadiness {
         let models = status.models ?? [:]
         let missing = (status.launch_set ?? []).filter { models[$0] == nil }
         if !missing.isEmpty {
-            let reason = status.error.map { " (\($0))" } ?? ""
-            return .waiting("waiting for \(missing.joined(separator: ", ")) to load\(reason)")
+            let names = missing.joined(separator: ", ")
+            if let refusal = status.refused, let model = refusal.model, missing.contains(model) {
+                let rest = missing.filter { $0 != model }
+                if rest.isEmpty { return .ready("Vella running (pid \(pid)), \(model) not loaded: \(refusal.message ?? "refused")") }
+            }
+            if let error = status.error { return .failing("\(names) not loaded: \(error)") }
+            return .waiting("waiting for \(names) to load")
         }
         if models.isEmpty { return .ready("Vella running (pid \(pid)), no model loaded") }
         let names = models.keys.sorted().map { id in models[id]?.precision.map { "\(id) (\($0))" } ?? id }

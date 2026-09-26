@@ -133,7 +133,11 @@ final class InstallReadinessTests: XCTestCase {
         let waiting = #"{"app_pid":42,"loading":null,"models":{},"launch_set":["parakeet-v3"]}"#
         XCTAssertEqual(state(waiting), .waiting("waiting for parakeet-v3 to load"))
         XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"error":"Worker exited (code 1)."}"#),
-                       .waiting("waiting for parakeet-v3 to load (Worker exited (code 1).)"))
+                       .failing("parakeet-v3 not loaded: Worker exited (code 1)."))
+        XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"refused":{"model":"parakeet-v3","message":"needs ~2.1 GB; ~0.9 GB free"}}"#),
+                       .ready("Vella running (pid 42), parakeet-v3 not loaded: needs ~2.1 GB; ~0.9 GB free"))
+        XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["a","b"],"refused":{"model":"a","message":"m"}}"#),
+                       .waiting("waiting for a, b to load"), "a refusal settles only its own model")
         XCTAssertEqual(state(#"{"app_pid":42,"models":{"parakeet-v3":{"precision":"4b"}},"launch_set":["parakeet-v3"]}"#),
                        .ready("Vella running (pid 42), model loaded: parakeet-v3 (4b)"))
     }
