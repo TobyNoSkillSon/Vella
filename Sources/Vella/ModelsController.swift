@@ -209,12 +209,11 @@ import VellaCore
               let precision = f.variants.first(where: { lib.installed[$0.value.id]?.path == lib.activeModelPath })?.key else { return nil }
         return LoadedFamily(precision: precision)
     }
-    /// The header's model label for a mode (`Parakeet v3 4-bit`): the model selected for the mode if loaded or known,
-    /// else the first loaded model of that mode.
+    /// The header's model label for a mode (`Parakeet v3 4-bit`): the model selected for the mode if known (a download
+    /// or a precision made on this Mac, loaded or not), else the first loaded model of that mode.
     func activeLabel(_ mode: RecognitionMode) -> String? {
         let lib = library(mode)
-        if !lib.activeModelPath.isEmpty, let id = lib.installed.first(where: { $0.value.path == lib.activeModelPath })?.key,
-           let (family, precision) = catalog.locate(variant: id) { return "\(family.name) \(precisionInProse(precision))" }
+        if let (family, precision) = identify(path: lib.activeModelPath, mode: mode) { return "\(family.name) \(precisionInProse(precision))" }
         guard let (id, loaded) = runtime?.loaded.filter({ catalog.family($0.key)?.mode == mode }).sorted(by: { $0.key < $1.key }).first,
               let family = catalog.family(id) else { return lib.activeModelLabel }
         return "\(family.name) \(precisionInProse(loaded.precision))"
@@ -277,13 +276,28 @@ import VellaCore
         pendingLoads[f.id] = precision
         let started = lib.download(approval: approval, calibrate: false) { [weak self] installed in
             guard let self else { return }
-            self.pendingLoads[f.id] = nil
             // A failure or cancellation stays in the footer (the library's error line).
-            guard installed, self.available(f, precision) else { return }
-            self.commit(f, precision, self.loaded(f) == nil ? .load : .reload)
+            guard installed, self.available(f, precision) else { self.pendingLoads[f.id] = nil; return }
+            self.commitWhenIdle(f, precision)
         }
         if !started { pendingLoads[f.id] = nil; lastError = lib.downloadError ?? lib.message }
     }
+
+    /// After a confirmed download: load once no dictation is recording or transcribing. A recording that started
+    /// during the download keeps the model it started with; the new one loads (and becomes the selection) after it.
+    private func commitWhenIdle(_ f: ModelFamily, _ precision: String) {
+        let lib = library(f.mode)
+        guard lib.mayChangeModel() else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.idlePollSeconds) { [weak self] in
+                guard let self, self.pendingLoads[f.id] == precision else { return }
+                self.commitWhenIdle(f, precision)
+            }
+            return
+        }
+        pendingLoads[f.id] = nil
+        commit(f, precision, loaded(f) == nil ? .load : .reload)
+    }
+    static var idlePollSeconds = 0.2
 
     /// Load or Reload weights that are on disk. The runtime makes the model its mode's model once it loaded.
     private func commit(_ f: ModelFamily, _ precision: String, _ action: LoadAction) {

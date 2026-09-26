@@ -12,6 +12,10 @@ vella: transcribe audio files offline with the models loaded in Vella on this Ma
     vella models [--json]        one line per model usable now: id, name, precision, loaded / current
     vella url                    the OpenAI-compatible base URL (base_url for the openai SDKs)
     vella skill [--install DIR]  print the agent skill, or write DIR/transcribe/SKILL.md
+    vella diagnose [--load] [--json]
+        for bug reports: this Mac, versions, each loaded model's engine and fallbacks, the optimized-path gate
+        verdicts, and each loaded dictation model timed on five built-in clips, compared with reference transcripts;
+        ends with a prefilled GitHub issue link. --load loads the dictation model first. Never starts Vella.
 
 Talks to the Vella app over its local HTTP API (OpenAI-compatible /v1/audio/transcriptions, /v1/models, plus
 /status); starts the app if it is not running. Transcripts are printed, never pasted or saved.
@@ -83,6 +87,15 @@ struct VellaCLI {
                 try Data(text.utf8).write(to: dest)
                 write("wrote \(dest.path)")
             } else { write(text) }
+        case "diagnose":
+            let args = try Arguments(rest, values: [], flags: ["--load", "--json"])
+            if let extra = args.positional.first { throw CLIError("unexpected argument \(extra)") }
+            let diagnosis = await DiagnoseCollector(client: client()).collect(load: args.flags.contains("--load"))
+            let url = Diagnose.issueURL(diagnosis)
+            if args.flags.contains("--json") { write(Diagnose.jsonText(diagnosis, issueURL: url)); return }
+            Diagnose.text(diagnosis).forEach(write)
+            write("")
+            write("report it (a prefilled GitHub bug report; add what you saw): \(url)")
         default: throw CLIError("unknown command \(command); see vella --help")
         }
     }
@@ -229,12 +242,13 @@ struct VellaClient {
         return (object, port)
     }
 
-    func request(_ method: String, _ path: String, json: [String: Any]? = nil, port known: Int? = nil) async throws -> Data {
+    func request(_ method: String, _ path: String, json: [String: Any]? = nil, port known: Int? = nil,
+                 timeout: TimeInterval = 4 * 3600) async throws -> Data {
         let port: Int
         if let known { port = known } else { port = try await ensureRunning() }
         var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)\(path)")!)
         request.httpMethod = method
-        request.timeoutInterval = 4 * 3600   // a 3-hour file on a slow model
+        request.timeoutInterval = timeout   // default: a 3-hour file on a slow model
         if let json {
             // A local path is only read for a client that can read Vella's status file (not a sandboxed app).
             if let token = runningStatus()?.api_token { request.setValue(token, forHTTPHeaderField: "X-Vella-Token") }
@@ -243,8 +257,8 @@ struct VellaClient {
         }
         let config = URLSessionConfiguration.ephemeral
         config.connectionProxyDictionary = [:]
-        config.timeoutIntervalForRequest = 4 * 3600
-        config.timeoutIntervalForResource = 4 * 3600
+        config.timeoutIntervalForRequest = timeout
+        config.timeoutIntervalForResource = timeout
         let session = URLSession(configuration: config)
         defer { session.finishTasksAndInvalidate() }
         let (data, response): (Data, URLResponse)

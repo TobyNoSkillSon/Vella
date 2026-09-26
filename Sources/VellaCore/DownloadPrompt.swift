@@ -109,9 +109,12 @@ public func removeUnfinishedDownload(id: String, modelsDirectory: URL, keep: Set
 /// Launch clean-up of partial downloads left by a quit, crash or earlier version, inside the models directory only.
 /// A folder holding a `.incomplete` partial older than `olderThan` seconds is an unfinished download: removed whole
 /// unless `keep` contains it, when only its stale partials go. A folder with a fresh partial (a download that may still
-/// be running in another Vella process) is left alone. Returns the removed paths.
+/// be running in another Vella process) is left alone. With `removeFolders` false (the caller could not read which
+/// folders it owns, so `keep` may be incomplete) no folder goes whole: only stale partials are removed. Returns the
+/// removed paths.
 @discardableResult
-public func sweepStalePartialDownloads(modelsDirectory: URL, keep: Set<String>, olderThan: TimeInterval = 600, now: Date = Date()) -> [String] {
+public func sweepStalePartialDownloads(modelsDirectory: URL, keep: Set<String>, removeFolders: Bool = true,
+                                       olderThan: TimeInterval = 600, now: Date = Date()) -> [String] {
     let manager = FileManager.default
     let kept = Set(keep.filter { !$0.isEmpty }.map(canonical))
     guard let names = try? manager.contentsOfDirectory(atPath: modelsDirectory.path) else { return [] }
@@ -131,7 +134,7 @@ public func sweepStalePartialDownloads(modelsDirectory: URL, keep: Set<String>, 
             partials.append(file)
         }
         guard !partials.isEmpty, !fresh else { continue }
-        if kept.contains(canonical(folder.path)) {
+        if !removeFolders || kept.contains(canonical(folder.path)) {
             for file in partials where (try? manager.removeItem(at: file)) != nil { removed.append(file.path) }
         } else if (try? manager.removeItem(at: folder)) != nil {
             removed.append(folder.path)

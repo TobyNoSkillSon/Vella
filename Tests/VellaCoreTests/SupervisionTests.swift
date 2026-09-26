@@ -29,6 +29,7 @@ final class SupervisionTests: XCTestCase {
     /// file are matched: a shell whose command line mentions the path survives, and
     /// `orphansOnly` spares a helper whose parent is still alive.
     func testSweepMatchesExecutableFileNotCommandLine() throws {
+        try Integration.require()   // compiles and runs a stand-in helper
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("vella-sweep-\(UUID())")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }

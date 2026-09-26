@@ -19,7 +19,8 @@ if [[ "$IDENTITY" == "-" && -d "$APP" ]] && codesign -dv "$APP" 2>&1 | grep -q '
   echo 'Refusing to discard the installed signing identity. Configure VELLA_SIGN_IDENTITY or the local signing-identity file.' >&2
   exit 1
 fi
-if [[ "$IDENTITY" != "-" ]] && ! security find-identity -v -p codesigning | grep -Fq -- "$IDENTITY"; then
+# Without -v: the self-signed release identity is untrusted on purpose (as on users' Macs) and codesign still signs with it.
+if [[ "$IDENTITY" != "-" ]] && ! security find-identity -p codesigning | grep -Fq -- "$IDENTITY"; then
   echo 'Configured signing identity is unavailable. Installation left unchanged.' >&2
   exit 1
 fi
@@ -101,7 +102,7 @@ fi
 if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $VELLA_BUNDLE_ID" "$APP/Contents/Info.plist"
 fi
-cp Resources/models.json Resources/benchmark-policy.json Resources/AGENT_GUIDE.md Resources/SKILL.md "$APP/Contents/Resources/"
+cp Resources/models.json Resources/benchmark-policy.json Resources/AGENT_GUIDE.md Resources/SKILL.md Resources/diagnose-reference.json "$APP/Contents/Resources/"
 # models.json schema 2 covers both modes; older checkouts also had streaming-models.json.
 if [[ -f Resources/streaming-models.json ]]; then cp Resources/streaming-models.json "$APP/Contents/Resources/"; else rm -f "$APP/Contents/Resources/streaming-models.json"; fi
 # Measured numbers for the Models table (written by the lab benchmark harness).

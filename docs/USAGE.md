@@ -37,7 +37,7 @@ A fresh install has no model. If you dictate before getting one, Vella keeps the
 1. **Status** — `Vella: ready`, the loaded model and one fact line. Green when ready, grey while loading or downloading, orange when a helper failed (click it for the error and the log).
 2. **Mode** (Dictation or Streaming) · **Microphone** · **Shortcuts**.
 3. **Models…** · **Keep Hot** · **Memory**.
-4. **Copy Last Transcript** (and recovery of an unfinished one) · **Copy Skill for Your Agent** · **Open Vella Files** · **Restart Worker** · **Launch at Login**.
+4. **Copy Last Transcript** (and recovery of an unfinished one) · **Copy Skill for Your Agent** · **Copy Diagnostics** · **Open Vella Files** · **Restart Worker** · **Launch at Login**.
 5. **Support the developer…** · **Quit Vella**.
 
 Hover an item for what it does.
@@ -51,7 +51,7 @@ Hover an item for what it does.
 | Model | Name; under a loaded model, its engine (**Optimized · <chip>** or **MLX**). Tooltip: parameters, native precision, licence. |
 | Languages | Supported languages. |
 | Params | Parameter count. |
-| Q | Bits per weight, as a segmented control: 32 (FP32), 16 (BF16), 8 and 4 (quantized), from the model's native precision down, never below 4. The recommended one is green. Each segment's tooltip names the exact format and whether it is published or made on this Mac from the higher precision. |
+| Q | Bits per weight, as a segmented control: 32 (FP32), 16 (BF16), 8 and 4 (quantized), or FP16 by name for an FP16 model (an older Whisper install), from the model's native precision down, never below 4. The recommended one is green. Each segment's tooltip names the exact format and whether it is published or made on this Mac from the higher precision. |
 | WER | Word error rate on Vella's benchmark: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. The industry-standard metric, as on the Hugging Face Open ASR Leaderboard; Vella's v2 set is hard (meetings, far-field microphones, accents, earnings calls), so its rates run higher. Tooltip: word error rate per language. |
 | Format | Vella's own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. |
 | Speed | Real-time factor (RTFx): audio seconds per processing second, after loading. |
@@ -65,13 +65,13 @@ Lower is better for WER, Format, J / min and Memory; higher for Speed. `—` mea
 
 **One precision per model.** A loaded model's row always shows the precision it is loaded at, with **Unload**. An unloaded row shows the precision it was last loaded at, else the recommended one, with **Load** (or **Get** when it is not downloaded). Clicking another segment is a preview: the row shows that precision's figures, with the difference from the recommended one beneath (green better, red worse), and on a loaded model a green **Reload**, which loads it in place of the loaded one. Closing the menu without Reload discards the preview. Only Load and Reload change the model: the one last loaded for a mode is the one its next dictation (or streaming session) loads, so the table and dictation always agree.
 
-**Made on this Mac.** Precisions the model's authors do not publish (for example 16 for Parakeet v3, 8 and 4 for Parakeet v3 Ultra) are made on your Mac from the higher precision when the model loads. Until they are measured their figures show `—`. Getting such a precision downloads the weights it is made from; deleting those weights removes it too.
+**Made on this Mac.** Precisions the model's authors do not publish (for example 16 for Parakeet v3, 8 and 4 for Parakeet v3 Ultra) are made on your Mac from the higher precision when the model loads. Until they are measured their figures show `—`. Getting such a precision downloads the weights it is made from; deleting those weights removes it too, so while it is your dictation or streaming model, choose another one first.
 
 **Actions.** **Get** downloads the model and loads it. **Load** loads it and keeps it loaded (see Keep Hot); **Unload** frees its memory and keeps the download. The trash icon deletes the downloaded weights after confirmation. Recordings and transcripts are never deleted with a model.
 
 **Downloads.** Every action that needs a download (Get, Load or Reload of a precision that is not on disk, a precision made on this Mac whose source is missing, the first-dictation Get) first asks in a popup: which model and precision, whether it is published on Hugging Face (repository and revision) or made on this Mac from which weights, the exact download size, the disk space needed and free, and that it loads when done. **Cancel** is the default; nothing downloads without **Download**. The footer shows the progress; a failed or stalled download shows its reason there. A cancelled or failed download removes its partial files, and when Vella starts it deletes partial downloads left in its Models folder by a quit or crash.
 
-**Engine.** **Optimized · <chip>** means Vella's optimized kernels for this model passed a self-test against the stock MLX path on this Mac, in a separate process, when the model loaded; the result is remembered for this model, GPU, macOS version and app version. **MLX** means the stock path: same model, slower. The tooltip lists which parts are optimized. If an optimized transcription fails or produces invalid numbers, Vella transcribes that recording again on the stock path and keeps the model on it until it is reloaded.
+**Engine.** **Optimized · <chip>** means Vella's optimized kernels for this model passed a self-test against the stock MLX path on this Mac, in a separate process, when the model loaded; the result is remembered for this model, GPU, macOS version and app version. **MLX** means the stock path: same model, slower. The tooltip lists which parts are optimized. Qwen3-ASR is the one exception to an exact match with the stock path: its optimized audio encoder runs in BF16, as the original model does, while the stock path computes it in FP32, so the self-test compares against a stock run with the BF16 encoder, and the stock fallback can word a transcript slightly differently. If an optimized transcription fails or produces invalid numbers, Vella transcribes that recording again on the stock path and keeps the model on it until it is reloaded.
 
 The footer's **Want another model? Copy a request for your agent.** copies a brief for a coding agent. Nothing is sent anywhere.
 
@@ -173,6 +173,7 @@ vella transcribe talk.m4a --model parakeet-v3    # another downloaded model
 vella models                                     # models usable now, one per line
 vella status                                     # one line: running, loaded models, API address
 vella skill --install ~/.agents/skills           # the agent skill (writes transcribe/SKILL.md)
+vella diagnose                                   # a report for bug reports (see Reporting a problem)
 ```
 
 `vella` starts Vella if it is not running. Transcripts are printed only: never pasted, copied or added to your saved recordings. The file's audio is converted in a private temporary folder that is removed when the request ends.
@@ -205,7 +206,7 @@ print(result.text, [(s.start, s.end) for s in result.segments])
 - `model`: a model id from `/v1/models`; `whisper-1` (what OpenAI examples send), an empty value or `current` means your current dictation model.
 - `language` is echoed in `verbose_json`; the models detect the language themselves. `prompt` and `temperature` are accepted and ignored (decoding is greedy). Timestamps are per segment; word timestamps are not provided. There is no streaming response and no translation endpoint.
 - The key is ignored, but SDKs need one: pass any string.
-- Errors use OpenAI's shape, `{"error": {"message", "type", "param", "code"}}`: 400 invalid request, 404 unknown or not downloaded model (`model_not_found`), 413 over 200 MB, 429 queue full, 507 not enough free memory (`insufficient_memory`).
+- Errors use OpenAI's shape, `{"error": {"message", "type", "param", "code"}}`: 400 invalid request, 404 unknown or not downloaded model (`model_not_found`), 413 over 200 MB, 429 queue full (at most nine uploads, 1 GB in total, are received or waiting at once), 503 too many open connections, 507 not enough free memory (`insufficient_memory`) or disk (an upload must leave 2 GB free for recordings). A client that has not sent its request headers within 10 s, or pauses for 30 s while sending its body, is disconnected.
 - Uploads are limited to 200 MB. A JSON body `{"path": "/absolute/file.m4a", …}` with the same fields transcribes a local file without uploading it (this is what `vella` does); it needs the header `X-Vella-Token` set to `api_token` from `worker-status.json`, so an app that cannot read Vella's files (a sandboxed one) cannot make Vella read yours.
 - Security: it listens on the IPv4 loopback address only. Requests with an `Origin` header (web pages) or a `Host` other than `127.0.0.1:<port>`/`localhost:<port>` get 403, and POST bodies other than multipart/form-data or JSON get 415, all before any of the body is read. The port and API version are in `~/Library/Application Support/Vella/worker-status.json` (`api_port`, `api`).
 
@@ -217,6 +218,18 @@ Successful model output is accepted, including no text. Empty recognition is not
 - Retry is for actual execution failures, not pauses or suspected missing words.
 - If transcription fails, your saved audio is there to retry. Failed jobs preserve their unfinished work.
 
+## Reporting a problem
+
+**Copy Diagnostics** in the menu, or `vella diagnose` in Terminal, prints one screen for a bug report and ends with a link that opens a prefilled GitHub issue:
+
+- this Mac: chip, model, memory, macOS and its build, and the GPU family the optimized kernels are checked against;
+- the versions of Vella, its `vella` command, its API and its recognition helpers;
+- each loaded model: its engine (**Optimized** or **MLX**), precision and Keep Hot class, which parts run optimized, and every reason a part runs on the stock path;
+- the optimized-path self-test verdicts saved on this Mac, with the reason for each one that is not optimized;
+- each loaded Dictation model timed on the five short clips built into Vella (public LibriSpeech recordings, 23 s in all), one request at a time through the local API, with the speed and whether each transcript matches the one recorded on the reference Mac (M5 Max) for that model, precision and engine.
+
+`vella diagnose` never starts Vella and loads nothing: it times only models that are already loaded. `vella diagnose --load` first loads your dictation model (on demand, so it unloads after its Keep Hot time). `--json` prints the same data as JSON, the clip transcripts included. A dictation still goes first; if you are dictating, nothing is timed. The report contains no recordings, no transcripts of your speech and no file paths.
+
 ## Recordings, disk, recovery, and privacy
 
 - Vella stores recordings and transcripts locally until you delete them, even after a successful paste. Choose **Open Vella Files** to find them.
@@ -227,23 +240,18 @@ Successful model output is accepted, including no text. Empty recognition is not
 - The command line and API listen on 127.0.0.1 only; files you send them are transcribed on this Mac and their temporary copies are removed afterwards.
 - Model downloads (after you confirm one) are the only expected network transfer during normal use, plus the release check described above. The recognition helpers run in a sandbox that denies all network access; downloads are a separate helper, `VellaModelTool`.
 
-## Update notices
+## Updates
 
-Vella never installs updates automatically, and update checks need no additional permissions.
+Vella checks GitHub for a newer stable release at launch and then once a day (a Mac that slept through the check tries soon after waking). The check is one HTTPS request to the public releases endpoint; Vella never sends audio or transcripts. Draft and prerelease versions are ignored, and an offline or failed check is silent and tries again in about an hour.
 
-Exact behavior:
+A newer release adds an orange **Update to X…** item under **Support the developer…**. It stays until you install that version or newer, also across restarts. Choosing it shows the version and the start of its release notes, with **Update Now** and **Later**. Nothing is downloaded until you choose Update Now. Then Vella:
 
-- Checked only after a completed transcription.
-- Checked only if no check has been attempted that calendar day.
-- The last attempt and a detected update are remembered across restarts.
-- There is no startup request and no polling timer.
-- A newer stable release turns the menu-bar icon yellow and adds a yellow **Update available…** entry immediately above **Support the developer…**.
-- Choosing it opens that release page in your browser.
-- Offline or failed checks are silent and do not clear a known update.
-- The indicator remains until you install that version or newer.
-- Draft and prerelease versions are ignored.
+1. Refuses, downloading nothing, while it is recording, transcribing, pasting, loading or downloading a model, calibrating, or transcribing a file for the API. Try again when it has finished.
+2. Downloads `Vella-<version>-arm64.zip` and `SHA256SUMS` from the release and verifies them before anything changes: the exact checksum line for the zip, that the archive holds only `Vella.app` with its helpers and Metal library, its bundle identifier and version, its code signature, and that it is signed like the running app. A certificate-signed Vella accepts only code that satisfies its own designated requirement, so macOS privacy permissions carry over; an ad-hoc signed Vella accepts only an ad-hoc signed Vella, whose origin the checksum and HTTPS alone vouch for. macOS ties privacy permissions of ad-hoc signed apps to the exact build, so after such an update it may ask for Microphone and Accessibility again.
+3. If you started a dictation meanwhile, waits until Vella is idle again (up to 15 minutes), then quits and hands the install to its installer tool.
+4. The installer swaps the new app in with the previous one kept aside, starts it and waits until it is ready (the same rule as `scripts/install.sh`). Then the previous app is deleted. If the new version does not start, exits, keeps failing to load a model you keep loaded, or is still loading after 30 minutes, the previous version is put back and started, and it tells you why.
 
-Privacy: GitHub receives a normal HTTPS request to check the latest stable release tag. Vella never sends audio or transcripts. The request goes to the public release endpoint only.
+Settings, models and recordings in `~/Library/Application Support/Vella` are kept. Progress is logged to `update.log` there. `VELLA_UPDATE=0` turns the check off.
 
 ## Uninstall
 

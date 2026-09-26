@@ -1,0 +1,50 @@
+name: New model request
+description: Propose a speech-recognition model for the Models table.
+title: "[Model]: "
+labels: ["model request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A catalog model needs open weights with a licence that allows local use, an MLX checkpoint (or a conversion that can be published) and an architecture that can run on mlx-swift. Vella offers few models on purpose: accuracy per joule decides. CONTRIBUTING.md explains what an implementation must show (parity with the reference and measured numbers).
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: Name and Hugging Face (or other) link to the weights.
+    validations:
+      required: true
+  - type: input
+    id: licence
+    attributes:
+      label: Weights licence
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Reference implementation
+      description: The code that defines its correct transcripts (the authors' code, NeMo, transformers or mlx-audio), with a version or commit.
+    validations:
+      required: true
+  - type: textarea
+    id: interface
+    attributes:
+      label: Mode, languages and architecture
+      description: Batch (Dictation) or streaming, the languages it transcribes, whether it outputs case and punctuation, its architecture and size.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it belongs in the table
+      description: Accuracy, languages, speed or energy it adds over the current models; published benchmark numbers (for example the Hugging Face Open ASR Leaderboard) if any.
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Will you implement it?
+      options:
+        - "No, requesting only"
+        - "Yes, I plan to open a pull request"
+    validations:
+      required: true

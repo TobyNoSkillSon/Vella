@@ -49,15 +49,19 @@ import VellaCore
         publish(runtime.status)
     }
 
-    /// Launch clean-up: partial downloads left in Vella's Models folder by a quit, crash or earlier version.
+    /// Launch clean-up: partial downloads left in Vella's Models folder by a quit, crash or earlier version. An
+    /// unfinished download's folder goes whole only when the registry and config.json were read, so the kept set is
+    /// complete; otherwise only stale partial files go and every folder stays.
     func sweepPartialDownloads() {
         guard let controller, !controller.previewing else { return }
         let library = controller.dictation
         let config = controller.config
+        let configRead = config != nil || !(controller.configURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false)
+        let verified = configRead && library.ownershipVerified && controller.streaming.ownershipVerified
         let keep = library.keptModelPaths.union(controller.streaming.keptModelPaths)
             .union([config?.model, config?.streamingModel].compactMap { $0 })
             .union(runtime.settings.launchSet.map(\.path))
-        sweepStalePartialDownloads(modelsDirectory: library.modelsDirectory, keep: keep)
+        sweepStalePartialDownloads(modelsDirectory: library.modelsDirectory, keep: keep, removeFolders: verified)
     }
 
     // MARK: Catalog identity
@@ -95,6 +99,7 @@ import VellaCore
         Task { await loadAndSelect(ref) }
     }
     func loadAndSelect(_ ref: ModelRef) async {
+        runtime.beginSelection(); defer { runtime.endSelection() }
         do {
             try await runtime.load(ref)
             select(ref.path, mode: ref.mode)

@@ -12,12 +12,13 @@ final class HUDPanel: NSPanel {
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let model: Model
     var openExternalURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
-    let releaseUpdates: ReleaseUpdateChecker
+    /// In-app updates: the orange "Update to X…" item under Support and its popup.
+    let updates: UpdateController
     private(set) var shortcutManager: ShortcutManager
-    init(model: Model? = nil, releaseUpdates: ReleaseUpdateChecker? = nil, shortcutManager: ShortcutManager? = nil, shortcutStoreURL: URL? = nil) {
+    init(model: Model? = nil, updates: UpdateController? = nil, shortcutManager: ShortcutManager? = nil, shortcutStoreURL: URL? = nil) {
         let resolved = model ?? Model()
         self.model = resolved
-        self.releaseUpdates = releaseUpdates ?? ReleaseUpdateChecker()
+        self.updates = updates ?? UpdateController()
         if let shortcutManager {
             self.shortcutManager = shortcutManager
         } else if let url = shortcutStoreURL {
@@ -52,10 +53,14 @@ final class HUDPanel: NSPanel {
     /// The runtime sets it (vr-runtime `Model.pendingModelRequest`); nil = no pending request.
     var pendingModelRow: () -> (title: String, help: String)? = { nil }
     var getPendingModel: () -> Void = {}
+    /// The model the runtime is loading right now, if any (updates wait for it).
+    var runtimeLoading: () -> String? = { Runtime.shared.status.loading }
     /// Whether the runtime has a model loaded or loading (calibration never unloads one to run).
     var modelsLoaded: () -> Bool = { let status = Runtime.shared.status; return !status.models.isEmpty || status.loading != nil }
     /// Restart Worker: the runtime's restart; nil = stop the workers (the next dictation starts them again).
     var restartWorkers: (() -> Void)?
+    /// Copy Diagnostics: the bundled `vella diagnose`.
+    let diagnostics = DiagnosticsCopier()
     /// `controller`: an isolated Models controller (tests); the wiring below is the real one either way.
     func makeModelsMenu(controller: ModelsController? = nil) -> ModelsMenu {
         let menus = ModelsMenu(controller: controller)
@@ -159,13 +164,9 @@ final class HUDPanel: NSPanel {
         configureHUDPanel()
         model.onChange = { [weak self] in self?.refresh() }
         rebuildMenu()
-        releaseUpdates.onChange = { [weak self] in self?.refreshUpdateIndicator() }
-        refreshUpdateIndicator()
-        if !CommandLine.arguments.contains("--check-hud") {
-            model.onTranscriptionCompleted = { [weak self] in
-                Task { [weak self] in await self?.releaseUpdates.checkAfterUse() }
-            }
-        }
+        updates.onChange = { [weak self] in self?.rebuildMenuIfIdle() }
+        updates.blocker = { [weak self] in self?.updateBlocker() }
+        if !CommandLine.arguments.contains("--check-hud") { updates.start() }
         shortcutManager = ShortcutManager(model: model, store: ShortcutStore(fileURL: ShortcutManager.shortcutsFileURL))
         shortcutManager.menuCancel = { [weak self] in self?.menu.cancelTracking() }
         shortcutManager.onMouseConfirmationChange = { [weak self] in
@@ -329,6 +330,8 @@ final class HUDPanel: NSPanel {
         menu.addItem(.separator())
         if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast), help: copyLastHelp) }
         item("Copy Skill for Your Agent", "doc.on.doc", #selector(copySkill), help: copySkillHelp)
+        item(diagnostics.running ? "Copying Diagnostics…" : "Copy Diagnostics", "stethoscope", #selector(copyDiagnostics),
+             enabled: !diagnostics.running, help: copyDiagnosticsHelp)
         item("Open Saved Recordings", "folder", #selector(savedRecordings), help: "Opens the folder of saved recordings and their transcripts.")
         item("Open Vella Files", "folder", #selector(files), help: openFilesHelp)
         item("Restart Worker", "arrow.clockwise", #selector(restartWorker), enabled: model.phase != .recording && !model.busy, help: restartWorkerHelp)
@@ -337,14 +340,8 @@ final class HUDPanel: NSPanel {
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
         menu.addItem(.separator())
-        if let update = releaseUpdates.available {
-            item("Update available — \(update.tag)…", "arrow.down.circle", #selector(openReleaseUpdate))
-            if let entry = menu.items.last {
-                entry.attributedTitle = NSAttributedString(string: entry.title, attributes: [.foregroundColor: NSColor.systemYellow])
-                entry.image = entry.image?.withSymbolConfiguration(.init(paletteColors: [.systemYellow]))
-            }
-        }
         item("Support the developer…", "heart", #selector(supportDeveloper), help: supportHelp)
+        if let update = updates.menuItem() { menu.addItem(update) }
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
     }
     private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = [], help: String? = nil) {
@@ -389,6 +386,29 @@ final class HUDPanel: NSPanel {
     @objc private func copySkill() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(skillText(), forType: .string)
+    }
+    /// Copies `vella diagnose`'s report, then offers its prefilled GitHub bug report.
+    @objc private func copyDiagnostics() {
+        diagnostics.run { [weak self] result in
+            guard let self else { return }
+            self.rebuildMenuIfIdle()
+            switch result {
+            case .success(let report):
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(report.text, forType: .string)
+                let alert = NSAlert()
+                alert.messageText = "Diagnostics copied"
+                if report.issue != nil { alert.addButton(withTitle: "Open Bug Report…") }
+                alert.addButton(withTitle: "Done")
+                // The report finishes after the menu has closed: bring the alert to the front.
+                NSApp.activate()
+                let response = alert.runModal()
+                if let issue = report.issue, response == .alertFirstButtonReturn { _ = self.openExternalURL(issue) }
+            case .failure(let error):
+                NSAlert(error: error).runModal()
+            }
+        }
+        rebuildMenuIfIdle()
     }
     @objc private func getPending() { getPendingModel() }
     @objc private func restartWorker() { if let restartWorkers { restartWorkers() } else { model.stopWorkers() } }
@@ -570,16 +590,23 @@ final class HUDPanel: NSPanel {
         } catch { NSAlert(error: error).runModal() }
         rebuildMenu()
     }
-    @objc private func openReleaseUpdate() {
-        guard let url = releaseUpdates.available?.url else { return }
-        DispatchQueue.main.async {
-            if !self.openExternalURL(url) {
-                let alert = NSAlert()
-                alert.messageText = "Could not open the release page"
-                alert.informativeText = url.absoluteString
-                alert.runModal()
-            }
+    /// Why an update cannot start now (completes "Vella is …"), or nil when Vella is idle: a dictation that is not
+    /// idle (a failed one has kept its audio), a model loading, a model download or calibration, an API transcription.
+    func updateBlocker() -> String? {
+        switch model.phase {
+        case .recording: return "recording"
+        case .preparing: return "preparing a dictation"
+        case .transcribing: return "transcribing"
+        case .success: return "pasting a transcript"
+        case .idle, .failed: if model.busy { return "transcribing" }
         }
+        let libraries = [dictationLibrary, streamingLibrary]
+        if libraries.contains(where: { $0.downloadingID != nil }) { return "downloading a model" }
+        if libraries.contains(where: { $0.calibration.isRunning }) { return "calibrating a model" }
+        if libraries.contains(where: { $0.busy }) { return "changing models" }
+        if let loading = runtimeLoading() { return "loading \(loading)" }
+        if let jobs = APIHost.shared.service?.transcriber, jobs.running + jobs.waiting > 0 { return "transcribing a file for the API" }
+        return nil
     }
     @objc private func supportDeveloper() {
         DispatchQueue.main.async {
@@ -614,12 +641,6 @@ final class HUDPanel: NSPanel {
     func restoreHUDOpacity() {
         panel.alphaValue = 1
         panel.contentView?.alphaValue = 1
-    }
-
-    func refreshUpdateIndicator() {
-        status?.button?.contentTintColor = releaseUpdates.available == nil ? nil : .systemYellow
-        // Do not rebuild a menu while the user is tracking it. Next opening reads the cache.
-        if !settingsMenuIsTracking { rebuildMenu() }
     }
 
     func refresh() {

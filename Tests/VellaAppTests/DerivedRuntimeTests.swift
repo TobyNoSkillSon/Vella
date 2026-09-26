@@ -74,6 +74,12 @@ final class DerivedRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.loadedRef("alpha")?.precision, "4b")
         XCTAssertEqual(bridge.ref(path: derived, mode: .dictation)?.precision, "4b", "a derived directory resolves through its manifest")
         XCTAssertEqual(runtime.settings.launchSet.map(\.path), [derived])
+        // Another model becomes the dictation selection; the derived precision stays loaded and in the launch set.
+        // (While it is the selection, deleting its source is refused.)
+        var config = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: runtime.configURL))
+        config.model = root.appendingPathComponent("other-model").path
+        try JSONEncoder().encode(config).write(to: runtime.configURL)
+        library.activeModelPath = config.model
 
         // Delete the BF16 source (the 4b row has no weights of its own).
         controller.preview(alpha, "BF16")

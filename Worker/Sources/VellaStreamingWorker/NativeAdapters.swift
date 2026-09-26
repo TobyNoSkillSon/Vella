@@ -137,7 +137,7 @@ final class NemotronNative: StreamingNative {
                 incompleteFlag = true
                 session = try VellaNemotronSession(model: model!, optimized: false)
                 journal.removeAll(); journalSamples = 0; produced = ""; text = ""
-                if gated, let url = try? FastPathGate.statusURL(path, revision: VellaNemotronOptions.revision) { FastPathGate.persist("stock", to: url) }
+                if gated, let url = try? FastPathGate.statusURL(path, revision: VellaNemotronOptions.revision) { FastPathGate.persist("stock", to: url, model: path, reason: "runtime fallback: optimized streaming output could not be replayed safely") }
             }
         }
     }

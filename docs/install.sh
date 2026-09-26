@@ -1,57 +1,91 @@
 #!/bin/bash
-# Local source build: no developer account, certificate, sudo, or security bypass.
+# Vella installer: curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
+# Downloads the prebuilt release with curl, verifies its SHA-256, contents, version and code signature before
+# touching anything, installs it in ~/Applications, links the `vella` command and waits until Vella is ready.
+# The same steps as scripts/install-release.sh and scripts/install-prepared.sh in the repository.
+# Needs no Xcode or developer account. `bash -s -- --dry-run` verifies without installing.
 set -euo pipefail
-VERSION="0.8.8"
-fail() { echo "Vella: $*" >&2; exit 1; }
-[[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || fail 'Apple Silicon macOS is required.'
-[[ "$(sw_vers -productVersion | cut -d. -f1)" -ge 14 ]] || fail 'macOS 14 or newer is required.'
-xcrun --find swift >/dev/null 2>&1 || fail 'Install Apple’s free Command Line Tools with: xcode-select --install, then rerun. No developer account is needed.'
-PYTHON="${PYTHON:-}"
-if [[ -z "$PYTHON" ]]; then
-  for candidate in python3 python3.14 python3.13 python3.12 /opt/homebrew/bin/python3; do
-    if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys,platform; assert (3,12)<=sys.version_info[:2]<(3,15) and platform.machine()=="arm64"' 2>/dev/null; then
-      PYTHON="$(command -v "$candidate")"; break
-    fi
+
+# Everything runs from main, so a download cut short executes nothing.
+main() {
+  local VERSION="${VELLA_VERSION:-1.0.0}" DRY_RUN=0
+  [[ "${1:-}" == '--dry-run' ]] && DRY_RUN=1
+  [[ $# -eq 0 || ( $# -eq 1 && "$DRY_RUN" == 1 ) ]] || fail 'Usage: install.sh [--dry-run]' 2
+  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VELLA_VERSION must be a release version, e.g. 1.0.0' 2
+  [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || fail 'Vella requires an Apple Silicon Mac'
+  local OS; OS="$(sw_vers -productVersion)"
+  [[ "${OS%%.*}" -ge 14 ]] || fail "Vella requires macOS 14 or newer ($OS)"
+
+  local BASE="${VELLA_RELEASE_BASE_URL:-https://github.com/TobyNoSkillSon/Vella/releases/download/v$VERSION}"
+  # file:// serves a locally packaged release (scripts/package-release.sh) for testing.
+  [[ "$BASE" == https://* || "$BASE" == file://* ]] || fail 'Release base URL must use HTTPS'
+  local ZIP="Vella-$VERSION-arm64.zip"
+  TEMP="$(mktemp -d "${TMPDIR:-/tmp}/vella-release.XXXXXX")"
+  trap 'rm -rf "$TEMP"' EXIT
+  echo "downloading Vella ${VERSION}…"
+  fetch "$BASE" SHA256SUMS
+  fetch "$BASE" "$ZIP"
+  local EXPECTED ACTUAL
+  EXPECTED="$(awk -v name="$ZIP" '$2 == name { print $1 }' "$TEMP/SHA256SUMS")"
+  [[ "$EXPECTED" =~ ^[a-fA-F0-9]{64}$ ]] || fail "Missing or ambiguous SHA-256 for $ZIP; nothing installed."
+  ACTUAL="$(shasum -a 256 "$TEMP/$ZIP" | awk '{print $1}')"
+  [[ "$(tr '[:upper:]' '[:lower:]' <<<"$ACTUAL")" == "$(tr '[:upper:]' '[:lower:]' <<<"$EXPECTED")" ]] || fail "SHA-256 mismatch for $ZIP; nothing installed."
+  echo "verified SHA-256 $ACTUAL  $ZIP"
+  # The hash detects corruption; a checksum fetched from the same release is not a signature.
+  zipinfo -1 "$TEMP/$ZIP" | awk '
+    BEGIN { good = 1 } { n++; if (n > 20000 || $0 !~ /^Vella\.app(\/|$)/ || $0 ~ /(^|\/)\.\.(\/|$)/ || $0 ~ /\\/) good = 0 }
+    END { exit !(good && n > 0) }' || fail 'Unsafe or unexpected archive entries; nothing installed.'
+  mkdir "$TEMP/unpacked"
+  ditto -x -k "$TEMP/$ZIP" "$TEMP/unpacked"
+  local APP="$TEMP/unpacked/Vella.app" f
+  for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool; do
+    [[ -x "$APP/Contents/$f" ]] || fail "Release archive lacks Contents/$f; nothing installed."
   done
-fi
-[[ -n "$PYTHON" ]] || fail 'Install Python 3.12–3.14 from python.org, then rerun. Or set PYTHON=/path/to/python3. No account is required.'
-"$PYTHON" -c 'import sys,platform; assert (3,12)<=sys.version_info[:2]<(3,15) and platform.machine()=="arm64"' 2>/dev/null || fail 'PYTHON must point to compatible Apple Silicon Python 3.12–3.14.'
-export PYTHON
-# Pin both inputs when using curl. No moving "latest" archive or invented repository URL.
-SOURCE_URL="${VELLA_SOURCE_URL:-}"
-SOURCE_SHA="${VELLA_SOURCE_SHA256:-}"
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/vella-install.XXXXXX")"
-trap 'rm -rf "$WORK"' EXIT
-if [[ -z "$SOURCE_URL" && ( -z "${BASH_SOURCE[0]:-}" || ! -f "${BASH_SOURCE[0]}" ) ]]; then
-  RELEASE="https://github.com/TobyNoSkillSon/Vella/releases/download/v$VERSION"
-  SOURCE_URL="$RELEASE/Vella-$VERSION-source.tar.gz"
-  curl --fail --location --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 60 "$RELEASE/SHA256SUMS" -o "$WORK/SHA256SUMS"
-  SOURCE_SHA="$("$PYTHON" -c 'import pathlib,sys; rows=[x.split() for x in pathlib.Path(sys.argv[1]).read_text().splitlines()]; matches=[r[0] for r in rows if len(r)==2 and r[1]==sys.argv[2]]; sys.exit("Release checksum is missing or ambiguous; nothing installed.") if len(matches)!=1 else print(matches[0])' "$WORK/SHA256SUMS" "Vella-$VERSION-source.tar.gz")"
-fi
-if [[ -n "$SOURCE_URL" ]]; then
-  [[ "$SOURCE_URL" == https://* ]] || fail 'The source archive URL must use HTTPS.'
-  [[ "$SOURCE_SHA" =~ ^[0-9a-fA-F]{64}$ ]] || fail 'Set VELLA_SOURCE_SHA256 to the published source archive checksum.'
-  curl --fail --location --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 300 "$SOURCE_URL" -o "$WORK/source.tar.gz"
-  "$PYTHON" - "$WORK" "$SOURCE_SHA" <<'PY'
-import hashlib,pathlib,sys,tarfile
-root=pathlib.Path(sys.argv[1]); archive=root/'source.tar.gz'
-if hashlib.sha256(archive.read_bytes()).hexdigest()!=sys.argv[2].lower():sys.exit('Source checksum mismatch; nothing installed.')
-with tarfile.open(archive) as tar:
-    entries=tar.getmembers()
-    if len(entries)>20000 or sum(x.size for x in entries)>1024**3:sys.exit('Source archive exceeds installer bounds.')
-    for entry in entries:
-        path=pathlib.PurePosixPath(entry.name)
-        if path.is_absolute() or '..' in path.parts or not (entry.isfile() or entry.isdir()):sys.exit('Unsafe source archive entry.')
-    tar.extractall(root/'source',filter='data')
-roots=list((root/'source').iterdir())
-if len(roots)!=1 or not (roots[0]/'Package.swift').is_file():sys.exit('Expected one Vella source folder.')
-(root/'source-path').write_text(str(roots[0]))
-PY
-  SOURCE="$(cat "$WORK/source-path")"
-else
-  [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]] || fail 'Piped installation requires VELLA_SOURCE_URL and VELLA_SOURCE_SHA256 from the release instructions.'
-  SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  [[ -f "$SOURCE/Package.swift" ]] || fail 'Run from a Vella checkout, or provide a pinned source archive.'
-fi
-exec_args=("$PYTHON" "$SOURCE/scripts/install_app.py" "$SOURCE" "$WORK")
-"${exec_args[@]}"
+  [[ -s "$APP/Contents/Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]] || fail 'Release archive lacks the Metal library; nothing installed.'
+  [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" == "$VERSION" ]] || fail 'App version does not match the requested release; nothing installed.'
+  codesign --verify --deep --strict "$APP" || fail 'App signature does not verify; nothing installed.'
+  echo "verified Vella.app $VERSION (build $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")): helpers, Metal library, signature"
+
+  local DEST="${VELLA_DESTINATION_APP:-$HOME/Applications/Vella.app}"
+  if [[ "$DRY_RUN" == 1 ]]; then
+    echo "dry run: would install to $DEST; nothing installed"
+    return 0
+  fi
+  install_prepared "$APP" "$DEST"
+}
+
+fail() { echo "Vella: $1" >&2; exit "${2:-1}"; }
+
+fetch() { curl --fail --location --silent --show-error --proto '=https,file' --proto-redir '=https' --tlsv1.2 \
+  --connect-timeout 20 --max-time 1800 "$1/$2" -o "$TEMP/$2"; }
+
+# Staged swap with rollback, never mid-dictation or mid-load; the previous app is removed only after the new one
+# reports ready (scripts/install-prepared.sh).
+install_prepared() {
+  local APP="$1" DEST="$2"
+  local SUPPORT="${VELLA_SUPPORT_DIR:-$HOME/Library/Application Support/Vella}"
+  local TOOL="$APP/Contents/Helpers/VellaInstallTool" OUTPUT PREVIOUS STATUS=0
+  [[ -x "$TOOL" ]] || fail 'Prepared app lacks its installer tool; nothing installed.'
+  mkdir -p "$(dirname "$DEST")"
+  OUTPUT="$("$TOOL" install --app "$APP" --destination "$DEST" --support "$SUPPORT" --keep-previous)"
+  PREVIOUS="$(sed -n 's/^previous: //p' <<<"$OUTPUT")"
+  echo "installed $DEST; starting…"
+  # The `vella` command for agents and scripts: a link into the app, so updates carry it along.
+  local BIN="${VELLA_BIN_DIR:-$HOME/.local/bin}"
+  if [[ -x "$DEST/Contents/Helpers/vella" ]]; then
+    mkdir -p "$BIN" "$HOME/.local/share/vella"
+    ln -sfn "$DEST/Contents/Helpers/vella" "$BIN/vella"
+    printf '%s\n' "$DEST" > "$HOME/.local/share/vella/app-path"
+    case ":$PATH:" in *":$BIN:"*) echo "command: $BIN/vella" ;; *) echo "command: $BIN/vella (add $BIN to PATH)" ;; esac
+  fi
+  "$TOOL" ready --app "$DEST" --support "$SUPPORT" --timeout "${VELLA_READY_TIMEOUT:-1800}" || STATUS=$?
+  if [[ $STATUS -ne 0 ]]; then
+    # Not ready, or degraded (exit 3: running, but a model configured to stay loaded is not). Keep the rollback copy.
+    [[ -z "$PREVIOUS" ]] || echo "Previous app kept at $PREVIOUS; to roll back, quit Vella and move it to $DEST." >&2
+    [[ $STATUS -eq 3 && "${VELLA_ACCEPT_DEGRADED:-0}" == 1 ]] && return 0
+    exit 1
+  fi
+  [[ -z "$PREVIOUS" ]] || rm -rf "$PREVIOUS"
+}
+
+main "$@"

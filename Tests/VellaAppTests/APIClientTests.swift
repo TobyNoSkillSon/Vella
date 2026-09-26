@@ -9,6 +9,7 @@ final class APIClientTests: XCTestCase {
     override func setUpWithError() throws {
         audio = FileManager.default.temporaryDirectory.appendingPathComponent("vella-cli-\(UUID().uuidString).wav")
         try writeTestWAV(audio)
+        try Integration.require()   // runs the vella binary; last, because tearDown runs after a skip too
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: audio) }
 

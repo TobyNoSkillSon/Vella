@@ -70,13 +70,13 @@ Measured but not offered in the app:
 
 <!-- BENCHMARK_TABLE_END -->
 
-- **Q** is bits per weight: 32 is FP32, 16 is BF16, 8 and 4 are quantized.
+- **Q** is bits per weight: 32 is FP32, 16 is BF16, 8 and 4 are quantized. An FP16 model (an older Whisper install) shows FP16.
 - **WER** is word error rate: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. It is the industry-standard metric, as on the Hugging Face Open ASR Leaderboard; our v2 set is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. **Format** is our own measure, with no industry standard: character error rate with case and punctuation kept, i.e. how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
 - **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Memory** is the loaded model's footprint.
 - **Recommended precision.** A model shows its recommended precision until it has been loaded at another: among its measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest energy per minute of audio (ties: faster, then more bits).
 - Figures were measured on an Apple M5 Max. On other Macs, speed, energy and memory differ; accuracy does not. The table says so on other chips.
 
-Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json).
+Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); a sortable table is at https://tobynoskillson.github.io/Vella/.
 
 ## The app
 
@@ -108,6 +108,12 @@ scripts/install.sh
 
 `scripts/install.sh` downloads the prebuilt app for this version with curl, checks its SHA-256 and code signature, installs it in `~/Applications`, starts it, and waits until it is ready. It prints a few short lines and ends with `ready: …`. Coding agents can follow [AGENTS.md](AGENTS.md).
 
+Without git, the same installer is one command:
+
+```sh
+curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
+```
+
 Open Vella from the menu bar, approve Microphone and Accessibility access, and press **Control + Command + N** to start dictating. Press it again to finish.
 
 <details>
@@ -131,6 +137,8 @@ Open Vella from the menu bar, approve Microphone and Accessibility access, and p
 **Shortcuts** (below **Microphone**) sets the key chord, a single modifier key or a mouse button, and **Toggle**, **Hold to Talk** or **Tap or Hold**. **Copy Last Transcript** recovers the most recent text; **Open Vella Files** shows saved recordings and transcripts. The [user guide](docs/USAGE.md) covers every menu item, recovery and troubleshooting.
 
 **Audio files** go through the same models: `vella transcribe talk.m4a` (add `--srt` for subtitles), or any OpenAI SDK pointed at the local API (`base_url` from `vella url`, `/v1/audio/transcriptions`). Your dictation always goes first. **Copy Skill for Your Agent** copies the instructions for a coding agent. Details: [user guide](docs/USAGE.md#transcribe-files-command-line-and-api).
+
+**Something wrong, or slow on your Mac?** **Copy Diagnostics** in the menu (or `vella diagnose`) reports your chip, versions, each loaded model's engine and fallbacks, and a timed run of five built-in clips compared with the reference Mac, and links to a prefilled GitHub issue. It includes nothing you dictated. See [Reporting a problem](docs/USAGE.md#reporting-a-problem).
 
 ## Privacy
 

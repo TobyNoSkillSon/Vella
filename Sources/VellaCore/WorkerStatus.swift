@@ -23,6 +23,8 @@ public struct WorkerModelStatus: Codable, Equatable {
     public var load_s: Double?
     /// Worker process footprint.
     public var memory_mb: Double?
+    /// The worker's optimized-path gate version (e.g. "native-kernels-8"), for `vella diagnose`.
+    public var worker_version: String?
     public init() {}
 }
 
@@ -122,13 +124,17 @@ public struct WorkerStatus: Codable, Equatable {
         api_port = try? c.decodeIfPresent(Int.self, forKey: .api_port)
         api_token = try? c.decodeIfPresent(String.self, forKey: .api_token)
     }
-    /// Atomic: write a unique temporary file beside the target, then rename(2) over it.
+    /// Atomic: write a unique temporary file beside the target, then rename(2) over it. The file carries the API
+    /// token, so every version is owner-only (0600, no inherited ACL entries) from before its first byte is written.
     public func write(to url: URL) throws {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         let data = try encoder.encode(self)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let temporary = url.deletingLastPathComponent().appendingPathComponent("\(url.lastPathComponent).\(getpid()).\(UUID().uuidString).tmp")
-        try data.write(to: temporary)
+        do { try writeOwnerOnly(data, to: temporary) } catch {
+            try? FileManager.default.removeItem(at: temporary)
+            throw error
+        }
         guard rename(temporary.path, url.path) == 0 else {
             try? FileManager.default.removeItem(at: temporary)
             throw VellaError.message("Could not update \(url.lastPathComponent).")
@@ -139,11 +145,37 @@ public struct WorkerStatus: Codable, Equatable {
     }
 }
 
+/// Creates `url` (which must not exist) readable and writable by its owner only, with any ACL entries inherited from
+/// the directory removed, verifies that, and only then writes `data`.
+public func writeOwnerOnly(_ data: Data, to url: URL) throws {
+    let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o600)
+    guard fd >= 0 else { throw VellaError.message("Could not create \(url.lastPathComponent).") }
+    defer { close(fd) }
+    guard fchmod(fd, 0o600) == 0 else { throw VellaError.message("Could not restrict \(url.lastPathComponent).") }
+    if let empty = acl_init(0) {
+        defer { acl_free(UnsafeMutableRawPointer(empty)) }
+        guard acl_set_fd_np(fd, empty, ACL_TYPE_EXTENDED) == 0 else { throw VellaError.message("Could not restrict \(url.lastPathComponent).") }
+    }
+    var info = stat()
+    guard fstat(fd, &info) == 0, info.st_mode & 0o077 == 0, info.st_uid == geteuid() else {
+        throw VellaError.message("Could not restrict \(url.lastPathComponent).")
+    }
+    try data.withUnsafeBytes { raw in
+        var offset = 0
+        while offset < raw.count {
+            let written = Darwin.write(fd, raw.baseAddress! + offset, raw.count - offset)
+            if written < 0 { if errno == EINTR { continue }; throw VellaError.message("Could not write \(url.lastPathComponent).") }
+            offset += written
+        }
+    }
+}
+
 /// Diagnostic switches that change runtime behaviour; any that are set are reported in status, never hidden.
 public let runtimeTestHookNames = [
     "VELLA_TEST_MEMORY_FILE", "VELLA_TEST_VM_STATS", "VELLA_TEST_MINUTE_SECONDS", "VELLA_SUPPORT_DIR",
     "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
     "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK",
+    "VELLA_QWEN_ENC_BF16",
 ]
 public func activeTestHooks(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
     environment.filter { runtimeTestHookNames.contains($0.key) && !$0.value.isEmpty }

@@ -89,7 +89,9 @@ final class CatalogTests: XCTestCase {
     func testSegmentLabelsAreBareWidthsWithExactFallback() {
         XCTAssertEqual(precisionSegmentLabels(["FP32", "BF16", "8b", "4b"]), ["32", "16", "8", "4"])
         XCTAssertEqual(precisionSegmentLabels(["BF16", "8b"]), ["16", "8"])
-        XCTAssertEqual(precisionSegmentLabels(["FP16", "8b", "4b"]), ["16", "8", "4"], "16 is unambiguous within the family")
+        // A bare 16 is BF16 (the Q heading says so); FP16 keeps its exact label.
+        XCTAssertEqual(precisionSegmentLabels(["FP16", "8b", "4b"]), ["FP16", "8", "4"])
+        XCTAssertEqual(precisionSegmentLabels(["FP16"]), ["FP16"])
         XCTAssertEqual(precisionSegmentLabels(["ternary"]), ["1.58"])
         // Both 16-bit formats in one family: every segment shows its exact format instead.
         XCTAssertEqual(precisionSegmentLabels(["FP32", "FP16", "BF16", "4b"]), ["FP32", "FP16", "BF16", "4b"])

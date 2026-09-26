@@ -21,6 +21,9 @@ import VellaCore
     @Published var downloadingID: String?
     @Published var downloadError: String?
     @Published var activeModelPath = ""
+    /// False when the installed-model registry exists but could not be read or decoded: `installed` is then not a
+    /// complete record of which Models folders are Vella's, and nothing may be deleted on its strength.
+    private(set) var registryReadable = false
     let calibration: CalibrationStore
     private let automaticallyCalibrates: Bool
     @Published var calibratingID: String?
@@ -117,9 +120,14 @@ import VellaCore
     }
     func reload() {
         let decoder = JSONDecoder()
+        registryReadable = false
         do {
             models = try catalogVariants(contentsOf: resources.appendingPathComponent(catalogName)).filter { supports($0.architecture) }
-            if let data = try? Data(contentsOf: registryURL), let saved = try? decoder.decode([String: InstalledModel].self, from: data) { installed = saved }
+            if let data = try? Data(contentsOf: registryURL), let saved = try? decoder.decode([String: InstalledModel].self, from: data) {
+                installed = saved; registryReadable = true
+            } else {
+                registryReadable = !FileManager.default.fileExists(atPath: registryURL.path)
+            }
             for (id, local) in installed where !models.contains(where: { $0.id == id }) {
                 if let bytes = try? Data(contentsOf: URL(fileURLWithPath: local.path).appendingPathComponent("config.json")),
                    let cfg = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
@@ -181,6 +189,16 @@ import VellaCore
         if (!active.isEmpty && folder.resolvingSymlinksInPath() == URL(fileURLWithPath: active).resolvingSymlinksInPath()) || path == activeModelPath {
             return "Switch to another model before deleting the one in use."
         }
+        // A selected precision made on this Mac reads these weights; deleting them would leave the selection pointing
+        // at a model that can no longer load.
+        let selections = Set(([active, activeModelPath] + protected).filter { !$0.isEmpty })
+        if selections.contains(where: { selection in
+            derivedModelManifest(at: URL(fileURLWithPath: selection)).map {
+                URL(fileURLWithPath: $0.source).resolvingSymlinksInPath() == folder.resolvingSymlinksInPath()
+            } ?? false
+        }) {
+            return "Switch to another model in that mode before deleting the weights its selected precision is made from."
+        }
         let root = registryURL.deletingLastPathComponent().appendingPathComponent("Models").standardizedFileURL
         guard !id.isEmpty, id != ".", id != "..", !id.contains("/"),
               folder == root.appendingPathComponent(id).standardizedFileURL,
@@ -229,6 +247,8 @@ import VellaCore
     var keptModelPaths: Set<String> {
         Set(installed.values.map(\.path) + [activeModelPath] + ((try? protectedModelPaths()) ?? []))
     }
+    /// Whether `keptModelPaths` is complete: the registry and the saved selections were both readable.
+    var ownershipVerified: Bool { registryReadable && (try? protectedModelPaths()) != nil }
     /// Removes a cancelled or failed download's files (the whole `Models/<id>` folder of a model that is not installed).
     private func removePartialDownload(_ id: String) {
         guard installed[id] == nil, downloadingID != id else { return }

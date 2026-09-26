@@ -1,6 +1,48 @@
 Vella
 Copyright 2026 Vella contributors
+Licensed under the Apache License, Version 2.0 (LICENSE).
 
-Vella source code is licensed under the Apache License, Version 2.0.
-Third-party datasets, model weights, runtime dependencies and Apple assets retain
-their respective licenses. See THIRD_PARTY_NOTICES.md and asset-level notices.
+Vella is a native Swift application. Speech recognition runs on MLX through
+mlx-swift in sandboxed helper processes; no Python runs at runtime. Third-party
+code in the app is listed, with each licence text, in THIRD_PARTY_NOTICES.md
+(shipped in Vella.app/Contents/Resources next to this file).
+
+Speech models
+-------------
+Worker/Sources/MLXAudioSTT is adapted from mlx-audio-swift
+(https://github.com/Blaizzy/mlx-audio-swift, revision
+01dec7c9bdce3088a6b6b7ab9f2e403458195efb, MIT, Copyright 2025 Prince Canuma),
+changed for Vella: local loading only, and optimized paths behind a load-time
+self-test. The Parakeet front end and the streaming DSP follow mlx-audio 0.5.1
+(MIT, Copyright 2024 Prince Canuma); the Whisper decoding settings follow
+mlx-whisper (MIT, Copyright 2023 Apple Inc.).
+
+Models
+------
+Vella bundles no model weights. When the user confirms a download, it fetches
+them from Hugging Face; each keeps its own licence (Resources/models.json and
+THIRD_PARTY_NOTICES.md list them).
+
+Audio
+-----
+The self-test and calibration clips are from LibriSpeech (Panayotov, Chen,
+Povey and Khudanpur; https://www.openslr.org/12/), with LibriSpeech-PC text
+(Meister et al., NVIDIA; https://www.openslr.org/145/), under CC BY 4.0.
+
+Bundled third-party code (full texts in THIRD_PARTY_NOTICES.md)
+----------------------------------------------------------------
+- mlx-swift (MIT, Copyright 2023 ml-explore) with its vendored MLX (MIT,
+  Copyright 2023 Apple Inc.), mlx-c (MIT, Copyright 2023 ml-explore), fmt (MIT,
+  Copyright 2012-present Victor Zverovich and contributors), nlohmann/json (MIT,
+  Copyright 2013-2022 Niels Lohmann), metal-cpp (Apache-2.0, Apple Inc.),
+  pocketfft (BSD-3-Clause, Max-Planck-Society and Peter Bell), ThreadPool (zlib,
+  Jakob Progsch and Václav Zeman), SmallVector (BSD-3-Clause, the V8 project
+  authors), expm1f (BSD-2-Clause, Norbert Juffa) and Metal complex-math code
+  from NVIDIA CCCL (Apache-2.0, NVIDIA Corporation and Filipe RNC Maia)
+- swift-numerics (Apache-2.0 with Runtime Library Exception, Apple Inc.)
+- mlx-swift-lm (MIT, Copyright 2024 ml-explore)
+- swift-transformers and swift-jinja (Apache-2.0, Hugging Face)
+- yyjson (MIT, Copyright 2020 YaoYuan)
+- swift-collections (Apache-2.0 with Runtime Library Exception, Apple Inc.)
+- swift-crypto and swift-asn1 (Apache-2.0, Apple Inc.), resolved dependencies
+  of swift-transformers; on macOS swift-crypto forwards to Apple's CryptoKit

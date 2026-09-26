@@ -43,4 +43,4 @@ curl: `curl -s "$(vella url)/audio/transcriptions" -F file=@talk.m4a -F response
 
 You have the transcript and have read enough of it to confirm it matches the audio (right language, no long stretches missing). Tell the user which file you transcribed and with which model (`vella status` names the dictation model). Automatic transcripts misspell names and jargon: say so when those matter, and never present the text as a verbatim quote without checking it.
 
-If Vella answers with an error, pass its one-line message to the user: it says what to do (for example "not downloaded; get it in Vella → Models…" or a memory refusal with the model's size).
+If Vella answers with an error, pass its one-line message to the user: it says what to do (for example "not downloaded; get it in Vella → Models…" or a memory refusal with the model's size). If transcripts look broken or transcription is far slower than expected, run `vella diagnose` and give the user its report and the bug-report link on its last line.

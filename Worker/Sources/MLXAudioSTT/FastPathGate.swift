@@ -67,7 +67,7 @@ public enum FastPathGate {
     /// Environment switches that change which optimized components run or what they compute (diagnosis/A-B only).
     /// The effective set is part of the gate key, so a verdict qualified under an override is never reused for
     /// production defaults, and the self-test child (which inherits them) tests exactly what the worker will run.
-    public static let componentSwitches = ["VELLA_PARAKEET_FAST"]
+    public static let componentSwitches = ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND"]
     public static let componentSwitchPrefixes = ["VELLA_NEMO_"]
     /// "" for production defaults; otherwise the sorted `KEY=value` list of set switches.
     public static func componentConfiguration(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
@@ -78,7 +78,7 @@ public enum FastPathGate {
     /// Every release env hook that changes behaviour or adds instrumentation, for the worker status `test_hooks`.
     public static let reportedSwitches = componentSwitches + ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR",
         "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
-        "VELLA_PARAKEET_PROFILE", "VELLA_PARAKEET_FP32_FRONTEND", "VELLA_QWEN_PROFILE", "VELLA_STREAM_PROFILE",
+        "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_QWEN_ENC_BF16", "VELLA_STREAM_PROFILE",
         "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB",
         "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_MLX_DEVICE"]
     public static func reportedEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
@@ -135,9 +135,14 @@ public enum FastPathGate {
     }
     /// After this many consecutive inconclusive self-tests for one key, the key is persisted as stock.
     public static let inconclusiveLimit = 2
-    public static func persist(_ value: String, to url: URL, count: Int? = nil) {
-        var object = ["status": value, "workerVersion": version]
+    /// `model` and `reason` are for `vella diagnose` only (the model folder's name, never its path; why it is stock);
+    /// the key alone decides reuse.
+    public static func persist(_ value: String, to url: URL, count: Int? = nil, model: URL? = nil, reason: String? = nil) {
+        var object = ["status": value, "workerVersion": version, "gpuFamily": gpuFamily, "osBuild": osBuild,
+                      "date": ISO8601DateFormatter().string(from: Date())]
         if let count { object["count"] = String(count) }
+        if let model { object["model"] = model.lastPathComponent }
+        if let reason { object["reason"] = reason }
         guard let data = try? JSONSerialization.data(withJSONObject: object) else { return }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: url, options: .atomic)
@@ -163,7 +168,7 @@ public enum FastPathGate {
             return previous == "fast" ? .fast : .stock("The optimized path failed its self-test against stock MLX on this Mac.")
         }
         if let requiredFamily, gpuFamily != requiredFamily {
-            persist("stock", to: url)
+            persist("stock", to: url, model: path, reason: "GPU family \(gpuFamily), needs \(requiredFamily)")
             return .stock("The optimized kernels need Apple GPU family 9; this GPU reports \(gpuFamily).")
         }
         let process = Process()
@@ -178,14 +183,14 @@ public enum FastPathGate {
         let exited = DispatchSemaphore(value: 0)
         process.terminationHandler = { _ in exited.signal() }
         let failed = Verdict.stock("The optimized path failed its self-test against stock MLX on this Mac.")
-        do { try process.run() } catch { return recordInconclusive(url) }
+        do { try process.run() } catch { return recordInconclusive(url, model: path) }
         if exited.wait(timeout: .now() + 45) == .timedOut {
             process.terminate()
             if exited.wait(timeout: .now() + 2) == .timedOut {
                 kill(process.processIdentifier, SIGKILL)
                 _ = exited.wait(timeout: .now() + 2)
             }
-            persist("stock", to: url)
+            persist("stock", to: url, model: path, reason: "self-test timed out (45 s)")
             return .stock("The optimized path's self-test did not finish within 45 s on this Mac.")
         }
         debug("self-test child exit \(process.terminationStatus) reason \(process.terminationReason.rawValue)")
@@ -193,21 +198,21 @@ public enum FastPathGate {
         // error). A timeout above is evidence too. Anything else (setup failure, crash, unexplained status) is
         // inconclusive: stock for this load, retried next load, persisted as stock after two in a row.
         guard process.terminationReason == .exit, [0, verdictFailed].contains(process.terminationStatus) else {
-            return recordInconclusive(url)
+            return recordInconclusive(url, model: path)
         }
         let success = process.terminationStatus == 0
-        persist(success ? "fast" : "stock", to: url)
+        persist(success ? "fast" : "stock", to: url, model: path, reason: success ? nil : "self-test: optimized output differs from stock MLX")
         // If persistence failed, don't enable a path that won't be tested on restart.
         guard success else { return failed }
         return status(url) == "fast" ? .fast : .stock("The self-test result could not be saved, so the optimized path stays off.")
     }
-    private static func recordInconclusive(_ url: URL) -> Verdict {
+    private static func recordInconclusive(_ url: URL, model: URL) -> Verdict {
         let count = inconclusiveCount(url) + 1
         if count >= inconclusiveLimit {
-            persist("stock", to: url)
+            persist("stock", to: url, model: model, reason: "self-test could not complete \(count) times in a row")
             return .stock("The optimized path's self-test could not complete on this Mac \(count) times in a row; using stock MLX.")
         }
-        persist("inconclusive", to: url, count: count)
+        persist("inconclusive", to: url, count: count, model: model, reason: "self-test could not complete")
         return .stock("The optimized path's self-test could not complete on this load; using stock MLX and testing again next load.")
     }
 }

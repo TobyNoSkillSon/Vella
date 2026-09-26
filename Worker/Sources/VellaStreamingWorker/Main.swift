@@ -32,7 +32,7 @@ final class StreamingModelCache {
         if ok == 0 { memory["footprint_mb"] = Double(info.ri_phys_footprint) / 1e6 }
         let hooks = FastPathGate.reportedEnvironment()
         var object: [String: Any] = [
-            "worker": "streaming", "pid": Int(getpid()), "event": event, "model": path?.path ?? NSNull(),
+            "worker": "streaming", "pid": Int(getpid()), "version": FastPathGate.version, "event": event, "model": path?.path ?? NSNull(),
             "engine": native.map { $0.engine.0 } ?? NSNull(),
             "engine_reason": native.map { $0.engine.1 } ?? NSNull(),
             "optimizations": native?.engine.2 ?? [String: Bool](), "load_s": loadSeconds ?? NSNull(), "memory": memory,

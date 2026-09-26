@@ -161,6 +161,7 @@ final class InstallReadinessTests: XCTestCase {
     }
     /// install-prepared.sh with a fake prepared app whose tool reports each readiness outcome.
     func testInstallScriptDeletesThePreviousAppOnlyWhenReady() throws {
+        try Integration.require()   // runs scripts/install-prepared.sh
         let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("scripts/install-prepared.sh")
         for (readyStatus, accept, expectedExit, keepsPrevious) in [(0, false, 0, false), (3, false, 1, true), (1, false, 1, true), (3, true, 0, true)] {

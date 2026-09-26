@@ -151,10 +151,13 @@ import VellaCore
         case .none:
             throw APIError(400, "file is required: the audio file as a multipart/form-data upload", param: "file")
         }
-        let chosen = try model(for: options)
-        let prepared = try models?.prepare(chosen) ?? chosen
-        let shield = (models?.models() ?? []).first(where: \.current)?.id
-        let result = try await transcriber.transcribe(audio, model: prepared, shield: shield)
+        // Resolved again when the request's turn comes and before each segment: the current model and the precision
+        // the user committed may change while it waits.
+        let result = try await transcriber.transcribe(audio, resolve: { [weak self] in
+            guard let self else { throw CancellationError() }
+            let chosen = try self.model(for: options)
+            return try self.models?.prepare(chosen) ?? chosen
+        }, current: { [weak self] in (self?.models?.models() ?? []).first(where: \.current)?.id })
         let rendered = TranscriptFormatter.render(options.format, text: result.text, segments: result.segments,
                                                   duration: result.duration, language: options.language)
         return APIResponse(status: 200, contentType: rendered.contentType, body: rendered.body)
