@@ -32,7 +32,7 @@ final class ModelsTests: XCTestCase {
         }
         return ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
                                 streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                benchmarksURL: benchmarksURL, selectionsURL: root.appendingPathComponent("model-precision.json"))
+                                benchmarksURL: benchmarksURL)
     }
     private let qwenFixture = #"""
     {"schema":1,"models":{"qwen3-asr-1.7b":{"precisions":{
@@ -71,21 +71,21 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(c.selected(qwen), "4b")
         XCTAssertEqual(c.base(qwen), "4b")
         XCTAssertEqual(errorRateDelta(c.result(qwen, "8b")?.wer, base: c.result(qwen, c.base(qwen))?.wer), Delta("+0.1 pt", .worse))
-        c.setPrecision(qwen, "BF16")
+        c.preview(qwen, "BF16")
         XCTAssertEqual(c.selected(qwen), "BF16")
-        let saved = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: c.selectionsURL))
-        XCTAssertEqual(saved["qwen3-asr-1.7b"], nativeSelection, "native is stored as a sentinel")
-        let reopened = ModelsController(dictation: c.dictation, streaming: c.streaming, selectionsURL: c.selectionsURL)
-        XCTAssertEqual(reopened.selected(qwen), "BF16")
+        // A preview is not persisted: a new controller shows the recommended precision again.
+        let reopened = ModelsController(dictation: c.dictation, streaming: c.streaming, benchmarksURL: c.dictation.resources.appendingPathComponent("missing.json"))
+        reopened.benchmarks = c.benchmarks
+        XCTAssertEqual(reopened.selected(qwen), "4b")
     }
 
     @MainActor func testPreviewNeverWritesSelections() throws {
         let c = try controller()
         c.previewing = true
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
-        c.setPrecision(qwen, "8b")
+        c.preview(qwen, "8b")
         XCTAssertEqual(c.selected(qwen), "8b")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: c.selectionsURL.path))
+        XCTAssertNil(c.configURL, "isolated: no config.json to write")
     }
 
     @MainActor func testRowActionsGoToTheRuntime() throws {
@@ -103,7 +103,7 @@ final class ModelsTests: XCTestCase {
         c.perform(qwen)
         XCTAssertEqual(spy.calls.last, "unload qwen3-asr-1.7b")
         // Another precision selected for the loaded model: green Reload.
-        c.setPrecision(qwen, "BF16")
+        c.preview(qwen, "BF16")
         XCTAssertEqual(c.action(qwen), .reload)
         c.perform(qwen)
         XCTAssertEqual(spy.calls.last, "reload qwen3-asr-1.7b BF16 /fixture/q16")
@@ -128,7 +128,7 @@ final class ModelsTests: XCTestCase {
                     XCTAssertEqual(Set(before), Set(c.families(mode).map(\.id)), "sections keep their own rows")
                     for family in c.families(mode) {
                         for precision in c.options(family) {
-                            c.setPrecision(family, precision)
+                            c.preview(family, precision)
                             XCTAssertEqual(ModelTable.rows(c, mode, sort: column, ascending: ascending).map(\.id), before,
                                            "\(column) \(ascending): selecting \(family.id) \(precision) moved a row")
                         }
@@ -152,7 +152,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertTrue(c.segmentHelp(qwen, "4b").contains("Recommended"), "the recommended segment says so")
         XCTAssertTrue(c.segmentHelp(parakeet, "FP32").contains("Not measured yet."), "fixture has no Parakeet figures")
         c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16")])
-        XCTAssertTrue(c.segmentHelp(qwen, "8b").hasSuffix("Loaded at BF16 (bfloat16); Reload applies the selection."))
+        XCTAssertTrue(c.segmentHelp(qwen, "8b").hasSuffix("Loaded at BF16 (bfloat16); Reload loads this precision instead. Closing the menu keeps BF16 (bfloat16)."))
     }
 
     /// A precision made on this Mac: selectable, `\u{2014}` until measured, Get fetches its source, Load hands the worker
@@ -164,14 +164,14 @@ final class ModelsTests: XCTestCase {
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
         XCTAssertEqual(c.options(ultra), ["BF16", "8b", "4b"])
         XCTAssertEqual(c.segmentLabels(ultra), ["16", "8", "4"])
-        c.setPrecision(ultra, "4b")
+        c.preview(ultra, "4b")
         XCTAssertEqual(c.selected(ultra), "4b", "derived precisions are selectable")
         // Not measured: every figure is absent, including On disk (never the source's size, never an estimate).
         XCTAssertNil(c.result(ultra, "4b"))
         XCTAssertNil(c.disk(ultra, "4b"))
         XCTAssertNotNil(c.disk(ultra, "BF16"))
         let help = c.segmentHelp(ultra, "4b")
-        XCTAssertTrue(help.hasPrefix("4-bit quantized. Made on this Mac from the BF16 (bfloat16) weights; Get downloads those ("), help)
+        XCTAssertTrue(help.hasPrefix("4-bit quantized. Made on this Mac from the BF16 (bfloat16) weights; loading it downloads those first ("), help)
         XCTAssertTrue(help.contains("Not measured yet."), help)
         XCTAssertFalse(help.contains("Published"), help)
         // Get downloads the source.
@@ -183,7 +183,7 @@ final class ModelsTests: XCTestCase {
         try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
         c.dictation.installed["parakeet-ultra-mlx-bf16"] = InstalledModel(path: source.path)
         XCTAssertEqual(c.action(ultra), .load)
-        XCTAssertFalse(c.segmentHelp(ultra, "4b").contains("Get downloads"), "source already downloaded")
+        XCTAssertFalse(c.segmentHelp(ultra, "4b").contains("downloads those"), "source already downloaded")
         c.perform(ultra)
         let derivedDir = c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-4bit-local").standardizedFileURL.path
         XCTAssertEqual(spy.calls.last, "load parakeet-v3-ultra 4b \(derivedDir)")
@@ -191,7 +191,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(c.lastError)
         // Loaded at 4b, 8b selected: Reload, again through its own directory.
         c.runtime = TableRuntime(loaded: ["parakeet-v3-ultra": LoadedFamily(precision: "4b")])
-        c.setPrecision(ultra, "8b")
+        c.preview(ultra, "8b")
         XCTAssertEqual(c.action(ultra), .reload)
         c.perform(ultra)
         XCTAssertEqual(spy.calls.last, "reload parakeet-v3-ultra 8b \(c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-8bit-local").standardizedFileURL.path)")

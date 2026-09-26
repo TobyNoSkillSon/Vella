@@ -71,7 +71,7 @@ final class DownloadTests: XCTestCase {
             if request.url!.lastPathComponent == "model.safetensors" { resumed = request.value(forHTTPHeaderField: "Range") == "bytes=1024-" }
             return try prior(request)
         }
-        library.download()
+        library.download(approval: confirmed(model.id))
         for _ in 0..<300 where library.busy { try await Task.sleep(nanoseconds: 20_000_000) }
         XCTAssertTrue(resumed)
         XCTAssertEqual(library.progress, 1)
@@ -89,10 +89,12 @@ final class DownloadTests: XCTestCase {
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 try "print('no')".write(to: folder.appendingPathComponent("evil.py"), atomically: true, encoding: .utf8)
             }
-            library.downloadConfiguration = config; library.selectedID = model.id; library.download()
+            library.downloadConfiguration = config; library.selectedID = model.id; library.download(approval: confirmed(model.id))
             for _ in 0..<300 where library.busy { try await Task.sleep(nanoseconds: 20_000_000) }
             XCTAssertNotNil(library.downloadError)
+            XCTAssertTrue(library.downloadError?.contains("download failed:") == true, library.downloadError ?? "")
             XCTAssertTrue(library.installed.isEmpty)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: library.modelsDirectory.appendingPathComponent(model.id).path), "a failed download leaves no files")
             XCTAssertFalse(FileManager.default.fileExists(atPath: library.registryURL.path))
         }
     }
@@ -100,9 +102,12 @@ final class DownloadTests: XCTestCase {
         let (root, model, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let library = ModelLibrary(resources: root, registryURL: root.appendingPathComponent("registry.json"))
         library.selectedID = model.id; library.mayChangeModel = { false }
-        library.download()
+        XCTAssertFalse(library.download(approval: confirmed(model.id)))
         XCTAssertFalse(library.busy)
+        XCTAssertNotNil(library.downloadError, "a refused download says why")
     }
+    /// The downloader itself keeps a pinned partial (resume within one download); the app's library removes it when
+    /// the download is cancelled (testLibraryCancelAndFailureRemovePartialFiles).
     func testCancellationLeavesPinnedPartialForResume() async throws {
         let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         configure(model, files: contents)

@@ -20,9 +20,9 @@ import VellaCore
         delegate.factLine = { [weak self] in self?.factLine }
         delegate.pendingModelRow = { [weak self] in
             guard let offer = self?.model?.pendingModelRequest else { return nil }
-            return (offer.title, "Downloads \(offer.name), then transcribes the saved recording and copies the text.")
+            return (offer.title, "Asks before downloading \(offer.name), then transcribes the saved recording and copies the text.")
         }
-        delegate.getPendingModel = { [weak self] in self?.model?.getRecommendedModel() }
+        delegate.getPendingModel = { [weak self] in self?.getPendingModel() }
         delegate.restartWorkers = { [weak self] in self?.restart() }
         delegate.modelsLoaded = { [weak self] in
             guard let status = self?.runtime.status else { return false }
@@ -32,6 +32,13 @@ import VellaCore
     func attach(controller: ModelsController, model: Model) {
         self.controller = controller; self.model = model
         controller.actions = self
+        // The table reads what was loaded from the runtime's config.json; the retired per-family precision file
+        // beside it is migrated once and deleted.
+        if !controller.previewing {
+            controller.configURL = runtime.configURL
+            controller.reloadConfig()
+            controller.migrateLegacySelections(from: runtime.configURL.deletingLastPathComponent().appendingPathComponent("model-precision.json"))
+        }
         runtime.resolver = { [weak self] path, mode in self?.ref(path: path, mode: mode) }
         model.offerModel = { [weak self] mode in self?.offer(mode) }
         model.fetchModel = { [weak self] offer in
@@ -40,6 +47,17 @@ import VellaCore
         }
         subscription = runtime.$status.sink { [weak self] status in self?.publish(status) }
         publish(runtime.status)
+    }
+
+    /// Launch clean-up: partial downloads left in Vella's Models folder by a quit, crash or earlier version.
+    func sweepPartialDownloads() {
+        guard let controller, !controller.previewing else { return }
+        let library = controller.dictation
+        let config = controller.config
+        let keep = library.keptModelPaths.union(controller.streaming.keptModelPaths)
+            .union([config?.model, config?.streamingModel].compactMap { $0 })
+            .union(runtime.settings.launchSet.map(\.path))
+        sweepStalePartialDownloads(modelsDirectory: library.modelsDirectory, keep: keep)
     }
 
     // MARK: Catalog identity
@@ -117,13 +135,16 @@ import VellaCore
     private func sameFiles(_ a: String, _ b: String) -> Bool {
         URL(fileURLWithPath: a).standardizedFileURL.path == URL(fileURLWithPath: b).standardizedFileURL.path
     }
-    /// Load also selects the model for its mode (what the next dictation uses).
+    /// A successful load makes the model its mode's model (what the next dictation or streaming session loads on
+    /// demand) and records the family's precision, so the table and dictation never disagree.
     private func select(_ path: String, mode: RecognitionMode) {
         let url = runtime.configURL
         var config = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) } ?? Configuration(model: "")
-        config.selectModel(path, for: mode)
+        let identity = controller?.identify(path: path, mode: mode)
+        config.recordLoad(path: path, mode: mode, family: identity?.family.id, precision: identity?.precision)
         try? JSONEncoder().encode(config).write(to: url, options: .atomic)
         controller?.library(mode).activeModelPath = path
+        controller?.reloadConfig()
     }
 
     // MARK: MenuSettingsSource
@@ -192,8 +213,29 @@ import VellaCore
         return try prepareDerivedModel(family: family, precision: precision, sourcePath: sourcePath,
                                        modelsDirectory: controller.library(offer.mode).modelsDirectory)
     }
-    /// Download and validate the offered variant, select it for its mode, and return its path. Nothing loads or
-    /// downloads until the user clicks the Get row.
+    /// The download confirmation popup for the first-dictation Get row (tests answer it without a window).
+    var presentDownload: (DownloadPrompt) -> Bool = { DownloadGate.presentAlert($0) }
+    /// Approvals from the Get row's popup, consumed by `fetch`.
+    private var approvals: [String: DownloadApproval] = [:]
+    /// The popup for the offered download; nil when the catalog has none.
+    func offerPrompt(_ offer: Model.ModelOffer) -> DownloadPrompt? {
+        guard let controller, let (family, precision) = offered(offer.mode) else { return nil }
+        return downloadPrompt(family: family, precision: precision, followUp: .transcribe,
+                              freeBytes: freeDiskBytes(at: controller.library(offer.mode).modelsDirectory))
+    }
+    /// The Get row: asks first when the offer needs a download; on Download (or with the weights already on disk)
+    /// fetches and transcribes the saved recording. Cancel keeps the recording and the row.
+    func getPendingModel() {
+        guard let model, let offer = model.pendingModelRequest, let controller else { return }
+        if controller.library(offer.mode).installed[offer.id] == nil {
+            guard let prompt = offerPrompt(offer), prompt.variantID == offer.id,
+                  let approval = DownloadGate.ask(prompt, present: presentDownload) else { return }
+            approvals[offer.id] = approval
+        }
+        model.getRecommendedModel()
+    }
+    /// Download (only with the Get row's approval) and validate the offered variant, select it for its mode, and
+    /// return its path. Nothing loads or downloads until the user clicks the Get row and confirms.
     func fetch(_ offer: Model.ModelOffer) async throws -> String {
         guard let controller else { throw VellaError.message("Models are unavailable.") }
         let library = controller.library(offer.mode)
@@ -201,8 +243,13 @@ import VellaCore
             let path = try offeredPath(offer, sourcePath: local.path)
             select(path, mode: offer.mode); return path
         }
+        guard let approval = approvals.removeValue(forKey: offer.id) else {
+            throw VellaError.message("The download of \(offer.name) was not confirmed.")
+        }
         library.selectedID = offer.id
-        library.download(pendingRecording: true)
+        guard library.download(approval: approval, pendingRecording: true) else {
+            throw VellaError.message(library.downloadError ?? "\(offer.name) did not start downloading.")
+        }
         while library.downloadingID == offer.id || (library.busy && library.calibratingID == nil && library.installed[offer.id] == nil) {
             try Task.checkCancellation()
             try await Task.sleep(nanoseconds: 200_000_000)

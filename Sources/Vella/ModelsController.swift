@@ -18,36 +18,50 @@ import VellaCore
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool
 }
 
-/// The Models table's state: catalog families of both modes, measured numbers, precision selections, what is
-/// downloaded (the two mode libraries) and what is loaded (the runtime).
+/// The Models table's state: catalog families of both modes, measured numbers, what is downloaded (the two mode
+/// libraries) and what is loaded (the runtime).
+///
+/// ONE state per model (Toby, 26 Sep 2026): a row shows its loaded precision; a segment the user picks is a transient
+/// preview (its numbers, deltas and the green Reload) that closing the menu discards; an unloaded row shows the
+/// precision it was last loaded at (config.json: the mode's model, else `lastLoaded`), else the recommended one. Only
+/// Load/Reload changes what dictation uses. Every download asks first (`confirmDownload`).
 @MainActor final class ModelsController: ObservableObject {
     let dictation: ModelLibrary
     let streaming: ModelLibrary
     @Published var catalog: ModelCatalog
     @Published var benchmarks: BenchmarkFile
-    @Published private(set) var selections: [String: String]
+    /// Family id → previewed precision; never persisted.
+    @Published private(set) var previews: [String: String] = [:]
+    /// Family id → the precision whose confirmed download is running; it loads when the download finishes.
+    @Published private(set) var pendingLoads: [String: String] = [:]
+    /// config.json as last read: the modes' models and `lastLoaded`. Nil without one (isolated tests, renders).
+    @Published private(set) var config: Configuration?
     /// Runtime state from the worker status; nil = no runtime attached (loaded = the mode's selected model).
     @Published var runtime: TableRuntime?
     @Published var lastError: String?
     /// True in the render harness: nothing is written, no worker is asked.
     var previewing = false
     weak var actions: ModelRuntimeActions?
-    let selectionsURL: URL
+    /// The app's config.json (the runtime's); nil = none.
+    var configURL: URL?
+    /// Asks before a download: shows the prompt and answers with an approval only when the user chose Download.
+    /// Without a presenter nothing downloads.
+    var confirmDownload: ((DownloadPrompt, @escaping (DownloadApproval?) -> Void) -> Void)?
     private var forwarding: [AnyCancellable] = []
 
-    init(dictation: ModelLibrary? = nil, streaming: ModelLibrary? = nil, benchmarksURL: URL? = nil, selectionsURL: URL? = nil) {
+    init(dictation: ModelLibrary? = nil, streaming: ModelLibrary? = nil, benchmarksURL: URL? = nil, configURL: URL? = nil) {
         let dictation = dictation ?? ModelLibrary(mode: .dictation)
         self.dictation = dictation
         self.streaming = streaming ?? (dictation.registryURL == ModelLibrary.registry ? ModelLibrary(mode: .streaming)
             : ModelLibrary(mode: .streaming, resources: dictation.resources, registryURL: dictation.registryURL))
-        self.selectionsURL = selectionsURL ?? dictation.registryURL.deletingLastPathComponent().appendingPathComponent("model-precision.json")
+        self.configURL = configURL ?? (dictation.registryURL == ModelLibrary.registry ? Backend.configURL : nil)
         catalog = (try? decodeCatalog(Data(contentsOf: dictation.resources.appendingPathComponent("models.json")))) ?? ModelCatalog(families: [])
         benchmarks = decodeBenchmarks(try? Data(contentsOf: benchmarksURL ?? Self.benchmarksURL(resources: dictation.resources)))
-        selections = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: self.selectionsURL))) ?? [:]
         // Download progress and registry changes redraw the table.
         for library in [self.dictation, self.streaming] {
             forwarding.append(library.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() })
         }
+        reloadConfig()
     }
 
     /// `VELLA_BENCHMARKS` (a fixture for renders and tests), else the bundled Resources/benchmarks.json.
@@ -59,6 +73,59 @@ import VellaCore
     func reload() {
         dictation.reload(); streaming.reload()
         if let catalog = try? decodeCatalog(Data(contentsOf: dictation.resources.appendingPathComponent("models.json"))) { self.catalog = catalog }
+        reloadConfig()
+    }
+    /// Rereads config.json (after a Load, and when the menu opens).
+    func reloadConfig() {
+        guard !previewing, let configURL else { return }
+        config = (try? Data(contentsOf: configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
+    }
+    /// Render harness: a config without touching disk.
+    func previewConfig(_ config: Configuration?) { self.config = config }
+
+    /// The family and precision of a model path: a registered download, or a precision made on this Mac (its
+    /// directory holds only the derivation manifest).
+    func identify(path: String, mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
+        guard !path.isEmpty else { return nil }
+        if let id = library(mode).installed.first(where: { $0.value.path == path })?.key, let found = catalog.locate(variant: id),
+           found.family.mode == mode { return found }
+        guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = catalog.family(manifest.family),
+              family.mode == mode, family.variants[manifest.precision]?.isDerived == true else { return nil }
+        return (family, manifest.precision)
+    }
+    /// The precision the family was last loaded at: the mode's model (what the next dictation loads) when it is this
+    /// family, else config.json's `lastLoaded`.
+    func lastLoaded(_ f: ModelFamily) -> String? {
+        let path = config.map { f.mode == .dictation ? $0.model : $0.streamingModel } ?? ""
+        if let (family, precision) = identify(path: path, mode: f.mode), family.id == f.id { return precision }
+        return config?.lastLoaded[f.id]
+    }
+
+    /// One-time migration of the retired model-precision.json (a per-family choice kept apart from what was loaded,
+    /// the 1.0.0 bug): an entry becomes `lastLoaded` only for a family with no load record whose precision is on disk,
+    /// so it never overrides a loaded or configured model and never leads to a download. The file is then deleted.
+    /// Only when it sits beside config.json (the same support directory).
+    func migrateLegacySelections(from url: URL) {
+        guard !previewing, let configURL, FileManager.default.fileExists(atPath: url.path),
+              url.deletingLastPathComponent().standardizedFileURL == configURL.deletingLastPathComponent().standardizedFileURL else { return }
+        let stored = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: url))) ?? [:]
+        var config = (try? Data(contentsOf: configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
+        var changed = false
+        if var edited = config {
+            self.config = edited
+            for (id, value) in stored.sorted(by: { $0.key < $1.key }) {
+                guard let family = catalog.family(id), edited.lastLoaded[id] == nil, lastLoaded(family) == nil else { continue }
+                let precision = effectivePrecision(stored: value, native: family.native)
+                guard options(family).contains(precision), available(family, precision) else { continue }
+                edited.lastLoaded[id] = precision; changed = true
+            }
+            if changed {
+                do { try JSONEncoder().encode(edited).write(to: configURL, options: .atomic); config = edited }
+                catch { lastError = "Could not migrate the precision choices: \(error.localizedDescription)"; return }
+            }
+        }
+        try? FileManager.default.removeItem(at: url)
+        self.config = config
     }
 
     func library(_ mode: RecognitionMode) -> ModelLibrary { mode == .dictation ? dictation : streaming }
@@ -79,14 +146,14 @@ import VellaCore
     func disk(_ f: ModelFamily, _ precision: String) -> Int64? { tableDiskBytes(f, precision, result(f, precision)) }
 
     /// A Q segment's tooltip: the exact format, where it comes from (published, or made on this Mac from a higher
-    /// precision), whether it is measured, and the recommendation or pending Reload when they apply.
+    /// precision), whether it is measured, and the recommendation or the loaded precision when they apply.
     func segmentHelp(_ f: ModelFamily, _ precision: String) -> String {
         var text = precisionFormatName(precision)
         if precision == f.native { text += ", the model's native precision" }
         if let source = derivedSource(f, precision) {
             text += ". Made on this Mac from the \(precisionFormatName(source)) weights"
             if let root = downloadRoot(f, precision), let v = f.variants[root], installed(f, root) == nil {
-                text += "; Get downloads those (\(formatBytes(v.downloadBytes)))"
+                text += "; loading it downloads those first (\(formatBytes(v.downloadBytes)), after you confirm)"
             }
             text += "."
         } else if let v = f.variants[precision], !v.repository.isEmpty {
@@ -97,14 +164,21 @@ import VellaCore
         if result(f, precision)?.wer == nil { text += " Not measured yet." }
         if precision == recommended(f), let help = recommendedHelp(f) { text += " " + help }
         if let loaded = loaded(f)?.precision, loaded != precision {
-            text += " Loaded at \(precisionFormatName(loaded)); Reload applies the selection."
+            text += " Loaded at \(precisionFormatName(loaded)); Reload loads this precision instead. Closing the menu keeps \(precisionFormatName(loaded))."
         }
         return text
     }
     func recommended(_ f: ModelFamily) -> String? { recommendedPrecision(for: f, in: benchmarks) }
-    func selected(_ f: ModelFamily) -> String {
-        selectedPrecision(stored: selections[f.id], loaded: loaded(f)?.precision, recommended: recommended(f), family: f)
+    /// The precision the row returns to without a preview: loaded, else last loaded, else recommended.
+    func committed(_ f: ModelFamily) -> String {
+        committedPrecision(loaded: loaded(f)?.precision, lastLoaded: lastLoaded(f), recommended: recommended(f), family: f)
     }
+    /// The precision the row shows: a running confirmed download's, else the preview, else the committed one.
+    func selected(_ f: ModelFamily) -> String {
+        shownPrecision(preview: pendingLoads[f.id] ?? previews[f.id], loaded: loaded(f)?.precision, lastLoaded: lastLoaded(f),
+                       recommended: recommended(f), family: f)
+    }
+    func isPreviewing(_ f: ModelFamily) -> Bool { previews[f.id] != nil }
     func recommendedHelp(_ f: ModelFamily) -> String? {
         recommended(f).map { recommendationHelp(benchmarks.models[f.id], recommended: $0, native: f.native) }
     }
@@ -116,7 +190,7 @@ import VellaCore
     }
     /// The downloadable precision a derived one resolves to (itself when published).
     func downloadRoot(_ f: ModelFamily, _ precision: String) -> String? { f.downloadSource(of: precision)?.label }
-    /// Whether the selected precision can load without a download: its own weights, or (derived) its source's.
+    /// Whether the precision can load without a download: its own weights, or (derived) its source's.
     func available(_ f: ModelFamily, _ precision: String) -> Bool {
         if installed(f, precision) != nil { return true }
         guard derivedSource(f, precision) != nil, let root = downloadRoot(f, precision) else { return false }
@@ -153,51 +227,82 @@ import VellaCore
         let precision = selected(f)
         return loadAction(selected: precision, loaded: loaded(f)?.precision, native: f.native, downloaded: available(f, precision))
     }
+    /// Whether the row's button starts a download (after the confirmation popup).
+    func needsDownload(_ f: ModelFamily) -> Bool { action(f) != .unload && !available(f, selected(f)) }
 
-    func setPrecision(_ f: ModelFamily, _ precision: String) {
-        selections[f.id] = storedPrecision(precision, native: f.native)
-        guard !previewing else { return }
-        do {
-            try FileManager.default.createDirectory(at: selectionsURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(selections).write(to: selectionsURL, options: .atomic)
-        } catch { lastError = "Could not save the precision choice: \(error.localizedDescription)" }
+    /// A Q segment click: preview that precision (its numbers, deltas and button). Picking the committed precision
+    /// ends the preview. Nothing is written; only Load/Reload changes the model.
+    func preview(_ f: ModelFamily, _ precision: String) {
+        previews[f.id] = precision == committed(f) ? nil : precision
     }
-    /// Render harness: selections without touching disk.
-    func previewSelections(_ values: [String: String]) { selections = values }
+    /// The menu closed: previews end without effect.
+    func discardPreviews() { if !previews.isEmpty { previews = [:] } }
+    /// Render harness: previews without a click.
+    func previewSelections(_ values: [String: String]) { previews = values }
 
-    /// The row button: Get downloads the selected precision; Load, Reload and Unload go to the runtime.
+    /// The row button. Unload goes to the runtime; Get/Load/Reload of weights on disk load now; anything that needs a
+    /// download first asks in the confirmation popup, then downloads and loads.
     func perform(_ f: ModelFamily) {
         guard !previewing else { return }
         lastError = nil
         let precision = selected(f)
-        guard let variant = f.variants[precision] else { return }
-        let lib = library(f.mode)
-        // A derived precision downloads the weights it is made from.
+        guard f.variants[precision] != nil else { return }
+        let action = action(f)
+        if action == .unload { actions?.unload(family: f); return }
         guard let source = f.downloadSource(of: precision) else { lastError = "\(f.name) at \(precisionFormatName(precision)) has no source in the catalog."; return }
-        switch action(f) {
-        case .get:
-            lib.selectedID = source.variant.id; lib.download()
-        case .unload:
-            if let actions { actions.unload(family: f) }
-        case .load, .reload:
-            guard let local = lib.installed[source.variant.id] else { lib.selectedID = source.variant.id; lib.download(); return }
-            var path = local.path
-            if variant.isDerived {
-                // The worker derives from the source; the derived directory (a manifest) keeps its own model identity.
-                do { path = try prepareDerivedModel(family: f, precision: precision, sourcePath: local.path, modelsDirectory: lib.modelsDirectory) }
-                catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error)"; return }
-            }
-            setPrecision(f, precision)   // what was loaded stays the selection
-            if let actions {
-                action(f) == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path)
-                                     : actions.load(family: f, precision: precision, variant: variant, path: path)
-            } else if variant.isDerived {
-                lastError = "\(f.name) at \(precisionFormatName(precision)) needs the recognition worker; use Restart Worker and try again."
-            } else {
-                lib.selectedID = variant.id
-                if !lib.useSelected() { lastError = lib.downloadError }
-            }
+        if available(f, precision) { commit(f, precision, action); return }
+        requestDownload(f, precision, sourceID: source.variant.id)
+    }
+
+    /// The confirmation popup for what `precision` needs; on Download the download starts and the model loads when it
+    /// finishes. Cancel changes nothing.
+    func requestDownload(_ f: ModelFamily, _ precision: String, sourceID: String) {
+        let lib = library(f.mode)
+        let loadedNow = loaded(f)?.precision
+        guard let prompt = downloadPrompt(family: f, precision: precision, followUp: loadedNow.map { .reload(from: $0) } ?? .load,
+                                          freeBytes: freeDiskBytes(at: lib.modelsDirectory)) else {
+            lastError = "\(f.name) at \(precisionFormatName(precision)) has no download in the catalog."; return
+        }
+        guard let confirmDownload else { lastError = "Downloads need confirmation; reopen Models and try again."; return }
+        confirmDownload(prompt) { [weak self] approval in
+            guard let self, let approval, approval.variantID == sourceID else { return }
+            self.startDownload(f, precision, sourceID: sourceID, approval: approval)
+        }
+    }
+    private func startDownload(_ f: ModelFamily, _ precision: String, sourceID: String, approval: DownloadApproval) {
+        let lib = library(f.mode)
+        lib.selectedID = sourceID
+        pendingLoads[f.id] = precision
+        let started = lib.download(approval: approval, calibrate: false) { [weak self] installed in
+            guard let self else { return }
+            self.pendingLoads[f.id] = nil
+            // A failure or cancellation stays in the footer (the library's error line).
+            guard installed, self.available(f, precision) else { return }
+            self.commit(f, precision, self.loaded(f) == nil ? .load : .reload)
+        }
+        if !started { pendingLoads[f.id] = nil; lastError = lib.downloadError ?? lib.message }
+    }
+
+    /// Load or Reload weights that are on disk. The runtime makes the model its mode's model once it loaded.
+    private func commit(_ f: ModelFamily, _ precision: String, _ action: LoadAction) {
+        guard let variant = f.variants[precision], let source = f.downloadSource(of: precision) else { return }
+        let lib = library(f.mode)
+        guard let local = lib.installed[source.variant.id] else { return }
+        var path = local.path
+        if variant.isDerived {
+            // The worker derives from the source; the derived directory (a manifest) keeps its own model identity.
+            do { path = try prepareDerivedModel(family: f, precision: precision, sourcePath: local.path, modelsDirectory: lib.modelsDirectory) }
+            catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error)"; return }
+        }
+        if let actions {
+            action == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path)
+                              : actions.load(family: f, precision: precision, variant: variant, path: path)
+        } else if variant.isDerived {
+            lastError = "\(f.name) at \(precisionFormatName(precision)) needs the recognition worker; use Restart Worker and try again."
+        } else {
+            lib.selectedID = variant.id
+            if !lib.useSelected() { lastError = lib.downloadError }
+            reloadConfig()
         }
     }
     func cancelDownloads() { dictation.cancel(); streaming.cancel() }

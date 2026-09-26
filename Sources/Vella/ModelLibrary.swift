@@ -225,22 +225,55 @@ import VellaCore
             return true
         } catch { downloadError = error.localizedDescription; message = error.localizedDescription; return false }
     }
+    /// Paths a partial-download clean-up must never remove: installed models and the configured ones.
+    var keptModelPaths: Set<String> {
+        Set(installed.values.map(\.path) + [activeModelPath] + ((try? protectedModelPaths()) ?? []))
+    }
+    /// Removes a cancelled or failed download's files (the whole `Models/<id>` folder of a model that is not installed).
+    private func removePartialDownload(_ id: String) {
+        guard installed[id] == nil, downloadingID != id else { return }
+        removeUnfinishedDownload(id: id, modelsDirectory: modelsDirectory, keep: keptModelPaths)
+    }
+    /// `Parakeet v3 FP32`, for the footer's download and error lines.
+    private func downloadLabel(_ model: ModelRecommendation) -> String {
+        "\(model.name) \(precisionInProse(precisionLabel(legacyQuantization: model.quantization)))"
+    }
+
+    /// Downloads the selected variant. `approval` comes only from the confirmation popup (DownloadGate) and must name
+    /// this variant: nothing downloads without the user's Download. Returns false (with `downloadError` set) when the
+    /// download did not start. `completion` runs once when it ends: true = installed.
     /// `pendingRecording`: the first-dictation Get row. The app is deliberately busy then (it holds the saved
     /// recording in `.preparing` until the model arrives), so that one download is authorized explicitly instead of
     /// relaxing the general "not while dictating" guard (Review 1 R1). Busy/calibration guards still apply.
-    func download(pendingRecording: Bool = false) {
-        guard let selected, !busy, !calibration.isRunning, calibratingID == nil else { return }
-        guard pendingRecording || mayChangeModel() else { message = "Finish or stop dictation before installing a model."; return }
+    /// `calibrate: false` skips local calibration afterwards (the model loads right away instead).
+    @discardableResult
+    func download(approval: DownloadApproval, pendingRecording: Bool = false, calibrate: Bool = true,
+                  completion: ((Bool) -> Void)? = nil) -> Bool {
+        guard let selected, approval.variantID == selected.id else {
+            downloadError = "This download was not confirmed."; return false
+        }
+        guard !busy, !calibration.isRunning, calibratingID == nil else {
+            downloadError = "Another download or calibration is running. Try again when it finishes."; return false
+        }
+        guard pendingRecording || mayChangeModel() else {
+            message = "Finish or stop dictation before installing a model."; downloadError = message; return false
+        }
         beforeHeavyWork?()
+        let label = downloadLabel(selected)
         downloadingID = selected.id; downloadError = nil
-        busy = true; progress = nil; message = "Starting…"
+        busy = true; progress = nil; message = "\(label) \u{00b7} Starting…"
+        downloadCompletion = completion
         let token = UUID(); downloadToken = token
         let client = NativeModelDownload(baseURL: downloadBaseURL, configuration: downloadConfiguration,
             catalogURL: resources.appendingPathComponent(catalogName)) { [weak self] text, done, total in
             Task { @MainActor [weak self] in
                 guard let self, self.downloadToken == token else { return }
-                self.message = text
-                if let done, let total, total > 0 { self.progress = min(0.99, max(0, Double(done) / Double(total))) }
+                var line = "\(label) \u{00b7} \(text)"
+                if let done, let total, total > 0 {
+                    self.progress = min(0.99, max(0, Double(done) / Double(total)))
+                    line += " \(formatBytes(done)) of \(formatBytes(total))"
+                }
+                self.message = line
             }
         }
         downloadClient = client
@@ -248,7 +281,7 @@ import VellaCore
             try? await Task.sleep(nanoseconds: 3_600_000_000_000)
             guard !Task.isCancelled, let self, self.downloadToken == token else { return }
             self.cancel()
-            self.message = "Download timed out. Retry to resume."; self.downloadError = self.message
+            self.message = "\(label) download timed out after 1 hour; partial files removed."; self.downloadError = self.message
         }
         downloadTask = Task { [weak self] in
             do {
@@ -261,20 +294,43 @@ import VellaCore
                 do {
                     self.installed[selected.id] = InstalledModel(path: folder.path, revision: selected.revision, name: selected.name, quantization: selected.quantization)
                     try self.saveRegistry(updating: selected.id)
-                    self.reload(); self.progress = 1; self.message = "Downloaded. Choose Use to select it for \(self.mode.title.lowercased())."
+                    self.reload(); self.progress = 1; self.message = "\(label) downloaded."
                     self.downloadTimeout?.cancel(); self.downloadTimeout = nil
                     self.downloadToken = nil; self.downloadTask = nil; self.downloadClient = nil; self.downloadingID = nil; self.busy = false
-                    self.beginCalibration(id: selected.id, path: folder.path)
+                    if calibrate { self.beginCalibration(id: selected.id, path: folder.path) }
+                    self.finishDownload(true)
                 } catch { self.installed[selected.id] = previous; throw error }
             } catch {
-                guard let self, self.downloadToken == token else { return }
-                self.message = error is CancellationError ? "Cancelled. Partial downloads may be resumed; no model selection was changed." : error.localizedDescription
+                guard let self else { return }
+                let current = self.downloadToken == token   // false: cancel() already reported and completed it
+                if current {
+                    self.downloadTimeout?.cancel(); self.downloadTimeout = nil
+                    self.downloadingID = nil; self.busy = false; self.downloadToken = nil; self.downloadTask = nil; self.downloadClient = nil
+                }
+                // A cancelled or failed download leaves no partial files (unless a newer download of it is running).
+                self.removePartialDownload(selected.id)
+                guard current else { return }
+                self.message = error is CancellationError ? "\(label) download cancelled; partial files removed."
+                    : "\(label) download failed: \(Self.reason(error)) Partial files removed."
                 self.downloadError = self.message
-                self.downloadTimeout?.cancel(); self.downloadTimeout = nil
-                self.downloadingID = nil; self.busy = false; self.downloadToken = nil; self.downloadTask = nil; self.downloadClient = nil
+                self.finishDownload(false)
             }
         }
+        return true
     }
+    private func finishDownload(_ installed: Bool) {
+        let completion = downloadCompletion; downloadCompletion = nil
+        completion?(installed)
+    }
+    /// A failure's reason as one sentence for the footer; a stall (no data within the 120 s request timeout) says so.
+    static func reason(_ error: Error) -> String {
+        let ns = error as NSError
+        if ns.domain == NSURLErrorDomain && ns.code == NSURLErrorTimedOut { return "it stalled (no data from Hugging Face for 2 minutes)." }
+        let trimmed = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.hasSuffix(".") || trimmed.hasSuffix("!") || trimmed.hasSuffix("?") ? trimmed : trimmed + "."
+    }
+    /// The running download's completion, so cancel() can end it.
+    private var downloadCompletion: ((Bool) -> Void)?
     func importModel() {
         guard let selected, !busy, !calibration.isRunning, mayChangeModel() else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.showsHiddenFiles = true
@@ -331,16 +387,6 @@ import VellaCore
         activeModelPath = local.path
         return local.path
     }
-    /// Downloads a catalog variant and waits for it (the first-dictation Get row). Returns its local path.
-    func downloadAndWait(_ id: String) async throws -> String {
-        if let local = installed[id] { return local.path }
-        guard !busy else { throw VellaError.message("Another download is running. Try again when it finishes.") }
-        selectedID = id; download()
-        do { while busy && downloadingID == id { try await Task.sleep(nanoseconds: 250_000_000) } }
-        catch { if downloadingID == id { cancel() }; throw error }
-        guard let local = installed[id] else { throw VellaError.message(downloadError ?? "The download did not finish.") }
-        return local.path
-    }
     var agentRequest: String {
         let docs = resources.appendingPathComponent("AGENT_GUIDE.md").path
         let candidates = [resources.deletingLastPathComponent(), resources.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()]
@@ -359,10 +405,16 @@ import VellaCore
             return
         }
         guard busy else { return }
+        let id = downloadingID
+        let label = models.first { $0.id == id }.map(downloadLabel) ?? "Model"
         downloadToken = nil; downloadTimeout?.cancel(); downloadTimeout = nil
         downloadClient?.cancel(); downloadTask?.cancel(); downloadTask = nil; downloadClient = nil
         downloadingID = nil; busy = false
-        message = "Cancelled. Partial downloads may be resumed; no model selection was changed."; downloadError = message
+        // Its partial files go now; the download task removes anything it wrote while stopping.
+        if let id { removePartialDownload(id) }
+        message = "\(label) download cancelled; partial files removed."; downloadError = message
+        let completion = downloadCompletion; downloadCompletion = nil
+        completion?(false)
     }
     private func beginCalibration(id: String, path: String) {
         guard automaticallyCalibrates else { return }

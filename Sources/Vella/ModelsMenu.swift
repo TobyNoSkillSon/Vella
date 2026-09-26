@@ -10,20 +10,32 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
 }
 
 /// The Models… item: one submenu holding the table, Dictation and Streaming as sections.
-@MainActor final class ModelsMenu: NSObject {
+@MainActor final class ModelsMenu: NSObject, NSMenuDelegate {
     let controller: ModelsController
     private weak var tableMenu: NSMenu?
     var presentDeletionConfirmation: (NSAlert) -> NSApplication.ModalResponse = {
         NSApp.activate(ignoringOtherApps: true)
         return $0.runModal()
     }
-    init(controller: ModelsController? = nil) { self.controller = controller ?? ModelsController(); super.init() }
+    /// The download confirmation popup (tests answer it without a window).
+    var presentDownload: (DownloadPrompt) -> Bool = { DownloadGate.presentAlert($0) }
+    init(controller: ModelsController? = nil) {
+        self.controller = controller ?? ModelsController(); super.init()
+        // Every download from the table asks first, like Delete: close the menu, activate, then the popup.
+        self.controller.confirmDownload = { [weak self] prompt, answer in
+            guard let self else { return answer(nil) }
+            self.tableMenu?.cancelTracking()
+            DispatchQueue.main.async { answer(DownloadGate.ask(prompt, present: self.presentDownload)) }
+        }
+    }
+    /// Closing the menu discards previews: a row returns to its loaded (or last loaded) precision.
+    func menuDidClose(_ menu: NSMenu) { controller.discardPreviews() }
     func modelItem() -> NSMenuItem {
         if !controller.previewing { controller.reload() }
         let root = NSMenuItem(title: "Models…", action: nil, keyEquivalent: "")
         root.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
         root.toolTip = modelsHelp
-        let menu = NSMenu(); menu.autoenablesItems = false; tableMenu = menu
+        let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self; tableMenu = menu
         let item = NSMenuItem()
         let view = MenuTableHostingView(rootView: ModelTable(controller: controller, requestDelete: { [weak self] family in self?.confirmDeletion(family) }))
         view.wantsLayer = true
@@ -188,7 +200,8 @@ struct ModelTable: View {
         let compare = precision != controller.base(family)
         let action = controller.action(family)
         let library = controller.library(family.mode)
-        let downloading = variant.map { library.downloadingID == $0.id } ?? false
+        // A confirmed download for this row (a precision made here downloads its source).
+        let downloading = controller.downloadRoot(family, precision).flatMap { family.variants[$0] }.map { library.downloadingID == $0.id } ?? false
         HStack(spacing: 6) {
             HStack(spacing: 5) {
                 Image(systemName: hot ? "flame.fill" : "circle").font(.system(size: 10))
@@ -228,7 +241,7 @@ struct ModelTable: View {
             Text(controller.disk(family, precision).map(formatBytes) ?? "—").frame(width: W.disk, alignment: .trailing)
                 .foregroundStyle(installed == nil ? (hot ? Color(nsColor: .selectedMenuItemTextColor).opacity(0.6) : Color.secondary) : (hot ? Color(nsColor: .selectedMenuItemTextColor) : Color.primary))
                 .help(diskHelp(family, precision, installed: installed != nil))
-            loadButton(title(action, loading: loading, downloading: downloading, library: library), reload: action == .reload && !loading) {
+            loadButton(title(action, loading: loading, downloading: downloading, library: library), reload: action == .reload && !loading && !downloading) {
                 controller.perform(family)
             }.frame(width: W.button)
                 .disabled(loading || variant == nil || (action != .get && !controller.runtimeAvailable)
@@ -268,23 +281,23 @@ struct ModelTable: View {
         }
     }
 
-    /// What Get fetches for a precision: its own download, or for a derived precision the weights it is made from.
+    /// What a download fetches for a precision: its own weights, or for a derived precision the weights it is made from.
     private func downloadText(_ family: ModelFamily, _ precision: String) -> String {
         guard let root = controller.downloadRoot(family, precision), let v = family.variants[root] else { return "Download" }
         let size = formatBytes(v.downloadBytes)
-        return root == precision ? "Download \(size) from Hugging Face" : "Download the \(precisionFormatName(root)) weights (\(size)) it is made from"
+        return root == precision ? "Asks, then downloads \(size) from Hugging Face" : "Asks, then downloads the \(precisionFormatName(root)) weights (\(size)) it is made from"
     }
     private func actionHelp(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?) -> String {
         let mode = family.mode.title.lowercased()
         let derived = controller.derivedSource(family, precision) != nil
         let make = derived ? " The first load makes the \(precisionFormatName(precision)) weights on this Mac." : ""
         switch action {
-        case .get: return downloadText(family, precision) + "; then Load uses it for \(mode)." + make
-        case .load: return "Use it for \(mode) and keep it loaded; manually loaded models load again when Vella starts." + make
-        case .unload: return "Free its memory; it stays downloaded and does not load at next launch."
+        case .get: return downloadText(family, precision) + "; then loads it for \(mode)." + make
+        case .load: return "Load it for \(mode) and keep it loaded; manually loaded models load again when Vella starts." + make
+        case .unload: return "Free its memory; it stays downloaded and does not load at next launch. Dictation loads it again when needed."
         case .reload:
-            let swap = "load it at \(precisionFormatName(precision)) in place of the loaded \(precisionFormatName(loaded ?? family.native))."
-            return (controller.available(family, precision) ? "Unload the loaded precision and " + swap : downloadText(family, precision) + " first, then " + swap) + make
+            let swap = "load it at \(precisionFormatName(precision)) for \(mode) in place of the loaded \(precisionFormatName(loaded ?? family.native))."
+            return (controller.available(family, precision) ? "Unload the loaded precision and " + swap : downloadText(family, precision) + ", then " + swap) + make
         }
     }
     private func diskHelp(_ family: ModelFamily, _ precision: String, installed: Bool) -> String {
@@ -293,7 +306,7 @@ struct ModelTable: View {
             let size = controller.disk(family, precision) == nil ? " Size not measured yet." : " Measured size of the weights made on this Mac."
             return "Made on this Mac from the \(precisionFormatName(source)) weights; nothing extra to download." + size
         }
-        return installed ? "Downloaded from Hugging Face: \(v.repository)." : "Not downloaded. Get downloads \(formatBytes(v.downloadBytes)) from Hugging Face: \(v.repository)."
+        return installed ? "Downloaded from Hugging Face: \(v.repository)." : "Not downloaded: \(formatBytes(v.downloadBytes)) from Hugging Face (\(v.repository)), after you confirm."
     }
 
     /// Value on top, delta vs the recommended precision beneath it in small type.
@@ -324,7 +337,7 @@ struct ModelTable: View {
             PrecisionControl(options: options, labels: controller.segmentLabels(family), selected: controller.selected(family),
                              recommended: controller.recommended(family), hot: hot, enabled: enabled,
                              help: { controller.segmentHelp(family, $0) }) { label in
-                controller.setPrecision(family, label)
+                controller.preview(family, label)
             }.controlSize(.mini).fixedSize()
         }
     }

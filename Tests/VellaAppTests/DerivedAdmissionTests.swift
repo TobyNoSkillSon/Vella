@@ -20,7 +20,7 @@ final class DerivedAdmissionTests: XCTestCase {
         let registry = root.appendingPathComponent("support/models-installed.json")
         let controller = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
                                           streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: bench, selectionsURL: root.appendingPathComponent("model-precision.json"))
+                                          benchmarksURL: bench)
         let source = controller.dictation.modelsDirectory.appendingPathComponent("alpha-bf16")
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))

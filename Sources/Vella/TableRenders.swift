@@ -18,7 +18,7 @@ import VellaCore
         let resources = ModelLibrary.resourceDirectory()
         let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry, calibration: CalibrationStore(directory: root.appendingPathComponent("Calibrations"), resources: resources))
         let streaming = ModelLibrary(mode: .streaming, resources: resources, registryURL: registry)
-        let controller = ModelsController(dictation: dictation, streaming: streaming, selectionsURL: root.appendingPathComponent("model-precision.json"))
+        let controller = ModelsController(dictation: dictation, streaming: streaming)
         controller.previewing = true
         controller.actions = previewActions   // buttons render enabled, as with a running runtime; perform() is a no-op in preview
         setInstalled(controller, installed)
@@ -52,8 +52,12 @@ import VellaCore
         var name: String
         var installed: [String] = RenderFixture.downloaded
         var runtime = TableRuntime(chip: RenderFixture.chip)
+        /// Previewed segments (a click, not yet loaded).
         var selections: [String: String] = [:]
+        /// config.json: the modes' models and lastLoaded (what an unloaded row shows).
+        var config: Configuration? = nil
         var lastError: String? = nil
+        var downloadError: String? = nil
         var downloading: (id: String, progress: Double)? = nil
         var benchmarks: BenchmarkFile? = nil
     }
@@ -67,13 +71,27 @@ import VellaCore
         var states: [State] = []
         states.append(State(name: "fresh-nothing-downloaded", installed: []))
         states.append(State(name: "downloaded-nothing-loaded"))
+        // Nothing loaded: each row shows the precision it was last loaded at (Parakeet v3 4 is dictation's model,
+        // Qwen was last loaded at 16, Nemotron 8 is streaming's model); rows never loaded show the recommended one.
+        var lastLoaded = State(name: "unloaded-shows-last-loaded")
+        lastLoaded.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit", streaming: "nemotron-3.5-asr-streaming-0.6b-8bit",
+                                        lastLoaded: ["qwen3-asr-1.7b": "BF16"])
+        states.append(lastLoaded)
         var loaded = State(name: "loaded")
+        loaded.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit", streaming: "nemotron-3.5-asr-streaming-0.6b-8bit")
         loaded.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual"),
                                  "nemotron-3.5-streaming-0.6b": LoadedFamily(precision: "8b", engine: "optimized", optimizations: ["encoder": true], residency: "on_demand")]
         states.append(loaded)
-        var reload = State(name: "qwen-BF16-loaded-8b-selected-reload")
+        // Toby's 1.0.0 case: Parakeet v3 loaded at 4 (config said FP32). The row shows 4 with Unload; clicking 32 is a
+        // preview with its numbers, deltas and the green Reload (which asks before the 2.5 GB download).
+        var bug = State(name: "parakeet-4-loaded-preview-32-reload")
+        bug.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit")
+        bug.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "on_demand")]
+        bug.selections = ["parakeet-v3": "FP32"]
+        states.append(bug)
+        var reload = State(name: "qwen-16-loaded-preview-8-reload")
         reload.runtime.loaded = ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized", optimizations: ["decoder": true, "prefill": true], residency: "manual")]
-        reload.selections = ["qwen3-asr-1.7b": "8b", "whisper-large-v3": "native"]
+        reload.selections = ["qwen3-asr-1.7b": "8b"]
         states.append(reload)
         // Precisions made on this Mac, selected before measurement: figures read \u{2014}; Get downloads the source,
         // Load appears once the source is downloaded (Ultra BF16 here).
@@ -97,10 +115,19 @@ import VellaCore
         var loadingState = State(name: "footer-loading")
         loadingState.runtime.loading = "qwen3-asr-1.7b"
         states.append(loadingState)
+        // After Download in the popup: the row shows the downloading precision with its progress; it loads when done.
         var downloading = State(name: "footer-downloading")
-        downloading.downloading = ("whisper-large-v3-asr-4bit", 0.42)
-        downloading.selections = ["whisper-large-v3": "4b"]
+        downloading.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit")
+        downloading.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "on_demand")]
+        downloading.downloading = ("parakeet-tdt-0.6b-v3-mlx-fp32", 0.23)
+        downloading.selections = ["parakeet-v3": "FP32"]
         states.append(downloading)
+        // A stalled download ends with its reason on the footer's error line; its partial files are gone.
+        var failed = State(name: "footer-download-failed")
+        failed.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit")
+        failed.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "on_demand")]
+        failed.downloadError = "Parakeet v3 FP32 download failed: it stalled (no data from Hugging Face for 2 minutes). Partial files removed."
+        states.append(failed)
         var refusedLong = State(name: "footer-error-long")
         refusedLong.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")]
         refusedLong.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 4-bit, or allow swap in Vella → Memory.", at: now)
@@ -114,6 +141,62 @@ import VellaCore
         states.append(State(name: "unmeasured-no-benchmarks", benchmarks: BenchmarkFile()))
         writeEngineTooltips(states)
         render(states, 0)
+    }
+
+    /// A config.json whose modes' models are the render fixture's installed paths.
+    static func config(dictation: String? = nil, streaming: String? = nil, lastLoaded: [String: String] = [:]) -> Configuration {
+        var config = Configuration(model: dictation.map { "/render/\($0)" } ?? "")
+        config.streamingModel = streaming.map { "/render/\($0)" } ?? ""
+        config.lastLoaded = lastLoaded
+        return config
+    }
+
+    /// The download confirmation popups (`download-prompt-*.png` and their text in download-prompts.txt).
+    private func renderPrompts(_ controller: ModelsController, done: @escaping () -> Void) {
+        let catalog = controller.catalog
+        let free = freeDiskBytes(at: FileManager.default.temporaryDirectory)
+        var prompts: [(String, DownloadPrompt)] = []
+        if let f = catalog.family("parakeet-v3"), let p = downloadPrompt(family: f, precision: "FP32", followUp: .reload(from: "4b"), freeBytes: free) {
+            prompts.append(("reload-parakeet-32", p))
+        }
+        if let f = catalog.family("parakeet-v3-ultra"), let p = downloadPrompt(family: f, precision: "8b", followUp: .load, freeBytes: free) {
+            prompts.append(("derived-ultra-8", p))
+        }
+        // The first-dictation Get row offers the first offered dictation model at its recommended precision.
+        if let f = catalog.offered(.dictation).first, let p = downloadPrompt(family: f, precision: controller.recommended(f) ?? f.native, followUp: .transcribe, freeBytes: free) {
+            prompts.append(("first-dictation", p))
+        }
+        let text = prompts.map { "\($0.0)\n\($0.1.title)\n\n\($0.1.body)\n" }.joined(separator: "\n")
+        try? text.write(to: directory.appendingPathComponent("download-prompts.txt"), atomically: true, encoding: .utf8)
+        func next(_ index: Int) {
+            guard index < prompts.count else { done(); return }
+            Self.renderAlert(DownloadGate.alert(prompts[index].1), to: directory.appendingPathComponent("download-prompt-\(prompts[index].0).png")) { next(index + 1) }
+        }
+        next(0)
+    }
+    /// An NSAlert's panel in dark mode, captured offscreen onto the dark alert background (the real panel is vibrant;
+    /// the capture has no default-button tint because the offscreen window is not key).
+    static func renderAlert(_ alert: NSAlert, to url: URL, done: @escaping () -> Void) {
+        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.layout()
+        let window = alert.window
+        window.setFrameOrigin(NSPoint(x: -5000, y: -5000)); window.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            guard let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { window.orderOut(nil); done(); return }
+            view.cacheDisplay(in: view.bounds, to: rep)
+            if let out = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: rep.pixelsWide, pixelsHigh: rep.pixelsHigh, bitsPerSample: 8,
+                                          samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
+                out.size = rep.size
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: out)
+                NSColor(calibratedRed: 0.17, green: 0.17, blue: 0.18, alpha: 1).setFill()
+                NSBezierPath(roundedRect: NSRect(origin: .zero, size: rep.size), xRadius: 16, yRadius: 16).fill()
+                rep.draw(in: NSRect(origin: .zero, size: rep.size), from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                NSGraphicsContext.restoreGraphicsState()
+                try? out.representation(using: .png, properties: [:])?.write(to: url)
+            }
+            window.orderOut(nil); done()
+        }
     }
 
     private func writeEngineTooltips(_ states: [State]) {
@@ -137,18 +220,24 @@ import VellaCore
                 table.tooltips(family).map { "\(family.name) · \($0.0): \($0.1)" } + [""]
             }
             try? lines.joined(separator: "\n").write(to: directory.appendingPathComponent("table-tooltips.txt"), atomically: true, encoding: .utf8)
-            try? FileManager.default.removeItem(at: RenderFixture.root)
-            NSApp.terminate(nil); return
+            renderPrompts(controller) {
+                try? FileManager.default.removeItem(at: RenderFixture.root)
+                NSApp.terminate(nil)
+            }
+            return
         }
         let state = states[index]
         let controller = RenderFixture.controller(installed: state.installed)
         if let b = state.benchmarks { controller.benchmarks = b }
         controller.runtime = state.runtime
+        controller.previewConfig(state.config)
         controller.previewSelections(state.selections)
         controller.lastError = state.lastError
+        controller.dictation.downloadError = state.downloadError
         if let d = state.downloading, let library = [controller.dictation, controller.streaming].first(where: { $0.models.contains { $0.id == d.id } }) {
             library.downloadingID = d.id; library.busy = true; library.progress = d.progress
-            library.message = "Downloading model.safetensors… 371 of 882 MB"
+            let total = library.models.first { $0.id == d.id }?.downloadBytes ?? 0
+            library.message = "Parakeet v3 FP32 \u{00b7} Downloading from Hugging Face… \(formatBytes(Int64(Double(total) * d.progress))) of \(formatBytes(total))"
         }
         TableRenderDelegate.renderTable(controller, to: directory.appendingPathComponent("models-\(state.name).png")) { [self] in
             render(states, index + 1)

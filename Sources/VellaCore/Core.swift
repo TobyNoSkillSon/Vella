@@ -15,6 +15,9 @@ public struct Configuration: Codable {
     public var fallbackMicrophone: String
     /// Keep Hot windows, memory mode and the launch set (manual loads only; empty on a fresh install).
     public var residency = ResidencySettings()
+    /// Catalog family id → the precision it was last loaded at (exact label). Written only by a successful Load or
+    /// Reload, next to `model`/`streamingModel`; the Models table shows it on an unloaded row.
+    public var lastLoaded: [String: String] = [:]
     public init(executable: String = "", model: String,
                 preferredMicrophone: String = "MacBook Pro Microphone", fallbackMicrophone: String = "MacBook Pro Microphone",
                 mode: RecognitionMode = .dictation, streamingModel: String = "") {
@@ -23,7 +26,7 @@ public struct Configuration: Codable {
         self.preferredMicrophone = preferredMicrophone; self.fallbackMicrophone = fallbackMicrophone
     }
     private enum CodingKeys: String, CodingKey {
-        case executable, model, mode, streamingModel, preferredMicrophone, fallbackMicrophone, residency
+        case executable, model, mode, streamingModel, preferredMicrophone, fallbackMicrophone, residency, lastLoaded
     }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -34,6 +37,13 @@ public struct Configuration: Codable {
         preferredMicrophone = try values.decodeIfPresent(String.self, forKey: .preferredMicrophone) ?? "MacBook Pro Microphone"
         fallbackMicrophone = try values.decodeIfPresent(String.self, forKey: .fallbackMicrophone) ?? "MacBook Pro Microphone"
         residency = (try? values.decodeIfPresent(ResidencySettings.self, forKey: .residency)) ?? ResidencySettings()
+        lastLoaded = (try? values.decodeIfPresent([String: String].self, forKey: .lastLoaded)) ?? [:]
+    }
+    /// A successful Load/Reload: the model becomes its mode's model (what the next dictation or streaming session
+    /// loads) and its family remembers the precision.
+    public mutating func recordLoad(path: String, mode: RecognitionMode, family: String?, precision: String?) {
+        selectModel(path, for: mode)
+        if let family, let precision { lastLoaded[family] = precision }
     }
     public var selectedModel: String { mode == .dictation ? model : streamingModel }
     public mutating func selectModel(_ path: String, for mode: RecognitionMode) {

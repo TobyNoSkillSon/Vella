@@ -26,10 +26,9 @@ final class ModelDeletionTests: XCTestCase {
     }
     /// The Models table over the fixture library, with the fixture's precision selected (trash deletes the selected one).
     @MainActor private func tableMenus(_ library: ModelLibrary, _ id: String) throws -> (ModelsMenu, ModelFamily) {
-        let controller = ModelsController(dictation: library, streaming: ModelLibrary(mode: .streaming, registryURL: library.registryURL),
-                                          selectionsURL: library.registryURL.deletingLastPathComponent().appendingPathComponent("model-precision.json"))
+        let controller = ModelsController(dictation: library, streaming: ModelLibrary(mode: .streaming, registryURL: library.registryURL))
         let (family, precision) = try XCTUnwrap(controller.catalog.locate(variant: id))
-        controller.setPrecision(family, precision)
+        controller.preview(family, precision)
         return (ModelsMenu(controller: controller), family)
     }
     @MainActor func testDeleteKeepsReferencesAndOtherEntriesAndRevertsToInstall() throws {

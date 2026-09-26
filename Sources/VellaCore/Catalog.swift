@@ -409,20 +409,26 @@ public func recommendedPrecision(for family: ModelFamily, in benchmarks: Benchma
     recommendedPrecision(benchmarks.models[family.id], native: family.native, options: precisionOptions(family))
 }
 
-/// Selection records store the native precision as `native`, so a native label change keeps the user's choice.
+/// The retired model-precision.json stored the native precision as `native`; read once by the migration.
 public let nativeSelection = "native"
-public func storedPrecision(_ label: String, native: String) -> String { label == native ? nativeSelection : label }
 public func effectivePrecision(stored: String, native: String) -> String { stored == nativeSelection ? native : stored }
 
-/// The selected precision: the user's stored choice if still offered, else the loaded precision (a model loaded
-/// on demand is not a pending change), else the recommended one, else native, else the highest offered.
-public func selectedPrecision(stored: String?, loaded: String? = nil, recommended: String?, family: ModelFamily) -> String {
+/// The precision a row shows: ONE state for selected and loaded (Toby, 26 Sep 2026). A segment the user picked is a
+/// transient preview (until Load/Reload; closing the menu discards it); otherwise a loaded model shows its loaded
+/// precision; an unloaded one the precision it was last loaded at, else the recommended one, else native, else the
+/// highest offered. Nothing stored can override a loaded model.
+public func shownPrecision(preview: String? = nil, loaded: String?, lastLoaded: String?, recommended: String?, family: ModelFamily) -> String {
     let options = precisionOptions(family)
-    if let stored { let p = effectivePrecision(stored: stored, native: family.native); if options.contains(p) { return p } }
-    if let loaded, options.contains(loaded) { return loaded }
-    if let recommended { return recommended }
+    for candidate in [preview, loaded, lastLoaded, recommended] {
+        if let label = candidate.map({ effectivePrecision(stored: $0, native: family.native) }), options.contains(label) { return label }
+    }
     if options.contains(family.native) { return family.native }
     return options.first ?? family.native
+}
+
+/// The precision a row returns to without a preview: loaded, else last loaded, else recommended (see shownPrecision).
+public func committedPrecision(loaded: String?, lastLoaded: String?, recommended: String?, family: ModelFamily) -> String {
+    shownPrecision(preview: nil, loaded: loaded, lastLoaded: lastLoaded, recommended: recommended, family: family)
 }
 
 /// Tooltip of the recommended segment: states which criterion chose it, energy only when energy was measured.
@@ -432,7 +438,8 @@ public func recommendationHelp(_ benchmark: FamilyBenchmark?, recommended: Strin
     return "Recommended: fastest measured precision \(within); energy not measured."
 }
 
-/// What the row's button does for the selected precision given the loaded one (nil = not loaded).
+/// What the row's button does for the shown precision given the loaded one (nil = not loaded). Without a preview a
+/// loaded row shows its loaded precision, so it offers Unload; a previewed other precision offers the green Reload.
 public enum LoadAction: Equatable { case get, load, unload, reload }
 public func loadAction(selected: String, loaded: String?, native: String, downloaded: Bool) -> LoadAction {
     guard let loaded else { return downloaded ? .load : .get }

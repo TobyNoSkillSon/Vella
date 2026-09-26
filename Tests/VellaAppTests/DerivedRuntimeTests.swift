@@ -34,8 +34,7 @@ final class DerivedRuntimeTests: XCTestCase {
         let registry = root.appendingPathComponent("support/models-installed.json")
         let controller = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
                                           streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"),
-                                          selectionsURL: root.appendingPathComponent("model-precision.json"))
+                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
         let source = controller.dictation.modelsDirectory.appendingPathComponent("alpha-bf16")
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
@@ -66,7 +65,7 @@ final class DerivedRuntimeTests: XCTestCase {
         menus.presentDeletionConfirmation = { alert in alerts.append(alert.messageText); return .alertSecondButtonReturn }
 
         // Load the derived 4b: the worker gets its own directory, which resolves back to alpha 4b.
-        controller.setPrecision(alpha, "4b")
+        controller.preview(alpha, "4b")
         XCTAssertEqual(controller.action(alpha), .load)
         controller.perform(alpha)
         let derived = library.modelsDirectory.appendingPathComponent("alpha-slowexit-4bit-local").standardizedFileURL.path
@@ -77,7 +76,7 @@ final class DerivedRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.settings.launchSet.map(\.path), [derived])
 
         // Delete the BF16 source (the 4b row has no weights of its own).
-        controller.setPrecision(alpha, "BF16")
+        controller.preview(alpha, "BF16")
         func delete() { host.rootView.requestDelete(alpha) }
 
         // Failure: the derived worker was unloaded first, then comes back (manual); launch set kept.

@@ -61,8 +61,7 @@ final class Review1Tests: XCTestCase {
         let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry)
         dictation.downloadConfiguration = http
         let controller = ModelsController(dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"),
-                                          selectionsURL: root.appendingPathComponent("model-precision.json"))
+                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
 
         let runtime = try Runtime.isolated(root)
         try JSONEncoder().encode(Configuration(model: "")).write(to: runtime.configURL)
@@ -83,7 +82,19 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(model.pendingModelRequest?.id, variant.id)
         XCTAssertTrue(served.isEmpty, "nothing downloads before Get")
 
+        // The Get row asks first; Cancel downloads nothing and keeps the offer.
+        var prompts: [DownloadPrompt] = []
+        bridge.presentDownload = { prompts.append($0); return false }
         delegate.getPendingModel()
+        XCTAssertEqual(prompts.map(\.variantID), [variant.id])
+        XCTAssertTrue(prompts[0].body.contains("transcribes the saved recording"), prompts[0].body)
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(served.isEmpty, "Cancel downloads nothing")
+        XCTAssertNil(dictation.downloadingID)
+        XCTAssertNotNil(model.pendingModelRequest)
+        bridge.presentDownload = { prompts.append($0); return true }
+        delegate.getPendingModel()
+        XCTAssertEqual(prompts.count, 2)
         XCTAssertEqual(model.phase, .preparing, "the model is busy while it waits for the download")
         XCTAssertFalse(dictation.mayChangeModel(), "the general permission hook still refuses (not relaxed)")
         try await waitUntil(10) { model.phase == .success || model.phase == .idle || model.phase == .failed }
@@ -188,8 +199,7 @@ final class Review1Tests: XCTestCase {
         let registry = root.appendingPathComponent("support/models-installed.json")
         let controller = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
                                           streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"),
-                                          selectionsURL: root.appendingPathComponent("model-precision.json"))
+                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
         for (id, path) in installed {
             try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
             controller.dictation.installed[id] = InstalledModel(path: path)
@@ -216,11 +226,11 @@ final class Review1Tests: XCTestCase {
         runtime.start(loadLaunchSet: false)
         func selected() throws -> String { try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: runtime.configURL)).model }
 
-        controller.setPrecision(family, "8b"); controller.perform(family) // Load 8b
+        controller.preview(family, "8b"); controller.perform(family) // Load 8b
         try await waitUntil { (try? selected()) == p8 && runtime.status.models["alpha"]?.precision == "8b" }
 
         // Reload to 4b fails to load: the selection stays 8b and the next dictation is served by the working 8b worker.
-        controller.setPrecision(family, "4b")
+        controller.preview(family, "4b")
         XCTAssertEqual(controller.action(family), .reload)
         controller.perform(family)
         try await waitUntil { controller.lastError != nil }
@@ -236,7 +246,7 @@ final class Review1Tests: XCTestCase {
         // Reload to BF16 refused for memory: same outcome.
         controller.lastError = nil
         try runtime.setAvailableMB(900)
-        controller.setPrecision(family, "BF16"); controller.perform(family)
+        controller.preview(family, "BF16"); controller.perform(family)
         try await waitUntil { controller.lastError != nil }
         XCTAssertTrue(controller.lastError?.hasPrefix("Alpha at BF16 needs") == true, controller.lastError ?? "")
         XCTAssertEqual(try selected(), p8)
@@ -341,7 +351,7 @@ final class Review1Tests: XCTestCase {
         func delete(_ family: ModelFamily) { host.rootView.requestDelete(family) }
 
         // Manual alpha 8b (launch set), then beta: beta is selected, alpha stays hot but unselected.
-        controller.setPrecision(alpha, "8b"); controller.perform(alpha)
+        controller.preview(alpha, "8b"); controller.perform(alpha)
         try await waitUntil { runtime.status.models["alpha"] != nil }
         controller.perform(beta)
         try await waitUntil { library.activeModelPath == b8 && runtime.status.models["beta"] != nil }
@@ -518,13 +528,12 @@ final class Review1Tests: XCTestCase {
         let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry, calibration: calibration)
         dictation.downloadConfiguration = http
         let controller = ModelsController(dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"),
-                                          selectionsURL: root.appendingPathComponent("model-precision.json"))
+                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
         let delegate = AppDelegate(model: model)
         delegate.modelsMenu = delegate.makeModelsMenu(controller: controller) // the real calibration hook
         RuntimeBridge(runtime: runtime).attach(delegate)
 
-        dictation.selectedID = variant.id; dictation.download()
+        dictation.selectedID = variant.id; dictation.download(approval: confirmed(variant.id))
         try await waitUntil(10) { dictation.installed[variant.id] != nil && !dictation.busy }
         XCTAssertEqual(stream.processID, pid, "the hot model stayed loaded after the download")
         XCTAssertTrue(alive(pid))
