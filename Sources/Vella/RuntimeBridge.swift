@@ -55,10 +55,17 @@ import VellaCore
 
     // MARK: ModelRuntimeActions
 
+    /// The model becomes the mode's selection only once it loaded (Review 1 R4): a refused or failed Load/Reload keeps
+    /// the previous selection, so the next dictation uses the model that still works.
     func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {
-        select(path, mode: family.mode)
         let ref = ref(family, precision, path: path)
-        Task { do { try await runtime.load(ref) } catch { controller?.lastError = error.localizedDescription } }
+        Task { await loadAndSelect(ref) }
+    }
+    func loadAndSelect(_ ref: ModelRef) async {
+        do {
+            try await runtime.load(ref)
+            select(ref.path, mode: ref.mode)
+        } catch { controller?.lastError = error.localizedDescription }
     }
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {
         load(family: family, precision: precision, variant: variant, path: path)

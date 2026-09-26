@@ -177,6 +177,71 @@ final class Review1Tests: XCTestCase {
         let final = try await backend.finish(expectedFrames: 1600)
         XCTAssertEqual(final, "hello world")
     }
+
+    // MARK: R4 — a failed or refused Load/Reload does not become the dictation selection
+
+    /// A Models controller over a fixture catalog (no benchmarks) with the given variants installed in an isolated registry.
+    @MainActor private func controller(_ families: [ModelFamily], installed: [String: String]) throws -> ModelsController {
+        let resources = root.appendingPathComponent("resources", isDirectory: true)
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        try JSONEncoder().encode(ModelCatalog(schema: 2, families: families)).write(to: resources.appendingPathComponent("models.json"))
+        let registry = root.appendingPathComponent("support/models-installed.json")
+        let controller = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+                                          streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"),
+                                          selectionsURL: root.appendingPathComponent("model-precision.json"))
+        for (id, path) in installed {
+            try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+            controller.dictation.installed[id] = InstalledModel(path: path)
+        }
+        return controller
+    }
+    private func variant(_ id: String) -> CatalogVariant {
+        CatalogVariant(id: id, repository: "org/\(id)", revision: String(repeating: "b", count: 40), downloadBytes: 100_000_000, architecture: "parakeet")
+    }
+
+    @MainActor func testR4FailedOrRefusedReloadKeepsTheWorkingModelSelected() async throws {
+        let family = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test",
+                                 native: "BF16", variants: ["8b": variant("alpha-8bit"), "4b": variant("alpha-4bit"), "BF16": variant("alpha-bf16")])
+        let p8 = path("alpha-8b"), p4 = path("alpha-4b-loadfail"), p16 = path("alpha-bf16")
+        let controller = try controller([family], installed: ["alpha-8bit": p8, "alpha-4bit": p4, "alpha-bf16": p16])
+        let runtime = try Runtime.isolated(root)
+        try JSONEncoder().encode(Configuration(model: "")).write(to: runtime.configURL)
+        let backend = Backend(helper: try FakeWorker.install(in: root), requestTimeout: 5, runtime: runtime)
+        runtime.dictation = backend
+        defer { backend.shutdown() }
+        let model = Model(configurationURL: runtime.configURL); defer { model.shutdown() }
+        let bridge = RuntimeBridge(runtime: runtime)
+        bridge.attach(controller: controller, model: model)
+        runtime.start(loadLaunchSet: false)
+        func selected() throws -> String { try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: runtime.configURL)).model }
+
+        controller.setPrecision(family, "8b"); controller.perform(family) // Load 8b
+        try await waitUntil { (try? selected()) == p8 && runtime.status.models["alpha"]?.precision == "8b" }
+
+        // Reload to 4b fails to load: the selection stays 8b and the next dictation is served by the working 8b worker.
+        controller.setPrecision(family, "4b")
+        XCTAssertEqual(controller.action(family), .reload)
+        controller.perform(family)
+        try await waitUntil { controller.lastError != nil }
+        XCTAssertEqual(try selected(), p8)
+        XCTAssertEqual(controller.dictation.activeModelPath, p8)
+        XCTAssertEqual(runtime.status.models["alpha"]?.precision, "8b")
+        let next = try recording("next", config: Configuration(model: p8))
+        let wav = try next.wav(for: next.manifest.segments[0])
+        let text = try await backend.transcribe(wav, config: try backend.configuration())
+        XCTAssertEqual(text, "Fixture recognized speech.")
+        XCTAssertEqual(runtime.status.models["alpha"]?.precision, "8b", "the next request used the still-working model")
+
+        // Reload to BF16 refused for memory: same outcome.
+        controller.lastError = nil
+        try runtime.setAvailableMB(900)
+        controller.setPrecision(family, "BF16"); controller.perform(family)
+        try await waitUntil { controller.lastError != nil }
+        XCTAssertTrue(controller.lastError?.hasPrefix("Alpha at BF16 needs") == true, controller.lastError ?? "")
+        XCTAssertEqual(try selected(), p8)
+        XCTAssertEqual(runtime.status.models["alpha"]?.precision, "8b")
+    }
 }
 
 final class Review1HubStub: URLProtocol {
