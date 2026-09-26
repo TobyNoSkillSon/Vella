@@ -200,6 +200,9 @@ struct VellaClient {
     func ensureRunning() async throws -> Int {
         if let port = runningPort() { return port }
         guard environment["VELLA_NO_LAUNCH"] != "1" else { throw CLIError("Vella is not running") }
+        if environment["VELLA_SUPPORT_DIR"] != nil, environment["VELLA_APP"] == nil {
+            throw CLIError("Vella is not running for VELLA_SUPPORT_DIR; set VELLA_APP to launch an app with it")
+        }
         guard let app = appCandidates.first(where: { FileManager.default.fileExists(atPath: $0.appendingPathComponent("Contents/Info.plist").path) }) else {
             throw CLIError("Vella is not running and is not installed (looked for \(appCandidates.first?.path ?? "~/Applications/Vella.app"))")
         }

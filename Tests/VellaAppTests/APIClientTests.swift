@@ -86,7 +86,10 @@ final class APIClientTests: XCTestCase {
         let env = ["VELLA_SUPPORT_DIR": empty.path, "HOME": NSHomeDirectory(), "PATH": "/usr/bin:/bin"]
         let (lCode, _, lErr) = try await Self.run(Self.cli, ["status"], environment: env)
         XCTAssertEqual(lCode, 1)
-        XCTAssertEqual(lErr, "error: Vella is not running and is not installed (looked for ~/Applications/Vella.app)\n")
+        XCTAssertEqual(lErr, "error: Vella is not running for VELLA_SUPPORT_DIR; set VELLA_APP to launch an app with it\n")
+        let (mCode, _, mErr) = try await Self.run(Self.cli, ["status"], environment: env.merging(["VELLA_APP": empty.appendingPathComponent("Missing.app").path]) { $1 })
+        XCTAssertEqual(mCode, 1)
+        XCTAssertEqual(mErr, "error: Vella is not running and is not installed (looked for \(empty.path)/Missing.app)\n")
 
         let (sCode, skill, _) = try await vella(nil, ["skill"], support: empty)
         XCTAssertEqual(sCode, 0)
