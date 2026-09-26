@@ -209,12 +209,11 @@ import VellaCore
               let precision = f.variants.first(where: { lib.installed[$0.value.id]?.path == lib.activeModelPath })?.key else { return nil }
         return LoadedFamily(precision: precision)
     }
-    /// The header's model label for a mode (`Parakeet v3 4-bit`): the model selected for the mode if loaded or known,
-    /// else the first loaded model of that mode.
+    /// The header's model label for a mode (`Parakeet v3 4-bit`): the model selected for the mode if known (a download
+    /// or a precision made on this Mac, loaded or not), else the first loaded model of that mode.
     func activeLabel(_ mode: RecognitionMode) -> String? {
         let lib = library(mode)
-        if !lib.activeModelPath.isEmpty, let id = lib.installed.first(where: { $0.value.path == lib.activeModelPath })?.key,
-           let (family, precision) = catalog.locate(variant: id) { return "\(family.name) \(precisionInProse(precision))" }
+        if let (family, precision) = identify(path: lib.activeModelPath, mode: mode) { return "\(family.name) \(precisionInProse(precision))" }
         guard let (id, loaded) = runtime?.loaded.filter({ catalog.family($0.key)?.mode == mode }).sorted(by: { $0.key < $1.key }).first,
               let family = catalog.family(id) else { return lib.activeModelLabel }
         return "\(family.name) \(precisionInProse(loaded.precision))"
