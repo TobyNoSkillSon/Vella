@@ -120,11 +120,14 @@ final class DerivedRuntimeTests: XCTestCase {
         bridge.attach(controller: controller, model: model)
         let path = root.appendingPathComponent("any").path
 
-        // Nothing measured: no memory figure, but the disk bytes are the source's download, so the estimate is real.
+        // Nothing measured: no memory figure, but the weights are estimated at 4-bit from the source's download
+        // (1.2 GB × (0.85 × 4.5/16 + 0.15)), so the admission estimate is real and never 0.
         let bare = bridge.ref(alpha, "4b", path: path)
         XCTAssertNil(bare.memoryMB)
-        XCTAssertEqual(bare.diskBytes, 1_200_000_000)
-        XCTAssertEqual(memoryEstimateMB(bare), 1_200 + 768, accuracy: 0.5)
+        let weights = 1_200_000_000 * (0.85 * 4.5 / 16 + 0.15)
+        XCTAssertEqual(Double(try XCTUnwrap(bare.diskBytes)), weights, accuracy: 1)
+        XCTAssertEqual(memoryEstimateMB(bare), weights / 1_000_000 + 768, accuracy: 0.5)
+        XCTAssertGreaterThan(memoryEstimateMB(bare), 768)
 
         // Source measured: the 4b estimate is scaled from it, below the source's and well above 0.
         controller.benchmarks = BenchmarkFile(models: ["alpha": FamilyBenchmark(precisions: ["BF16": PrecisionResult(wer: 5, memory_mb: 2_000)])])

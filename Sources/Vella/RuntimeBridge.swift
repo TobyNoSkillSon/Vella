@@ -56,7 +56,7 @@ import VellaCore
     }
     func ref(_ family: ModelFamily, _ precision: String, path: String) -> ModelRef {
         ModelRef(id: family.id, precision: precision, path: path, mode: family.mode, name: family.name,
-                 diskBytes: family.diskBytes(precision), memoryMB: admissionMemoryMB(family, precision),
+                 diskBytes: estimatedWeightBytes(family, precision).map { Int64($0) } ?? family.diskBytes(precision), memoryMB: admissionMemoryMB(family, precision),
                  precisionOptions: precisionOptions(family))
     }
     /// Memory admission plans with: the measured `memory_mb`, else (a precision made on this Mac, or any unmeasured
