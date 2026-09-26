@@ -242,6 +242,24 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(try selected(), p8)
         XCTAssertEqual(runtime.status.models["alpha"]?.precision, "8b")
     }
+
+    // MARK: R5 — no idle-timer churn while a model is pinned past its deadline
+
+    @MainActor func testR5PinnedPastDeadlineArmsNoTimerThenUnloadsAfterTheNewIdleWindow() async throws {
+        let runtime = try Runtime.isolated(root, minuteSeconds: 0.01) // on demand 15 min = 150 ms
+        let backend = try streaming(runtime); defer { backend.shutdown() }
+        try await backend.start(config: streamConfig(path("longstream"))) // on demand, pinned for the session
+        let firingsAtStart = runtime.idleTimerFirings
+        try await Task.sleep(nanoseconds: 1_000_000_000) // several idle windows past the deadline
+        try await backend.feed(Data(repeating: 0, count: 6400))
+        XCTAssertLessThanOrEqual(runtime.idleTimerFirings - firingsAtStart, 1, "an expired timer must not re-arm itself while pinned")
+        XCTAssertNotNil(runtime.status.models["longstream"], "a pinned model never idles out")
+        let final = try await backend.finish(expectedFrames: 1600) // unpin: idle window starts now
+        XCTAssertEqual(final, "hello world")
+        XCTAssertNotNil(runtime.status.models["longstream"])
+        try await waitUntil { runtime.status.models["longstream"] == nil }
+        XCTAssertEqual(runtime.status.evictions?.last?.reason, "idle: unused for 15 min (loaded on demand)")
+    }
 }
 
 final class Review1HubStub: URLProtocol {

@@ -221,7 +221,14 @@ import VellaCore
         entry.residency = .manual; entries[id] = entry
         settings.join(entry.ref); persistSettings(); schedule(id); writeStatus()
     }
-    func pin(_ id: String) { pinned[id, default: 0] += 1 }
+    /// A pinned model has no idle timer (Review 1 R5): it cannot idle out while it serves, and an expired deadline must
+    /// not re-arm itself every run-loop pass. Unpin re-arms from the new last use.
+    func pin(_ id: String) {
+        pinned[id, default: 0] += 1
+        entries[id]?.timer?.cancel(); entries[id]?.timer = nil
+    }
+    /// Idle-timer callbacks that ran (tests: no churn while pinned).
+    private(set) var idleTimerFirings = 0
     func unpin(_ id: String) {
         pinned[id] = max(0, (pinned[id] ?? 1) - 1)
         touch(id)
@@ -278,11 +285,14 @@ import VellaCore
     private func schedule(_ id: String) {
         guard var entry = entries[id] else { return }
         entry.timer?.cancel(); entry.timer = nil
-        if let deadline = unloadDeadline(lastUsed: entry.lastUsed, residency: entry.residency, settings: settings, minuteSeconds: minuteSeconds) {
+        if (pinned[id] ?? 0) == 0,
+           let deadline = unloadDeadline(lastUsed: entry.lastUsed, residency: entry.residency, settings: settings, minuteSeconds: minuteSeconds) {
             let minutes = settings.idleMinutes(entry.residency), residency = entry.residency
             let work = DispatchWorkItem { [weak self] in
                 guard let self, let current = self.entries[id] else { return }
-                if (self.pinned[id] ?? 0) > 0 || Date().timeIntervalSince1970 + 0.001 < deadline || current.residency != residency { self.schedule(id); return }
+                self.idleTimerFirings += 1
+                if (self.pinned[id] ?? 0) > 0 { return } // unpin re-arms from the new last use
+                if Date().timeIntervalSince1970 + 0.001 < deadline || current.residency != residency { self.schedule(id); return }
                 Task { await self.evict(id, reason: "idle: unused for \(minutes) min (\(residency == .manual ? "manually loaded" : "loaded on demand"))") }
             }
             entry.timer = work
