@@ -184,18 +184,38 @@ final class CatalogTests: XCTestCase {
 
     // MARK: Selection and load action
 
-    func testSelectedPrecision() {
+    /// ONE state (the 1.0.0 bug: a stored FP32 choice outranked the loaded 4-bit and turned Unload into a Reload that
+    /// downloaded 2.5 GB). Order: preview > loaded > last loaded > recommended > native > highest.
+    func testShownPrecisionLoadedWins() {
         let f = family(["BF16", "8b", "4b"])
-        XCTAssertEqual(selectedPrecision(stored: nil, recommended: "8b", family: f), "8b")
-        XCTAssertEqual(selectedPrecision(stored: "4b", recommended: "8b", family: f), "4b")
-        XCTAssertEqual(selectedPrecision(stored: nativeSelection, recommended: "8b", family: f), "BF16")
-        XCTAssertEqual(storedPrecision("BF16", native: "BF16"), nativeSelection)
-        XCTAssertEqual(storedPrecision("8b", native: "BF16"), "8b")
-        // A loaded model without a stored choice is not a pending change.
-        XCTAssertEqual(selectedPrecision(stored: nil, loaded: "4b", recommended: "8b", family: f), "4b")
-        // A stored choice that is no longer offered falls back.
-        XCTAssertEqual(selectedPrecision(stored: "6b", recommended: nil, family: f), "BF16")
-        XCTAssertEqual(selectedPrecision(stored: nil, recommended: nil, family: family(["8b", "4b"])), "8b")
+        // Loaded wins over last loaded and the recommendation.
+        XCTAssertEqual(shownPrecision(loaded: "4b", lastLoaded: "BF16", recommended: "8b", family: f), "4b")
+        XCTAssertEqual(loadAction(selected: shownPrecision(loaded: "4b", lastLoaded: "BF16", recommended: "8b", family: f),
+                                  loaded: "4b", native: "BF16", downloaded: true), .unload, "a loaded row offers Unload")
+        // A preview shows its precision; the loaded row then offers Reload.
+        XCTAssertEqual(shownPrecision(preview: "BF16", loaded: "4b", lastLoaded: nil, recommended: "8b", family: f), "BF16")
+        XCTAssertEqual(loadAction(selected: "BF16", loaded: "4b", native: "BF16", downloaded: false), .reload)
+        // Unloaded: last loaded, else recommended, else native, else the highest offered.
+        XCTAssertEqual(shownPrecision(loaded: nil, lastLoaded: "4b", recommended: "8b", family: f), "4b")
+        XCTAssertEqual(shownPrecision(loaded: nil, lastLoaded: nil, recommended: "8b", family: f), "8b")
+        XCTAssertEqual(shownPrecision(loaded: nil, lastLoaded: nil, recommended: nil, family: f), "BF16")
+        XCTAssertEqual(shownPrecision(loaded: nil, lastLoaded: nil, recommended: nil, family: family(["8b", "4b"])), "8b")
+        // Labels no longer offered fall through; the retired `native` sentinel resolves.
+        XCTAssertEqual(shownPrecision(preview: "6b", loaded: nil, lastLoaded: "2b", recommended: nil, family: f), "BF16")
+        XCTAssertEqual(shownPrecision(loaded: nil, lastLoaded: nativeSelection, recommended: "8b", family: f), "BF16")
+        XCTAssertEqual(committedPrecision(loaded: "8b", lastLoaded: "4b", recommended: nil, family: f), "8b")
+    }
+
+    func testConfigurationRecordsLoads() throws {
+        var config = Configuration(model: "/old")
+        config.recordLoad(path: "/models/p4", mode: .dictation, family: "parakeet-v3", precision: "4b")
+        config.recordLoad(path: "/models/n8", mode: .streaming, family: "nemotron", precision: "8b")
+        XCTAssertEqual(config.model, "/models/p4"); XCTAssertEqual(config.streamingModel, "/models/n8")
+        XCTAssertEqual(config.lastLoaded, ["parakeet-v3": "4b", "nemotron": "8b"])
+        let decoded = try JSONDecoder().decode(Configuration.self, from: JSONEncoder().encode(config))
+        XCTAssertEqual(decoded.lastLoaded, config.lastLoaded)
+        // Older config.json files have no lastLoaded.
+        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(#"{"model":"/x"}"#.utf8)).lastLoaded, [:])
     }
 
     func testLoadAction() {
@@ -320,6 +340,16 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(docs[1].contains("| Q | Bits per weight") && docs[1].contains("16 (BF16)"), "USAGE Q column")
         XCTAssertTrue(docs[0].contains("| Model | Mode | Q |") && docs[0].contains("16 is BF16"), "README table")
         XCTAssertTrue(docs[1].contains("best value across its precisions"), "stable sort documented")
+        // One state and download confirmation (Toby, 26 Sep 2026).
+        XCTAssertTrue(docs[1].contains("always shows the precision it is loaded at") && docs[1].contains("Closing the menu without Reload discards the preview"),
+                      "USAGE: loaded precision wins; previews are transient")
+        XCTAssertTrue(docs[1].contains("the one its next dictation (or streaming session) loads"), "USAGE: dictation uses what was last loaded")
+        XCTAssertTrue(docs[1].contains("nothing downloads without **Download**") && docs[1].contains("**Cancel** is the default"), "USAGE: download popup")
+        XCTAssertTrue(docs[1].contains("removes its partial files"), "USAGE: partial clean-up")
+        XCTAssertTrue(docs[0].contains("nothing downloads without **Download**"), "README: download popup")
+        for stale in ["only records the choice", "Nothing downloads without that click", "Partial downloads may be resumed"] {
+            XCTAssertFalse(all.contains(stale), stale)
+        }
         for stale in ["| Precision |", "`4b`, `8b`", "| 8b", "| 4b", "| BF16"] {
             XCTAssertFalse(docs[0].contains(stale) || docs[1].contains(stale), stale)
         }

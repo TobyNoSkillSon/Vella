@@ -28,7 +28,7 @@ Models, recordings and settings in `~/Library/Application Support/Vella` are kep
 1. Open Vella and approve Microphone and Accessibility access when asked.
 2. Press **Control + Command + N** to record. Click your destination field, then press the shortcut again to finish.
 
-A fresh install has no model. If you dictate before getting one, Vella keeps the recording and the menu shows **Get <recommended model> (<size>)**. Click it: the model downloads from Hugging Face, and the waiting recording is transcribed when it is ready. Nothing downloads without that click. After that, transcription works offline.
+A fresh install has no model. If you dictate before getting one, Vella keeps the recording and the menu shows **Get <recommended model> (<size>)**. Click it and confirm the download (see **Downloads** below): the model downloads from Hugging Face, and the waiting recording is transcribed when it is ready. Nothing downloads without that confirmation. After that, transcription works offline.
 
 ## Menu
 
@@ -59,11 +59,15 @@ Hover an item for what it does.
 
 Lower is better for WER, Format, J / min and Memory; higher for Speed. `—` means not measured at that precision; Vella never estimates a figure. Clicking a heading sorts by each model's best value across its precisions, so rows keep their place when you switch precision; models with nothing measured come last. Every figure's tooltip says when and on which Mac it was measured. On a Mac with a different chip family, the footer says `Benchmarks measured on M5 Max`: speed, energy and memory differ on your Mac; accuracy does not.
 
-**Recommended precision.** Among a model's measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest J / min (ties: faster, then more bits). A model loads at the selected precision, which starts as the recommended one. Selecting another precision only records the choice and shows its figures with the difference from the recommended one beneath (green better, red worse). On a loaded model with another precision selected, the button is a green **Reload**, which loads the selection in place of the loaded one.
+**Recommended precision.** Among a model's measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest J / min (ties: faster, then more bits).
 
-**Made on this Mac.** Precisions the model's authors do not publish (for example 16 for Parakeet v3, 8 and 4 for Parakeet v3 Ultra) are made on your Mac from the higher precision when the model loads. Until they are measured their figures show `—`. **Get** on such a precision downloads the weights it is made from; deleting those weights removes it too.
+**One precision per model.** A loaded model's row always shows the precision it is loaded at, with **Unload**. An unloaded row shows the precision it was last loaded at, else the recommended one, with **Load** (or **Get** when it is not downloaded). Clicking another segment is a preview: the row shows that precision's figures, with the difference from the recommended one beneath (green better, red worse), and on a loaded model a green **Reload**, which loads it in place of the loaded one. Closing the menu without Reload discards the preview. Only Load and Reload change the model: the one last loaded for a mode is the one its next dictation (or streaming session) loads, so the table and dictation always agree.
 
-**Actions.** **Get** downloads the model. **Load** loads it and keeps it loaded (see Keep Hot); **Unload** frees its memory and keeps the download. The trash icon deletes the downloaded weights after confirmation. Recordings and transcripts are never deleted with a model.
+**Made on this Mac.** Precisions the model's authors do not publish (for example 16 for Parakeet v3, 8 and 4 for Parakeet v3 Ultra) are made on your Mac from the higher precision when the model loads. Until they are measured their figures show `—`. Getting such a precision downloads the weights it is made from; deleting those weights removes it too.
+
+**Actions.** **Get** downloads the model and loads it. **Load** loads it and keeps it loaded (see Keep Hot); **Unload** frees its memory and keeps the download. The trash icon deletes the downloaded weights after confirmation. Recordings and transcripts are never deleted with a model.
+
+**Downloads.** Every action that needs a download (Get, Load or Reload of a precision that is not on disk, a precision made on this Mac whose source is missing, the first-dictation Get) first asks in a popup: which model and precision, whether it is published on Hugging Face (repository and revision) or made on this Mac from which weights, the exact download size, the disk space needed and free, and that it loads when done. **Cancel** is the default; nothing downloads without **Download**. The footer shows the progress; a failed or stalled download shows its reason there. A cancelled or failed download removes its partial files, and when Vella starts it deletes partial downloads left in its Models folder by a quit or crash.
 
 **Engine.** **Optimized · <chip>** means Vella's optimized kernels for this model passed a self-test against the stock MLX path on this Mac, in a separate process, when the model loaded; the result is remembered for this model, GPU, macOS version and app version. **MLX** means the stock path: same model, slower. The tooltip lists which parts are optimized. If an optimized transcription fails or produces invalid numbers, Vella transcribes that recording again on the stock path and keeps the model on it until it is reloaded.
 
@@ -171,7 +175,7 @@ Successful model output is accepted, including no text. Empty recognition is not
 - Recording metadata is written first so an interrupted session stays recoverable. Integrity failures preserve files for recovery rather than silently discarding them. Streaming retries archive the previous event journal first.
 - Vella does not upload recordings or transcripts. Apps you insert text into may sync or send that text according to their own settings.
 - Clipboard managers and Universal Clipboard can still see text you copy or paste. Streaming live insertion avoids the clipboard per chunk; Dictation paste and recovery use the clipboard path described above.
-- Model downloads (when you choose **Get**) are the only expected network transfer during normal use, plus the release check described above. The recognition helpers run in a sandbox that denies all network access; downloads are a separate helper, `VellaModelTool`.
+- Model downloads (after you confirm one) are the only expected network transfer during normal use, plus the release check described above. The recognition helpers run in a sandbox that denies all network access; downloads are a separate helper, `VellaModelTool`.
 
 ## Update notices
 
