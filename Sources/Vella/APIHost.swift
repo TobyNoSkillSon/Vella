@@ -91,6 +91,7 @@ import VellaCore
         do {
             let server = try APIServer(uploads: root.appendingPathComponent("uploads", isDirectory: true), handler: service)
             self.server = server; self.service = service
+            runtime.apiToken = UUID().uuidString + UUID().uuidString
             server.start { port in
                 if let port { runtime.apiPort = port } else { runtime.log("api: listener failed") }
             }

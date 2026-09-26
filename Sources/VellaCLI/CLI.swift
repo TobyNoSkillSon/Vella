@@ -187,13 +187,15 @@ struct VellaClient {
         return nil
     }
 
-    /// The API port when the app that wrote the status file is alive.
-    func runningPort() -> Int? {
+    /// The running app's status file (nil when its app is gone).
+    func runningStatus() -> WorkerStatus? {
         guard let data = try? Data(contentsOf: supportDirectory.appendingPathComponent("worker-status.json")),
               let status = try? JSONDecoder().decode(WorkerStatus.self, from: data),
               let port = status.api_port, port > 0, let pid = status.app_pid, pid > 0, kill(pid, 0) == 0 else { return nil }
-        return port
+        return status
     }
+    /// The API port when the app that wrote the status file is alive.
+    func runningPort() -> Int? { runningStatus()?.api_port }
 
     func ensureRunning() async throws -> Int {
         if let port = runningPort() { return port }
@@ -231,6 +233,8 @@ struct VellaClient {
         request.httpMethod = method
         request.timeoutInterval = 4 * 3600   // a 3-hour file on a slow model
         if let json {
+            // A local path is only read for a client that can read Vella's status file (not a sandboxed app).
+            if let token = runningStatus()?.api_token { request.setValue(token, forHTTPHeaderField: "X-Vella-Token") }
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONSerialization.data(withJSONObject: json)
         }

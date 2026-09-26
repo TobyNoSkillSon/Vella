@@ -206,7 +206,7 @@ print(result.text, [(s.start, s.end) for s in result.segments])
 - `language` is echoed in `verbose_json`; the models detect the language themselves. `prompt` and `temperature` are accepted and ignored (decoding is greedy). Timestamps are per segment; word timestamps are not provided. There is no streaming response and no translation endpoint.
 - The key is ignored, but SDKs need one: pass any string.
 - Errors use OpenAI's shape, `{"error": {"message", "type", "param", "code"}}`: 400 invalid request, 404 unknown or not downloaded model (`model_not_found`), 413 over 200 MB, 429 queue full, 507 not enough free memory (`insufficient_memory`).
-- Uploads are limited to 200 MB; a JSON body `{"path": "/absolute/file.m4a", …}` with the same fields transcribes a local file without uploading it (this is what `vella` does).
+- Uploads are limited to 200 MB. A JSON body `{"path": "/absolute/file.m4a", …}` with the same fields transcribes a local file without uploading it (this is what `vella` does); it needs the header `X-Vella-Token` set to `api_token` from `worker-status.json`, so an app that cannot read Vella's files (a sandboxed one) cannot make Vella read yours.
 - Security: it listens on the IPv4 loopback address only. Requests with an `Origin` header (web pages) or a `Host` other than `127.0.0.1:<port>`/`localhost:<port>` get 403, and POST bodies other than multipart/form-data or JSON get 415, all before any of the body is read. The port and API version are in `~/Library/Application Support/Vella/worker-status.json` (`api_port`, `api`).
 
 ## When little or no text appears

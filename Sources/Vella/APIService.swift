@@ -24,6 +24,8 @@ import VellaCore
     let version: String
     /// Upload scratch space (parts of multipart bodies); removed per request.
     let scratch: URL
+    /// The per-launch secret a JSON `path` request must send as `X-Vella-Token` (from worker-status.json).
+    var pathToken: String? { runtime.apiToken }
 
     init(transcriber: APITranscriber, models: APIModelSource?, scratch: URL,
          version: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev") {
@@ -60,6 +62,7 @@ import VellaCore
         object["version"] = version
         object["pid"] = Int(getpid())
         if let port = runtime.apiPort { object["port"] = port }
+        object.removeValue(forKey: "api_token")
         object["dictation"] = dictationState()
         let available = models?.models() ?? []
         object["dictation_model"] = available.first(where: \.current).map { ["id": $0.id, "name": $0.name, "precision": $0.precision] } ?? NSNull()
@@ -98,6 +101,9 @@ import VellaCore
         defer { if let cleanup { try? FileManager.default.removeItem(at: cleanup) } }
         switch request.body {
         case .memory(let data):
+            guard let token = pathToken, request.head.headers["x-vella-token"] == token else {
+                throw APIError(403, "a JSON request that names a local file needs X-Vella-Token (api_token in worker-status.json); or upload the file as multipart/form-data", param: "path")
+            }
             let parsed = try TranscriptionOptions.validate(json: data)
             options = parsed.options
             let url = URL(fileURLWithPath: parsed.path).standardizedFileURL
@@ -128,10 +134,18 @@ import VellaCore
             _ = try model(for: options)
             try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             let url = scratch.appendingPathComponent(UUID().uuidString + Self.fileExtension(file.filename))
-            guard FileManager.default.createFile(atPath: url.path, contents: data.subdata(in: file.range), attributes: [.posixPermissions: 0o600]) else {
-                throw APIError(507, "Vella could not store the upload")
-            }
             cleanup = url; audio = url
+            // Written from the mapped body in slices: a 200 MB upload is never copied into memory.
+            guard FileManager.default.createFile(atPath: url.path, contents: nil, attributes: [.posixPermissions: 0o600]),
+                  let handle = try? FileHandle(forWritingTo: url) else { throw APIError(507, "Vella could not store the upload") }
+            defer { try? handle.close() }
+            var offset = file.range.lowerBound
+            while offset < file.range.upperBound {
+                let end = min(offset + 8 << 20, file.range.upperBound)
+                do { try handle.write(contentsOf: data[(data.startIndex + offset)..<(data.startIndex + end)]) }
+                catch { throw APIError(507, "Vella could not store the upload") }
+                offset = end
+            }
         case .none:
             throw APIError(400, "file is required: the audio file as a multipart/form-data upload", param: "file")
         }

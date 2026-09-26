@@ -94,6 +94,7 @@ for line in sys.stdin:
         server = try APIServer(uploads: api.appendingPathComponent("uploads"), handler: service)
         transcriber.dictationActive = { [unowned self] in self.dictationActive }
         let runtime = self.runtime
+        runtime.apiToken = "test-token"
         port = await withCheckedContinuation { continuation in
             server.start { port in runtime.apiPort = port; continuation.resume(returning: port ?? 0) }
         }
@@ -195,6 +196,8 @@ final class APITests: XCTestCase {
         XCTAssertEqual((status["dictation_model"] as? [String: Any])?["id"] as? String, "fake-a")
         let file = try XCTUnwrap(WorkerStatus.read(api.runtime.statusURL))
         XCTAssertEqual(file.api, 1); XCTAssertEqual(file.api_port, api.port); XCTAssertEqual(file.app_pid, getpid())
+        XCTAssertEqual(file.api_token, "test-token")
+        XCTAssertNil(status["api_token"], "the token is in the file only, never served")
 
         let (listCode, listData) = try await api.get("/v1/models")
         XCTAssertEqual(listCode, 200)
@@ -269,6 +272,7 @@ final class APITests: XCTestCase {
             var request = URLRequest(url: URL(string: api.base + "/v1/audio/transcriptions")!)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("test-token", forHTTPHeaderField: "X-Vella-Token")
             request.httpBody = try JSONSerialization.data(withJSONObject: ["path": file.path, "model": "fake-b", "response_format": "verbose_json"])
             let (data, response) = try await URLSession.shared.data(for: request)
             XCTAssertEqual((response as! HTTPURLResponse).statusCode, 200, file.pathExtension + String(decoding: data, as: UTF8.self))
@@ -311,8 +315,14 @@ final class APITests: XCTestCase {
         let malformed = await APIFixture.raw(api.port, "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: multipart/form-data; boundary=\(boundary)\r\nContent-Length: \(broken.utf8.count)\r\n\r\n\(broken)")
         XCTAssertEqual(malformed, 400)
         for body in [#"{"path":"relative.wav"}"#, #"{"path":"/no/such/file.wav"}"#, "not json", #"{"path":"\#(audio.path)","response_format":"xml"}"#] {
-            let code = await APIFixture.raw(api.port, "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: application/json\r\nContent-Length: \(body.utf8.count)\r\n\r\n\(body)")
+            let code = await APIFixture.raw(api.port, "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: application/json\r\nX-Vella-Token: test-token\r\nContent-Length: \(body.utf8.count)\r\n\r\n\(body)")
             XCTAssertEqual(code, 400, body)
+        }
+        // A local path without the status file's token (a sandboxed app cannot read it) is refused.
+        for token in ["", "X-Vella-Token: wrong\r\n"] {
+            let body = #"{"path":"\#(audio.path)"}"#
+            let code = await APIFixture.raw(api.port, "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: application/json\r\n\(token)Content-Length: \(body.utf8.count)\r\n\r\n\(body)")
+            XCTAssertEqual(code, 403, token)
         }
         XCTAssertNil(api.backend.processID, "no worker started")
         XCTAssertTrue(api.runtime.status.models.isEmpty)

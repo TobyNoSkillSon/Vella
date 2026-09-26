@@ -279,6 +279,7 @@ import VellaCore
     }
     /// The API's loopback port once it listens (published in the status file with the API version).
     var apiPort: Int? { didSet { writeStatus() } }
+    var apiToken: String?
     func touch(_ id: String) {
         guard entries[id] != nil else { return }
         restarts[id]?.reset() // served a request: recovered
@@ -384,7 +385,7 @@ import VellaCore
         next.refused = refused
         next.gpu = gpu
         next.test_hooks = activeTestHooks(environment).merging(workerHooks) { $1 }
-        if let apiPort { next.api = vellaAPIVersion; next.api_port = apiPort }
+        if let apiPort { next.api = vellaAPIVersion; next.api_port = apiPort; next.api_token = apiToken }
         status = next
         try? next.write(to: statusURL)
     }
