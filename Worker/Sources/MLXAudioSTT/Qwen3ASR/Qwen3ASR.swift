@@ -615,7 +615,6 @@ public class Qwen3ASRAudioEncoder: Module {
 
                 // [batchLen, windowLen, d_model] — full self-attention within each window
                 var batch = MLX.stacked(batchItems.map { $0.data }, axis: 0)
-                if Qwen3ASRModel.halfEncoder { batch = batch.asType(.bfloat16) }
                 for layer in layers {
                     batch = layer(batch, mask: nil)
                 }
@@ -1231,11 +1230,12 @@ public class Qwen3ASRModel: Module {
     public static let profiling = ProcessInfo.processInfo.environment["VELLA_QWEN_PROFILE"] == "1"
     public var profile = Profile()
     nonisolated(unsafe) static var encoderClock: (conv: Double, layers: Double) = (0, 0)
-    /// Overlap host graph building with GPU decode (VELLA_QWEN_PIPELINE=0 restores the stock loop).
-    public static let pipelinedDecode = ProcessInfo.processInfo.environment["VELLA_QWEN_PIPELINE"] != "0"
-    static let f32AudioTower = ProcessInfo.processInfo.environment["VELLA_QWEN_ENC_F32W"] != "0"
-    /// Experiment: run the audio transformer in bf16 instead of the f32 the f32 mel promotes it to.
-    static let halfEncoder = ProcessInfo.processInfo.environment["VELLA_QWEN_ENC_BF16"] == "1"
+    /// Optimized path (FastPathCapable, off after load; the worker enables it once the gate qualified it).
+    /// decoder: pipelined greedy decode. encoder: audio tower held in f32.
+    public private(set) var fastDecode = false
+    public private(set) var fastEncoder = false
+    private var towerCheckpointDType: DType?
+    var lastEncoderFinite = true
     /// Generated token IDs of the most recent chunk (EOS excluded), for parity and self-tests.
     public private(set) var lastTokens: [Int] = []
 
@@ -1272,6 +1272,7 @@ public class Qwen3ASRModel: Module {
 
         let audioFeatures = getAudioFeatures(inputFeatures, featureAttentionMask: featureAttentionMask)
         eval(audioFeatures)
+        if fastEncoder { lastEncoderFinite = MLX.isNaN(audioFeatures).any().item(Bool.self) == false && MLX.isInf(audioFeatures).any().item(Bool.self) == false }
         if profiling { profile.conv += Qwen3ASRModel.encoderClock.conv; profile.layers += Qwen3ASRModel.encoderClock.layers }
         if profiling { let t = now(); profile.encoder += t - mark; mark = t; profile.promptTokens += promptTokenCount }
 
@@ -1330,7 +1331,7 @@ public class Qwen3ASRModel: Module {
         // queued before the host reads token N, so graph construction and Metal
         // encoding overlap GPU compute instead of alternating with it. Same ops and
         // shapes as the loop below (token-exact); one extra step is computed after EOS.
-        if Qwen3ASRModel.pipelinedDecode && repetitionPenalty == 1.0 {
+        if fastDecode && repetitionPenalty == 1.0 {
             func step(_ token: MLXArray) -> MLXArray {
                 callAsFunction(inputIds: token.reshaped(1, 1).asType(.int32), cache: cache)[0..., -1, 0...].argMax(axis: -1)
             }
@@ -1929,20 +1930,52 @@ public class Qwen3ASRModel: Module {
 
         // Load weights into model
         try model.update(parameters: ModuleParameters.unflattened(sanitizedWeights), verify: .all)
-        // The f32 log-mel promotes the whole audio tower to f32, and MLX then casts
-        // every bf16 weight to f32 inside every encoder call (~4x the tower's GEMM
-        // time). Holding the tower in f32 runs the identical f32 graph without the
-        // per-call casts: bit-identical output, +2 bytes/param resident (~0.6 GB on
-        // 1.7B), peak unchanged. VELLA_QWEN_ENC_F32W=0 keeps the checkpoint dtype.
-        if Qwen3ASRModel.f32AudioTower {
-            // Floating-point tensors only: never widen packed quantized weights.
-            model.audioTower.update(parameters: model.audioTower.parameters().mapValues {
-                $0.dtype == .bfloat16 || $0.dtype == .float16 ? $0.asType(.float32) : $0
-            })
-        }
         eval(model)
 
         return model
     }
 
+}
+
+// MARK: - Optimized path
+
+extension Qwen3ASRModel: FastPathCapable {
+    public static var fastPathRevision: String { "qwen3-asr-1" }
+
+    /// decoder: build step N+1 from the lazy token N before reading it (same kernels, token-exact).
+    /// encoder: the f32 log-mel promotes the audio tower to f32, and MLX re-casts every bf16 weight inside
+    /// every call; holding the tower in f32 runs the identical f32 graph without those casts
+    /// (bit-identical, +2 bytes/param resident, MLX peak unchanged). Disabling casts back exactly.
+    public func configureFastPath(enabled: Bool, component: String) -> Bool {
+        let decoder = component == "both" || component == "decoder"
+        let encoder = component == "both" || component == "encoder"
+        guard decoder || encoder else { return false }
+        if decoder { fastDecode = enabled }
+        if encoder && enabled != fastEncoder {
+            let parameters = audioTower.parameters()
+            if enabled {
+                towerCheckpointDType = parameters.flattened().first { $0.1.dtype.isFloatingPoint }?.1.dtype
+                audioTower.update(parameters: parameters.mapValues {
+                    $0.dtype == .bfloat16 || $0.dtype == .float16 ? $0.asType(.float32) : $0
+                })
+            } else if let original = towerCheckpointDType, original != .float32 {
+                audioTower.update(parameters: parameters.mapValues { $0.dtype == .float32 ? $0.asType(original) : $0 })
+            }
+            eval(audioTower)
+            Memory.clearCache()
+            fastEncoder = enabled
+            lastEncoderFinite = true
+        }
+        return true
+    }
+
+    public var fastPathFinite: Bool { lastEncoderFinite }
+
+    public var fastPathComponents: [String: Bool] { ["decoder": fastDecode, "encoder": fastEncoder] }
+
+    /// Greedy token IDs for a self-test clip (<= 30 s, one chunk), exactly as the worker transcribes.
+    public func qualificationTokens(audio: MLXArray) -> [Int] {
+        _ = generate(audio: audio, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
+        return lastTokens
+    }
 }
