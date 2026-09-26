@@ -205,7 +205,7 @@ final class ModelsTests: XCTestCase {
         c.dictation.installed["parakeet-tdt-0.6b-v3-mlx-4bit"] = InstalledModel(path: "/fixture/p4")
         c.dictation.activeModelPath = "/fixture/p4"
         XCTAssertEqual(c.loaded(parakeet)?.precision, "4b")
-        XCTAssertEqual(c.activeLabel(.dictation), "Parakeet v3 4b")
+        XCTAssertEqual(c.activeLabel(.dictation), "Parakeet v3 4-bit", "no 4b wording in the menu header")
         XCTAssertEqual(c.action(parakeet), .unload)
     }
 

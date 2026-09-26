@@ -209,6 +209,11 @@ public func precisionSegmentLabels(_ options: [String]) -> [String] {
     let unique = Set(widths.compactMap { $0 }).count == options.count && !widths.contains(nil)
     return unique ? widths.map { $0! } : options
 }
+/// A precision in running text outside the table (the menu header): `4-bit`, `16-bit`; ternary stays `ternary`.
+public func precisionBitsName(_ label: String) -> String {
+    guard let width = precisionWidth(label), labelBits(label) ?? 0 >= 4 else { return label }
+    return width + "-bit"
+}
 /// The exact format of a precision label, for tooltips: `BF16 (bfloat16)`, `FP16 (float16)`, `FP32 (float32)`,
 /// `4-bit quantized`, `ternary (1.58-bit)`.
 public func precisionFormatName(_ label: String) -> String {
