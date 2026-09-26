@@ -61,7 +61,7 @@ final class ModeLibraryTests: XCTestCase {
         try FileManager.default.createDirectory(at: references, withIntermediateDirectories: true)
         let source = ModelLibrary.resourceDirectory()
         let labResults = try LabFixtures.require("Resources/ReferenceResults")
-        for file in ["streaming-models.json", "benchmark-policy.json"] {
+        for file in ["models.json", "benchmark-policy.json"] {
             try FileManager.default.copyItem(at: source.appendingPathComponent(file), to: root.appendingPathComponent(file))
         }
         let policy = try JSONSerialization.jsonObject(with: Data(contentsOf: source.appendingPathComponent("benchmark-policy.json"))) as! [String: Any]
@@ -106,7 +106,7 @@ final class ModeLibraryTests: XCTestCase {
     }
     @MainActor func testCrossModeImportsAreRejected() throws {
         let (dictation, streaming) = try libraries()
-        let stream = try XCTUnwrap(streaming.models.first)
+        let stream = try XCTUnwrap(streaming.models.first { $0.quantization == "8-bit" })
         let folder = streaming.modelsDirectory.appendingPathComponent("fixture")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Data(#"{"model_type":"nemotron_asr","quantization":{"bits":8}}"#.utf8).write(to: folder.appendingPathComponent("config.json"))
