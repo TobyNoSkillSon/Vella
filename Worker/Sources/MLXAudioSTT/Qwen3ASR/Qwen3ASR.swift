@@ -1233,6 +1233,7 @@ public class Qwen3ASRModel: Module {
     nonisolated(unsafe) static var encoderClock: (conv: Double, layers: Double) = (0, 0)
     /// Overlap host graph building with GPU decode (VELLA_QWEN_PIPELINE=0 restores the stock loop).
     public static let pipelinedDecode = ProcessInfo.processInfo.environment["VELLA_QWEN_PIPELINE"] != "0"
+    static let f32AudioTower = ProcessInfo.processInfo.environment["VELLA_QWEN_ENC_F32W"] != "0"
     /// Experiment: run the audio transformer in bf16 instead of the f32 the f32 mel promotes it to.
     static let halfEncoder = ProcessInfo.processInfo.environment["VELLA_QWEN_ENC_BF16"] == "1"
     /// Generated token IDs of the most recent chunk (EOS excluded), for parity and self-tests.
@@ -1928,6 +1929,17 @@ public class Qwen3ASRModel: Module {
 
         // Load weights into model
         try model.update(parameters: ModuleParameters.unflattened(sanitizedWeights), verify: .all)
+        // The f32 log-mel promotes the whole audio tower to f32, and MLX then casts
+        // every bf16 weight to f32 inside every encoder call (~4x the tower's GEMM
+        // time). Holding the tower in f32 runs the identical f32 graph without the
+        // per-call casts: bit-identical output, +2 bytes/param resident (~0.6 GB on
+        // 1.7B), peak unchanged. VELLA_QWEN_ENC_F32W=0 keeps the checkpoint dtype.
+        if Qwen3ASRModel.f32AudioTower {
+            // Floating-point tensors only: never widen packed quantized weights.
+            model.audioTower.update(parameters: model.audioTower.parameters().mapValues {
+                $0.dtype == .bfloat16 || $0.dtype == .float16 ? $0.asType(.float32) : $0
+            })
+        }
         eval(model)
 
         return model
