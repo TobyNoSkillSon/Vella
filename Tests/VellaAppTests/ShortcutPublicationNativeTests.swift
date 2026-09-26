@@ -325,7 +325,7 @@ final class ShortcutPublicationNativeTests: XCTestCase {
         XCTAssertEqual(item.view?.frame.width ?? -1, widthBefore, "Restore keeps pre-reserved tracking width")
     }
 
-    // MARK: - Coordinator fixes: interruption reset, permission gate, transactional tap
+    // MARK: - Fixes: interruption reset, permission gate, transactional tap
 
     final class PubTime {
         var now: TimeInterval

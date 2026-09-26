@@ -4,14 +4,13 @@ import Darwin
 @testable import Vella
 @testable import VellaCore
 
-/// Review 1 re-check finding R13 (lab/notes/REVIEW.md): the reviewer's independent repro, kept verbatim as the
-/// regression. A streaming Reload whose replacement fails to load (and whose child ignores SIGTERM, so the restore
+/// A streaming Reload whose replacement fails to load (and whose child ignores SIGTERM, so the restore
 /// waits for it) is interrupted by shutdown; the restore must not bring a worker back afterwards.
-final class Review1RecheckTests: XCTestCase {
+final class StreamingRestoreCancellationTests: XCTestCase {
     private var root: URL!
     private var pids: [Int32] = []
     override func setUpWithError() throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-recheck-\(UUID())")
+        root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-restore-cancel-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     }
     override func tearDownWithError() throws {
@@ -51,7 +50,7 @@ time.sleep(.2)
     private func config(_ path: String) -> Configuration { Configuration(model: path, mode: .streaming, streamingModel: path) }
     private func pause(_ seconds: Double) async throws { try await Task.sleep(nanoseconds: UInt64(seconds * 1e9)) }
 
-    @MainActor func testR13ShutdownDuringRestoreWaitDoesNotResurrectWorker() async throws {
+    @MainActor func testShutdownDuringRestoreWaitDoesNotResurrectWorker() async throws {
         let (runtime, backend) = try pair(); defer { backend.shutdown() }
         let script = root.appendingPathComponent("stream.py")
         var source = try String(contentsOf: script)

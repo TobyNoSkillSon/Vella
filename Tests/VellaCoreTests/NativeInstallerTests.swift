@@ -134,7 +134,7 @@ final class InstallReadinessTests: XCTestCase {
         XCTAssertEqual(state(waiting), .waiting("waiting for parakeet-v3 to load"))
         XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"error":"Worker exited (code 1)."}"#),
                        .failing("parakeet-v3 not loaded: Worker exited (code 1)."))
-        // Review 1 R6: a refused configured-hot model is settled but degraded, never ready.
+        // A refused configured-hot model is settled but degraded, never ready.
         XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"refused":{"model":"parakeet-v3","message":"needs ~2.1 GB; ~0.9 GB free"}}"#),
                        .degraded("Vella running (pid 42), parakeet-v3 not loaded: needs ~2.1 GB; ~0.9 GB free"))
         XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["a","b"],"refused":{"model":"a","message":"m"}}"#),
@@ -142,7 +142,7 @@ final class InstallReadinessTests: XCTestCase {
         XCTAssertEqual(state(#"{"app_pid":42,"models":{"parakeet-v3":{"precision":"4b"}},"launch_set":["parakeet-v3"]}"#),
                        .ready("Vella running (pid 42), model loaded: parakeet-v3 (4b)"))
     }
-    // Review 1 R6: the ready command never turns a broken launch set into `ready`.
+    // The ready command never turns a broken launch set into `ready`.
     func testWaitReportsFailingLaunchSetAsDegradedAfterSettleNeverReady() {
         var clock = Date(timeIntervalSince1970: 0)
         let failing = Data(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"error":"Worker exited (code 1)."}"#.utf8)

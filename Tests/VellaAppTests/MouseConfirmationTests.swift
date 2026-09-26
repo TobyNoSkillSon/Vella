@@ -3,8 +3,8 @@ import AppKit
 @testable import Vella
 @testable import VellaCore
 
-/// Bounded mouse-button confirmation (spark).
-/// Public source + synthetic fixtures only. No global event posting (no CGEventPost),
+/// Bounded mouse-button confirmation.
+/// Synthetic fixtures only. No global event posting (no CGEventPost),
 /// no live store (memory-only ShortcutStore), no full-app launch, no TCC prompts.
 final class MouseConfirmationTests: XCTestCase {
 

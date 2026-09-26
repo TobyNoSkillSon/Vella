@@ -4,12 +4,12 @@ import AppKit
 @testable import Vella
 @testable import VellaCore
 
-/// Independent pre-push publication audit (w1:p10).
+/// Shortcut state and persistence.
 /// Scope: Sources/VellaCore/ShortcutCore.swift (validation/labels/store),
 /// ShortcutEngine + ModifierSoloReducer state machine, plus ShortcutManager
 /// transaction glue (apply/save/registrar rollback, generations).
 /// No private data, no historical QA, no full-app launch (no Model/AppDelegate/
-/// NSApplication.shared), no real input/taps/hotkeys, no TCC, no commits.
+/// NSApplication.shared), no real input/taps/hotkeys, no TCC.
 /// All stores are memory (fileURL nil) or temporary synthetic URLs; all clocks
 /// and registrar sinks are injected. Deterministic only.
 final class ShortcutPublicationStateTests: XCTestCase {

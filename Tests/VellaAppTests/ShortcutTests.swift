@@ -3,7 +3,7 @@ import AppKit
 @testable import Vella
 @testable import VellaCore
 
-final class SparkMockShortcutRegistrar: ShortcutRegistrar {
+final class RecordingShortcutRegistrar: ShortcutRegistrar {
     var registered: ShortcutConfiguration?
     var shouldFail = false
     var failMessage = "Already reserved by another application."
@@ -28,7 +28,7 @@ final class SparkMockShortcutRegistrar: ShortcutRegistrar {
 
 @MainActor
 final class ShortcutTests: XCTestCase {
-    private func managerWithEngine(behavior: ShortcutBehavior = .toggle, recording: Bool = false, busy: Bool = false, now: @escaping () -> TimeInterval = { 1000 }) -> (ShortcutManager, SparkMockShortcutRegistrar, RecordingState) {
+    private func managerWithEngine(behavior: ShortcutBehavior = .toggle, recording: Bool = false, busy: Bool = false, now: @escaping () -> TimeInterval = { 1000 }) -> (ShortcutManager, RecordingShortcutRegistrar, RecordingState) {
         let state = RecordingState(recording: recording, busy: busy)
         let store = ShortcutStore(initial: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: behavior), fileURL: nil)
         let engine = ShortcutEngine(configuration: store.configuration, sinks: .init(
@@ -36,7 +36,7 @@ final class ShortcutTests: XCTestCase {
             finish: { state.finishes += 1; state.recording = false; state.busy = false },
             cancel: { state.cancels += 1; state.recording = false; state.busy = false },
             isRecording: { state.recording }, isBusy: { state.busy }), now: now)
-        let registrar = SparkMockShortcutRegistrar()
+        let registrar = RecordingShortcutRegistrar()
         let manager = ShortcutManager(engine: engine, store: store, registrar: registrar)
         return (manager, registrar, state)
     }
@@ -140,7 +140,7 @@ final class ShortcutTests: XCTestCase {
         let engine = ShortcutEngine(configuration: ShortcutConfiguration.default, sinks: .init(
             start: {}, finish: {}, cancel: {},
             isRecording: { state.recording }, isBusy: { state.busy }))
-        let manager = ShortcutManager(engine: engine, store: store, registrar: SparkMockShortcutRegistrar())
+        let manager = ShortcutManager(engine: engine, store: store, registrar: RecordingShortcutRegistrar())
         let delegate = AppDelegate(model: model, shortcutManager: manager)
         delegate.rebuildMenu()
         let titles = delegate.menu.items.map(\.title)
@@ -272,7 +272,7 @@ final class ShortcutTests: XCTestCase {
         let engine = ShortcutEngine(configuration: ShortcutConfiguration.default, sinks: .init(
             start: {}, finish: {}, cancel: {},
             isRecording: { state.recording }, isBusy: { state.busy }))
-        let manager = ShortcutManager(engine: engine, store: store, registrar: SparkMockShortcutRegistrar())
+        let manager = ShortcutManager(engine: engine, store: store, registrar: RecordingShortcutRegistrar())
         let delegate = AppDelegate(model: model, shortcutManager: manager)
         delegate.rebuildMenu()
         let original = delegate.menu.items
