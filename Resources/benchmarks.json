@@ -485,5 +485,119 @@
    },
    "recommended": "FP32"
   }
+ },
+ "references": {
+  "elevenlabs-scribe-v2": {
+   "reference": true,
+   "estimated": true,
+   "name": "ElevenLabs Scribe v2",
+   "provider": "ElevenLabs",
+   "mode": "dictation",
+   "wer": 13.4,
+   "range": [
+    11.8,
+    13.9
+   ],
+   "multilingual": {
+    "by_language": {
+     "de": 5.8,
+     "fr": 8.2,
+     "es": 7.8
+    },
+    "range": {
+     "de": [
+      4.5,
+      6.7
+     ],
+     "fr": [
+      6.2,
+      22.9
+     ],
+     "es": [
+      7.0,
+      17.8
+     ]
+    },
+    "coverage": 3
+   },
+   "source": "Hugging Face Open ASR Leaderboard, English short-form average 3.97% for elevenlabs/scribe_v2 (https://huggingface.co/spaces/hf-audio/open_asr_leaderboard; results https://huggingface.co/datasets/hf-audio/open-asr-leaderboard-results @d2c5b38)",
+   "method": "3.97% × 3.38, the median ratio of our v2 WER to the leaderboard WER for the models we measured on both: Parakeet v3 3.38, Qwen3 ASR 1.7B 3.49, Nemotron 3.5 Streaming 2.98. The range uses the lowest and highest ratio.",
+   "public_wer": 3.969,
+   "ratio": 3.382,
+   "anchors": {
+    "parakeet-v3": {
+     "v2": 16.43,
+     "public": 4.85875,
+     "ratio": 3.382
+    },
+    "qwen3-asr-1.7b": {
+     "v2": 15.06,
+     "public": 4.31125,
+     "ratio": 3.493
+    },
+    "nemotron-3.5-streaming-0.6b": {
+     "v2": 23.44,
+     "public": 7.8775,
+     "ratio": 2.976
+    }
+   },
+   "date": "2026-09-26"
+  },
+  "azure-speech": {
+   "reference": true,
+   "estimated": true,
+   "name": "Microsoft Azure Speech",
+   "provider": "Microsoft",
+   "mode": "dictation",
+   "wer": 12.9,
+   "range": [
+    11.3,
+    13.3
+   ],
+   "multilingual": {
+    "by_language": {
+     "de": 5.0,
+     "fr": 7.8,
+     "es": 7.7
+    },
+    "range": {
+     "de": [
+      3.8,
+      5.7
+     ],
+     "fr": [
+      5.9,
+      21.9
+     ],
+     "es": [
+      7.0,
+      17.7
+     ]
+    },
+    "coverage": 3
+   },
+   "source": "Hugging Face Open ASR Leaderboard, English short-form average 3.81% for microsoft/azure-speech-07-2026 (https://huggingface.co/spaces/hf-audio/open_asr_leaderboard; results https://huggingface.co/datasets/hf-audio/open-asr-leaderboard-results @d2c5b38)",
+   "method": "3.81% × 3.38, the median ratio of our v2 WER to the leaderboard WER for the models we measured on both: Parakeet v3 3.38, Qwen3 ASR 1.7B 3.49, Nemotron 3.5 Streaming 2.98. The range uses the lowest and highest ratio.",
+   "public_wer": 3.811,
+   "ratio": 3.382,
+   "anchors": {
+    "parakeet-v3": {
+     "v2": 16.43,
+     "public": 4.85875,
+     "ratio": 3.382
+    },
+    "qwen3-asr-1.7b": {
+     "v2": 15.06,
+     "public": 4.31125,
+     "ratio": 3.493
+    },
+    "nemotron-3.5-streaming-0.6b": {
+     "v2": 23.44,
+     "public": 7.8775,
+     "ratio": 2.976
+    }
+   },
+   "date": "2026-09-26"
+  }
  }
 }

@@ -292,13 +292,44 @@ public struct SuiteInfo: Codable, Equatable {
     public var audio_min: Double?
 }
 
+/// A cloud API shown for perspective (benchmarks.json `references`, written by lab/bench/estimate_api.py). Its WER on
+/// v2 is ESTIMATED from a public leaderboard, never measured by us: nothing is sent to it, and it has no download,
+/// precision, speed, energy or memory. `range` is the estimate's spread [low, high] in percent.
+public struct ReferenceEntry: Codable, Equatable, Identifiable {
+    public var id: String = ""
+    public var name: String
+    public var provider: String?
+    public var mode: RecognitionMode
+    public var reference: Bool?
+    public var estimated: Bool?
+    public var wer: Double?
+    public var range: [Double]?
+    public var multilingual: MultilingualResult?
+    public var source: String?
+    public var method: String?
+    public var date: String?
+    public init(id: String, name: String, provider: String? = nil, mode: RecognitionMode = .dictation, wer: Double?, range: [Double]? = nil,
+                multilingual: MultilingualResult? = nil, source: String? = nil, method: String? = nil, date: String? = nil) {
+        self.id = id; self.name = name; self.provider = provider; self.mode = mode; self.reference = true; self.estimated = true
+        self.wer = wer; self.range = range; self.multilingual = multilingual; self.source = source; self.method = method; self.date = date
+    }
+    enum CodingKeys: String, CodingKey { case name, provider, mode, reference, estimated, wer, range, multilingual, source, method, date }
+}
+
 public struct BenchmarkFile: Codable, Equatable {
     public var schema: Int
     public var hardware: String?
     public var suites: [String: SuiteInfo]?
     public var models: [String: FamilyBenchmark]
-    public init(schema: Int = 1, hardware: String? = nil, suites: [String: SuiteInfo]? = nil, models: [String: FamilyBenchmark] = [:]) {
-        self.schema = schema; self.hardware = hardware; self.suites = suites; self.models = models
+    /// Cloud API reference rows, id → entry (estimated; see ReferenceEntry).
+    public var references: [String: ReferenceEntry]
+    public init(schema: Int = 1, hardware: String? = nil, suites: [String: SuiteInfo]? = nil, models: [String: FamilyBenchmark] = [:],
+                references: [String: ReferenceEntry] = [:]) {
+        self.schema = schema; self.hardware = hardware; self.suites = suites; self.models = models; self.references = references
+    }
+    /// Reference rows of a mode, in id order (the table sorts them with the models).
+    public func references(_ mode: RecognitionMode) -> [ReferenceEntry] {
+        references.values.filter { $0.mode == mode }.sorted { $0.id < $1.id }
     }
 }
 
@@ -318,6 +349,14 @@ public func decodeBenchmarks(_ data: Data?) -> BenchmarkFile {
             results[label] = r
         }
         file.models[id] = FamilyBenchmark(precisions: results, recommended: (value as? [String: Any])?["recommended"] as? String)
+    }
+    // Only entries marked both reference and estimated are shown; anything else is ignored rather than passed off as measured.
+    for (id, raw) in object["references"] as? [String: Any] ?? [:] {
+        guard JSONSerialization.isValidJSONObject(raw), let bytes = try? JSONSerialization.data(withJSONObject: raw),
+              var entry = try? JSONDecoder().decode(ReferenceEntry.self, from: bytes),
+              entry.reference == true, entry.estimated == true else { continue }
+        entry.id = id
+        file.references[id] = entry
     }
     return file
 }
@@ -370,6 +409,60 @@ public func sortedFamilies(_ families: [ModelFamily], by metric: TableMetric?, a
         case (nil, nil): return a.0 < b.0
         }
     }.map(\.1)
+}
+
+/// One row of a table section: a local model family or a cloud reference.
+public enum ModelTableRow: Identifiable, Equatable {
+    case family(ModelFamily)
+    case reference(ReferenceEntry)
+    public var id: String {
+        switch self { case .family(let f): return f.id; case .reference(let r): return "reference:" + r.id }
+    }
+    public var name: String {
+        switch self { case .family(let f): return f.name; case .reference(let r): return r.name }
+    }
+}
+
+/// A reference row's sort key: its estimated WER for the WER column; nothing else applies (it sorts last there).
+public func referenceSortKey(_ metric: TableMetric, _ reference: ReferenceEntry) -> Double? { metric == .wer ? reference.wer : nil }
+
+/// Families and reference rows of one section sorted together, by the same rule as `sortedFamilies`: best value first
+/// when ascending, rows without a value last in either direction, ties in input order (families first).
+public func sortedRows(_ families: [ModelFamily], references: [ReferenceEntry], by metric: TableMetric?, ascending: Bool,
+                       benchmarks: BenchmarkFile) -> [ModelTableRow] {
+    let rows = families.map(ModelTableRow.family) + references.map(ModelTableRow.reference)
+    guard let metric else { return rows.sorted { ascending ? $0.name < $1.name : $0.name > $1.name } }
+    let keyed = rows.enumerated().map { index, row -> (Int, ModelTableRow, Double?) in
+        switch row {
+        case .family(let f): return (index, row, tableSortKey(metric, family: f, benchmark: benchmarks.models[f.id]))
+        case .reference(let r): return (index, row, referenceSortKey(metric, r))
+        }
+    }
+    return keyed.sorted { a, b in
+        switch (a.2, b.2) {
+        case let (x?, y?): return x == y ? a.0 < b.0 : (ascending ? x < y : x > y)
+        case (_?, nil): return true
+        case (nil, _?): return false
+        case (nil, nil): return a.0 < b.0
+        }
+    }.map(\.1)
+}
+
+/// `~13%`: a reference's estimated WER, rounded to whole percent because it is an estimate.
+public func formatEstimatedErrorRate(_ percent: Double?) -> String? { percent.map { String(format: "~%.0f%%", $0) } }
+
+/// The WER tooltip of a reference row: estimated, from where, the range, and that we did not measure it.
+public func referenceWERHelp(_ r: ReferenceEntry, languageName: (String) -> String = { $0 }) -> String {
+    guard let wer = r.wer else { return "Not estimated." }
+    var text = String(format: "Estimated, not measured by us: ~%.1f%% word error rate on our v2 benchmark", wer)
+    if let range = r.range, range.count == 2 { text += String(format: ", range %.1f–%.1f%%", range[0], range[1]) }
+    text += "."
+    if let source = r.source { text += " Estimated from the \(source)." }
+    if let method = r.method { text += " " + method }
+    if let by = r.multilingual?.by_language, !by.isEmpty {
+        text += " Estimated by language: " + by.sorted { $0.key < $1.key }.map { "\(languageName($0.key)) ~\(String(format: "%.0f%%", $0.value))" }.joined(separator: ", ") + "."
+    }
+    return text
 }
 
 // MARK: Recommended precision

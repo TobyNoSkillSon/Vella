@@ -363,4 +363,69 @@ final class CatalogTests: XCTestCase {
         }
         XCTAssertTrue(fitInFreeMemoryHelp.contains("Best effort"))
     }
+
+    // MARK: Cloud reference rows (estimated)
+
+    func testReferencesDecodeOnlyWhenMarkedEstimated() {
+        let json = #"""
+        {"schema": 1, "models": {}, "references": {
+          "api-a": {"reference": true, "estimated": true, "name": "A", "mode": "dictation", "wer": 12.9, "range": [11.3, 13.3],
+                    "source": "S", "method": "M", "multilingual": {"by_language": {"de": 5.0}, "coverage": 1}},
+          "api-b": {"reference": true, "name": "B", "mode": "dictation", "wer": 1.0},
+          "api-c": {"reference": true, "estimated": true, "name": "C", "mode": "streaming", "wer": 20}
+        }}
+        """#
+        let file = decodeBenchmarks(Data(json.utf8))
+        XCTAssertEqual(Set(file.references.keys), ["api-a", "api-c"], "an entry not marked estimated is never shown as a figure")
+        XCTAssertEqual(file.references["api-a"]?.id, "api-a")
+        XCTAssertEqual(file.references["api-a"]?.range, [11.3, 13.3])
+        XCTAssertEqual(file.references(.dictation).map(\.id), ["api-a"])
+        XCTAssertEqual(file.references(.streaming).map(\.id), ["api-c"])
+        XCTAssertTrue(decodeBenchmarks(Data(#"{"schema": 1, "models": {}}"#.utf8)).references.isEmpty)
+    }
+
+    func testReferenceRowsSortWithModelsByWERAndLastElsewhere() {
+        let fam = family(["BF16", "8b"])
+        let bench = BenchmarkFile(models: ["f": FamilyBenchmark(precisions: ["BF16": r(15, j: 9, x: 30), "8b": r(15.2, j: 7, x: 40)])])
+        let low = ReferenceEntry(id: "low", name: "Low", wer: 12.9, range: [11.3, 13.3])
+        let high = ReferenceEntry(id: "high", name: "High", wer: 16)
+        let byWER = sortedRows([fam], references: [high, low], by: .wer, ascending: true, benchmarks: bench).map(\.id)
+        XCTAssertEqual(byWER, ["reference:low", "f", "reference:high"])
+        XCTAssertEqual(sortedRows([fam], references: [high, low], by: .wer, ascending: false, benchmarks: bench).map(\.id), ["reference:high", "f", "reference:low"])
+        // Speed, energy, memory, disk, format: not applicable, so references come last in either direction.
+        for metric in [TableMetric.speed, .energy, .format, .memory, .disk] {
+            for ascending in [true, false] {
+                XCTAssertEqual(sortedRows([fam], references: [high, low], by: metric, ascending: ascending, benchmarks: bench).first?.id, "f", "\(metric)")
+            }
+        }
+        XCTAssertEqual(sortedRows([fam], references: [high, low], by: nil, ascending: true, benchmarks: bench).map(\.name), ["F", "High", "Low"])
+    }
+
+    func testReferenceFormattingSaysEstimated() {
+        XCTAssertEqual(formatEstimatedErrorRate(13.42), "~13%")
+        XCTAssertNil(formatEstimatedErrorRate(nil))
+        let ref = ReferenceEntry(id: "x", name: "X", wer: 13.4, range: [11.8, 13.9], multilingual: MultilingualResult(by_language: ["de": 5.8]),
+                                 source: "Hugging Face Open ASR Leaderboard", method: "3.97% × 3.38.")
+        let help = referenceWERHelp(ref, languageName: { $0 == "de" ? "German" : $0 })
+        XCTAssertTrue(help.hasPrefix("Estimated, not measured by us: ~13.4%"), help)
+        XCTAssertTrue(help.contains("range 11.8–13.9%") && help.contains("Estimated from the Hugging Face Open ASR Leaderboard"), help)
+        XCTAssertTrue(help.contains("German ~6%"), help)
+    }
+
+    func testShippedReferencesAreEstimatedWithSourceAndRange() throws {
+        let url = resources.appendingPathComponent("benchmarks.json")
+        guard FileManager.default.fileExists(atPath: url.path) else { throw XCTSkip("Resources/benchmarks.json not measured yet") }
+        let file = decodeBenchmarks(try Data(contentsOf: url))
+        let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
+        XCTAssertEqual(file.references.count, 2)
+        for ref in file.references.values {
+            XCTAssertEqual(ref.reference, true); XCTAssertEqual(ref.estimated, true); XCTAssertEqual(ref.mode, .dictation)
+            let wer = try XCTUnwrap(ref.wer), range = try XCTUnwrap(ref.range)
+            XCTAssertEqual(range.count, 2); XCTAssertLessThanOrEqual(range[0], wer); XCTAssertGreaterThanOrEqual(range[1], wer)
+            XCTAssertTrue(ref.source?.contains("https://huggingface.co/spaces/hf-audio/open_asr_leaderboard") == true, ref.id)
+            XCTAssertFalse(ref.method?.isEmpty ?? true)
+            XCTAssertNil(catalog.family(ref.id), "a reference is never a downloadable model")
+            XCTAssertNil(file.models[ref.id], "a reference has no measured precisions")
+        }
+    }
 }
