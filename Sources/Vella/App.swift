@@ -139,6 +139,58 @@ final class GlobalShortcut {
         self.stopCapture = stopCapture ?? { recorder in _ = try await recorder.stopAsync(userStopped: true) }
         self.transcriptionRequest = transcriptionRequest
         if let data = try? Data(contentsOf: self.configurationURL), let saved = try? JSONDecoder().decode(Configuration.self, from: data) { mode = saved.mode }
+        // This model's backends serve the runtime's residency, Keep Hot and memory decisions.
+        backend.runtime.dictation = backend
+        self.streamingBackend.runtime.streaming = self.streamingBackend
+    }
+    /// A model the first dictation without one can get in one click (fresh installs load and download nothing).
+    struct ModelOffer: Equatable {
+        let id: String
+        let name: String
+        let downloadBytes: Int64
+        let mode: RecognitionMode
+        /// "Get Parakeet v3 (1.3 GB)"
+        var title: String { "Get \(name) (\(String(format: "%.1f", Double(downloadBytes) / 1e9)) GB)" }
+    }
+    /// Set while a saved recording waits for a model; the menu shows one `offer.title` row that calls getRecommendedModel().
+    @Published private(set) var pendingModelRequest: ModelOffer?
+    /// The recommended model to offer for a mode (wired by the model library).
+    var offerModel: ((RecognitionMode) -> ModelOffer?)?
+    /// Download, validate and select the offered model; returns its local path (wired by the model library).
+    var fetchModel: ((ModelOffer) async throws -> String)?
+    private func awaitModel(_ session: RecordingSession) {
+        savedSession = session
+        allowAutomaticInsertion = false
+        let mode = session.manifest.config.mode
+        session.manifest.state = "interrupted"; session.manifest.failureCode = "no_model"; try? session.save()
+        pendingModelRequest = offerModel?(mode)
+        let action = pendingModelRequest.map { "Choose \($0.title) in the menu to transcribe it." } ?? "Get a \(mode.title.lowercased()) model in Models…, then Retry."
+        update(.failed, "Recording saved. No \(mode.title.lowercased()) model is installed yet. " + action)
+    }
+    /// One click: download the offered model, then transcribe the saved recording (clipboard only, like recovery).
+    func getRecommendedModel() {
+        guard let offer = pendingModelRequest, let session = savedSession, !busy, phase != .recording else { return }
+        guard let fetchModel else { update(.failed, "Model downloads are unavailable. Get a model in Models…, then Retry."); return }
+        captureGeneration &+= 1
+        operation = UUID(); let operation = self.operation
+        update(.preparing, "Getting \(offer.name)… The recording is saved and will be transcribed when it is ready.")
+        task = Task {
+            do {
+                let path = try await fetchModel(offer)
+                try Task.checkCancellation()
+                guard self.operation == operation else { return }
+                session.manifest.config.model = path
+                if session.manifest.config.mode == .streaming { session.manifest.config.streamingModel = path }
+                session.manifest.failureCode = nil
+                try session.save()
+                pendingModelRequest = nil
+                runTranscription(session)
+            } catch is CancellationError {
+                if self.operation == operation { update(.failed, "Download stopped. The recording is saved; choose \(offer.title) to try again.") }
+            } catch {
+                if self.operation == operation { update(.failed, error.localizedDescription + " The recording is saved; choose \(offer.title) to try again.") }
+            }
+        }
     }
     func selectMode(_ mode: RecognitionMode) throws {
         guard !busy, phase != .recording else { throw VellaError.message("Finish or stop recording before switching modes.") }
@@ -260,14 +312,17 @@ final class GlobalShortcut {
                 let allowed = await AVCaptureDevice.requestAccess(for: .audio)
                 try Task.checkCancellation()
                 guard allowed else { throw VellaError.message("Allow Vella under System Settings → Privacy & Security → Microphone.") }
-                let config = try backend.configuration().forRecording(); mode = config.mode
+                // No model yet (fresh install): record durably anyway; Finish then offers one-click Get.
+                let saved = try backend.configuration(requiresModel: false)
+                var config = saved
+                if saved.selectedModel.isEmpty { config.model = "" } else { config = try saved.forRecording() }
+                mode = config.mode
                 try await CalibrationStore.shared.cancelAndWait()
-                try await streamingBackend.releaseAndWait()
                 try Task.checkCancellation()
                 guard self.operation == operation else { return }
                 streamingTask = nil; streamingBuffer = nil
                 streamingBackend.resetTranscript()
-                let pcm = config.mode == .streaming ? StreamingPCMBuffer() : nil
+                let pcm = config.mode == .streaming && !config.model.isEmpty ? StreamingPCMBuffer() : nil
                 streamingBuffer = pcm
                 self.microphone = try recorder.start(config: config, onPCM: pcm.map { buffer in { buffer.append($0) } })
                 if config.mode == .streaming { prepareLiveInsertion() }
@@ -367,7 +422,6 @@ final class GlobalShortcut {
         streamingTask = Task {
             do {
                 try observeStreaming(session, operation: operation)
-                try await backend.releaseAndWait()
                 try Task.checkCancellation()
                 guard self.operation == operation else { throw CancellationError() }
                 try await streamingBackend.start(config: config)
@@ -409,7 +463,7 @@ final class GlobalShortcut {
                     streamingBackend.onEvent = nil; streamingJournal?.close(); streamingJournal = nil
                     // Keep earlier incomplete recognition instead of overwriting its only copy.
                     try session.preserveStreamingCheckpoint()
-                    try await releaseWorkers()
+                    try await CalibrationStore.shared.cancelAndWait()
                     try Task.checkCancellation()
                     guard self.operation == operation else { throw CancellationError() }
                     try observeStreaming(session, operation: operation)
@@ -472,6 +526,7 @@ final class GlobalShortcut {
         }
     }
     private func runTranscription(_ session: RecordingSession, liveStream: Bool = false) {
+        if session.manifest.config.model.isEmpty { awaitModel(session); return }
         if session.manifest.config.mode == .streaming { runStreamingTranscription(session, live: liveStream); return }
         let operation = self.operation
         processingProgress = ""
@@ -479,7 +534,6 @@ final class GlobalShortcut {
         task = Task {
             do {
                 let runner = SessionTranscriber(request: transcriptionRequest ?? { [backend] url, config in try await backend.transcribe(url, config: config) })
-                try await streamingBackend.releaseAndWait()
                 try Task.checkCancellation()
                 guard self.operation == operation else { return }
                 let speed = CalibrationStore.speed(modelPath: session.manifest.config.model)
@@ -817,6 +871,8 @@ final class GlobalShortcut {
         }
         let delegate = AppDelegate()
         application.delegate = delegate
+        // Publish an empty worker status and load the launch set (manual loads only; nothing on a fresh install).
+        DispatchQueue.main.async { Runtime.shared.start() }
         withExtendedLifetime(delegate) { application.run() }
     }
 }

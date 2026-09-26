@@ -1,7 +1,7 @@
 import Foundation
 
 /// One loaded model in `worker-status.json`. Every field is optional on decode so older files still render.
-public struct WorkerModelStatus: Codable, Equatable, Sendable {
+public struct WorkerModelStatus: Codable, Equatable {
     public var mode: RecognitionMode?
     public var precision: String?
     public var path: String?
@@ -26,7 +26,7 @@ public struct WorkerModelStatus: Codable, Equatable, Sendable {
     public init() {}
 }
 
-public struct Eviction: Codable, Equatable, Sendable {
+public struct Eviction: Codable, Equatable {
     public var model: String
     public var residency: String?
     public var reason: String
@@ -37,7 +37,7 @@ public struct Eviction: Codable, Equatable, Sendable {
 }
 
 /// The last load refused in Fit in free memory.
-public struct Refusal: Codable, Equatable, Sendable {
+public struct Refusal: Codable, Equatable {
     public var model: String
     public var message: String
     public var at: Double
@@ -48,14 +48,14 @@ public struct Refusal: Codable, Equatable, Sendable {
     }
 }
 
-public struct GPUStatus: Codable, Equatable, Sendable {
+public struct GPUStatus: Codable, Equatable {
     public var chip: String?
     /// Metal GPU family the engine gate keys on ("apple9"); never a chip name.
     public var family: String?
     public init(chip: String? = nil, family: String? = nil) { self.chip = chip; self.family = family }
 }
 
-public struct MemoryStatus: Codable, Equatable, Sendable {
+public struct MemoryStatus: Codable, Equatable {
     public var available_mb: Double?
     public var ram_mb: Double?
     /// Σ worker footprints.
@@ -65,7 +65,7 @@ public struct MemoryStatus: Codable, Equatable, Sendable {
     }
 }
 
-public struct StatusSettings: Codable, Equatable, Sendable {
+public struct StatusSettings: Codable, Equatable {
     public var manual_idle_minutes: Int?
     public var on_demand_idle_minutes: Int?
     public var allow_swap: Bool?
@@ -77,7 +77,7 @@ public struct StatusSettings: Codable, Equatable, Sendable {
 
 /// Written by the app (atomic tmp + rename) after every runtime change, from the workers' pushed status lines.
 /// The in-app UI reads the same value in process; the file is for tests, the installer and diagnosis.
-public struct WorkerStatus: Codable, Equatable, Sendable {
+public struct WorkerStatus: Codable, Equatable {
     public var schema: Int? = 1
     public var updated: Double = 0
     public var app_pid: Int32?

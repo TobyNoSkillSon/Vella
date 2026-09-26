@@ -35,6 +35,8 @@ final class StreamingPCMBuffer: @unchecked Sendable {
 
 /// One owned, offline, stateful worker. Each request is acknowledged before the
 /// next frame is sent. UUIDs, frame accounting and deadlines fail closed.
+/// After a clean finish the worker keeps its model loaded for the next session (Keep Hot);
+/// any failure ends the process.
 @MainActor final class StreamingBackend {
     private struct Reply: Decodable {
         let id: UUID
@@ -44,8 +46,13 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         let done: Bool?
         let error: String?
         let incomplete: Bool?
+        let loaded: Bool?
     }
     private let helperOverride: URL?
+    let runtime: Runtime
+    /// The model the running worker holds, once loaded.
+    private(set) var hotRef: ModelRef?
+    private var sessionActive = false
     private let timeout: TimeInterval
     private var process: Process?
     private var retired: [Process] = []
@@ -66,8 +73,8 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     var onUpdate: (() throws -> Void)?
     // Fixed-size worker deltas: the live path never rescans all earlier speech.
     var onEvent: ((String, String, Bool) throws -> Void)?
-    init(helper: URL? = nil, timeout: TimeInterval = 120) {
-        self.helperOverride = helper; self.timeout = timeout
+    init(helper: URL? = nil, timeout: TimeInterval = 120, runtime: Runtime? = nil) {
+        self.helperOverride = helper; self.timeout = timeout; self.runtime = runtime ?? .shared
         let source = DispatchSource.makeMemoryPressureSource(eventMask: .critical, queue: .main)
         pressure = source
         source.setEventHandler { [weak self] in
@@ -77,11 +84,34 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     }
     deinit { pressure?.cancel(); if let process, process.isRunning { kill(process.processIdentifier, SIGKILL) } }
     func start(config: Configuration) async throws {
-        stop(); resetTranscript(); let generation = epoch
+        if sessionActive || pending != nil || hotRef == nil { stop() }
+        resetTranscript(); receivedDone = false
+        let generation = epoch
+        guard config.mode == .streaming, !config.model.isEmpty else { throw VellaError.message("Choose a dedicated streaming model first.") }
+        let ref = runtime.resolve(config.model, mode: .streaming)
+        if hotRef?.path != ref.path {
+            try await launch(ref, residency: runtime.residencyForRequest(ref), generation: generation)
+        }
+        sessionActive = true
+        runtime.pin(ref.id)
+        _ = try await exchange(["op": "start", "model": ref.path])
+    }
+    /// Menu Load / launch set: load the streaming model without starting a session.
+    func preload(_ ref: ModelRef, residency: ResidencyClass) async throws {
+        guard !sessionActive, pending == nil else { throw VellaError.message("Finish streaming before loading another streaming model.") }
+        if hotRef?.path == ref.path, process?.isRunning == true { return }
+        if process != nil { retire() }
+        try await launch(ref, residency: residency, generation: epoch)
+        _ = try await exchange(["op": "load", "model": ref.path])
+    }
+    /// Start a worker for `ref`, replacing any other hot streaming model (one at a time). A `start` op loads the
+    /// model; `preload` sends `load` instead.
+    private func launch(_ ref: ModelRef, residency: ResidencyClass, generation: UUID) async throws {
         try await waitForRetired()
         try Task.checkCancellation()
         guard epoch == generation else { throw CancellationError() }
-        guard config.mode == .streaming, !config.model.isEmpty else { throw VellaError.message("Choose a dedicated streaming model first.") }
+        try await runtime.admit(ref)
+        guard epoch == generation else { throw CancellationError() }
         let executable = try workerURL()
         let child = Process(), stdout = Pipe(), stdin = Pipe()
         child.executableURL = executable
@@ -103,7 +133,21 @@ final class StreamingPCMBuffer: @unchecked Sendable {
             try? stdout.fileHandleForReading.close()
             await self?.ended(generation: generation)
         }
-        _ = try await exchange(["op": "start", "model": config.model])
+        loadingRef = ref; loadingResidency = residency
+        runtime.beginLoading(ref.id)
+    }
+    private var loadingRef: ModelRef?
+    private var loadingResidency = ResidencyClass.onDemand
+    /// The first acknowledged `start`/`load` means the model is loaded.
+    private func confirmLoaded() {
+        guard let ref = loadingRef else { return }
+        loadingRef = nil; hotRef = ref
+        runtime.register(ref, residency: loadingResidency) { [weak self] in await self?.unloadHot() }
+    }
+    func unloadHot() async {
+        guard process != nil else { return }
+        retire()
+        try? await waitForRetired()
     }
     func workerURL() throws -> URL { try NativeHelper.executable("VellaStreamingWorker", override: helperOverride) }
     func feed(_ pcm: Data) async throws {
@@ -113,7 +157,22 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     }
     func finish(expectedFrames: Int) async throws -> String {
         let generation = epoch
-        defer { if epoch == generation { stop() } }
+        do {
+            let text = try await finishSession(expectedFrames: expectedFrames, generation: generation)
+            // Clean finish: the worker stays up with the model loaded.
+            if epoch == generation { endSession() }
+            return text
+        } catch {
+            if epoch == generation { stop() }
+            throw error
+        }
+    }
+    private func endSession() {
+        guard sessionActive else { return }
+        sessionActive = false
+        if let id = hotRef?.id { runtime.unpin(id) }
+    }
+    private func finishSession(expectedFrames: Int, generation: UUID) async throws -> String {
         guard frames == expectedFrames else { throw VellaError.message("Streaming did not receive all saved audio. Audio is retained; automatic replay is disabled.") }
         let result = try await exchange(["op": "finish"])
         try Task.checkCancellation()
@@ -150,10 +209,19 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         guard buffer.count <= 65_536 else { fail(VellaError.message("Streaming response exceeded its safety limit.")); return }
         while let newline = buffer.firstIndex(of: 10) {
             let line = Data(buffer.prefix(upTo: newline)); buffer.removeSubrange(...newline)
+            if let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any], object["id"] == nil,
+               let status = object["status"] as? [String: Any] {
+                if let id = (loadingRef ?? hotRef)?.id { runtime.update(id, worker: status) }
+                continue
+            }
             guard let reply = try? JSONDecoder().decode(Reply.self, from: line), reply.id == pending?.0 else {
                 fail(VellaError.message("Invalid streaming response. Saved audio is retained.")); return
             }
-            if let error = reply.error { fail(VellaError.message(error)); return }
+            if let error = reply.error {
+                if let ref = loadingRef { loadingRef = nil; runtime.loadFailed(ref.id, message: "\(ref.displayName) failed to load.") }
+                fail(VellaError.message(error)); return
+            }
+            confirmLoaded()
             guard reply.frames == frames else { fail(VellaError.message("Streaming audio acknowledgement mismatch. Saved audio is retained.")); return }
             let next = (reply.committed ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let newPartial = reply.partial ?? ""
@@ -179,11 +247,25 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         guard epoch == generation else { return }
         // A valid terminal reply may be followed by EOF before its awaiting Task
         // resumes. Keep its epoch until finish() consumes that reply.
-        if receivedDone && pending == nil { return }
+        if receivedDone && pending == nil {
+            // Legacy worker that exits after finish: the result stands, the model is no longer hot.
+            let id = hotRef?.id; hotRef = nil; process = nil
+            if let id { runtime.removed(id) }
+            return
+        }
+        if !sessionActive, pending == nil, let ref = hotRef {
+            hotRef = nil; process = nil
+            runtime.crashed(ref.id, message: "\(ref.displayName)'s streaming worker exited. It loads again when needed.")
+            return
+        }
         fail(VellaError.message("Streaming worker exited. Saved audio is retained."))
     }
     private func fail(_ error: Error) { resolve(.failure(error)); retire() }
     private func retire() {
+        if let ref = loadingRef { loadingRef = nil; runtime.loadFailed(ref.id, message: "\(ref.displayName) did not finish loading.") }
+        if sessionActive, let id = hotRef?.id { runtime.unpin(id) }
+        sessionActive = false
+        if let id = hotRef?.id { hotRef = nil; runtime.removed(id) }
         epoch = UUID(); try? input?.close(); input = nil; buffer.removeAll()
         if let child = process, child.isRunning {
             child.terminate(); retired.append(child)
@@ -200,11 +282,16 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         }
         retired.removeAll()
     }
-    func stop() { resolve(.failure(CancellationError())); retire() }
+    /// Abort the current session or load (the worker ends; saved audio stays). An idle hot model stays loaded.
+    func stop() {
+        let busy = sessionActive || pending != nil || loadingRef != nil
+        resolve(.failure(CancellationError()))
+        if busy || hotRef == nil { retire() }
+    }
     func resetTranscript() { frames = 0; committed = ""; partial = ""; incomplete = false }
-    func releaseAndWait() async throws { stop(); try await waitForRetired() }
+    func releaseAndWait() async throws { resolve(.failure(CancellationError())); retire(); try await waitForRetired() }
     func shutdown() {
-        stop()
+        resolve(.failure(CancellationError())); retire()
         for child in retired where child.isRunning { kill(child.processIdentifier, SIGKILL); child.waitUntilExit() }
         retired.removeAll()
     }

@@ -3,7 +3,7 @@ import Darwin
 
 /// Why a model is loaded. Manual: the user clicked Load/Reload, or it is in the launch set. On demand: a dictation
 /// needed it. Each class has its own Keep Hot idle window; memory eviction takes on-demand models before manual ones.
-public enum ResidencyClass: String, Codable, Sendable {
+public enum ResidencyClass: String, Codable {
     case manual
     case onDemand = "on_demand"
 }
@@ -17,7 +17,7 @@ public enum KeepHot {
 }
 
 /// A model the runtime can load: one precision of one catalog family, at a local path.
-public struct ModelRef: Codable, Hashable, Sendable {
+public struct ModelRef: Codable, Hashable {
     /// Catalog family id (models.json v2), else the installed-registry id.
     public var id: String
     /// Exact precision label ("4b", "8b", "BF16", "FP16", "FP32"); empty when unknown.
@@ -42,7 +42,7 @@ public struct ModelRef: Codable, Hashable, Sendable {
 }
 
 /// Residency and memory settings, saved in config.json and applied to the running workers.
-public struct ResidencySettings: Codable, Equatable, Sendable {
+public struct ResidencySettings: Codable, Equatable {
     public var manualIdleMinutes: Int
     public var onDemandIdleMinutes: Int
     public var allowSwap: Bool
@@ -102,7 +102,7 @@ public func precisionBits(_ label: String) -> Double? {
 /// or swapped, not freed. Test hooks, re-read on every check: `VELLA_TEST_MEMORY_FILE` = JSON {"available_mb": N}
 /// (raw = N − what unloading the loaded models would free, so an unload gives back exactly what it took);
 /// `VELLA_TEST_VM_STATS` = JSON with the counters, `page_size` and `memorystatus_level` in place of the kernel's.
-public struct MemoryProbe: Sendable {
+public struct MemoryProbe {
     public static let headroomMB = 512.0
     public let totalMB: Double
     public var marginMB: Double { max(1000, totalMB * 0.10) }
@@ -164,7 +164,7 @@ public func memoryEstimateMB(_ ref: ModelRef) -> Double {
 }
 
 /// A model loaded now, as admission sees it.
-public struct LoadedModelInfo: Equatable, Sendable {
+public struct LoadedModelInfo: Equatable {
     public var id: String
     public var name: String
     public var residency: ResidencyClass
@@ -184,7 +184,7 @@ public func evictionOrder(_ loaded: [LoadedModelInfo]) -> [LoadedModelInfo] {
     return lru(.onDemand) + lru(.manual)
 }
 
-public enum AdmissionDecision: Equatable, Sendable {
+public enum AdmissionDecision: Equatable {
     /// Load; unload these first (in order).
     case admit(evict: [String], needMB: Double, freeMB: Double)
     case refuse(message: String, needMB: Double, freeMB: Double)

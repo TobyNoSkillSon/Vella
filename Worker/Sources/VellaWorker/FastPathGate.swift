@@ -32,6 +32,9 @@ enum FastPathGate {
         if let override = ProcessInfo.processInfo.environment["VELLA_WORKER_DATA_DIR"], override.hasPrefix("/") {
             return URL(fileURLWithPath: override).appendingPathComponent("FastPath")
         }
+        if let support = ProcessInfo.processInfo.environment["VELLA_SUPPORT_DIR"], support.hasPrefix("/") {
+            return URL(fileURLWithPath: support).appendingPathComponent("Worker/FastPath")
+        }
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Vella/Worker/FastPath")
     }
