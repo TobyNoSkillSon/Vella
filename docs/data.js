@@ -1,346 +1,1326 @@
-const VELLA_RESULTS = {
-  "rows": [
+// Written by scripts/pages-data.sh from Resources/benchmarks.json and Resources/models.json.
+const VELLA_BENCHMARKS = {
+ "schema": 1,
+ "hardware": "Apple M5 Max, macOS 26.6",
+ "suites": {
+  "v2": {
+   "id": "vella-v2",
+   "hash": "361a9b078db7e6813671f719223dfd27c50f54589a1e292239324ac17071e366",
+   "audio_min": 239.7
+  },
+  "v2-quick": {
+   "id": "vella-v2-quick",
+   "hash": "5cbda7a5f463d4f12bc4e58982ea16e1f23f3f9361aafc42c3344b6d5fd159b8",
+   "audio_min": 22.5
+  }
+ },
+ "models": {
+  "parakeet-v3": {
+   "precisions": {
+    "FP32": {
+     "wer": 16.43,
+     "format": 7.97,
+     "multilingual": {
+      "mean": 21.99,
+      "macro_wer": 21.99,
+      "macro_cer": null,
+      "coverage": 5,
+      "by_language": {
+       "pl": 8.4,
+       "de": 12.23,
+       "fr": 37.55,
+       "es": 28.55,
+       "sv": 23.23
+      }
+     },
+     "speed_x": 298.0,
+     "j_per_min": 7.06,
+     "memory_mb": 3225,
+     "disk_mb": 2393,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    },
+    "8b": {
+     "wer": 16.55,
+     "format": 8.05,
+     "multilingual": {
+      "mean": 21.97,
+      "macro_wer": 21.97,
+      "macro_cer": null,
+      "coverage": 5,
+      "by_language": {
+       "pl": 8.71,
+       "de": 12.23,
+       "fr": 38.27,
+       "es": 27.86,
+       "sv": 22.8
+      }
+     },
+     "speed_x": 273.9,
+     "j_per_min": 9.95,
+     "memory_mb": 1785,
+     "disk_mb": 867,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    },
+    "4b": {
+     "wer": 17.84,
+     "format": 9.24,
+     "multilingual": {
+      "mean": 22.2,
+      "macro_wer": 22.2,
+      "macro_cer": null,
+      "coverage": 5,
+      "by_language": {
+       "pl": 9.38,
+       "de": 11.87,
+       "fr": 38.19,
+       "es": 25.54,
+       "sv": 26.02
+      }
+     },
+     "speed_x": 272.7,
+     "j_per_min": 9.81,
+     "memory_mb": 1520,
+     "disk_mb": 608,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    }
+   },
+   "recommended": "FP32"
+  },
+  "qwen3-asr-1.7b": {
+   "precisions": {
+    "BF16": {
+     "wer": 15.06,
+     "format": 6.74,
+     "multilingual": {
+      "mean": 14.15,
+      "macro_wer": 15.6,
+      "macro_cer": 11.25,
+      "coverage": 9,
+      "by_language": {
+       "pl": 15.41,
+       "de": 10.34,
+       "fr": 14.16,
+       "es": 12.81,
+       "sv": 24.73,
+       "tr": 16.17,
+       "ja": 6.4,
+       "zh": 13.22,
+       "ko": 14.13
+      }
+     },
+     "speed_x": 26.8,
+     "j_per_min": 79.79,
+     "memory_mb": 5167,
+     "disk_mb": 3892,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    },
+    "8b": {
+     "wer": 15.16,
+     "format": 6.65,
+     "multilingual": {
+      "mean": 14.53,
+      "macro_wer": 16.2,
+      "macro_cer": 11.2,
+      "coverage": 9,
+      "by_language": {
+       "pl": 15.77,
+       "de": 11.78,
+       "fr": 14.16,
+       "es": 12.04,
+       "sv": 24.73,
+       "tr": 18.72,
+       "ja": 6.34,
+       "zh": 13.1,
+       "ko": 14.17
+      }
+     },
+     "speed_x": 39.2,
+     "j_per_min": 69.04,
+     "memory_mb": 3787,
+     "disk_mb": 2354,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    },
+    "4b": {
+     "wer": 18.41,
+     "format": 7.19,
+     "multilingual": {
+      "mean": 16.69,
+      "macro_wer": 18.22,
+      "macro_cer": 13.64,
+      "coverage": 9,
+      "by_language": {
+       "pl": 18.09,
+       "de": 12.23,
+       "fr": 14.64,
+       "es": 12.38,
+       "sv": 32.47,
+       "tr": 19.49,
+       "ja": 6.91,
+       "zh": 16.49,
+       "ko": 17.53
+      }
+     },
+     "speed_x": 53.4,
+     "j_per_min": 55.55,
+     "memory_mb": 2955,
+     "disk_mb": 1533,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    }
+   },
+   "recommended": "8b"
+  },
+  "nemotron-3.5-streaming-0.6b": {
+   "precisions": {
+    "BF16": {
+     "wer": 23.44,
+     "format": 10.56,
+     "multilingual": {
+      "mean": 26.84,
+      "macro_wer": 28.02,
+      "macro_cer": 24.47,
+      "coverage": 9,
+      "by_language": {
+       "pl": 24.54,
+       "de": 17.81,
+       "fr": 17.66,
+       "es": 16.42,
+       "sv": 40.43,
+       "tr": 51.27,
+       "ja": 14.2,
+       "zh": 28.6,
+       "ko": 30.6
+      }
+     },
+     "speed_x": 16.0,
+     "j_per_min": 91.15,
+     "memory_mb": 2696,
+     "disk_mb": 1218,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "output is bit-identical by construction.; engine: Self-tested on this Mac against stock MLX (identical streamed text); output is bit-identical by construction."
+    },
+    "8b": {
+     "wer": 23.45,
+     "format": 10.58,
+     "multilingual": {
+      "mean": 27.46,
+      "macro_wer": 28.49,
+      "macro_cer": 25.39,
+      "coverage": 9,
+      "by_language": {
+       "pl": 25.4,
+       "de": 18.53,
+       "fr": 17.9,
+       "es": 16.51,
+       "sv": 39.78,
+       "tr": 52.82,
+       "ja": 16.23,
+       "zh": 28.65,
+       "ko": 31.28
+      }
+     },
+     "speed_x": 23.6,
+     "j_per_min": 66.97,
+     "memory_mb": 1225,
+     "disk_mb": 721,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "output is bit-identical by construction.; engine: Self-tested on this Mac against stock MLX (identical streamed text); output is bit-identical by construction."
+    }
+   },
+   "recommended": "8b"
+  },
+  "parakeet-v3-ultra": {
+   "precisions": {
+    "BF16": {
+     "wer": 15.52,
+     "format": 5.76,
+     "multilingual": {
+      "mean": 12.91,
+      "macro_wer": 12.91,
+      "macro_cer": null,
+      "coverage": 5,
+      "by_language": {
+       "pl": 6.94,
+       "de": 8.54,
+       "fr": 15.99,
+       "es": 13.93,
+       "sv": 19.14
+      }
+     },
+     "speed_x": 371.9,
+     "j_per_min": 5.36,
+     "memory_mb": 1747,
+     "disk_mb": 1197,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    }
+   },
+   "recommended": "BF16"
+  },
+  "qwen3-asr-0.6b": {
+   "precisions": {
+    "BF16": {
+     "wer": 7.43,
+     "format": 5.27,
+     "multilingual": {
+      "mean": 16.86,
+      "macro_wer": 22.48,
+      "macro_cer": 5.61,
+      "coverage": 9,
+      "by_language": {
+       "pl": 25.6,
+       "de": 10.49,
+       "fr": 19.61,
+       "es": 8.61,
+       "sv": 42.37,
+       "tr": 28.21,
+       "ja": 6.33,
+       "zh": 2.9,
+       "ko": 7.59
+      }
+     },
+     "speed_x": 57.0,
+     "j_per_min": 38.37,
+     "memory_mb": 2367,
+     "disk_mb": 1497,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "quick set only (benchmark-table model)"
+    },
+    "8b": {
+     "wer": 7.86,
+     "format": 5.34,
+     "multilingual": {
+      "mean": 16.57,
+      "macro_wer": 21.98,
+      "macro_cer": 5.75,
+      "coverage": 9,
+      "by_language": {
+       "pl": 27.05,
+       "de": 10.49,
+       "fr": 19.61,
+       "es": 9.27,
+       "sv": 40.68,
+       "tr": 24.79,
+       "ja": 6.75,
+       "zh": 2.9,
+       "ko": 7.59
+      }
+     },
+     "speed_x": 72.5,
+     "j_per_min": 34.3,
+     "memory_mb": 1899,
+     "disk_mb": 964,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "quick set only (benchmark-table model)"
+    },
+    "4b": {
+     "wer": 9.09,
+     "format": 5.34,
+     "multilingual": {
+      "mean": 20.23,
+      "macro_wer": 25.57,
+      "macro_cer": 9.54,
+      "coverage": 9,
+      "by_language": {
+       "pl": 40.1,
+       "de": 12.96,
+       "fr": 21.08,
+       "es": 11.26,
+       "sv": 40.68,
+       "tr": 27.35,
+       "ja": 14.35,
+       "zh": 2.9,
+       "ko": 11.38
+      }
+     },
+     "speed_x": 84.5,
+     "j_per_min": 29.27,
+     "memory_mb": 1627,
+     "disk_mb": 680,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "quick set only (benchmark-table model)"
+    }
+   },
+   "recommended": "8b"
+  },
+  "whisper-large-v3-turbo": {
+   "precisions": {
+    "8b": {
+     "wer": 9.19,
+     "format": 4.95,
+     "multilingual": {
+      "mean": 18.91,
+      "macro_wer": 17.94,
+      "macro_cer": 20.86,
+      "coverage": 9,
+      "by_language": {
+       "pl": 12.56,
+       "de": 8.02,
+       "fr": 23.04,
+       "es": 13.91,
+       "sv": 38.98,
+       "tr": 11.11,
+       "ja": 16.03,
+       "zh": 22.71,
+       "ko": 23.85
+      }
+     },
+     "speed_x": 39.6,
+     "j_per_min": 92.12,
+     "memory_mb": 2101,
+     "disk_mb": 828,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "mlx",
+     "note": "quick set only (benchmark-table model); engine: No optimized path for this model yet."
+    },
+    "4b": {
+     "wer": 9.99,
+     "format": 5.48,
+     "multilingual": {
+      "mean": 19.46,
+      "macro_wer": 18.16,
+      "macro_cer": 22.07,
+      "coverage": 9,
+      "by_language": {
+       "pl": 12.56,
+       "de": 6.17,
+       "fr": 24.51,
+       "es": 13.91,
+       "sv": 40.68,
+       "tr": 11.11,
+       "ja": 20.25,
+       "zh": 23.19,
+       "ko": 22.76
+      }
+     },
+     "speed_x": 39.6,
+     "j_per_min": 87.14,
+     "memory_mb": 1724,
+     "disk_mb": 446,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "mlx",
+     "note": "quick set only (benchmark-table model); engine: No optimized path for this model yet."
+    }
+   },
+   "recommended": null
+  },
+  "sensevoice-small": {
+   "precisions": {
+    "FP32": {
+     "wer": 11.01,
+     "format": 7.77,
+     "multilingual": {
+      "mean": 8.13,
+      "macro_wer": null,
+      "macro_cer": 8.13,
+      "coverage": 3,
+      "by_language": {
+       "ja": 4.64,
+       "zh": 4.83,
+       "ko": 14.91
+      }
+     },
+     "speed_x": 420.0,
+     "j_per_min": null,
+     "memory_mb": 1548,
+     "disk_mb": 893,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "mlx",
+     "note": "quick set only (benchmark-table model); energy not recorded: the worker crashed twice per run, so its restarts cannot be separated from background load; engine: No optimized path for this model yet."
+    }
+   },
+   "recommended": "FP32"
+  }
+ },
+ "references": {
+  "elevenlabs-scribe-v2": {
+   "reference": true,
+   "estimated": true,
+   "name": "ElevenLabs Scribe v2",
+   "provider": "ElevenLabs",
+   "mode": "dictation",
+   "wer": 13.4,
+   "range": [
+    11.8,
+    13.9
+   ],
+   "multilingual": {
+    "by_language": {
+     "de": 5.8,
+     "fr": 8.2,
+     "es": 7.8
+    },
+    "range": {
+     "de": [
+      4.5,
+      6.7
+     ],
+     "fr": [
+      6.2,
+      22.9
+     ],
+     "es": [
+      7.0,
+      17.8
+     ]
+    },
+    "coverage": 3
+   },
+   "source": "Hugging Face Open ASR Leaderboard, English short-form average 3.97% for elevenlabs/scribe_v2 (https://huggingface.co/spaces/hf-audio/open_asr_leaderboard; results https://huggingface.co/datasets/hf-audio/open-asr-leaderboard-results @d2c5b38)",
+   "method": "3.97% × 3.38, the median ratio of our v2 WER to the leaderboard WER for the models we measured on both: Parakeet v3 3.38, Qwen3 ASR 1.7B 3.49, Nemotron 3.5 Streaming 2.98. The range uses the lowest and highest ratio.",
+   "public_wer": 3.969,
+   "ratio": 3.382,
+   "anchors": {
+    "parakeet-v3": {
+     "v2": 16.43,
+     "public": 4.85875,
+     "ratio": 3.382
+    },
+    "qwen3-asr-1.7b": {
+     "v2": 15.06,
+     "public": 4.31125,
+     "ratio": 3.493
+    },
+    "nemotron-3.5-streaming-0.6b": {
+     "v2": 23.44,
+     "public": 7.8775,
+     "ratio": 2.976
+    }
+   },
+   "date": "2026-09-26"
+  },
+  "azure-speech": {
+   "reference": true,
+   "estimated": true,
+   "name": "Microsoft Azure Speech",
+   "provider": "Microsoft",
+   "mode": "dictation",
+   "wer": 12.9,
+   "range": [
+    11.3,
+    13.3
+   ],
+   "multilingual": {
+    "by_language": {
+     "de": 5.0,
+     "fr": 7.8,
+     "es": 7.7
+    },
+    "range": {
+     "de": [
+      3.8,
+      5.7
+     ],
+     "fr": [
+      5.9,
+      21.9
+     ],
+     "es": [
+      7.0,
+      17.7
+     ]
+    },
+    "coverage": 3
+   },
+   "source": "Hugging Face Open ASR Leaderboard, English short-form average 3.81% for microsoft/azure-speech-07-2026 (https://huggingface.co/spaces/hf-audio/open_asr_leaderboard; results https://huggingface.co/datasets/hf-audio/open-asr-leaderboard-results @d2c5b38)",
+   "method": "3.81% × 3.38, the median ratio of our v2 WER to the leaderboard WER for the models we measured on both: Parakeet v3 3.38, Qwen3 ASR 1.7B 3.49, Nemotron 3.5 Streaming 2.98. The range uses the lowest and highest ratio.",
+   "public_wer": 3.811,
+   "ratio": 3.382,
+   "anchors": {
+    "parakeet-v3": {
+     "v2": 16.43,
+     "public": 4.85875,
+     "ratio": 3.382
+    },
+    "qwen3-asr-1.7b": {
+     "v2": 15.06,
+     "public": 4.31125,
+     "ratio": 3.493
+    },
+    "nemotron-3.5-streaming-0.6b": {
+     "v2": 23.44,
+     "public": 7.8775,
+     "ratio": 2.976
+    }
+   },
+   "date": "2026-09-26"
+  }
+ }
+};
+const VELLA_MODELS = {
+  "schema": 2,
+  "families": [
     {
-      "id": "formatted-M5Max-Qwen3-ASR-0.6B-4bit",
+      "id": "parakeet-v3-ultra",
+      "name": "Parakeet v3 Ultra",
+      "mode": "dictation",
+      "languages": [
+        "bg",
+        "hr",
+        "cs",
+        "da",
+        "nl",
+        "en",
+        "et",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "hu",
+        "it",
+        "lv",
+        "lt",
+        "mt",
+        "pl",
+        "pt",
+        "ro",
+        "sk",
+        "sl",
+        "es",
+        "sv",
+        "ru",
+        "uk"
+      ],
+      "params": "0.6B",
+      "license": "cc-by-4.0",
+      "native": "BF16",
+      "variants": {
+        "BF16": {
+          "id": "parakeet-ultra-mlx-bf16",
+          "repository": "selcukkubur/parakeet-ultra-mlx",
+          "revision": "b554592c50b2a48471add2daa3d46fa9f00fef5e",
+          "downloadBytes": 1254840214,
+          "architecture": "parakeet"
+        },
+        "8b": {
+          "id": "parakeet-ultra-mlx-8bit-local",
+          "derivedFrom": "BF16",
+          "bits": 8,
+          "groupSize": 64,
+          "architecture": "parakeet"
+        },
+        "4b": {
+          "id": "parakeet-ultra-mlx-4bit-local",
+          "derivedFrom": "BF16",
+          "bits": 4,
+          "groupSize": 64,
+          "architecture": "parakeet"
+        }
+      },
+      "offered": true,
+      "notes": "Moondream's post-trained Parakeet v3 (moondream/parakeet-ultra @73175eb), MLX conversion by selcukkubur (tensor-identical to the upstream weights). No public quantized MLX conversion exists: 8b and 4b are derived locally from BF16 at load (group size 64, the layer selection of the published Parakeet v3 quants)."
+    },
+    {
+      "id": "parakeet-v3",
+      "name": "Parakeet v3",
+      "mode": "dictation",
+      "languages": [
+        "bg",
+        "hr",
+        "cs",
+        "da",
+        "nl",
+        "en",
+        "et",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "hu",
+        "it",
+        "lv",
+        "lt",
+        "mt",
+        "pl",
+        "pt",
+        "ro",
+        "sk",
+        "sl",
+        "es",
+        "sv",
+        "ru",
+        "uk"
+      ],
+      "params": "0.6B",
+      "license": "cc-by-4.0",
+      "native": "FP32",
+      "variants": {
+        "FP32": {
+          "id": "parakeet-tdt-0.6b-v3-mlx-fp32",
+          "repository": "animaslabs/parakeet-tdt-0.6b-v3-mlx",
+          "revision": "b3f0e8a62787b5dd33ebf05be8a5db41661c5eb6",
+          "downloadBytes": 2509016021,
+          "architecture": "parakeet"
+        },
+        "BF16": {
+          "id": "parakeet-tdt-0.6b-v3-mlx-bf16-local",
+          "derivedFrom": "FP32",
+          "dtype": "bfloat16",
+          "architecture": "parakeet"
+        },
+        "8b": {
+          "id": "parakeet-tdt-0.6b-v3-mlx-8bit",
+          "repository": "animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit",
+          "revision": "18498133db8b4c8753bf98b3c5b6639b2a791be3",
+          "downloadBytes": 909120599,
+          "architecture": "parakeet"
+        },
+        "4b": {
+          "id": "parakeet-tdt-0.6b-v3-mlx-4bit",
+          "repository": "animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit",
+          "revision": "65247a0a9e735426eba06056a9535f7e67dcbbb9",
+          "downloadBytes": 637004647,
+          "architecture": "parakeet"
+        }
+      },
+      "offered": true
+    },
+    {
+      "id": "parakeet-tdt-ctc-110m",
+      "name": "Parakeet TDT-CTC 110M",
+      "mode": "dictation",
+      "languages": [
+        "en"
+      ],
+      "params": "114M",
+      "license": "cc-by-4.0",
+      "native": "FP32",
+      "variants": {
+        "FP32": {
+          "id": "parakeet-tdt_ctc-110m-mlx-fp32",
+          "repository": "mlx-community/parakeet-tdt_ctc-110m",
+          "revision": "d62547387c356a1ab6bb3d85d98b2103f655282e",
+          "downloadBytes": 458948617,
+          "architecture": "parakeet"
+        }
+      },
+      "offered": false,
+      "notes": "Candidate, not screened: English-only 114M hybrid TDT-CTC (TDT decoder used). Loads in the dictation worker on stock MLX; the Parakeet fast path refuses it (1-layer prediction LSTM), so it runs as MLX until the TDT kernel supports one layer. Screening on v2-quick decides."
+    },
+    {
+      "id": "qwen3-asr-1.7b",
+      "name": "Qwen3 ASR 1.7B",
+      "mode": "dictation",
+      "languages": [
+        "ar",
+        "yue",
+        "zh",
+        "cs",
+        "da",
+        "nl",
+        "en",
+        "fil",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "hi",
+        "hu",
+        "id",
+        "it",
+        "ja",
+        "ko",
+        "mk",
+        "ms",
+        "fa",
+        "pl",
+        "pt",
+        "ro",
+        "ru",
+        "es",
+        "sv",
+        "th",
+        "tr",
+        "vi"
+      ],
+      "params": "1.7B",
+      "license": "apache-2.0",
+      "native": "BF16",
+      "variants": {
+        "BF16": {
+          "id": "Qwen3-ASR-1.7B-bf16",
+          "repository": "mlx-community/Qwen3-ASR-1.7B-bf16",
+          "revision": "e1f6c266914abc5a46e8756e02580f834a6cf8a7",
+          "downloadBytes": 4080710353,
+          "architecture": "qwen3_asr"
+        },
+        "8b": {
+          "id": "Qwen3-ASR-1.7B-8bit",
+          "repository": "mlx-community/Qwen3-ASR-1.7B-8bit",
+          "revision": "a8379a2e2f9e313c9292cdf1af4055ab56d50d55",
+          "downloadBytes": 2467859030,
+          "architecture": "qwen3_asr"
+        },
+        "4b": {
+          "id": "Qwen3-ASR-1.7B-4bit",
+          "repository": "mlx-community/Qwen3-ASR-1.7B-4bit",
+          "revision": "78a389c776a5483b2d0d4ea5494e11012e0d6159",
+          "downloadBytes": 1607633106,
+          "architecture": "qwen3_asr"
+        }
+      },
+      "offered": true
+    },
+    {
+      "id": "nemotron-3.5-streaming-0.6b",
+      "name": "Nemotron 3.5 Streaming",
+      "mode": "streaming",
+      "languages": [
+        "en",
+        "es",
+        "fr",
+        "it",
+        "pt",
+        "nl",
+        "de",
+        "tr",
+        "ru",
+        "ar",
+        "hi",
+        "ja",
+        "ko",
+        "vi",
+        "uk",
+        "pl",
+        "sv",
+        "cs",
+        "nb",
+        "da",
+        "bg",
+        "fi",
+        "hr",
+        "sk",
+        "zh",
+        "hu",
+        "ro",
+        "et"
+      ],
+      "params": "0.6B",
+      "license": "OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License",
+      "native": "BF16",
+      "variants": {
+        "BF16": {
+          "id": "nemotron-3.5-asr-streaming-0.6b-bf16",
+          "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b",
+          "revision": "e550040c0478027ed679b2b6b0d055502c103663",
+          "downloadBytes": 1276707588,
+          "architecture": "nemotron_asr"
+        },
+        "8b": {
+          "id": "nemotron-3.5-asr-streaming-0.6b-8bit",
+          "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
+          "revision": "7279359e4481b5e9e185a318bd618e429c6d86cd",
+          "downloadBytes": 756247988,
+          "architecture": "nemotron_asr"
+        },
+        "4b": {
+          "id": "nemotron-3.5-asr-streaming-0.6b-4bit-local",
+          "derivedFrom": "BF16",
+          "bits": 4,
+          "groupSize": 64,
+          "architecture": "nemotron_asr"
+        }
+      },
+      "offered": true,
+      "notes": "Native cache-aware streaming recognition; 320 ms context."
+    },
+    {
+      "id": "qwen3-asr-0.6b",
       "name": "Qwen3 ASR 0.6B",
-      "quantization": "4-bit",
-      "mode": "Batch",
-      "words": 1.537496077816128,
-      "text": 2.0682753252529746,
-      "punctuation": 72.68408551068883,
-      "casing": 97.5469894870978,
-      "speed": 88.56894352316577,
-      "seconds": 13.72304037003778,
-      "ram": 1.932469492,
-      "memory": "Warm · separate run",
-      "date": "2026-09-13",
-      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-0.6B-4bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
+      "mode": "dictation",
+      "languages": [
+        "ar",
+        "yue",
+        "zh",
+        "cs",
+        "da",
+        "nl",
+        "en",
+        "fil",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "hi",
+        "hu",
+        "id",
+        "it",
+        "ja",
+        "ko",
+        "mk",
+        "ms",
+        "fa",
+        "pl",
+        "pt",
+        "ro",
+        "ru",
+        "es",
+        "sv",
+        "th",
+        "tr",
+        "vi"
+      ],
+      "params": "0.6B",
+      "license": "apache-2.0",
+      "native": "BF16",
+      "variants": {
+        "BF16": {
+          "id": "Qwen3-ASR-0.6B-bf16",
+          "repository": "mlx-community/Qwen3-ASR-0.6B-bf16",
+          "revision": "eae2b51f96265328f1e7beced788adb0e4536f92",
+          "downloadBytes": 1569436915,
+          "architecture": "qwen3_asr"
+        },
+        "8b": {
+          "id": "Qwen3-ASR-0.6B-8bit",
+          "repository": "mlx-community/Qwen3-ASR-0.6B-8bit",
+          "revision": "89e96d92ba34aca20b3e29fb10cc284097d1219f",
+          "downloadBytes": 1010772242,
+          "architecture": "qwen3_asr"
+        },
+        "4b": {
+          "id": "Qwen3-ASR-0.6B-4bit",
+          "repository": "mlx-community/Qwen3-ASR-0.6B-4bit",
+          "revision": "313d850181767edf09f00a9c289becca70e58cd0",
+          "downloadBytes": 712779760,
+          "architecture": "qwen3_asr"
+        }
+      },
+      "offered": false,
+      "notes": "Benchmark table only: worse than Qwen3 ASR 1.7B at every precision for little speed gain (v2-quick screening, 26 Sep 2026)."
     },
     {
-      "id": "formatted-M5Max-Qwen3-ASR-1.7B-4bit",
-      "name": "Qwen3 ASR 1.7B",
-      "quantization": "4-bit",
-      "mode": "Batch",
-      "words": 1.5061186068402888,
-      "text": 2.123874124318915,
-      "punctuation": 75.0,
-      "casing": 97.35837046467218,
-      "speed": 59.49895365979156,
-      "seconds": 20.427841377677396,
-      "ram": 3.031126908,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-4bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-4bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-Qwen3-ASR-1.7B-8bit",
-      "name": "Qwen3 ASR 1.7B",
-      "quantization": "8-bit",
-      "mode": "Batch",
-      "words": 1.5688735487919672,
-      "text": 2.140553764038697,
-      "punctuation": 75.49824150058618,
-      "casing": 97.42038216560509,
-      "speed": 44.52503369535599,
-      "seconds": 27.29779377183877,
-      "ram": 3.891352444,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-8bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-8bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-Qwen3-ASR-1.7B-bf16",
-      "name": "Qwen3 ASR 1.7B",
-      "quantization": "BF16",
-      "mode": "Batch",
-      "words": 1.4119861939127707,
-      "text": 2.0849549649727566,
-      "punctuation": 75.23364485981308,
-      "casing": 97.39185750636132,
-      "speed": 30.5162309133337,
-      "seconds": 39.82913849852048,
-      "ram": 5.50425894,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-bf16",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Qwen3-ASR-1.7B-bf16.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-SenseVoiceSmall-4bit",
-      "name": "SenseVoice",
-      "quantization": "4-bit",
-      "mode": "Batch",
-      "words": 3.451521807342328,
-      "text": 5.404203269209385,
-      "punctuation": 0.0,
-      "casing": 91.44246353322528,
-      "speed": 582.2959843385853,
-      "seconds": 2.087315077194944,
-      "ram": 0.884919208,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/vanch007/SenseVoiceSmall-4bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-SenseVoiceSmall-4bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-SenseVoiceSmall",
-      "name": "SenseVoice",
-      "quantization": "FP32",
-      "mode": "Batch",
-      "words": 2.447442736115469,
-      "text": 5.048370955187368,
-      "punctuation": 0.0,
-      "casing": 91.20102761721259,
-      "speed": 631.6128303106849,
-      "seconds": 1.9243358101230115,
-      "ram": 1.794116544,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/mlx-community/SenseVoiceSmall",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-SenseVoiceSmall.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-Voxtral-Mini-4B-Realtime-2602-4bit",
-      "name": "Voxtral Mini Realtime 4B",
-      "quantization": "4-bit",
-      "mode": "Batch",
-      "words": 2.259177910260433,
-      "text": 2.57422439675303,
-      "punctuation": 77.23970944309927,
-      "casing": 97.8818998716303,
-      "speed": 5.050184936796989,
-      "seconds": 240.67142148478888,
-      "ram": 5.938638088,
-      "memory": "Warm · separate run",
-      "date": "2026-09-13",
-      "modelURL": "https://huggingface.co/mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-Voxtral-Mini-4B-Realtime-2602-4bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-granite-4.0-1b-speech-4bit",
-      "name": "Granite 4.0 1B",
-      "quantization": "4-bit",
-      "mode": "Batch",
-      "words": 1.2864763100094132,
-      "text": 4.614700322473034,
-      "punctuation": 0.9280742459396751,
-      "casing": 90.9148665819568,
-      "speed": 44.13605954840108,
-      "seconds": 27.53837111731991,
-      "ram": 7.640377766,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/mlx-community/granite-4.0-1b-speech-4bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-granite-4.0-1b-speech-4bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-granite-4.0-1b-speech-8bit",
-      "name": "Granite 4.0 1B",
-      "quantization": "8-bit",
-      "mode": "Batch",
-      "words": 1.1923438970818954,
-      "text": 4.614700322473034,
-      "punctuation": 0.9174311926605505,
-      "casing": 90.95812182741116,
-      "speed": 37.362870634812666,
-      "seconds": 32.53056220919825,
-      "ram": 8.558930342,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/mlx-community/granite-4.0-1b-speech-8bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-granite-4.0-1b-speech-8bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-granite-speech-5.0-470m-turboctc-mlx-fp16",
-      "name": "Granite Speech 5.0 TurboCTC 470M",
-      "quantization": "FP16",
-      "mode": "Batch",
-      "words": 3.702541575149043,
-      "text": 5.865673301456688,
-      "punctuation": 0.0,
-      "casing": 90.95607235142118,
-      "speed": 654.0039306807996,
-      "seconds": 1.8584524197503924,
-      "ram": 1.586632787,
-      "memory": "Warm · separate run",
-      "date": "2026-09-13",
-      "modelURL": "https://huggingface.co/iky1e/granite-speech-5.0-470m-turboctc-mlx-fp16",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-granite-speech-5.0-470m-turboctc-mlx-fp16.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-nemotron-3.5-asr-streaming-0.6b-8bit",
-      "name": "Nemotron 3.5 ASR 0.6B",
-      "quantization": "8-bit",
-      "mode": "Batch",
-      "words": 2.6357075619705053,
-      "text": 2.529745357500278,
-      "punctuation": 68.18181818181817,
-      "casing": 97.7491961414791,
-      "speed": 52.92441058376794,
-      "seconds": 22.965493126772344,
-      "ram": 0.994208316,
-      "memory": "Warm · separate run",
-      "date": "2026-09-13",
-      "modelURL": "https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-nemotron-3.5-asr-streaming-0.6b-8bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-parakeet-tdt-0.6b-v3-mlx-4bit",
-      "name": "Parakeet v3",
-      "quantization": "4-bit",
-      "mode": "Batch",
-      "words": 1.537496077816128,
-      "text": 1.7680418102968978,
-      "punctuation": 75.4257907542579,
-      "casing": 98.05856142584342,
-      "speed": 233.70739455599687,
-      "seconds": 5.200670649763197,
-      "ram": 1.34155212,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-parakeet-tdt-0.6b-v3-mlx-4bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-parakeet-tdt-0.6b-v3-mlx-8bit",
-      "name": "Parakeet v3",
-      "quantization": "8-bit",
-      "mode": "Batch",
-      "words": 1.6002510197678066,
-      "text": 1.8514400088958078,
-      "punctuation": 75.30562347188264,
-      "casing": 97.77141037886024,
-      "speed": 237.4226860582875,
-      "seconds": 5.119288336252794,
-      "ram": 1.613674752,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-parakeet-tdt-0.6b-v3-mlx-8bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-M5Max-whisper-large-v3-8bit",
+      "id": "whisper-large-v3",
       "name": "Whisper large-v3",
-      "quantization": "8-bit",
-      "mode": "Batch",
-      "words": 2.6043300909946656,
-      "text": 4.503502724341154,
-      "punctuation": 46.557377049180324,
-      "casing": 94.73852040816327,
-      "speed": 20.98088588129528,
-      "seconds": 57.9305942740757,
-      "ram": 2.522148778,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/mlx-community/whisper-large-v3-8bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-whisper-large-v3-8bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
+      "mode": "dictation",
+      "languages": [
+        "en",
+        "zh",
+        "de",
+        "es",
+        "ru",
+        "ko",
+        "fr",
+        "ja",
+        "pt",
+        "tr",
+        "pl",
+        "ca",
+        "nl",
+        "ar",
+        "sv",
+        "it",
+        "id",
+        "hi",
+        "fi",
+        "vi",
+        "he",
+        "uk",
+        "el",
+        "ms",
+        "cs",
+        "ro",
+        "da",
+        "hu",
+        "ta",
+        "no",
+        "th",
+        "ur",
+        "hr",
+        "bg",
+        "lt",
+        "la",
+        "mi",
+        "ml",
+        "cy",
+        "sk",
+        "te",
+        "fa",
+        "lv",
+        "bn",
+        "sr",
+        "az",
+        "sl",
+        "kn",
+        "et",
+        "mk",
+        "br",
+        "eu",
+        "is",
+        "hy",
+        "ne",
+        "mn",
+        "bs",
+        "kk",
+        "sq",
+        "sw",
+        "gl",
+        "mr",
+        "pa",
+        "si",
+        "km",
+        "sn",
+        "yo",
+        "so",
+        "af",
+        "oc",
+        "ka",
+        "be",
+        "tg",
+        "sd",
+        "gu",
+        "am",
+        "yi",
+        "lo",
+        "uz",
+        "fo",
+        "ht",
+        "ps",
+        "tk",
+        "nn",
+        "mt",
+        "sa",
+        "lb",
+        "my",
+        "bo",
+        "tl",
+        "mg",
+        "as",
+        "tt",
+        "haw",
+        "ln",
+        "ha",
+        "ba",
+        "jw",
+        "su",
+        "yue"
+      ],
+      "params": "1.55B",
+      "license": "apache-2.0",
+      "native": "FP16",
+      "variants": {
+        "FP16": {
+          "id": "whisper-large-v3-asr-fp16",
+          "repository": "mlx-community/whisper-large-v3-asr-fp16",
+          "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
+          "downloadBytes": 3087749956,
+          "architecture": "whisper"
+        },
+        "8b": {
+          "id": "whisper-large-v3-8bit",
+          "repository": "mlx-community/whisper-large-v3-8bit",
+          "revision": "7fede54fd97b154a4f5e476646484fc023b1bcdf",
+          "downloadBytes": 1650093348,
+          "architecture": "whisper",
+          "processorSource": {
+            "repository": "mlx-community/whisper-large-v3-asr-fp16",
+            "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
+            "files": [
+              "preprocessor_config.json",
+              "tokenizer.json",
+              "tokenizer_config.json",
+              "special_tokens_map.json",
+              "added_tokens.json",
+              "normalizer.json",
+              "vocab.json",
+              "merges.txt"
+            ]
+          }
+        },
+        "4b": {
+          "id": "whisper-large-v3-asr-4bit",
+          "repository": "mlx-community/whisper-large-v3-asr-4bit",
+          "revision": "762b1efb49eb1d10b244236e896425deec3d6a95",
+          "downloadBytes": 882232654,
+          "architecture": "whisper"
+        }
+      },
+      "offered": false,
+      "notes": "Benchmark table only: below the 20x speed floor at 4b and FP16, and less accurate than Qwen3 ASR 1.7B (v2-quick screening, 26 Sep 2026)."
     },
     {
-      "id": "formatted-M5Max-whisper-large-v3-asr-4bit",
-      "name": "Whisper large-v3",
-      "quantization": "4-bit",
-      "mode": "Batch",
-      "words": 4.141826168810794,
-      "text": 6.3049038140776155,
-      "punctuation": 48.503937007874015,
-      "casing": 95.08928571428571,
-      "speed": 22.173461980842156,
-      "seconds": 54.81485879607499,
-      "ram": 1.754945674,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/mlx-community/whisper-large-v3-asr-4bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-whisper-large-v3-asr-4bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
+      "id": "whisper-large-v3-turbo",
+      "name": "Whisper large-v3 turbo",
+      "mode": "dictation",
+      "languages": [
+        "en",
+        "zh",
+        "de",
+        "es",
+        "ru",
+        "ko",
+        "fr",
+        "ja",
+        "pt",
+        "tr",
+        "pl",
+        "ca",
+        "nl",
+        "ar",
+        "sv",
+        "it",
+        "id",
+        "hi",
+        "fi",
+        "vi",
+        "he",
+        "uk",
+        "el",
+        "ms",
+        "cs",
+        "ro",
+        "da",
+        "hu",
+        "ta",
+        "no",
+        "th",
+        "ur",
+        "hr",
+        "bg",
+        "lt",
+        "la",
+        "mi",
+        "ml",
+        "cy",
+        "sk",
+        "te",
+        "fa",
+        "lv",
+        "bn",
+        "sr",
+        "az",
+        "sl",
+        "kn",
+        "et",
+        "mk",
+        "br",
+        "eu",
+        "is",
+        "hy",
+        "ne",
+        "mn",
+        "bs",
+        "kk",
+        "sq",
+        "sw",
+        "gl",
+        "mr",
+        "pa",
+        "si",
+        "km",
+        "sn",
+        "yo",
+        "so",
+        "af",
+        "oc",
+        "ka",
+        "be",
+        "tg",
+        "sd",
+        "gu",
+        "am",
+        "yi",
+        "lo",
+        "uz",
+        "fo",
+        "ht",
+        "ps",
+        "tk",
+        "nn",
+        "mt",
+        "sa",
+        "lb",
+        "my",
+        "bo",
+        "tl",
+        "mg",
+        "as",
+        "tt",
+        "haw",
+        "ln",
+        "ha",
+        "ba",
+        "jw",
+        "su",
+        "yue"
+      ],
+      "params": "0.8B",
+      "license": "mit",
+      "native": "FP16",
+      "variants": {
+        "FP16": {
+          "id": "whisper-large-v3-turbo-asr-fp16",
+          "repository": "mlx-community/whisper-large-v3-turbo-asr-fp16",
+          "revision": "624c19c9af5603fa73b83bce14d4aeea96156d18",
+          "downloadBytes": 1618634653,
+          "architecture": "whisper"
+        },
+        "8b": {
+          "id": "whisper-large-v3-turbo-asr-8bit",
+          "repository": "mlx-community/whisper-large-v3-turbo-asr-8bit",
+          "revision": "f0fca477e0a885ef4a61088d6cbbc8fc25e53268",
+          "downloadBytes": 868346887,
+          "architecture": "whisper"
+        },
+        "4b": {
+          "id": "whisper-large-v3-turbo-asr-4bit",
+          "repository": "mlx-community/whisper-large-v3-turbo-asr-4bit",
+          "revision": "321a6ead9f6e0646bc8188a54d2a470e275c6b76",
+          "downloadBytes": 468150715,
+          "architecture": "whisper"
+        }
+      },
+      "offered": false,
+      "notes": "Benchmark table only: dominated by Qwen3 ASR 1.7B (similar speed, higher error, more energy; v2-quick screening, 26 Sep 2026)."
     },
     {
-      "id": "formatted-M5Max-whisper-large-v3-asr-fp16",
-      "name": "Whisper large-v3",
-      "quantization": "FP16",
-      "mode": "Batch",
-      "words": 2.8239723878255414,
-      "text": 4.764817079951073,
-      "punctuation": 46.07843137254902,
-      "casing": 94.67474489795919,
-      "speed": 19.694962171820215,
-      "seconds": 61.71299933944829,
-      "ram": 4.028225754,
-      "memory": "Warm · separate run",
-      "date": "2026-09-12",
-      "modelURL": "https://huggingface.co/mlx-community/whisper-large-v3-asr-fp16",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-M5Max-whisper-large-v3-asr-fp16.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
+      "id": "sensevoice-small",
+      "name": "SenseVoice Small",
+      "mode": "dictation",
+      "languages": [
+        "zh",
+        "en",
+        "yue",
+        "ja",
+        "ko"
+      ],
+      "params": "234M",
+      "license": "SenseVoice upstream custom model license (see repository)",
+      "native": "FP32",
+      "variants": {
+        "FP32": {
+          "id": "SenseVoiceSmall",
+          "repository": "mlx-community/SenseVoiceSmall",
+          "revision": "8ddd966bd96243cff196422f81f0c5d955814792",
+          "downloadBytes": 936489716,
+          "architecture": "sensevoice"
+        },
+        "4b": {
+          "id": "SenseVoiceSmall-4bit",
+          "repository": "vanch007/SenseVoiceSmall-4bit",
+          "revision": "b5365bac129cf37740aac0a2cfaf283fca0d2d1c",
+          "downloadBytes": 152732818,
+          "architecture": "sensevoice"
+        }
+      },
+      "offered": false,
+      "notes": "Benchmark table only: English WER 11 %, 3 of the 9 benchmark languages, worker crashes on 2 of 207 segments (v2-quick screening, 26 Sep 2026)."
     },
     {
-      "id": "formatted-streaming-M5Max-Voxtral-Mini-4B-Realtime-2602-4bit",
-      "name": "Voxtral Mini Realtime 4B",
-      "quantization": "4-bit",
-      "mode": "Streaming",
-      "words": 2.353310323187951,
-      "text": 2.7076615145112863,
-      "punctuation": 76.34146341463415,
-      "casing": 97.55862512046257,
-      "speed": 1.1868426911930021,
-      "seconds": 1024.0912266799714,
-      "ram": 5.55727814,
-      "memory": "Warm · timing run",
-      "date": "2026-09-13",
-      "modelURL": "https://huggingface.co/mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-streaming-M5Max-Voxtral-Mini-4B-Realtime-2602-4bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
+      "id": "granite-4.0-1b-speech",
+      "name": "Granite 4.0 1B Speech",
+      "mode": "dictation",
+      "languages": [],
+      "params": "1B",
+      "license": "apache-2.0",
+      "native": "BF16",
+      "variants": {
+        "8b": {
+          "id": "granite-4.0-1b-speech-8bit",
+          "repository": "mlx-community/granite-4.0-1b-speech-8bit",
+          "revision": "5ed3098fb331d0131cb2aeafdbacc19841359736",
+          "downloadBytes": 2914135282,
+          "architecture": "granite_speech"
+        },
+        "4b": {
+          "id": "granite-4.0-1b-speech-4bit",
+          "repository": "mlx-community/granite-4.0-1b-speech-4bit",
+          "revision": "7e42cf86c0f595f0c38327eae7a90a8c11a17281",
+          "downloadBytes": 1995580064,
+          "architecture": "granite_speech"
+        }
+      },
+      "offered": false,
+      "notes": "Not offered in the app; published benchmark table only."
     },
     {
-      "id": "formatted-streaming-M5Max-nemotron-3.5-asr-streaming-0.6b-8bit",
-      "name": "Nemotron 3.5 ASR 0.6B",
-      "quantization": "8-bit",
-      "mode": "Streaming",
-      "words": 2.9494822717288987,
-      "text": 2.6631824752585342,
-      "punctuation": 64.74820143884892,
-      "casing": 98.03098773402195,
-      "speed": 15.330722610494215,
-      "seconds": 79.28101097256877,
-      "ram": 0.980055816,
-      "memory": "Warm · separate run",
-      "date": "2026-09-13",
-      "modelURL": "https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-streaming-M5Max-nemotron-3.5-asr-streaming-0.6b-8bit.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
-    },
-    {
-      "id": "formatted-streaming-M5Max-nemotron-3.5-asr-streaming-0.6b-bf16",
-      "name": "Nemotron 3.5 ASR 0.6B",
-      "quantization": "BF16",
-      "mode": "Streaming",
-      "words": 2.8553498588013806,
-      "text": 2.6631824752585342,
-      "punctuation": 64.95726495726495,
-      "casing": 97.90390196710739,
-      "speed": 8.056381477023137,
-      "seconds": 150.8661414515227,
-      "ram": 2.215282152,
-      "memory": "Warm · separate run",
-      "date": "2026-09-13",
-      "modelURL": "https://huggingface.co/mlx-community/nemotron-3.5-asr-streaming-0.6b",
-      "source": "https://github.com/TobyNoSkillSon/Vella/blob/main/Resources/ReferenceResults/formatted-streaming-M5Max-nemotron-3.5-asr-streaming-0.6b-bf16.json",
-      "provenance": "english-formatted-20m-v1; 144 clips; 1215.435s; 2 passes. MLX allocation is not total app RAM. Streaming speed is compute throughput, not live latency."
+      "id": "voxtral-mini-4b-realtime",
+      "name": "Voxtral Realtime 4B",
+      "mode": "streaming",
+      "languages": [
+        "en",
+        "zh",
+        "hi",
+        "es",
+        "ar",
+        "fr",
+        "pt",
+        "ru",
+        "de",
+        "ja",
+        "ko",
+        "it",
+        "nl"
+      ],
+      "params": "4B",
+      "license": "apache-2.0",
+      "native": "BF16",
+      "variants": {
+        "4b": {
+          "id": "Voxtral-Mini-4B-Realtime-2602-4bit",
+          "repository": "mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit",
+          "revision": "fdebf7b2af834a1db4b8a3c99ab7480b333adf9e",
+          "downloadBytes": 3148833321,
+          "architecture": "voxtral_realtime"
+        }
+      },
+      "offered": false,
+      "notes": "Benchmark table only: about 1x real time on an M5 Max, 5.5 GB (smoke screening, 26 Sep 2026)."
     }
   ]
 };

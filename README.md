@@ -76,7 +76,7 @@ Measured but not offered in the app:
 - **Recommended precision.** A model shows its recommended precision until it has been loaded at another: among its measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest energy per minute of audio (ties: faster, then more bits).
 - Figures were measured on an Apple M5 Max. On other Macs, speed, energy and memory differ; accuracy does not. The table says so on other chips.
 
-Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json).
+Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); a sortable table is at https://tobynoskillson.github.io/Vella/.
 
 ## The app
 
@@ -107,6 +107,12 @@ scripts/install.sh
 ```
 
 `scripts/install.sh` downloads the prebuilt app for this version with curl, checks its SHA-256 and code signature, installs it in `~/Applications`, starts it, and waits until it is ready. It prints a few short lines and ends with `ready: …`. Coding agents can follow [AGENTS.md](AGENTS.md).
+
+Without git, the same installer is one command:
+
+```sh
+curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
+```
 
 Open Vella from the menu bar, approve Microphone and Accessibility access, and press **Control + Command + N** to start dictating. Press it again to finish.
 
