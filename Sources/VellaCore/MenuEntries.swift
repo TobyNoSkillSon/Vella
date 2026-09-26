@@ -72,5 +72,5 @@ public func memoryEntries(allowSwap: Bool, availableMB: Double?, lastEvicted: St
 /// The first-dictation row when no model is downloaded: `Get Parakeet v3 (637 MB)`, with its tooltip.
 public func pendingModelEntry(name: String, precision: String, downloadBytes: Int64) -> (title: String, help: String) {
     ("Get \(name) (\(formatBytes(downloadBytes)))",
-     "Downloads \(name) \(precision) from Hugging Face, then transcribes the recording you just made. It is kept until then.")
+     "Downloads \(name) \(precisionInProse(precision)) from Hugging Face, then transcribes the recording you just made. It is kept until then.")
 }

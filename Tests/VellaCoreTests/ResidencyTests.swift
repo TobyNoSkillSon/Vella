@@ -25,14 +25,14 @@ final class ResidencyTests: XCTestCase {
     func testCannotFitUnloadsNothingAndNamesNeedFreeAndWaysOut() {
         let loaded = [info("qwen", .onDemand, used: 1), info("whisper", .manual, used: 2)]
         let decision = planAdmission(ref("parakeet", "BF16"), loaded: loaded, rawAvailableMB: -700, allowSwap: false)
-        XCTAssertEqual(decision, .refuse(message: "parakeet at BF16 needs ~1.5 GB; ~0.0 GB free without swapping. Unload qwen or whisper, pick 8b, or allow swap in Vella → Memory.", needMB: 1512, freeMB: 0))
+        XCTAssertEqual(decision, .refuse(message: "parakeet at BF16 needs ~1.5 GB; ~0.0 GB free without swapping. Unload qwen or whisper, pick 8-bit, or allow swap in Vella → Memory.", needMB: 1512, freeMB: 0))
         XCTAssertEqual(planAdmission(ref("parakeet", "4b"), loaded: [], rawAvailableMB: 900, allowSwap: false),
-                       .refuse(message: "parakeet at 4b needs ~1.5 GB; ~0.9 GB free without swapping. Allow swap in Vella → Memory.", needMB: 1512, freeMB: 900))
+                       .refuse(message: "parakeet at 4-bit needs ~1.5 GB; ~0.9 GB free without swapping. Allow swap in Vella → Memory.", needMB: 1512, freeMB: 900))
     }
     func testMultiModelRefusalSuggestsOneAtATimeAndNeverUnloadingANeededModel() {
         let loaded = [info("streaming", .manual, used: 1), info("other", .onDemand, used: 2)]
         guard case .refuse(let message, _, _) = planAdmission(ref("dictation"), loaded: loaded, rawAvailableMB: 0, together: ["streaming"], allowSwap: false) else { return XCTFail() }
-        XCTAssertEqual(message, "dictation at 8b needs ~1.5 GB; ~0.0 GB free without swapping. This needs streaming and dictation loaded together. Load one model at a time, unload other, pick 4b, or allow swap in Vella → Memory.")
+        XCTAssertEqual(message, "dictation at 8-bit needs ~1.5 GB; ~0.0 GB free without swapping. This needs streaming and dictation loaded together. Load one model at a time, unload other, pick 4-bit, or allow swap in Vella → Memory.")
         XCTAssertFalse(message.contains("unload streaming"))
     }
     func testLowerPrecisionReloadUnderDeficitIsRefusedBeforeUnloading() {
@@ -41,7 +41,7 @@ final class ResidencyTests: XCTestCase {
         let decision = planAdmission(ref("p", "4b", memory: 700), loaded: other, rawAvailableMB: -900, credit: 1000, allowSwap: false)
         guard case .refuse(let message, let need, let free) = decision else { return XCTFail("\(decision)") }
         XCTAssertEqual(need, 1212); XCTAssertEqual(free, 100)
-        XCTAssertTrue(message.hasPrefix("p at 4b needs ~1.2 GB; ~0.1 GB free"))
+        XCTAssertTrue(message.hasPrefix("p at 4-bit needs ~1.2 GB; ~0.1 GB free"))
         // With enough credit the same reload is admitted without touching q.
         XCTAssertEqual(planAdmission(ref("p", "4b", memory: 700), loaded: other, rawAvailableMB: 300, credit: 1000, allowSwap: false),
                        .admit(evict: [], needMB: 1212, freeMB: 1300))

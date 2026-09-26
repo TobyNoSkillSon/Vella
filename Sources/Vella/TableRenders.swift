@@ -75,6 +75,16 @@ import VellaCore
         reload.runtime.loaded = ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized", optimizations: ["decoder": true, "prefill": true], residency: "manual")]
         reload.selections = ["qwen3-asr-1.7b": "8b", "whisper-large-v3": "native"]
         states.append(reload)
+        // Precisions made on this Mac, selected before measurement: figures read \u{2014}; Get downloads the source,
+        // Load appears once the source is downloaded (Ultra BF16 here).
+        var derived = State(name: "derived-selected-unmeasured")
+        derived.installed = RenderFixture.downloaded + ["parakeet-ultra-mlx-bf16"]
+        derived.selections = ["parakeet-v3": "BF16", "parakeet-v3-ultra": "4b", "nemotron-3.5-streaming-0.6b": "4b"]
+        states.append(derived)
+        var derivedLoaded = State(name: "derived-loaded")
+        derivedLoaded.installed = RenderFixture.downloaded + ["parakeet-ultra-mlx-bf16"]
+        derivedLoaded.runtime.loaded = ["parakeet-v3-ultra": LoadedFamily(precision: "8b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")]
+        states.append(derivedLoaded)
         var fallback = State(name: "mlx-fallback")
         fallback.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "mlx",
             engineReason: "the optimized path returned non-finite values during a dictation; switched to the stock MLX path until reload",
@@ -93,7 +103,7 @@ import VellaCore
         states.append(downloading)
         var refusedLong = State(name: "footer-error-long")
         refusedLong.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")]
-        refusedLong.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 4b, or allow swap in Vella → Memory.", at: now)
+        refusedLong.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 4-bit, or allow swap in Vella → Memory.", at: now)
         states.append(refusedLong)
         var refusedShort = State(name: "footer-error-short")
         refusedShort.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free.", at: now)

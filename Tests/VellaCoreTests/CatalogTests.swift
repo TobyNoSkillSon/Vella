@@ -84,6 +84,59 @@ final class CatalogTests: XCTestCase {
 
     // MARK: Recommended precision
 
+    // MARK: Q column labels
+
+    func testSegmentLabelsAreBareWidthsWithExactFallback() {
+        XCTAssertEqual(precisionSegmentLabels(["FP32", "BF16", "8b", "4b"]), ["32", "16", "8", "4"])
+        XCTAssertEqual(precisionSegmentLabels(["BF16", "8b"]), ["16", "8"])
+        XCTAssertEqual(precisionSegmentLabels(["FP16", "8b", "4b"]), ["16", "8", "4"], "16 is unambiguous within the family")
+        XCTAssertEqual(precisionSegmentLabels(["ternary"]), ["1.58"])
+        // Both 16-bit formats in one family: every segment shows its exact format instead.
+        XCTAssertEqual(precisionSegmentLabels(["FP32", "FP16", "BF16", "4b"]), ["FP32", "FP16", "BF16", "4b"])
+        for label in precisionSegmentLabels(["FP32", "BF16", "8b", "4b"]) {
+            XCTAssertFalse(label.contains("b") || label.contains("BF") || label.contains("FP"), label)
+        }
+        XCTAssertEqual(precisionInProse("BF16"), "BF16")
+        XCTAssertEqual(precisionInProse("FP32"), "FP32")
+        XCTAssertEqual(precisionInProse("8b"), "8-bit")
+        XCTAssertEqual(precisionInProse("4b"), "4-bit")
+        XCTAssertEqual(precisionFormatName("BF16"), "BF16 (bfloat16)")
+        XCTAssertEqual(precisionFormatName("FP16"), "FP16 (float16)")
+        XCTAssertEqual(precisionFormatName("FP32"), "FP32 (float32)")
+        XCTAssertEqual(precisionFormatName("8b"), "8-bit quantized")
+        XCTAssertEqual(precisionFormatName("4b"), "4-bit quantized")
+    }
+
+    // MARK: Stable sort
+
+    private func named(_ id: String, _ labels: [String], native: String = "BF16") -> ModelFamily {
+        var f = family(native: native, labels); f.id = id; f.name = id.uppercased(); return f
+    }
+    func testSortKeyIsTheBestValueAcrossPrecisions() {
+        let a = named("a", ["BF16", "8b", "4b"]), b = named("b", ["BF16", "8b"]), c = named("c", ["BF16"]), d = named("d", ["BF16", "4b"])
+        let file = BenchmarkFile(models: [
+            "a": FamilyBenchmark(precisions: ["BF16": r(5.0, j: 9, x: 100), "8b": r(5.2, j: 4, x: 300), "4b": r(7.0, j: 6, x: 200)]),
+            "b": FamilyBenchmark(precisions: ["BF16": r(6.0, j: 5, x: 250), "8b": r(4.9, j: 3, x: 90)]),
+            "c": FamilyBenchmark(precisions: [:]),
+        ])
+        XCTAssertEqual(tableSortKey(.wer, family: a, benchmark: file.models["a"]), 5.0)
+        XCTAssertEqual(tableSortKey(.speed, family: a, benchmark: file.models["a"]), -300, "highest speed, negated")
+        XCTAssertEqual(tableSortKey(.energy, family: b, benchmark: file.models["b"]), 3)
+        XCTAssertNil(tableSortKey(.wer, family: c, benchmark: file.models["c"]))
+        let families = [a, b, c, d]
+        XCTAssertEqual(sortedFamilies(families, by: .wer, ascending: true, benchmarks: file).map(\.id), ["b", "a", "c", "d"])
+        XCTAssertEqual(sortedFamilies(families, by: .wer, ascending: false, benchmarks: file).map(\.id), ["a", "b", "c", "d"], "unmeasured stay last")
+        XCTAssertEqual(sortedFamilies(families, by: .speed, ascending: true, benchmarks: file).map(\.id), ["a", "b", "c", "d"], "fastest first")
+        XCTAssertEqual(sortedFamilies(families, by: .energy, ascending: true, benchmarks: file).map(\.id), ["b", "a", "c", "d"])
+        XCTAssertEqual(sortedFamilies(families, by: nil, ascending: true, benchmarks: file).map(\.id), ["a", "b", "c", "d"])
+        // On disk: published download sizes count; an unpublished precision counts only once measured.
+        var e = named("e", ["BF16", "4b"]); e.variants["4b"]?.repository = ""; e.variants["4b"]?.downloadBytes = 0
+        e.variants["BF16"]?.downloadBytes = 2_000_000
+        XCTAssertEqual(tableSortKey(.disk, family: e, benchmark: nil), 2_000_000)
+        XCTAssertNil(tableDiskBytes(e, "4b", nil), "never estimated")
+        XCTAssertEqual(tableSortKey(.disk, family: e, benchmark: FamilyBenchmark(precisions: ["4b": PrecisionResult(disk_mb: 0.5)])), 500_000)
+    }
+
     func testRecommendedMarginIsAgainstNativeAndInclusive() {
         // 8b is exactly +0.5 pt: inside. 4b is +0.51: outside, although it uses the least energy.
         let b = FamilyBenchmark(precisions: ["BF16": r(5.12, j: 3), "8b": r(5.62, j: 2), "4b": r(5.63, j: 1)])
@@ -263,6 +316,13 @@ final class CatalogTests: XCTestCase {
             XCTAssertFalse(all.contains(stale), stale)
         }
         for column in ["WER", "Format", "Speed", "J / min", "Memory"] { XCTAssertTrue(docs[1].contains(column), column) }
+        // The Q column: bare widths in the table docs, 16 = BF16; exact labels stay in the agent guide's schema.
+        XCTAssertTrue(docs[1].contains("| Q | Bits per weight") && docs[1].contains("16 (BF16)"), "USAGE Q column")
+        XCTAssertTrue(docs[0].contains("| Model | Mode | Q |") && docs[0].contains("16 is BF16"), "README table")
+        XCTAssertTrue(docs[1].contains("best value across its precisions"), "stable sort documented")
+        for stale in ["| Precision |", "`4b`, `8b`", "| 8b", "| 4b", "| BF16"] {
+            XCTAssertFalse(docs[0].contains(stale) || docs[1].contains(stale), stale)
+        }
     }
 
     /// Wording rule: no tooltip claims what the code does not guarantee.

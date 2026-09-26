@@ -1,19 +1,22 @@
 import AppKit
 import SwiftUI
 
-// Source: Verdict 95ddba5, Sources/Verdict/PrecisionControl.swift (generic; labels are strings here: 4b, 8b, BF16…).
+// Source: Verdict 95ddba5, Sources/Verdict/PrecisionControl.swift. Options are Vella's exact precision keys (4b, 8b,
+// BF16, FP32); segments show bare widths (32 16 8 4) and each segment's tooltip names the exact format.
 
-/// The precision picker: a mini segmented control whose recommended segment is labelled in the "better" green and
+/// The Q picker: a mini segmented control whose recommended segment is labelled in the "better" green and
 /// carries its own tooltip. AppKit, because SwiftUI's segmented Picker offers neither per-segment colour nor
 /// per-segment tooltips. NSMenu-hosted views cannot open pop-ups, so the choice is inline.
 struct PrecisionControl: NSViewRepresentable {
     let options: [String]
+    /// Segment labels, parallel to `options` (bare widths).
+    let labels: [String]
     let selected: String
     let recommended: String?
     let hot: Bool
     let enabled: Bool
+    /// Tooltip per option.
     let help: (String) -> String
-    let recommendedHelp: String
     let onSelect: (String) -> Void
 
     final class Coordinator: NSObject {
@@ -27,9 +30,9 @@ struct PrecisionControl: NSViewRepresentable {
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     static var font: NSFont { .systemFont(ofSize: NSFont.systemFontSize(for: .mini)) }
-    /// Content width of one segment: the label plus padding, at least as wide as a two-character label.
+    /// Content width of one segment: Verdict's 21 pt for a bare width; wider only for a longer fallback label.
     static func segmentWidth(_ label: String) -> CGFloat {
-        max(20, ceil((label as NSString).size(withAttributes: [.font: font]).width) + 9)
+        max(21, ceil((label as NSString).size(withAttributes: [.font: font]).width) + 9)
     }
 
     func makeNSView(context: Context) -> NSSegmentedControl {
@@ -59,10 +62,11 @@ struct PrecisionControl: NSViewRepresentable {
         let cell = control.cell as? PrecisionCell
         cell?.recommendedSegment = recommended.flatMap { options.firstIndex(of: $0) }
         cell?.hot = hot
-        for (i, label) in options.enumerated() {
+        for (i, option) in options.enumerated() {
+            let label = labels.indices.contains(i) ? labels[i] : option
             control.setLabel(label, forSegment: i)
             control.setWidth(Self.segmentWidth(label), forSegment: i)
-            control.setToolTip(label == recommended ? recommendedHelp : help(label), forSegment: i)
+            control.setToolTip(help(option), forSegment: i)
         }
         control.selectedSegment = options.firstIndex(of: selected) ?? -1
         control.isEnabled = enabled

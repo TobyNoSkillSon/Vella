@@ -71,6 +71,36 @@ import VellaCore
     var sectionCount: Int { [RecognitionMode.dictation, .streaming].filter { !families($0).isEmpty }.count }
 
     func options(_ f: ModelFamily) -> [String] { precisionOptions(f) }
+    /// The Q control's segment labels (bare widths), parallel to `options`.
+    func segmentLabels(_ f: ModelFamily) -> [String] { precisionSegmentLabels(options(f)) }
+    /// The precision a derived one is made from, nil for a published precision.
+    func derivedSource(_ f: ModelFamily, _ precision: String) -> String? { f.variants[precision]?.derivedFrom }
+    /// On disk for a precision: a published download's pinned size, else the measured size (`\u{2014}` otherwise).
+    func disk(_ f: ModelFamily, _ precision: String) -> Int64? { tableDiskBytes(f, precision, result(f, precision)) }
+
+    /// A Q segment's tooltip: the exact format, where it comes from (published, or made on this Mac from a higher
+    /// precision), whether it is measured, and the recommendation or pending Reload when they apply.
+    func segmentHelp(_ f: ModelFamily, _ precision: String) -> String {
+        var text = precisionFormatName(precision)
+        if precision == f.native { text += ", the model's native precision" }
+        if let source = derivedSource(f, precision) {
+            text += ". Made on this Mac from the \(precisionFormatName(source)) weights"
+            if let root = downloadRoot(f, precision), let v = f.variants[root], installed(f, root) == nil {
+                text += "; Get downloads those (\(formatBytes(v.downloadBytes)))"
+            }
+            text += "."
+        } else if let v = f.variants[precision], !v.repository.isEmpty {
+            text += ". Published: \(v.repository)."
+        } else {
+            text += "."
+        }
+        if result(f, precision)?.wer == nil { text += " Not measured yet." }
+        if precision == recommended(f), let help = recommendedHelp(f) { text += " " + help }
+        if let loaded = loaded(f)?.precision, loaded != precision {
+            text += " Loaded at \(precisionFormatName(loaded)); Reload applies the selection."
+        }
+        return text
+    }
     func recommended(_ f: ModelFamily) -> String? { recommendedPrecision(for: f, in: benchmarks) }
     func selected(_ f: ModelFamily) -> String {
         selectedPrecision(stored: selections[f.id], loaded: loaded(f)?.precision, recommended: recommended(f), family: f)
@@ -84,6 +114,14 @@ import VellaCore
     func installed(_ f: ModelFamily, _ precision: String) -> InstalledModel? {
         f.variants[precision].flatMap { library(f.mode).installed[$0.id] }
     }
+    /// The downloadable precision a derived one resolves to (itself when published).
+    func downloadRoot(_ f: ModelFamily, _ precision: String) -> String? { f.downloadSource(of: precision)?.label }
+    /// Whether the selected precision can load without a download: its own weights, or (derived) its source's.
+    func available(_ f: ModelFamily, _ precision: String) -> Bool {
+        if installed(f, precision) != nil { return true }
+        guard derivedSource(f, precision) != nil, let root = downloadRoot(f, precision) else { return false }
+        return installed(f, root) != nil
+    }
     /// Any downloaded precision of the family (its partial downloads too), for the trash button.
     func localPath(_ f: ModelFamily, _ precision: String) -> String? { f.variants[precision].flatMap { library(f.mode).modelFilePath($0.id) } }
 
@@ -95,15 +133,15 @@ import VellaCore
               let precision = f.variants.first(where: { lib.installed[$0.value.id]?.path == lib.activeModelPath })?.key else { return nil }
         return LoadedFamily(precision: precision)
     }
-    /// The header's model label for a mode (`Parakeet v3 4b`): the model selected for the mode if loaded or known,
+    /// The header's model label for a mode (`Parakeet v3 4-bit`): the model selected for the mode if loaded or known,
     /// else the first loaded model of that mode.
     func activeLabel(_ mode: RecognitionMode) -> String? {
         let lib = library(mode)
         if !lib.activeModelPath.isEmpty, let id = lib.installed.first(where: { $0.value.path == lib.activeModelPath })?.key,
-           let (family, precision) = catalog.locate(variant: id) { return "\(family.name) \(precision)" }
+           let (family, precision) = catalog.locate(variant: id) { return "\(family.name) \(precisionInProse(precision))" }
         guard let (id, loaded) = runtime?.loaded.filter({ catalog.family($0.key)?.mode == mode }).sorted(by: { $0.key < $1.key }).first,
               let family = catalog.family(id) else { return lib.activeModelLabel }
-        return "\(family.name) \(loaded.precision)"
+        return "\(family.name) \(precisionInProse(loaded.precision))"
     }
     func isLoading(_ f: ModelFamily) -> Bool {
         runtime?.loading == f.id || f.variants.values.contains { library(f.mode).downloadingID == $0.id }
@@ -113,7 +151,7 @@ import VellaCore
 
     func action(_ f: ModelFamily) -> LoadAction {
         let precision = selected(f)
-        return loadAction(selected: precision, loaded: loaded(f)?.precision, native: f.native, downloaded: installed(f, precision) != nil)
+        return loadAction(selected: precision, loaded: loaded(f)?.precision, native: f.native, downloaded: available(f, precision))
     }
 
     func setPrecision(_ f: ModelFamily, _ precision: String) {
@@ -135,17 +173,27 @@ import VellaCore
         let precision = selected(f)
         guard let variant = f.variants[precision] else { return }
         let lib = library(f.mode)
+        // A derived precision downloads the weights it is made from.
+        guard let source = f.downloadSource(of: precision) else { lastError = "\(f.name) at \(precisionFormatName(precision)) has no source in the catalog."; return }
         switch action(f) {
         case .get:
-            lib.selectedID = variant.id; lib.download()
+            lib.selectedID = source.variant.id; lib.download()
         case .unload:
             if let actions { actions.unload(family: f) }
         case .load, .reload:
-            guard let local = lib.installed[variant.id] else { lib.selectedID = variant.id; lib.download(); return }
+            guard let local = lib.installed[source.variant.id] else { lib.selectedID = source.variant.id; lib.download(); return }
+            var path = local.path
+            if variant.isDerived {
+                // The worker derives from the source; the derived directory (a manifest) keeps its own model identity.
+                do { path = try prepareDerivedModel(family: f, precision: precision, sourcePath: local.path, modelsDirectory: lib.modelsDirectory) }
+                catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error)"; return }
+            }
             setPrecision(f, precision)   // what was loaded stays the selection
             if let actions {
-                action(f) == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: local.path)
-                                     : actions.load(family: f, precision: precision, variant: variant, path: local.path)
+                action(f) == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path)
+                                     : actions.load(family: f, precision: precision, variant: variant, path: path)
+            } else if variant.isDerived {
+                lastError = "\(f.name) at \(precisionFormatName(precision)) needs the recognition worker; use Restart Worker and try again."
             } else {
                 lib.selectedID = variant.id
                 if !lib.useSelected() { lastError = lib.downloadError }

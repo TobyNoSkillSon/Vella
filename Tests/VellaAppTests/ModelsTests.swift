@@ -117,13 +117,95 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(c.action(try XCTUnwrap(c.catalog.family("whisper-large-v3"))), .get)
     }
 
+    /// Rows never move when a precision is selected: every column sorts by the model's best value across precisions.
+    @MainActor func testRowOrderIsStableAcrossPrecisionSelections() throws {
+        let c = try controller(benchmarks: String(contentsOf: ModelLibrary.resourceDirectory().appendingPathComponent("benchmarks.json"), encoding: .utf8))
+        c.previewing = true
+        for mode in [RecognitionMode.dictation, .streaming] {
+            for column in TableSortColumn.allCases {
+                for ascending in [true, false] {
+                    let before = ModelTable.rows(c, mode, sort: column, ascending: ascending).map(\.id)
+                    XCTAssertEqual(Set(before), Set(c.families(mode).map(\.id)), "sections keep their own rows")
+                    for family in c.families(mode) {
+                        for precision in c.options(family) {
+                            c.setPrecision(family, precision)
+                            XCTAssertEqual(ModelTable.rows(c, mode, sort: column, ascending: ascending).map(\.id), before,
+                                           "\(column) \(ascending): selecting \(family.id) \(precision) moved a row")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The Q control shows bare widths; the tooltips keep exact formats and say where each precision comes from.
+    @MainActor func testQLabelsAndSegmentTooltips() throws {
+        let c = try controller(benchmarks: qwenFixture)
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
+        XCTAssertEqual(Array(c.segmentLabels(qwen).prefix(1)), ["16"])
+        XCTAssertTrue(c.segmentLabels(qwen).allSatisfy { Int($0) != nil }, "bare widths only")
+        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        XCTAssertEqual(c.segmentLabels(parakeet).first, "32")
+        let bf16 = c.segmentHelp(qwen, "BF16")
+        XCTAssertTrue(bf16.hasPrefix("BF16 (bfloat16), the model's native precision. Published: mlx-community/Qwen3-ASR-1.7B-bf16."), bf16)
+        XCTAssertTrue(c.segmentHelp(qwen, "4b").hasPrefix("4-bit quantized. Published:"))
+        XCTAssertTrue(c.segmentHelp(qwen, "4b").contains("Recommended"), "the recommended segment says so")
+        XCTAssertTrue(c.segmentHelp(parakeet, "FP32").contains("Not measured yet."), "fixture has no Parakeet figures")
+        c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16")])
+        XCTAssertTrue(c.segmentHelp(qwen, "8b").hasSuffix("Loaded at BF16 (bfloat16); Reload applies the selection."))
+    }
+
+    /// A precision made on this Mac: selectable, `\u{2014}` until measured, Get fetches its source, Load hands the worker
+    /// the derived directory (never the source path, which is the source precision's identity).
+    @MainActor func testDerivedPrecisionDisplayGetAndLoad() throws {
+        let c = try controller(benchmarks: qwenFixture)   // no Ultra figures: its derived precisions are unmeasured
+        let spy = RuntimeSpy(); c.actions = spy
+        c.runtime = TableRuntime()
+        let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        XCTAssertEqual(c.options(ultra), ["BF16", "8b", "4b"])
+        XCTAssertEqual(c.segmentLabels(ultra), ["16", "8", "4"])
+        c.setPrecision(ultra, "4b")
+        XCTAssertEqual(c.selected(ultra), "4b", "derived precisions are selectable")
+        // Not measured: every figure is absent, including On disk (never the source's size, never an estimate).
+        XCTAssertNil(c.result(ultra, "4b"))
+        XCTAssertNil(c.disk(ultra, "4b"))
+        XCTAssertNotNil(c.disk(ultra, "BF16"))
+        let help = c.segmentHelp(ultra, "4b")
+        XCTAssertTrue(help.hasPrefix("4-bit quantized. Made on this Mac from the BF16 (bfloat16) weights; Get downloads those ("), help)
+        XCTAssertTrue(help.contains("Not measured yet."), help)
+        XCTAssertFalse(help.contains("Published"), help)
+        // Get downloads the source.
+        XCTAssertEqual(c.action(ultra), .get)
+        XCTAssertEqual(c.downloadRoot(ultra, "4b"), "BF16")
+        // Source downloaded: the derived precision loads from a manifest directory of its own.
+        let source = c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-bf16")
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
+        c.dictation.installed["parakeet-ultra-mlx-bf16"] = InstalledModel(path: source.path)
+        XCTAssertEqual(c.action(ultra), .load)
+        XCTAssertFalse(c.segmentHelp(ultra, "4b").contains("Get downloads"), "source already downloaded")
+        c.perform(ultra)
+        let derivedDir = c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-4bit-local").standardizedFileURL.path
+        XCTAssertEqual(spy.calls.last, "load parakeet-v3-ultra 4b \(derivedDir)")
+        XCTAssertEqual(derivedModelManifest(at: URL(fileURLWithPath: derivedDir))?.source, source.standardizedFileURL.path)
+        XCTAssertNil(c.lastError)
+        // Loaded at 4b, 8b selected: Reload, again through its own directory.
+        c.runtime = TableRuntime(loaded: ["parakeet-v3-ultra": LoadedFamily(precision: "4b")])
+        c.setPrecision(ultra, "8b")
+        XCTAssertEqual(c.action(ultra), .reload)
+        c.perform(ultra)
+        XCTAssertEqual(spy.calls.last, "reload parakeet-v3-ultra 8b \(c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-8bit-local").standardizedFileURL.path)")
+        // No trash for a derived precision: it holds no weights of its own.
+        XCTAssertNil(c.localPath(ultra, "8b"))
+    }
+
     @MainActor func testWithoutRuntimeTheModeSelectionReadsAsLoaded() throws {
         let c = try controller()
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         c.dictation.installed["parakeet-tdt-0.6b-v3-mlx-4bit"] = InstalledModel(path: "/fixture/p4")
         c.dictation.activeModelPath = "/fixture/p4"
         XCTAssertEqual(c.loaded(parakeet)?.precision, "4b")
-        XCTAssertEqual(c.activeLabel(.dictation), "Parakeet v3 4b")
+        XCTAssertEqual(c.activeLabel(.dictation), "Parakeet v3 4-bit", "no 4b wording in the menu header")
         XCTAssertEqual(c.action(parakeet), .unload)
     }
 

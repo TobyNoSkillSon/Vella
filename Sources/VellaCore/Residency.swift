@@ -38,7 +38,7 @@ public struct ModelRef: Codable, Hashable {
     }
     public var displayName: String { name ?? id }
     /// "Parakeet v3 at 4b", or the name alone when the precision is unknown.
-    public var displayWithPrecision: String { precision.isEmpty ? displayName : "\(displayName) at \(precision)" }
+    public var displayWithPrecision: String { precision.isEmpty ? displayName : "\(displayName) at \(precisionInProse(precision))" }
 }
 
 /// Residency and memory settings, saved in config.json and applied to the running workers.
@@ -217,7 +217,7 @@ public func planAdmission(_ ref: ModelRef, loaded: [LoadedModelInfo], rawAvailab
 /// "1.5" for 1,520 MB.
 public func gigabytes(_ mb: Double) -> String { String(format: "%.1f", max(0, mb) / 1000) }
 
-/// The next smaller offered precision, if any ("8b" for a BF16 request offering 4b/8b/BF16).
+/// The next smaller offered precision label, if any ("8b" for a BF16 request offering 4b/8b/BF16).
 public func smallerPrecision(_ ref: ModelRef) -> String? {
     guard let current = precisionBits(ref.precision) else { return nil }
     return (ref.precisionOptions ?? []).compactMap { label in precisionBits(label).map { (label, $0) } }
@@ -236,7 +236,7 @@ public func refusalMessage(_ ref: ModelRef, needMB: Double, freeMB: Double, load
         fixes.append("load one model at a time")
     }
     if !loaded.isEmpty { fixes.append("unload " + loaded.joined(separator: " or ")) }
-    if let lower = smallerPrecision(ref) { fixes.append("pick \(lower)") }
+    if let lower = smallerPrecision(ref) { fixes.append("pick \(precisionInProse(lower))") }
     fixes.append("allow swap in Vella → Memory")
     var advice = fixes.count == 1 ? fixes[0] : fixes.dropLast().joined(separator: ", ") + (fixes.count > 2 ? ", or " : " or ") + fixes.last!
     advice = advice.prefix(1).uppercased() + advice.dropFirst()

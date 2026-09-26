@@ -196,6 +196,35 @@ public func orderedPrecisions(_ labels: [String]) -> [String] {
         return x == y ? a > b : x > y
     }
 }
+/// The Q column's bare width for a precision: `FP32` → `32`, `BF16` → `16`, `8b` → `8`, `4b` → `4`, ternary → `1.58`.
+/// Nil for an unknown label.
+public func precisionWidth(_ label: String) -> String? {
+    guard let bits = labelBits(label) else { return nil }
+    return bits == bits.rounded() ? String(Int(bits)) : String(format: "%g", bits)
+}
+/// Segment labels for a family's options: bare widths (`32 16 8 4`), as in Verdict's control. 16 is BF16 in the
+/// lineup; if two options ever share a width (BF16 and FP16), every segment falls back to its exact label.
+public func precisionSegmentLabels(_ options: [String]) -> [String] {
+    let widths = options.map { precisionWidth($0) }
+    let unique = Set(widths.compactMap { $0 }).count == options.count && !widths.contains(nil)
+    return unique ? widths.map { $0! } : options
+}
+/// A precision in prose (menu header, messages): quantized `4-bit`, `8-bit`; float formats exact (`BF16`, `FP32`).
+public func precisionInProse(_ label: String) -> String { legacyQuantization(label) }
+/// The exact format of a precision label, for tooltips: `BF16 (bfloat16)`, `FP16 (float16)`, `FP32 (float32)`,
+/// `4-bit quantized`, `ternary (1.58-bit)`.
+public func precisionFormatName(_ label: String) -> String {
+    switch label.uppercased() {
+    case "FP32", "F32": return "FP32 (float32)"
+    case "BF16": return "BF16 (bfloat16)"
+    case "FP16", "F16": return "FP16 (float16)"
+    case "TERNARY", "1.58B": return "ternary (1.58-bit)"
+    default:
+        if label.lowercased().hasSuffix("b"), let bits = Int(label.dropLast()) { return "\(bits)-bit quantized" }
+        return label
+    }
+}
+
 /// Offered precisions for a family, highest first: every catalogued variant, never below 4 bits unless that is the
 /// model's native format (a natively ternary model is its own option, not a quantization).
 public func precisionOptions(_ family: ModelFamily) -> [String] {
@@ -291,6 +320,56 @@ public func decodeBenchmarks(_ data: Data?) -> BenchmarkFile {
         file.models[id] = FamilyBenchmark(precisions: results, recommended: (value as? [String: Any])?["recommended"] as? String)
     }
     return file
+}
+
+// MARK: Table sort keys
+
+public enum TableMetric: CaseIterable { case wer, format, speed, energy, memory, disk }
+
+/// Published = downloadable from a pinned repository (derived precisions are made on this Mac and have none).
+public func isPublished(_ family: ModelFamily, _ label: String) -> Bool {
+    guard let v = family.variants[label], !v.isDerived else { return false }
+    return !v.repository.isEmpty && v.downloadBytes > 0
+}
+
+/// The table's On disk for a precision in bytes: a published download's pinned size, else the measured size; nil =
+/// `—`. Unlike `ModelFamily.diskBytes`, a derived precision never borrows its source's size.
+public func tableDiskBytes(_ family: ModelFamily, _ label: String, _ result: PrecisionResult?) -> Int64? {
+    if isPublished(family, label), let v = family.variants[label] { return v.downloadBytes }
+    return result?.disk_mb.map { Int64(($0 * 1_000_000).rounded()) }
+}
+
+/// One precision's value for a column, oriented so lower is better (speed negated). Nil when not measured.
+public func metricValue(_ metric: TableMetric, family: ModelFamily, label: String, result: PrecisionResult?) -> Double? {
+    switch metric {
+    case .wer: return result?.wer
+    case .format: return result?.format
+    case .speed: return result?.speed_x.map { -$0 }
+    case .energy: return result?.j_per_min
+    case .memory: return result?.memory_mb
+    case .disk: return tableDiskBytes(family, label, result).map(Double.init)
+    }
+}
+
+/// A row's sort key: the model's best value for the column across all its offered precisions, so a row never moves
+/// when its selected precision changes. Lower is better (speed negated); nil when nothing is measured.
+public func tableSortKey(_ metric: TableMetric, family: ModelFamily, benchmark: FamilyBenchmark?) -> Double? {
+    precisionOptions(family).compactMap { metricValue(metric, family: family, label: $0, result: benchmark?.result($0)) }.min()
+}
+
+/// Rows of one section sorted by a column's best value; ascending = best first. Rows with nothing measured stay last
+/// in either direction; ties keep catalog order.
+public func sortedFamilies(_ families: [ModelFamily], by metric: TableMetric?, ascending: Bool, benchmarks: BenchmarkFile) -> [ModelFamily] {
+    guard let metric else { return families.sorted { ascending ? $0.name < $1.name : $0.name > $1.name } }
+    let keyed = families.enumerated().map { ($0.offset, $0.element, tableSortKey(metric, family: $0.element, benchmark: benchmarks.models[$0.element.id])) }
+    return keyed.sorted { a, b in
+        switch (a.2, b.2) {
+        case let (x?, y?): return x == y ? a.0 < b.0 : (ascending ? x < y : x > y)
+        case (_?, nil): return true
+        case (nil, _?): return false
+        case (nil, nil): return a.0 < b.0
+        }
+    }.map(\.1)
 }
 
 // MARK: Recommended precision
@@ -451,7 +530,7 @@ public func engineHelp(engine: String?, reason: String?, optimizations: [String:
     } else {
         lines.append("Stock MLX path: the same model without Vella's optimizations; slower." + why)
     }
-    lines.append("Precision: \(precision)")
+    lines.append("Precision: \(precisionInProse(precision))")
     return lines.joined(separator: "\n")
 }
 
