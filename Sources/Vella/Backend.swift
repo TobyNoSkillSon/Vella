@@ -40,7 +40,7 @@ import VellaCore
     private var error: String?
     private var gpu: GPUStatus?
     private var workerHooks: [String: String] = [:]
-    private var restarts: [String: Int] = [:]
+    private var restarts: [String: RestartPolicy] = [:]
 
     init(support: URL = Backend.support, environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.support = support; self.environment = environment
@@ -53,6 +53,10 @@ import VellaCore
     /// App launch: publish an empty status (no stale models), keep config.json's residency explicit, then load the
     /// launch set (manual loads only; empty on a fresh install, so nothing loads or downloads).
     func start(loadLaunchSet: Bool = true) {
+        // Orphaned workers from an earlier app instance (parent pid 1), matched by executable path, never command line.
+        if let bundle = Bundle.main.executableURL?.deletingLastPathComponent() {
+            _ = StraySweep.sweep(executables: ["VellaWorker", "VellaStreamingWorker", "VellaModelTool"].map { bundle.appendingPathComponent($0) }) { _ in }
+        }
         try? FileManager.default.removeItem(at: statusURL)
         if !FileManager.default.fileExists(atPath: configURL.path) { persistSettings() }
         writeStatus()
@@ -175,7 +179,7 @@ import VellaCore
                                 worker: pendingWorker.removeValue(forKey: ref.id) ?? previous?.worker ?? [:], unload: unload, timer: previous?.timer)
         if !order.contains(ref.id) { order.append(ref.id) }
         if loading == ref.id { loading = nil }
-        refused = nil; error = nil; restarts[ref.id] = 0
+        refused = nil; error = nil; restarts[ref.id]?.reset()
         if entries[ref.id]?.residency == .manual { settings.join(ref); persistSettings() }
         schedule(ref.id)
         writeStatus()
@@ -216,10 +220,10 @@ import VellaCore
         removed(id)
         error = message; writeStatus()
         guard let entry, entry.residency == .manual else { return }
-        let attempt = restarts[id, default: 0]
-        guard attempt < 3 else { return }
-        restarts[id] = attempt + 1
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(2 * (attempt + 1))) { [weak self] in
+        var policy = restarts[id] ?? RestartPolicy()
+        guard let delay = policy.nextDelay() else { restarts[id] = policy; return }
+        restarts[id] = policy
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self, self.entries[id] == nil, self.settings.launchSet.contains(where: { $0.id == id }) else { return }
             Task { try? await self.load(entry.ref) }
         }
