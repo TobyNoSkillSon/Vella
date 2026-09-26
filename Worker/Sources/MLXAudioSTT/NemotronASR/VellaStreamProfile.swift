@@ -28,3 +28,22 @@ public enum VellaStreamProfile {
         counters = [:]
     }
 }
+
+/// Streaming optimisations, each on by default and bit-identical to the stock path
+/// (event streams compared on v2 clips). `VELLA_NEMO_<NAME>=0` disables one;
+/// `VELLA_FORCE_STOCK=1` disables all (diagnosis and reference runs).
+public enum VellaNemotronOptions {
+    public static func on(_ name: String) -> Bool {
+        let env = ProcessInfo.processInfo.environment
+        return env["VELLA_FORCE_STOCK"] != "1" && env["VELLA_NEMO_" + name] != "0"
+    }
+    public static let f32Weights = on("F32")
+    public static let coalesce = on("COALESCE")
+    public static let batchedDecode = on("BATCHED_DECODE")
+    public static let positionCache = on("POSCACHE")
+    public static let keyValueCache = on("KVCACHE")
+    public static var active: [String: Bool] {
+        ["f32_weights": f32Weights, "coalesce": coalesce, "batched_decode": batchedDecode,
+         "position_cache": positionCache, "kv_cache": keyValueCache]
+    }
+}

@@ -19,7 +19,7 @@ public final class VellaNemotronSession {
     /// Predictor output for the current (last, hidden): the LSTM step and the joint's
     /// pred projection only change when a nonblank symbol is emitted.
     private var predictor: (state: NemoLSTMState, projection: MLXArray)?
-    static let batchedDecode = ProcessInfo.processInfo.environment["VELLA_NEMO_BATCHED_DECODE"] != "0"
+    static let batchedDecode = VellaNemotronOptions.batchedDecode
 
     public init(model: NemotronASRModel) throws {
         let c = model.preprocessConfig
@@ -35,6 +35,14 @@ public final class VellaNemotronSession {
         guard !closed else { throw NSError(domain: "VellaStreaming", code: 2) }
         let pushStart = VellaStreamProfile.enabled ? CFAbsoluteTimeGetCurrent() : 0
         defer { if VellaStreamProfile.enabled { VellaStreamProfile.add("push"); VellaStreamProfile.add("push_ms", (CFAbsoluteTimeGetCurrent() - pushStart) * 1000) } }
+        ingest(chunk, final: final)
+        return advance(final: final)
+    }
+    /// Frontend only: append the mel frames this audio freezes, lazily (no sync).
+    /// A caller that coalesces 20-ms blocks still ingests each block on its own,
+    /// so every mel call keeps the per-block frame grouping (the mel GEMM's
+    /// result depends on its column count) and stays bit-identical.
+    public func ingest(_ chunk: [Float], final: Bool = false) {
         let c = model.preprocessConfig
         samples += chunk; totalSamples += chunk.count
         let edge = totalSamples - c.nFft / 2
@@ -51,6 +59,8 @@ public final class VellaNemotronSession {
             let keep = max(0, nextFrame - lookbehind) * c.hopLength
             if keep > bufferStart { samples.removeFirst(keep - bufferStart); bufferStart = keep }
         }
+    }
+    private func advance(final: Bool) -> String {
         var text = ""
         if let mel = pending {
             model.streamEncodeChunks(mel, language: model.defaultLanguage,

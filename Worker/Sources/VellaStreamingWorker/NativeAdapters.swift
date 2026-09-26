@@ -7,31 +7,30 @@ final class NemotronNative: StreamingNative {
     private var model: NemotronASRModel?
     private var session: VellaNemotronSession?
     init(_ path: URL) throws {
-        // The frontend keeps Float32 mel (Python parity), so every op already ran in
-        // Float32 and MLX converted the BF16 weights on each call. Converting once
-        // at load is lossless (BF16 -> Float32) and gives bit-identical output.
-        let f32 = ProcessInfo.processInfo.environment["VELLA_NEMO_F32"] != "0"
-        model = try NemotronASRModel.fromDirectory(path, computeDType: f32 ? .float32 : .bfloat16)
+        model = try NemotronASRModel.fromDirectory(path)
         VellaNemotronNumerics.useReferencePositionTable(model!)
+        if VellaNemotronOptions.f32Weights { VellaNemotronNumerics.convertFloat32Weights(model!) }
         try reset()
     }
     func reset() throws {
         VellaStreamProfile.flush()
-        session = nil; text = ""; deferred.removeAll()
+        session = nil; text = ""; deferred = false
         session = try VellaNemotronSession(model: model!)
         Memory.clearCache()
     }
-    private var deferred: [Float] = []
-    private let coalesce = ProcessInfo.processInfo.environment["VELLA_NEMO_COALESCE"] != "0"
+    private var deferred = false
+    private let coalesce = VellaNemotronOptions.coalesce
     func push(_ samples: [Float], final: Bool) throws {
-        if coalesce && !final { deferred += samples; return }
+        // Coalesce: the frontend ingests every 20-ms block as before (lazy graph);
+        // the encoder, decoder and host sync run once per request in flush().
+        if coalesce && !final { session!.ingest(samples); deferred = true; return }
         _ = try flush()
         text += try session!.push(samples, final: final)
     }
     func flush() throws -> Bool {
-        guard !deferred.isEmpty else { return false }
-        let samples = deferred; deferred.removeAll(keepingCapacity: true)
-        text += try session!.push(samples, final: false)
+        guard deferred else { return false }
+        deferred = false
+        text += try session!.push([], final: false)
         return true
     }
     func close() { VellaStreamProfile.flush(); session = nil; model = nil; Stream.gpu.synchronize(); Memory.clearCache() }

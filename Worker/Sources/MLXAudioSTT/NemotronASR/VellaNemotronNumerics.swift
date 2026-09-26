@@ -1,6 +1,7 @@
 // Python-compatible streaming numerics; dump() is a QA-only entry point.
 import Foundation
 import MLX
+import MLXNN
 public enum VellaNemotronNumerics {
     public static func referencePositionTable(dModel: Int, maxLen: Int = 5000) -> MLXArray {
         let positions = MLX.arange(maxLen - 1, -maxLen, step: -1, dtype: .int32).expandedDimensions(axis: 1).asType(.float32)
@@ -12,6 +13,18 @@ public enum VellaNemotronNumerics {
     public static func useReferencePositionTable(_ model: NemotronASRModel) {
         model.encoder.posEnc.pe = referencePositionTable(dModel: model.encoderConfig.dModel, maxLen: model.encoder.posEnc.maxLen)
         eval(model.encoder.posEnc.pe)
+    }
+    /// The frontend keeps Float32 mel (Python parity), so the encoder, prompt and joint
+    /// already run in Float32 and MLX promoted their BF16 weights on every call.
+    /// Converting those weights once at load (lossless) gives bit-identical output
+    /// without the per-op conversions. The prediction network stays BF16: its
+    /// embedding feeds a BF16 x BF16 LSTM matmul, which Float32 weights would change.
+    public static func convertFloat32Weights(_ model: NemotronASRModel) {
+        let converted = model.parameters().flattened().map { key, value -> (String, MLXArray) in
+            (key, !key.hasPrefix("decoder.") && value.dtype == .bfloat16 ? value.asType(.float32) : value)
+        }
+        model.update(parameters: ModuleParameters.unflattened(Dictionary(uniqueKeysWithValues: converted)))
+        eval(model)
     }
     public static func dump(configURL: URL, pcmURL: URL, lengthsURL: URL, output: URL) throws {
         let config = try JSONDecoder().decode(NemotronASRConfig.self, from: Data(contentsOf: configURL))

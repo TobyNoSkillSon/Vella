@@ -10,8 +10,8 @@ import MLXNN
 // streamed transcript equals `decode(...)`.
 
 private let nemoPreEncodeMelCache = 16
-private let nemoPosCache = ProcessInfo.processInfo.environment["VELLA_NEMO_POSCACHE"] != "0"
-private let nemoKVCache = ProcessInfo.processInfo.environment["VELLA_NEMO_KVCACHE"] != "0"
+private let nemoPosCache = VellaNemotronOptions.positionCache
+private let nemoKVCache = VellaNemotronOptions.keyValueCache
 
 /// Steady-state `linear_pos(posEmb)` per layer. With a full attention cache the
 /// relative-position window is the same every chunk, so the projection is too.
