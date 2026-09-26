@@ -114,16 +114,31 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     private func ensureLoaded(_ ref: ModelRef, residency: ResidencyClass, token: UUID) async throws {
         if hotRef?.path == ref.path, loadingRef == nil, process?.isRunning == true { return }
         let previous = process?.isRunning == true && loadingRef == nil ? hotRef : nil
+        let previousResidency = previous.map { runtime.residencyForRequest($0) } ?? .onDemand
         try await waitForRetired()
         try check(token)
+        // Refused → nothing was unloaded (Review 1 R3).
         try await runtime.admit(ref, replacing: previous?.id)
         try check(token)
         if process != nil || loadingRef != nil || hotRef != nil { retire() }
-        try await waitForRetired()
-        try check(token)
-        try launch(ref, residency: residency)
-        _ = try await exchange(["op": "load", "model": ref.path])
-        try check(token)
+        do {
+            try await waitForRetired()
+            try check(token)
+            try launch(ref, residency: residency)
+            _ = try await exchange(["op": "load", "model": ref.path])
+            try check(token)
+        } catch {
+            // The new model failed to load: put the working one back with its residency (as dictation's reload does).
+            // Never after a stop/release/shutdown.
+            if let previous, !(error is CancellationError), cancelToken == token {
+                do {
+                    try await waitForRetired()
+                    try launch(previous, residency: previousResidency)
+                    _ = try await exchange(["op": "load", "model": previous.path])
+                } catch { runtime.log("\(previous.id): could not restore the streaming model after a failed load") }
+            }
+            throw error
+        }
     }
     /// Start a worker for `ref`. The caller has retired any previous child; this one gets its own epoch.
     private func launch(_ ref: ModelRef, residency: ResidencyClass) throws {

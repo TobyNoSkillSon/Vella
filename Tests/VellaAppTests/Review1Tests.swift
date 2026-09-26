@@ -146,6 +146,37 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(final, "hello world")
         XCTAssertEqual(backend.processID, new, "a clean finish keeps the replacement hot")
     }
+
+    // MARK: R3 — a refused or failed streaming Reload keeps / restores the working model
+
+    @MainActor func testR3StreamingReloadRefusalKeepsAndLoadFailureRestoresTheWorkingModel() async throws {
+        let runtime = try Runtime.isolated(root, availableMB: 10_000)
+        let backend = try streaming(runtime); defer { backend.shutdown() }
+        runtime.start(loadLaunchSet: false)
+        try await runtime.load(runtime.resolve(path("nemo@8b"), mode: .streaming)) // manual
+        let pid = try XCTUnwrap(backend.processID)
+        // Refused BF16 (raw 1,000 − 1,000 loaded + 1,000 credit = 1,000 < 1,512): nothing is unloaded.
+        try runtime.setAvailableMB(1_000)
+        do { try await runtime.load(runtime.resolve(path("nemo@BF16"), mode: .streaming)); XCTFail("reload admitted") }
+        catch { XCTAssertTrue(error.localizedDescription.hasPrefix("nemo at BF16 needs"), error.localizedDescription) }
+        XCTAssertTrue(alive(pid), "the working worker survives a refusal")
+        XCTAssertEqual(backend.processID, pid)
+        XCTAssertEqual(runtime.status.models["nemo"]?.precision, "8b")
+        // Admitted but the load fails: the previous precision comes back, still manual, launch set unchanged.
+        try runtime.setAvailableMB(10_000)
+        do { try await runtime.load(runtime.resolve(path("nemo@BF16-loadfail"), mode: .streaming)); XCTFail("failed load accepted") } catch { }
+        XCTAssertEqual(runtime.status.models["nemo"]?.precision, "8b")
+        XCTAssertEqual(runtime.status.models["nemo"]?.residency, "manual")
+        XCTAssertEqual(runtime.settings.launchSet.map(\.precision), ["8b"])
+        let restored = try XCTUnwrap(backend.processID)
+        XCTAssertTrue(alive(restored))
+        // The restored worker serves a session.
+        try await backend.start(config: streamConfig(path("nemo@8b")))
+        XCTAssertEqual(backend.processID, restored, "same model: no relaunch")
+        try await backend.feed(Data(repeating: 0, count: 6400))
+        let final = try await backend.finish(expectedFrames: 1600)
+        XCTAssertEqual(final, "hello world")
+    }
 }
 
 final class Review1HubStub: URLProtocol {
