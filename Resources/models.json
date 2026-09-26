@@ -127,6 +127,28 @@
       "offered": true
     },
     {
+      "id": "parakeet-tdt-ctc-110m",
+      "name": "Parakeet TDT-CTC 110M",
+      "mode": "dictation",
+      "languages": [
+        "en"
+      ],
+      "params": "114M",
+      "license": "cc-by-4.0",
+      "native": "FP32",
+      "variants": {
+        "FP32": {
+          "id": "parakeet-tdt_ctc-110m-mlx-fp32",
+          "repository": "mlx-community/parakeet-tdt_ctc-110m",
+          "revision": "d62547387c356a1ab6bb3d85d98b2103f655282e",
+          "downloadBytes": 458948617,
+          "architecture": "parakeet"
+        }
+      },
+      "offered": false,
+      "notes": "Candidate, not screened: English-only 114M hybrid TDT-CTC (TDT decoder used). Loads in the dictation worker on stock MLX; the Parakeet fast path refuses it (1-layer prediction LSTM), so it runs as MLX until the TDT kernel supports one layer. Screening on v2-quick decides."
+    },
+    {
       "id": "qwen3-asr-1.7b",
       "name": "Qwen3 ASR 1.7B",
       "mode": "dictation",
