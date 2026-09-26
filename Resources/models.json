@@ -42,10 +42,24 @@
           "revision": "b554592c50b2a48471add2daa3d46fa9f00fef5e",
           "downloadBytes": 1254840214,
           "architecture": "parakeet"
+        },
+        "8b": {
+          "id": "parakeet-ultra-mlx-8bit-local",
+          "derivedFrom": "BF16",
+          "bits": 8,
+          "groupSize": 64,
+          "architecture": "parakeet"
+        },
+        "4b": {
+          "id": "parakeet-ultra-mlx-4bit-local",
+          "derivedFrom": "BF16",
+          "bits": 4,
+          "groupSize": 64,
+          "architecture": "parakeet"
         }
       },
       "offered": true,
-      "notes": "Moondream's post-trained Parakeet v3 (moondream/parakeet-ultra @73175eb), MLX conversion by selcukkubur (tensor-identical to the upstream weights). BF16 only: no public quantized MLX conversion exists."
+      "notes": "Moondream's post-trained Parakeet v3 (moondream/parakeet-ultra @73175eb), MLX conversion by selcukkubur (tensor-identical to the upstream weights). No public quantized MLX conversion exists: 8b and 4b are derived locally from BF16 at load (group size 64, the layer selection of the published Parakeet v3 quants)."
     },
     {
       "id": "parakeet-v3",
@@ -87,6 +101,12 @@
           "repository": "animaslabs/parakeet-tdt-0.6b-v3-mlx",
           "revision": "b3f0e8a62787b5dd33ebf05be8a5db41661c5eb6",
           "downloadBytes": 2509016021,
+          "architecture": "parakeet"
+        },
+        "BF16": {
+          "id": "parakeet-tdt-0.6b-v3-mlx-bf16-local",
+          "derivedFrom": "FP32",
+          "dtype": "bfloat16",
           "architecture": "parakeet"
         },
         "8b": {
@@ -220,6 +240,13 @@
           "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
           "revision": "7279359e4481b5e9e185a318bd618e429c6d86cd",
           "downloadBytes": 756247988,
+          "architecture": "nemotron_asr"
+        },
+        "4b": {
+          "id": "nemotron-3.5-asr-streaming-0.6b-4bit-local",
+          "derivedFrom": "BF16",
+          "bits": 4,
+          "groupSize": 64,
           "architecture": "nemotron_asr"
         }
       },
