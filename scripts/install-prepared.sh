@@ -13,6 +13,14 @@ EXTRA=()
 OUTPUT="$("$TOOL" install --app "$APP" --destination "$DEST" --support "$SUPPORT" --keep-previous ${EXTRA[@]+"${EXTRA[@]}"})"
 PREVIOUS="$(sed -n 's/^previous: //p' <<<"$OUTPUT")"
 echo "installed $DEST; starting…"
+# The `vella` command for agents and scripts: a link into the app, so updates carry it along.
+BIN="${VELLA_BIN_DIR:-$HOME/.local/bin}"
+if [[ -x "$DEST/Contents/Helpers/vella" ]]; then
+  mkdir -p "$BIN" "$HOME/.local/share/vella"
+  ln -sfn "$DEST/Contents/Helpers/vella" "$BIN/vella"
+  printf '%s\n' "$DEST" > "$HOME/.local/share/vella/app-path"
+  case ":$PATH:" in *":$BIN:"*) echo "command: $BIN/vella" ;; *) echo "command: $BIN/vella (add $BIN to PATH)" ;; esac
+fi
 STATUS=0
 "$TOOL" ready --app "$DEST" --support "$SUPPORT" --timeout "${VELLA_READY_TIMEOUT:-1800}" || STATUS=$?
 if [[ $STATUS -ne 0 ]]; then
