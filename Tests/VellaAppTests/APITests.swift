@@ -58,16 +58,19 @@ for line in sys.stdin:
     let log: URL
     var dictationActive = false
 
-    init(availableMB: Double = 100_000, models names: [String] = ["fake-a", "fake-b"]) async throws {
+    /// `helper`/`modelPaths`: a real VellaWorker and real model folders (opt-in smokes) instead of the fake.
+    init(availableMB: Double = 100_000, models names: [String] = ["fake-a", "fake-b"], helper realHelper: URL? = nil, modelPaths: [String] = []) async throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-api-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         log = root.appendingPathComponent("requests.log")
         setenv("FAKE_LOG", log.path, 1)
         runtime = try Runtime.isolated(root, availableMB: availableMB)
-        let helper = root.appendingPathComponent("api-fake-worker.py")
-        try APIFakeWorker.script.write(to: helper, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
-        backend = Backend(helper: helper, requestTimeout: 10, runtime: runtime)
+        let helper = realHelper ?? root.appendingPathComponent("api-fake-worker.py")
+        if realHelper == nil {
+            try APIFakeWorker.script.write(to: helper, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        }
+        backend = Backend(helper: helper, requestTimeout: realHelper == nil ? 10 : 3600, runtime: runtime)
         runtime.dictation = backend
         runtime.resolver = { path, mode in
             let id = URL(fileURLWithPath: path).lastPathComponent
@@ -78,6 +81,10 @@ for line in sys.stdin:
             let folder = root.appendingPathComponent("models/\(name)")
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             list.append(APIModel(id: name, name: name.uppercased(), precision: "8b", path: folder.path, languages: ["en"], current: i == 0))
+        }
+        for (i, path) in modelPaths.enumerated() {
+            let id = URL(fileURLWithPath: path).lastPathComponent
+            list.append(APIModel(id: id, name: id, precision: "", path: path, current: list.isEmpty && i == 0))
         }
         models = StubModels(list)
         let api = runtime.support.appendingPathComponent("API")
@@ -424,6 +431,37 @@ final class APITests: XCTestCase {
         api.dictationActive = false
         let (firstCode, _, _) = try await first.value
         XCTAssertEqual(firstCode, 200)
+    }
+
+    /// Opt-in: the real VellaWorker on the MLX CPU device (no GPU) with a real model, through the API end to end.
+    /// VELLA_MLX_DEVICE=cpu VELLA_TEST_API_HELPER=<.app>/Contents/MacOS/VellaWorker VELLA_TEST_API_MODEL=<model dir>
+    @MainActor func testRealWorkerOnCPUDevice() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["VELLA_MLX_DEVICE"] == "cpu", let helper = env["VELLA_TEST_API_HELPER"], let model = env["VELLA_TEST_API_MODEL"] else {
+            throw XCTSkip("opt-in: VELLA_MLX_DEVICE=cpu, VELLA_TEST_API_HELPER and VELLA_TEST_API_MODEL")
+        }
+        // Refuse a worker that predates the CPU-device override: it would run on the GPU.
+        let binary = try Data(contentsOf: URL(fileURLWithPath: helper), options: .alwaysMapped)
+        guard binary.range(of: Data("VELLA_MLX_DEVICE".utf8)) != nil else { XCTFail("this VellaWorker ignores VELLA_MLX_DEVICE; it would use the GPU"); return }
+        let api = try await APIFixture(models: [], helper: URL(fileURLWithPath: helper), modelPaths: [model])
+        defer { api.close() }
+        let speech = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Resources/Calibration/speech.wav")
+        let m4a = api.root.appendingPathComponent("speech.m4a")
+        let convert = Process()
+        convert.executableURL = URL(fileURLWithPath: "/usr/bin/afconvert")
+        convert.arguments = ["-f", "m4af", "-d", "aac", speech.path, m4a.path]
+        try convert.run(); convert.waitUntilExit()
+        let started = Date()
+        let (code, _, data) = try await api.post(fields: ["model": "whisper-1", "response_format": "verbose_json"], file: m4a)
+        let body = String(decoding: data, as: UTF8.self)
+        XCTAssertEqual(code, 200, body)
+        let text = try XCTUnwrap((try JSONSerialization.jsonObject(with: data) as? [String: Any])?["text"] as? String)
+        print("real worker (CPU device) in \(String(format: "%.1f", Date().timeIntervalSince(started))) s: \(body)")
+        XCTAssertTrue(text.lowercased().contains("the sea unbroken all round"), text)
+        print("status test_hooks: \(api.runtime.status.test_hooks ?? [:])")
+        XCTAssertEqual(api.runtime.status.test_hooks?["VELLA_MLX_DEVICE"], "cpu", "the worker reported the CPU device")
+        XCTAssertEqual(api.leftovers(), [])
     }
 
     static func monoWAV(_ url: URL, seconds: Double) throws {
