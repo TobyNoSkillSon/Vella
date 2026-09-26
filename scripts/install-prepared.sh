@@ -13,8 +13,13 @@ EXTRA=()
 OUTPUT="$("$TOOL" install --app "$APP" --destination "$DEST" --support "$SUPPORT" --keep-previous ${EXTRA[@]+"${EXTRA[@]}"})"
 PREVIOUS="$(sed -n 's/^previous: //p' <<<"$OUTPUT")"
 echo "installed $DEST; starting…"
-if ! "$TOOL" ready --app "$DEST" --support "$SUPPORT" --timeout "${VELLA_READY_TIMEOUT:-1800}"; then
+STATUS=0
+"$TOOL" ready --app "$DEST" --support "$SUPPORT" --timeout "${VELLA_READY_TIMEOUT:-1800}" || STATUS=$?
+if [[ $STATUS -ne 0 ]]; then
+  # Not ready, or degraded (exit 3: running, but a model configured to stay loaded is not). Keep the rollback copy.
   [[ -z "$PREVIOUS" ]] || echo "Previous app kept at $PREVIOUS; to roll back, quit Vella and move it to $DEST." >&2
+  # VELLA_ACCEPT_DEGRADED=1: an explicit opt-in to finish a degraded install; the rollback copy is still kept.
+  [[ $STATUS -eq 3 && "${VELLA_ACCEPT_DEGRADED:-0}" == 1 ]] && exit 0
   exit 1
 fi
 # Ready: the previous app is no longer needed as a rollback.
