@@ -60,7 +60,8 @@ final class ModeLibraryTests: XCTestCase {
         let references = root.appendingPathComponent("ReferenceResults")
         try FileManager.default.createDirectory(at: references, withIntermediateDirectories: true)
         let source = ModelLibrary.resourceDirectory()
-        for file in ["models.json", "benchmark-policy.json", "streaming_worker.py"] {
+        let labResults = try LabFixtures.require("Resources/ReferenceResults")
+        for file in ["models.json", "benchmark-policy.json"] {
             try FileManager.default.copyItem(at: source.appendingPathComponent(file), to: root.appendingPathComponent(file))
         }
         let policy = try JSONSerialization.jsonObject(with: Data(contentsOf: source.appendingPathComponent("benchmark-policy.json"))) as! [String: Any]
@@ -68,7 +69,7 @@ final class ModeLibraryTests: XCTestCase {
         try Data("native fixture helper".utf8).write(to: helper)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
         let workerHash = SHA256.hash(data: try Data(contentsOf: helper)).map { String(format: "%02x", $0) }.joined()
-        let sourceResults = try FileManager.default.contentsOfDirectory(at: source.appendingPathComponent("ReferenceResults"), includingPropertiesForKeys: nil)
+        let sourceResults = try FileManager.default.contentsOfDirectory(at: labResults, includingPropertiesForKeys: nil)
         let candidate = try XCTUnwrap(sourceResults.first { $0.lastPathComponent.hasPrefix("formatted-M5Max-") })
         var record = try JSONSerialization.jsonObject(with: Data(contentsOf: candidate)) as! [String: Any]
         record["modelID"] = "nemotron-3.5-asr-streaming-0.6b-8bit"; record["clips"] = []

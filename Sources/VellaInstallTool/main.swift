@@ -1,29 +1,66 @@
 import Foundation
 import VellaCore
 
+// install: transactional swap of a verified, prepared Vella.app; launches it; prints
+//          `previous: <path>` when --keep-previous kept the old app for rollback.
+// ready:   waits until the installed app reports ready (see InstallReadiness); prints `ready: …`.
 @main struct VellaInstallTool {
-    static func value(_ key: String, in args: [String]) -> URL? {
+    static let usage = """
+    Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> [--keep-previous]
+           VellaInstallTool ready --app <installed Vella.app> --support <Vella support> [--timeout seconds] [--interval seconds] [--settle seconds]
+
+    """
+    static func value(_ key: String, in args: [String]) -> String? {
         guard let index = args.firstIndex(of: key), args.indices.contains(index + 1) else { return nil }
-        return URL(fileURLWithPath: args[index + 1])
+        return args[index + 1]
     }
+    static func url(_ key: String, in args: [String]) -> URL? { value(key, in: args).map { URL(fileURLWithPath: $0) } }
+
     static func main() {
         let args = Array(CommandLine.arguments.dropFirst())
-        guard args.first == "install", let app = value("--app", in: args),
-              let destination = value("--destination", in: args),
-              let support = value("--support", in: args),
-              let catalog = value("--catalog", in: args),
-              let downloader = value("--downloader", in: args) else {
-            fputs("Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> --catalog <models.json> --downloader <VellaModelTool>\n", stderr)
-            exit(2)
-        }
-        do {
-            try NativeInstaller(preparedApp: app, destination: destination, support: support,
-                                catalog: catalog, downloader: downloader).install()
-            print("Installed \(destination.path). Existing models, recordings and microphone choices were preserved.")
-            print("Legacy Runtimes folders remain untouched; remove them only after the native app is verified and you approve cleanup.")
-        } catch {
-            fputs("Vella installation stopped: \(error.localizedDescription)\n", stderr)
+        switch args.first {
+        case "install":
+            guard let app = url("--app", in: args), let destination = url("--destination", in: args),
+                  let support = url("--support", in: args) else { fputs(usage, stderr); exit(2) }
+            let installer = NativeInstaller(preparedApp: app, destination: destination, support: support)
+            installer.keepPrevious = args.contains("--keep-previous")
+            if let id = value("--bundle-id", in: args) { installer.bundleIdentifier = id } // lab candidates only
+            do {
+                let previous = try installer.install()
+                print("installed \(destination.path)")
+                if let previous { print("previous: \(previous.path)") }
+            } catch {
+                fputs("Vella installation stopped: \(error.localizedDescription)\n", stderr)
+                exit(1)
+            }
+        case "ready":
+            guard let app = url("--app", in: args), let support = url("--support", in: args) else { fputs(usage, stderr); exit(2) }
+            let timeout = value("--timeout", in: args).flatMap(Double.init) ?? 1800
+            let interval = value("--interval", in: args).flatMap(Double.init) ?? 5
+            let file = support.appendingPathComponent(InstallReadiness.statusFileName)
+            let deadline = Date().addingTimeInterval(timeout)
+            // A launch-set model failing with an error is accepted once it has stayed that way
+            // this long (the app retries a crashed worker 3 times within ~12 s).
+            let settle = value("--settle", in: args).flatMap(Double.init) ?? 60
+            var state = InstallReadiness.State.waiting("not checked")
+            var failingSince: Date?
+            repeat {
+                state = InstallReadiness.evaluate(status: try? Data(contentsOf: file)) { InstallReadiness.runs($0, app: app) }
+                switch state {
+                case .ready(let line): print("ready: \(line)"); exit(0)
+                case .failing(let reason):
+                    let since = failingSince ?? Date(); failingSince = since
+                    if Date().timeIntervalSince(since) >= settle { print("ready: Vella running, \(reason)"); exit(0) }
+                case .waiting: failingSince = nil
+                }
+                Thread.sleep(forTimeInterval: interval)
+            } while Date() < deadline
+            if case .waiting(let reason) = state {
+                fputs("not ready after \(Int(timeout)) s: \(reason). Status: \(file.path)\n", stderr)
+            }
             exit(1)
+        default:
+            fputs(usage, stderr); exit(2)
         }
     }
 }
