@@ -81,16 +81,27 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate {
         }
         return result
     }
-    private static func digest(_ file: URL, size: Int64, etag: String) throws -> Bool {
+    /// Verify a downloaded file against its Hub identity (SHA-256 for LFS, git blob SHA-1 otherwise).
+    static func digest(_ file: URL, size: Int64, etag: String) throws -> Bool {
         let handle = try FileHandle(forReadingFrom: file); defer { try? handle.close() }
+        // Each read returns an autoreleased buffer; on a Swift concurrency thread nothing drains them until the task
+        // ends, so without a pool per chunk verifying a multi-GB checkpoint kept the whole file in heap (Review 1 R12,
+        // the pattern FastPathGate.key already fixed).
+        func each(_ body: (Data) -> Void) throws {
+            while try autoreleasepool(invoking: {
+                guard let data = try handle.read(upToCount: 8 * 1024 * 1024), !data.isEmpty else { return false }
+                body(data)
+                return true
+            }) {}
+        }
         if etag.count == 64 {
             var hash = SHA256()
-            while let data = try handle.read(upToCount: 8 * 1024 * 1024), !data.isEmpty { hash.update(data: data) }
+            try each { hash.update(data: $0) }
             return hash.finalize().map { String(format: "%02x", $0) }.joined() == etag.lowercased()
         }
         var hash = Insecure.SHA1()
         hash.update(data: Data("blob \(size)\0".utf8))
-        while let data = try handle.read(upToCount: 8 * 1024 * 1024), !data.isEmpty { hash.update(data: data) }
+        try each { hash.update(data: $0) }
         return hash.finalize().map { String(format: "%02x", $0) }.joined() == etag.lowercased()
     }
     private static func size(_ url: URL) -> Int64? {
