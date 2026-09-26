@@ -243,9 +243,9 @@ final class ModelsTests: XCTestCase {
         let titles = delegate.menu.items.filter { !$0.isSeparatorItem }.map(\.title).dropFirst()   // header text varies
         XCTAssertEqual(Array(titles), ["1 model loaded · 1.3 GB in memory", "Start Dictation", "Mode", "Microphone", "Shortcuts",
                                        "Models…", "Keep Hot", "Memory",
-                                       "Copy Last Transcript", "Copy Skill for Your Agent", "Open Saved Recordings", "Open Vella Files", "Restart Worker", "Launch at Login",
+                                       "Copy Last Transcript", "Copy Skill for Your Agent", "Copy Diagnostics", "Open Saved Recordings", "Open Vella Files", "Restart Worker", "Launch at Login",
                                        "Support the developer…", "Quit Vella"])
-        for title in ["Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Skill for Your Agent", "Open Vella Files", "Restart Worker"] {
+        for title in ["Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Skill for Your Agent", "Copy Diagnostics", "Open Vella Files", "Restart Worker"] {
             XCTAssertNotNil(delegate.menu.item(withTitle: title)?.toolTip, title)
         }
         // Keep Hot choice applies through the settings source.
