@@ -387,6 +387,24 @@ final class Review1Tests: XCTestCase {
         try await waitUntil { !FileManager.default.fileExists(atPath: a8) && runtime.settings.launchSet.count == 1 }
         XCTAssertEqual(runtime.settings.launchSet.map(\.id), ["beta"])
     }
+
+    // MARK: Residual — a dictation that finds its model still loading waits for it
+
+    @MainActor func testResidualDictationDuringAPendingLoadAwaitsReadiness() async throws {
+        let runtime = try Runtime.isolated(root)
+        let backend = try dictation(runtime); defer { backend.shutdown() }
+        runtime.start(loadLaunchSet: false)
+        let model = path("alpha-delayload") // the fake takes 1 s to answer load
+        try FileManager.default.createDirectory(atPath: model, withIntermediateDirectories: true)
+        let loading = Task { try await runtime.load(runtime.resolve(model, mode: .dictation)) } // manual Load / launch set
+        try await waitUntil { runtime.status.loading == "alpha-delayload" }
+        let session = try recording("during-load", config: Configuration(model: model))
+        let text = try await backend.transcribe(try session.wav(for: session.manifest.segments[0]), config: Configuration(model: model))
+        XCTAssertEqual(text, "Fixture recognized speech.")
+        try await loading.value
+        XCTAssertEqual(backend.loadedModelIDs, ["alpha-delayload"], "one worker: the request used the loading one")
+        XCTAssertEqual(runtime.status.models["alpha-delayload"]?.residency, "manual")
+    }
 }
 
 final class Review1HubStub: URLProtocol {

@@ -386,6 +386,8 @@ import VellaCore
     var pending: (UUID, CheckedContinuation<[String: Any], Error>)?
     var deadline: DispatchWorkItem?
     var retiring = false
+    /// The worker acknowledged `load`. Until then the slot exists but must not take a request.
+    var loaded = false
     init(ref: ModelRef, process: Process, input: FileHandle) { self.ref = ref; self.process = process; self.input = input }
     var pid: Int32? { process.isRunning ? process.processIdentifier : nil }
 }
@@ -490,7 +492,10 @@ import VellaCore
 
     private func ensureSlot(_ ref: ModelRef, residency: ResidencyClass, generation: UUID) async throws -> DictationSlot {
         if let slot = slots[ref.id], slot.process.isRunning, !slot.retiring {
-            if slot.ref.path == ref.path { return slot }
+            if slot.ref.path == ref.path {
+                if !slot.loaded { try await awaitLoaded(slot, generation: generation) }
+                return slot
+            }
             return try await reload(slot, to: ref, residency: residency, generation: generation)
         }
         try await waitForRetired(generation: generation)
@@ -498,6 +503,19 @@ import VellaCore
         try await runtime.admit(ref)
         try checkStartup(generation)
         return try await launch(ref, residency: residency, generation: generation)
+    }
+    /// A request (or another Load) that finds its model still loading (a manual Load or the launch set started it)
+    /// waits for that load instead of failing with "already processing another segment". A failed load fails it.
+    private func awaitLoaded(_ slot: DictationSlot, generation: UUID) async throws {
+        let until = ProcessInfo.processInfo.systemUptime + requestTimeout + 5
+        while !slot.loaded {
+            try checkStartup(generation)
+            guard !slot.retiring, slot.process.isRunning else {
+                throw VellaError.message("\(slot.ref.displayName) did not finish loading. Saved audio is retained; try again.")
+            }
+            guard ProcessInfo.processInfo.systemUptime < until else { throw URLError(.timedOut) }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
     }
     /// Another precision of a loaded family: admit with the loaded one's memory credited, refuse before unloading
     /// anything, and put the working model back if the new one fails to load.
@@ -553,6 +571,7 @@ import VellaCore
             runtime.loadFailed(ref.id, message: (error as? VellaError)?.localizedDescription ?? "\(ref.displayName) did not load.")
             throw error
         }
+        slot.loaded = true
         runtime.register(ref, residency: residency) { [weak self] in await self?.unloadSlot(ref.id) }
         return slot
     }
