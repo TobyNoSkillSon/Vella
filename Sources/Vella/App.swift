@@ -572,7 +572,13 @@ final class GlobalShortcut {
                 runner.onObservation = { _, audio, processing in
                     observedAudio += audio; observedProcessing += processing
                 }
-                let text = try await runner.run(session)
+                let used = session.manifest.config.model
+                let restorePoint = temporaryPrecisionRestorePoint(for: used)
+                // Also after a failure or Stop; in its own task, so this task's cancellation cannot cut it short.
+                let restore: () async -> Void = { [backend] in if let restorePoint { await Task { await backend.restore(restorePoint, after: used) }.value } }
+                let text: String
+                do { text = try await runner.run(session) } catch { await restore(); throw error }
+                await restore()
                 if observedAudio > 0 {
                     CalibrationStore.observe(modelPath: session.manifest.config.model, audioSeconds: observedAudio, processingSeconds: observedProcessing)
                 }
@@ -598,6 +604,20 @@ final class GlobalShortcut {
                 update(.failed, reason + " Audio and completed segments are saved. Retry resumes unfinished segments; recovery copies only.")
             }
         }
+    }
+    /// A saved recording keeps the model it was recorded with. When that is another precision of the current model's
+    /// family, transcribing it replaces the loaded precision (one worker per family) and its launch-set entry. This
+    /// records the family first, so that afterwards `Backend.restore` puts it back and the table, the API and the next
+    /// dictation agree on the selected precision again. Nil when the recording uses the selected model itself.
+    private func temporaryPrecisionRestorePoint(for used: String) -> Backend.FamilyResidency? {
+        guard !used.isEmpty, FileManager.default.fileExists(atPath: used),
+              let data = try? Data(contentsOf: configurationURL),
+              let selected = (try? JSONDecoder().decode(Configuration.self, from: data))?.model, !selected.isEmpty,
+              URL(fileURLWithPath: used).standardizedFileURL.path != URL(fileURLWithPath: selected).standardizedFileURL.path else { return nil }
+        let runtime = backend.runtime
+        let family = runtime.resolve(used, mode: .dictation).id
+        guard runtime.resolve(selected, mode: .dictation).id == family else { return nil }
+        return backend.residency(of: family)
     }
     func retry() {
         guard phase == .failed, let savedSession else { return }

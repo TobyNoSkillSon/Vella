@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import Vella
 @testable import VellaCore
 
@@ -123,5 +124,58 @@ final class APISelectionConsistencyTests: XCTestCase {
         XCTAssertEqual(response.status, 200, String(decoding: response.body, as: UTF8.self))
         XCTAssertEqual(f.runtime.loadedRef("alpha")?.path, selected, "the request ran on the selected precision")
         XCTAssertEqual(try f.config().model, selected)
+    }
+
+    /// Retries a saved recording made with `path` through the app's model, as Retry or recovery does; returns the
+    /// models its segments were sent to.
+    @MainActor private func recoverRecording(_ f: TwoFamilyFixture, madeWith path: String) async throws -> [String] {
+        let session = try RecordingSession(root: root.appendingPathComponent("recordings"), config: Configuration(model: path))
+        let writer = try SegmentedPCMWriter(session: session)
+        try [Float](repeating: 0.1, count: 16_000).withUnsafeBufferPointer { try writer.append($0) }
+        try writer.finish(userStopped: true)
+        let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
+        var used: [String] = []
+        let backend = f.backend
+        let model = Model(pasteboard: pasteboard, transcriptionRequest: { url, config in
+            used.append(config.model); return try await backend.transcribe(url, config: config)
+        }, configurationURL: f.runtime.configURL, streamingBackend: f.stream, backend: f.backend)
+        model.recover(session.directory)
+        try await waitUntil { model.phase == .success }
+        XCTAssertEqual(pasteboard.string(forType: .string), "Fixture recognized speech.")
+        XCTAssertEqual(try RecordingSession(directory: session.directory).manifest.config.model, path, "the recording keeps its own model")
+        return used
+    }
+    /// Idle state after the recovery: config, table, loaded worker, launch set and the API all name the selected BF16.
+    @MainActor private func assertSelectedPrecisionEverywhere(_ f: TwoFamilyFixture, selected: String, loaded: Bool) throws {
+        XCTAssertEqual(try f.config().model, selected)
+        XCTAssertEqual(f.controller.selected(f.alpha), "BF16", "the table shows the selected precision")
+        XCTAssertEqual(f.runtime.loadedRef("alpha")?.path, loaded ? selected : nil)
+        XCTAssertEqual(f.runtime.settings.launchSet.map(\.path), loaded ? [selected] : [])
+        let alias = try XCTUnwrap(service(f, hold: { false }).resolve("whisper-1"))
+        XCTAssertEqual(alias.path, selected)
+        XCTAssertEqual(alias.precision, "BF16")
+        XCTAssertEqual(alias.loaded, loaded)
+    }
+
+    @MainActor func testSavedRecordingAtAnOlderPrecisionPutsTheSelectedOneBack() async throws {
+        let f = try TwoFamilyFixture(root); defer { f.close() }
+        try await f.load(f.alpha, "BF16")
+        let selected = try f.config().model
+        let older = try f.path(f.alpha, "4b")
+        let used = try await recoverRecording(f, madeWith: older)
+        XCTAssertEqual(used, [older], "the recording was transcribed at the precision it was made with")
+        try assertSelectedPrecisionEverywhere(f, selected: selected, loaded: true)
+    }
+
+    @MainActor func testSavedRecordingAtAnOlderPrecisionUnloadsItWhenNothingWasLoaded() async throws {
+        let f = try TwoFamilyFixture(root); defer { f.close() }
+        try await f.load(f.alpha, "BF16")
+        let selected = try f.config().model
+        await f.runtime.unload("alpha") // the selection stays
+        XCTAssertFalse(f.runtime.isLoaded("alpha"))
+        let older = try f.path(f.alpha, "4b")
+        let used = try await recoverRecording(f, madeWith: older)
+        XCTAssertEqual(used, [older])
+        try assertSelectedPrecisionEverywhere(f, selected: selected, loaded: false)
     }
 }

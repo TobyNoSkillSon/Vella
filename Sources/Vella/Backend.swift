@@ -122,6 +122,15 @@ import VellaCore
     }
     func isLoaded(_ id: String) -> Bool { entries[id] != nil }
     func loadedRef(_ id: String) -> ModelRef? { entries[id]?.ref }
+    func loadedResidency(_ id: String) -> ResidencyClass? { entries[id]?.residency }
+    /// Puts a family's launch-set entry back as it was (`nil`: none), after another precision of it was loaded
+    /// temporarily and registration replaced the entry.
+    func restoreLaunchEntry(_ id: String, to ref: ModelRef?) {
+        let before = settings.launchSet
+        if let ref { settings.join(ref) } else { settings.leave(id) }
+        if settings.launchSet != before { persistSettings() }
+        writeStatus()
+    }
     /// A request on this model that loads it: manual if it is in the launch set, else on demand.
     func residencyForRequest(_ ref: ModelRef) -> ResidencyClass {
         entries[ref.id]?.residency ?? (settings.launchSet.contains { $0.id == ref.id } ? .manual : .onDemand)
@@ -528,6 +537,32 @@ struct WorkerExited: LocalizedError {
         }, onCancel: { [weak self] in
             Task { @MainActor in if self?.activeCall == call { self?.stop() } }
         })
+    }
+
+    /// A family's residency at one moment: its loaded model and class, and its launch-set entry.
+    struct FamilyResidency {
+        let id: String
+        let loaded: ModelRef?
+        let residency: ResidencyClass?
+        let launchEntry: ModelRef?
+    }
+    func residency(of id: String) -> FamilyResidency {
+        FamilyResidency(id: id, loaded: runtime.loadedRef(id), residency: runtime.loadedResidency(id),
+                        launchEntry: runtime.settings.launchSet.first { $0.id == id })
+    }
+    /// After `used`, another precision of a family, served a request in place of what `before` recorded (one worker
+    /// per family): reload the recorded precision if it was loaded, else unload `used`, and put the launch-set entry
+    /// back. Nothing is loaded that was not loaded before. A failed reload keeps `used` and reports the error in status.
+    func restore(_ before: FamilyResidency, after used: String) async {
+        if let now = runtime.loadedRef(before.id), now.path == used {
+            if let loaded = before.loaded {
+                if loaded.path != used { try? await preload(loaded, residency: before.residency ?? .onDemand) }
+            } else {
+                await unloadSlot(before.id)
+                runtime.removed(before.id)
+            }
+        }
+        runtime.restoreLaunchEntry(before.id, to: before.launchEntry)
     }
 
     /// Menu Load / launch set / Reload. Returns once the worker reported the model loaded (and status was written).
