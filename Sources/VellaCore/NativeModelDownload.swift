@@ -1,6 +1,16 @@
 import Foundation
 import CryptoKit
 
+/// NeMo transducer checkpoints carry no `model_type`; these targets load as Parakeet: plain RNNT/TDT and the
+/// hybrid TDT-CTC (e.g. parakeet-tdt_ctc-110m). Mirrors the worker's `admitCheckpoint`.
+public let parakeetNemoTargets: Set<String> = ["nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel",
+                                               "nemo.collections.asr.models.hybrid_rnnt_ctc_bpe_models.EncDecHybridRNNTCTCBPEModel"]
+/// The architecture a checkpoint's config.json declares: `model_type`, else "parakeet" for a NeMo transducer target.
+public func checkpointArchitecture(_ config: [String: Any]?) -> String? {
+    if let type = config?["model_type"] as? String { return type }
+    return (config?["target"] as? String).flatMap { parakeetNemoTargets.contains($0) ? "parakeet" : nil }
+}
+
 /// The Hub is only a source of data. Neither repository code nor a Hub-provided
 /// path is ever executed; every byte is checked against the pinned revision's blob identity.
 public final class NativeModelDownload: NSObject, URLSessionDataDelegate {
@@ -248,7 +258,7 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate {
     public static func validate(_ folder: URL, expected: ModelRecommendation) throws {
         let manager = FileManager.default
         let config = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("config.json"))) as? [String: Any]
-        let architecture = config?["model_type"] as? String ?? ((config?["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel") ? "parakeet" : "")
+        let architecture = checkpointArchitecture(config) ?? ""
         guard architecture == expected.architecture else { throw DownloadError.invalid("Model architecture does not match recommendation") }
         for name in ["config.json", "tokenizer_config.json"] {
             let path = folder.appendingPathComponent(name)

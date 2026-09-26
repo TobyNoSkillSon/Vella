@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import VellaCore
 import IOKit
 import Darwin
 
@@ -106,7 +107,7 @@ import Darwin
             let model = URL(fileURLWithPath: modelPath).standardizedFileURL
             guard let config = try JSONSerialization.jsonObject(with: Data(contentsOf: model.appendingPathComponent("config.json"))) as? [String: Any],
                   config["auto_map"] == nil else { return nil }
-            let architecture = config["model_type"] as? String ?? ((config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel") ? "parakeet" : "")
+            let architecture = checkpointArchitecture(config) ?? ""
             guard ["whisper", "qwen3_asr", "parakeet", "sensevoice", "granite_speech"].contains(architecture) else { return nil }
             let files = try FileManager.default.contentsOfDirectory(at: model, includingPropertiesForKeys: nil).filter { !$0.lastPathComponent.hasPrefix(".") }.sorted { $0.path < $1.path }
             guard files.contains(where: { $0.pathExtension == "safetensors" }), files.count < 1024 else { return nil }

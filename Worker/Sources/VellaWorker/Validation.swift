@@ -69,7 +69,9 @@ func admitCheckpoint(_ path: URL) throws -> String {
     let config = try jsonObject(path.appendingPathComponent("config.json"))
     if let value = config["model_type"], !(value is NSNull), !(value is String) { throw RequestError.invalid }
     var architecture = config["model_type"] as? String
-    if architecture == nil, config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" { architecture = "parakeet" }
+    // NeMo transducer checkpoints carry no model_type: plain RNNT/TDT, and the hybrid TDT-CTC (e.g. parakeet-tdt_ctc-110m).
+    if architecture == nil, let target = config["target"] as? String, ["nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel",
+        "nemo.collections.asr.models.hybrid_rnnt_ctc_bpe_models.EncDecHybridRNNTCTCBPEModel"].contains(target) { architecture = "parakeet" }
     let stub = StubModel.enabled && architecture == "stub" // Test hook, reported in status.
     guard let architecture, stub || ["parakeet", "qwen3_asr", "whisper", "sensevoice", "granite_speech"].contains(architecture) else { throw RequestError.invalid }
     let rawQuant = pythonTruthy(config["quantization"]) ? config["quantization"] :

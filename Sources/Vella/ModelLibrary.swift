@@ -123,7 +123,7 @@ import VellaCore
             for (id, local) in installed where !models.contains(where: { $0.id == id }) {
                 if let bytes = try? Data(contentsOf: URL(fileURLWithPath: local.path).appendingPathComponent("config.json")),
                    let cfg = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
-                   let architecture = (cfg["model_type"] as? String) ?? ((cfg["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel") ? "parakeet" : nil), supports(architecture) {
+                   let architecture = checkpointArchitecture(cfg), supports(architecture) {
                     let bits = (cfg["quantization"] as? [String: Any])?["bits"] as? Int
                     models.append(ModelRecommendation(id: id, name: local.name ?? "Imported model", quantization: bits.map { "\($0)-bit" } ?? "Unquantized", repository: "", revision: "", downloadBytes: 0, architecture: architecture, license: "See imported model’s license", recommendation: "Local import · not a pinned Hub recommendation"))
                 }
