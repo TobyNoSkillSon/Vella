@@ -264,7 +264,7 @@ import VellaCore
     /// download did not start. `completion` runs once when it ends: true = installed.
     /// `pendingRecording`: the first-dictation Get row. The app is deliberately busy then (it holds the saved
     /// recording in `.preparing` until the model arrives), so that one download is authorized explicitly instead of
-    /// relaxing the general "not while dictating" guard (Review 1 R1). Busy/calibration guards still apply.
+    /// relaxing the general "not while dictating" guard. Busy/calibration guards still apply.
     /// `calibrate: false` skips local calibration afterwards (the model loads right away instead).
     @discardableResult
     func download(approval: DownloadApproval, pendingRecording: Bool = false, calibrate: Bool = true,

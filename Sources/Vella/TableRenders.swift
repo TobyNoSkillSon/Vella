@@ -3,7 +3,7 @@ import SwiftUI
 import VellaCore
 import VellaUpdate
 
-// Render harness after the Verdict-family pattern (Verdict 95ddba5, Sources/Verdict/TableRenders.swift).
+// Render harness for the Models table and the menu (documentation and review images).
 // Neither mode starts a worker, downloads, or writes settings: libraries use a temporary registry, the controller is
 // in preview mode, and the menu's model uses a temporary configuration file.
 // VELLA_BENCHMARKS=<file> renders against a fixture; VELLA_RENDER_CHIP='Apple M3 Pro' renders as another Mac.

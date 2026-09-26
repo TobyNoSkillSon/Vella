@@ -46,7 +46,7 @@ import VellaUpdate
             let file = support.appendingPathComponent(InstallReadiness.statusFileName)
             let settle = value("--settle", in: args).flatMap(Double.init) ?? 60
             // Degraded (a configured-hot model not loaded) is never reported as ready: the caller keeps its
-            // rollback copy (Review 1 R6).
+            // rollback copy.
             let result = InstallReadiness.wait(read: { try? Data(contentsOf: file) }, isInstalledApp: { InstallReadiness.runs($0, app: app) },
                                                timeout: timeout, interval: interval, settle: settle)
             if result.status == InstallReadiness.readyExit || result.status == InstallReadiness.degradedExit { print(result.line) }

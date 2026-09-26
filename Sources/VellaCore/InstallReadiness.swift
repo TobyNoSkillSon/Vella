@@ -7,7 +7,7 @@ import Darwin
 /// empty launch set, so it is ready with nothing loaded. A launch-set model the app refused
 /// for memory is settled but `.degraded`, never ready; one that failed with an error is
 /// `.failing` (the app may still restart it) and becomes degraded once it stays that way.
-/// Only `.ready` lets the installer discard the previous app (Review 1 R6).
+/// Only `.ready` lets the installer discard the previous app.
 public enum InstallReadiness {
     public static let statusFileName = "worker-status.json"
 

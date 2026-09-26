@@ -287,7 +287,7 @@ final class Worker {
         return ["chip": chip, "family": FastPathGate.gpuFamily]
     }()
     func status(_ event: String) -> [String: Any] {
-        // Every behaviour-changing or instrumenting env hook, component overrides included (Review 1 R7).
+        // Every behaviour-changing or instrumenting env hook, component overrides included.
         let hooks = FastPathGate.reportedEnvironment()
         var memory: [String: Any] = ["mlx_active_mb": Double(Memory.activeMemory) / 1e6, "mlx_cache_mb": Double(Memory.cacheMemory) / 1e6]
         if let footprint = processMemory()["processFootprintBytes"] { memory["footprint_mb"] = Double(footprint) / 1e6 }

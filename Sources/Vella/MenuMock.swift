@@ -1,6 +1,6 @@
 import AppKit
 
-// Source: Verdict 95ddba5, Sources/Verdict/UI.swift (MenuMock, TooltipSheet); generic, for documentation renders only.
+// MenuMock and TooltipSheet: generic drawing for documentation renders only.
 
 /// Draws NSMenuItems the way macOS does in dark mode. A real NSMenu cannot be rendered offscreen.
 final class MenuMock: NSView {

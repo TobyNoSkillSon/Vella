@@ -73,7 +73,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     // Fixed-size worker deltas: the live path never rescans all earlier speech.
     var onEvent: ((String, String, Bool) throws -> Void)?
     init(helper: URL? = nil, timeout: TimeInterval = 120, runtime: Runtime? = nil) {
-        // Memory pressure is the runtime's single policy (Review 1 R8): a live stream is pinned and never stopped;
+        // Memory pressure is the runtime's single policy: a live stream is pinned and never stopped;
         // an idle hot streaming model is shed like any other idle model.
         self.helperOverride = helper; self.timeout = timeout; self.runtime = runtime ?? .shared
     }
@@ -102,7 +102,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         guard !sessionActive, pending == nil else { throw VellaError.message("Finish streaming before loading another streaming model.") }
         try await ensureLoaded(ref, residency: residency, token: cancelToken)
     }
-    /// The one path that makes `ref` the hot streaming model, for start and preload alike (Review 1 R2). One streaming
+    /// The one path that makes `ref` the hot streaming model, for start and preload alike. One streaming
     /// model at a time: admission first (the model it replaces is credited, never chosen as a victim), then the old
     /// child is retired and awaited, then a new child is launched under a fresh epoch and asked to `load`. A reply,
     /// status line or EOF from an earlier child carries an old epoch and is ignored.
@@ -112,7 +112,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         let previousResidency = previous.map { runtime.residencyForRequest($0) } ?? .onDemand
         try await waitForRetired()
         try check(token)
-        // Refused → nothing was unloaded (Review 1 R3).
+        // Refused → nothing was unloaded.
         try await runtime.admit(ref, replacing: previous?.id)
         try check(token)
         if process != nil || loadingRef != nil || hotRef != nil { retire() }
@@ -124,8 +124,8 @@ final class StreamingPCMBuffer: @unchecked Sendable {
             try check(token)
         } catch {
             // The new model failed to load: put the working one back with its residency (as dictation's reload does).
-            // Never after a stop/release/shutdown, including one that arrives while the restore waits or loads
-            // (Review 1 R13): cancellation is re-checked after every suspension, and a worker restored across a
+            // Never after a stop/release/shutdown, including one that arrives while the restore waits or loads:
+            // cancellation is re-checked after every suspension, and a worker restored across a
             // cancellation is retired again.
             if let previous, !(error is CancellationError), cancelToken == token {
                 do {
@@ -205,7 +205,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     }
     private func endSession() {
         guard sessionActive else { return }
-        // The terminal reply is consumed: from now on an EOF is an idle hot worker dying (Review 1 R9).
+        // The terminal reply is consumed: from now on an EOF is an idle hot worker dying.
         sessionActive = false; receivedDone = false
         if let id = hotRef?.id { runtime.unpin(id) }
     }
@@ -285,7 +285,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         // A valid terminal reply may be followed by EOF before its awaiting Task
         // resumes. Keep its epoch until finish() consumes that reply. Only that short window counts: once finish()
         // has consumed the reply (the session ended), an EOF is an idle hot worker exiting and follows the restart
-        // policy below (Review 1 R9).
+        // policy below.
         if receivedDone && pending == nil && sessionActive {
             // Legacy worker that exits after finish: the result stands, the model is no longer hot.
             let id = hotRef?.id; hotRef = nil; process = nil
