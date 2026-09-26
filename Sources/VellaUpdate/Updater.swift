@@ -212,6 +212,11 @@ public struct IdentityCheck {
             let cn = signature.kind[range].split(separator: "\"").dropFirst().first.map(String.init)
             if let cn { return cn }
         }
+        // A self-signed identity: certificate root = H"<sha1>" (or leaf).
+        if let range = signature.kind.range(of: #"certificate (root|leaf) = H"[0-9a-fA-F]{8}"#, options: .regularExpression) {
+            return "certificate " + signature.kind[range].suffix(8)
+        }
+        if signature.kind.contains("anchor apple\n") || signature.kind.hasSuffix("anchor apple") { return "Apple" }
         return "another certificate"
     }
 

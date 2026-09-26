@@ -293,10 +293,10 @@ import VellaUpdate
                 // dark alert colour.
                 if let view = window.contentView, let rep = NSBitmapImageRep(bitmapDataPlanes: nil,
                         pixelsWide: Int(view.bounds.width * window.backingScaleFactor), pixelsHigh: Int(view.bounds.height * window.backingScaleFactor),
-                        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
-                   let context = NSGraphicsContext(bitmapImageRep: rep) {
+                        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
                     window.displayIfNeeded()
-                    rep.size = view.bounds.size
+                    rep.size = view.bounds.size          // points; set before the context so it draws at the backing scale
+                    guard let context = NSGraphicsContext(bitmapImageRep: rep) else { window.orderOut(nil); done(); return }
                     NSGraphicsContext.saveGraphicsState()
                     NSGraphicsContext.current = context
                     NSColor(calibratedRed: 0.17, green: 0.17, blue: 0.18, alpha: 1).setFill()

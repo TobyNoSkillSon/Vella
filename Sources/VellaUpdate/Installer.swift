@@ -15,10 +15,13 @@ public struct InstallPlan: Codable, Equatable, Sendable {
     public var waitForPID: Int32?
     /// Application Support/Vella (VELLA_SUPPORT_DIR): worker-status.json, dictation-status.json, update-result.json.
     public var supportDirectory: String
+    /// Lab candidates with another bundle id only (as `VellaInstallTool install --bundle-id`); the app never sets it.
+    public var bundleIdentifier: String?
 
-    public init(staged: StagedUpdate, destination: String, from: String, waitForPID: Int32? = nil, supportDirectory: String) {
+    public init(staged: StagedUpdate, destination: String, from: String, waitForPID: Int32? = nil, supportDirectory: String,
+                bundleIdentifier: String? = nil) {
         self.staged = staged; self.destination = destination; self.from = from
-        self.waitForPID = waitForPID; self.supportDirectory = supportDirectory
+        self.waitForPID = waitForPID; self.supportDirectory = supportDirectory; self.bundleIdentifier = bundleIdentifier
     }
 }
 
@@ -97,6 +100,7 @@ public final class UpdateInstaller {
         }
         let installer = NativeInstaller(preparedApp: URL(fileURLWithPath: plan.staged.app), destination: destination, support: support)
         installer.keepPrevious = true
+        if let id = plan.bundleIdentifier { installer.bundleIdentifier = id }
         let launch = self.launch
         installer.launch = { launch($0) }
         configure(installer)

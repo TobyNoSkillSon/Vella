@@ -200,6 +200,27 @@ final class IdentityTests: XCTestCase {
         XCTAssertThrowsError(try check(running: dr, download: dr, satisfied: false)) { XCTAssertTrue($0.localizedDescription.contains("different identity")) }
     }
 
+    /// The certificate path end to end on real certificate-signed code (macOS's own apps): the same designated
+    /// requirement matches and is satisfied; another app's requirement is a mismatch.
+    func testCertificatePathOnSystemApps() throws {
+        let calculator = URL(fileURLWithPath: "/System/Applications/Calculator.app"), chess = URL(fileURLWithPath: "/System/Applications/Chess.app")
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: calculator.path) && FileManager.default.fileExists(atPath: chess.path))
+        var identity = IdentityCheck()
+        identity.bundleIdentifier = "com.apple.calculator"
+        XCTAssertNoThrow(try identity.check(downloaded: calculator, running: calculator))
+        XCTAssertThrowsError(try identity.check(downloaded: chess, running: calculator)) {
+            XCTAssertTrue($0.localizedDescription.contains("signed by a different identity"))
+        }
+        XCTAssertNoThrow(try IdentityCheck.codeSatisfies(chess, "anchor apple"))
+        XCTAssertThrowsError(try IdentityCheck.codeSatisfies(chess, #"identifier "com.apple.calculator" and anchor apple"#))
+    }
+
+    func testDescribesSelfSignedIdentities() {
+        XCTAssertEqual(IdentityCheck.describe(.init(#"designated => identifier "dev.vella.dictation" and certificate root = H"0a1b2c3d4e5f60718293a4b5c6d7e8f901234567""#)),
+                       "certificate 0a1b2c3d")
+        XCTAssertEqual(IdentityCheck.describe(.init("adhoc")), "ad-hoc")
+    }
+
     func testUnverifiableRunningAppSaysSo() throws {
         var identity = IdentityCheck()
         identity.signature = { url in if url.path.hasPrefix("/running") { throw NativeInstallError.message("broken") }; return .init("adhoc") }
