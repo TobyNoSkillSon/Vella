@@ -104,10 +104,10 @@ struct APITranscript {
 }
 
 /// Runs API transcriptions on the dictation runtime without ever getting in dictation's way: one file at a time
-/// (FIFO), a segment starts only while no dictation is active and no model is being loaded or selected, the model
-/// loads outside the request lane, and the dictation model is kept out of eviction while an API job runs. Audio and
-/// text stay in a private temporary directory that is removed when the request ends; nothing is pasted, journalled or
-/// kept.
+/// (FIFO), a segment starts only while no dictation is active and no model is being loaded or selected, every model
+/// load (for the first segment or any later one) happens outside the request lane, and the dictation model is kept out
+/// of eviction while an API job runs. Audio and text stay in a private temporary directory that is removed when the
+/// request ends; nothing is pasted, journalled or kept.
 ///
 /// The model is resolved again right before every load and every segment (with no suspension point before the worker
 /// call), and so is the current dictation model that is kept out of eviction. A request that waited while the user
@@ -159,26 +159,43 @@ struct APITranscript {
             }
             return ref
         }
-        // Load outside the request lane, so a dictation that finishes meanwhile never waits for this model to load.
-        try await retryingDictationStops {
-            try await waitForTurn()
-            let ref = try now()
-            guard runtime.loadedRef(ref.id)?.path != ref.path else { return }
-            do { try await backend.preload(ref, residency: .onDemand) }
-            catch let error as VellaError {
-                if let refused = runtime.status.refused, refused.model == ref.id, Date().timeIntervalSince1970 - refused.at < 5 {
-                    throw APIError(507, refused.message, type: "server_error", code: "insufficient_memory")
+        /// Waits for its turn with the model `now()` names loaded, loading it outside the request lane whenever it is
+        /// not (the first segment, a model selected between segments, one evicted or unloaded meanwhile), so a
+        /// dictation that finishes during the load never waits for it. After every load the turn and the model are
+        /// checked again: a dictation that started meanwhile goes first, and a selection made meanwhile wins. Returns
+        /// with no suspension point left before the caller's worker call.
+        func ready() async throws {
+            var loads = 0
+            while true {
+                try await waitForTurn()
+                let ref = try now()
+                if backend.isReady(ref) { return }
+                guard loads < 3 else { throw APIError(500, "\(ref.displayName) did not stay loaded; try again.", code: "model_load_failed") }
+                loads += 1
+                do { try await backend.preload(ref, residency: .onDemand) }
+                catch let error as VellaError {
+                    if let refused = runtime.status.refused, refused.model == ref.id, Date().timeIntervalSince1970 - refused.at < 5 {
+                        throw APIError(507, refused.message, type: "server_error", code: "insufficient_memory")
+                    }
+                    throw APIError(500, error.localizedDescription, code: "model_load_failed")
                 }
-                throw APIError(500, error.localizedDescription, code: "model_load_failed")
             }
         }
+        try await retryingDictationStops { try await ready() }
         let runner = SessionTranscriber { [weak self] url, config in
             guard let self else { throw CancellationError() }
             return try await self.retryingDictationStops {
-                try await self.waitForTurn()
-                _ = try now()
-                var segment = config; segment.model = model.path
-                return try await self.backend.transcribe(url, config: segment, lane: .api)
+                var attempts = 0
+                while true {
+                    try await ready()
+                    var segment = config; segment.model = model.path
+                    do { return try await self.backend.transcribe(url, config: segment, lane: .api) }
+                    catch is Backend.ModelNotReady {
+                        // Unloaded between the check and the call: load it again, outside the lane.
+                        attempts += 1
+                        if attempts >= 3 { throw APIError(500, "\(model.name) did not stay loaded; try again.", code: "model_load_failed") }
+                    }
+                }
             }
         }
         do { _ = try await runner.run(session) }

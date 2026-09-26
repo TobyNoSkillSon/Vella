@@ -434,6 +434,15 @@ struct WorkerExited: LocalizedError {
     enum Lane { case dictation, api }
     /// A transcription request is in flight.
     var isBusy: Bool { activeCall != nil }
+    /// An API request never loads a model inside the request lane, where a dictation would wait for the whole load:
+    /// `transcribe` on `.api` throws this when its model is not loaded and ready, and the caller loads it with
+    /// `preload` (outside the lane) first.
+    struct ModelNotReady: Error {}
+    /// This model's worker has these files loaded and can take a request now, without a load.
+    func isReady(_ ref: ModelRef) -> Bool {
+        guard let slot = slots[ref.id] else { return false }
+        return slot.loaded && !slot.retiring && slot.process.isRunning && slot.ref.path == ref.path
+    }
     private var lastSlot: String?
     private(set) var lastMetrics: [String: Double] = [:]
     private(set) var ownership = "Vella runtime unloaded"
@@ -499,6 +508,7 @@ struct WorkerExited: LocalizedError {
             try await CalibrationStore.shared.cancelAndWait()
             try checkStartup(generation)
             let ref = runtime.resolve(config.model, mode: .dictation)
+            if lane == .api, !isReady(ref) { throw ModelNotReady() }
             let slot = try await ensureSlot(ref, residency: runtime.residencyForRequest(ref), generation: generation)
             try checkStartup(generation)
             try Task.checkCancellation()
