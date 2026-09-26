@@ -1236,6 +1236,11 @@ public class Qwen3ASRModel: Module {
     public private(set) var fastEncoder = false
     private var towerCheckpointDType: DType?
     var lastEncoderFinite = true
+    /// Every consumed optimized-decoder step had finite logits (Review 1 R11), over the whole last `generate` call.
+    var lastDecoderFinite = true
+    /// Test hook (reported in worker status, never inherited by the gate's self-test child): make the optimized
+    /// decoder's logits non-finite from this step on, after a finite encoder result, to prove the stock fallback.
+    static let testDecoderFaultStep: Int? = ProcessInfo.processInfo.environment["VELLA_TEST_DECODER_NONFINITE"].flatMap(Int.init)
     /// Generated token IDs of the most recent chunk (EOS excluded), for parity and self-tests.
     public private(set) var lastTokens: [Int] = []
 
@@ -1272,7 +1277,7 @@ public class Qwen3ASRModel: Module {
 
         let audioFeatures = getAudioFeatures(inputFeatures, featureAttentionMask: featureAttentionMask)
         eval(audioFeatures)
-        if fastEncoder { lastEncoderFinite = MLX.isNaN(audioFeatures).any().item(Bool.self) == false && MLX.isInf(audioFeatures).any().item(Bool.self) == false }
+        if fastEncoder { lastEncoderFinite = lastEncoderFinite && MLX.isNaN(audioFeatures).any().item(Bool.self) == false && MLX.isInf(audioFeatures).any().item(Bool.self) == false }
         if profiling { profile.conv += Qwen3ASRModel.encoderClock.conv; profile.layers += Qwen3ASRModel.encoderClock.layers }
         if profiling { let t = now(); profile.encoder += t - mark; mark = t; profile.promptTokens += promptTokenCount }
 
@@ -1317,7 +1322,19 @@ public class Qwen3ASRModel: Module {
             firstLast = firstLast / temperature
         }
         var prevTokenArr = firstLast.argMax(axis: -1)
-        asyncEval(prevTokenArr)
+        // Optimized decoder numerics (Review 1 R11): per step, the logits' sum is finite iff every logit is (NaN
+        // propagates; +Inf/-Inf give Inf or NaN; finite bf16 logits cannot overflow a vocabulary-sized sum). One
+        // scalar reduction per step, evaluated together with its token and read once after the loop, only for the
+        // steps whose tokens were consumed: no extra host sync per step.
+        let checksDecoder = fastDecode && repetitionPenalty == 1.0
+        var consumedSums: [MLXArray] = []
+        if checksDecoder {
+            let firstSum = firstLast.sum()
+            consumedSums.append(firstSum)
+            asyncEval(prevTokenArr, firstSum)
+        } else {
+            asyncEval(prevTokenArr)
+        }
 
         var generatedTokens: [Int] = []
 
@@ -1331,12 +1348,22 @@ public class Qwen3ASRModel: Module {
         // queued before the host reads token N, so graph construction and Metal
         // encoding overlap GPU compute instead of alternating with it. Same ops and
         // shapes as the loop below (token-exact); one extra step is computed after EOS.
-        if fastDecode && repetitionPenalty == 1.0 {
-            func step(_ token: MLXArray) -> MLXArray {
-                callAsFunction(inputIds: token.reshaped(1, 1).asType(.int32), cache: cache)[0..., -1, 0...].argMax(axis: -1)
+        if checksDecoder {
+            var stepIndex = 0
+            func step(_ token: MLXArray) -> (token: MLXArray, sum: MLXArray) {
+                stepIndex += 1
+                var logits = callAsFunction(inputIds: token.reshaped(1, 1).asType(.int32), cache: cache)[0..., -1, 0...]
+                if let fault = Qwen3ASRModel.testDecoderFaultStep, stepIndex >= fault { logits = logits + MLXArray(Float.nan) }
+                return (logits.argMax(axis: -1), logits.sum())
             }
-            var queued: MLXArray? = maxTokens > 1 ? step(prevTokenArr) : nil
-            if let queued { asyncEval(queued) }
+            var queued: (token: MLXArray, sum: MLXArray)? = maxTokens > 1 ? step(prevTokenArr) : nil
+            if let queued { asyncEval(queued.token, queued.sum) }
+            defer {
+                if !consumedSums.isEmpty {
+                    let sums = stacked(consumedSums)
+                    lastDecoderFinite = lastDecoderFinite && !logicalOr(MLX.isNaN(sums), MLX.isInf(sums)).any().item(Bool.self)
+                }
+            }
             for tokenIndex in 0..<maxTokens {
                 let waitStart = profiling ? now() : 0
                 let token = prevTokenArr.item(Int.self)
@@ -1348,9 +1375,10 @@ public class Qwen3ASRModel: Module {
                 generatedTokens.append(token)
                 if generatedTokens.count >= 24 && Set(generatedTokens.suffix(24)).count <= 3 { break }
                 guard tokenIndex < maxTokens - 1, let next = queued else { break }
-                prevTokenArr = next
-                queued = tokenIndex + 1 < maxTokens - 1 ? step(next) : nil
-                if let queued { asyncEval(queued) }
+                prevTokenArr = next.token
+                consumedSums.append(next.sum) // read in the next iteration: a consumed step
+                queued = tokenIndex + 1 < maxTokens - 1 ? step(next.token) : nil
+                if let queued { asyncEval(queued.token, queued.sum) }
                 if tokenIndex > 0 && tokenIndex % 256 == 0 { Memory.clearCache() }
             }
             let decodedText = tokenizer.decode(tokens: generatedTokens)
@@ -1438,6 +1466,8 @@ public class Qwen3ASRModel: Module {
     ) -> STTOutput {
         let startTime = Date()
         let forcedLanguage = normalizeLanguageName(language)
+        // Finiteness covers every chunk of this call (a long segment is several chunks).
+        lastEncoderFinite = true; lastDecoderFinite = true
 
         // Split audio into chunks
         let chunks = splitAudioIntoChunks(
@@ -1966,10 +1996,11 @@ extension Qwen3ASRModel: FastPathCapable {
             fastEncoder = enabled
             lastEncoderFinite = true
         }
+        if decoder { lastDecoderFinite = true }
         return true
     }
 
-    public var fastPathFinite: Bool { lastEncoderFinite }
+    public var fastPathFinite: Bool { lastEncoderFinite && lastDecoderFinite }
 
     public var fastPathComponents: [String: Bool] { ["decoder": fastDecode, "encoder": fastEncoder] }
 
