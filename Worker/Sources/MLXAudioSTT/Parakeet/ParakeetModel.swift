@@ -447,7 +447,8 @@ public final class ParakeetModel: Module, STTGenerationModel {
         let t2 = CFAbsoluteTimeGetCurrent()
         if let handle = FileHandle(forWritingAtPath: profile) {
             _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: Data("\(features.shape[1]) \(t1 - t0) \(t2 - t1)\n".utf8))
+            let finiteEncoded = MLX.all(MLX.isFinite(encoded.0)).item(Bool.self)
+            try? handle.write(contentsOf: Data("\(features.shape[1]) \(t1 - t0) \(t2 - t1) enc_finite=\(finiteEncoded) fast_finite=\(fastPathFinite) err=\(fastPathError ?? "-")\n".utf8))
             try? handle.close()
         }
         return result

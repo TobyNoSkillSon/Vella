@@ -66,7 +66,16 @@ func admit(_ path: URL) throws -> String {
         pythonTruthy(config["quantization_config"]) ? config["quantization_config"] : [:]
     guard let quant = rawQuant as? [String: Any] else { throw RequestError.invalid }
     if let bits = quant["bits"], !(bits is NSNull) {
-        guard let n = bits as? NSNumber, n == 4 || n == 8 else { throw RequestError.invalid }
+        guard let n = bits as? NSNumber else { throw RequestError.invalid }
+        // Never below 4 bits by quantisation. The one exception is a checkpoint trained
+        // ternary (Parakeet Redux): its 2-bit MLX form is the exact native weights, marked
+        // by the upstream ternary.json that ships with it.
+        let nativeTernary = n == 2 && architecture == "parakeet" && {
+            guard let meta = try? jsonObject(path.appendingPathComponent("ternary.json")),
+                  let q = meta["quant"] as? [String: Any], q["mode"] as? String == "ternary" else { return false }
+            return (q["group_size"] as? NSNumber) == (quant["group_size"] as? NSNumber)
+        }()
+        guard n == 4 || n == 8 || nativeTernary else { throw RequestError.invalid }
     }
     for name in ["config.json", "tokenizer_config.json"] {
         let url = path.appendingPathComponent(name)
