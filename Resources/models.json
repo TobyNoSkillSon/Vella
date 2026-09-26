@@ -2,6 +2,52 @@
   "schema": 2,
   "families": [
     {
+      "id": "parakeet-v3-ultra",
+      "name": "Parakeet v3 Ultra",
+      "mode": "dictation",
+      "languages": [
+        "bg",
+        "hr",
+        "cs",
+        "da",
+        "nl",
+        "en",
+        "et",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "hu",
+        "it",
+        "lv",
+        "lt",
+        "mt",
+        "pl",
+        "pt",
+        "ro",
+        "sk",
+        "sl",
+        "es",
+        "sv",
+        "ru",
+        "uk"
+      ],
+      "params": "0.6B",
+      "license": "cc-by-4.0",
+      "native": "BF16",
+      "variants": {
+        "BF16": {
+          "id": "parakeet-ultra-mlx-bf16",
+          "repository": "selcukkubur/parakeet-ultra-mlx",
+          "revision": "b554592c50b2a48471add2daa3d46fa9f00fef5e",
+          "downloadBytes": 1254840214,
+          "architecture": "parakeet"
+        }
+      },
+      "offered": true,
+      "notes": "Moondream's post-trained Parakeet v3 (moondream/parakeet-ultra @73175eb), MLX conversion by selcukkubur (tensor-identical to the upstream weights). BF16 only: no public quantized MLX conversion exists."
+    },
+    {
       "id": "parakeet-v3",
       "name": "Parakeet v3",
       "mode": "dictation",
@@ -59,52 +105,6 @@
         }
       },
       "offered": true
-    },
-    {
-      "id": "parakeet-v3-ultra",
-      "name": "Parakeet v3 Ultra",
-      "mode": "dictation",
-      "languages": [
-        "bg",
-        "hr",
-        "cs",
-        "da",
-        "nl",
-        "en",
-        "et",
-        "fi",
-        "fr",
-        "de",
-        "el",
-        "hu",
-        "it",
-        "lv",
-        "lt",
-        "mt",
-        "pl",
-        "pt",
-        "ro",
-        "sk",
-        "sl",
-        "es",
-        "sv",
-        "ru",
-        "uk"
-      ],
-      "params": "0.6B",
-      "license": "cc-by-4.0",
-      "native": "BF16",
-      "variants": {
-        "BF16": {
-          "id": "parakeet-ultra-mlx-bf16",
-          "repository": "selcukkubur/parakeet-ultra-mlx",
-          "revision": "b554592c50b2a48471add2daa3d46fa9f00fef5e",
-          "downloadBytes": 1254840214,
-          "architecture": "parakeet"
-        }
-      },
-      "offered": true,
-      "notes": "Moondream's post-trained Parakeet v3 (moondream/parakeet-ultra @73175eb), MLX conversion by selcukkubur (tensor-identical to the upstream weights). BF16 only: no public quantized MLX conversion exists."
     },
     {
       "id": "qwen3-asr-1.7b",

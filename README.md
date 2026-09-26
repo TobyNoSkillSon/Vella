@@ -43,10 +43,10 @@ Measured on Apple M5 Max, macOS 26.6, 2026-09-26. WER and Format on the 240-minu
 
 | Model | Mode | Precision | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|
+| Parakeet v3 Ultra | Dictation | BF16 (recommended) | 15.52 | 5.76 | 5/9 | 372× | 5.4 | 1,747 MB | v2 |
 | Parakeet v3 | Dictation | FP32 (recommended) | 16.43 | 7.97 | 5/9 | 298× | 7.1 | 3,225 MB | v2 |
 | Parakeet v3 | Dictation | 8b | 16.55 | 8.05 | 5/9 | 274× | 9.9 | 1,785 MB | v2 |
 | Parakeet v3 | Dictation | 4b | 17.84 | 9.24 | 5/9 | 273× | 9.8 | 1,520 MB | v2 |
-| Parakeet v3 Ultra | Dictation | BF16 (recommended) | 15.52 | 5.76 | 5/9 | 372× | 5.4 | 1,747 MB | v2 |
 | Qwen3 ASR 1.7B | Dictation | BF16 | 15.06 | 6.74 | 9/9 | 26× | 78.1 | 5,177 MB | v2 |
 | Qwen3 ASR 1.7B | Dictation | 8b (recommended) | 15.16 | 6.65 | 9/9 | 39× | 65.9 | 3,749 MB | v2 |
 | Qwen3 ASR 1.7B | Dictation | 4b | 18.41 | 7.19 | 9/9 | 54× | 58.4 | 2,915 MB | v2 |

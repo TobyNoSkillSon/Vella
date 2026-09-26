@@ -43,6 +43,8 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(offered, ["parakeet-v3": ["FP32", "8b", "4b"], "parakeet-v3-ultra": ["BF16"],
                                  "qwen3-asr-1.7b": ["BF16", "8b", "4b"], "nemotron-3.5-streaming-0.6b": ["BF16", "8b"]])
         XCTAssertEqual(catalog.family("parakeet-v3")?.native, "FP32", "the Parakeet v3 checkpoint is FP32 on disk")
+        // The first offered Dictation family is the first-dictation Get offer (RuntimeBridge.offer): Ultra BF16, 1.25 GB.
+        XCTAssertEqual(catalog.offered(.dictation).first?.id, "parakeet-v3-ultra")
         for id in ["qwen3-asr-0.6b", "whisper-large-v3", "whisper-large-v3-turbo", "sensevoice-small", "granite-4.0-1b-speech", "voxtral-mini-4b-realtime"] {
             XCTAssertEqual(catalog.family(id)?.offered, false, id)
         }
