@@ -47,14 +47,20 @@ import VellaCore
     func ref(path: String, mode: RecognitionMode) -> ModelRef? {
         guard let controller else { return nil }
         let library = controller.library(mode)
-        guard let id = library.installed.first(where: { $0.value.path == path })?.key,
-              let (family, precision) = controller.catalog.locate(variant: id) else { return nil }
-        return ref(family, precision, path: path)
+        if let id = library.installed.first(where: { $0.value.path == path })?.key,
+           let (family, precision) = controller.catalog.locate(variant: id) { return ref(family, precision, path: path) }
+        // A locally derived precision: its directory holds only the manifest naming family and precision.
+        guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = controller.catalog.family(manifest.family),
+              family.isDerived(manifest.precision) else { return nil }
+        return ref(family, manifest.precision, path: path)
     }
+    /// Admission sizes: weights at this precision (a derived one is estimated from its source) and memory — measured
+    /// when benchmarks.json has it, else scaled from a measured precision of the family (DerivedModels.swift).
     private func ref(_ family: ModelFamily, _ precision: String, path: String) -> ModelRef {
-        ModelRef(id: family.id, precision: precision, path: path, mode: family.mode, name: family.name,
-                 diskBytes: family.variants[precision]?.downloadBytes, memoryMB: controller?.result(family, precision)?.memory_mb,
-                 precisionOptions: precisionOptions(family))
+        let memory = controller.flatMap { estimatedMemory(family: family, precision: precision, benchmarks: $0.benchmarks) }
+        return ModelRef(id: family.id, precision: precision, path: path, mode: family.mode, name: family.name,
+                        diskBytes: estimatedWeightBytes(family, precision).map { Int64($0) }, memoryMB: memory?.mb,
+                        precisionOptions: precisionOptions(family))
     }
 
     // MARK: ModelRuntimeActions
