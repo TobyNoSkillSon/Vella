@@ -2,8 +2,9 @@ import Foundation
 import VellaCore
 
 /// The app's models for the API: dictation families with weights on this Mac, from the Models table's catalog.
+/// Holds the table's controller strongly (the controller never references the source, so there is no cycle).
 @MainActor final class ControllerModelSource: APIModelSource {
-    private weak var controller: ModelsController?
+    let controller: ModelsController
     let runtime: Runtime
     init(controller: ModelsController, runtime: Runtime) { self.controller = controller; self.runtime = runtime }
 
@@ -13,7 +14,6 @@ import VellaCore
     }
 
     func models() -> [APIModel] {
-        guard let controller else { return [] }
         let current = currentPath
         let currentIdentity = controller.identify(path: current, mode: .dictation)
         var result: [APIModel] = []
@@ -43,14 +43,14 @@ import VellaCore
     }
 
     func unavailableReason(_ id: String) -> String? {
-        guard let family = controller?.catalog.families.first(where: { $0.id.lowercased() == id.lowercased() }) else { return nil }
+        guard let family = controller.catalog.families.first(where: { $0.id.lowercased() == id.lowercased() }) else { return nil }
         if family.mode == .streaming { return "\(family.name) is a Streaming model; the API transcribes files with Dictation models (see GET /v1/models)." }
         return "\(family.name) is not downloaded. Get it in Vella → Models… (Vella never downloads without asking)."
     }
 
     func prepare(_ model: APIModel) throws -> APIModel {
         guard model.path.isEmpty else { return model }
-        guard let controller, let family = controller.catalog.family(model.id), let variant = family.variants[model.precision],
+        guard let family = controller.catalog.family(model.id), let variant = family.variants[model.precision],
               variant.isDerived, let source = family.downloadSource(of: model.precision),
               let local = controller.library(.dictation).installed[source.variant.id] else {
             throw APIError(500, "\(model.name) has no files at \(model.precision)")
@@ -98,4 +98,9 @@ import VellaCore
         } catch { runtime.log("api: \(error.localizedDescription)") }
     }
     func stop() { server?.stop(); server = nil }
+}
+
+extension AppDelegate {
+    /// The launch wiring of the API (App.swift's main): the delegate's model and its Models table's controller.
+    func startAPI(_ host: APIHost? = nil) { (host ?? .shared).start(model: model, controller: modelsMenu.controller) }
 }

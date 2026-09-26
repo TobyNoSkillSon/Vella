@@ -17,7 +17,9 @@ import VellaCore
     /// Names that mean "the current dictation model" (OpenAI SDK examples send whisper-1).
     static let currentAliases: Set<String> = ["", "whisper-1", "vella", "default", "current"]
     let transcriber: APITranscriber
-    weak var models: APIModelSource?
+    /// Strong: the service is the source's only owner (APIHost creates it inline). A weak reference here freed it at
+    /// once, so the shipped 1.0.0 (b33) listed no models and resolved no model name.
+    var models: APIModelSource?
     var runtime: Runtime { transcriber.backend.runtime }
     /// The dictation state for /status ("idle", "recording", "transcribing").
     var dictationState: () -> String = { "idle" }

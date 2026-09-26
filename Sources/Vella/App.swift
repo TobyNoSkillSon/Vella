@@ -130,7 +130,8 @@ final class GlobalShortcut {
          stopCapture: ((Recorder) async throws -> Void)? = nil,
          transcriptionRequest: SessionTranscriber.Request? = nil, configurationURL: URL? = nil,
          streamingBackend: StreamingBackend? = nil,
-         captureDestination: (() -> DestinationCheck)? = nil) {
+         captureDestination: (() -> DestinationCheck)? = nil, backend: Backend? = nil) {
+        self.backend = backend ?? Backend()
         self.captureDestination = captureDestination ?? { Self.captureNativeDestination(NSWorkspace.shared.frontmostApplication) }
         self.streamingBackend = streamingBackend ?? StreamingBackend()
         self.configurationURL = configurationURL ?? Backend.configURL
@@ -140,7 +141,7 @@ final class GlobalShortcut {
         self.transcriptionRequest = transcriptionRequest
         if let data = try? Data(contentsOf: self.configurationURL), let saved = try? JSONDecoder().decode(Configuration.self, from: data) { mode = saved.mode }
         // This model's backends serve the runtime's residency, Keep Hot and memory decisions.
-        backend.runtime.dictation = backend
+        self.backend.runtime.dictation = self.backend
         self.streamingBackend.runtime.streaming = self.streamingBackend
     }
     /// A model the first dictation without one can get in one click (fresh installs load and download nothing).
@@ -220,7 +221,7 @@ final class GlobalShortcut {
         }
         return true
     }
-    let backend = Backend()
+    let backend: Backend
     let recorder = Recorder()
     private let recordingPower = RecordingPower()
     var onChange: (() -> Void)?
@@ -873,7 +874,7 @@ final class GlobalShortcut {
         RuntimeBridge.shared.sweepPartialDownloads()   // stale .incomplete partials in Vella's Models folder
         DispatchQueue.main.async { Runtime.shared.start() }
         // The local HTTP API (loopback; port in worker-status.json) for the `vella` command and agents.
-        DispatchQueue.main.async { APIHost.shared.start(model: delegate.model, controller: delegate.modelsMenu.controller) }
+        DispatchQueue.main.async { delegate.startAPI() }
         withExtendedLifetime(delegate) { application.run() }
     }
 }
