@@ -15,10 +15,14 @@ import MLXAudioSTT
         if CommandLine.arguments.dropFirst().first == "fast-selftest" {
             let values = Array(CommandLine.arguments.dropFirst(2))
             guard values.count == 2, values[0] == "--model", let path = try? localPath(values[1]),
-                  (try? admit(path)) == "parakeet" else { exit(1) }
+                  let architecture = try? admit(path), Worker.fastPathType(architecture) != nil else { exit(1) }
             let passed: Bool
-            do { passed = try withError { try FastPathGate.runSelfTest(path) } }
-            catch {
+            do {
+                let worker = Worker()
+                let model = try await withError { try await worker.loadStock(path, architecture: architecture) }
+                guard let capable = model as? any FastPathCapable else { exit(1) }
+                passed = try withError { try FastPathGate.runSelfTest(capable, input: { Worker.input(for: model, $0) }) }
+            } catch {
                 if let log = ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"], log.hasPrefix("/") {
                     try? String(describing: error).write(toFile: log, atomically: true, encoding: .utf8)
                 }
@@ -56,6 +60,9 @@ import MLXAudioSTT
         }
         #endif
         let worker = Worker()
+        worker.push = { status in
+            guard let data = try? responseBytes(["status": status]), writeAll(output, data) else { exit(1) }
+        }
         while let line = readBoundedLine(stdin) {
             if line.count <= maximumLine { alarm(120) }
             let request = line.count <= maximumLine ? try? decodeJSON(line) : nil
@@ -63,25 +70,39 @@ import MLXAudioSTT
             #if VELLA_QUALIFICATION
             if CommandLine.arguments.dropFirst().first == "probe-retention" { response["retirement"] = worker.qualificationRetirement }
             #endif
-            if let data = try? responseBytes(response) {
-                data.withUnsafeBytes { raw in
-                    var offset = 0
-                    while offset < raw.count {
-                        let n = Darwin.write(output, raw.baseAddress!.advanced(by: offset), raw.count-offset)
-                        if n <= 0 { exit(1) }; offset += n
-                    }
-                }
-            } else { exit(1) }
+            guard let data = try? responseBytes(response), writeAll(output, data) else { exit(1) }
             alarm(0)
         }
+        // stdin EOF: the app is gone or retired this worker. Exit; never outlive the app.
         try? worker.release(); close(output)
     }
-
 }
+func writeAll(_ output: Int32, _ data: Data) -> Bool {
+    data.withUnsafeBytes { raw in
+        var offset = 0
+        while offset < raw.count {
+            let n = Darwin.write(output, raw.baseAddress!.advanced(by: offset), raw.count-offset)
+            if n <= 0 { return false }; offset += n
+        }
+        return true
+    }
+}
+
+enum InjectedFault: Error { case load, optimized, stock }
+
+/// One worker process serves one model at a time. The app runs one process per loaded model, so unloading is
+/// normally the process exiting; `unload` also works in place (load → unload returns MLX memory to baseline).
+/// Every change pushes one `{"status": …}` line before its response.
 final class Worker {
     var model: (any STTGenerationModel)?
     var path: URL?
-    private var fastStatus: URL?
+    var push: (([String: Any]) -> Void)?
+    private var architecture: String?
+    private var loadSeconds: Double?
+    /// nil = optimized path active; otherwise why the model runs on stock MLX.
+    private var stockReason: String? = "No model loaded."
+    private var optimizations: [String: Bool] = [:]
+    private var gateURL: URL?
     #if VELLA_QUALIFICATION
     var qualificationRetirement: [String: Any] = [:]
     #endif
@@ -112,7 +133,8 @@ final class Worker {
         let references = qualificationReferences(model)
         let cacheThreads = Array(compilationCaches.keys)
         #endif
-        model = nil; path = nil; fastStatus = nil
+        model = nil; path = nil; architecture = nil; loadSeconds = nil; gateURL = nil
+        stockReason = "No model loaded."; optimizations = [:]
         try withError {
             Stream.gpu.synchronize()
             STTRuntime.clearModelIndependentCaches()
@@ -128,91 +150,240 @@ final class Worker {
             }]
         #endif
     }
-    func load(_ path: URL, architecture: String) async throws -> any STTGenerationModel {
-        trackCompilationCache()
-        defer { trackCompilationCache() }
+
+    /// The model class for an architecture, if it has an optimized path (any `FastPathCapable` model qualifies).
+    static func fastPathType(_ architecture: String) -> (any FastPathCapable.Type)? {
+        let type: Any.Type
         switch architecture {
-        case "parakeet":
-            let (qualified, status) = FastPathGate.qualify(path)
-            fastStatus = status
-            return try autoreleasepool {
-                let loaded = try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true)
-                if qualified && !loaded.configureFastPath(enabled: true) {
-                    if let status { FastPathGate.persist("stock", to: status) }
-                }
-                return loaded
-            }
+        case "parakeet": type = ParakeetModel.self
+        case "sensevoice": type = SenseVoiceModel.self
+        case "whisper": type = WhisperModel.self
+        case "qwen3_asr": type = Qwen3ASRModel.self
+        case "granite_speech": type = GraniteSpeechModel.self
+        case "stub": type = StubModel.self
+        default: return nil
+        }
+        return type as? any FastPathCapable.Type
+    }
+    static func input(for model: any STTGenerationModel, _ samples: MLXArray) -> MLXArray {
+        model is ParakeetModel ? samples.asType(.bfloat16) : samples
+    }
+    /// Stock load, no fast path configured.
+    func loadStock(_ path: URL, architecture: String) async throws -> any STTGenerationModel {
+        switch architecture {
+        case "parakeet": return try autoreleasepool { try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true) }
         case "sensevoice": return try autoreleasepool { try SenseVoiceModel.fromDirectory(path) }
         case "whisper": return try await WhisperModel.fromDirectory(path)
         case "qwen3_asr": return try await Qwen3ASRModel.fromModelDirectory(path)
         case "granite_speech": return try await GraniteSpeechModel.fromDirectory(path)
+        case "stub" where StubModel.enabled: return StubModel(path)
         default: throw RequestError.invalid
         }
     }
+    /// Load, then enable the optimized path only if the gate qualified it for this exact key.
+    func load(_ path: URL, architecture: String) async throws -> any STTGenerationModel {
+        trackCompilationCache()
+        defer { trackCompilationCache() }
+        if let fault = ProcessInfo.processInfo.environment["VELLA_TEST_LOAD_FAULT"], !fault.isEmpty, path.path.contains(fault) {
+            throw InjectedFault.load
+        }
+        let type = Self.fastPathType(architecture)
+        let verdict = type.map { FastPathGate.qualify(path, type: $0) }
+        gateURL = type.flatMap { try? FastPathGate.statusURL(path, revision: $0.fastPathRevision) }
+        let loaded = try await loadStock(path, architecture: architecture)
+        self.architecture = architecture
+        optimizations = [:]
+        if let capable = loaded as? any FastPathCapable, let verdict {
+            switch verdict {
+            case .fast:
+                if capable.configureFastPath(enabled: true, component: "both") {
+                    stockReason = nil; optimizations = capable.fastPathComponents
+                } else {
+                    if let gateURL { FastPathGate.persist("stock", to: gateURL) }
+                    stockReason = "The optimized path does not support this checkpoint."
+                }
+            case .stock(let reason):
+                stockReason = reason
+                optimizations = capable.fastPathComponents.mapValues { _ in false }
+            }
+        } else {
+            stockReason = "No optimized path for this model yet."
+        }
+        return loaded
+    }
+    private var optimizedFault: String? { ProcessInfo.processInfo.environment["VELLA_TEST_OPTIMIZED_FAULT"].flatMap { $0.isEmpty ? nil : $0 } }
+    private var stockFault: Bool { ProcessInfo.processInfo.environment["VELLA_TEST_STOCK_FAULT"] == "1" }
+    private func runStock(_ model: any STTGenerationModel, _ input: MLXArray, _ parameters: STTGenerateParameters) throws -> STTOutput {
+        if stockFault { throw InjectedFault.stock }
+        return try withError { model.generate(audio: input, generationParameters: parameters) }
+    }
+    private func runOptimized(_ model: any STTGenerationModel, _ capable: any FastPathCapable, _ input: MLXArray, _ parameters: STTGenerateParameters) throws -> STTOutput {
+        if optimizedFault == "throw" { throw InjectedFault.optimized }
+        let output = try withError { model.generate(audio: input, generationParameters: parameters) }
+        if optimizedFault == "nonfinite" || !capable.fastPathFinite { throw FastPathNonFinite.invalid }
+        return output
+    }
+    /// Runtime fallback: the optimized path throws or returns non-finite values → the whole request reruns on stock.
+    /// Stock succeeds → the model stays on stock until it reloads. Stock fails too → the request was at fault:
+    /// the optimized path is restored and the stock error returned.
     func infer(_ audio: Audio) throws -> String {
         guard let model else { throw RequestError.invalid }
         return try autoreleasepool { try withError {
             trackCompilationCache()
-            let samples = MLXArray(audio.samples)
-            let input = model is ParakeetModel ? samples.asType(.bfloat16) : samples
+            let input = Self.input(for: model, MLXArray(audio.samples))
             let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30)
             var output: STTOutput
-            if let parakeet = model as? ParakeetModel, let status = fastStatus, FastPathGate.status(status) == "fast" {
-                do {
-                    output = try withError { parakeet.generate(audio: input, generationParameters: parameters) }
-                    if !parakeet.fastPathFinite { throw FastPathNonFinite.invalid }
-                } catch {
-                    FastPathGate.persist("stock", to: status)
-                    _ = parakeet.configureFastPath(enabled: false)
+            if stockReason == nil, let capable = model as? any FastPathCapable {
+                do { output = try runOptimized(model, capable, input, parameters) }
+                catch {
+                    let cause = error is FastPathNonFinite ? "returned non-finite values" : "failed"
+                    _ = capable.configureFastPath(enabled: false, component: "both")
                     Stream.gpu.synchronize()
                     clearCompilationCaches()
                     trackCompilationCache()
-                    output = try withError { parakeet.generate(audio: input, generationParameters: parameters) }
+                    do { output = try runStock(model, input, parameters) }
+                    catch {
+                        if !capable.configureFastPath(enabled: true, component: "both") {
+                            stockReason = "The optimized path could not be restored after a failed request."
+                        }
+                        push?(status("fallback-failed"))
+                        throw error
+                    }
+                    stockReason = "Runtime fallback: the optimized path \(cause) on a request; stock MLX until the model reloads."
+                    optimizations = optimizations.mapValues { _ in false }
+                    push?(status("fallback"))
                 }
             } else {
-                output = model.generate(audio: input, generationParameters: parameters)
+                output = try runStock(model, input, parameters)
             }
             Stream.gpu.synchronize()
             return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
         } }
     }
+    static let gpu: [String: Any] = {
+        var size = 0
+        var chip = "Unknown"
+        if sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0) == 0, size > 0 {
+            var bytes = [CChar](repeating: 0, count: size)
+            if sysctlbyname("machdep.cpu.brand_string", &bytes, &size, nil, 0) == 0 { chip = String(cString: bytes) }
+        }
+        return ["chip": chip, "family": FastPathGate.gpuFamily]
+    }()
+    static let hookNames = ["VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
+                            "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR"]
+    func status(_ event: String) -> [String: Any] {
+        let hooks = ProcessInfo.processInfo.environment.filter { Self.hookNames.contains($0.key) && !$0.value.isEmpty }
+        var memory: [String: Any] = ["mlx_active_mb": Double(Memory.activeMemory) / 1e6, "mlx_cache_mb": Double(Memory.cacheMemory) / 1e6]
+        if let footprint = processMemory()["processFootprintBytes"] { memory["footprint_mb"] = Double(footprint) / 1e6 }
+        if model is StubModel, let stub = ProcessInfo.processInfo.environment["VELLA_TEST_STUB_FOOTPRINT_MB"].flatMap(Double.init) {
+            memory["footprint_mb"] = stub
+        }
+        var object: [String: Any] = [
+            "worker": "dictation", "pid": Int(getpid()), "version": FastPathGate.version, "event": event,
+            "model": path?.path ?? NSNull(), "architecture": architecture ?? NSNull(),
+            "engine": model == nil ? NSNull() : (stockReason == nil ? "optimized" : "mlx"),
+            "engine_reason": model == nil ? NSNull() : (stockReason ?? NSNull()),
+            "optimizations": optimizations, "load_s": loadSeconds ?? NSNull(), "memory": memory, "gpu": Self.gpu,
+        ]
+        if !hooks.isEmpty { object["test_hooks"] = hooks }
+        return object
+    }
+
+    private func loadIfNeeded(_ local: URL, architecture: String, metrics: inout [String: Any]) async throws {
+        guard local != path else { return }
+        try release()
+        Memory.peakMemory = 0
+        let t = ProcessInfo.processInfo.systemUptime
+        do {
+            model = try await withError { try await load(local, architecture: architecture) }
+            Stream.gpu.synchronize(); path = local
+        } catch {
+            try? release(); push?(status("load-failed")); throw error
+        }
+        loadSeconds = ProcessInfo.processInfo.systemUptime - t
+        metrics["loadSeconds"] = loadSeconds
+        metrics["loadPeakMLXBytes"] = Memory.peakMemory
+        push?(status("load"))
+    }
+    private static func failure(_ error: Error) -> [String: Any] {
+        let text = String(describing: error).lowercased()
+        let memory = ["out of memory", "memory allocation", "metal allocation", "insufficient memory"].contains { text.contains($0) }
+        let code = error is RequestError ? "invalid" : memory ? "memory" : "inference"
+        return ["code": code, "message": code == "invalid" ? "Invalid local transcription request." : code == "memory" ? "Insufficient memory for transcription." : "Local transcription failed."]
+    }
+
     func handle(_ value: Any?) async -> [String: Any] {
-        let start = ProcessInfo.processInfo.systemUptime
         let request = value as? [String: Any]
         let identifier: Any = validIdentifier(request?["id"]) as Any? ?? NSNull()
+        guard let request, validIdentifier(request["id"]) != nil else {
+            return ["id": identifier, "error": ["code": "invalid", "message": "Invalid local transcription request."]]
+        }
+        guard let op = request["op"] else { return await transcribe(request, identifier: identifier) }
+        let keys = Set(request.keys)
+        switch op as? String {
+        case "load":
+            guard keys == ["id", "op", "model"], let local = try? localPath(request["model"]),
+                  let architecture = try? (local == path ? self.architecture ?? admit(local) : admit(local)) else { break }
+            var metrics: [String: Any] = [:]
+            do {
+                if local == path { push?(status("load")) }
+                else { try await loadIfNeeded(local, architecture: architecture, metrics: &metrics) }
+                try cleanup()
+                return ["id": identifier, "loaded": true, "metrics": metrics]
+            } catch {
+                var failure = Self.failure(error)
+                if failure["code"] as? String == "inference" { failure = ["code": "load", "message": "The model failed to load."] }
+                return ["id": identifier, "error": failure]
+            }
+        case "unload":
+            guard keys == ["id", "op"] else { break }
+            try? release()
+            push?(status("unload"))
+            return ["id": identifier, "unloaded": true]
+        case "status":
+            guard keys == ["id", "op"] else { break }
+            push?(status("status"))
+            return ["id": identifier, "ok": true]
+        case "trim":
+            guard keys == ["id", "op"] else { break }
+            try? cleanup()
+            push?(status("trim"))
+            return ["id": identifier, "ok": true]
+        default: break
+        }
+        return ["id": identifier, "error": ["code": "invalid", "message": "Invalid local transcription request."]]
+    }
+
+    private func transcribe(_ request: [String: Any], identifier: Any) async -> [String: Any] {
+        let start = ProcessInfo.processInfo.systemUptime
         var response: [String: Any] = ["id": identifier]
         var metrics: [String: Any] = [:]
+        var keepModel = false
         do {
             let local: URL; let audio: Audio; let architecture: String
             do {
-                guard let request, Set(request.keys) == Set(["id", "model", "audio"]), validIdentifier(request["id"]) != nil else { throw RequestError.invalid }
+                guard Set(request.keys) == Set(["id", "model", "audio"]) else { throw RequestError.invalid }
                 local = try localPath(request["model"]); audio = try Audio(request["audio"])
                 architecture = local != path ? try admit(local) : ""
             } catch { throw RequestError.invalid }
             let cold = local != path
             metrics = ["audioSeconds": audio.seconds, "modelLoaded": cold, "loadSeconds": 0.0,
                        "mlxPeakPhase": cold ? "load_and_first_request" : "warm_request", "allocatorCacheLimitBytes": cacheBytes]
-            if cold { try release() }
-            Memory.peakMemory = 0
-            if cold {
-                let t = ProcessInfo.processInfo.systemUptime
-                model = try await withError { try await load(local, architecture: architecture) }
-                Stream.gpu.synchronize(); path = local
-                metrics["loadSeconds"] = ProcessInfo.processInfo.systemUptime-t
-                metrics["loadPeakMLXBytes"] = Memory.peakMemory
-            }
+            if cold { try await loadIfNeeded(local, architecture: architecture, metrics: &metrics) } else { Memory.peakMemory = 0 }
             let t = ProcessInfo.processInfo.systemUptime
-            let text = try infer(audio)
+            do { response["text"] = try infer(audio) }
+            catch {
+                // Both paths failed on this request: the model itself is intact (restored optimized path).
+                keepModel = stockReason == nil
+                throw error
+            }
             Stream.gpu.synchronize()
             metrics["inferenceSeconds"] = ProcessInfo.processInfo.systemUptime-t
             metrics["peakMLXBytes"] = Memory.peakMemory
-            response["text"] = text
         } catch {
-            let text = String(describing: error).lowercased()
-            let memory = ["out of memory", "memory allocation", "metal allocation", "insufficient memory"].contains { text.contains($0) }
-            let code = error is RequestError ? "invalid" : memory ? "memory" : "inference"
-            response["error"] = ["code": code, "message": code == "invalid" ? "Invalid local transcription request." : code == "memory" ? "Insufficient memory for transcription." : "Local transcription failed."]
-            if code != "invalid" { try? release() }
+            let failure = Self.failure(error)
+            response["error"] = failure
+            if failure["code"] as? String != "invalid" && !keepModel, model != nil { try? release(); push?(status("unload")) }
         }
         let t = ProcessInfo.processInfo.systemUptime
         do { try cleanup() } catch {
