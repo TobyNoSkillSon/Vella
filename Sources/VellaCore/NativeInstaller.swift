@@ -203,10 +203,11 @@ public final class NativeInstaller {
                   let b = try? destination.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier as? NSObject else { return false }
             return a.isEqual(b)
         }
-        if let known = workspace.urlForApplication(withBundleIdentifier: bundleIdentifier),
-           !isTarget(known),
-           FileManager.default.fileExists(atPath: known.path) {
-            throw NativeInstallError.message("Another Vella copy is registered at \(known.path). Update that copy instead")
+        // Another installed copy in an Applications folder would leave two Vellas; build and
+        // staging copies elsewhere (which LaunchServices registers on sight) are not installations.
+        for known in workspace.urlsForApplications(withBundleIdentifier: bundleIdentifier)
+        where !isTarget(known) && isInstallLocation(known) && FileManager.default.fileExists(atPath: known.path) {
+            throw NativeInstallError.message("Another Vella copy is installed at \(known.path). Update that copy instead")
         }
         let applications = workspace.runningApplications.filter { $0.bundleIdentifier == bundleIdentifier }
         for app in applications where !isTarget(app.bundleURL) {
@@ -224,6 +225,12 @@ public final class NativeInstaller {
     public static func launchArguments(_ app: URL, support: URL?) -> [String] {
         guard let support, support.standardizedFileURL.path != defaultSupport.standardizedFileURL.path else { return [app.path] }
         return ["--env", "VELLA_SUPPORT_DIR=\(support.standardizedFileURL.path)", app.path]
+    }
+    /// /Applications or ~/Applications (any depth).
+    public static func isInstallLocation(_ app: URL) -> Bool {
+        let path = app.standardizedFileURL.path
+        let home = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").standardizedFileURL.path
+        return path.hasPrefix("/Applications/") || path.hasPrefix(home + "/")
     }
     public static func launchApplication(_ app: URL, support: URL? = nil) throws {
         let child = Process(); child.executableURL = URL(fileURLWithPath: "/usr/bin/open"); child.arguments = launchArguments(app, support: support)

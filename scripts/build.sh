@@ -44,12 +44,12 @@ for binary in .build/release/Vella .build/release/VellaModelTool .build/release/
 done
 # Smoke the helpers before touching the installed app: headless, answer on their pipe, exit on stdin EOF.
 SMOKE="$PWD/.build/helper-smoke"
-rm -rf "$SMOKE" && mkdir -p "$SMOKE/Vella.app/Contents/MacOS" "$SMOKE/Vella.app/Contents/Resources"
-cp Resources/Info.plist "$SMOKE/Vella.app/Contents/Info.plist"
-cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" "$SMOKE/Vella.app/Contents/MacOS/"
-cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$WORKER_BIN/VellaWorker_VellaWorker.bundle" "$SMOKE/Vella.app/Contents/Resources/"
+# App layout without an .app name or Info.plist, so LaunchServices never registers it as a Vella copy.
+rm -rf "$SMOKE" && mkdir -p "$SMOKE/helpers/Contents/MacOS" "$SMOKE/helpers/Contents/Resources"
+cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" "$SMOKE/helpers/Contents/MacOS/"
+cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$WORKER_BIN/VellaWorker_VellaWorker.bundle" "$SMOKE/helpers/Contents/Resources/"
 DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swiftc" -O -sdk "$CLT/SDKs/MacOSX.sdk" scripts/check-helpers.swift -o "$SMOKE/check-helpers" 2>/dev/null
-"$SMOKE/check-helpers" "$SMOKE/Vella.app" || { echo 'Helper smoke failed; build left installed app unchanged.' >&2; exit 1; }
+"$SMOKE/check-helpers" "$SMOKE/helpers" || { echo 'Helper smoke failed; build left installed app unchanged.' >&2; exit 1; }
 # Compile first, then close only this exact installed app before replacing files.
 RELAUNCH="$(VELLA_TARGET_APP="$APP" xcrun swift -e '
 import AppKit
