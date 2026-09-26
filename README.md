@@ -138,6 +138,8 @@ Open Vella from the menu bar, approve Microphone and Accessibility access, and p
 
 **Audio files** go through the same models: `vella transcribe talk.m4a` (add `--srt` for subtitles), or any OpenAI SDK pointed at the local API (`base_url` from `vella url`, `/v1/audio/transcriptions`). Your dictation always goes first. **Copy Skill for Your Agent** copies the instructions for a coding agent. Details: [user guide](docs/USAGE.md#transcribe-files-command-line-and-api).
 
+**Something wrong, or slow on your Mac?** **Copy Diagnostics** in the menu (or `vella diagnose`) reports your chip, versions, each loaded model's engine and fallbacks, and a timed run of five built-in clips compared with the reference Mac, and links to a prefilled GitHub issue. It includes nothing you dictated. See [Reporting a problem](docs/USAGE.md#reporting-a-problem).
+
 ## Privacy
 
 Audio and transcripts never leave your Mac. The recognition helpers run in a sandbox that denies all network access. The app's local API listens on 127.0.0.1 only and refuses browser requests. The only network traffic is model downloads from Hugging Face when you choose **Get**, and a once-a-day check for a newer release after a transcription (an ordinary GitHub request, no speech data). There is no telemetry. Apps you dictate into, clipboard managers and Universal Clipboard see the text you insert or copy.

@@ -56,6 +56,8 @@ final class HUDPanel: NSPanel {
     var modelsLoaded: () -> Bool = { let status = Runtime.shared.status; return !status.models.isEmpty || status.loading != nil }
     /// Restart Worker: the runtime's restart; nil = stop the workers (the next dictation starts them again).
     var restartWorkers: (() -> Void)?
+    /// Copy Diagnostics: the bundled `vella diagnose`.
+    let diagnostics = DiagnosticsCopier()
     /// `controller`: an isolated Models controller (tests); the wiring below is the real one either way.
     func makeModelsMenu(controller: ModelsController? = nil) -> ModelsMenu {
         let menus = ModelsMenu(controller: controller)
@@ -329,6 +331,8 @@ final class HUDPanel: NSPanel {
         menu.addItem(.separator())
         if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast), help: copyLastHelp) }
         item("Copy Skill for Your Agent", "doc.on.doc", #selector(copySkill), help: copySkillHelp)
+        item(diagnostics.running ? "Copying Diagnostics…" : "Copy Diagnostics", "stethoscope", #selector(copyDiagnostics),
+             enabled: !diagnostics.running, help: copyDiagnosticsHelp)
         item("Open Saved Recordings", "folder", #selector(savedRecordings), help: "Opens the folder of saved recordings and their transcripts.")
         item("Open Vella Files", "folder", #selector(files), help: openFilesHelp)
         item("Restart Worker", "arrow.clockwise", #selector(restartWorker), enabled: model.phase != .recording && !model.busy, help: restartWorkerHelp)
@@ -389,6 +393,29 @@ final class HUDPanel: NSPanel {
     @objc private func copySkill() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(skillText(), forType: .string)
+    }
+    /// Copies `vella diagnose`'s report, then offers its prefilled GitHub bug report.
+    @objc private func copyDiagnostics() {
+        diagnostics.run { [weak self] result in
+            guard let self else { return }
+            self.rebuildMenuIfIdle()
+            switch result {
+            case .success(let report):
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(report.text, forType: .string)
+                let alert = NSAlert()
+                alert.messageText = "Diagnostics copied"
+                if report.issue != nil { alert.addButton(withTitle: "Open Bug Report…") }
+                alert.addButton(withTitle: "Done")
+                // The report finishes after the menu has closed: bring the alert to the front.
+                NSApp.activate()
+                let response = alert.runModal()
+                if let issue = report.issue, response == .alertFirstButtonReturn { _ = self.openExternalURL(issue) }
+            case .failure(let error):
+                NSAlert(error: error).runModal()
+            }
+        }
+        rebuildMenuIfIdle()
     }
     @objc private func getPending() { getPendingModel() }
     @objc private func restartWorker() { if let restartWorkers { restartWorkers() } else { model.stopWorkers() } }

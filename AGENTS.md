@@ -12,4 +12,6 @@ Updating: `git pull && scripts/install.sh`. Models, recordings and settings are 
 
 Building from source instead: `VELLA_BUILD=source scripts/install.sh` (needs Command Line Tools, full Xcode and its Metal Toolchain; it prints the fixing command for anything missing).
 
+Problems: run `vella diagnose` and give the user its output and the issue link on its last line (a prefilled GitHub bug report; they decide whether to file it). It never starts Vella and loads nothing; `--load` loads the dictation model first, `--json` gives the data as JSON.
+
 Uninstall: quit Vella, delete `~/Applications/Vella.app` and `~/.local/bin/vella`, and, only if the user wants their models and recordings gone too, `~/Library/Application Support/Vella`.

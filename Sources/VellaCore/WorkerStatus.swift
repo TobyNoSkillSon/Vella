@@ -23,6 +23,8 @@ public struct WorkerModelStatus: Codable, Equatable {
     public var load_s: Double?
     /// Worker process footprint.
     public var memory_mb: Double?
+    /// The worker's optimized-path gate version (e.g. "native-kernels-8"), for `vella diagnose`.
+    public var worker_version: String?
     public init() {}
 }
 

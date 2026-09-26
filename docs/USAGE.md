@@ -37,7 +37,7 @@ A fresh install has no model. If you dictate before getting one, Vella keeps the
 1. **Status** — `Vella: ready`, the loaded model and one fact line. Green when ready, grey while loading or downloading, orange when a helper failed (click it for the error and the log).
 2. **Mode** (Dictation or Streaming) · **Microphone** · **Shortcuts**.
 3. **Models…** · **Keep Hot** · **Memory**.
-4. **Copy Last Transcript** (and recovery of an unfinished one) · **Copy Skill for Your Agent** · **Open Vella Files** · **Restart Worker** · **Launch at Login**.
+4. **Copy Last Transcript** (and recovery of an unfinished one) · **Copy Skill for Your Agent** · **Copy Diagnostics** · **Open Vella Files** · **Restart Worker** · **Launch at Login**.
 5. **Support the developer…** · **Quit Vella**.
 
 Hover an item for what it does.
@@ -173,6 +173,7 @@ vella transcribe talk.m4a --model parakeet-v3    # another downloaded model
 vella models                                     # models usable now, one per line
 vella status                                     # one line: running, loaded models, API address
 vella skill --install ~/.agents/skills           # the agent skill (writes transcribe/SKILL.md)
+vella diagnose                                   # a report for bug reports (see Reporting a problem)
 ```
 
 `vella` starts Vella if it is not running. Transcripts are printed only: never pasted, copied or added to your saved recordings. The file's audio is converted in a private temporary folder that is removed when the request ends.
@@ -216,6 +217,18 @@ Successful model output is accepted, including no text. Empty recognition is not
 - When the model returns no text, audio remains saved and Vella does not erase the clipboard or type anything. Quiet audio can still produce model errors or hallucinated text; Vella does not independently classify it as speech or silence.
 - Retry is for actual execution failures, not pauses or suspected missing words.
 - If transcription fails, your saved audio is there to retry. Failed jobs preserve their unfinished work.
+
+## Reporting a problem
+
+**Copy Diagnostics** in the menu, or `vella diagnose` in Terminal, prints one screen for a bug report and ends with a link that opens a prefilled GitHub issue:
+
+- this Mac: chip, model, memory, macOS and its build, and the GPU family the optimized kernels are checked against;
+- the versions of Vella, its `vella` command, its API and its recognition helpers;
+- each loaded model: its engine (**Optimized** or **MLX**), precision and Keep Hot class, which parts run optimized, and every reason a part runs on the stock path;
+- the optimized-path self-test verdicts saved on this Mac, with the reason for each one that is not optimized;
+- each loaded Dictation model timed on the five short clips built into Vella (public LibriSpeech recordings, 23 s in all), one request at a time through the local API, with the speed and whether each transcript matches the one recorded on the reference Mac (M5 Max) for that model, precision and engine.
+
+`vella diagnose` never starts Vella and loads nothing: it times only models that are already loaded. `vella diagnose --load` first loads your dictation model (on demand, so it unloads after its Keep Hot time). `--json` prints the same data as JSON, the clip transcripts included. A dictation still goes first; if you are dictating, nothing is timed. The report contains no recordings, no transcripts of your speech and no file paths.
 
 ## Recordings, disk, recovery, and privacy
 
