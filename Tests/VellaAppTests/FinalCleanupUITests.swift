@@ -25,8 +25,8 @@ private final class CleanupRegistrar: ShortcutRegistrar {
         let suite = "VellaCleanupTests.\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        let updates = ReleaseUpdateChecker(currentVersion: "", defaults: defaults, fetch: { Data() })
-        let delegate = AppDelegate(model: model, releaseUpdates: updates, shortcutManager: manager)
+        let updates = UpdateController(current: nil, defaults: defaults, enabled: false)
+        let delegate = AppDelegate(model: model, updates: updates, shortcutManager: manager)
         // Assemble only the affected menu surface: no model catalog, microphone
         // enumeration, live settings, native registration or menu tracking loop.
         let start = NSMenuItem(title: "Start Dictation", action: NSSelectorFromString("toggle"), keyEquivalent: "n")

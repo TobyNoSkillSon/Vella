@@ -10,6 +10,7 @@
 - **Memory**: *Fit in free memory* (default) unloads idle models or refuses a load with the numbers and remedies; *Allow swap (slower)* skips the check.
 - **Engine label** `Optimized · <chip>` or `MLX` under a loaded model, backed by a self-test at load and a fallback that redoes a failed optimized transcription on the stock path.
 - **First dictation without a model** keeps the recording and offers **Get <model> (<size>)**; the recording is transcribed once the model is ready.
+- **In-app updates.** A newer release shows an orange **Update to X…** item under **Support the developer…**. **Update Now** downloads the release, verifies its SHA-256, contents, version and that it is signed like the running app, installs it when Vella is idle and restarts; if the new version does not become ready, the previous one is restored. It replaces the notice that only opened the release page.
 - **Audio files, for you and your agents.** `vella transcribe <file>` (text, `--srt`, `--vtt`, `--json`) and an OpenAI-compatible local API (`POST /v1/audio/transcriptions`, `GET /v1/models`, `GET /status`) on 127.0.0.1, so the OpenAI SDKs work with only the base URL changed. Any audio macOS decodes, up to 3 hours; dictation always goes first; nothing is pasted or kept. The installer links `vella` into `~/.local/bin`; **Copy Skill for Your Agent** and `vella skill` provide the agent skill.
 
 ### Changed

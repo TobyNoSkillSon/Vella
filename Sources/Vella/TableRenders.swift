@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import VellaCore
+import VellaUpdate
 
 // Render harness after the Verdict-family pattern (Verdict 95ddba5, Sources/Verdict/TableRenders.swift).
 // Neither mode starts a worker, downloads, or writes settings: libraries use a temporary registry, the controller is
@@ -263,6 +264,53 @@ import VellaCore
 
 @MainActor final class MenuRenderDelegate: NSObject, NSApplicationDelegate {
     let directory: URL
+
+    static let sampleRelease = ReleaseInfo(tag: "v1.0.1", version: SemanticVersion("1.0.1")!, name: "Vella 1.0.1", body: """
+        ## 1.0.1
+
+        **Faster first load.** Models load in about half the time.
+        - Fixes the menu staying open after a paste.
+
+        ## Verify
+
+            gh attestation verify Vella-1.0.1-arm64.zip --repo TobyNoSkillSon/Vella
+        """)
+
+    /// `update-menu.png` (a newer release offered under Support) and `update-popup.png` (the confirmation).
+    private func renderUpdate(done: @escaping () -> Void) {
+        let release = Self.sampleRelease
+        app.menuSettings = DefaultMenuSettings(availableMB: 86_900)
+        app.factLine = { nil }; app.model.lastText = ""; app.pendingModelRow = { nil }
+        app.updates.preview(.available(release)); app.rebuildMenu()
+        MenuMock.render(app.menu.items, width: 340, to: directory.appendingPathComponent("update-menu.png")) { [self] in
+            let alert = app.updates.confirmation(release)
+            alert.window.appearance = NSAppearance(named: .darkAqua)
+            alert.layout()
+            let window = alert.window
+            window.setFrameOrigin(NSPoint(x: -5000, y: -5000)); window.orderFrontRegardless()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [self] in
+                // Layer-backed controls draw only through their layers offscreen: render the layer tree over the
+                // dark alert colour.
+                if let view = window.contentView, let rep = NSBitmapImageRep(bitmapDataPlanes: nil,
+                        pixelsWide: Int(view.bounds.width * window.backingScaleFactor), pixelsHigh: Int(view.bounds.height * window.backingScaleFactor),
+                        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+                   let context = NSGraphicsContext(bitmapImageRep: rep) {
+                    window.displayIfNeeded()
+                    rep.size = view.bounds.size
+                    NSGraphicsContext.saveGraphicsState()
+                    NSGraphicsContext.current = context
+                    NSColor(calibratedRed: 0.17, green: 0.17, blue: 0.18, alpha: 1).setFill()
+                    NSBezierPath(roundedRect: NSRect(origin: .zero, size: view.bounds.size), xRadius: 16, yRadius: 16).fill()
+                    if let layer = view.layer { layer.render(in: context.cgContext) } else { view.displayIgnoringOpacity(view.bounds, in: context) }
+                    NSGraphicsContext.restoreGraphicsState()
+                    try? rep.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("update-popup.png"))
+                }
+                window.orderOut(nil)
+                done()
+            }
+        }
+    }
+
     private var app: AppDelegate!
     init(directory: URL) { self.directory = directory }
 
@@ -292,8 +340,8 @@ import VellaCore
 
     private func render(_ states: [State], _ index: Int) {
         guard index < states.count else {
-            try? FileManager.default.removeItem(at: RenderFixture.root)
-            NSApp.terminate(nil); return
+            renderUpdate { try? FileManager.default.removeItem(at: RenderFixture.root); NSApp.terminate(nil) }
+            return
         }
         let state = states[index]
         app.menuSettings = state.settings

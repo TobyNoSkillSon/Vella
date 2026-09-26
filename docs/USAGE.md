@@ -227,23 +227,18 @@ Successful model output is accepted, including no text. Empty recognition is not
 - The command line and API listen on 127.0.0.1 only; files you send them are transcribed on this Mac and their temporary copies are removed afterwards.
 - Model downloads (after you confirm one) are the only expected network transfer during normal use, plus the release check described above. The recognition helpers run in a sandbox that denies all network access; downloads are a separate helper, `VellaModelTool`.
 
-## Update notices
+## Updates
 
-Vella never installs updates automatically, and update checks need no additional permissions.
+Vella checks GitHub for a newer stable release at launch and then once a day (a Mac that slept through the check tries soon after waking). The check is one HTTPS request to the public releases endpoint; Vella never sends audio or transcripts. Draft and prerelease versions are ignored, and an offline or failed check is silent and tries again in about an hour.
 
-Exact behavior:
+A newer release adds an orange **Update to X…** item under **Support the developer…**. It stays until you install that version or newer, also across restarts. Choosing it shows the version and the start of its release notes, with **Update Now** and **Later**. Nothing is downloaded until you choose Update Now. Then Vella:
 
-- Checked only after a completed transcription.
-- Checked only if no check has been attempted that calendar day.
-- The last attempt and a detected update are remembered across restarts.
-- There is no startup request and no polling timer.
-- A newer stable release turns the menu-bar icon yellow and adds a yellow **Update available…** entry immediately above **Support the developer…**.
-- Choosing it opens that release page in your browser.
-- Offline or failed checks are silent and do not clear a known update.
-- The indicator remains until you install that version or newer.
-- Draft and prerelease versions are ignored.
+1. Refuses, downloading nothing, while it is recording, transcribing, pasting, loading or downloading a model, calibrating, or transcribing a file for the API. Try again when it has finished.
+2. Downloads `Vella-<version>-arm64.zip` and `SHA256SUMS` from the release and verifies them before anything changes: the exact checksum line for the zip, that the archive holds only `Vella.app` with its helpers and Metal library, its bundle identifier and version, its code signature, and that it is signed like the running app. A certificate-signed Vella accepts only code that satisfies its own designated requirement, so macOS privacy permissions carry over; an ad-hoc signed Vella accepts only an ad-hoc signed Vella, whose origin the checksum and HTTPS alone vouch for. macOS ties privacy permissions of ad-hoc signed apps to the exact build, so after such an update it may ask for Microphone and Accessibility again.
+3. If you started a dictation meanwhile, waits until Vella is idle again (up to 15 minutes), then quits and hands the install to its installer tool.
+4. The installer swaps the new app in with the previous one kept aside, starts it and waits until it is ready (the same rule as `scripts/install.sh`). Then the previous app is deleted. If the new version does not start, exits, keeps failing to load a model you keep loaded, or is still loading after 30 minutes, the previous version is put back and started, and it tells you why.
 
-Privacy: GitHub receives a normal HTTPS request to check the latest stable release tag. Vella never sends audio or transcripts. The request goes to the public release endpoint only.
+Settings, models and recordings in `~/Library/Application Support/Vella` are kept. Progress is logged to `update.log` there. `VELLA_UPDATE=0` turns the check off.
 
 ## Uninstall
 
