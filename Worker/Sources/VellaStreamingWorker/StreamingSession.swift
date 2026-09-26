@@ -7,8 +7,11 @@ protocol StreamingNative: AnyObject {
     func push(_ samples: [Float], final: Bool) throws
     func reset() throws
     func close()
+    /// Push audio a coalescing adapter deferred; true when text may have grown.
+    func flush() throws -> Bool
 }
 extension StreamingNative {
+    func flush() throws -> Bool { false }
     func drain(final: Bool = false) throws -> String {
         if final { let result = text.streamingTrim; text = ""; return result }
         let bytes = Array(text.utf8)
@@ -81,6 +84,7 @@ final class StreamingSession {
     init(factory: @escaping (URL) throws -> any StreamingNative) { self.factory = factory }
     func endpoint() throws -> String {
         guard active, let native else { return "" }
+        _ = try native.flush()
         try native.push([], final: true)
         let text = try native.drain(final: true)
         try native.reset()
@@ -126,6 +130,10 @@ final class StreamingSession {
             if !pending.isEmpty { committed.append(try block(pending)); pending.removeAll() }
             committed.append(try endpoint()); done = true
         } else { throw StreamingFailure.invalid }
+        // A coalescing adapter defers the 20-ms blocks to one push per request.
+        // Text is append-only, so draining after the flush cuts at the same place
+        // (the first 2048 bytes are unchanged) and lands in the same reply.
+        if active, try native.flush() { committed.append(try native.drain()) }
         let partial = active ? native.text.streamingTrim : ""
         let text = committed.filter { !$0.isEmpty }.joined(separator: " ")
         guard (text + partial).utf8.count <= 8192 else { throw StreamingFailure.inference }

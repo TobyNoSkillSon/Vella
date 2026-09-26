@@ -7,17 +7,34 @@ final class NemotronNative: StreamingNative {
     private var model: NemotronASRModel?
     private var session: VellaNemotronSession?
     init(_ path: URL) throws {
-        model = try NemotronASRModel.fromDirectory(path)
+        // The frontend keeps Float32 mel (Python parity), so every op already ran in
+        // Float32 and MLX converted the BF16 weights on each call. Converting once
+        // at load is lossless (BF16 -> Float32) and gives bit-identical output.
+        let f32 = ProcessInfo.processInfo.environment["VELLA_NEMO_F32"] != "0"
+        model = try NemotronASRModel.fromDirectory(path, computeDType: f32 ? .float32 : .bfloat16)
         VellaNemotronNumerics.useReferencePositionTable(model!)
         try reset()
     }
     func reset() throws {
-        session = nil; text = ""
+        VellaStreamProfile.flush()
+        session = nil; text = ""; deferred.removeAll()
         session = try VellaNemotronSession(model: model!)
         Memory.clearCache()
     }
-    func push(_ samples: [Float], final: Bool) throws { text += try session!.push(samples, final: final) }
-    func close() { session = nil; model = nil; Stream.gpu.synchronize(); Memory.clearCache() }
+    private var deferred: [Float] = []
+    private let coalesce = ProcessInfo.processInfo.environment["VELLA_NEMO_COALESCE"] != "0"
+    func push(_ samples: [Float], final: Bool) throws {
+        if coalesce && !final { deferred += samples; return }
+        _ = try flush()
+        text += try session!.push(samples, final: final)
+    }
+    func flush() throws -> Bool {
+        guard !deferred.isEmpty else { return false }
+        let samples = deferred; deferred.removeAll(keepingCapacity: true)
+        text += try session!.push(samples, final: false)
+        return true
+    }
+    func close() { VellaStreamProfile.flush(); session = nil; model = nil; Stream.gpu.synchronize(); Memory.clearCache() }
 }
 func loadStreamingNative(_ path: URL) throws -> any StreamingNative {
     let config = try JSONSerialization.jsonObject(with: Data(contentsOf: path.appendingPathComponent("config.json"))) as! [String: Any]
