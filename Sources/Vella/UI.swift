@@ -64,7 +64,7 @@ final class HUDPanel: NSPanel {
                 return self.model.phase != .recording && !self.model.busy && !other.busy && !other.calibration.isRunning
             }
             library.onUse = { [weak self] in self?.model.stopWorkers() }
-            library.beforeHeavyWork = { [weak self] in self?.model.stopWorkers() }
+            // A download no longer stops the workers: models kept hot stay loaded while another one downloads.
             library.prepareForCalibration = { [weak self] in try await self?.model.releaseWorkers() }
         }
         // Progress estimate before local calibration: the measured speed of the selected precision (benchmarks.json).
