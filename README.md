@@ -47,11 +47,11 @@ Measured on Apple M5 Max, macOS 26.6, 2026-09-26. WER and Format on the 240-minu
 | Parakeet v3 | Dictation | FP32 (recommended) | 16.43 | 7.97 | 5/9 | 298× | 7.1 | 3,225 MB | v2 |
 | Parakeet v3 | Dictation | 8b | 16.55 | 8.05 | 5/9 | 274× | 9.9 | 1,785 MB | v2 |
 | Parakeet v3 | Dictation | 4b | 17.84 | 9.24 | 5/9 | 273× | 9.8 | 1,520 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | BF16 | 15.06 | 6.74 | 9/9 | 26× | 78.1 | 5,177 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 8b (recommended) | 15.16 | 6.65 | 9/9 | 39× | 65.9 | 3,749 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 4b | 18.41 | 7.19 | 9/9 | 54× | 58.4 | 2,915 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | BF16 | 23.44 | 10.56 | 9/9 | 17× | 91.1 | 2,913 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 8b (recommended) | 23.45 | 10.58 | 9/9 | 24× | 67.8 | 1,441 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | BF16 | 15.06 | 6.74 | 9/9 | 27× | 79.8 | 5,167 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 8b (recommended) | 15.16 | 6.65 | 9/9 | 39× | 69.0 | 3,787 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 4b | 18.41 | 7.19 | 9/9 | 53× | 55.5 | 2,955 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | BF16 | 23.44 | 10.56 | 9/9 | 16× | 91.2 | 2,696 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 8b (recommended) | 23.45 | 10.58 | 9/9 | 24× | 67.0 | 1,225 MB | v2 |
 
 Measured but not offered in the app:
 
@@ -61,8 +61,8 @@ Measured but not offered in the app:
 | Qwen3 ASR 0.6B | Dictation | 8b (recommended) | 7.86 | 5.34 | 9/9 | 72× | 34.3 | 1,899 MB | v2-quick |
 | Qwen3 ASR 0.6B | Dictation | 4b | 9.09 | 5.34 | 9/9 | 84× | 29.3 | 1,627 MB | v2-quick |
 | Whisper large-v3 turbo | Dictation | 8b | 9.19 | 4.95 | 9/9 | 40× | 92.1 | 2,101 MB | v2-quick |
-| Whisper large-v3 turbo | Dictation | 4b | 9.99 | 5.48 | 9/9 | 39× | — | 1,714 MB | v2-quick |
-| SenseVoice Small | Dictation | FP32 (recommended) | 11.01 | 7.77 | 3/9 | 416× | — | 1,528 MB | v2-quick |
+| Whisper large-v3 turbo | Dictation | 4b | 9.99 | 5.48 | 9/9 | 40× | 87.1 | 1,724 MB | v2-quick |
+| SenseVoice Small | Dictation | FP32 (recommended) | 11.01 | 7.77 | 3/9 | 420× | — | 1,548 MB | v2-quick |
 
 <!-- BENCHMARK_TABLE_END -->
 
