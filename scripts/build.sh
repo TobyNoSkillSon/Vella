@@ -84,19 +84,20 @@ if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
 fi
 cp Resources/models.json Resources/benchmark-policy.json Resources/AGENT_GUIDE.md "$APP/Contents/Resources/"
 cp Resources/streaming-models.json "$APP/Contents/Resources/"
+# Measured numbers for the Models table (written by the lab benchmark harness).
+if [[ -f Resources/benchmarks.json ]]; then cp Resources/benchmarks.json "$APP/Contents/Resources/"; fi
 # Remove stale Python resources from in-place app updates; model weights and
 # legacy user-owned Runtimes outside the app are intentionally untouched.
 find "$APP/Contents/Resources" -type f \( -name '*.py' -o -name '*.pyc' \) -delete
 mkdir -p "$APP/Contents/Resources/Calibration"
 cp Resources/Calibration/manifest.json Resources/Calibration/text.txt Resources/Calibration/speech.wav Resources/Calibration/ATTRIBUTION.md Resources/Calibration/LICENSE-CC-BY-4.0.txt "$APP/Contents/Resources/Calibration/"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
-# Only compact table measurements ship. Source benchmark audio/raw transcripts stay in the repo.
+# Benchmark audio and raw results are not part of the source tree or the app.
 # Remove generated copies left by earlier installers, not any source or user recordings.
 rm -rf "$APP/Contents/Resources/Benchmarks" "$APP/Contents/Resources/ReferenceResults"
 # In-place updates from Python-era builds must not keep their runtime files.
 rm -f "$APP/Contents/Resources/"*.py "$APP/Contents/Resources/setup-backend.sh" "$APP/Contents/Resources/runtime-requirements.txt"
 rm -rf "$APP/Contents/Resources/__pycache__"
-xcrun swift scripts/prepare-build.swift compact "$APP/Contents/Resources/ReferenceResults"
 ICONSET="$PWD/.build/Vella.iconset"
 mkdir -p "$ICONSET"
 xcrun swift scripts/icon.swift "$PWD/.build/icon.png"
