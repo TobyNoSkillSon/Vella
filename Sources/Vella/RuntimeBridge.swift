@@ -47,14 +47,25 @@ import VellaCore
     func ref(path: String, mode: RecognitionMode) -> ModelRef? {
         guard let controller else { return nil }
         let library = controller.library(mode)
-        guard let id = library.installed.first(where: { $0.value.path == path })?.key,
-              let (family, precision) = controller.catalog.locate(variant: id) else { return nil }
-        return ref(family, precision, path: path)
+        if let id = library.installed.first(where: { $0.value.path == path })?.key,
+           let (family, precision) = controller.catalog.locate(variant: id) { return ref(family, precision, path: path) }
+        // A precision made on this Mac: its directory holds only the derivation manifest (never in the registry).
+        guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = controller.catalog.family(manifest.family),
+              family.variants[manifest.precision]?.isDerived == true else { return nil }
+        return ref(family, manifest.precision, path: path)
     }
-    private func ref(_ family: ModelFamily, _ precision: String, path: String) -> ModelRef {
+    func ref(_ family: ModelFamily, _ precision: String, path: String) -> ModelRef {
         ModelRef(id: family.id, precision: precision, path: path, mode: family.mode, name: family.name,
-                 diskBytes: family.variants[precision]?.downloadBytes, memoryMB: controller?.result(family, precision)?.memory_mb,
+                 diskBytes: family.diskBytes(precision), memoryMB: admissionMemoryMB(family, precision),
                  precisionOptions: precisionOptions(family))
+    }
+    /// Memory admission plans with: the measured `memory_mb`, else (a precision made on this Mac, or any unmeasured
+    /// one) vq-quant's estimate scaled from a measured precision. Nil only when nothing of the family is measured; then
+    /// admission falls back to the weights on disk (for a derived precision its source's download, never 0) + overhead.
+    func admissionMemoryMB(_ family: ModelFamily, _ precision: String) -> Double? {
+        guard let controller else { return nil }
+        if let measured = controller.result(family, precision)?.memory_mb { return measured }
+        return estimatedMemory(family: family, precision: precision, benchmarks: controller.benchmarks).map(\.mb)
     }
 
     // MARK: ModelRuntimeActions
@@ -75,14 +86,36 @@ import VellaCore
         load(family: family, precision: precision, variant: variant, path: path)
     }
     func unload(family: ModelFamily) { Task { await runtime.unload(family.id) } }
+    /// Deleting weights also ends every precision made on this Mac from them: a loaded derived precision is unloaded
+    /// first (its worker reads the source), and after a successful deletion the launch set drops the source and its
+    /// derived entries. Order as before (Review 1 R10): unload, delete, launch-set clean-up.
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
-        let unloaded = await runtime.unloadForDeletion(family.id, path: path)
+        let dependents = derivedPaths(source: path, mode: family.mode)
+        let loadedPath = runtime.loadedRef(family.id)?.path
+        let target = loadedPath.map { loaded in dependents.contains { sameFiles($0, loaded) } ? loaded : path } ?? path
+        let unloaded = await runtime.unloadForDeletion(family.id, path: target)
         guard delete() else {
             if let unloaded, unloaded.residency == .manual { try? await runtime.load(unloaded.ref) }
             return false
         }
-        runtime.deleted(path: path)
+        for deleted in [path] + dependents { runtime.deleted(path: deleted) }
         return true
+    }
+    /// Directories of precisions made on this Mac from the weights at `source`: manifests in the models directory and
+    /// launch-set entries (a launch-set manifest may sit elsewhere, e.g. an older data directory).
+    func derivedPaths(source: String, mode: RecognitionMode) -> [String] {
+        var candidates: [URL] = runtime.settings.launchSet.map { URL(fileURLWithPath: $0.path) }
+        if let directory = controller?.library(mode).modelsDirectory,
+           let entries = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) { candidates += entries }
+        var seen: Set<String> = []
+        return candidates.compactMap { url in
+            let path = url.standardizedFileURL.path
+            guard seen.insert(path).inserted, let manifest = derivedModelManifest(at: url), sameFiles(manifest.source, source) else { return nil }
+            return path
+        }
+    }
+    private func sameFiles(_ a: String, _ b: String) -> Bool {
+        URL(fileURLWithPath: a).standardizedFileURL.path == URL(fileURLWithPath: b).standardizedFileURL.path
     }
     /// Load also selects the model for its mode (what the next dictation uses).
     private func select(_ path: String, mode: RecognitionMode) {
@@ -141,18 +174,33 @@ import VellaCore
     // MARK: First dictation without a model
 
     /// The first offered family of the mode (catalog order) at its recommended precision.
-    func offer(_ mode: RecognitionMode) -> Model.ModelOffer? {
+    private func offered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
         guard let controller, let family = controller.catalog.offered(mode).first else { return nil }
         let precision = controller.recommended(family) ?? family.native
-        guard let variant = family.variants[precision] ?? family.variants[family.native] else { return nil }
-        return Model.ModelOffer(id: variant.id, name: family.name, downloadBytes: variant.downloadBytes, mode: mode)
+        return family.variants[precision] != nil ? (family, precision) : family.variants[family.native] != nil ? (family, family.native) : nil
+    }
+    /// The Get row downloads what the recommended precision needs: its own weights, or for a precision made on this
+    /// Mac the weights it is made from.
+    func offer(_ mode: RecognitionMode) -> Model.ModelOffer? {
+        guard let (family, precision) = offered(mode), let source = family.downloadSource(of: precision) else { return nil }
+        return Model.ModelOffer(id: source.variant.id, name: family.name, downloadBytes: source.variant.downloadBytes, mode: mode)
+    }
+    /// After the offered download: the path to use, the derived directory when the recommended precision is made here.
+    private func offeredPath(_ offer: Model.ModelOffer, sourcePath: String) throws -> String {
+        guard let controller, let (family, precision) = offered(offer.mode), family.isDerived(precision),
+              family.downloadSource(of: precision)?.variant.id == offer.id else { return sourcePath }
+        return try prepareDerivedModel(family: family, precision: precision, sourcePath: sourcePath,
+                                       modelsDirectory: controller.library(offer.mode).modelsDirectory)
     }
     /// Download and validate the offered variant, select it for its mode, and return its path. Nothing loads or
     /// downloads until the user clicks the Get row.
     func fetch(_ offer: Model.ModelOffer) async throws -> String {
         guard let controller else { throw VellaError.message("Models are unavailable.") }
         let library = controller.library(offer.mode)
-        if let local = library.installed[offer.id] { select(local.path, mode: offer.mode); return local.path }
+        if let local = library.installed[offer.id] {
+            let path = try offeredPath(offer, sourcePath: local.path)
+            select(path, mode: offer.mode); return path
+        }
         library.selectedID = offer.id
         library.download(pendingRecording: true)
         while library.downloadingID == offer.id || (library.busy && library.calibratingID == nil && library.installed[offer.id] == nil) {
@@ -162,7 +210,8 @@ import VellaCore
         guard let local = library.installed[offer.id] else {
             throw VellaError.message(library.downloadError ?? "\(offer.name) did not download.")
         }
-        select(local.path, mode: offer.mode)
-        return local.path
+        let path = try offeredPath(offer, sourcePath: local.path)
+        select(path, mode: offer.mode)
+        return path
     }
 }
