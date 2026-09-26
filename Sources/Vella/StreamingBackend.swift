@@ -83,15 +83,21 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         source.resume()
     }
     deinit { pressure?.cancel(); if let process, process.isRunning { kill(process.processIdentifier, SIGKILL) } }
+    /// Bumped by stop(), releaseAndWait() and shutdown(): a start/preload that began before it must not go on to
+    /// launch or register a worker.
+    private var cancelToken = UUID()
+    private func check(_ token: UUID) throws {
+        try Task.checkCancellation()
+        guard cancelToken == token else { throw CancellationError() }
+    }
     func start(config: Configuration) async throws {
         if sessionActive || pending != nil || hotRef == nil { stop() }
         resetTranscript(); receivedDone = false
-        let generation = epoch
+        let token = cancelToken
         guard config.mode == .streaming, !config.model.isEmpty else { throw VellaError.message("Choose a dedicated streaming model first.") }
         let ref = runtime.resolve(config.model, mode: .streaming)
-        if hotRef?.path != ref.path {
-            try await launch(ref, residency: runtime.residencyForRequest(ref), generation: generation)
-        }
+        try await ensureLoaded(ref, residency: runtime.residencyForRequest(ref), token: token)
+        try check(token)
         sessionActive = true
         runtime.pin(ref.id)
         _ = try await exchange(["op": "start", "model": ref.path])
@@ -99,19 +105,29 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     /// Menu Load / launch set: load the streaming model without starting a session.
     func preload(_ ref: ModelRef, residency: ResidencyClass) async throws {
         guard !sessionActive, pending == nil else { throw VellaError.message("Finish streaming before loading another streaming model.") }
-        if hotRef?.path == ref.path, process?.isRunning == true { return }
-        if process != nil { retire() }
-        try await launch(ref, residency: residency, generation: epoch)
-        _ = try await exchange(["op": "load", "model": ref.path])
+        try await ensureLoaded(ref, residency: residency, token: cancelToken)
     }
-    /// Start a worker for `ref`, replacing any other hot streaming model (one at a time). A `start` op loads the
-    /// model; `preload` sends `load` instead.
-    private func launch(_ ref: ModelRef, residency: ResidencyClass, generation: UUID) async throws {
+    /// The one path that makes `ref` the hot streaming model, for start and preload alike (Review 1 R2). One streaming
+    /// model at a time: admission first (the model it replaces is credited, never chosen as a victim), then the old
+    /// child is retired and awaited, then a new child is launched under a fresh epoch and asked to `load`. A reply,
+    /// status line or EOF from an earlier child carries an old epoch and is ignored.
+    private func ensureLoaded(_ ref: ModelRef, residency: ResidencyClass, token: UUID) async throws {
+        if hotRef?.path == ref.path, loadingRef == nil, process?.isRunning == true { return }
+        let previous = process?.isRunning == true && loadingRef == nil ? hotRef : nil
         try await waitForRetired()
-        try Task.checkCancellation()
-        guard epoch == generation else { throw CancellationError() }
-        try await runtime.admit(ref)
-        guard epoch == generation else { throw CancellationError() }
+        try check(token)
+        try await runtime.admit(ref, replacing: previous?.id)
+        try check(token)
+        if process != nil || loadingRef != nil || hotRef != nil { retire() }
+        try await waitForRetired()
+        try check(token)
+        try launch(ref, residency: residency)
+        _ = try await exchange(["op": "load", "model": ref.path])
+        try check(token)
+    }
+    /// Start a worker for `ref`. The caller has retired any previous child; this one gets its own epoch.
+    private func launch(_ ref: ModelRef, residency: ResidencyClass) throws {
+        guard process == nil else { throw VellaError.message("Previous streaming worker has not exited. Try again.") }
         let executable = try workerURL()
         let child = Process(), stdout = Pipe(), stdin = Pipe()
         child.executableURL = executable
@@ -123,6 +139,8 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         frames = 0; committed = ""; partial = ""; buffer.removeAll(); receivedDone = false
         do { try child.run() }
         catch { throw VellaError.message("Vella's native streaming helper could not start. Reinstall the app; saved audio is retained. (\(error.localizedDescription))") }
+        let generation = UUID()
+        epoch = generation
         process = child; input = stdin.fileHandleForWriting
         Task.detached { [weak self] in
             while true {
@@ -142,10 +160,11 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     private func confirmLoaded() {
         guard let ref = loadingRef else { return }
         loadingRef = nil; hotRef = ref
-        runtime.register(ref, residency: loadingResidency) { [weak self] in await self?.unloadHot() }
+        runtime.register(ref, residency: loadingResidency) { [weak self] in await self?.unloadHot(ref.id) }
     }
-    func unloadHot() async {
-        guard process != nil else { return }
+    /// The runtime's unload for model `id`; a no-op when this backend has since moved on to another model.
+    func unloadHot(_ id: String? = nil) async {
+        guard process != nil, id == nil || hotRef?.id == id || loadingRef?.id == id else { return }
         retire()
         try? await waitForRetired()
     }
@@ -285,13 +304,15 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     }
     /// Abort the current session or load (the worker ends; saved audio stays). An idle hot model stays loaded.
     func stop() {
+        cancelToken = UUID()
         let busy = sessionActive || pending != nil || loadingRef != nil
         resolve(.failure(CancellationError()))
         if busy || hotRef == nil { retire() }
     }
     func resetTranscript() { frames = 0; committed = ""; partial = ""; incomplete = false }
-    func releaseAndWait() async throws { resolve(.failure(CancellationError())); retire(); try await waitForRetired() }
+    func releaseAndWait() async throws { cancelToken = UUID(); resolve(.failure(CancellationError())); retire(); try await waitForRetired() }
     func shutdown() {
+        cancelToken = UUID()
         resolve(.failure(CancellationError())); retire()
         for child in retired where child.isRunning { kill(child.processIdentifier, SIGKILL); child.waitUntilExit() }
         retired.removeAll()

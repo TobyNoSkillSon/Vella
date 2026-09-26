@@ -96,6 +96,56 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(pasteboard.string(forType: .string), "words after get")
         XCTAssertNil(model.pendingModelRequest)
     }
+
+    // MARK: Streaming fixtures
+
+    /// Family id = folder name before "@", precision after it (default 8b); 1,000 MB measured.
+    static let resolver: (String, RecognitionMode) -> ModelRef? = { path, mode in
+        let name = URL(fileURLWithPath: path).lastPathComponent
+        let family = name.components(separatedBy: "@").first!
+        let precision = name.contains("@") ? name.components(separatedBy: "@")[1] : "8b"
+        return ModelRef(id: family, precision: precision, path: path, mode: mode, name: family, memoryMB: 1000, precisionOptions: ["4b", "8b", "BF16"])
+    }
+    @MainActor private func streaming(_ runtime: Runtime) throws -> StreamingBackend {
+        let backend = StreamingBackend(helper: try FakeStreamingWorker.install(in: root), timeout: 5, runtime: runtime)
+        runtime.streaming = backend
+        runtime.resolver = Self.resolver
+        return backend
+    }
+    @MainActor private func dictation(_ runtime: Runtime) throws -> Backend {
+        let backend = Backend(helper: try FakeWorker.install(in: root), requestTimeout: 5, runtime: runtime)
+        runtime.dictation = backend
+        runtime.resolver = Self.resolver
+        return backend
+    }
+    private func streamConfig(_ path: String) throws -> Configuration {
+        try Configuration(executable: "/usr/bin/python3", model: "/fixture/dictation", mode: .streaming, streamingModel: path).forRecording()
+    }
+    private func path(_ name: String) -> String { root.appendingPathComponent("models/\(name)").path }
+    private func alive(_ pid: Int32) -> Bool { kill(pid, 0) == 0 }
+
+    // MARK: R2 — replacing the hot streaming model through start keeps process ownership
+
+    @MainActor func testR2StartWithAnotherModelRetiresTheOldChildAndIgnoresItsLateOutput() async throws {
+        let runtime = try Runtime.isolated(root)
+        let backend = try streaming(runtime); defer { backend.shutdown() }
+        // B hot and idle; its child ignores SIGTERM and, after stdin EOF, writes a late status line and a stray reply.
+        try await backend.preload(runtime.resolve(path("streamB-lateexit"), mode: .streaming), residency: .onDemand)
+        let old = try XCTUnwrap(backend.processID)
+        try await backend.start(config: streamConfig(path("streamA")))
+        let new = try XCTUnwrap(backend.processID)
+        XCTAssertNotEqual(new, old)
+        XCTAssertFalse(alive(old), "the replaced child was retired and awaited before the new one launched")
+        try await Task.sleep(nanoseconds: 700_000_000) // any late output of the old child has been read by now
+        XCTAssertEqual(backend.processID, new, "late output of the old child cannot retire the replacement")
+        XCTAssertEqual(Set(runtime.status.models.keys), ["streamA"], "the old family's runtime entry is gone")
+        XCTAssertEqual(runtime.status.models["streamA"]?.pid, new)
+        XCTAssertNil(runtime.status.error)
+        try await backend.feed(Data(repeating: 0, count: 6400))
+        let final = try await backend.finish(expectedFrames: 1600)
+        XCTAssertEqual(final, "hello world")
+        XCTAssertEqual(backend.processID, new, "a clean finish keeps the replacement hot")
+    }
 }
 
 final class Review1HubStub: URLProtocol {
@@ -112,4 +162,44 @@ final class Review1HubStub: URLProtocol {
         } catch { client?.urlProtocol(self, didFailWithError: error) }
     }
     override func stopLoading() {}
+}
+
+/// A streaming worker speaking the app's stdio protocol, Keep Hot like the real one (a clean finish keeps the process
+/// and model). Folder name selects behaviour: `loadfail` answers load/start with an error and exits; `slowload`
+/// takes 0.5 s to load; `lateexit` ignores SIGTERM and, after stdin EOF, writes a late status line and a stray reply.
+enum FakeStreamingWorker {
+    static let script = #"""
+#!/usr/bin/env python3
+import json,sys,os,base64,time,signal
+model=None; frames=0
+fp=float(os.environ.get('FAKE_FOOTPRINT_MB','1000'))
+def push(ev):
+    print(json.dumps({'status':{'worker':'streaming','pid':os.getpid(),'event':ev,'model':model,'engine':'mlx','memory':{'footprint_mb':fp}}}),flush=True)
+late=False
+for line in sys.stdin:
+    q=json.loads(line); op=q.get('op'); r={'id':q['id'],'frames':frames}
+    if op in ('load','start'):
+        name=q['model'].rstrip('/').split('/')[-1]
+        if 'loadfail' in name:
+            r['error']='The streaming model failed to load.'; print(json.dumps(r),flush=True); break
+        if 'lateexit' in name: late=True; signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        if 'slowload' in name and op=='load': time.sleep(0.5)
+        if model!=q['model']: model=q['model']; push('load')
+        if op=='start': frames=0; r['frames']=0
+        else: r['loaded']=True
+    elif op=='audio':
+        frames+=len(base64.b64decode(q['pcm']))//4; r.update(frames=frames,partial='hello',committed='')
+    elif op=='finish':
+        r.update(frames=frames,done=True,committed='hello world',partial='')
+    print(json.dumps(r),flush=True)
+if late:
+    time.sleep(0.3); push('late')
+    print(json.dumps({'id':'00000000-0000-0000-0000-000000000000','frames':0,'error':'late'}),flush=True)
+"""#
+    static func install(in root: URL) throws -> URL {
+        let url = root.appendingPathComponent("fake-streaming-worker.py")
+        try script.write(to: url, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        return url
+    }
 }

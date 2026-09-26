@@ -157,10 +157,13 @@ import VellaCore
     /// Fit in free memory: admit `ref`, unloading idle models first when needed (on-demand LRU first, never a busy
     /// one or one in `together`), or throw the refusal with the numbers and working remedies. Nothing is unloaded
     /// when unloading everything possible would still not fit. Allow swap admits everything.
-    func admit(_ ref: ModelRef, credit: Double = 0, together: [String] = []) async throws {
+    /// `replacing`: a loaded model this load replaces (the one streaming model, whichever family or precision). The
+    /// caller unloads it only after admission, so its memory is credited and it is never chosen as a victim.
+    func admit(_ ref: ModelRef, credit: Double = 0, together: [String] = [], replacing: String? = nil) async throws {
+        let credit = credit + (replacing.flatMap { entries[$0] }.map(reclaimMB) ?? 0)
         func infos() -> [LoadedModelInfo] {
             order.compactMap { id in
-                guard let entry = entries[id], id != ref.id, (pinned[id] ?? 0) == 0 else { return nil }
+                guard let entry = entries[id], id != ref.id, id != replacing, (pinned[id] ?? 0) == 0 else { return nil }
                 return LoadedModelInfo(id: id, name: entry.ref.displayName, residency: entry.residency, lastUsed: entry.lastUsed, reclaimMB: reclaimMB(entry))
             }
         }
