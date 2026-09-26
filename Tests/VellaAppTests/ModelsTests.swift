@@ -9,7 +9,9 @@ import AppKit
     func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) { calls.append("load \(family.id) \(precision) \(path)") }
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) { calls.append("reload \(family.id) \(precision) \(path)") }
     func unload(family: ModelFamily) { calls.append("unload \(family.id)") }
-    func forget(family: ModelFamily) { calls.append("forget \(family.id)") }
+    func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
+        calls.append("delete \(family.id)"); return delete()
+    }
 }
 
 final class ModelsTests: XCTestCase {

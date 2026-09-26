@@ -147,8 +147,25 @@ import VellaCore
         if let entry = entries[id] { await entry.unload() }
         settings.leave(id); persistSettings(); writeStatus()
     }
-    /// Before Delete: same as Unload.
-    func forget(_ id: String) async { await unload(id) }
+    /// Before Delete: unload the model only if these exact files are the loaded ones, and return once its worker has
+    /// exited. The launch set is left alone until the deletion succeeded (`deleted(path:)`). Returns what was loaded.
+    func unloadForDeletion(_ id: String, path: String) async -> (ref: ModelRef, residency: ResidencyClass)? {
+        guard let entry = entries[id], sameFiles(entry.ref.path, path) else { return nil }
+        await entry.unload()
+        removed(id)
+        return (entry.ref, entry.residency)
+    }
+    /// After a successful Delete: drop the launch-set entry for exactly these files, whether the model was loaded or
+    /// already evicted; an entry for another precision of the family is kept.
+    func deleted(path: String) {
+        let before = settings.launchSet.count
+        settings.launchSet.removeAll { sameFiles($0.path, path) }
+        if settings.launchSet.count != before { persistSettings() }
+        writeStatus()
+    }
+    private func sameFiles(_ a: String, _ b: String) -> Bool {
+        URL(fileURLWithPath: a).standardizedFileURL.path == URL(fileURLWithPath: b).standardizedFileURL.path
+    }
     func setKeepHot(manual: Int? = nil, onDemand: Int? = nil) {
         if let manual, KeepHot.choices.contains(manual) { settings.manualIdleMinutes = manual }
         if let onDemand, KeepHot.choices.contains(onDemand) { settings.onDemandIdleMinutes = onDemand }

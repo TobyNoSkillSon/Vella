@@ -71,7 +71,15 @@ import VellaCore
         load(family: family, precision: precision, variant: variant, path: path)
     }
     func unload(family: ModelFamily) { Task { await runtime.unload(family.id) } }
-    func forget(family: ModelFamily) { Task { await runtime.forget(family.id) } }
+    func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
+        let unloaded = await runtime.unloadForDeletion(family.id, path: path)
+        guard delete() else {
+            if let unloaded, unloaded.residency == .manual { try? await runtime.load(unloaded.ref) }
+            return false
+        }
+        runtime.deleted(path: path)
+        return true
+    }
     /// Load also selects the model for its mode (what the next dictation uses).
     private func select(_ path: String, mode: RecognitionMode) {
         let url = runtime.configURL

@@ -12,8 +12,10 @@ import VellaCore
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String)
     /// Menu Unload: free its memory; it stays downloaded and leaves the launch set.
     func unload(family: ModelFamily)
-    /// Before Delete: unload and leave the launch set.
-    func forget(family: ModelFamily)
+    /// Delete, ordered after unload (Review 1 R10): unload these files if they are the loaded ones and wait for the
+    /// worker to exit, then run `delete`; only when it succeeded drop the launch-set entry for these files (loaded or
+    /// already evicted). A failed deletion keeps the launch set and reloads a manual model it unloaded.
+    func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool
 }
 
 /// The Models table's state: catalog families of both modes, measured numbers, precision selections, what is

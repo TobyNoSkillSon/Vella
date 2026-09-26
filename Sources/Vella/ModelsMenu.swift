@@ -56,11 +56,16 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
             alert.addButton(withTitle: "Cancel")
             alert.addButton(withTitle: "Move to Trash")
             guard presentDeletionConfirmation(alert) == .alertSecondButtonReturn else { return }
-            if controller.loaded(family)?.precision == precision { controller.actions?.forget(family: family) }
-            if !library.deleteModel(variant.id, expectedPath: path, expectedInstalled: wasInstalled) {
+            let delete: @MainActor () -> Bool = { library.deleteModel(variant.id, expectedPath: path, expectedInstalled: wasInstalled) }
+            let reportFailure: @MainActor () -> Void = { [self] in
                 let failure = NSAlert(); failure.messageText = "Model was not deleted"
                 failure.informativeText = library.downloadError ?? "Reopen Models and try again."
                 _ = presentDeletionConfirmation(failure)
+            }
+            // With a runtime: unload (awaited) → delete → launch-set clean-up, as one ordered operation (Review 1 R10).
+            guard let actions = controller.actions else { if !delete() { reportFailure() }; return }
+            Task { @MainActor in
+                if !(await actions.delete(family: family, path: path, delete: delete)) { reportFailure() }
             }
         }
     }

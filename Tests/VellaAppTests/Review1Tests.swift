@@ -310,6 +310,83 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(runtime.status.models["nemo"]?.residency, "manual")
         XCTAssertTrue(try String(contentsOf: runtime.logURL, encoding: .utf8).contains("nemo: streaming worker exited while idle"))
     }
+
+    // MARK: R10 — Delete is ordered after unload and cleans the launch set even for an evicted model
+
+    @MainActor func testR10DeleteUnloadsFirstCleansTheLaunchSetAndKeepsIntentOnFailure() async throws {
+        _ = NSApplication.shared
+        let alpha = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
+                                variants: ["8b": variant("alpha-slowexit-8bit"), "4b": variant("alpha-4bit")])
+        let beta = ModelFamily(id: "beta", name: "Beta", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "8b",
+                               variants: ["8b": variant("beta-8bit")])
+        let models = root.appendingPathComponent("support/Models")
+        let a8 = models.appendingPathComponent("alpha-slowexit-8bit").path, b8 = models.appendingPathComponent("beta-8bit").path
+        let controller = try controller([alpha, beta], installed: ["alpha-slowexit-8bit": a8, "beta-8bit": b8])
+        let library = controller.dictation
+        try JSONEncoder().encode(library.installed).write(to: library.registryURL) // deleteModel re-reads the registry
+        let runtime = try Runtime.isolated(root)
+        try JSONEncoder().encode(Configuration(model: "")).write(to: runtime.configURL)
+        library.currentModelPath = { (try? JSONDecoder().decode(Configuration.self, from: Data(contentsOf: runtime.configURL)))?.model ?? "" }
+        let backend = Backend(helper: try FakeWorker.install(in: root), requestTimeout: 5, runtime: runtime)
+        runtime.dictation = backend
+        defer { backend.shutdown() }
+        let model = Model(configurationURL: runtime.configURL); defer { model.shutdown() }
+        let bridge = RuntimeBridge(runtime: runtime)
+        bridge.attach(controller: controller, model: model)
+        runtime.start(loadLaunchSet: false)
+        let menus = ModelsMenu(controller: controller)
+        let host = try XCTUnwrap(menus.modelItem().submenu?.items.first?.view as? MenuTableHostingView)
+        var alerts: [String] = []
+        menus.presentDeletionConfirmation = { alert in alerts.append(alert.messageText); return .alertSecondButtonReturn }
+        func delete(_ family: ModelFamily) { host.rootView.requestDelete(family) }
+
+        // Manual alpha 8b (launch set), then beta: beta is selected, alpha stays hot but unselected.
+        controller.setPrecision(alpha, "8b"); controller.perform(alpha)
+        try await waitUntil { runtime.status.models["alpha"] != nil }
+        controller.perform(beta)
+        try await waitUntil { library.activeModelPath == b8 && runtime.status.models["beta"] != nil }
+        XCTAssertEqual(Set(runtime.settings.launchSet.map(\.id)), ["alpha", "beta"])
+        let alphaPID = try XCTUnwrap(runtime.status.models["alpha"]?.pid)
+
+        // Deletion failure: the launch set keeps alpha and the unloaded manual model is loaded again.
+        var trashedWhileAlive: [Bool] = []
+        library.trashModel = { _ in trashedWhileAlive.append(kill(alphaPID, 0) == 0); throw CocoaError(.fileWriteNoPermission) }
+        delete(alpha)
+        try await waitUntil { alerts.contains("Model was not deleted") }
+        XCTAssertEqual(trashedWhileAlive, [false], "the worker had exited (its slow exit awaited) before files were touched")
+        try await waitUntil { runtime.status.models["alpha"] != nil }
+        XCTAssertEqual(Set(runtime.settings.launchSet.map(\.id)), ["alpha", "beta"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: a8))
+
+        // Hot but unselected, slow to exit: unloaded (awaited) before the files move; launch-set entry removed.
+        let hotPID = try XCTUnwrap(runtime.status.models["alpha"]?.pid)
+        let trash = root.appendingPathComponent("trash", isDirectory: true)
+        try FileManager.default.createDirectory(at: trash, withIntermediateDirectories: true)
+        var aliveAtTrash: [Bool] = []
+        library.trashModel = { source in
+            aliveAtTrash.append(kill(hotPID, 0) == 0 || runtime.isLoaded("alpha"))
+            let target = trash.appendingPathComponent(UUID().uuidString)
+            try FileManager.default.moveItem(at: source, to: target); return target
+        }
+        delete(alpha)
+        try await waitUntil { !FileManager.default.fileExists(atPath: a8) && runtime.settings.launchSet.count == 1 }
+        XCTAssertEqual(aliveAtTrash, [false])
+        XCTAssertEqual(runtime.settings.launchSet.map(\.id), ["beta"])
+        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: runtime.configURL)).residency.launchSet.map(\.id), ["beta"])
+
+        // Already evicted: still removed from the launch set, so the next launch does not load deleted files.
+        try FileManager.default.createDirectory(atPath: a8, withIntermediateDirectories: true)
+        library.installed["alpha-slowexit-8bit"] = InstalledModel(path: a8)
+        try JSONEncoder().encode(library.installed).write(to: library.registryURL)
+        try await runtime.load(runtime.resolve(a8, mode: .dictation)) // manual again; beta stays selected
+        XCTAssertEqual(library.activeModelPath, b8)
+        await runtime.evict("alpha", reason: "memory: test")
+        XCTAssertNil(runtime.status.models["alpha"])
+        XCTAssertEqual(Set(runtime.settings.launchSet.map(\.id)), ["alpha", "beta"])
+        delete(alpha)
+        try await waitUntil { !FileManager.default.fileExists(atPath: a8) && runtime.settings.launchSet.count == 1 }
+        XCTAssertEqual(runtime.settings.launchSet.map(\.id), ["beta"])
+    }
 }
 
 final class Review1HubStub: URLProtocol {

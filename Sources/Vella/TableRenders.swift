@@ -41,7 +41,7 @@ import VellaCore
     func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {}
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {}
     func unload(family: ModelFamily) {}
-    func forget(family: ModelFamily) {}
+    func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool { false }
 }
 
 @MainActor final class TableRenderDelegate: NSObject, NSApplicationDelegate {
