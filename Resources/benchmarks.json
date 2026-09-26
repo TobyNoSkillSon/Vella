@@ -1,0 +1,489 @@
+{
+ "schema": 1,
+ "hardware": "Apple M5 Max, macOS 26.6",
+ "suites": {
+  "v2": {
+   "id": "vella-v2",
+   "hash": "361a9b078db7e6813671f719223dfd27c50f54589a1e292239324ac17071e366",
+   "audio_min": 239.7
+  },
+  "v2-quick": {
+   "id": "vella-v2-quick",
+   "hash": "5cbda7a5f463d4f12bc4e58982ea16e1f23f3f9361aafc42c3344b6d5fd159b8",
+   "audio_min": 22.5
+  }
+ },
+ "models": {
+  "parakeet-v3": {
+   "precisions": {
+    "FP32": {
+     "wer": 16.43,
+     "format": 7.97,
+     "multilingual": {
+      "mean": 21.99,
+      "macro_wer": 21.99,
+      "macro_cer": null,
+      "coverage": 5,
+      "by_language": {
+       "pl": 8.4,
+       "de": 12.23,
+       "fr": 37.55,
+       "es": 28.55,
+       "sv": 23.23
+      }
+     },
+     "speed_x": 298.0,
+     "j_per_min": 7.06,
+     "memory_mb": 3225,
+     "disk_mb": 2393,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    },
+    "8b": {
+     "wer": 16.55,
+     "format": 8.05,
+     "multilingual": {
+      "mean": 21.97,
+      "macro_wer": 21.97,
+      "macro_cer": null,
+      "coverage": 5,
+      "by_language": {
+       "pl": 8.71,
+       "de": 12.23,
+       "fr": 38.27,
+       "es": 27.86,
+       "sv": 22.8
+      }
+     },
+     "speed_x": 273.9,
+     "j_per_min": 9.95,
+     "memory_mb": 1785,
+     "disk_mb": 867,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    },
+    "4b": {
+     "wer": 17.84,
+     "format": 9.24,
+     "multilingual": {
+      "mean": 22.2,
+      "macro_wer": 22.2,
+      "macro_cer": null,
+      "coverage": 5,
+      "by_language": {
+       "pl": 9.38,
+       "de": 11.87,
+       "fr": 38.19,
+       "es": 25.54,
+       "sv": 26.02
+      }
+     },
+     "speed_x": 272.7,
+     "j_per_min": 9.81,
+     "memory_mb": 1520,
+     "disk_mb": 608,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    }
+   },
+   "recommended": "FP32"
+  },
+  "qwen3-asr-1.7b": {
+   "precisions": {
+    "BF16": {
+     "wer": 15.06,
+     "format": 6.74,
+     "multilingual": {
+      "mean": 14.15,
+      "macro_wer": 15.6,
+      "macro_cer": 11.25,
+      "coverage": 9,
+      "by_language": {
+       "pl": 15.41,
+       "de": 10.34,
+       "fr": 14.16,
+       "es": 12.81,
+       "sv": 24.73,
+       "tr": 16.17,
+       "ja": 6.4,
+       "zh": 13.22,
+       "ko": 14.13
+      }
+     },
+     "speed_x": 26.2,
+     "j_per_min": 78.09,
+     "memory_mb": 5177,
+     "disk_mb": 3892,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    },
+    "8b": {
+     "wer": 15.16,
+     "format": 6.65,
+     "multilingual": {
+      "mean": 14.53,
+      "macro_wer": 16.2,
+      "macro_cer": 11.2,
+      "coverage": 9,
+      "by_language": {
+       "pl": 15.77,
+       "de": 11.78,
+       "fr": 14.16,
+       "es": 12.04,
+       "sv": 24.73,
+       "tr": 18.72,
+       "ja": 6.34,
+       "zh": 13.1,
+       "ko": 14.17
+      }
+     },
+     "speed_x": 38.7,
+     "j_per_min": 65.89,
+     "memory_mb": 3749,
+     "disk_mb": 2354,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    },
+    "4b": {
+     "wer": 18.41,
+     "format": 7.19,
+     "multilingual": {
+      "mean": 16.69,
+      "macro_wer": 18.22,
+      "macro_cer": 13.64,
+      "coverage": 9,
+      "by_language": {
+       "pl": 18.09,
+       "de": 12.23,
+       "fr": 14.64,
+       "es": 12.38,
+       "sv": 32.47,
+       "tr": 19.49,
+       "ja": 6.91,
+       "zh": 16.49,
+       "ko": 17.53
+      }
+     },
+     "speed_x": 53.6,
+     "j_per_min": 58.4,
+     "memory_mb": 2915,
+     "disk_mb": 1533,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    }
+   },
+   "recommended": "8b"
+  },
+  "nemotron-3.5-streaming-0.6b": {
+   "precisions": {
+    "BF16": {
+     "wer": 23.44,
+     "format": 10.56,
+     "multilingual": {
+      "mean": 26.84,
+      "macro_wer": 28.02,
+      "macro_cer": 24.47,
+      "coverage": 9,
+      "by_language": {
+       "pl": 24.54,
+       "de": 17.81,
+       "fr": 17.66,
+       "es": 16.42,
+       "sv": 40.43,
+       "tr": 51.27,
+       "ja": 14.2,
+       "zh": 28.6,
+       "ko": 30.6
+      }
+     },
+     "speed_x": 16.6,
+     "j_per_min": 91.12,
+     "memory_mb": 2913,
+     "disk_mb": 1218,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "engine: Self-tested on this Mac against stock MLX (identical streamed text); output is bit-identical by construction."
+    },
+    "8b": {
+     "wer": 23.45,
+     "format": 10.58,
+     "multilingual": {
+      "mean": 27.46,
+      "macro_wer": 28.49,
+      "macro_cer": 25.39,
+      "coverage": 9,
+      "by_language": {
+       "pl": 25.4,
+       "de": 18.53,
+       "fr": 17.9,
+       "es": 16.51,
+       "sv": 39.78,
+       "tr": 52.82,
+       "ja": 16.23,
+       "zh": 28.65,
+       "ko": 31.28
+      }
+     },
+     "speed_x": 24.4,
+     "j_per_min": 67.8,
+     "memory_mb": 1441,
+     "disk_mb": 721,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "engine: Self-tested on this Mac against stock MLX (identical streamed text); output is bit-identical by construction."
+    }
+   },
+   "recommended": "8b"
+  },
+  "parakeet-v3-ultra": {
+   "precisions": {
+    "BF16": {
+     "wer": 15.52,
+     "format": 5.76,
+     "multilingual": {
+      "mean": 12.91,
+      "macro_wer": 12.91,
+      "macro_cer": null,
+      "coverage": 5,
+      "by_language": {
+       "pl": 6.94,
+       "de": 8.54,
+       "fr": 15.99,
+       "es": 13.93,
+       "sv": 19.14
+      }
+     },
+     "speed_x": 371.9,
+     "j_per_min": 5.36,
+     "memory_mb": 1747,
+     "disk_mb": 1197,
+     "suite": "v2",
+     "audio_min": 239.7,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized"
+    }
+   },
+   "recommended": "BF16"
+  },
+  "qwen3-asr-0.6b": {
+   "precisions": {
+    "BF16": {
+     "wer": 7.43,
+     "format": 5.27,
+     "multilingual": {
+      "mean": 16.86,
+      "macro_wer": 22.48,
+      "macro_cer": 5.61,
+      "coverage": 9,
+      "by_language": {
+       "pl": 25.6,
+       "de": 10.49,
+       "fr": 19.61,
+       "es": 8.61,
+       "sv": 42.37,
+       "tr": 28.21,
+       "ja": 6.33,
+       "zh": 2.9,
+       "ko": 7.59
+      }
+     },
+     "speed_x": 57.0,
+     "j_per_min": 38.37,
+     "memory_mb": 2367,
+     "disk_mb": 1497,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "quick set only (benchmark-table model)"
+    },
+    "8b": {
+     "wer": 7.86,
+     "format": 5.34,
+     "multilingual": {
+      "mean": 16.57,
+      "macro_wer": 21.98,
+      "macro_cer": 5.75,
+      "coverage": 9,
+      "by_language": {
+       "pl": 27.05,
+       "de": 10.49,
+       "fr": 19.61,
+       "es": 9.27,
+       "sv": 40.68,
+       "tr": 24.79,
+       "ja": 6.75,
+       "zh": 2.9,
+       "ko": 7.59
+      }
+     },
+     "speed_x": 72.5,
+     "j_per_min": 34.3,
+     "memory_mb": 1899,
+     "disk_mb": 964,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "quick set only (benchmark-table model)"
+    },
+    "4b": {
+     "wer": 9.09,
+     "format": 5.34,
+     "multilingual": {
+      "mean": 20.23,
+      "macro_wer": 25.57,
+      "macro_cer": 9.54,
+      "coverage": 9,
+      "by_language": {
+       "pl": 40.1,
+       "de": 12.96,
+       "fr": 21.08,
+       "es": 11.26,
+       "sv": 40.68,
+       "tr": 27.35,
+       "ja": 14.35,
+       "zh": 2.9,
+       "ko": 11.38
+      }
+     },
+     "speed_x": 84.5,
+     "j_per_min": 29.27,
+     "memory_mb": 1627,
+     "disk_mb": 680,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "optimized",
+     "note": "quick set only (benchmark-table model)"
+    }
+   },
+   "recommended": "8b"
+  },
+  "whisper-large-v3-turbo": {
+   "precisions": {
+    "8b": {
+     "wer": 9.19,
+     "format": 4.95,
+     "multilingual": {
+      "mean": 18.91,
+      "macro_wer": 17.94,
+      "macro_cer": 20.86,
+      "coverage": 9,
+      "by_language": {
+       "pl": 12.56,
+       "de": 8.02,
+       "fr": 23.04,
+       "es": 13.91,
+       "sv": 38.98,
+       "tr": 11.11,
+       "ja": 16.03,
+       "zh": 22.71,
+       "ko": 23.85
+      }
+     },
+     "speed_x": 39.6,
+     "j_per_min": 92.12,
+     "memory_mb": 2101,
+     "disk_mb": 828,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "mlx",
+     "note": "quick set only (benchmark-table model); engine: No optimized path for this model yet."
+    },
+    "4b": {
+     "wer": 9.99,
+     "format": 5.48,
+     "multilingual": {
+      "mean": 19.46,
+      "macro_wer": 18.16,
+      "macro_cer": 22.07,
+      "coverage": 9,
+      "by_language": {
+       "pl": 12.56,
+       "de": 6.17,
+       "fr": 24.51,
+       "es": 13.91,
+       "sv": 40.68,
+       "tr": 11.11,
+       "ja": 20.25,
+       "zh": 23.19,
+       "ko": 22.76
+      }
+     },
+     "speed_x": 39.4,
+     "j_per_min": null,
+     "memory_mb": 1714,
+     "disk_mb": 446,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "mlx",
+     "note": "energy not recorded: 1 of 3 runs had steady background load; quick set only (benchmark-table model); engine: No optimized path for this model yet."
+    }
+   },
+   "recommended": null
+  },
+  "sensevoice-small": {
+   "precisions": {
+    "FP32": {
+     "wer": 11.01,
+     "format": 7.77,
+     "multilingual": {
+      "mean": 8.13,
+      "macro_wer": null,
+      "macro_cer": 8.13,
+      "coverage": 3,
+      "by_language": {
+       "ja": 4.64,
+       "zh": 4.83,
+       "ko": 14.91
+      }
+     },
+     "speed_x": 416.4,
+     "j_per_min": null,
+     "memory_mb": 1528,
+     "disk_mb": 893,
+     "suite": "v2-quick",
+     "audio_min": 22.5,
+     "date": "2026-09-26",
+     "hardware": "Apple M5 Max, macOS 26.6",
+     "engine": "mlx",
+     "note": "energy not recorded: 0 of 3 runs had steady background load; quick set only (benchmark-table model); engine: No optimized path for this model yet."
+    }
+   },
+   "recommended": "FP32"
+  }
+ }
+}
