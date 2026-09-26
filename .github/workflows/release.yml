@@ -16,7 +16,13 @@ concurrency:
   cancel-in-progress: false
 
 # Same toolchains as ci.yml: Command Line Tools Swift 6.3.3 for all Swift code (required here, not just warned about),
-# Xcode 26.6 with its Metal Toolchain for MLX's shaders. No signing identity exists here: the app is signed ad hoc.
+# Xcode 26.6 with its Metal Toolchain for MLX's shaders.
+#
+# Signing. Vella needs Microphone and Accessibility permission, which macOS ties to the app's signature. With the three
+# repository secrets VELLA_SIGNING_P12_BASE64 (base64 of a .p12 with the certificate and its private key),
+# VELLA_SIGNING_P12_PASSWORD and VELLA_SIGNING_IDENTITY (the certificate's name or SHA-1 as `security find-identity`
+# prints it), the app is signed with that certificate, so updates keep the permissions. Without them it is signed ad
+# hoc, and the job summary and the draft's notes say so: macOS then asks for the permissions again after each update.
 env:
   XCODE_APP: /Applications/Xcode_26.6.app
   CLT_SWIFT: /Library/Developer/CommandLineTools/usr/bin/swift
@@ -63,16 +69,65 @@ jobs:
           fi
           xcrun metal --version
 
+      - name: Signing identity
+        id: signing
+        env:
+          VELLA_SIGNING_P12_BASE64: ${{ secrets.VELLA_SIGNING_P12_BASE64 }}
+          VELLA_SIGNING_P12_PASSWORD: ${{ secrets.VELLA_SIGNING_P12_PASSWORD }}
+          VELLA_SIGNING_IDENTITY: ${{ secrets.VELLA_SIGNING_IDENTITY }}
+        run: |
+          present=0
+          for v in VELLA_SIGNING_P12_BASE64 VELLA_SIGNING_P12_PASSWORD VELLA_SIGNING_IDENTITY; do [[ -n "${!v}" ]] && present=$((present + 1)); done
+          if [[ $present == 3 ]]; then
+            scripts/ci-keychain.sh import
+            echo "mode=certificate" >> "$GITHUB_OUTPUT"
+          elif [[ $present == 0 ]]; then
+            echo "::warning::No signing secrets: this release is signed AD HOC. macOS will ask for Microphone and Accessibility again after every update."
+            {
+              echo "## ⚠️ Signed ad hoc"
+              echo
+              echo "The repository has no signing secrets (VELLA_SIGNING_P12_BASE64, VELLA_SIGNING_P12_PASSWORD, VELLA_SIGNING_IDENTITY)."
+              echo "This app is signed ad hoc: macOS will ask for Microphone and Accessibility permission again after every update."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "mode=adhoc" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Only $present of the 3 signing secrets are set; set all three or none"; exit 1
+          fi
+
       - name: Package (scripts/package-release.sh)
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          VELLA_SIGN_IDENTITY: "-"
+          # scripts/build.sh signs the helpers, then the bundles, then the app, and verifies it.
+          VELLA_SIGN_IDENTITY: ${{ steps.signing.outputs.mode == 'certificate' && secrets.VELLA_SIGNING_IDENTITY || '-' }}
           VELLA_XCODE_DEVELOPER_DIR: ${{ env.XCODE_APP }}/Contents/Developer
           VELLA_RELEASE_OUTPUT_DIR: ${{ steps.version.outputs.out }}
         run: |
           scripts/package-release.sh "$VERSION"
           cat Worker/.build/split-build-provenance.txt
           cd "$VELLA_RELEASE_OUTPUT_DIR" && shasum -a 256 -c SHA256SUMS
+
+      - name: Check the signature in the zip
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          OUT: ${{ steps.version.outputs.out }}
+          MODE: ${{ steps.signing.outputs.mode }}
+        run: |
+          CHECK="$RUNNER_TEMP/signature-check"
+          rm -rf "$CHECK" && mkdir -p "$CHECK"
+          /usr/bin/unzip -q "$OUT/Vella-$VERSION-arm64.zip" -d "$CHECK"
+          APP="$CHECK/Vella.app"
+          codesign --verify --deep --strict "$APP"
+          DETAILS="$(codesign -dvv "$APP" 2>&1)"
+          REQUIREMENT="$(codesign -d -r- "$APP" 2>&1 | sed -n 's/^designated => //p')"
+          if [[ "$MODE" == certificate ]]; then
+            grep -q '^Authority=' <<<"$DETAILS" || { echo "::error::Expected a certificate signature, found ad hoc"; exit 1; }
+            for f in MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool Helpers/vella; do
+              codesign -dvv "$APP/Contents/$f" 2>&1 | grep -q '^Authority=' || { echo "::error::$f is not certificate-signed"; exit 1; }
+            done
+          else
+            grep -q 'Signature=adhoc' <<<"$DETAILS"
+          fi
+          { echo "### Signature"; echo; echo '```'; grep -E '^(Identifier|Authority|TeamIdentifier|Signature)=' <<<"$DETAILS"; echo "designated => $REQUIREMENT"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       # GitHub stores attestations for public repositories only (user-owned private ones get "Feature not available").
       # A private copy of this repository (a CI scratch run) still builds and drafts the release, without the attestation.
@@ -93,11 +148,20 @@ jobs:
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
           OUT: ${{ steps.version.outputs.out }}
+          MODE: ${{ steps.signing.outputs.mode }}
         run: |
-          # Notes: this version's CHANGELOG.md section, then how to verify the download.
+          # Notes: an ad-hoc warning if unsigned, this version's CHANGELOG.md section, then how to verify the download.
           NOTES="$RUNNER_TEMP/notes.md"
-          awk -v v="$VERSION" '$0 ~ "^## " v "( |$)" {on=1; next} on && /^## / {exit} on' CHANGELOG.md > "$NOTES"
-          [[ -s "$NOTES" ]] || echo "See CHANGELOG.md." > "$NOTES"
+          : > "$NOTES"
+          if [[ "$MODE" != certificate ]]; then
+            {
+              echo "> [!WARNING]"
+              echo "> This build is signed ad hoc. After updating, macOS asks again for Microphone and Accessibility permission."
+              echo
+            } >> "$NOTES"
+          fi
+          awk -v v="$VERSION" '$0 ~ "^## " v "( |$)" {on=1; next} on && /^## / {exit} on' CHANGELOG.md > "$RUNNER_TEMP/changelog.md"
+          if [[ -s "$RUNNER_TEMP/changelog.md" ]]; then cat "$RUNNER_TEMP/changelog.md" >> "$NOTES"; else echo "See CHANGELOG.md." >> "$NOTES"; fi
           {
             echo
             echo "Install or update with \`scripts/install.sh\` from a checkout of this tag (see the README): it downloads this zip and checks it against SHA256SUMS before installing. To check the zip's build provenance:"
@@ -106,3 +170,7 @@ jobs:
           } >> "$NOTES"
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Vella $VERSION" --notes-file "$NOTES" \
             "$OUT/Vella-$VERSION-arm64.zip" "$OUT/SHA256SUMS"
+
+      - name: Remove the temporary keychain
+        if: ${{ always() }}
+        run: scripts/ci-keychain.sh delete
