@@ -862,7 +862,9 @@ final class GlobalShortcut {
         }
         let delegate = AppDelegate()
         application.delegate = delegate
-        // Publish an empty worker status and load the launch set (manual loads only; nothing on a fresh install).
+        // Menu and table ↔ runtime; then publish an empty worker status and load the launch set (manual loads only;
+        // nothing on a fresh install).
+        RuntimeBridge.shared.attach(delegate)
         DispatchQueue.main.async { Runtime.shared.start() }
         withExtendedLifetime(delegate) { application.run() }
     }
