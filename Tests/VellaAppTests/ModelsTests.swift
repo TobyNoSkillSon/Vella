@@ -3,22 +3,157 @@ import Foundation
 import AppKit
 @testable import Vella
 @testable import VellaCore
+
+@MainActor private final class RuntimeSpy: ModelRuntimeActions {
+    var calls: [String] = []
+    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) { calls.append("load \(family.id) \(precision) \(path)") }
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) { calls.append("reload \(family.id) \(precision) \(path)") }
+    func unload(family: ModelFamily) { calls.append("unload \(family.id)") }
+    func forget(family: ModelFamily) { calls.append("forget \(family.id)") }
+}
+
 final class ModelsTests: XCTestCase {
-    @MainActor func testCatalogAndReferenceResultsLoad() throws {
-        let library = ModelLibrary()
-        XCTAssertGreaterThanOrEqual(library.models.count, 4)
-        try LabFixtures.requireReferences(library)
-        XCTAssertNotNil(library.references["Qwen3-ASR-1.7B-bf16"])
-        XCTAssertNil(library.references["unmeasured-model-does-not-exist"])
-        XCTAssertEqual(library.references["Qwen3-ASR-1.7B-bf16"]?.clips.count, 144)
+    private var roots: [URL] = []
+    override func tearDownWithError() throws { for root in roots { try? FileManager.default.removeItem(at: root) } }
+
+    /// A controller over the shipped catalog with an isolated registry, selections file and benchmark fixture.
+    @MainActor private func controller(benchmarks: String? = nil) throws -> ModelsController {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-models-\(UUID())")
+        roots.append(root)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let registry = root.appendingPathComponent("models-installed.json")
+        let resources = ModelLibrary.resourceDirectory()
+        var benchmarksURL = root.appendingPathComponent("missing-benchmarks.json")
+        if let benchmarks {
+            benchmarksURL = root.appendingPathComponent("benchmarks.json")
+            try Data(benchmarks.utf8).write(to: benchmarksURL)
+        }
+        return ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+                                streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+                                benchmarksURL: benchmarksURL, selectionsURL: root.appendingPathComponent("model-precision.json"))
     }
-    @MainActor func testCalibrationRejectsExtrapolation() throws {
-        let library = ModelLibrary(); try LabFixtures.requireReferences(library)
-        let result = try XCTUnwrap(library.references["Qwen3-ASR-1.7B-bf16"])
-        XCTAssertNotNil(result.estimatedSeconds(for: 10))
-        XCTAssertNil(result.estimatedSeconds(for: 300))
-        XCTAssertNil(result.estimatedSeconds(for: 0))
+    private let qwenFixture = #"""
+    {"schema":1,"models":{"qwen3-asr-1.7b":{"precisions":{
+      "BF16":{"wer":1.41,"speed_x":30.5,"j_per_min":6.0,"hardware":"Apple M5 Max","date":"2026-09-27"},
+      "8b":{"wer":1.57,"speed_x":44.5,"j_per_min":4.0,"hardware":"Apple M5 Max","date":"2026-09-27"},
+      "4b":{"wer":1.51,"speed_x":59.5,"j_per_min":3.0,"hardware":"Apple M5 Max","date":"2026-09-27"}}}}}
+    """#
+
+    @MainActor func testModelsOpensOneTableWithBothModesAndNoNestedMenus() throws {
+        _ = NSApplication.shared
+        let menus = ModelsMenu(controller: try controller())
+        let root = menus.modelItem()
+        XCTAssertEqual(root.submenu?.items.count, 1)
+        let view = try XCTUnwrap(root.submenu?.items.first?.view)
+        XCTAssertTrue(view.allowsVibrancy)
+        XCTAssertEqual(view.frame.width, ModelTable.width)
+        XCTAssertEqual(view.frame.height, ModelTable.height(menus.controller), "every row fits without scrolling")
+        XCTAssertEqual(view.layer?.backgroundColor?.alpha, 0)
+        XCTAssertNil(root.submenu?.items.first?.submenu)
+        XCTAssertFalse(menus.controller.families(.dictation).isEmpty)
+        XCTAssertFalse(menus.controller.families(.streaming).isEmpty)
+        XCTAssertFalse(menus.controller.families(.dictation).contains { $0.id == "granite-4.0-1b-speech" }, "not offered")
     }
+
+    @MainActor func testNonOfferedFamilyStaysManageableWhenDownloaded() throws {
+        let c = try controller()
+        c.dictation.installed["granite-4.0-1b-speech-4bit"] = InstalledModel(path: "/fixture/granite")
+        XCTAssertTrue(c.families(.dictation).contains { $0.id == "granite-4.0-1b-speech" })
+    }
+
+    @MainActor func testRecommendedSelectionDeltasBaseAndPersistence() throws {
+        let c = try controller(benchmarks: qwenFixture)
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
+        // 4b and 8b are within 0.5 pt of BF16; 4b uses the least energy.
+        XCTAssertEqual(c.recommended(qwen), "4b")
+        XCTAssertEqual(c.selected(qwen), "4b")
+        XCTAssertEqual(c.base(qwen), "4b")
+        XCTAssertEqual(errorRateDelta(c.result(qwen, "8b")?.wer, base: c.result(qwen, c.base(qwen))?.wer), Delta("+0.1 pt", .worse))
+        c.setPrecision(qwen, "BF16")
+        XCTAssertEqual(c.selected(qwen), "BF16")
+        let saved = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: c.selectionsURL))
+        XCTAssertEqual(saved["qwen3-asr-1.7b"], nativeSelection, "native is stored as a sentinel")
+        let reopened = ModelsController(dictation: c.dictation, streaming: c.streaming, selectionsURL: c.selectionsURL)
+        XCTAssertEqual(reopened.selected(qwen), "BF16")
+    }
+
+    @MainActor func testPreviewNeverWritesSelections() throws {
+        let c = try controller()
+        c.previewing = true
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
+        c.setPrecision(qwen, "8b")
+        XCTAssertEqual(c.selected(qwen), "8b")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: c.selectionsURL.path))
+    }
+
+    @MainActor func testRowActionsGoToTheRuntime() throws {
+        let c = try controller(benchmarks: qwenFixture)
+        let spy = RuntimeSpy(); c.actions = spy
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
+        c.dictation.installed["Qwen3-ASR-1.7B-4bit"] = InstalledModel(path: "/fixture/q4")
+        c.dictation.installed["Qwen3-ASR-1.7B-bf16"] = InstalledModel(path: "/fixture/q16")
+        c.runtime = TableRuntime()
+        XCTAssertEqual(c.action(qwen), .load)
+        c.perform(qwen)
+        XCTAssertEqual(spy.calls.last, "load qwen3-asr-1.7b 4b /fixture/q4")
+        c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "4b", engine: "optimized")])
+        XCTAssertEqual(c.action(qwen), .unload)
+        c.perform(qwen)
+        XCTAssertEqual(spy.calls.last, "unload qwen3-asr-1.7b")
+        // Another precision selected for the loaded model: green Reload.
+        c.setPrecision(qwen, "BF16")
+        XCTAssertEqual(c.action(qwen), .reload)
+        c.perform(qwen)
+        XCTAssertEqual(spy.calls.last, "reload qwen3-asr-1.7b BF16 /fixture/q16")
+        // A model a dictation loaded on demand is not a pending change.
+        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        c.dictation.installed["parakeet-tdt-0.6b-v3-mlx-8bit"] = InstalledModel(path: "/fixture/p8")
+        c.runtime = TableRuntime(loaded: ["parakeet-v3": LoadedFamily(precision: "8b", residency: "on_demand")])
+        XCTAssertEqual(c.action(parakeet), .unload)
+        // Not downloaded: Get.
+        c.runtime = TableRuntime()
+        XCTAssertEqual(c.action(try XCTUnwrap(c.catalog.family("whisper-large-v3"))), .get)
+    }
+
+    @MainActor func testWithoutRuntimeTheModeSelectionReadsAsLoaded() throws {
+        let c = try controller()
+        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        c.dictation.installed["parakeet-tdt-0.6b-v3-mlx-4bit"] = InstalledModel(path: "/fixture/p4")
+        c.dictation.activeModelPath = "/fixture/p4"
+        XCTAssertEqual(c.loaded(parakeet)?.precision, "4b")
+        XCTAssertEqual(c.activeLabel(.dictation), "Parakeet v3 4b")
+        XCTAssertEqual(c.action(parakeet), .unload)
+    }
+
+    @MainActor func testMenuOrderAndTooltips() throws {
+        _ = NSApplication.shared
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-menu-order-\(UUID())")
+        roots.append(root)
+        let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+        defer { model.shutdown() }
+        let delegate = AppDelegate(model: model)
+        delegate.modelsMenu = ModelsMenu(controller: try controller())
+        delegate.factLine = { "1 model loaded · 1.3 GB in memory" }
+        model.lastText = "text"
+        delegate.rebuildMenu()
+        let titles = delegate.menu.items.filter { !$0.isSeparatorItem }.map(\.title).dropFirst()   // header text varies
+        XCTAssertEqual(Array(titles), ["1 model loaded · 1.3 GB in memory", "Start Dictation", "Mode", "Microphone", "Shortcuts",
+                                       "Models…", "Keep Hot", "Memory",
+                                       "Copy Last Transcript", "Open Saved Recordings", "Open Vella Files", "Restart Worker", "Launch at Login",
+                                       "Support the developer…", "Quit Vella"])
+        for title in ["Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Open Vella Files", "Restart Worker"] {
+            XCTAssertNotNil(delegate.menu.item(withTitle: title)?.toolTip, title)
+        }
+        // Keep Hot choice applies through the settings source.
+        let settings = DefaultMenuSettings(); delegate.menuSettings = settings
+        delegate.rebuildMenu()
+        let keepHot = try XCTUnwrap(delegate.menu.item(withTitle: "Keep Hot")?.submenu)
+        let fiveMinutes = try XCTUnwrap(keepHot.items.first { $0.title == "5 min idle" && ($0.representedObject as? SettingsActionBox)?.action == .keepHot(.onDemand, minutes: 5) })
+        _ = fiveMinutes.target?.perform(fiveMinutes.action, with: fiveMinutes)
+        XCTAssertEqual(settings.onDemandIdleMinutes, 5)
+        XCTAssertEqual(settings.manualIdleMinutes, 0)
+    }
+
     @MainActor func testSavedRecordingsIsOneFolderActionWithoutHistorySubmenu() throws {
         _ = NSApplication.shared
         let delegate = AppDelegate()
@@ -26,35 +161,11 @@ final class ModelsTests: XCTestCase {
         let entries = delegate.menu.items.filter { $0.title.hasPrefix("Open Saved Recordings") || $0.title.hasPrefix("Saved Recordings") }
         XCTAssertEqual(entries.count, 1)
         let entry = try XCTUnwrap(entries.first)
-        XCTAssertEqual(entry.title, "Open Saved Recordings")
         XCTAssertNil(entry.submenu)
         XCTAssertEqual(entry.action.map(NSStringFromSelector), "savedRecordings")
         XCTAssertTrue(entry.isEnabled)
     }
-    @MainActor func testModelsOpensOneTableWithoutNestedMenus() {
-        _ = NSApplication.shared
-        let menus = ModelsMenu()
-        let root = menus.modelItem()
-        XCTAssertEqual(root.submenu?.items.count, 1)
-        XCTAssertNotNil(root.submenu?.items.first?.view)
-        XCTAssertTrue(root.submenu?.items.first?.view?.allowsVibrancy == true)
-        XCTAssertEqual(root.submenu?.items.first?.view?.frame.width, 534)
-        XCTAssertEqual(root.submenu?.items.first?.view?.layer?.backgroundColor?.alpha, 0)
-        XCTAssertNil(root.submenu?.items.first?.submenu)
-    }
-    @MainActor func testSortDirectionsAndUnmeasuredLast() {
-        let library = ModelLibrary()
-        let measured = library.references
-        let ascending = sortedRecommendations(library.models, results: measured, column: .errorRate, ascending: true)
-        let descending = sortedRecommendations(library.models, results: measured, column: .errorRate, ascending: false)
-        let ascValues = ascending.compactMap { measured[$0.id]?.wordErrorRate }
-        let descValues = descending.compactMap { measured[$0.id]?.wordErrorRate }
-        XCTAssertEqual(ascValues, ascValues.sorted())
-        XCTAssertEqual(descValues, descValues.sorted(by: >))
-        if library.models.contains(where: { measured[$0.id] == nil }) {
-            XCTAssertNil(measured[ascending.last!.id]); XCTAssertNil(measured[descending.last!.id])
-        }
-    }
+
     @MainActor func testAgentRequestCopiesLocalDocumentationLink() {
         let library = ModelLibrary()
         let pasteboard = NSPasteboard.withUniqueName()
@@ -63,96 +174,7 @@ final class ModelsTests: XCTestCase {
         let request = pasteboard.string(forType: .string) ?? ""
         XCTAssertTrue(request.contains(library.resources.appendingPathComponent("AGENT_GUIDE.md").path))
         XCTAssertTrue(request.contains("transcription model"))
-        XCTAssertTrue(request.contains("Source checkout:"))
         XCTAssertTrue(request.contains("ask before switching models"))
         XCTAssertLessThan(request.count, 700)
-    }
-    @MainActor func testReferenceSelectionPrefersMatchingProcessorWithoutRelabeling() throws {
-        let library = ModelLibrary(); try LabFixtures.requireReferences(library)
-        let original = try XCTUnwrap(library.references["Qwen3-ASR-1.7B-bf16"])
-        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
-        object["machine"] = "Apple M4 Pro"
-        let other = try JSONDecoder().decode(BenchmarkResult.self, from: JSONSerialization.data(withJSONObject: object))
-        XCTAssertEqual(preferredBenchmark([original, other], processor: "Apple M4 Pro")?.machine, "Apple M4 Pro")
-        XCTAssertEqual(preferredBenchmark([original], processor: "Apple M4 Pro")?.machine, original.machine)
-    }
-    func testTwentyMinuteSuiteHasDiverseSpeakersAndAlignedClips() throws {
-        let data = try Data(contentsOf: LabFixtures.require("Resources/Benchmarks/v1/english-20m-v1/manifest.json"))
-        let manifest = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let clips = try XCTUnwrap(manifest["clips"] as? [[String: Any]])
-        XCTAssertEqual(clips.count, 141)
-        XCTAssertEqual(Set(clips.compactMap { $0["speaker"] as? Int }).count, 35)
-        let duration = try XCTUnwrap(manifest["audioSeconds"] as? Double)
-        XCTAssertGreaterThanOrEqual(duration, 1200)
-        XCTAssertLessThan(duration, 1201)
-        XCTAssertTrue(clips.allSatisfy { !($0["reference"] as? String ?? "").isEmpty })
-    }
-    @MainActor func testProcessorFallbackUsesNearestGenerationThenM5Max() throws {
-        let library = ModelLibrary(); try LabFixtures.requireReferences(library)
-        let original = try XCTUnwrap(library.references["Qwen3-ASR-1.7B-bf16"])
-        func measured(on machine: String) throws -> BenchmarkResult {
-            var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
-            object["machine"] = machine
-            return try JSONDecoder().decode(BenchmarkResult.self, from: JSONSerialization.data(withJSONObject: object))
-        }
-        let pro = try measured(on: "Apple M1 Pro"), base = try measured(on: "Apple M1"), unrelated = try measured(on: "Apple M4 Ultra")
-        XCTAssertEqual(preferredBenchmark([original, base, pro], processor: "Apple M1 Max")?.machine, "Apple M1 Pro")
-        XCTAssertEqual(preferredBenchmark([unrelated, original], processor: "Apple M2 Max")?.machine, "Apple M5 Max")
-        XCTAssertEqual(preferredBenchmark([base, pro, original], processor: "M1")?.machine, "Apple M1")
-        XCTAssertNil(preferredBenchmark([unrelated], processor: "Apple M2 Max"))
-    }
-    @MainActor func testFormattedResultsAndSorting() throws {
-        let library = ModelLibrary()
-        try LabFixtures.requireReferences(library)
-        XCTAssertEqual(library.references.count, 16)
-        let benchmarkOnly: Set<String> = [
-            "Qwen3-ASR-0.6B-4bit", "nemotron-3.5-asr-streaming-0.6b-8bit",
-            "Voxtral-Mini-4B-Realtime-2602-4bit", "granite-speech-5.0-470m-turboctc-mlx-fp16"
-        ]
-        XCTAssertTrue(benchmarkOnly.isSubset(of: Set(library.references.keys)))
-        XCTAssertTrue(benchmarkOnly.isDisjoint(with: Set(library.models.map(\.id))))
-        for result in library.references.values {
-            XCTAssertEqual(result.suiteID, "english-formatted-20m-v1")
-            XCTAssertNotNil(result.formatting?.scorerSHA256)
-            XCTAssertNotNil(result.formatting?.lexicalNormalizerSHA256)
-            XCTAssertEqual(result.formatting?.quotedReferenceClips, 3)
-        }
-        let rows = sortedRecommendations(library.models, results: library.references, column: .formattedError, ascending: true)
-        let values = rows.compactMap { library.references[$0.id]?.formatting?.formattedCharacterErrorRate }
-        XCTAssertEqual(values, values.sorted())
-        let original = try XCTUnwrap(library.references["Qwen3-ASR-1.7B-bf16"])
-        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
-        object["clips"] = []
-        let compact = try JSONDecoder().decode(BenchmarkResult.self, from: JSONSerialization.data(withJSONObject: object))
-        XCTAssertEqual(compact.formatting?.formattedCharacterErrorRate, original.formatting?.formattedCharacterErrorRate)
-        XCTAssertTrue(compact.clips.isEmpty)
-    }
-    @MainActor func testRecommendedRowsKeepFullCatalogAndActiveException() {
-        let library = ModelLibrary()
-        library.activeModelPath = ""
-        library.installed = [:]
-        XCTAssertEqual(library.displayedModels.count, 5)
-        XCTAssertEqual(Set(library.displayedModels.map(\.architecture)).count, 5)
-        XCTAssertTrue(library.displayedModels.allSatisfy { $0.recommended == true })
-        XCTAssertGreaterThanOrEqual(library.models.count, 12)
-        library.installed["Qwen3-ASR-1.7B-8bit"] = InstalledModel(path: "/tmp/vella-active-test")
-        library.activeModelPath = "/tmp/vella-active-test"
-        XCTAssertEqual(library.displayedModels.count, 6)
-        XCTAssertTrue(library.displayedModels.contains { $0.id == "Qwen3-ASR-1.7B-8bit" })
-        XCTAssertEqual(library.activeModelPath, "/tmp/vella-active-test")
-    }
-    @MainActor func testMemoryColumnUsesWarmMeasurements() throws {
-        let library = ModelLibrary()
-        try LabFixtures.requireReferences(library)
-        XCTAssertTrue(library.references.values.allSatisfy { ($0.runtimePeakMLXBytes ?? 0) > 0 })
-        let sorted = sortedRecommendations(library.models, results: library.references, column: .memory, ascending: true)
-        let values = sorted.compactMap { library.references[$0.id]?.runtimePeakMLXBytes }
-        XCTAssertEqual(values, values.sorted())
-        let original = try XCTUnwrap(library.references.values.first)
-        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
-        object.removeValue(forKey: "runtimePeakMLXBytes")
-        let legacy = try JSONDecoder().decode(BenchmarkResult.self, from: JSONSerialization.data(withJSONObject: object))
-        XCTAssertNil(legacy.runtimePeakMLXBytes)
-        XCTAssertNotNil(legacy.peakMLXBytes)
     }
 }

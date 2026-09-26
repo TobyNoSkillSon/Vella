@@ -747,25 +747,16 @@ final class GlobalShortcut {
         }
         #endif
         let application = NSApplication.shared
-        #if DEBUG
-        if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--render-model-table" {
-            application.setActivationPolicy(.prohibited)
-            let host = NSHostingView(rootView: ModelTable(library: ModelLibrary()))
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 368), styleMask: .borderless, backing: .buffered, defer: false)
-            window.contentView = host; host.frame = NSRect(x: 0, y: 0, width: 640, height: 368)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                host.layoutSubtreeIfNeeded()
-                if let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
-                    host.cacheDisplay(in: host.bounds, to: rep)
-                    if let png = rep.representation(using: .png, properties: [:]) {
-                        try? png.write(to: URL(fileURLWithPath: CommandLine.arguments[2]))
-                    }
-                }
-                application.terminate(nil)
-            }
-            withExtendedLifetime(window) { application.run() }
+        // Render harness (Models table and menu states to PNGs; no worker, no settings written).
+        if CommandLine.arguments.count == 3, ["--render-table", "--render-menu"].contains(CommandLine.arguments[1]) {
+            let directory = URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true)
+            let delegate: NSApplicationDelegate = CommandLine.arguments[1] == "--render-table"
+                ? TableRenderDelegate(directory: directory) : MenuRenderDelegate(directory: directory)
+            application.delegate = delegate
+            withExtendedLifetime(delegate) { application.run() }
             return
         }
+        #if DEBUG
         if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--render-preview" {
             application.setActivationPolicy(.accessory)
             let model = Model()
