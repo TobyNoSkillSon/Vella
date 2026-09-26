@@ -135,7 +135,7 @@ import VellaCore
         let library = controller.library(offer.mode)
         if let local = library.installed[offer.id] { select(local.path, mode: offer.mode); return local.path }
         library.selectedID = offer.id
-        library.download()
+        library.download(pendingRecording: true)
         while library.downloadingID == offer.id || (library.busy && library.calibratingID == nil && library.installed[offer.id] == nil) {
             try Task.checkCancellation()
             try await Task.sleep(nanoseconds: 200_000_000)

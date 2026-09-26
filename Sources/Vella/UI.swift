@@ -54,8 +54,9 @@ final class HUDPanel: NSPanel {
     var getPendingModel: () -> Void = {}
     /// Restart Worker: the runtime's restart; nil = stop the workers (the next dictation starts them again).
     var restartWorkers: (() -> Void)?
-    private func makeModelsMenu() -> ModelsMenu {
-        let menus = ModelsMenu()
+    /// `controller`: an isolated Models controller (tests); the wiring below is the real one either way.
+    func makeModelsMenu(controller: ModelsController? = nil) -> ModelsMenu {
+        let menus = ModelsMenu(controller: controller)
         for mode in RecognitionMode.allCases {
             let library = menus.controller.library(mode)
             library.mayChangeModel = { [weak self] in
