@@ -58,22 +58,31 @@ public final class ParakeetModel: Module, STTGenerationModel {
     private var fastTokenSink: ((Int) -> Void)?
     public private(set) var fastPathFinite = true
     public private(set) var fastPathError: String?
+    private static let profilePath: String? = {
+        guard let p = ProcessInfo.processInfo.environment["VELLA_PARAKEET_PROFILE"], p.hasPrefix("/") else { return nil }
+        return p
+    }()
 
     /// Only the worker's isolated model-specific token-ID qualification enables these paths.
     public func configureFastPath(enabled: Bool, component: String = "both") -> Bool {
         fastEncoder = nil
         fastDecoder = nil
         guard enabled else { return false }
-        guard ["both", "decoder", "encoder", "encoder-no-fused-conv"].contains(component) else { return false }
+        // Diagnosis/A-B only: VELLA_PARAKEET_FAST overrides the default component set.
+        var component = component
+        if component == "both", let forced = ProcessInfo.processInfo.environment["VELLA_PARAKEET_FAST"], !forced.isEmpty { component = forced }
+        guard ["both", "all", "decoder", "encoder", "encoder-no-fused-conv"].contains(component) else { return false }
         let quantized = encoder.layers.first?.relSelfAttn?.linearQ is QuantizedLinear
-        let wantsDecoder = component == "both" || component == "decoder"
-        let wantsEncoder = component.hasPrefix("encoder") || (component == "both" && quantized)
+        let wantsDecoder = component == "both" || component == "all" || component == "decoder"
+        let wantsEncoder = component.hasPrefix("encoder") || component == "all" || (component == "both" && quantized)
         if wantsDecoder {
             guard let prepared = FastParakeetTDT(self) else { fastEncoder = nil; return false }
             fastDecoder = prepared
         }
         if wantsEncoder {
-            let dtype: DType = quantized ? .float32 : .bfloat16
+            // Quantized checkpoints keep FP32 activations; dense ones run in their own dtype.
+            let dense = encoder.layers.first?.relSelfAttn?.linearQ.weight.dtype ?? .bfloat16
+            let dtype: DType = quantized ? .float32 : (dense.isFloatingPoint ? dense : .bfloat16)
             guard let prepared = FastParakeetEncoder(encoder, dense: !quantized, dtype: dtype,
                                                      fusedConvolution: component != "encoder-no-fused-conv") else {
                 fastDecoder = nil
@@ -425,8 +434,23 @@ public final class ParakeetModel: Module, STTGenerationModel {
         )
 
         features = features.asType(computeDType)
+        guard let profile = Self.profilePath else {
+            let encoded = encodeBatchFeatures(features, lengths: lengths)
+            return decodeTDTEncoded(batchFeatures: encoded.0, lengths: encoded.1)
+        }
+        // VELLA_PARAKEET_PROFILE=/abs/path: append "frames encoder_s decoder_s" per chunk.
+        let t0 = CFAbsoluteTimeGetCurrent()
         let encoded = encodeBatchFeatures(features, lengths: lengths)
-        return decodeTDTEncoded(batchFeatures: encoded.0, lengths: encoded.1)
+        eval(encoded.0, encoded.1)
+        let t1 = CFAbsoluteTimeGetCurrent()
+        let result = decodeTDTEncoded(batchFeatures: encoded.0, lengths: encoded.1)
+        let t2 = CFAbsoluteTimeGetCurrent()
+        if let handle = FileHandle(forWritingAtPath: profile) {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: Data("\(features.shape[1]) \(t1 - t0) \(t2 - t1)\n".utf8))
+            try? handle.close()
+        }
+        return result
     }
 
     private func decodeTDTEncoded(batchFeatures: MLXArray, lengths: MLXArray) -> [ParakeetAlignedResult] {

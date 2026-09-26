@@ -24,6 +24,40 @@ v = static_cast<float>(static_cast<OT>(v + float(bias[c])));
 float o = v / (1.0f + metal::exp(-v));
 out[t * C + c] = static_cast<OT>(o);
 """#
+    /// Stock-rounding variant: BatchNorm is not folded, and every op MLX materialises
+    /// (sigmoid, GLU product, conv, +bias, BN steps, SiLU) is rounded to OT in MLX's order.
+    /// Sigmoid replays MLX's unary op on OT values: y = 1 / (1 + exp(|x|)); x < 0 ? y : 1 - y,
+    /// each step rounded, with precise exp (bit-identical to MLX on 307k random bf16 values).
+    static let srcExact = #"""
+#define rb(v) static_cast<float>(static_cast<OT>(v))
+uint c = thread_position_in_grid.x;
+uint t = thread_position_in_grid.y;
+int T = int(y_shape[1]);
+if (c >= C || int(t) >= T) return;
+float acc = 0.0f;
+for (int k = 0; k < K; k++) {
+    int s = int(t) + k - PAD;
+    if (s < 0 || s >= T) continue;
+    float a = float(y[s * 2 * C + c]);
+    float g = float(y[s * 2 * C + C + c]);
+    acc += rb(a * msig(g)) * float(w[c * K + k]);
+}
+float v = rb(acc);
+v = rb(v + float(cbias[c]));
+v = rb(v - float(mean[c]));
+v = rb(v * float(inv[c]));
+v = rb(float(bnw[c]) * v);
+v = rb(v + float(bnb[c]));
+out[t * C + c] = static_cast<OT>(v * msig(v));
+"""#
+    /// MLX's Sigmoid on an OT value, every intermediate rounded to OT (identity for float).
+    static let exactHeader = #"""
+template <typename OT> inline float msig_t(float x) {
+    float y = float(OT(1.0f / float(OT(1.0f + float(OT(metal::precise::exp(metal::abs(x))))))));
+    return x < 0.0f ? y : float(OT(1.0f - y));
+}
+#define msig(v) msig_t<OT>(v)
+"""#
     static let header = #"""
 
 // Eight bf16 values from 16 bytes, widened to float (bf16 is the top half of an fp32).
