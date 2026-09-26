@@ -124,12 +124,19 @@ final class StreamingPCMBuffer: @unchecked Sendable {
             try check(token)
         } catch {
             // The new model failed to load: put the working one back with its residency (as dictation's reload does).
-            // Never after a stop/release/shutdown.
+            // Never after a stop/release/shutdown, including one that arrives while the restore waits or loads
+            // (Review 1 R13): cancellation is re-checked after every suspension, and a worker restored across a
+            // cancellation is retired again.
             if let previous, !(error is CancellationError), cancelToken == token {
                 do {
                     try await waitForRetired()
+                    try check(token)
                     try launch(previous, residency: previousResidency)
                     _ = try await exchange(["op": "load", "model": previous.path])
+                    try check(token)
+                } catch is CancellationError {
+                    if process != nil || loadingRef != nil || hotRef != nil { retire() }
+                    try? await waitForRetired()
                 } catch { runtime.log("\(previous.id): could not restore the streaming model after a failed load") }
             }
             throw error
