@@ -30,13 +30,13 @@ final class StreamingModelCache {
         }
         if ok == 0 { memory["footprint_mb"] = Double(info.ri_phys_footprint) / 1e6 }
         let hooks = ProcessInfo.processInfo.environment.filter {
-            ["VELLA_TEST_LOAD_FAULT", "VELLA_FORCE_STOCK", "VELLA_WORKER_DATA_DIR"].contains($0.key) && !$0.value.isEmpty
+            ["VELLA_TEST_LOAD_FAULT", "VELLA_FORCE_STOCK", "VELLA_WORKER_DATA_DIR", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_SELFTEST_FAULT"].contains($0.key) && !$0.value.isEmpty
         }
         var object: [String: Any] = [
             "worker": "streaming", "pid": Int(getpid()), "event": event, "model": path?.path ?? NSNull(),
-            "engine": native == nil ? NSNull() : "mlx",
-            "engine_reason": native == nil ? NSNull() : "No optimized path for this streaming model yet.",
-            "optimizations": [String: Bool](), "load_s": loadSeconds ?? NSNull(), "memory": memory,
+            "engine": native.map { $0.engine.0 } ?? NSNull(),
+            "engine_reason": native.map { $0.engine.1 } ?? NSNull(),
+            "optimizations": native?.engine.2 ?? [String: Bool](), "load_s": loadSeconds ?? NSNull(), "memory": memory,
         ]
         if !hooks.isEmpty { object["test_hooks"] = hooks }
         return object
@@ -52,6 +52,10 @@ final class StreamingModelCache {
         dup2(sink, STDOUT_FILENO); dup2(sink, STDERR_FILENO); Darwin.close(sink)
         guard streamingSandbox() else { exit(1) }
         Memory.cacheLimit = 64 * 1024 * 1024
+        // FastPathGate's child: stock vs optimized streaming self-test, verdict in the exit status.
+        if CommandLine.arguments.dropFirst().first == "fast-selftest" {
+            exit(StreamingSelfTest.run(arguments: Array(CommandLine.arguments.dropFirst(2))))
+        }
         let cache = StreamingModelCache { path in try withError { try loadStreamingNative(path) } }
         func newSession() -> StreamingSession { StreamingSession { path in try cache.native(for: path) } }
         var session = newSession()
@@ -91,12 +95,13 @@ final class StreamingModelCache {
                 if reply["error"] != nil { break }
                 continue
             }
-            let before = cache.path
+            let before = cache.path, engineBefore = cache.native?.engine.0
             let reply: [String: Any]
             do { reply = try withError { session.reply(value) } }
             catch { session.done = true; reply = ["id": identifier as Any? ?? NSNull(), "error": "Local streaming transcription failed."] }
             watchdog.disarm()
             if cache.path != before { watchdog.write(["status": cache.status(cache.path == nil ? "unload" : "load")]) }
+            else if cache.native?.engine.0 != engineBefore { watchdog.write(["status": cache.status("fallback")]) }
             watchdog.write(reply)
             if session.done {
                 // A clean finish keeps the model hot for the next session; any failure ends the process.

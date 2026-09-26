@@ -6,6 +6,20 @@ import MLXFFT
 // Frame extraction applies preemphasis before reflect-padding and computes only
 // the requested bounded range; centered constant padding is NOT equivalent.
 enum VellaNemotronFrontend {
+    // Window and Slaney filters are pure functions of the config: build them once
+    // (same operations, evaluated once) instead of ~20 small kernels per call.
+    private static var cache: [String: (MLXArray, MLXArray)] = [:]
+    private static func constants(_ c: NemotronASRPreprocessConfig) -> (MLXArray, MLXArray) {
+        let key = "\(c.sampleRate)/\(c.nFft)/\(c.winLength)/\(c.features)"
+        if let hit = cache[key] { return hit }
+        let values = (0..<c.winLength).map { Float(0.5 * (1 - cos(2 * Double.pi * Double($0) / Double(c.winLength - 1)))) }
+        let pad = (c.nFft - c.winLength) / 2
+        let window = concatenated([MLXArray.zeros([pad]), MLXArray(values), MLXArray.zeros([c.nFft - c.winLength - pad])])
+        let filters = VellaStreamingDSP.melFilters(sampleRate: c.sampleRate, nFft: c.nFft, nMels: c.features)
+        eval(window, filters)
+        cache[key] = (window, filters)
+        return (window, filters)
+    }
     static func frames(_ x: MLXArray, config c: NemotronASRPreprocessConfig, start: Int, end: Int) -> MLXArray {
         let count = end - start
         guard count > 0 else { return MLXArray.zeros([1, 0, c.features]) }
@@ -33,12 +47,9 @@ enum VellaNemotronFrontend {
         if segment.shape[0] < expected { segment = concatenated([segment, MLXArray.zeros([expected - segment.shape[0]])]) }
         // Installed streaming checkpoints use symmetric Hann. Admission rejects
         // unsupported frontend variants rather than silently changing windows.
-        let values = (0..<c.winLength).map { Float(0.5 * (1 - cos(2 * Double.pi * Double($0) / Double(c.winLength - 1)))) }
-        let pad = (c.nFft - c.winLength) / 2
-        let window = concatenated([MLXArray.zeros([pad]), MLXArray(values), MLXArray.zeros([c.nFft - c.winLength - pad])])
+        let (window, filters) = constants(c)
         let frames = asStrided(segment, [count, c.nFft], strides: [c.hopLength, 1])
         let power = abs(MLXFFT.rfft(frames * window)).square()
-        let filters = VellaStreamingDSP.melFilters(sampleRate: c.sampleRate, nFft: c.nFft, nMels: c.features)
         let mel = log(matmul(filters.asType(power.dtype), power.transposed()) + MLXArray(c.logZeroGuardValue, dtype: power.dtype))
         return mel.transposed().expandedDimensions(axis: 0)
     }

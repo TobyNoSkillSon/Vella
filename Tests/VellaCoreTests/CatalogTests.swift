@@ -36,6 +36,23 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(catalog.family("granite-4.0-1b-speech")?.offered, false, "weak models are not offered in the app")
     }
 
+    func testShippedLineup() throws {
+        // Coordinator's lineup (26 Sep 2026, from vr-bench's v2-quick screening): offered models and their precisions.
+        let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
+        let offered = Dictionary(uniqueKeysWithValues: catalog.families.filter(\.offered).map { ($0.id, Set($0.variants.keys)) })
+        XCTAssertEqual(offered, ["parakeet-v3": ["FP32", "8b", "4b"], "parakeet-v3-ultra": ["BF16"],
+                                 "qwen3-asr-1.7b": ["BF16", "8b", "4b"], "nemotron-3.5-streaming-0.6b": ["BF16", "8b"]])
+        XCTAssertEqual(catalog.family("parakeet-v3")?.native, "FP32", "the Parakeet v3 checkpoint is FP32 on disk")
+        for id in ["qwen3-asr-0.6b", "whisper-large-v3", "whisper-large-v3-turbo", "sensevoice-small", "granite-4.0-1b-speech", "voxtral-mini-4b-realtime"] {
+            XCTAssertEqual(catalog.family(id)?.offered, false, id)
+        }
+        // Earlier install ids of now-unoffered models still resolve (installed copies stay usable and deletable).
+        for id in ["SenseVoiceSmall", "SenseVoiceSmall-4bit", "whisper-large-v3-asr-fp16", "whisper-large-v3-asr-4bit",
+                   "Voxtral-Mini-4B-Realtime-2602-4bit", "nemotron-3.5-asr-streaming-0.6b-bf16", "Qwen3-ASR-1.7B-4bit", "Qwen3-ASR-1.7B-8bit"] {
+            XCTAssertNotNil(catalog.locate(variant: id), id)
+        }
+    }
+
     func testLegacyFlatCatalogGroupsIntoFamilies() throws {
         let legacy = #"""
         [{"id":"a-8","name":"A","quantization":"8-bit","repository":"o/a8","revision":"r","downloadBytes":2,"architecture":"parakeet","license":"l","recommendation":"x","recommended":false},

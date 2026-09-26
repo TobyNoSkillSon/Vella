@@ -93,7 +93,7 @@ final class FastParakeetTDT {
         }
         let stacked = (0..<4).map { index in MLX.concatenated(records.map { $0[index] }, axis: 0) }
         finite.append(contentsOf: state.map { MLX.all(MLX.isFinite($0)) })
-        return stacked + [time, last, syms] + state + [MLX.all(MLX.stacked(finite))]
+        return stacked + [time, last, syms] + state + [MLX.all(MLX.stacked(finite)), MLX.stacked(finite)]
         }
     }
 
@@ -132,7 +132,13 @@ final class FastParakeetTDT {
                 lastError = String(describing: error)
                 return ParakeetAlignment.sentencesToResult(ParakeetAlignment.tokensToSentences([]))
             }
-            lastFinite = lastFinite && result[16].item(Bool.self)
+            let blockFinite = result[16].item(Bool.self)
+            if !blockFinite && lastError == nil {
+                // Diagnostic only: which of the 32 step logits (0-31) or 9 carried states (32-40) went non-finite.
+                let flags = result[17].asArray(Bool.self)
+                lastError = "non-finite at t=\(time.item(Int32.self)): " + flags.indices.filter { !flags[$0] }.map(String.init).joined(separator: ",")
+            }
+            lastFinite = lastFinite && blockFinite
             let ids = result[0].asArray(Int32.self), times = result[1].asArray(Int32.self),
                 jumps = result[2].asArray(Int32.self), emits = result[3].asArray(Int32.self)
             for i in ids.indices where emits[i] != 0 {

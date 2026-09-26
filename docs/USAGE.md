@@ -76,7 +76,7 @@ How long an idle model stays loaded, timed per model from its last use. The next
 
 ## Memory
 
-- **Fit in free memory** (default): before each load, Vella compares the model's measured memory (plus headroom) with the memory macOS can hand out without swapping. If it does not fit, Vella unloads idle models to make room, on-demand ones first and least recently used first, never the one a recording is waiting for. If even that cannot free enough, nothing is unloaded and the load is refused with the numbers and the ways out, for example `Parakeet v3 at BF16 needs ~2.1 GB; ~0.9 GB free without swapping. Unload Qwen3 ASR, pick 8b, or allow swap in Vella → Memory.` The check is best effort at load time, not a guarantee: other apps can still push macOS into swap.
+- **Fit in free memory** (default): before each load, Vella compares the model's measured memory (plus headroom) with the memory macOS can hand out without swapping. If it does not fit, Vella unloads idle models to make room, on-demand ones first and least recently used first, never the one a recording is waiting for. If even that cannot free enough, nothing is unloaded and the load is refused with the numbers and the ways out, for example `Qwen3 ASR 1.7B at BF16 needs ~4.6 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 8b, or allow swap in Vella → Memory.` The check is best effort at load time, not a guarantee: other apps can still push macOS into swap.
 - **Allow swap (slower)**: skip the check. macOS moves data to disk, and everything on the Mac can slow down.
 
 The submenu shows `~X GB free now`.

@@ -20,15 +20,37 @@ final class FastParakeetEncoder {
                 scales = MLX.concatenated(quantized.map(\.scales), axis: 0)
                 biases = quantized[0].biases == nil ? nil : MLX.concatenated(quantized.compactMap(\.biases), axis: 0)
                 groupSize = quantized[0].groupSize; bits = quantized[0].bits; mode = quantized[0].mode
+                if layers.count > 1 {
+                    var fused = ["weight": weight, "scales": scales!]
+                    if let biases { fused["biases"] = biases }
+                    Self.share(layers, fused)
+                }
             } else {
                 let weights = layers.map { layer -> MLXArray in
                     guard let q = layer as? QuantizedLinear else { return layer.weight.asType(dtype) }
                     return MLX.dequantized(q.weight, scales: q.scales, biases: q.biases, groupSize: q.groupSize, bits: q.bits, mode: q.mode, globalScale: q.globalScale, dtype: dtype)
                 }
-                weight = MLX.concatenated(weights, axis: 0).transposed()
+                let fused = MLX.concatenated(weights, axis: 0)
+                weight = fused.transposed()
+                if layers.count > 1 && layers.allSatisfy({ !($0 is QuantizedLinear) && $0.weight.dtype == dtype }) {
+                    Self.share(layers, ["weight": fused])
+                }
                 scales = nil; biases = nil; groupSize = 0; bits = 0; mode = .affine
             }
             bias = layers.allSatisfy { $0.bias != nil } ? MLX.concatenated(layers.compactMap(\.bias), axis: 0).asType(dtype) : nil
+        }
+
+        /// Point the stock layers' parameters at row slices of the fused copy (views, same values),
+        /// so fusing Q/K/V does not keep a second copy of those weights (Ultra BF16: ~150 MB).
+        private static func share(_ layers: [Linear], _ fused: [String: MLXArray]) {
+            var row = 0
+            for layer in layers {
+                let rows = layer.weight.shape[0]
+                let slices = fused.mapValues { $0[row ..< row + rows] }
+                MLX.eval(Array(slices.values))
+                _ = layer.update(parameters: ModuleParameters.unflattened(slices))
+                row += rows
+            }
         }
 
         func call(_ x: MLXArray) -> MLXArray {
