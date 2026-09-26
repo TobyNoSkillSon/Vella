@@ -150,6 +150,13 @@ final class InstallReadinessTests: XCTestCase {
         XCTAssertEqual(state(#"{"app_pid":7,"models":{},"launch_set":[]}"#), .waiting("status is from an earlier launch"))
         XCTAssertEqual(state(#"{"models":{},"launch_set":[]}"#), .waiting("status is from an earlier launch"))
     }
+    func testLaunchPassesOnlyANonDefaultSupportFolder() {
+        let app = URL(fileURLWithPath: "/Users/x/Applications/Vella.app")
+        XCTAssertEqual(NativeInstaller.launchArguments(app, support: nil), [app.path])
+        XCTAssertEqual(NativeInstaller.launchArguments(app, support: NativeInstaller.defaultSupport), [app.path])
+        XCTAssertEqual(NativeInstaller.launchArguments(app, support: URL(fileURLWithPath: "/tmp/iso/Vella/")),
+                       ["--env", "VELLA_SUPPORT_DIR=/tmp/iso/Vella", app.path])
+    }
     func testRunsMatchesTheInstalledExecutableOnly() throws {
         XCTAssertFalse(InstallReadiness.runs(getpid(), app: URL(fileURLWithPath: "/nonexistent/Vella.app")))
         XCTAssertFalse(InstallReadiness.runs(999_999, app: URL(fileURLWithPath: "/Applications/Vella.app")))

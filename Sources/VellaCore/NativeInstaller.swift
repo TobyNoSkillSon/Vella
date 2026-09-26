@@ -17,7 +17,7 @@ public final class NativeInstaller {
     public let support: URL
     public var verify: (URL) throws -> Signature = NativeInstaller.verifySignedBundle
     public lazy var stop: (URL) throws -> Bool = { [unowned self] in try NativeInstaller.stopOwnedApplication($0, bundleIdentifier: self.bundleIdentifier) }
-    public var launch: (URL) throws -> Void = NativeInstaller.launchApplication
+    public lazy var launch: (URL) throws -> Void = { [unowned self] in try NativeInstaller.launchApplication($0, support: self.support) }
     /// Test-only rollback injection; production never sets this.
     public var beforeSwap: () throws -> Void = {}
     public var afterSwap: () throws -> Void = {}
@@ -219,8 +219,14 @@ public final class NativeInstaller {
         guard applications.allSatisfy(\.isTerminated) else { throw NativeInstallError.message("Vella did not quit; existing installation was not replaced") }
         return !applications.isEmpty
     }
-    public static func launchApplication(_ app: URL) throws {
-        let child = Process(); child.executableURL = URL(fileURLWithPath: "/usr/bin/open"); child.arguments = [app.path]
+    public static let defaultSupport = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Vella")
+    /// A non-default support folder (isolated installs and tests) is passed to the app, which honours VELLA_SUPPORT_DIR.
+    public static func launchArguments(_ app: URL, support: URL?) -> [String] {
+        guard let support, support.standardizedFileURL.path != defaultSupport.standardizedFileURL.path else { return [app.path] }
+        return ["--env", "VELLA_SUPPORT_DIR=\(support.standardizedFileURL.path)", app.path]
+    }
+    public static func launchApplication(_ app: URL, support: URL? = nil) throws {
+        let child = Process(); child.executableURL = URL(fileURLWithPath: "/usr/bin/open"); child.arguments = launchArguments(app, support: support)
         try child.run(); child.waitUntilExit()
         guard child.terminationStatus == 0 else { throw NativeInstallError.message("Installation completed but Vella did not open; use Finder to open \(app.path)") }
     }
