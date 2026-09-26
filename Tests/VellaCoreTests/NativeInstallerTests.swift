@@ -150,6 +150,20 @@ final class InstallReadinessTests: XCTestCase {
         XCTAssertEqual(state(#"{"app_pid":7,"models":{},"launch_set":[]}"#), .waiting("status is from an earlier launch"))
         XCTAssertEqual(state(#"{"models":{},"launch_set":[]}"#), .waiting("status is from an earlier launch"))
     }
+    func testLaunchPassesOnlyANonDefaultSupportFolder() {
+        let app = URL(fileURLWithPath: "/Users/x/Applications/Vella.app")
+        XCTAssertEqual(NativeInstaller.launchArguments(app, support: nil), [app.path])
+        XCTAssertEqual(NativeInstaller.launchArguments(app, support: NativeInstaller.defaultSupport), [app.path])
+        XCTAssertEqual(NativeInstaller.launchArguments(app, support: URL(fileURLWithPath: "/tmp/iso/Vella/")),
+                       ["--env", "VELLA_SUPPORT_DIR=/tmp/iso/Vella", app.path])
+    }
+    func testOnlyApplicationsFoldersCountAsOtherInstallations() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        XCTAssertTrue(NativeInstaller.isInstallLocation(URL(fileURLWithPath: "/Applications/Vella.app")))
+        XCTAssertTrue(NativeInstaller.isInstallLocation(home.appendingPathComponent("Applications/Vella.app")))
+        XCTAssertFalse(NativeInstaller.isInstallLocation(home.appendingPathComponent("src/Vella/.build/releases/1.0.0/Vella.app")))
+        XCTAssertFalse(NativeInstaller.isInstallLocation(URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("x/Vella.app")))
+    }
     func testRunsMatchesTheInstalledExecutableOnly() throws {
         XCTAssertFalse(InstallReadiness.runs(getpid(), app: URL(fileURLWithPath: "/nonexistent/Vella.app")))
         XCTAssertFalse(InstallReadiness.runs(999_999, app: URL(fileURLWithPath: "/Applications/Vella.app")))

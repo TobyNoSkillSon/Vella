@@ -13,6 +13,8 @@ public struct Configuration: Codable {
     public var streamingModel: String
     public var preferredMicrophone: String
     public var fallbackMicrophone: String
+    /// Keep Hot windows, memory mode and the launch set (manual loads only; empty on a fresh install).
+    public var residency = ResidencySettings()
     public init(executable: String = "", model: String,
                 preferredMicrophone: String = "MacBook Pro Microphone", fallbackMicrophone: String = "MacBook Pro Microphone",
                 mode: RecognitionMode = .dictation, streamingModel: String = "") {
@@ -21,7 +23,7 @@ public struct Configuration: Codable {
         self.preferredMicrophone = preferredMicrophone; self.fallbackMicrophone = fallbackMicrophone
     }
     private enum CodingKeys: String, CodingKey {
-        case executable, model, mode, streamingModel, preferredMicrophone, fallbackMicrophone
+        case executable, model, mode, streamingModel, preferredMicrophone, fallbackMicrophone, residency
     }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -31,6 +33,7 @@ public struct Configuration: Codable {
         streamingModel = try values.decodeIfPresent(String.self, forKey: .streamingModel) ?? ""
         preferredMicrophone = try values.decodeIfPresent(String.self, forKey: .preferredMicrophone) ?? "MacBook Pro Microphone"
         fallbackMicrophone = try values.decodeIfPresent(String.self, forKey: .fallbackMicrophone) ?? "MacBook Pro Microphone"
+        residency = (try? values.decodeIfPresent(ResidencySettings.self, forKey: .residency)) ?? ResidencySettings()
     }
     public var selectedModel: String { mode == .dictation ? model : streamingModel }
     public mutating func selectModel(_ path: String, for mode: RecognitionMode) {
