@@ -157,7 +157,7 @@ struct ModelTable: View {
                 heading("Model", .name, W.model, .leading)
                 plainHeading("Languages", W.languages, .trailing, help: "Languages the model transcribes.")
                 plainHeading("Params", W.params, .trailing, help: "Model size in parameters.")
-                plainHeading("Q", W.precision, .leading, help: "Weight precision in bits: 32 is FP32, 16 is BF16, 8 and 4 are quantized. Levels below the native precision are made on this Mac from it. Green is recommended: lowest energy per audio minute within 0.5 pt WER of the native precision; faster, then more bits, break ties.")
+                plainHeading("Q", W.precision, .leading, help: "Weight precision in bits: 32 is FP32, 16 is BF16, 8 and 4 are quantized; an FP16 model shows FP16. Levels below the native precision are made on this Mac from it. Green is recommended: lowest energy per audio minute within 0.5 pt WER of the native precision; faster, then more bits, break ties.")
                 heading("WER", .wer, W.wer, .trailing, help: Self.werHeaderHelp)
                 heading("Format", .format, W.format, .trailing, help: Self.formatHeaderHelp)
                 heading("Speed", .speed, W.speed, .trailing, help: Self.speedHeaderHelp)
