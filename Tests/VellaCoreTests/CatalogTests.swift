@@ -129,7 +129,7 @@ final class CatalogTests: XCTestCase {
         var e = named("e", ["BF16", "4b"]); e.variants["4b"]?.repository = ""; e.variants["4b"]?.downloadBytes = 0
         e.variants["BF16"]?.downloadBytes = 2_000_000
         XCTAssertEqual(tableSortKey(.disk, family: e, benchmark: nil), 2_000_000)
-        XCTAssertNil(diskBytes(e, "4b", nil), "never estimated")
+        XCTAssertNil(tableDiskBytes(e, "4b", nil), "never estimated")
         XCTAssertEqual(tableSortKey(.disk, family: e, benchmark: FamilyBenchmark(precisions: ["4b": PrecisionResult(disk_mb: 0.5)])), 500_000)
     }
 

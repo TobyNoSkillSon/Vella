@@ -326,12 +326,13 @@ public enum TableMetric: CaseIterable { case wer, format, speed, energy, memory,
 
 /// Published = downloadable from a pinned repository (derived precisions are made on this Mac and have none).
 public func isPublished(_ family: ModelFamily, _ label: String) -> Bool {
-    guard let v = family.variants[label] else { return false }
+    guard let v = family.variants[label], !v.isDerived else { return false }
     return !v.repository.isEmpty && v.downloadBytes > 0
 }
 
-/// On disk for a precision in bytes: a published download's pinned size, else the measured size; nil = `—`.
-public func diskBytes(_ family: ModelFamily, _ label: String, _ result: PrecisionResult?) -> Int64? {
+/// The table's On disk for a precision in bytes: a published download's pinned size, else the measured size; nil =
+/// `—`. Unlike `ModelFamily.diskBytes`, a derived precision never borrows its source's size.
+public func tableDiskBytes(_ family: ModelFamily, _ label: String, _ result: PrecisionResult?) -> Int64? {
     if isPublished(family, label), let v = family.variants[label] { return v.downloadBytes }
     return result?.disk_mb.map { Int64(($0 * 1_000_000).rounded()) }
 }
@@ -344,7 +345,7 @@ public func metricValue(_ metric: TableMetric, family: ModelFamily, label: Strin
     case .speed: return result?.speed_x.map { -$0 }
     case .energy: return result?.j_per_min
     case .memory: return result?.memory_mb
-    case .disk: return diskBytes(family, label, result).map(Double.init)
+    case .disk: return tableDiskBytes(family, label, result).map(Double.init)
     }
 }
 

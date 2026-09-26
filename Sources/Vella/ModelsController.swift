@@ -74,9 +74,9 @@ import VellaCore
     /// The Q control's segment labels (bare widths), parallel to `options`.
     func segmentLabels(_ f: ModelFamily) -> [String] { precisionSegmentLabels(options(f)) }
     /// The precision a derived one is made from, nil for a published precision.
-    func derivedSource(_ f: ModelFamily, _ precision: String) -> String? { nil }
+    func derivedSource(_ f: ModelFamily, _ precision: String) -> String? { f.variants[precision]?.derivedFrom }
     /// On disk for a precision: a published download's pinned size, else the measured size (`\u{2014}` otherwise).
-    func disk(_ f: ModelFamily, _ precision: String) -> Int64? { diskBytes(f, precision, result(f, precision)) }
+    func disk(_ f: ModelFamily, _ precision: String) -> Int64? { tableDiskBytes(f, precision, result(f, precision)) }
 
     /// A Q segment's tooltip: the exact format, where it comes from (published, or made on this Mac from a higher
     /// precision), whether it is measured, and the recommendation or pending Reload when they apply.
@@ -115,11 +115,7 @@ import VellaCore
         f.variants[precision].flatMap { library(f.mode).installed[$0.id] }
     }
     /// The downloadable precision a derived one resolves to (itself when published).
-    func downloadRoot(_ f: ModelFamily, _ precision: String) -> String? {
-        var label = precision, seen: Set<String> = []
-        while let source = derivedSource(f, label), seen.insert(label).inserted { label = source }
-        return f.variants[label] == nil ? nil : label
-    }
+    func downloadRoot(_ f: ModelFamily, _ precision: String) -> String? { f.downloadSource(of: precision)?.label }
     /// Whether the selected precision can load without a download: its own weights, or (derived) its source's.
     func available(_ f: ModelFamily, _ precision: String) -> Bool {
         if installed(f, precision) != nil { return true }
@@ -177,17 +173,27 @@ import VellaCore
         let precision = selected(f)
         guard let variant = f.variants[precision] else { return }
         let lib = library(f.mode)
+        // A derived precision downloads the weights it is made from.
+        guard let source = f.downloadSource(of: precision) else { lastError = "\(f.name) at \(precisionFormatName(precision)) has no source in the catalog."; return }
         switch action(f) {
         case .get:
-            lib.selectedID = variant.id; lib.download()
+            lib.selectedID = source.variant.id; lib.download()
         case .unload:
             if let actions { actions.unload(family: f) }
         case .load, .reload:
-            guard let local = lib.installed[variant.id] else { lib.selectedID = variant.id; lib.download(); return }
+            guard let local = lib.installed[source.variant.id] else { lib.selectedID = source.variant.id; lib.download(); return }
+            var path = local.path
+            if variant.isDerived {
+                // The worker derives from the source; the derived directory (a manifest) keeps its own model identity.
+                do { path = try prepareDerivedModel(family: f, precision: precision, sourcePath: local.path, modelsDirectory: lib.modelsDirectory) }
+                catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error)"; return }
+            }
             setPrecision(f, precision)   // what was loaded stays the selection
             if let actions {
-                action(f) == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: local.path)
-                                     : actions.load(family: f, precision: precision, variant: variant, path: local.path)
+                action(f) == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path)
+                                     : actions.load(family: f, precision: precision, variant: variant, path: path)
+            } else if variant.isDerived {
+                lastError = "\(f.name) at \(precisionFormatName(precision)) needs the recognition worker; use Restart Worker and try again."
             } else {
                 lib.selectedID = variant.id
                 if !lib.useSelected() { lastError = lib.downloadError }

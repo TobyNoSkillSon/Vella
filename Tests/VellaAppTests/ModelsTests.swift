@@ -155,6 +155,50 @@ final class ModelsTests: XCTestCase {
         XCTAssertTrue(c.segmentHelp(qwen, "8b").hasSuffix("Loaded at BF16 (bfloat16); Reload applies the selection."))
     }
 
+    /// A precision made on this Mac: selectable, `\u{2014}` until measured, Get fetches its source, Load hands the worker
+    /// the derived directory (never the source path, which is the source precision's identity).
+    @MainActor func testDerivedPrecisionDisplayGetAndLoad() throws {
+        let c = try controller(benchmarks: qwenFixture)   // no Ultra figures: its derived precisions are unmeasured
+        let spy = RuntimeSpy(); c.actions = spy
+        c.runtime = TableRuntime()
+        let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        XCTAssertEqual(c.options(ultra), ["BF16", "8b", "4b"])
+        XCTAssertEqual(c.segmentLabels(ultra), ["16", "8", "4"])
+        c.setPrecision(ultra, "4b")
+        XCTAssertEqual(c.selected(ultra), "4b", "derived precisions are selectable")
+        // Not measured: every figure is absent, including On disk (never the source's size, never an estimate).
+        XCTAssertNil(c.result(ultra, "4b"))
+        XCTAssertNil(c.disk(ultra, "4b"))
+        XCTAssertNotNil(c.disk(ultra, "BF16"))
+        let help = c.segmentHelp(ultra, "4b")
+        XCTAssertTrue(help.hasPrefix("4-bit quantized. Made on this Mac from the BF16 (bfloat16) weights; Get downloads those ("), help)
+        XCTAssertTrue(help.contains("Not measured yet."), help)
+        XCTAssertFalse(help.contains("Published"), help)
+        // Get downloads the source.
+        XCTAssertEqual(c.action(ultra), .get)
+        XCTAssertEqual(c.downloadRoot(ultra, "4b"), "BF16")
+        // Source downloaded: the derived precision loads from a manifest directory of its own.
+        let source = c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-bf16")
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
+        c.dictation.installed["parakeet-ultra-mlx-bf16"] = InstalledModel(path: source.path)
+        XCTAssertEqual(c.action(ultra), .load)
+        XCTAssertFalse(c.segmentHelp(ultra, "4b").contains("Get downloads"), "source already downloaded")
+        c.perform(ultra)
+        let derivedDir = c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-4bit-local").standardizedFileURL.path
+        XCTAssertEqual(spy.calls.last, "load parakeet-v3-ultra 4b \(derivedDir)")
+        XCTAssertEqual(derivedModelManifest(at: URL(fileURLWithPath: derivedDir))?.source, source.standardizedFileURL.path)
+        XCTAssertNil(c.lastError)
+        // Loaded at 4b, 8b selected: Reload, again through its own directory.
+        c.runtime = TableRuntime(loaded: ["parakeet-v3-ultra": LoadedFamily(precision: "4b")])
+        c.setPrecision(ultra, "8b")
+        XCTAssertEqual(c.action(ultra), .reload)
+        c.perform(ultra)
+        XCTAssertEqual(spy.calls.last, "reload parakeet-v3-ultra 8b \(c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-8bit-local").standardizedFileURL.path)")
+        // No trash for a derived precision: it holds no weights of its own.
+        XCTAssertNil(c.localPath(ultra, "8b"))
+    }
+
     @MainActor func testWithoutRuntimeTheModeSelectionReadsAsLoaded() throws {
         let c = try controller()
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))

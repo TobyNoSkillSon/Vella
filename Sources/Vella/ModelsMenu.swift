@@ -40,7 +40,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         let library = controller.library(family.mode)
         guard let path = library.modelFilePath(variant.id) else { return }
         let wasInstalled = library.installed[variant.id] != nil
-        let name = "\(family.name) \(precision)"
+        let name = "\(family.name) \(legacyQuantization(precision))"
         tableMenu?.cancelTracking()
         DispatchQueue.main.async { [self] in
             if let reason = library.deletionBlockReason(variant.id) {
@@ -56,7 +56,12 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
             alert.addButton(withTitle: "Cancel")
             alert.addButton(withTitle: "Move to Trash")
             guard presentDeletionConfirmation(alert) == .alertSecondButtonReturn else { return }
-            let delete: @MainActor () -> Bool = { library.deleteModel(variant.id, expectedPath: path, expectedInstalled: wasInstalled) }
+            // Deleting a source also removes the manifests of precisions made from it (they hold no weights of their own).
+            let delete: @MainActor () -> Bool = {
+                guard library.deleteModel(variant.id, expectedPath: path, expectedInstalled: wasInstalled) else { return false }
+                removeDerivedModels(sourcePath: path, modelsDirectory: library.modelsDirectory)
+                return true
+            }
             let reportFailure: @MainActor () -> Void = { [self] in
                 let failure = NSAlert(); failure.messageText = "Model was not deleted"
                 failure.informativeText = library.downloadError ?? "Reopen Models and try again."
