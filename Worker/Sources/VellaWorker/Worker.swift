@@ -15,12 +15,13 @@ import MLXAudioSTT
         if CommandLine.arguments.dropFirst().first == "fast-selftest" {
             let values = Array(CommandLine.arguments.dropFirst(2))
             guard values.count == 2, values[0] == "--model", let path = try? localPath(values[1]),
-                  let architecture = try? admit(path), Worker.fastPathType(architecture) != nil else { exit(1) }
+                  let architecture = try? admit(path), Worker.fastPathType(architecture) != nil else { exit(FastPathGate.inconclusive) }
             let passed: Bool
             do {
                 let worker = Worker()
-                let model = try await withError { try await worker.loadStock(path, architecture: architecture) }
-                guard let capable = model as? any FastPathCapable else { exit(1) }
+                // A setup failure says nothing about the kernels: inconclusive, not a sticky verdict.
+                guard let model = try? await withError({ try await worker.loadStock(path, architecture: architecture) }),
+                      let capable = model as? any FastPathCapable else { exit(FastPathGate.inconclusive) }
                 passed = try withError { try FastPathGate.runSelfTest(capable, input: { Worker.input(for: model, $0) }) }
             } catch {
                 if let log = ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"], log.hasPrefix("/") {
@@ -28,7 +29,7 @@ import MLXAudioSTT
                 }
                 passed = false
             }
-            exit(passed ? 0 : 1)
+            exit(passed ? 0 : 2)
         }
         if CommandLine.arguments.dropFirst().first == "calibrate" {
             let status = await CalibrationCommand.run(arguments: Array(CommandLine.arguments.dropFirst(2)), output: output)

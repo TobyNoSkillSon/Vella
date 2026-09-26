@@ -12,6 +12,8 @@ enum FastPathNonFinite: Error { case invalid }
 /// revision); failure is sticky for that key — never turn a failed test into a fast run.
 enum FastPathGate {
     static let version = "native-kernels-7"
+    /// Child exit status when the self-test could not start (not a verdict on the kernels).
+    static let inconclusive: Int32 = 3
     private static func debug(_ line: String) {
         guard let path = ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"], path.hasPrefix("/") else { return }
         guard let handle = FileHandle(forWritingAtPath: path) else { return }
@@ -120,6 +122,12 @@ enum FastPathGate {
             return .stock("The optimized path's self-test did not finish within 45 s on this Mac.")
         }
         let success = process.terminationStatus == 0
+        debug("self-test child exit \(process.terminationStatus) reason \(process.terminationReason.rawValue)")
+        // Could not load the model in the child: stock for this load only; the test runs again next load.
+        // A mismatch, non-finite output, kernel error, crash or hang stays sticky.
+        if process.terminationReason == .exit && process.terminationStatus == inconclusive {
+            return .stock("The optimized path's self-test could not run on this load; using stock MLX.")
+        }
         persist(success ? "fast" : "stock", to: url)
         // If persistence failed, don't enable a path that won't be tested on restart.
         guard success else { return failed }
