@@ -71,6 +71,36 @@ import VellaCore
     var sectionCount: Int { [RecognitionMode.dictation, .streaming].filter { !families($0).isEmpty }.count }
 
     func options(_ f: ModelFamily) -> [String] { precisionOptions(f) }
+    /// The Q control's segment labels (bare widths), parallel to `options`.
+    func segmentLabels(_ f: ModelFamily) -> [String] { precisionSegmentLabels(options(f)) }
+    /// The precision a derived one is made from, nil for a published precision.
+    func derivedSource(_ f: ModelFamily, _ precision: String) -> String? { nil }
+    /// On disk for a precision: a published download's pinned size, else the measured size (`\u{2014}` otherwise).
+    func disk(_ f: ModelFamily, _ precision: String) -> Int64? { diskBytes(f, precision, result(f, precision)) }
+
+    /// A Q segment's tooltip: the exact format, where it comes from (published, or made on this Mac from a higher
+    /// precision), whether it is measured, and the recommendation or pending Reload when they apply.
+    func segmentHelp(_ f: ModelFamily, _ precision: String) -> String {
+        var text = precisionFormatName(precision)
+        if precision == f.native { text += ", the model's native precision" }
+        if let source = derivedSource(f, precision) {
+            text += ". Made on this Mac from the \(precisionFormatName(source)) weights"
+            if let root = downloadRoot(f, precision), let v = f.variants[root], installed(f, root) == nil {
+                text += "; Get downloads those (\(formatBytes(v.downloadBytes)))"
+            }
+            text += "."
+        } else if let v = f.variants[precision], !v.repository.isEmpty {
+            text += ". Published: \(v.repository)."
+        } else {
+            text += "."
+        }
+        if result(f, precision)?.wer == nil { text += " Not measured yet." }
+        if precision == recommended(f), let help = recommendedHelp(f) { text += " " + help }
+        if let loaded = loaded(f)?.precision, loaded != precision {
+            text += " Loaded at \(precisionFormatName(loaded)); Reload applies the selection."
+        }
+        return text
+    }
     func recommended(_ f: ModelFamily) -> String? { recommendedPrecision(for: f, in: benchmarks) }
     func selected(_ f: ModelFamily) -> String {
         selectedPrecision(stored: selections[f.id], loaded: loaded(f)?.precision, recommended: recommended(f), family: f)
@@ -83,6 +113,18 @@ import VellaCore
     func result(_ f: ModelFamily, _ precision: String) -> PrecisionResult? { benchmarks.models[f.id]?.result(precision) }
     func installed(_ f: ModelFamily, _ precision: String) -> InstalledModel? {
         f.variants[precision].flatMap { library(f.mode).installed[$0.id] }
+    }
+    /// The downloadable precision a derived one resolves to (itself when published).
+    func downloadRoot(_ f: ModelFamily, _ precision: String) -> String? {
+        var label = precision, seen: Set<String> = []
+        while let source = derivedSource(f, label), seen.insert(label).inserted { label = source }
+        return f.variants[label] == nil ? nil : label
+    }
+    /// Whether the selected precision can load without a download: its own weights, or (derived) its source's.
+    func available(_ f: ModelFamily, _ precision: String) -> Bool {
+        if installed(f, precision) != nil { return true }
+        guard derivedSource(f, precision) != nil, let root = downloadRoot(f, precision) else { return false }
+        return installed(f, root) != nil
     }
     /// Any downloaded precision of the family (its partial downloads too), for the trash button.
     func localPath(_ f: ModelFamily, _ precision: String) -> String? { f.variants[precision].flatMap { library(f.mode).modelFilePath($0.id) } }
@@ -113,7 +155,7 @@ import VellaCore
 
     func action(_ f: ModelFamily) -> LoadAction {
         let precision = selected(f)
-        return loadAction(selected: precision, loaded: loaded(f)?.precision, native: f.native, downloaded: installed(f, precision) != nil)
+        return loadAction(selected: precision, loaded: loaded(f)?.precision, native: f.native, downloaded: available(f, precision))
     }
 
     func setPrecision(_ f: ModelFamily, _ precision: String) {

@@ -71,7 +71,20 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
     }
 }
 
-enum TableSortColumn { case name, wer, format, speed, energy, memory, disk }
+enum TableSortColumn: CaseIterable {
+    case name, wer, format, speed, energy, memory, disk
+    var metric: TableMetric? {
+        switch self {
+        case .name: return nil
+        case .wer: return .wer
+        case .format: return .format
+        case .speed: return .speed
+        case .energy: return .energy
+        case .memory: return .memory
+        case .disk: return .disk
+        }
+    }
+}
 
 struct ModelTable: View {
     static let width: CGFloat = 900
@@ -89,8 +102,8 @@ struct ModelTable: View {
 
     /// Column widths; spacing 6 between columns.
     private enum W {
-        static let model: CGFloat = 152, languages: CGFloat = 64, params: CGFloat = 42, precision: CGFloat = 124
-        static let wer: CGFloat = 54, format: CGFloat = 54, speed: CGFloat = 58, energy: CGFloat = 52, memory: CGFloat = 58, disk: CGFloat = 58
+        static let model: CGFloat = 152, languages: CGFloat = 64, params: CGFloat = 42, precision: CGFloat = 100
+        static let wer: CGFloat = 54, format: CGFloat = 54, speed: CGFloat = 64, energy: CGFloat = 58, memory: CGFloat = 64, disk: CGFloat = 64
         static let button: CGFloat = 58, trash: CGFloat = 18
     }
     /// Subtle green/red; lighter on the loaded (accent-filled) row so they stay legible.
@@ -108,32 +121,12 @@ struct ModelTable: View {
 
     private var runtime: TableRuntime? { controller.runtime }
 
-    private func rows(_ mode: RecognitionMode) -> [ModelFamily] {
-        let families = controller.families(mode)
-        guard sortColumn != .name else { return ascending ? families.sorted { $0.name < $1.name } : families.sorted { $0.name > $1.name } }
-        func key(_ f: ModelFamily) -> Double? {
-            let r = controller.result(f, controller.selected(f))
-            switch sortColumn {
-            case .name: return nil
-            case .wer: return r?.wer
-            case .format: return r?.format
-            case .speed: return r?.speed_x.map { -$0 }
-            case .energy: return r?.j_per_min
-            case .memory: return r?.memory_mb
-            case .disk: return f.variants[controller.selected(f)].map { Double($0.downloadBytes) }
-            }
-        }
-        // Missing figures sort last in either direction; ties keep catalog order.
-        let indexed = Array(families.enumerated())
-        return indexed.sorted { a, b in
-            switch (key(a.element), key(b.element)) {
-            case let (x?, y?): return x == y ? a.offset < b.offset : (ascending ? x < y : x > y)
-            case (_?, nil): return true
-            case (nil, _?): return false
-            case (nil, nil): return a.offset < b.offset
-            }
-        }.map(\.element)
+    /// Rows of a section in a stable order: each column sorts by the model's best value across its precisions, so
+    /// changing a row's selected precision never moves it.
+    @MainActor static func rows(_ controller: ModelsController, _ mode: RecognitionMode, sort: TableSortColumn, ascending: Bool) -> [ModelFamily] {
+        sortedFamilies(controller.families(mode), by: sort.metric, ascending: ascending, benchmarks: controller.benchmarks)
     }
+    private func rows(_ mode: RecognitionMode) -> [ModelFamily] { Self.rows(controller, mode, sort: sortColumn, ascending: ascending) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -141,13 +134,13 @@ struct ModelTable: View {
                 heading("Model", .name, W.model, .leading)
                 plainHeading("Languages", W.languages, .trailing, help: "Languages the model transcribes.")
                 plainHeading("Params", W.params, .trailing, help: "Model size in parameters.")
-                plainHeading("Precision", W.precision, .leading, help: "Weight precision. The green label is the recommended one: lowest energy per audio minute within 0.5 pt WER of the native precision; faster, then more bits, break ties.")
+                plainHeading("Q", W.precision, .leading, help: "Weight precision in bits: 32 is FP32, 16 is BF16, 8 and 4 are quantized. Levels below the native precision are made on this Mac from it. Green is recommended: lowest energy per audio minute within 0.5 pt WER of the native precision; faster, then more bits, break ties.")
                 heading("WER", .wer, W.wer, .trailing, help: "Word error rate: wrong, missing or extra words, ignoring case and punctuation. Lower is better.")
                 heading("Format", .format, W.format, .trailing, help: "Character error rate with case and punctuation kept. Lower is better.")
                 heading("Speed", .speed, W.speed, .trailing, help: "Audio transcribed per second of compute, in × real time. Higher is faster.")
                 heading("J / min", .energy, W.energy, .trailing, help: "Joules per minute of audio: whole-chip energy, net of idle. Lower is better.")
                 heading("Memory", .memory, W.memory, .trailing, help: "Memory with the model loaded, after warm-up.")
-                heading("On disk", .disk, W.disk, .trailing, help: "Download size of the selected precision.")
+                heading("On disk", .disk, W.disk, .trailing, help: "Download size of the selected precision; for one made on this Mac, its measured size.")
                 Text("").frame(width: W.button + W.trash + 6)
             }.padding(.horizontal, 6)
             Divider().opacity(0.35)
@@ -210,7 +203,7 @@ struct ModelTable: View {
             Text(formatLanguages(family.languages)).frame(width: W.languages, alignment: .trailing)
                 .help(languagesHelp(family))
             Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params, alignment: .trailing)
-            precisionPicker(family, loaded: loaded?.precision, enabled: !loading, hot: hot)
+            precisionPicker(family, enabled: !loading, hot: hot)
                 .frame(width: W.precision, alignment: .leading)
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
                 .help(werHelp(bench))
@@ -227,21 +220,21 @@ struct ModelTable: View {
                 .help(bench?.j_per_min == nil ? notMeasured : "Joules per minute of audio: whole-chip energy (CPU, GPU, Neural Engine, memory) while transcribing, net of idle." + measured(bench))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
                 .help(bench?.memory_mb == nil ? notMeasured : "Memory with this model loaded, after warm-up." + measured(bench))
-            Text(variant.map { formatBytes($0.downloadBytes) } ?? "—").frame(width: W.disk, alignment: .trailing)
+            Text(controller.disk(family, precision).map(formatBytes) ?? "—").frame(width: W.disk, alignment: .trailing)
                 .foregroundStyle(installed == nil ? (hot ? Color(nsColor: .selectedMenuItemTextColor).opacity(0.6) : Color.secondary) : (hot ? Color(nsColor: .selectedMenuItemTextColor) : Color.primary))
-                .help(variant.map { v in installed == nil ? "Not downloaded. Get downloads \(formatBytes(v.downloadBytes)) from Hugging Face: \(v.repository)." : "Downloaded from Hugging Face: \(v.repository)." } ?? "No download at this precision.")
+                .help(diskHelp(family, precision, installed: installed != nil))
             loadButton(title(action, loading: loading, downloading: downloading, library: library), reload: action == .reload && !loading) {
                 controller.perform(family)
             }.frame(width: W.button)
                 .disabled(loading || variant == nil || (action != .get && !controller.runtimeAvailable)
                           || (action == .unload && controller.actions == nil) || (controller.anyBusy && !downloading))
-                .help(actionHelp(action, family: family, precision: precision, loaded: loaded?.precision, variant: variant, installed: installed != nil))
+                .help(actionHelp(action, family: family, precision: precision, loaded: loaded?.precision))
             Button { requestDelete(family) } label: { Image(systemName: "trash").frame(width: W.trash) }
                 .buttonStyle(.plain)
                 .opacity(controller.localPath(family, precision) == nil ? 0 : 1)
                 .disabled(controller.localPath(family, precision) == nil || loading)
-                .help("Delete the downloaded \(precision) weights (with confirmation)")
-                .accessibilityLabel("Delete \(family.name) \(precision)")
+                .help("Delete the \(precisionFormatName(precision)) weights (with confirmation)")
+                .accessibilityLabel("Delete \(family.name) \(precisionFormatName(precision))")
         }.font(.system(size: 11, design: .monospaced))
             .padding(.horizontal, 6).frame(height: 30)
             .background(hot ? Self.hotRow : .clear, in: RoundedRectangle(cornerRadius: 4))
@@ -270,16 +263,32 @@ struct ModelTable: View {
         }
     }
 
-    private func actionHelp(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?, variant: CatalogVariant?, installed: Bool) -> String {
+    /// What Get fetches for a precision: its own download, or for a derived precision the weights it is made from.
+    private func downloadText(_ family: ModelFamily, _ precision: String) -> String {
+        guard let root = controller.downloadRoot(family, precision), let v = family.variants[root] else { return "Download" }
+        let size = formatBytes(v.downloadBytes)
+        return root == precision ? "Download \(size) from Hugging Face" : "Download the \(precisionFormatName(root)) weights (\(size)) it is made from"
+    }
+    private func actionHelp(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?) -> String {
         let mode = family.mode.title.lowercased()
+        let derived = controller.derivedSource(family, precision) != nil
+        let make = derived ? " The first load makes the \(precisionFormatName(precision)) weights on this Mac." : ""
         switch action {
-        case .get: return "Download \(variant.map { formatBytes($0.downloadBytes) } ?? "") from Hugging Face; then Load uses it for \(mode)."
-        case .load: return "Use it for \(mode) and keep it loaded; manually loaded models load again when Vella starts."
+        case .get: return downloadText(family, precision) + "; then Load uses it for \(mode)." + make
+        case .load: return "Use it for \(mode) and keep it loaded; manually loaded models load again when Vella starts." + make
         case .unload: return "Free its memory; it stays downloaded and does not load at next launch."
         case .reload:
-            let swap = "load it at \(precision) in place of the loaded \(loaded ?? family.native)."
-            return installed ? "Unload the loaded precision and " + swap : "Download \(variant.map { formatBytes($0.downloadBytes) } ?? "") first, then " + swap
+            let swap = "load it at \(precisionFormatName(precision)) in place of the loaded \(precisionFormatName(loaded ?? family.native))."
+            return (controller.available(family, precision) ? "Unload the loaded precision and " + swap : downloadText(family, precision) + " first, then " + swap) + make
         }
+    }
+    private func diskHelp(_ family: ModelFamily, _ precision: String, installed: Bool) -> String {
+        guard let v = family.variants[precision] else { return "No download at this precision." }
+        if let source = controller.derivedSource(family, precision) {
+            let size = controller.disk(family, precision) == nil ? " Size not measured yet." : " Measured size of the weights made on this Mac."
+            return "Made on this Mac from the \(precisionFormatName(source)) weights; nothing extra to download." + size
+        }
+        return installed ? "Downloaded from Hugging Face: \(v.repository)." : "Not downloaded. Get downloads \(formatBytes(v.downloadBytes)) from Hugging Face: \(v.repository)."
     }
 
     /// Value on top, delta vs the recommended precision beneath it in small type.
@@ -302,17 +311,14 @@ struct ModelTable: View {
         }
     }
 
-    @ViewBuilder private func precisionPicker(_ family: ModelFamily, loaded: String?, enabled: Bool, hot: Bool) -> some View {
+    @ViewBuilder private func precisionPicker(_ family: ModelFamily, enabled: Bool, hot: Bool) -> some View {
         let options = controller.options(family)
         if options.isEmpty {
             Text("—").foregroundStyle(.secondary)
         } else {
-            PrecisionControl(options: options, selected: controller.selected(family), recommended: controller.recommended(family), hot: hot, enabled: enabled,
-                             help: { label in
-                                 (label == family.native ? "\(label): the model's native precision." : "\(label) weights.")
-                                 + " Selecting it shows its measured numbers" + (loaded.map { "; loaded at \($0), Reload applies the selection." } ?? ".")
-                             },
-                             recommendedHelp: controller.recommendedHelp(family) ?? "") { label in
+            PrecisionControl(options: options, labels: controller.segmentLabels(family), selected: controller.selected(family),
+                             recommended: controller.recommended(family), hot: hot, enabled: enabled,
+                             help: { controller.segmentHelp(family, $0) }) { label in
                 controller.setPrecision(family, label)
             }.controlSize(.mini).fixedSize()
         }
@@ -356,9 +362,9 @@ struct ModelTable: View {
         return family.languages.map(languageName).joined(separator: ", ") + "."
     }
     private func modelHelp(_ family: ModelFamily, loaded: LoadedFamily?) -> String {
-        var parts = ["\(family.name) · \(family.params.isEmpty ? "size not listed" : family.params + " parameters") · native \(family.native)."]
+        var parts = ["\(family.name) · \(family.params.isEmpty ? "size not listed" : family.params + " parameters") · native \(precisionFormatName(family.native))."]
         if let notes = family.notes, !notes.isEmpty { parts.append(notes) }
-        if let loaded { parts.append("Loaded at \(loaded.precision)" + (loaded.residency == "on_demand" ? " on demand." : loaded.residency == "manual" ? ", kept hot." : ".")) }
+        if let loaded { parts.append("Loaded at \(precisionFormatName(loaded.precision))" + (loaded.residency == "on_demand" ? " on demand." : loaded.residency == "manual" ? ", kept hot." : ".")) }
         parts.append("License: \(family.license).")
         return parts.joined(separator: " ")
     }
@@ -367,12 +373,12 @@ struct ModelTable: View {
     func tooltips(_ family: ModelFamily) -> [(String, String)] {
         let precision = controller.selected(family)
         let r = controller.result(family, precision)
-        let variant = family.variants[precision]
         let installed = controller.installed(family, precision) != nil
-        return [("Model", modelHelp(family, loaded: controller.loaded(family))), ("Languages", languagesHelp(family)),
-                ("Precision \(precision)", precision == controller.recommended(family) ? controller.recommendedHelp(family) ?? "" : "(selected, not recommended)"),
+        let head: [(String, String)] = [("Model", modelHelp(family, loaded: controller.loaded(family))), ("Languages", languagesHelp(family))]
+        return head + controller.options(family).map { ("Q \($0)", controller.segmentHelp(family, $0)) } + [
+                ("On disk", diskHelp(family, precision, installed: installed)),
                 ("WER", werHelp(r)), ("Speed", speedHelp(family, r)),
-                ("Action", actionHelp(controller.action(family), family: family, precision: precision, loaded: controller.loaded(family)?.precision, variant: variant, installed: installed))]
+                ("Action", actionHelp(controller.action(family), family: family, precision: precision, loaded: controller.loaded(family)?.precision))]
     }
 
     /// This Mac's chip: the runtime's, else the CPU brand string.
@@ -458,7 +464,7 @@ struct ModelTable: View {
                 }
                 .frame(width: width, alignment: alignment)
         }.buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundStyle(sortColumn == column ? .primary : .secondary)
-            .help(help ?? "Sort by \(text.lowercased())")
+            .help(column == .name ? "Sort by name." : (help.map { $0 + " " } ?? "") + "Sorts by each model's best value across its precisions.")
     }
 }
 

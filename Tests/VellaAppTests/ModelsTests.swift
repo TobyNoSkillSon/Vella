@@ -117,6 +117,44 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(c.action(try XCTUnwrap(c.catalog.family("whisper-large-v3"))), .get)
     }
 
+    /// Rows never move when a precision is selected: every column sorts by the model's best value across precisions.
+    @MainActor func testRowOrderIsStableAcrossPrecisionSelections() throws {
+        let c = try controller(benchmarks: String(contentsOf: ModelLibrary.resourceDirectory().appendingPathComponent("benchmarks.json"), encoding: .utf8))
+        c.previewing = true
+        for mode in [RecognitionMode.dictation, .streaming] {
+            for column in TableSortColumn.allCases {
+                for ascending in [true, false] {
+                    let before = ModelTable.rows(c, mode, sort: column, ascending: ascending).map(\.id)
+                    XCTAssertEqual(Set(before), Set(c.families(mode).map(\.id)), "sections keep their own rows")
+                    for family in c.families(mode) {
+                        for precision in c.options(family) {
+                            c.setPrecision(family, precision)
+                            XCTAssertEqual(ModelTable.rows(c, mode, sort: column, ascending: ascending).map(\.id), before,
+                                           "\(column) \(ascending): selecting \(family.id) \(precision) moved a row")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The Q control shows bare widths; the tooltips keep exact formats and say where each precision comes from.
+    @MainActor func testQLabelsAndSegmentTooltips() throws {
+        let c = try controller(benchmarks: qwenFixture)
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
+        XCTAssertEqual(Array(c.segmentLabels(qwen).prefix(1)), ["16"])
+        XCTAssertTrue(c.segmentLabels(qwen).allSatisfy { Int($0) != nil }, "bare widths only")
+        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        XCTAssertEqual(c.segmentLabels(parakeet).first, "32")
+        let bf16 = c.segmentHelp(qwen, "BF16")
+        XCTAssertTrue(bf16.hasPrefix("BF16 (bfloat16), the model's native precision. Published: mlx-community/Qwen3-ASR-1.7B-bf16."), bf16)
+        XCTAssertTrue(c.segmentHelp(qwen, "4b").hasPrefix("4-bit quantized. Published:"))
+        XCTAssertTrue(c.segmentHelp(qwen, "4b").contains("Recommended"), "the recommended segment says so")
+        XCTAssertTrue(c.segmentHelp(parakeet, "FP32").contains("Not measured yet."), "fixture has no Parakeet figures")
+        c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16")])
+        XCTAssertTrue(c.segmentHelp(qwen, "8b").hasSuffix("Loaded at BF16 (bfloat16); Reload applies the selection."))
+    }
+
     @MainActor func testWithoutRuntimeTheModeSelectionReadsAsLoaded() throws {
         let c = try controller()
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
