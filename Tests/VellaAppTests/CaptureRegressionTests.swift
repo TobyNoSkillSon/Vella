@@ -123,7 +123,7 @@ final class CaptureRegressionTests: XCTestCase {
     }
     func testCorpusReplayAcrossSegmentBoundaryPreservesEveryFloatSample() throws {
         struct Manifest: Decodable { struct Clip: Decodable { let file: String }; let clips: [Clip] }
-        let resources = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("Resources/Benchmarks/v1/english-formatted-20m-v1")
+        let resources = try LabFixtures.require("Resources/Benchmarks/v1/english-formatted-20m-v1")
         let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: resources.appendingPathComponent("manifest.json")))
         let record = try RecordingSession(root: root(), config: Configuration(executable: "/unused", model: "/unused"))
         let sink = try CaptureSink(session: record)

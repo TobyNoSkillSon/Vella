@@ -33,7 +33,9 @@ final class SettingsMenuTests: XCTestCase {
         for (before, after) in zip(originalItems, delegate.menu.items) { XCTAssertTrue(before === after) }
         XCTAssertNotNil(delegate.menu.item(withTitle: "Start Streaming"))
         let table = try XCTUnwrap(delegate.menu.item(withTitle: "Models…")?.submenu?.items.first?.view as? MenuTableHostingView)
-        XCTAssertEqual(table.rootView.library.mode, .streaming)
+        // One table holds both modes; switching mode keeps it.
+        XCTAssertFalse(table.rootView.controller.families(.streaming).isEmpty)
+        XCTAssertFalse(table.rootView.controller.families(.dictation).isEmpty)
         dictation.control.performClick(nil)
         XCTAssertEqual(model.mode, .dictation)
         XCTAssertEqual(dictation.control.state, .on)

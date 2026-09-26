@@ -24,6 +24,14 @@ final class ModelDeletionTests: XCTestCase {
         }
         return (library, id, folder)
     }
+    /// The Models table over the fixture library, with the fixture's precision selected (trash deletes the selected one).
+    @MainActor private func tableMenus(_ library: ModelLibrary, _ id: String) throws -> (ModelsMenu, ModelFamily) {
+        let controller = ModelsController(dictation: library, streaming: ModelLibrary(mode: .streaming, registryURL: library.registryURL),
+                                          selectionsURL: library.registryURL.deletingLastPathComponent().appendingPathComponent("model-precision.json"))
+        let (family, precision) = try XCTUnwrap(controller.catalog.locate(variant: id))
+        controller.setPrecision(family, precision)
+        return (ModelsMenu(controller: controller), family)
+    }
     @MainActor func testDeleteKeepsReferencesAndOtherEntriesAndRevertsToInstall() throws {
         let (library, id, folder) = try fixture()
         XCTAssertTrue(library.displayedModels.contains { $0.id == id }, "Installed nonrecommended models must remain manageable")
@@ -90,7 +98,7 @@ final class ModelDeletionTests: XCTestCase {
     @MainActor func testTableActionRequiresConfirmationAndCancellationKeepsFiles() async throws {
         _ = NSApplication.shared
         let (library, id, folder) = try fixture()
-        let menus = ModelsMenu(library: library)
+        let (menus, family) = try tableMenus(library, id)
         let root = menus.modelItem()
         let host = try XCTUnwrap(root.submenu?.items.first?.view as? MenuTableHostingView)
         var confirmations = 0
@@ -99,12 +107,12 @@ final class ModelDeletionTests: XCTestCase {
             XCTAssertEqual(alert.buttons.map(\.title), ["Cancel", "Move to Trash"])
             return .alertFirstButtonReturn
         }
-        host.rootView.requestDelete(id)
+        host.rootView.requestDelete(family)
         for _ in 0..<100 { if confirmations > 0 { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertEqual(confirmations, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
         menus.presentDeletionConfirmation = { _ in confirmations += 1; return .alertSecondButtonReturn }
-        host.rootView.requestDelete(id)
+        host.rootView.requestDelete(family)
         for _ in 0..<100 { if confirmations > 1 { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertEqual(confirmations, 2)
         XCTAssertNil(library.installed[id])
@@ -145,7 +153,7 @@ final class ModelDeletionTests: XCTestCase {
         _ = NSApplication.shared
         let (library, id, folder) = try fixture()
         library.currentModelPath = { folder.path }
-        let menus = ModelsMenu(library: library)
+        let (menus, family) = try tableMenus(library, id)
         let root = menus.modelItem()
         let host = try XCTUnwrap(root.submenu?.items.first?.view as? MenuTableHostingView)
         let explained = expectation(description: "Blocked deletion explains the active-model protection")
@@ -154,7 +162,7 @@ final class ModelDeletionTests: XCTestCase {
             XCTAssertTrue(alert.informativeText.contains("Switch to another model"))
             explained.fulfill(); return .alertFirstButtonReturn
         }
-        host.rootView.requestDelete(id)
+        host.rootView.requestDelete(family)
         await fulfillment(of: [explained], timeout: 2)
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
         XCTAssertNotNil(library.installed[id])

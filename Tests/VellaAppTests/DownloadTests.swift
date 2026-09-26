@@ -142,7 +142,7 @@ final class DownloadTests: XCTestCase {
         let root = URL(fileURLWithPath: rootPath)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let resource = ModelLibrary.resourceDirectory()
-        let catalog = try JSONDecoder().decode([ModelRecommendation].self, from: Data(contentsOf: resource.appendingPathComponent("models.json")))
+        let catalog = try catalogVariants(contentsOf: resource.appendingPathComponent("models.json"))
         let model = try XCTUnwrap(catalog.first { $0.id == "parakeet-tdt-0.6b-v3-mlx-4bit" })
         let client = NativeModelDownload(catalogURL: resource.appendingPathComponent("models.json")) { text, done, total in
             if let done, let total { print("\(text) \(done)/\(total)") }

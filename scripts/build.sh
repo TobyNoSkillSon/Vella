@@ -36,6 +36,20 @@ WORKER_BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build --package-path Wor
 [[ -x "$WORKER_BIN/VellaWorker" && -x "$WORKER_BIN/VellaStreamingWorker" && -s "$WORKER_BIN/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]] || {
   echo 'Native workers or pinned MLX shaders missing; build left installed app unchanged.' >&2; exit 1;
 }
+# Xcode 27's Swift 6.4 emits borrow symbols the macOS 26 Swift runtime lacks; such binaries die in dyld.
+for binary in .build/release/Vella .build/release/VellaModelTool .build/release/VellaInstallTool "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker"; do
+  if nm -u "$binary" | grep -Eq '_swift_(init|end)Borrow'; then
+    echo "Unsupported Swift runtime borrow symbol in $(basename "$binary"); build left installed app unchanged." >&2; exit 1
+  fi
+done
+# Smoke the helpers before touching the installed app: headless, answer on their pipe, exit on stdin EOF.
+SMOKE="$PWD/.build/helper-smoke"
+rm -rf "$SMOKE" && mkdir -p "$SMOKE/Vella.app/Contents/MacOS" "$SMOKE/Vella.app/Contents/Resources"
+cp Resources/Info.plist "$SMOKE/Vella.app/Contents/Info.plist"
+cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" "$SMOKE/Vella.app/Contents/MacOS/"
+cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$WORKER_BIN/VellaWorker_VellaWorker.bundle" "$SMOKE/Vella.app/Contents/Resources/"
+DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swiftc" -O -sdk "$CLT/SDKs/MacOSX.sdk" scripts/check-helpers.swift -o "$SMOKE/check-helpers" 2>/dev/null
+"$SMOKE/check-helpers" "$SMOKE/Vella.app" || { echo 'Helper smoke failed; build left installed app unchanged.' >&2; exit 1; }
 # Compile first, then close only this exact installed app before replacing files.
 RELAUNCH="$(VELLA_TARGET_APP="$APP" xcrun swift -e '
 import AppKit
@@ -65,6 +79,9 @@ print(apps.isEmpty ? "0" : "1")
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Vella "$APP/Contents/MacOS/Vella"
 cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" .build/release/VellaModelTool "$APP/Contents/MacOS/"
+# The installer tool travels inside the app so a release zip holds exactly one bundle.
+mkdir -p "$APP/Contents/Helpers"
+cp .build/release/VellaInstallTool "$APP/Contents/Helpers/VellaInstallTool"
 rm -f "$APP/Contents/MacOS/mlx.metallib"
 rm -rf "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
 cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$APP/Contents/Resources/"
@@ -83,20 +100,22 @@ if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $VELLA_BUNDLE_ID" "$APP/Contents/Info.plist"
 fi
 cp Resources/models.json Resources/benchmark-policy.json Resources/AGENT_GUIDE.md "$APP/Contents/Resources/"
-cp Resources/streaming-models.json "$APP/Contents/Resources/"
+# models.json schema 2 covers both modes; older checkouts also had streaming-models.json.
+if [[ -f Resources/streaming-models.json ]]; then cp Resources/streaming-models.json "$APP/Contents/Resources/"; else rm -f "$APP/Contents/Resources/streaming-models.json"; fi
+# Measured numbers for the Models table (written by the lab benchmark harness).
+if [[ -f Resources/benchmarks.json ]]; then cp Resources/benchmarks.json "$APP/Contents/Resources/"; fi
 # Remove stale Python resources from in-place app updates; model weights and
 # legacy user-owned Runtimes outside the app are intentionally untouched.
 find "$APP/Contents/Resources" -type f \( -name '*.py' -o -name '*.pyc' \) -delete
 mkdir -p "$APP/Contents/Resources/Calibration"
 cp Resources/Calibration/manifest.json Resources/Calibration/text.txt Resources/Calibration/speech.wav Resources/Calibration/ATTRIBUTION.md Resources/Calibration/LICENSE-CC-BY-4.0.txt "$APP/Contents/Resources/Calibration/"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
-# Only compact table measurements ship. Source benchmark audio/raw transcripts stay in the repo.
+# Benchmark audio and raw results are not part of the source tree or the app.
 # Remove generated copies left by earlier installers, not any source or user recordings.
 rm -rf "$APP/Contents/Resources/Benchmarks" "$APP/Contents/Resources/ReferenceResults"
 # In-place updates from Python-era builds must not keep their runtime files.
 rm -f "$APP/Contents/Resources/"*.py "$APP/Contents/Resources/setup-backend.sh" "$APP/Contents/Resources/runtime-requirements.txt"
 rm -rf "$APP/Contents/Resources/__pycache__"
-xcrun swift scripts/prepare-build.swift compact "$APP/Contents/Resources/ReferenceResults"
 ICONSET="$PWD/.build/Vella.iconset"
 mkdir -p "$ICONSET"
 xcrun swift scripts/icon.swift "$PWD/.build/icon.png"
@@ -106,11 +125,11 @@ for size in 16 32 128 256 512; do
   sips -z "$double" "$double" .build/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vella.icns"
-codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaStreamingWorker" "$APP/Contents/MacOS/VellaModelTool"
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaStreamingWorker" "$APP/Contents/MacOS/VellaModelTool" "$APP/Contents/Helpers/VellaInstallTool"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/VellaWorker_VellaWorker.bundle" 2>/dev/null || true
 codesign --force --sign "$IDENTITY" "$APP"
-codesign --verify --strict "$APP"
+codesign --verify --deep --strict "$APP"
 if [[ "${VELLA_REGISTER_APP:-1}" == "1" ]]; then
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
 fi
