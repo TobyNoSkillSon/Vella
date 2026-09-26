@@ -41,6 +41,23 @@ import VellaCore
     private var gpu: GPUStatus?
     private var workerHooks: [String: String] = [:]
     private var restarts: [String: RestartPolicy] = [:]
+    private var registrations: [String: UUID] = [:]
+    /// A restarted worker counts as recovered (restart budget reset) once it stays up this long or serves a request.
+    var stableSeconds: Double = 60
+    /// App-written lifecycle lines only (exits, restarts). Worker output is never persisted: it can contain speech.
+    var logURL: URL { support.appendingPathComponent("worker.log") }
+    func log(_ line: String) {
+        let url = logURL
+        if let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int, size > 1_000_000 { try? FileManager.default.removeItem(at: url) }
+        let text = ISO8601DateFormatter().string(from: Date()) + " " + line + "\n"
+        if let handle = FileHandle(forWritingAtPath: url.path) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd(); try? handle.write(contentsOf: Data(text.utf8))
+        } else {
+            try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+            try? Data(text.utf8).write(to: url)
+        }
+    }
 
     init(support: URL = Backend.support, environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.support = support; self.environment = environment
@@ -179,7 +196,12 @@ import VellaCore
                                 worker: pendingWorker.removeValue(forKey: ref.id) ?? previous?.worker ?? [:], unload: unload, timer: previous?.timer)
         if !order.contains(ref.id) { order.append(ref.id) }
         if loading == ref.id { loading = nil }
-        refused = nil; error = nil; restarts[ref.id]?.reset()
+        refused = nil; error = nil
+        let registration = UUID(); registrations[ref.id] = registration
+        DispatchQueue.main.asyncAfter(deadline: .now() + stableSeconds) { [weak self] in
+            guard let self, self.registrations[ref.id] == registration, self.entries[ref.id] != nil else { return }
+            self.restarts[ref.id]?.reset()
+        }
         if entries[ref.id]?.residency == .manual { settings.join(ref); persistSettings() }
         schedule(ref.id)
         writeStatus()
@@ -203,6 +225,7 @@ import VellaCore
     }
     func touch(_ id: String) {
         guard entries[id] != nil else { return }
+        restarts[id]?.reset() // served a request: recovered
         entries[id]!.lastUsed = Date().timeIntervalSince1970
         schedule(id); writeStatus()
     }
@@ -218,11 +241,18 @@ import VellaCore
     func crashed(_ id: String, message: String) {
         let entry = entries[id]
         removed(id)
+        log("\(id): \(message)")
         error = message; writeStatus()
         guard let entry, entry.residency == .manual else { return }
         var policy = restarts[id] ?? RestartPolicy()
-        guard let delay = policy.nextDelay() else { restarts[id] = policy; return }
+        guard let delay = policy.nextDelay() else {
+            restarts[id] = policy
+            error = message + " Stopped restarting \(entry.ref.displayName) after \(RestartPolicy.delays.count) attempts; Load it again in Models…"
+            log("\(id): stopped restarting after \(RestartPolicy.delays.count) attempts")
+            writeStatus(); return
+        }
         restarts[id] = policy
+        log("\(id): restarting in \(Int(delay)) s (attempt \(policy.failures))")
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self, self.entries[id] == nil, self.settings.launchSet.contains(where: { $0.id == id }) else { return }
             Task { try? await self.load(entry.ref) }
@@ -542,10 +572,18 @@ import VellaCore
         guard slots[slot.ref.id] === slot, !slot.retiring else { return }
         finish(slot, .failure(VellaError.message("Vella's inference worker exited. Saved audio is retained.")))
         let busy = activeSlot === slot
+        let pid = slot.process.processIdentifier
         retire(slot, notify: false)
-        let code = slot.process.isRunning ? "" : " (code \(slot.process.terminationStatus))"
-        if busy { runtime.removed(slot.ref.id) }
-        else { runtime.crashed(slot.ref.id, message: "\(slot.ref.displayName)'s worker exited\(code). It loads again when needed.") }
+        let runtime = self.runtime, id = slot.ref.id, process = slot.process
+        Task { @MainActor in
+            let until = ProcessInfo.processInfo.systemUptime + 1
+            while process.isRunning, ProcessInfo.processInfo.systemUptime < until { try? await Task.sleep(nanoseconds: 20_000_000) }
+            let status = process.isRunning ? -1 : process.terminationStatus
+            let reason = process.isRunning ? Process.TerminationReason.exit : process.terminationReason
+            runtime.log("\(id): worker pid \(pid) exited (\(reason == .uncaughtSignal ? "signal" : "code") \(status))")
+            let summary = workerExitSummary(status: status, reason: reason, logTail: logTail(runtime.logURL))
+            if busy { runtime.removed(id) } else { runtime.crashed(id, message: summary) }
+        }
     }
     private func finish(_ slot: DictationSlot, _ result: Result<[String: Any], Error>) {
         slot.deadline?.cancel(); slot.deadline = nil

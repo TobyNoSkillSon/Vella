@@ -181,8 +181,17 @@ final class RuntimeTests: XCTestCase {
         try await runtime.load(runtime.resolve(try model("alpha").path, mode: .dictation))
         let pid = try XCTUnwrap(backend.processID)
         kill(pid, SIGKILL)
-        try await waitUntil { (try? self.fileStatus(runtime))?.error?.contains("worker exited") == true }
+        try await waitUntil { (try? self.fileStatus(runtime))?.error?.hasPrefix("Worker exited (signal 9).") == true }
         try await waitUntil(8) { ((try? self.fileStatus(runtime))?.models["alpha"]?.pid).map { $0 != pid } == true }
+        // A worker that loads and dies again never resets the budget: after 3 restarts it stays down, error kept.
+        for _ in 0..<3 {
+            let next = try XCTUnwrap((try? fileStatus(runtime))?.models["alpha"]?.pid)
+            kill(next, SIGKILL)
+            try await waitUntil(10) { let s = try? self.fileStatus(runtime); return s?.models["alpha"] != nil && s?.models["alpha"]?.pid != next || s?.error?.contains("Stopped restarting") == true }
+        }
+        try await waitUntil(10) { (try? self.fileStatus(runtime))?.error?.contains("Stopped restarting alpha after 3 attempts") == true }
+        XCTAssertNil(try fileStatus(runtime).models["alpha"])
+        XCTAssertTrue(try String(contentsOf: runtime.logURL, encoding: .utf8).contains("stopped restarting after 3 attempts"))
     }
 
     @MainActor func testFirstDictationWithoutModelKeepsRecordingAndOffersGet() async throws {
