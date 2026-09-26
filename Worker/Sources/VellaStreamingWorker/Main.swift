@@ -50,6 +50,7 @@ final class StreamingModelCache {
         guard output >= 0, sink >= 0 else { exit(1) }
         dup2(sink, STDOUT_FILENO); dup2(sink, STDERR_FILENO); Darwin.close(sink)
         guard streamingSandbox() else { exit(1) }
+        guard FastPathGate.applyDeviceOverride() else { exit(1) }
         Memory.cacheLimit = 64 * 1024 * 1024
         // FastPathGate's child: stock vs optimized streaming self-test, verdict in the exit status.
         if CommandLine.arguments.dropFirst().first == "fast-selftest" {

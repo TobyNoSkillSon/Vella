@@ -30,9 +30,21 @@ public enum FastPathGate {
     /// reference for fallback tests.
     public static var forcedStock: Bool {
         let environment = ProcessInfo.processInfo.environment
-        return ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK"].contains { key in
+        // The CPU device (lab smokes) never runs the custom Metal kernels.
+        return cpuDevice || ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK"].contains { key in
             environment[key].map { !$0.isEmpty && $0 != "0" } ?? false
         }
+    }
+    /// Lab/test only: `VELLA_MLX_DEVICE=cpu` runs every MLX op on the CPU device (correctness smokes while the GPU is
+    /// taken). Reported in the worker status `test_hooks`; forces stock (no custom Metal kernels).
+    public static var cpuDevice: Bool { ProcessInfo.processInfo.environment["VELLA_MLX_DEVICE"] == "cpu" }
+    /// Call once at worker start, before any MLX work (the global default stream is fixed at first use). Fails
+    /// closed: returns false when the CPU device was requested but the default device is not the CPU.
+    public static func applyDeviceOverride() -> Bool {
+        guard cpuDevice else { return true }
+        // `.init(.cpu)`, not the static `.cpu`: the static value realises the global streams on the GPU first.
+        Device.setDefault(device: Device(.cpu))
+        return Device.defaultDevice().deviceType == .cpu
     }
 
     public static func storage() -> URL {
@@ -68,7 +80,7 @@ public enum FastPathGate {
         "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
         "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_STREAM_PROFILE",
         "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB",
-        "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE"]
+        "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_MLX_DEVICE"]
     public static func reportedEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
         environment.filter { key, value in
             !value.isEmpty && (reportedSwitches.contains(key) || componentSwitchPrefixes.contains { key.hasPrefix($0) })
@@ -77,7 +89,10 @@ public enum FastPathGate {
 
     public static func key(_ path: URL, revision: String) throws -> String {
         var digest = SHA256()
-        let entries = try FileManager.default.contentsOfDirectory(at: path, includingPropertiesForKeys: [.isRegularFileKey])
+        // A locally derived precision: its recipe plus its source's files (one key per derived precision).
+        var files = path
+        if let derived = try DerivedPrecision.resolve(path) { digest.update(data: Data(derived.canonical.utf8)); files = derived.source }
+        let entries = try FileManager.default.contentsOfDirectory(at: files, includingPropertiesForKeys: [.isRegularFileKey])
             .filter { ["json", "safetensors"].contains($0.pathExtension) }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
         guard entries.contains(where: { $0.pathExtension == "safetensors" }) else { throw FastPathGateError.invalid }

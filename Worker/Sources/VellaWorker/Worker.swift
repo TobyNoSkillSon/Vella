@@ -11,6 +11,7 @@ import MLXAudioSTT
         guard output >= 0, sink >= 0 else { exit(1) }
         dup2(sink, STDOUT_FILENO); dup2(sink, STDERR_FILENO); close(sink)
         guard installOfflineSandbox() else { exit(1) }
+        guard FastPathGate.applyDeviceOverride() else { exit(1) }
         signal(SIGALRM, SIG_DFL)
         if CommandLine.arguments.dropFirst().first == "fast-selftest" {
             let values = Array(CommandLine.arguments.dropFirst(2))
@@ -45,6 +46,9 @@ import MLXAudioSTT
         }
         do { try withError { Memory.cacheLimit = cacheBytes } } catch { exit(1) }
         #if VELLA_QUALIFICATION
+        if CommandLine.arguments.dropFirst().first == "describe-model" {
+            exit(await DescribeModel.run(Array(CommandLine.arguments.dropFirst(2))))
+        }
         if CommandLine.arguments.dropFirst().first == "probe-parakeet" {
             alarm(120)
             do {
@@ -72,7 +76,8 @@ import MLXAudioSTT
             guard let data = try? responseBytes(["status": status]), writeAll(output, data) else { exit(1) }
         }
         while let line = readBoundedLine(stdin) {
-            if line.count <= maximumLine { alarm(120) }
+            // Lab CPU device (VELLA_MLX_DEVICE=cpu, reported in test_hooks): CPU inference is far slower; 1 h deadline.
+            if line.count <= maximumLine { alarm(FastPathGate.cpuDevice ? 3600 : 120) }
             let request = line.count <= maximumLine ? try? decodeJSON(line) : nil
             var response = await worker.handle(request)
             #if VELLA_QUALIFICATION
@@ -178,6 +183,10 @@ final class Worker {
     }
     /// Stock load, no fast path configured.
     func loadStock(_ path: URL, architecture: String) async throws -> any STTGenerationModel {
+        if let derived = try DerivedPrecision.resolve(path) {
+            guard architecture == "parakeet" else { throw RequestError.invalid }
+            return try autoreleasepool { try ParakeetModel.fromDirectory(derived.source, preserveCheckpointDTypes: true, derived: derived) }
+        }
         switch architecture {
         case "parakeet": return try autoreleasepool { try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true) }
         case "sensevoice": return try autoreleasepool { try SenseVoiceModel.fromDirectory(path) }

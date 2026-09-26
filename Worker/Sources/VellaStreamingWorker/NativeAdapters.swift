@@ -33,7 +33,8 @@ final class NemotronNative: StreamingNative {
     /// persisted verdict) whether the optimized path may run.
     init(_ path: URL, gate: Bool = true) throws {
         self.path = path
-        model = try NemotronASRModel.fromDirectory(path)
+        let derived = try DerivedPrecision.resolve(path)
+        model = try NemotronASRModel.fromDirectory(derived?.source ?? path, derived: derived)
         VellaNemotronNumerics.useReferencePositionTable(model!)
         if !VellaNemotronOptions.anyEnabled {
             stockReason = FastPathGate.forcedStock ? "Stock path forced for diagnosis (VELLA_FORCE_STOCK)." : "Every streaming optimization is disabled by environment."
@@ -143,8 +144,10 @@ final class NemotronNative: StreamingNative {
     func close() { VellaStreamProfile.flush(); session = nil; model = nil; journal.removeAll(); Stream.gpu.synchronize(); Memory.clearCache() }
 }
 func loadStreamingNative(_ path: URL) throws -> any StreamingNative {
-    let config = try JSONSerialization.jsonObject(with: Data(contentsOf: path.appendingPathComponent("config.json"))) as! [String: Any]
+    let derived = try DerivedPrecision.resolve(path)
+    let config = try JSONSerialization.jsonObject(with: Data(contentsOf: (derived?.source ?? path).appendingPathComponent("config.json"))) as! [String: Any]
     if config["model_type"] as? String == "nemotron_asr" { return try NemotronNative(path) }
+    guard derived == nil else { throw StreamingFailure.invalid }
     return try VoxtralNative(path)
 }
 final class VoxtralNative: StreamingNative {

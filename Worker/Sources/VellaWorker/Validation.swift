@@ -1,5 +1,6 @@
 import Foundation
 import Darwin
+import MLXAudioSTT
 
 enum RequestError: Error { case invalid }
 let maximumLine = 16 * 1024
@@ -57,6 +58,14 @@ func jsonObject(_ url: URL) throws -> [String: Any] {
     return object
 }
 func admit(_ path: URL) throws -> String {
+    // A locally derived precision: admit its float source; only architectures with a derivation path.
+    guard let derived = try DerivedPrecision.resolve(path) else { return try admitCheckpoint(path) }
+    let architecture = try admitCheckpoint(derived.source)
+    let source = try jsonObject(derived.source.appendingPathComponent("config.json"))
+    guard architecture == "parakeet", !pythonTruthy(source["quantization"]), !pythonTruthy(source["quantization_config"]) else { throw RequestError.invalid }
+    return architecture
+}
+func admitCheckpoint(_ path: URL) throws -> String {
     let config = try jsonObject(path.appendingPathComponent("config.json"))
     if let value = config["model_type"], !(value is NSNull), !(value is String) { throw RequestError.invalid }
     var architecture = config["model_type"] as? String

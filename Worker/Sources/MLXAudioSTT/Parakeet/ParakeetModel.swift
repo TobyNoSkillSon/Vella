@@ -1053,7 +1053,8 @@ public extension ParakeetModel {
     static func fromDirectory(
         _ modelDir: URL,
         computeDType: DType = .bfloat16,
-        preserveCheckpointDTypes: Bool = false
+        preserveCheckpointDTypes: Bool = false,
+        derived: DerivedPrecision? = nil
     ) throws -> ParakeetModel {
         let configURL = modelDir.appendingPathComponent("config.json")
         let rawConfigData = try Data(contentsOf: configURL)
@@ -1126,9 +1127,19 @@ public extension ParakeetModel {
             weights.merge(shard) { _, new in new }
         }
 
-        let sanitized = sanitize(weights: weights, variant: model.variant)
+        var sanitized = sanitize(weights: weights, variant: model.variant)
+        weights.removeAll()
 
-        if let perLayerQuant = quantConfig.perLayerQuantization {
+        // A locally derived precision (Vella): cast and/or quantize the float source tensor by tensor, then load it
+        // exactly like the published quant (same modules, group size and bits).
+        var perLayerQuantization = quantConfig.perLayerQuantization
+        if let derived {
+            guard perLayerQuantization == nil else { throw DerivedPrecision.Invalid.manifest("the source is already quantized") }
+            derived.apply(to: &sanitized, targets: derived.quantizationTargets(model))
+            perLayerQuantization = derived.quantization
+        }
+
+        if let perLayerQuant = perLayerQuantization {
             try installCheckpointQuantization(model: model, weights: sanitized) { path, _ in
                 if sanitized["\(path).scales"] != nil {
                     return perLayerQuant.quantization(layer: path)?.asTuple

@@ -342,7 +342,8 @@ public extension NemotronASRModel {
 
     static func fromDirectory(
         _ modelDir: URL,
-        computeDType: DType = .bfloat16
+        computeDType: DType = .bfloat16,
+        derived: DerivedPrecision? = nil
     ) throws -> NemotronASRModel {
         let configURL = modelDir.appendingPathComponent("config.json")
         let rawConfigData = try Data(contentsOf: configURL)
@@ -359,12 +360,22 @@ public extension NemotronASRModel {
             weights.merge(shard) { _, new in new }
         }
 
-        let sanitized = sanitize(
+        var sanitized = sanitize(
             weights: weights,
             quantization: quantConfig.perLayerQuantization
         )
+        weights.removeAll()
 
-        if let perLayerQuant = quantConfig.perLayerQuantization {
+        // A locally derived precision (Vella): quantize the float source tensor by tensor, then load it exactly like
+        // the published 8b (same modules, group size and bits).
+        var perLayerQuantization = quantConfig.perLayerQuantization
+        if let derived {
+            guard perLayerQuantization == nil else { throw DerivedPrecision.Invalid.manifest("the source is already quantized") }
+            derived.apply(to: &sanitized, targets: derived.quantizationTargets(model))
+            perLayerQuantization = derived.quantization
+        }
+
+        if let perLayerQuant = perLayerQuantization {
             quantize(model: model) { path, _ in
                 if sanitized["\(path).scales"] != nil {
                     return perLayerQuant.quantization(layer: path)?.asTuple

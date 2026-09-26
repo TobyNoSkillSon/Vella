@@ -1,4 +1,5 @@
 import Foundation
+import MLXAudioSTT
 
 // Mirrors Resources/streaming_worker.py. Model code never owns transport state.
 enum StreamingFailure: Error { case invalid, inference }
@@ -71,6 +72,13 @@ func streamingModelPath(_ value: Any?) throws -> URL {
         return data
     }
     do {
+        // A locally derived precision: the directory holds only its recipe; validate the float Nemotron source.
+        if let derived = try DerivedPrecision.resolve(url) {
+            _ = try streamingModelPath(derived.source.path)
+            let config = try JSONSerialization.jsonObject(with: Data(contentsOf: derived.source.appendingPathComponent("config.json"))) as? [String: Any]
+            guard config?["model_type"] as? String == "nemotron_asr", config?["quantization"] == nil, config?["quantization_config"] == nil else { throw StreamingFailure.invalid }
+            return url
+        }
         let config = try configuration("config.json")
         guard let type = config["model_type"] as? String, ["nemotron_asr", "voxtral_realtime"].contains(type),
               try FileManager.default.contentsOfDirectory(atPath: url.path).contains(where: { $0.hasSuffix(".safetensors") }) else { throw StreamingFailure.invalid }
