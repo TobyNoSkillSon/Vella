@@ -312,6 +312,13 @@ final class CatalogTests: XCTestCase {
             XCTAssertFalse(all.contains(stale), stale)
         }
         for column in ["WER", "Format", "Speed", "J / min", "Memory"] { XCTAssertTrue(docs[1].contains(column), column) }
+        // The Q column: bare widths in the table docs, 16 = BF16; exact labels stay in the agent guide's schema.
+        XCTAssertTrue(docs[1].contains("| Q | Bits per weight") && docs[1].contains("16 (BF16)"), "USAGE Q column")
+        XCTAssertTrue(docs[0].contains("| Model | Mode | Q |") && docs[0].contains("16 is BF16"), "README table")
+        XCTAssertTrue(docs[1].contains("best value across its precisions"), "stable sort documented")
+        for stale in ["| Precision |", "`4b`, `8b`", "| 8b", "| 4b", "| BF16"] {
+            XCTAssertFalse(docs[0].contains(stale) || docs[1].contains(stale), stale)
+        }
     }
 
     /// Wording rule: no tooltip claims what the code does not guarantee.

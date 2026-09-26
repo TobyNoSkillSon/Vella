@@ -49,17 +49,19 @@ Hover an item for what it does.
 | Model | Name; under a loaded model, its engine (**Optimized · <chip>** or **MLX**). Tooltip: parameters, native precision, licence. |
 | Languages | Supported languages. |
 | Params | Parameter count. |
-| Precision | Segmented control with the precisions this model offers (`4b`, `8b`, `BF16`, `FP16`, `FP32`, as its weights allow; never below 4 bits). The recommended precision is green. |
+| Q | Bits per weight, as a segmented control: 32 (FP32), 16 (BF16), 8 and 4 (quantized), from the model's native precision down, never below 4. The recommended one is green. Each segment's tooltip names the exact format and whether it is published or made on this Mac from the higher precision. |
 | WER | Word error rate on Vella's benchmark: wrong, missing or extra words, ignoring case and punctuation. Tooltip: word error rate per language. |
 | Format | Character error rate with case and punctuation kept. |
 | Speed | Audio length ÷ transcription time, after loading (× real time). |
 | J / min | Joules per minute of audio, whole chip, idle subtracted. |
 | Memory | Loaded footprint. |
-| On disk | Downloaded size, `—` if not downloaded. |
+| On disk | Download size (dimmed until downloaded). For a precision made on this Mac, its measured size, else `—`. |
 
-Lower is better for WER, Format, J / min and Memory; higher for Speed. `—` means not measured at that precision; Vella never estimates a figure. Every figure's tooltip says when and on which Mac it was measured. On a Mac with a different chip family, the footer says `Benchmarks measured on M5 Max`: speed, energy and memory differ on your Mac; accuracy does not.
+Lower is better for WER, Format, J / min and Memory; higher for Speed. `—` means not measured at that precision; Vella never estimates a figure. Clicking a heading sorts by each model's best value across its precisions, so rows keep their place when you switch precision; models with nothing measured come last. Every figure's tooltip says when and on which Mac it was measured. On a Mac with a different chip family, the footer says `Benchmarks measured on M5 Max`: speed, energy and memory differ on your Mac; accuracy does not.
 
 **Recommended precision.** Among a model's measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest J / min (ties: faster, then more bits). A model loads at the selected precision, which starts as the recommended one. Selecting another precision only records the choice and shows its figures with the difference from the recommended one beneath (green better, red worse). On a loaded model with another precision selected, the button is a green **Reload**, which loads the selection in place of the loaded one.
+
+**Made on this Mac.** Precisions the model's authors do not publish (for example 16 for Parakeet v3, 8 and 4 for Parakeet v3 Ultra) are made on your Mac from the higher precision when the model loads. Until they are measured their figures show `—`. **Get** on such a precision downloads the weights it is made from; deleting those weights removes it too.
 
 **Actions.** **Get** downloads the model. **Load** loads it and keeps it loaded (see Keep Hot); **Unload** frees its memory and keeps the download. The trash icon deletes the downloaded weights after confirmation. Recordings and transcripts are never deleted with a model.
 

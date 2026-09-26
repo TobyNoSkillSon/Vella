@@ -35,37 +35,38 @@
 
 ## Models
 
-Vella offers a small set of open speech-recognition models, chosen for accuracy per joule: Macs run on batteries and power limits, so a model that is slightly more accurate but several times hungrier is not offered. Each model can run at the precisions its weights allow (for example `4b`, `8b`, `BF16`), never quantized below 4 bits.
+Vella offers a small set of open speech-recognition models, chosen for accuracy per joule: Macs run on batteries and power limits, so a model that is slightly more accurate but several times hungrier is not offered. Each model runs at every precision from its native one down to 4 bits: 32, 16, 8 and 4 bits per weight, as far as its native precision allows. Precisions not published by the model's authors are made on your Mac from the higher one when first loaded; nothing extra is downloaded.
 
 <!-- BENCHMARK_TABLE_START -->
 
 Measured on Apple M5 Max, macOS 26.6, 2026-09-26. WER and Format on the 240-minute v2 benchmark (`v2`) or its 22.5-minute quick subset (`v2-quick`); Languages = benchmark languages supported, of 9.
 
-| Model | Mode | Precision | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
+| Model | Mode | Q | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|
-| Parakeet v3 Ultra | Dictation | BF16 (recommended) | 15.52 | 5.76 | 5/9 | 372× | 5.4 | 1,747 MB | v2 |
-| Parakeet v3 | Dictation | FP32 (recommended) | 16.43 | 7.97 | 5/9 | 298× | 7.1 | 3,225 MB | v2 |
-| Parakeet v3 | Dictation | 8b | 16.55 | 8.05 | 5/9 | 274× | 9.9 | 1,785 MB | v2 |
-| Parakeet v3 | Dictation | 4b | 17.84 | 9.24 | 5/9 | 273× | 9.8 | 1,520 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | BF16 | 15.06 | 6.74 | 9/9 | 27× | 79.8 | 5,167 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 8b (recommended) | 15.16 | 6.65 | 9/9 | 39× | 69.0 | 3,787 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 4b | 18.41 | 7.19 | 9/9 | 53× | 55.5 | 2,955 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | BF16 | 23.44 | 10.56 | 9/9 | 16× | 91.2 | 2,696 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 8b (recommended) | 23.45 | 10.58 | 9/9 | 24× | 67.0 | 1,225 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 16 (recommended) | 15.52 | 5.76 | 5/9 | 372× | 5.4 | 1,747 MB | v2 |
+| Parakeet v3 | Dictation | 32 (recommended) | 16.43 | 7.97 | 5/9 | 298× | 7.1 | 3,225 MB | v2 |
+| Parakeet v3 | Dictation | 8 | 16.55 | 8.05 | 5/9 | 274× | 9.9 | 1,785 MB | v2 |
+| Parakeet v3 | Dictation | 4 | 17.84 | 9.24 | 5/9 | 273× | 9.8 | 1,520 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 16 | 15.06 | 6.74 | 9/9 | 27× | 79.8 | 5,167 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 8 (recommended) | 15.16 | 6.65 | 9/9 | 39× | 69.0 | 3,787 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 4 | 18.41 | 7.19 | 9/9 | 53× | 55.5 | 2,955 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 16 | 23.44 | 10.56 | 9/9 | 16× | 91.2 | 2,696 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 8 (recommended) | 23.45 | 10.58 | 9/9 | 24× | 67.0 | 1,225 MB | v2 |
 
 Measured but not offered in the app:
 
-| Model | Mode | Precision | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
+| Model | Mode | Q | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|
-| Qwen3 ASR 0.6B | Dictation | BF16 | 7.43 | 5.27 | 9/9 | 57× | 38.4 | 2,367 MB | v2-quick |
-| Qwen3 ASR 0.6B | Dictation | 8b (recommended) | 7.86 | 5.34 | 9/9 | 72× | 34.3 | 1,899 MB | v2-quick |
-| Qwen3 ASR 0.6B | Dictation | 4b | 9.09 | 5.34 | 9/9 | 84× | 29.3 | 1,627 MB | v2-quick |
-| Whisper large-v3 turbo | Dictation | 8b | 9.19 | 4.95 | 9/9 | 40× | 92.1 | 2,101 MB | v2-quick |
-| Whisper large-v3 turbo | Dictation | 4b | 9.99 | 5.48 | 9/9 | 40× | 87.1 | 1,724 MB | v2-quick |
-| SenseVoice Small | Dictation | FP32 (recommended) | 11.01 | 7.77 | 3/9 | 420× | — | 1,548 MB | v2-quick |
+| Qwen3 ASR 0.6B | Dictation | 16 | 7.43 | 5.27 | 9/9 | 57× | 38.4 | 2,367 MB | v2-quick |
+| Qwen3 ASR 0.6B | Dictation | 8 (recommended) | 7.86 | 5.34 | 9/9 | 72× | 34.3 | 1,899 MB | v2-quick |
+| Qwen3 ASR 0.6B | Dictation | 4 | 9.09 | 5.34 | 9/9 | 84× | 29.3 | 1,627 MB | v2-quick |
+| Whisper large-v3 turbo | Dictation | 8 | 9.19 | 4.95 | 9/9 | 40× | 92.1 | 2,101 MB | v2-quick |
+| Whisper large-v3 turbo | Dictation | 4 | 9.99 | 5.48 | 9/9 | 40× | 87.1 | 1,724 MB | v2-quick |
+| SenseVoice Small | Dictation | 32 (recommended) | 11.01 | 7.77 | 3/9 | 420× | — | 1,548 MB | v2-quick |
 
 <!-- BENCHMARK_TABLE_END -->
 
+- **Q** is bits per weight: 32 is FP32, 16 is BF16, 8 and 4 are quantized.
 - **WER** is word error rate: wrong, missing or extra words, ignoring case and punctuation. **Format** is character error rate with case and punctuation kept: how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
 - **Speed** is audio length divided by transcription time after the model is loaded: 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Memory** is the loaded model's footprint.
 - **Recommended precision.** A model loads at its recommended precision unless you pick another: among its measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest energy per minute of audio (ties: faster, then more bits).
@@ -79,7 +80,7 @@ Everything lives in the menu: the status line, **Mode · Microphone · Shortcuts
 
 **A fresh install downloads and loads nothing.** The first time you dictate without a model, Vella keeps the recording and shows one **Get <model> (<size>)** item for the recommended model; when the download finishes, it transcribes the waiting recording. **Models…** does the same ahead of time.
 
-**Models…** opens one table with Dictation and Streaming sections. Pick a precision in a row's segmented control; the recommended one is green. Selecting another precision shows its figures against the recommended one and reloads nothing; on a loaded model the button becomes a green **Reload**, which applies it. **Get** downloads, **Load** keeps a model ready, **Unload** frees its memory, and the trash icon deletes its weights.
+**Models…** opens one table with Dictation and Streaming sections. Pick a precision in a row's **Q** control (32, 16, 8, 4); the recommended one is green, and each segment's tooltip names the exact format and whether it is published or made on your Mac. Rows keep their place when you switch precision: each column sorts by the model's best value across its precisions. Selecting another precision shows its figures against the recommended one and reloads nothing; on a loaded model the button becomes a green **Reload**, which applies it. **Get** downloads (for a precision made on your Mac, the weights it is made from), **Load** keeps a model ready, **Unload** frees its memory, and the trash icon deletes its weights.
 
 **Engine.** Under a loaded model's name, **Optimized · <your chip>** means Vella's optimized kernels passed a self-test against the stock path on this Mac when the model loaded. **MLX** means the stock MLX path: the same model, slower. If the optimized path fails during a transcription, Vella redoes that transcription on the stock path and keeps the model there until it is reloaded.
 
