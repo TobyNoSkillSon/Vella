@@ -61,7 +61,8 @@ func admit(_ path: URL) throws -> String {
     if let value = config["model_type"], !(value is NSNull), !(value is String) { throw RequestError.invalid }
     var architecture = config["model_type"] as? String
     if architecture == nil, config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" { architecture = "parakeet" }
-    guard let architecture, ["parakeet", "qwen3_asr", "whisper", "sensevoice", "granite_speech"].contains(architecture) else { throw RequestError.invalid }
+    let stub = StubModel.enabled && architecture == "stub" // Test hook, reported in status.
+    guard let architecture, stub || ["parakeet", "qwen3_asr", "whisper", "sensevoice", "granite_speech"].contains(architecture) else { throw RequestError.invalid }
     let rawQuant = pythonTruthy(config["quantization"]) ? config["quantization"] :
         pythonTruthy(config["quantization_config"]) ? config["quantization_config"] : [:]
     guard let quant = rawQuant as? [String: Any] else { throw RequestError.invalid }

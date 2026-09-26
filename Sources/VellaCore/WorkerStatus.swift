@@ -1,0 +1,141 @@
+import Foundation
+
+/// One loaded model in `worker-status.json`. Every field is optional on decode so older files still render.
+public struct WorkerModelStatus: Codable, Equatable {
+    public var mode: RecognitionMode?
+    public var precision: String?
+    public var path: String?
+    public var name: String?
+    public var pid: Int32?
+    /// "optimized" (self-tested optimized components active) or "mlx" (stock path).
+    public var engine: String?
+    /// Why the model is on the stock path, or which parts are stock (nil when fully optimized).
+    public var engine_reason: String?
+    /// Component → active on the optimized path.
+    public var optimizations: [String: Bool]?
+    /// "manual" or "on_demand".
+    public var residency: String?
+    /// Keep Hot window for its class in minutes; 0 = Always.
+    public var keep_hot_min: Int?
+    /// Seconds since 1970.
+    public var last_used: Double?
+    public var unloads_at: Double?
+    public var load_s: Double?
+    /// Worker process footprint.
+    public var memory_mb: Double?
+    public init() {}
+}
+
+public struct Eviction: Codable, Equatable {
+    public var model: String
+    public var residency: String?
+    public var reason: String
+    public var at: Double
+    public init(model: String, residency: String? = nil, reason: String, at: Double) {
+        self.model = model; self.residency = residency; self.reason = reason; self.at = at
+    }
+}
+
+/// The last load refused in Fit in free memory.
+public struct Refusal: Codable, Equatable {
+    public var model: String
+    public var message: String
+    public var at: Double
+    public var need_mb: Double?
+    public var free_mb: Double?
+    public init(model: String, message: String, at: Double, need_mb: Double? = nil, free_mb: Double? = nil) {
+        self.model = model; self.message = message; self.at = at; self.need_mb = need_mb; self.free_mb = free_mb
+    }
+}
+
+public struct GPUStatus: Codable, Equatable {
+    public var chip: String?
+    /// Metal GPU family the engine gate keys on ("apple9"); never a chip name.
+    public var family: String?
+    public init(chip: String? = nil, family: String? = nil) { self.chip = chip; self.family = family }
+}
+
+public struct MemoryStatus: Codable, Equatable {
+    public var available_mb: Double?
+    public var ram_mb: Double?
+    /// Σ worker footprints.
+    public var workers_mb: Double?
+    public init(available_mb: Double? = nil, ram_mb: Double? = nil, workers_mb: Double? = nil) {
+        self.available_mb = available_mb; self.ram_mb = ram_mb; self.workers_mb = workers_mb
+    }
+}
+
+public struct StatusSettings: Codable, Equatable {
+    public var manual_idle_minutes: Int?
+    public var on_demand_idle_minutes: Int?
+    public var allow_swap: Bool?
+    public init(_ settings: ResidencySettings) {
+        manual_idle_minutes = settings.manualIdleMinutes; on_demand_idle_minutes = settings.onDemandIdleMinutes
+        allow_swap = settings.allowSwap
+    }
+}
+
+/// Written by the app (atomic tmp + rename) after every runtime change, from the workers' pushed status lines.
+/// The in-app UI reads the same value in process; the file is for tests, the installer and diagnosis.
+public struct WorkerStatus: Codable, Equatable {
+    public var schema: Int? = 1
+    public var updated: Double = 0
+    public var app_pid: Int32?
+    public var models: [String: WorkerModelStatus] = [:]
+    /// Model id being loaded now.
+    public var loading: String?
+    public var error: String?
+    public var memory: MemoryStatus?
+    public var settings: StatusSettings?
+    public var launch_set: [String]?
+    public var evictions: [Eviction]?
+    public var refused: Refusal?
+    public var gpu: GPUStatus?
+    /// Diagnostic environment switches active in this app or its workers. Empty in normal use.
+    public var test_hooks: [String: String]?
+    public init() {}
+    private enum CodingKeys: String, CodingKey {
+        case schema, updated, app_pid, models, loading, error, memory, settings, launch_set, evictions, refused, gpu, test_hooks
+    }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        schema = try? c.decodeIfPresent(Int.self, forKey: .schema)
+        updated = (try? c.decodeIfPresent(Double.self, forKey: .updated)) ?? 0
+        app_pid = try? c.decodeIfPresent(Int32.self, forKey: .app_pid)
+        models = (try? c.decodeIfPresent([String: WorkerModelStatus].self, forKey: .models)) ?? [:]
+        loading = try? c.decodeIfPresent(String.self, forKey: .loading)
+        error = try? c.decodeIfPresent(String.self, forKey: .error)
+        memory = try? c.decodeIfPresent(MemoryStatus.self, forKey: .memory)
+        settings = try? c.decodeIfPresent(StatusSettings.self, forKey: .settings)
+        launch_set = try? c.decodeIfPresent([String].self, forKey: .launch_set)
+        evictions = try? c.decodeIfPresent([Eviction].self, forKey: .evictions)
+        refused = try? c.decodeIfPresent(Refusal.self, forKey: .refused)
+        gpu = try? c.decodeIfPresent(GPUStatus.self, forKey: .gpu)
+        test_hooks = try? c.decodeIfPresent([String: String].self, forKey: .test_hooks)
+    }
+    /// Atomic: write a unique temporary file beside the target, then rename(2) over it.
+    public func write(to url: URL) throws {
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(self)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let temporary = url.deletingLastPathComponent().appendingPathComponent("\(url.lastPathComponent).\(getpid()).\(UUID().uuidString).tmp")
+        try data.write(to: temporary)
+        guard rename(temporary.path, url.path) == 0 else {
+            try? FileManager.default.removeItem(at: temporary)
+            throw VellaError.message("Could not update \(url.lastPathComponent).")
+        }
+    }
+    public static func read(_ url: URL) -> WorkerStatus? {
+        (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(WorkerStatus.self, from: $0) }
+    }
+}
+
+/// Diagnostic switches that change runtime behaviour; any that are set are reported in status, never hidden.
+public let runtimeTestHookNames = [
+    "VELLA_TEST_MEMORY_FILE", "VELLA_TEST_VM_STATS", "VELLA_TEST_MINUTE_SECONDS", "VELLA_SUPPORT_DIR",
+    "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
+    "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK",
+]
+public func activeTestHooks(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
+    environment.filter { runtimeTestHookNames.contains($0.key) && !$0.value.isEmpty }
+}
