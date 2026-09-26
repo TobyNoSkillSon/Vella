@@ -373,6 +373,7 @@ import VellaCore
             model.unloads_at = unloadDeadline(lastUsed: entry.lastUsed, residency: entry.residency, settings: settings, minuteSeconds: minuteSeconds)
             model.load_s = entry.worker["load_s"] as? Double
             model.memory_mb = (entry.worker["memory"] as? [String: Any])?["footprint_mb"] as? Double
+            model.worker_version = entry.worker["version"] as? String
             next.models[id] = model
         }
         next.loading = loading

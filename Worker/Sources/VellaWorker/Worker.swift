@@ -216,7 +216,7 @@ final class Worker {
                 if capable.configureFastPath(enabled: true, component: "both") {
                     stockReason = nil; optimizations = capable.fastPathComponents
                 } else {
-                    if let gateURL { FastPathGate.persist("stock", to: gateURL) }
+                    if let gateURL { FastPathGate.persist("stock", to: gateURL, model: path, reason: "optimized path unsupported for this checkpoint") }
                     stockReason = "The optimized path does not support this checkpoint."
                 }
             case .stock(let reason):
