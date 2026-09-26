@@ -60,7 +60,7 @@ import MLXAudioSTT
                 let audio = try Audio(options["--audio"])
                 let model = try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true)
                 let reference = try options["--reference"].map { try MLX.loadArrays(url: URL(fileURLWithPath: $0))["mel"] } ?? nil
-                let result = try model.qualificationSnapshot(audio: MLXArray(audio.samples).asType(.bfloat16), directory: URL(fileURLWithPath: destination), referenceMel: reference)
+                let result = try model.qualificationSnapshot(audio: MLXArray(audio.samples).asType(ParakeetModel.inputDType), directory: URL(fileURLWithPath: destination), referenceMel: reference)
                 let bytes = try responseBytes(result)
                 bytes.withUnsafeBytes { _ = Darwin.write(output, $0.baseAddress, $0.count) }
                 exit(0)
@@ -179,7 +179,7 @@ final class Worker {
         return type as? any FastPathCapable.Type
     }
     static func input(for model: any STTGenerationModel, _ samples: MLXArray) -> MLXArray {
-        model is ParakeetModel ? samples.asType(.bfloat16) : samples
+        model is ParakeetModel ? samples.asType(ParakeetModel.inputDType) : samples
     }
     /// Stock load, no fast path configured.
     func loadStock(_ path: URL, architecture: String) async throws -> any STTGenerationModel {

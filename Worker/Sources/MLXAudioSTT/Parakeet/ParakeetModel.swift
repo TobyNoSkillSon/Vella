@@ -65,7 +65,15 @@ public final class ParakeetModel: Module, STTGenerationModel {
 
     // FastPathCapable (worker gate + runtime fallback). The revision is hashed into the gate key:
     // bump it whenever kernels, the default component set or the clip set change.
-    public static var fastPathRevision: String { "parakeet-r2-dense-encoder" }
+    /// The frontend precision is part of the revision: the self-test compares stock and optimized on the same mel, so
+    /// a verdict qualified with one frontend says nothing about the other.
+    public static var fastPathRevision: String { fp32Frontend ? "parakeet-r3-fp32-frontend" : "parakeet-r2-dense-encoder" }
+    /// Log-mel frontend precision. Default: the input dtype (BF16), matching mlx-audio's rounding. With
+    /// `VELLA_PARAKEET_FP32_FRONTEND=1` the worker hands over FP32 samples and the mel is computed in FP32 (as NeMo's
+    /// preprocessor does), then cast to the compute dtype before the encoder. The encoder and decoder are unchanged.
+    public static let fp32Frontend = ProcessInfo.processInfo.environment["VELLA_PARAKEET_FP32_FRONTEND"] == "1"
+    /// The dtype the worker converts request samples to before `generate`.
+    public static var inputDType: DType { fp32Frontend ? .float32 : .bfloat16 }
     /// Token-exact on all five bundled public clips for every precision (4b, 8b, BF16, FP32, ternary).
     public var fastPathSelfTestClips: [String] { ["clip-a", "clip-b", "clip-c", "clip-d", "clip-e"] }
     public var fastPathComponents: [String: Bool] { ["encoder": fastEncoder != nil, "decoder": fastDecoder != nil] }
