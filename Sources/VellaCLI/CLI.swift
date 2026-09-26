@@ -190,8 +190,21 @@ struct VellaClient {
         return out
     }
     /// Vella.app when this executable ships inside it (Contents/Helpers/vella).
-    static var containingApp: URL? {
-        var url = URL(fileURLWithPath: CommandLine.arguments.first ?? "/").resolvingSymlinksInPath()
+    static var containingApp: URL? { app(containing: executablePath()) }
+
+    /// This executable's absolute path. argv[0] is only "vella" when the command is found through PATH, so ask the
+    /// system (it reports the symlink in ~/.local/bin, which is resolved below).
+    static func executablePath() -> String {
+        var size: UInt32 = 0
+        _ = _NSGetExecutablePath(nil, &size)
+        var buffer = [CChar](repeating: 0, count: Int(size) + 1)
+        if _NSGetExecutablePath(&buffer, &size) == 0 { return String(cString: buffer) }
+        return CommandLine.arguments.first ?? "/"
+    }
+
+    /// The .app bundle an executable lives in, following symlinks (nil outside an app).
+    static func app(containing executable: String) -> URL? {
+        var url = URL(fileURLWithPath: executable).resolvingSymlinksInPath()
         if !url.path.hasPrefix("/") { return nil }
         while url.path != "/" && !url.path.isEmpty {
             if url.pathExtension == "app" { return FileManager.default.fileExists(atPath: url.appendingPathComponent("Contents/Info.plist").path) ? url : nil }
