@@ -168,14 +168,9 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate {
         try checkCancellation()
         return destination
     }
-    private struct ProcessorRecipe: Decodable { let repository: String; let revision: String; let files: [String] }
-    private func processorSource(_ model: ModelRecommendation) throws -> ProcessorRecipe? {
-        // Catalog metadata is decoded by the caller; optional recipes are looked up in its exact catalog.
-        guard let catalog = try JSONSerialization.jsonObject(with: Data(contentsOf: catalogURL)) as? [[String: Any]],
-              let entry = catalog.first(where: { $0["id"] as? String == model.id }),
-              let processor = entry["processorSource"] else { return nil }
-        let bytes = try JSONSerialization.data(withJSONObject: processor)
-        return try JSONDecoder().decode(ProcessorRecipe.self, from: bytes)
+    private func processorSource(_ model: ModelRecommendation) throws -> ProcessorSource? {
+        // Catalog metadata is decoded by the caller; optional recipes are looked up in its exact catalog (v2 or legacy).
+        try VellaCore.processorSource(variant: model.id, catalogURL: catalogURL)
     }
 
     private func fetch(_ file: SourceFile, to partial: URL, from offset: Int64, report: @escaping (Int64) -> Void) async throws {

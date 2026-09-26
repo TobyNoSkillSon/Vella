@@ -166,7 +166,7 @@ public final class NativeInstaller {
         let firstInstall = !manager.fileExists(atPath: destination.path) &&
             !manager.fileExists(atPath: support.appendingPathComponent("config.json").path) &&
             !manager.fileExists(atPath: support.appendingPathComponent("models-installed.json").path)
-        let model = try JSONDecoder().decode([ModelRecommendation].self, from: Data(contentsOf: catalog)).first { $0.id == Self.defaultModelID }
+        let model = try catalogVariants(contentsOf: catalog).first { $0.id == Self.defaultModelID }
         guard let model else { throw NativeInstallError.message("Pinned Parakeet Q4 is missing from the catalog") }
         try manager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         let transaction = destination.deletingLastPathComponent().appendingPathComponent(".vella-update-\(UUID().uuidString)")

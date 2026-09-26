@@ -6,7 +6,8 @@ import VellaCore
 
 @MainActor final class ModelLibrary: ObservableObject {
     let mode: RecognitionMode
-    var catalogName: String { mode == .dictation ? "models.json" : "streaming-models.json" }
+    /// One catalog (models.json v2) for both modes; each library keeps its mode's variants.
+    let catalogName = "models.json"
     func supports(_ architecture: String) -> Bool {
         mode == .streaming ? ["nemotron_asr", "voxtral_realtime"].contains(architecture) : ["whisper", "qwen3_asr", "parakeet", "sensevoice", "granite_speech"].contains(architecture)
     }
@@ -117,7 +118,7 @@ import VellaCore
     func reload() {
         let decoder = JSONDecoder()
         do {
-            models = try decoder.decode([ModelRecommendation].self, from: Data(contentsOf: resources.appendingPathComponent(catalogName))).filter { supports($0.architecture) }
+            models = try catalogVariants(contentsOf: resources.appendingPathComponent(catalogName)).filter { supports($0.architecture) }
             if let data = try? Data(contentsOf: registryURL), let saved = try? decoder.decode([String: InstalledModel].self, from: data) { installed = saved }
             for (id, local) in installed where !models.contains(where: { $0.id == id }) {
                 if let bytes = try? Data(contentsOf: URL(fileURLWithPath: local.path).appendingPathComponent("config.json")),

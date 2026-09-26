@@ -137,8 +137,8 @@ import VellaCore
                 let text = try await dictation.transcribe(ModelLibrary.resourceDirectory().appendingPathComponent("Calibration/speech.wav"), config: config.forRecording())
                 report["dictationWorkerCompleted"] = !text.isEmpty
                 // Inspect the actual native Models view using bundled results.
-                let library = ModelLibrary(mode: .streaming)
-                let menus = ModelsMenu(library: library)
+                let menus = ModelsMenu()
+                let controller = menus.controller
                 if let table = menus.modelItem().submenu?.items.first?.view {
                     let material = NSVisualEffectView(frame: table.frame)
                     material.material = .menu; material.blendingMode = .withinWindow; material.state = .active
@@ -150,8 +150,8 @@ import VellaCore
                         material.cacheDisplay(in: material.bounds, to: image)
                         try image.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("streaming-models.png"))
                     }
-                    report["streamingMenuRows"] = library.displayedModels.map(\.id)
-                    report["streamingMeasuredRows"] = library.displayedModels.filter { library.references[$0.id] != nil }.map(\.id)
+                    report["streamingMenuRows"] = controller.families(.streaming).map(\.id)
+                    report["streamingMeasuredRows"] = controller.families(.streaming).filter { controller.benchmarks.models[$0.id] != nil }.map(\.id)
                 }
             } catch { report["error"] = error.localizedDescription; report["passed"] = false }
         }
