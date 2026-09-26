@@ -104,9 +104,15 @@ struct APITranscript {
 }
 
 /// Runs API transcriptions on the dictation runtime without ever getting in dictation's way: one file at a time
-/// (FIFO), a segment starts only while no dictation is active, the model loads outside the request lane, and the
-/// dictation model is kept out of eviction while an API job runs. Audio and text stay in a private temporary directory
-/// that is removed when the request ends; nothing is pasted, journalled or kept.
+/// (FIFO), a segment starts only while no dictation is active and no model is being loaded or selected, the model
+/// loads outside the request lane, and the dictation model is kept out of eviction while an API job runs. Audio and
+/// text stay in a private temporary directory that is removed when the request ends; nothing is pasted, journalled or
+/// kept.
+///
+/// The model is resolved again right before every load and every segment (with no suspension point before the worker
+/// call), and so is the current dictation model that is kept out of eviction. A request that waited while the user
+/// loaded another precision or selected another model therefore uses what is committed then; it never loads the
+/// precision it saw when it arrived over the user's later choice.
 @MainActor final class APITranscriber {
     let backend: Backend
     let root: URL
@@ -122,12 +128,15 @@ struct APITranscript {
 
     init(backend: Backend, root: URL) { self.backend = backend; self.root = root }
 
-    func transcribe(_ file: URL, model: APIModel, shield: String?) async throws -> APITranscript {
+    /// `resolve`: the model the request names, as it stands now (with its files prepared). `current`: the family id of
+    /// the current dictation model, kept out of eviction while this request loads another one.
+    func transcribe(_ file: URL, resolve: @escaping () throws -> APIModel, current: @escaping () -> String?) async throws -> APITranscript {
         guard tickets.count <= maxWaiting else { throw APIError(429, "Vella is already transcribing \(tickets.count) files; try again when they finish.") }
         let ticket = UUID(); tickets.append(ticket)
         defer { tickets.removeAll { $0 == ticket } }
         while tickets.first != ticket { try await Task.sleep(nanoseconds: pollNanoseconds) }
 
+        var model = try resolve()
         let config = Configuration(model: model.path)
         let root = self.root
         let decode = Task.detached(priority: .utility) { try APIAudio.segment(file, root: root, config: config) }
@@ -135,27 +144,41 @@ struct APITranscript {
         defer { try? FileManager.default.removeItem(at: session.directory) }
 
         let runtime = backend.runtime
-        let ref = runtime.resolve(model.path, mode: .dictation)
-        if let shield, shield != ref.id { runtime.shield(shield) }
-        defer { if let shield, shield != ref.id { runtime.unshield(shield) } }
+        var shielded: String?
+        defer { if let shielded { runtime.unshield(shielded) } }
+        /// The model to use now and the current dictation model kept out of eviction (when it is another family).
+        /// Synchronous: nothing can change the selection between this and the worker call that follows it.
+        func now() throws -> ModelRef {
+            model = try resolve()
+            let ref = runtime.resolve(model.path, mode: .dictation)
+            let protect = current().flatMap { $0 == ref.id ? nil : $0 }
+            if protect != shielded {
+                if let shielded { runtime.unshield(shielded) }
+                if let protect { runtime.shield(protect) }
+                shielded = protect
+            }
+            return ref
+        }
         // Load outside the request lane, so a dictation that finishes meanwhile never waits for this model to load.
-        if runtime.loadedRef(ref.id)?.path != ref.path {
-            try await retryingDictationStops {
-                try await waitForTurn()
-                do { try await backend.preload(ref, residency: .onDemand) }
-                catch let error as VellaError {
-                    if let refused = runtime.status.refused, refused.model == ref.id, Date().timeIntervalSince1970 - refused.at < 5 {
-                        throw APIError(507, refused.message, type: "server_error", code: "insufficient_memory")
-                    }
-                    throw APIError(500, error.localizedDescription, code: "model_load_failed")
+        try await retryingDictationStops {
+            try await waitForTurn()
+            let ref = try now()
+            guard runtime.loadedRef(ref.id)?.path != ref.path else { return }
+            do { try await backend.preload(ref, residency: .onDemand) }
+            catch let error as VellaError {
+                if let refused = runtime.status.refused, refused.model == ref.id, Date().timeIntervalSince1970 - refused.at < 5 {
+                    throw APIError(507, refused.message, type: "server_error", code: "insufficient_memory")
                 }
+                throw APIError(500, error.localizedDescription, code: "model_load_failed")
             }
         }
         let runner = SessionTranscriber { [weak self] url, config in
             guard let self else { throw CancellationError() }
             return try await self.retryingDictationStops {
                 try await self.waitForTurn()
-                return try await self.backend.transcribe(url, config: config, lane: .api)
+                _ = try now()
+                var segment = config; segment.model = model.path
+                return try await self.backend.transcribe(url, config: segment, lane: .api)
             }
         }
         do { _ = try await runner.run(session) }
@@ -166,10 +189,14 @@ struct APITranscript {
         return APITranscript(text: text, segments: segments, duration: duration, model: used)
     }
 
-    /// Waits while a dictation is active or another request is in the worker. Returns with no suspension point left
-    /// before the caller's backend call, so a dictation cannot slip in between.
+    /// Waits while a dictation is active, another request is in the worker, or a model is loading or being selected
+    /// (until that ends, what is loaded and what config.json selects may disagree). Returns with no suspension point
+    /// left before the caller's backend call, so a dictation or a selection cannot slip in between.
     private func waitForTurn() async throws {
-        while dictationActive() || backend.isBusy { try await Task.sleep(nanoseconds: pollNanoseconds) }
+        let runtime = backend.runtime
+        while dictationActive() || backend.isBusy || runtime.selectionsInFlight > 0 || runtime.status.loading != nil {
+            try await Task.sleep(nanoseconds: pollNanoseconds)
+        }
     }
     /// A dictation's Stop or Cancel ends whatever the worker is doing (`Backend.stop`); API work then simply resumes.
     private func retryingDictationStops<T>(_ body: () async throws -> T) async throws -> T {

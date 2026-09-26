@@ -277,6 +277,11 @@ import VellaCore
         pinned[id] = max(0, (pinned[id] ?? 1) - 1)
         schedule(id)
     }
+    /// Load-then-select transactions in flight (the table's Load/Reload). Until one ends, the loaded precision and
+    /// config.json's selection may disagree, so API work waits instead of acting on either.
+    private(set) var selectionsInFlight = 0
+    func beginSelection() { selectionsInFlight += 1 }
+    func endSelection() { selectionsInFlight = max(0, selectionsInFlight - 1) }
     /// The API's loopback port once it listens (published in the status file with the API version).
     var apiPort: Int? { didSet { writeStatus() } }
     var apiToken: String?

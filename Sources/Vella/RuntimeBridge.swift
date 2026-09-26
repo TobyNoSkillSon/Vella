@@ -99,6 +99,7 @@ import VellaCore
         Task { await loadAndSelect(ref) }
     }
     func loadAndSelect(_ ref: ModelRef) async {
+        runtime.beginSelection(); defer { runtime.endSelection() }
         do {
             try await runtime.load(ref)
             select(ref.path, mode: ref.mode)

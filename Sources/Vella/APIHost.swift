@@ -13,6 +13,9 @@ import VellaCore
         return config?.model ?? ""
     }
 
+    /// The current family is always at its selected precision (what the next dictation loads), even when another
+    /// precision of it is loaded (a saved recording retried with an older one); other families at their loaded
+    /// precision, else the committed one.
     func models() -> [APIModel] {
         let current = currentPath
         let currentIdentity = controller.identify(path: current, mode: .dictation)
@@ -20,8 +23,8 @@ import VellaCore
         for family in controller.families(.dictation) {
             let loaded = runtime.loadedRef(family.id)
             var precision: String?, path: String?
-            if let loaded { precision = loaded.precision; path = loaded.path }
-            else if currentIdentity?.family.id == family.id { precision = currentIdentity?.precision; path = current }
+            if currentIdentity?.family.id == family.id { precision = currentIdentity?.precision; path = current }
+            else if let loaded { precision = loaded.precision; path = loaded.path }
             else {
                 let preferred = controller.committed(family)
                 let order = [preferred] + precisionOptions(family).filter { $0 != preferred }
@@ -32,7 +35,7 @@ import VellaCore
             }
             guard let precision, let path else { continue }
             result.append(APIModel(id: family.id, name: family.name, precision: precision, path: path, languages: family.languages,
-                                   loaded: loaded != nil, current: currentIdentity?.family.id == family.id))
+                                   loaded: loaded?.path == path, current: currentIdentity?.family.id == family.id))
         }
         // A current model outside the catalog (an imported folder) is still usable under its folder name.
         if currentIdentity == nil, !current.isEmpty, FileManager.default.fileExists(atPath: current) {

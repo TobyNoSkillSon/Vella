@@ -310,6 +310,30 @@ final class OneStateTests: XCTestCase {
         XCTAssertNil(c.dictation.calibratingID, "no calibration run in front of the load")
     }
 
+    /// A recording that starts while a confirmed download runs keeps its model: the download's load (and the new
+    /// selection) waits until the dictation is idle.
+    @MainActor func testConfirmedDownloadLoadsOnlyAfterARecordingThatStartedMeanwhile() async throws {
+        let c = try alphaController(installed: false)
+        let spy = ActionSpy(); c.actions = spy
+        c.runtime = TableRuntime()
+        c.confirmDownload = { prompt, answer in answer(DownloadGate.ask(prompt) { _ in true }) }
+        var recording = false
+        c.dictation.mayChangeModel = { !recording }
+        c.preview(alpha, "4b")
+        c.perform(alpha)
+        XCTAssertEqual(c.dictation.downloadingID, "alpha-bf16")
+        recording = true
+        try await waitUntil { c.dictation.downloadingID == nil && c.dictation.installed["alpha-bf16"] != nil }
+        try await Task.sleep(nanoseconds: 500_000_000)
+        XCTAssertEqual(spy.calls, [], "nothing loads or is selected during the recording")
+        XCTAssertEqual(c.pendingLoads["alpha"], "4b", "the row still shows the precision that will load")
+        recording = false
+        try await waitUntil { !spy.calls.isEmpty }
+        let derived = c.dictation.modelsDirectory.appendingPathComponent("alpha-4bit-local").standardizedFileURL.path
+        XCTAssertEqual(spy.calls, ["load alpha 4b \(derived)"])
+        XCTAssertTrue(c.pendingLoads.isEmpty)
+    }
+
     // MARK: Partial downloads
 
     /// A failed download ends with its reason on the footer's error line and leaves no files; so does Cancel.
