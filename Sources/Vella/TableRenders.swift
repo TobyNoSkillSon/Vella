@@ -20,6 +20,7 @@ import VellaCore
         let streaming = ModelLibrary(mode: .streaming, resources: resources, registryURL: registry)
         let controller = ModelsController(dictation: dictation, streaming: streaming, selectionsURL: root.appendingPathComponent("model-precision.json"))
         controller.previewing = true
+        controller.actions = previewActions   // buttons render enabled, as with a running runtime; perform() is a no-op in preview
         setInstalled(controller, installed)
         return controller
     }
@@ -32,6 +33,15 @@ import VellaCore
     static let downloaded = ["parakeet-tdt-0.6b-v3-mlx-4bit", "parakeet-tdt-0.6b-v3-mlx-8bit", "Qwen3-ASR-1.7B-bf16", "Qwen3-ASR-1.7B-4bit",
                              "nemotron-3.5-asr-streaming-0.6b-8bit"]
     static let optimized: [String: Bool] = ["encoder": true, "decoder": true]
+    static let previewActions = PreviewActions()
+}
+
+/// Runtime stand-in for renders: nothing loads.
+@MainActor final class PreviewActions: ModelRuntimeActions {
+    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {}
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {}
+    func unload(family: ModelFamily) {}
+    func forget(family: ModelFamily) {}
 }
 
 @MainActor final class TableRenderDelegate: NSObject, NSApplicationDelegate {
