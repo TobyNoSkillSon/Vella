@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Local release staging only: builds, zips and checksums. Installs, uploads and publishes nothing.
 # Usage: package-release.sh [VERSION]   (default: Resources/Info.plist)
-# Output: $VELLA_RELEASE_OUTPUT_DIR or .build/releases/VERSION/{Vella-VERSION-arm64.zip,SHA256SUMS,Vella.app}
+# Output: $VELLA_RELEASE_OUTPUT_DIR or .build/releases/VERSION/{Vella-VERSION-arm64.zip,SHA256SUMS}
 set -euo pipefail
 PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
 PLIST="$PROJECT/Resources/Info.plist"
@@ -30,7 +30,6 @@ if grep -E '\.py$|/Benchmarks/|/ReferenceResults/' <<<"$LISTING" >&2; then echo 
 shasum -a 256 "$STAGE/$ZIP" | awk -v zip="$ZIP" '{print $1 "  " zip}' > "$STAGE/SHA256SUMS"
 mkdir -p "$(dirname "$OUT")"
 mkdir "$OUT"
-mv "$APP" "$OUT/Vella.app"
 mv "$STAGE/$ZIP" "$OUT/$ZIP"
 mv "$STAGE/SHA256SUMS" "$OUT/SHA256SUMS"
 echo "Packaged locally: $OUT/$ZIP and $OUT/SHA256SUMS (version $VERSION build $BUILD; not published or installed)"

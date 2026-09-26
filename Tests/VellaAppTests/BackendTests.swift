@@ -12,7 +12,7 @@ final class BackendTests: XCTestCase {
         guard let data = try? Data(contentsOf: status),
               let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               state["phase"] as? String == "idle" else { throw XCTSkip("Vella is not idle") }
-        let backend = Backend(helper: URL(fileURLWithPath: helper), idleTimeout: 0.2)
+        let backend = Backend(helper: URL(fileURLWithPath: helper))
         defer { backend.shutdown() }
         let result = try await backend.transcribe(URL(fileURLWithPath: clip), config: Configuration(model: weights))
         XCTAssertEqual(result, "Saturday, august fifteenth. The sea unbroken all round. No land in sight,")
