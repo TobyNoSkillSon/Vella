@@ -175,7 +175,7 @@ final class StreamingTests: XCTestCase {
         XCTAssertEqual(start.keyEquivalent, "n")
         XCTAssertEqual(start.keyEquivalentModifierMask, [.control, .command])
         let table = try XCTUnwrap(delegate.menu.item(withTitle: "Models…")?.submenu?.items.first?.view as? MenuTableHostingView)
-        XCTAssertEqual(table.rootView.library.mode, .streaming)
+        XCTAssertFalse(table.rootView.controller.families(.streaming).isEmpty)
         let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: path))
         XCTAssertEqual(saved.model, config.model); XCTAssertEqual(saved.streamingModel, config.streamingModel)
         model.phase = .recording

@@ -1,1 +1,0 @@
-../../Sources/VellaStreamingWorker/NativeAdapters.swift

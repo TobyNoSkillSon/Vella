@@ -17,7 +17,7 @@ import VellaCore
         let args = Array(CommandLine.arguments.dropFirst())
         guard args.first == "download", let catalog = argument("--catalog", in: args),
               let id = argument("--model-id", in: args), let directory = argument("--models-dir", in: args),
-              let entries = try? JSONDecoder().decode([ModelRecommendation].self, from: Data(contentsOf: URL(fileURLWithPath: catalog))),
+              let entries = try? catalogVariants(contentsOf: URL(fileURLWithPath: catalog)),
               let entry = entries.first(where: { $0.id == id }) else {
             emit("error", ["message": "Only curated models can be downloaded"]); exit(2)
         }

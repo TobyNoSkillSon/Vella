@@ -4,78 +4,82 @@
 
 ## Install or update
 
-Use the install command in [README](../README.md). The stable URL currently serves **v0.8.8** and may advance after a future verified release; rerunning it retries or installs the current stable version.
-
-To inspect before running, or to pin **v0.8.8**:
-
 ```sh
-installer="$(mktemp)"
-curl --fail --location --proto '=https' --proto-redir '=https' \
-  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.8/scripts/install.sh -o "$installer"
+git clone https://github.com/TobyNoSkillSon/Vella && cd Vella
+scripts/install.sh            # later: git pull && scripts/install.sh
 ```
 
-Inspect the file with `less "$installer"`. To install after reviewing it, run `bash < "$installer"`, then remove the temporary file with `rm -f "$installer"`. Reading it through stdin selects the release-download path rather than treating the file as a source checkout.
+Requirements: an Apple Silicon Mac with macOS 14 or newer. The prebuilt app needs no Xcode, Python or developer account.
 
-Or pipe the pinned script directly:
+What `scripts/install.sh` does, in order:
 
-```sh
-curl --fail --location --proto '=https' --proto-redir '=https' \
-  https://raw.githubusercontent.com/TobyNoSkillSon/Vella/v0.8.8/scripts/install.sh | bash
-```
+1. Downloads `Vella-<version>-arm64.zip` and `SHA256SUMS` for the version in this checkout with curl (never a browser, which would quarantine the app).
+2. Verifies before touching anything: the exact checksum line for the zip, that the archive holds only `Vella.app` with its helpers and Metal library, that the app's version is the one requested, and its code signature. `scripts/install-release.sh <version> --dry-run` stops here.
+3. Refuses, leaving everything unchanged, while Vella is recording, transcribing or loading a model.
+4. Quits a running Vella, copies the new app beside the old one, verifies it again and swaps it in. If the swap fails the old app is restored. A certificate-signed installation is only replaced by an app with the same signing identity, so macOS privacy permissions carry over.
+5. Starts Vella and waits until it is ready: the app has written its status, nothing is loading, and every model you keep loaded at launch is loaded (a fresh install has none). It prints `ready: …`. Only then is the previous app deleted; if Vella is not ready within 30 minutes, the previous app is kept and its path printed.
 
-Requirements:
+Models, recordings and settings in `~/Library/Application Support/Vella` are kept. The whole app bundle is replaced, so files from older versions never linger inside it. The checksum detects a corrupted download; it comes from the same release, so it is not a signature.
 
-- Apple Silicon Mac running macOS 14 or newer.
-- Apple's free Command Line Tools.
-- Python 3.12–3.14.
+`VELLA_BUILD=source scripts/install.sh` builds this checkout instead (Command Line Tools Swift, full Xcode and its Metal Toolchain; the installer prints the command that fixes a missing one) and installs it the same way.
 
-If either is missing, the installer tells you how to install it. No paid developer membership is needed.
+## First run
 
-What the installer does:
+1. Open Vella and approve Microphone and Accessibility access when asked.
+2. Press **Control + Command + N** to record. Click your destination field, then press the shortcut again to finish.
 
-- Builds Vella and puts it in `~/Applications`.
-- Checks the selected Apple tools before building.
-- Verifies the source archive.
-- Preserves existing models, recordings, microphone choices, and settings during updates.
-- Does not change your selected toolchain.
-- Does not disable macOS security checks.
-- Certificate-signed installations are left alone; this route creates ad-hoc builds.
+A fresh install has no model. If you dictate before getting one, Vella keeps the recording and the menu shows **Get <recommended model> (<size>)**. Click it: the model downloads from Hugging Face, and the waiting recording is transcribed when it is ready. Nothing downloads without that click. After that, transcription works offline.
 
-Before updating, finish any recording or transcription.
+## Menu
 
-Checksums detect archive corruption or mismatches; they do not independently authenticate the downloaded bootstrap script.
+1. **Status** — `Vella: ready`, the loaded model and one fact line. Green when ready, grey while loading or downloading, orange when a helper failed (click it for the error and the log).
+2. **Mode** (Dictation or Streaming) · **Microphone** · **Shortcuts**.
+3. **Models…** · **Keep Hot** · **Memory**.
+4. **Copy Last Transcript** (and recovery of an unfinished one) · **Open Vella Files** · **Restart Worker** · **Launch at Login**.
+5. **Support the developer…** · **Quit Vella**.
 
-Vella is a beta. macOS will ask for Microphone and Accessibility access, and you may need to approve permissions again after an update. Ad-hoc updates can require renewed privacy approval.
+Hover an item for what it does.
 
-## First run and models
+## Models
 
-A new installation automatically downloads and selects **Parakeet Q4** (about 637 MB) for Dictation. Existing installations retain their model choices.
+**Models…** opens one table with a Dictation section and a Streaming section. Each row is one model:
 
-1. Open Vella and approve Microphone and Accessibility access when requested.
-2. Press **Control + Command + N** to record. Click your destination text field, then press the shortcut again to finish.
-3. For live transcription, choose **Mode → Streaming**, then **Models** to install and select a supported Streaming model. You can also change the Dictation model there.
+| Column | Meaning |
+|---|---|
+| Model | Name; under a loaded model, its engine (**Optimized · <chip>** or **MLX**). Tooltip: parameters, native precision, licence. |
+| Languages | Supported languages. |
+| Params | Parameter count. |
+| Precision | Segmented control with the precisions this model offers (`4b`, `8b`, `BF16`, `FP16`, `FP32`, as its weights allow; never below 4 bits). The recommended precision is green. |
+| WER | Word error rate on Vella's benchmark: wrong, missing or extra words, ignoring case and punctuation. Tooltip: word error rate per language. |
+| Format | Character error rate with case and punctuation kept. |
+| Speed | Audio length ÷ transcription time, after loading (× real time). |
+| J / min | Joules per minute of audio, whole chip, idle subtracted. |
+| Memory | Loaded footprint. |
+| On disk | Downloaded size, `—` if not downloaded. |
 
-Model downloads come directly from Hugging Face without opening a browser. The **Install** button shows download size, source, and license; selecting a model for use is a separate **Use** step. Failed or interrupted downloads remain resumable, and partial weights are never selected. Cancellation leaves your current selection unchanged.
+Lower is better for WER, Format, J / min and Memory; higher for Speed. `—` means not measured at that precision; Vella never estimates a figure. Every figure's tooltip says when and on which Mac it was measured. On a Mac with a different chip family, the footer says `Benchmarks measured on M5 Max`: speed, energy and memory differ on your Mac; accuracy does not.
 
-Transcription works offline once you have downloaded a model.
+**Recommended precision.** Among a model's measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest J / min (ties: faster, then more bits). A model loads at the selected precision, which starts as the recommended one. Selecting another precision only records the choice and shows its figures with the difference from the recommended one beneath (green better, red worse). On a loaded model with another precision selected, the button is a green **Reload**, which loads the selection in place of the loaded one.
 
-## Update notices
+**Actions.** **Get** downloads the model. **Load** loads it and keeps it loaded (see Keep Hot); **Unload** frees its memory and keeps the download. The trash icon deletes the downloaded weights after confirmation. Recordings and transcripts are never deleted with a model.
 
-Vella never installs updates automatically, and update checks need no additional permissions.
+**Engine.** **Optimized · <chip>** means Vella's optimized kernels for this model passed a self-test against the stock MLX path on this Mac, in a separate process, when the model loaded; the result is remembered for this model, GPU, macOS version and app version. **MLX** means the stock path: same model, slower. The tooltip lists which parts are optimized. If an optimized transcription fails or produces invalid numbers, Vella transcribes that recording again on the stock path and keeps the model on it until it is reloaded.
 
-Exact behavior:
+The footer's **Want another model? Copy a request for your agent.** copies a brief for a coding agent. Nothing is sent anywhere.
 
-- Checked only after a completed transcription.
-- Checked only if no check has been attempted that calendar day.
-- The last attempt and a detected update are remembered across restarts.
-- There is no startup request and no polling timer.
-- A newer stable release turns the menu-bar icon yellow and adds a yellow **Update available…** entry immediately above **Support the developer…**.
-- Choosing it opens that release page in your browser.
-- Offline or failed checks are silent and do not clear a known update.
-- The indicator remains until you install that version or newer.
-- Draft and prerelease versions are ignored.
+## Keep Hot
 
-Privacy: GitHub receives a normal HTTPS request to check the latest stable release tag. Vella never sends audio or transcripts. The request goes to the public release endpoint only.
+How long an idle model stays loaded, timed per model from its last use. The next dictation that needs an unloaded model loads it again.
+
+- **Manually loaded** (Load or Reload in the table): Always (default), 5, 15, 30 or 60 min. These form the launch set: they load again when Vella starts. Unload or delete removes a model from it.
+- **Loaded on demand** (a dictation needed a model that was not loaded): 15 min (default), 5, 30, 60 min or Always. On-demand loads never join the launch set.
+
+## Memory
+
+- **Fit in free memory** (default): before each load, Vella compares the model's measured memory (plus headroom) with the memory macOS can hand out without swapping. If it does not fit, Vella unloads idle models to make room, on-demand ones first and least recently used first, never the one a recording is waiting for. If even that cannot free enough, nothing is unloaded and the load is refused with the numbers and the ways out, for example `Parakeet v3 at BF16 needs ~2.1 GB; ~0.9 GB free without swapping. Unload Qwen3 ASR, pick 8b, or allow swap in Vella → Memory.` The check is best effort at load time, not a guarantee: other apps can still push macOS into swap.
+- **Allow swap (slower)**: skip the check. macOS moves data to disk, and everything on the Mac can slow down.
+
+The submenu shows `~X GB free now`.
 
 ## Everyday dictation
 
@@ -86,9 +90,35 @@ Privacy: GitHub receives a normal HTTPS request to check the latest stable relea
 - Terminal and custom-editor acceptance depends on the target application.
 - There is no recording timer, but you need enough disk space.
 
+## Dictation and Streaming
+
+Choose **Mode → Dictation / Streaming**. Both modes use your configured activation, **⌃⌘N** by default.
+
+- **Dictation** transcribes and inserts after you finish.
+- **Streaming** inserts text continuously wherever keyboard focus is, using native incremental recognition. Finish sends only the remaining suffix, never a duplicate full transcript.
+
+Streaming is deliberately blind and roaming:
+
+- Window changes, field changes, clicks, and manual typing do not stop it.
+- Vella does not bind words to a field or utterance. Words still being processed when you switch focus go to the new focus.
+- Pause your speech or close the microphone while navigating as needed.
+- Streaming sends native Unicode text without touching the clipboard and without pressing Enter.
+- Whitespace and control characters are normalized; already sent text is never rewritten to fix an earlier prefix.
+
+Dictation keeps its finish-only checks: frozen Finish-time destination, rechecked immediately before paste, clipboard fallback when focus is missing or changed.
+
+Quiet intervals pause recognition, not capture. The gate measures volume, not whether background sound is speech. Recording continues through silence.
+
+Streaming uses bounded audio and text queues plus incremental checkpoints rather than rescanning or rewriting the whole transcript on every update. Audio and model caches stay bounded; saved recordings and transcripts necessarily grow with speech. Saved streaming audio can be replayed for clipboard-only recovery through the original streaming model.
+
+Mode and model changes are blocked while recording or finalizing.
+
 ## Shortcuts
 
-These options are in the current source checkout. The pinned v0.8.8 installer does not include them yet.
+<p align="center">
+  <img src="images/shortcuts-current.png" alt="Shortcuts menu with Toggle, Hold to Talk, Tap or Hold, key chords, modifier-only and mouse-button options" width="254">
+  <img src="images/mouse-current.png" alt="Mouse-button menu with the red inline prompt to press side button 4 to confirm" width="452">
+</p>
 
 **Shortcuts** sits directly below **Microphone**. You can choose:
 
@@ -124,43 +154,6 @@ Mouse confirmation:
 
 Shortcut changes are disabled during capture and processing. **Reset to Default** restores **⌃⌘N · Toggle**. Model and microphone choices are unchanged. If the stored chord is already reserved by another app, Vella reports it on launch rather than taking it over.
 
-## Dictation and Streaming
-
-Choose **Mode → Dictation / Streaming**. Both modes use your configured activation, **⌃⌘N** by default.
-
-- **Dictation** transcribes and inserts after you finish.
-- **Streaming** inserts text continuously wherever keyboard focus is, using native incremental recognition. Finish sends only the remaining suffix, never a duplicate full transcript.
-
-Streaming is deliberately blind and roaming:
-
-- Window changes, field changes, clicks, and manual typing do not stop it.
-- Vella does not bind words to a field or utterance. Words still being processed when you switch focus go to the new focus.
-- Pause your speech or close the microphone while navigating as needed.
-- Streaming sends native Unicode text without touching the clipboard and without pressing Enter.
-- Whitespace and control characters are normalized; already sent text is never rewritten to fix an earlier prefix.
-
-Dictation keeps its finish-only checks: frozen Finish-time destination, rechecked immediately before paste, clipboard fallback when focus is missing or changed.
-
-Quiet intervals pause recognition, not capture. The gate measures volume, not whether background sound is speech. Recording continues through silence.
-
-Streaming uses bounded audio and text queues plus incremental checkpoints rather than rescanning or rewriting the whole transcript on every update. Audio and model caches stay bounded; saved recordings and transcripts necessarily grow with speech. Saved streaming audio can be replayed for clipboard-only recovery through the original streaming model.
-
-Mode and model changes are blocked while recording or finalizing.
-
-## Model choices
-
-Each mode remembers its own model. Select the mode first, open **Models**, then **Install** and **Use**.
-
-- Dictation starts with Parakeet Q4 on a new installation.
-- Streaming offers **Nemotron 3.5 8-bit, Nemotron 3.5 BF16, and Voxtral Realtime 4-bit**: three precision choices across two 2026 model families. Nemotron 8-bit remains the starting choice.
-- Only qualified native incremental architectures are offered for Streaming. Batch dictation scores do not measure live streaming latency or accuracy, and a configured context or delay number is not microphone-to-word latency.
-- On the shared clean-English reference suite, BF16 changes a few words without lowering full-text error relative to Nemotron 8-bit, at higher memory and slower compute. Voxtral improves word recognition on that corpus but runs only slightly faster than real time, leaving limited headroom for live use.
-- Transcription accuracy belongs to the selected model.
-
-The Models table shows recommended variants plus installed or imported models so they remain manageable. Unfinished downloads in Vella-owned folders appear as Resume. External, shared, linked, active, or in-use model files are protected; the delete control explains why when deletion is blocked. Deleting an installed model moves its local files to Trash; recordings, transcripts, and reference scores are kept. Empty Trash to reclaim disk space.
-
-For benchmark numbers and scoring definitions, see [README](../README.md), the [interactive benchmarks](https://tobynoskillson.github.io/Vella/), [raw results](../Resources/ReferenceResults/), and [how scores are calculated](../Resources/benchmark-policy.json). This guide does not duplicate those tables. For Streaming, the app hides measurements made with a different worker version; the website retains the dated source records.
-
 ## When little or no text appears
 
 Successful model output is accepted, including no text. Empty recognition is not an error.
@@ -171,24 +164,40 @@ Successful model output is accepted, including no text. Empty recognition is not
 
 ## Recordings, disk, recovery, and privacy
 
-- Vella stores recordings and transcripts locally until you delete them, even after a successful paste. Choose **Open Saved Recordings** to find them.
+- Vella stores recordings and transcripts locally until you delete them, even after a successful paste. Choose **Open Vella Files** to find them.
 - If disk space runs low, capture stops safely and saved audio is kept. Free space before continuing.
 - Recording metadata is written first so an interrupted session stays recoverable. Integrity failures preserve files for recovery rather than silently discarding them. Streaming retries archive the previous event journal first.
 - Vella does not upload recordings or transcripts. Apps you insert text into may sync or send that text according to their own settings.
 - Clipboard managers and Universal Clipboard can still see text you copy or paste. Streaming live insertion avoids the clipboard per chunk; Dictation paste and recovery use the clipboard path described above.
-- Model downloads are the only expected network transfer during normal use, plus the lightweight release-tag check described above. Inference dependencies run in Vella's isolated local runtime with telemetry and offline Hub flags set.
+- Model downloads (when you choose **Get**) are the only expected network transfer during normal use, plus the release check described above. The recognition helpers run in a sandbox that denies all network access; downloads are a separate helper, `VellaModelTool`.
+
+## Update notices
+
+Vella never installs updates automatically, and update checks need no additional permissions.
+
+Exact behavior:
+
+- Checked only after a completed transcription.
+- Checked only if no check has been attempted that calendar day.
+- The last attempt and a detected update are remembered across restarts.
+- There is no startup request and no polling timer.
+- A newer stable release turns the menu-bar icon yellow and adds a yellow **Update available…** entry immediately above **Support the developer…**.
+- Choosing it opens that release page in your browser.
+- Offline or failed checks are silent and do not clear a known update.
+- The indicator remains until you install that version or newer.
+- Draft and prerelease versions are ignored.
+
+Privacy: GitHub receives a normal HTTPS request to check the latest stable release tag. Vella never sends audio or transcripts. The request goes to the public release endpoint only.
 
 ## Uninstall
 
 1. Quit Vella.
-2. Move the app to Trash.
-3. Your recordings and models remain in `~/Library/Application Support/Vella`. Delete that folder separately only if you want to remove them too.
+2. Move `~/Applications/Vella.app` to the Trash.
+3. Models, settings and recordings remain in `~/Library/Application Support/Vella`. Delete that folder separately only if you want them gone too.
 
 ## Further reading
 
-- [README](../README.md) — install command, interface previews, measured performance.
-- [Interactive benchmarks](https://tobynoskillson.github.io/Vella/) — sortable accuracy, speed, and memory table.
-- [Raw results](../Resources/ReferenceResults/) — published reference measurements.
-- [How scores are calculated](../Resources/benchmark-policy.json) — benchmark suite and scoring policy.
-- [Model integration guide](../Resources/AGENT_GUIDE.md) — compatibility and setup notes for adding models.
+- [README](../README.md) — what Vella does, the model table, install.
+- [AGENTS.md](../AGENTS.md) — the install steps for a coding agent.
+- [Model integration guide](../Resources/AGENT_GUIDE.md) — what a new model needs before Vella can offer it.
 - [License](../LICENSE) and [third-party notices](../THIRD_PARTY_NOTICES.md).

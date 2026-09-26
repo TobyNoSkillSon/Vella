@@ -35,30 +35,45 @@ final class HUDPanel: NSPanel {
             DispatchQueue.main.async { self?.refreshTrackedMouseConfirmation() }
         }
     }
-    private lazy var dictationMenus = makeModelMenus(.dictation)
-    private lazy var streamingMenus = makeModelMenus(.streaming)
-    private var modelMenus: ModelsMenu { model.mode == .dictation ? dictationMenus : streamingMenus }
+    /// One Models table for both modes (Dictation and Streaming sections).
+    lazy var modelsMenu = makeModelsMenu()
+    private var dictationLibrary: ModelLibrary { modelsMenu.controller.dictation }
+    private var streamingLibrary: ModelLibrary { modelsMenu.controller.streaming }
+    private func library(_ mode: RecognitionMode) -> ModelLibrary { mode == .dictation ? dictationLibrary : streamingLibrary }
     private var librariesBusy: Bool {
-        [dictationMenus.library, streamingMenus.library].contains { $0.busy || $0.calibration.isRunning }
+        [dictationLibrary, streamingLibrary].contains { $0.busy || $0.calibration.isRunning }
     }
     private var canChangeMode: Bool { model.phase != .recording && !model.busy && !librariesBusy }
-    private func makeModelMenus(_ mode: RecognitionMode) -> ModelsMenu {
-        let menus = ModelsMenu(library: ModelLibrary(mode: mode))
-        menus.library.mayChangeModel = { [weak self] in
-            guard let self else { return false }
-            let other = mode == .dictation ? self.streamingMenus.library : self.dictationMenus.library
-            return self.model.phase != .recording && !self.model.busy && !other.busy && !other.calibration.isRunning
-        }
-        menus.library.onUse = { [weak self] in self?.model.stopWorkers() }
-        menus.library.beforeHeavyWork = { [weak self] in self?.model.stopWorkers() }
-        menus.library.prepareForCalibration = { [weak self] in try await self?.model.releaseWorkers() }
-        if mode == .dictation {
-            model.referenceSpeed = { [weak menus] path in
-                guard let library = menus?.library,
-                      let id = library.installed.first(where: { $0.value.path == path })?.key,
-                      let speed = library.references[id]?.realtimeFactor, speed.isFinite, speed > 0 else { return nil }
-                return speed
+    /// Keep Hot and Memory values and their apply action (the runtime's settings); nil = defaults, not yet wired.
+    var menuSettings: MenuSettingsSource = DefaultMenuSettings()
+    /// The fact line under the header (e.g. `2 models loaded · 1.9 GB in memory`); nil = no line.
+    var factLine: () -> String? = { nil }
+    /// First dictation without a model: the recording is kept and the menu offers one `Get <model> (<size>)` row.
+    /// The runtime sets it (vr-runtime `Model.pendingModelRequest`); nil = no pending request.
+    var pendingModelRow: () -> (title: String, help: String)? = { nil }
+    var getPendingModel: () -> Void = {}
+    /// Restart Worker: the runtime's restart; nil = stop the workers (the next dictation starts them again).
+    var restartWorkers: (() -> Void)?
+    private func makeModelsMenu() -> ModelsMenu {
+        let menus = ModelsMenu()
+        for mode in RecognitionMode.allCases {
+            let library = menus.controller.library(mode)
+            library.mayChangeModel = { [weak self] in
+                guard let self else { return false }
+                let other = self.library(mode == .dictation ? .streaming : .dictation)
+                return self.model.phase != .recording && !self.model.busy && !other.busy && !other.calibration.isRunning
             }
+            library.onUse = { [weak self] in self?.model.stopWorkers() }
+            // A download no longer stops the workers: models kept hot stay loaded while another one downloads.
+            library.prepareForCalibration = { [weak self] in try await self?.model.releaseWorkers() }
+        }
+        // Progress estimate before local calibration: the measured speed of the selected precision (benchmarks.json).
+        model.referenceSpeed = { [weak menus] path in
+            guard let controller = menus?.controller,
+                  let id = controller.dictation.installed.first(where: { $0.value.path == path })?.key,
+                  let (family, precision) = controller.catalog.locate(variant: id),
+                  let speed = controller.result(family, precision)?.speed_x, speed.isFinite, speed > 0 else { return nil }
+            return speed
         }
         return menus
     }
@@ -238,14 +253,25 @@ final class HUDPanel: NSPanel {
         case .failed: summary = "\(model.mode.title): needs attention…"
         }
         // The loaded model is the fact most worth knowing before opening Models.
-        if let activeModel = modelMenus.library.activeModelLabel { summary += " · \(activeModel)" }
+        if let activeModel = modelsMenu.controller.activeLabel(model.mode) { summary += " · \(activeModel)" }
+        let pending = pendingModelRow()
+        if pending != nil, model.phase == .idle || model.phase == .failed { summary = "\(model.mode.title): recording kept, needs a model" }
         let needsPermission = !model.insertionPermission.granted
         let header = NSMenuItem(title: summary, action: needsPermission ? #selector(accessibility) : model.phase == .failed ? #selector(showCaptureError) : nil, keyEquivalent: "")
         header.target = self
         header.isEnabled = needsPermission || model.phase == .failed
-        header.toolTip = model.message
-        header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.phase == .failed || needsPermission ? NSColor.systemOrange : NSColor.systemGreen])
-        menu.addItem(header); menu.addItem(.separator())
+        // Tooltip only when the header has more to say (errors, permission, progress), not the idle greeting.
+        header.toolTip = model.phase == .idle && !needsPermission ? pending?.help : model.message
+        header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.phase == .failed || needsPermission || pending != nil ? NSColor.systemOrange : NSColor.systemGreen])
+        menu.addItem(header)
+        if let fact = factLine() {
+            let line = NSMenuItem(title: fact, action: nil, keyEquivalent: ""); line.isEnabled = false
+            menu.addItem(line)
+        }
+        if let pending {
+            item(pending.title, "arrow.down.circle", #selector(getPending), help: pending.help)
+        }
+        menu.addItem(.separator())
         let workingShortcut = shortcutManager.isUsingFallback ? (shortcutManager.activeConfiguration ?? .default) : shortcutManager.configuration
         let startKey = ShortcutManager.menuKeyEquivalent(for: workingShortcut)
         item(model.phase == .recording ? "Finish \(model.mode.title)" : "Start \(model.mode.title)", "waveform", #selector(toggle), enabled: !model.busy, key: startKey.key, modifiers: startKey.modifiers)
@@ -255,7 +281,7 @@ final class HUDPanel: NSPanel {
             item("Delete This Saved Recording…", "trash", #selector(deleteSaved))
         }
         let modes = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
-        modes.image = NSImage(systemSymbolName: "switch.2", accessibilityDescription: nil)
+        modes.image = NSImage(systemSymbolName: "switch.2", accessibilityDescription: nil); modes.toolTip = modeHelp
         let modeMenu = NSMenu(); modeMenu.autoenablesItems = false
         for mode in RecognitionMode.allCases {
             let entry = SettingsMenuItem(title: mode.title, target: self, action: #selector(selectMode(_:)))
@@ -266,7 +292,7 @@ final class HUDPanel: NSPanel {
         }
         modes.submenu = modeMenu; menu.addItem(modes)
         let microphones = NSMenuItem(title: "Microphone", action: nil, keyEquivalent: "")
-        microphones.image = NSImage(systemSymbolName: "mic", accessibilityDescription: nil)
+        microphones.image = NSImage(systemSymbolName: "mic", accessibilityDescription: nil); microphones.toolTip = microphoneHelp
         let devices = NSMenu(); devices.autoenablesItems = false
         let selected = try? model.backend.configuration(requiresModel: false).preferredMicrophone
         for device in Recorder.devices() {
@@ -286,11 +312,17 @@ final class HUDPanel: NSPanel {
             cancelCapture: #selector(cancelShortcutCapture), selectModifier: #selector(selectShortcutModifier(_:)),
             selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
             openSettings: #selector(accessibility)))
+        menu.items.last?.toolTip = menu.items.last?.toolTip ?? shortcutsHelp
         menu.addItem(.separator())
-        if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast)) }
-        menu.addItem(modelMenus.modelItem())
-        item("Open Saved Recordings", "folder", #selector(savedRecordings))
-        item("Open Vella Files", "folder", #selector(files))
+        // Which models are in memory: the model, how long it stays hot, what happens when memory is short.
+        menu.addItem(modelsMenu.modelItem())
+        menu.addItem(settingsSubmenu("Keep Hot", "flame", keepHotEntries(manualIdle: menuSettings.manualIdleMinutes, onDemandIdle: menuSettings.onDemandIdleMinutes), help: keepHotHelp))
+        menu.addItem(settingsSubmenu("Memory", "memorychip", memoryEntries(allowSwap: menuSettings.allowSwap, availableMB: menuSettings.availableMB, lastEvicted: menuSettings.lastEvicted), help: memoryHelp))
+        menu.addItem(.separator())
+        if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast), help: copyLastHelp) }
+        item("Open Saved Recordings", "folder", #selector(savedRecordings), help: "Opens the folder of saved recordings and their transcripts.")
+        item("Open Vella Files", "folder", #selector(files), help: openFilesHelp)
+        item("Restart Worker", "arrow.clockwise", #selector(restartWorker), enabled: model.phase != .recording && !model.busy, help: restartWorkerHelp)
         let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
         login.target = self; login.image = NSImage(systemSymbolName: "power.circle", accessibilityDescription: nil)
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -303,12 +335,12 @@ final class HUDPanel: NSPanel {
                 entry.image = entry.image?.withSymbolConfiguration(.init(paletteColors: [.systemYellow]))
             }
         }
-        item("Support the developer…", "heart", #selector(supportDeveloper))
+        item("Support the developer…", "heart", #selector(supportDeveloper), help: supportHelp)
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
     }
-    private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = []) {
+    private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = [], help: String? = nil) {
         let entry = NSMenuItem(title: title, action: action, keyEquivalent: key)
-        entry.target = self; entry.isEnabled = enabled; entry.keyEquivalentModifierMask = modifiers
+        entry.target = self; entry.isEnabled = enabled; entry.keyEquivalentModifierMask = modifiers; entry.toolTip = help
         entry.image = NSImage(systemSymbolName: icon, accessibilityDescription: nil)
         menu.addItem(entry)
     }
@@ -344,6 +376,38 @@ final class HUDPanel: NSPanel {
         }
     }
     @objc private func copyLast() { model.copyLast() }
+    @objc private func getPending() { getPendingModel() }
+    @objc private func restartWorker() { if let restartWorkers { restartWorkers() } else { model.stopWorkers() } }
+    /// Keep Hot / Memory submenu from VellaCore's entries (section headers, checkmarked choices, short captions).
+    private func settingsSubmenu(_ title: String, _ icon: String, _ entries: [SettingsEntry], help: String) -> NSMenuItem {
+        let root = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        root.image = NSImage(systemSymbolName: icon, accessibilityDescription: nil); root.toolTip = help
+        let sub = NSMenu(); sub.autoenablesItems = false
+        for entry in entries {
+            switch entry {
+            case .header(let text, let help):
+                let header = NSMenuItem.sectionHeader(title: text); header.toolTip = help
+                sub.addItem(header)
+            case .separator: sub.addItem(.separator())
+            case .caption(let text):
+                let line = NSMenuItem(title: text, action: nil, keyEquivalent: ""); line.isEnabled = false
+                sub.addItem(line)
+            case .choice(let text, let checked, let action, let help):
+                let choice = NSMenuItem(title: text, action: #selector(chooseSetting(_:)), keyEquivalent: "")
+                choice.target = self; choice.state = checked ? .on : .off; choice.toolTip = help
+                choice.representedObject = SettingsActionBox(action)
+                sub.addItem(choice)
+            }
+        }
+        root.submenu = sub
+        return root
+    }
+    @objc private func chooseSetting(_ sender: NSMenuItem) {
+        guard let box = sender.representedObject as? SettingsActionBox else { return }
+        menuSettings.apply(box.action)
+        rebuildMenuIfIdle()
+    }
+    private func rebuildMenuIfIdle() { if !settingsMenuIsTracking { rebuildMenu() } }
     @objc private func accessibility() { model.accessibility(); beginPermissionPolling() }
     @objc private func selectMode(_ sender: NSMenuItem) {
         guard canChangeMode, let raw = sender.representedObject as? String, let mode = RecognitionMode(rawValue: raw) else { return }
@@ -363,9 +427,7 @@ final class HUDPanel: NSPanel {
                 header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.insertionPermission.granted ? NSColor.systemGreen : NSColor.systemOrange])
             }
             menu.items.first { $0.action == #selector(toggle) }?.title = "Start \(mode.title)"
-            let replacement = modelMenus.modelItem()
-            let table = replacement.submenu; replacement.submenu = nil
-            menu.item(withTitle: "Models…")?.submenu = table
+            // One table holds both modes; nothing to replace.
         }
         catch { model.update(.failed, error.localizedDescription) }
     }
@@ -598,6 +660,44 @@ final class HUDPanel: NSPanel {
         if let applicationFocusObserver { NSWorkspace.shared.notificationCenter.removeObserver(applicationFocusObserver) }
         if let spaceObserver { NSWorkspace.shared.notificationCenter.removeObserver(spaceObserver) }
         dismissal?.cancel(); stopPermissionPolling(); model.hudVisible = false
-        dictationMenus.library.shutdown(); streamingMenus.library.shutdown(); model.shutdown()
+        dictationLibrary.shutdown(); streamingLibrary.shutdown(); model.shutdown()
     }
+}
+
+
+/// Keep Hot and Memory values for the menu and the action that applies a choice. The runtime implements it.
+@MainActor protocol MenuSettingsSource: AnyObject {
+    var manualIdleMinutes: Int { get }
+    var onDemandIdleMinutes: Int { get }
+    var allowSwap: Bool { get }
+    var availableMB: Double? { get }
+    var lastEvicted: String? { get }
+    func apply(_ action: SettingsAction)
+}
+
+/// Defaults held in memory until the runtime's settings are attached (also the render harness's source).
+@MainActor final class DefaultMenuSettings: MenuSettingsSource {
+    var manualIdleMinutes = defaultManualIdleMinutes
+    var onDemandIdleMinutes = defaultOnDemandIdleMinutes
+    var allowSwap = false
+    var availableMB: Double?
+    var lastEvicted: String?
+    init(manualIdleMinutes: Int = defaultManualIdleMinutes, onDemandIdleMinutes: Int = defaultOnDemandIdleMinutes, allowSwap: Bool = false,
+         availableMB: Double? = nil, lastEvicted: String? = nil) {
+        self.manualIdleMinutes = manualIdleMinutes; self.onDemandIdleMinutes = onDemandIdleMinutes; self.allowSwap = allowSwap
+        self.availableMB = availableMB; self.lastEvicted = lastEvicted
+    }
+    func apply(_ action: SettingsAction) {
+        switch action {
+        case .keepHot(.manual, let minutes): manualIdleMinutes = minutes
+        case .keepHot(.onDemand, let minutes): onDemandIdleMinutes = minutes
+        case .memory(let allow): allowSwap = allow
+        }
+    }
+}
+
+/// Carries a VellaCore settings action through NSMenuItem.representedObject.
+final class SettingsActionBox: NSObject {
+    let action: SettingsAction
+    init(_ action: SettingsAction) { self.action = action }
 }
