@@ -84,8 +84,7 @@ public final class VellaNemotronSession {
             pending = drop < mel.shape[1] ? mel[0..., drop..., 0...].contiguous() : nil
             melBase = encoder.consumed
         }
-        var live = encoder.attnCache.compactMap { $0 } + encoder.convCache.compactMap { $0 }
-        if let mel = encoder.melCache { live.append(mel) }
+        var live = encoder.live
         if let pending { live.append(pending) }
         if let h = hidden?.hidden { live.append(h) }
         if let c = hidden?.cell { live.append(c) }

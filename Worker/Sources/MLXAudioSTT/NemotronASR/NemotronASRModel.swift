@@ -17,6 +17,7 @@ public final class NemotronASRModel: Module, STTGenerationModel {
     public let maxSymbols: Int?
 
     public var computeDType: DType = .bfloat16
+    let positionCache = NemotronASRPositionCache()
 
     @ModuleInfo(key: "encoder") var encoder: NemotronASRConformer
     @ModuleInfo(key: "prompt_kernel") var promptKernel: NemotronASRPromptKernel?

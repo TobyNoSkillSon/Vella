@@ -9,7 +9,16 @@ import MLXNN
 // (chunked_limited) encoder at the native chunk size (rightContext + 1), so the
 // streamed transcript equals `decode(...)`.
 
-private let nemoPreEncodeMelCache = 16  // >= causal receptive field of 8x dw-striding
+private let nemoPreEncodeMelCache = 16
+private let nemoPosCache = ProcessInfo.processInfo.environment["VELLA_NEMO_POSCACHE"] != "0"
+private let nemoKVCache = ProcessInfo.processInfo.environment["VELLA_NEMO_KVCACHE"] == "1"
+
+/// Steady-state `linear_pos(posEmb)` per layer. With a full attention cache the
+/// relative-position window is the same every chunk, so the projection is too.
+final class NemotronASRPositionCache {
+    var key: (offset: Int, length: Int)?
+    var projections: [MLXArray?] = []
+}  // >= causal receptive field of 8x dw-striding
 
 /// Per-stream cache-aware encoder state, carried across chunks (and, in a live
 /// session, across `step` calls). Holding it outside the chunk loop is what lets
@@ -21,16 +30,87 @@ final class NemotronASRStreamEncoderState {
     var melCache: MLXArray?
     var emitted = 0   // subsampled frames already emitted to the decoder (absolute)
     var consumed = 0  // mel frames already consumed by the encoder (absolute)
+    /// Projected K/V of the last `leftCache` frames (VELLA_NEMO_KVCACHE=1 mode).
+    var keyCache: [MLXArray?]
+    var valueCache: [MLXArray?]
+    var live: [MLXArray] { (attnCache + convCache + keyCache + valueCache).compactMap { $0 } + [melCache].compactMap { $0 } }
 
     init(layers: Int) {
         attnCache = [MLXArray?](repeating: nil, count: layers)
         convCache = [MLXArray?](repeating: nil, count: layers)
+        keyCache = [MLXArray?](repeating: nil, count: layers)
+        valueCache = [MLXArray?](repeating: nil, count: layers)
     }
 }
 
 extension NemotronASRModel {
+    /// `NemoRelPositionMultiHeadAttention.callAsFunction` for one streaming chunk,
+    /// op for op, with the steady-state position projection reused and (opt-in)
+    /// K/V projected once per frame instead of over the whole cache every chunk.
+    /// Returns (attention output, next attention-input cache or nil in K/V mode).
+    private func streamAttention(
+        _ attn: NemoRelPositionMultiHeadAttention, layer: Int, _ xn: MLXArray, attnCache: MLXArray?,
+        state: NemotronASRStreamEncoderState, leftCache: Int
+    ) -> (MLXArray, MLXArray) {
+        let nHead = attn.nHead, headDim = attn.headDim, scale = attn.scale
+        let qSeq = xn.shape[1]
+        let kProj: MLXArray, vProj: MLXArray, cacheLen: Int, attnNext: MLXArray
+        if nemoKVCache {
+            cacheLen = state.keyCache[layer]?.shape[1] ?? 0
+            let newK = attn.linearK(xn), newV = attn.linearV(xn)
+            kProj = state.keyCache[layer].map { MLX.concatenated([$0, newK], axis: 1) } ?? newK
+            vProj = state.valueCache[layer].map { MLX.concatenated([$0, newV], axis: 1) } ?? newV
+            let len = kProj.shape[1]
+            state.keyCache[layer] = kProj[0..., max(0, len - leftCache)..<len, 0...]
+            state.valueCache[layer] = vProj[0..., max(0, len - leftCache)..<len, 0...]
+            attnNext = xn[0..., 0..<0, 0...]
+        } else {
+            cacheLen = attnCache?.shape[1] ?? 0
+            let kv = attnCache == nil ? xn : MLX.concatenated([attnCache!, xn], axis: 1)
+            kProj = attn.linearK(kv); vProj = attn.linearV(kv)
+            let len = kv.shape[1]
+            attnNext = kv[0..., max(0, len - leftCache)..<len, 0...]
+        }
+        let qProj = attn.linearQ(xn)
+        var pProj: MLXArray
+        let cache = positionCache
+        if nemoPosCache, let key = cache.key, key == (cacheLen, qSeq), let hit = cache.projections[layer] {
+            pProj = hit
+        } else {
+            pProj = attn.linearPos(encoder.posEnc(xn, offset: cacheLen).1)
+            if nemoPosCache && cacheLen == leftCache {
+                if cache.key == nil || cache.key! != (cacheLen, qSeq) {
+                    cache.key = (cacheLen, qSeq)
+                    cache.projections = [MLXArray?](repeating: nil, count: encoder.layers.count)
+                }
+                cache.projections[layer] = pProj
+            }
+        }
+        let batch = qProj.shape[0]
+        let kSeq = kProj.shape[1]
+        let posLen = pProj.shape[1]
+        if pProj.shape[0] == 1 && batch > 1 { pProj = MLX.broadcast(pProj, to: [batch, posLen, attn.nFeat]) }
+        let qHeads = qProj.reshaped(batch, qSeq, nHead, headDim)
+        let qU = (qHeads + attn.posBiasU.asType(qHeads.dtype)).transposed(0, 2, 1, 3)
+        let qV = (qHeads + attn.posBiasV.asType(qHeads.dtype)).transposed(0, 2, 1, 3)
+        let kHeads = kProj.reshaped(batch, kSeq, nHead, headDim).transposed(0, 2, 1, 3)
+        let vHeads = vProj.reshaped(batch, kSeq, nHead, headDim).transposed(0, 2, 1, 3)
+        let pHeads = pProj.reshaped(batch, posLen, nHead, headDim).transposed(0, 2, 1, 3)
+        var matrixBD = MLX.matmul(qV, pHeads.swappedAxes(-2, -1))
+        let tq = matrixBD.shape[2]
+        let padded = MLX.padded(matrixBD, widths: [.init(0), .init(0), .init(0), .init((1, 0))])
+        matrixBD = padded.reshaped([batch, nHead, posLen + 1, tq])[0..., 0..., 1..., 0...].reshaped([batch, nHead, tq, posLen])
+        matrixBD = matrixBD[0..., 0..., 0..., ..<kSeq] * MLXArray(scale).asType(matrixBD.dtype)
+        let attended = MLXFast.scaledDotProductAttention(
+            queries: qU, keys: kHeads, values: vHeads, scale: scale, mask: .array(matrixBD))
+        let out = attended.transposed(0, 2, 1, 3).reshaped(batch, qSeq, -1)
+        return (attn.linearOut(out), attnNext)
+    }
+
     private func nemoStreamBlock(
         _ block: NemotronASRConformerBlock,
+        layer: Int,
+        state: NemotronASRStreamEncoderState,
         _ x: MLXArray,
         attnCache: MLXArray?,
         convCache: MLXArray?,
@@ -41,12 +121,19 @@ extension NemotronASRModel {
 
         // cache-aware self-attention (Q = chunk, K/V = [cache ++ chunk])
         let xn = block.normSelfAtt(residual)
-        let cacheLen = attnCache?.shape[1] ?? 0
-        let kv = attnCache == nil ? xn : MLX.concatenated([attnCache!, xn], axis: 1)
-        let posEmb = encoder.posEnc(xn, offset: cacheLen).1
-        residual = residual + block.selfAttn(xn, kv, kv, posEmb: posEmb, mask: nil)
-        let kvLen = kv.shape[1]
-        let attnNext = kv[0..., max(0, kvLen - leftCache)..<kvLen, 0...]
+        let attnNext: MLXArray
+        if nemoPosCache || nemoKVCache {
+            let r = streamAttention(block.selfAttn, layer: layer, xn, attnCache: attnCache, state: state, leftCache: leftCache)
+            residual = residual + r.0
+            attnNext = r.1
+        } else {
+            let cacheLen = attnCache?.shape[1] ?? 0
+            let kv = attnCache == nil ? xn : MLX.concatenated([attnCache!, xn], axis: 1)
+            let posEmb = encoder.posEnc(xn, offset: cacheLen).1
+            residual = residual + block.selfAttn(xn, kv, kv, posEmb: posEmb, mask: nil)
+            let kvLen = kv.shape[1]
+            attnNext = kv[0..., max(0, kvLen - leftCache)..<kvLen, 0...]
+        }
 
         // cache-aware causal conv (prepend conv cache instead of zero-padding)
         let xc = block.normConv(residual)
@@ -149,7 +236,7 @@ extension NemotronASRModel {
             var h = sub[0..., lo..<hi, 0...]
             for li in encoder.layers.indices {
                 let r = nemoStreamBlock(
-                    encoder.layers[li], h,
+                    encoder.layers[li], layer: li, state: state, h,
                     attnCache: state.attnCache[li], convCache: state.convCache[li],
                     leftCache: leftCache, convLeft: convLeft
                 )
