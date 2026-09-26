@@ -16,6 +16,7 @@ import MLXAudioSTT
         var options: [String: String] = [:]
         var args = Array(CommandLine.arguments.dropFirst())
         while args.count >= 2 { options[args[0]] = args[1]; args.removeFirst(2) }
+        if CommandLine.arguments.contains("--bw") { bandwidthProbe(); return }
         guard let modelPath = options["--model"], let list = options["--list"] else {
             FileHandle.standardError.write(Data("usage: VellaQwenProbe --model DIR --list FILE\n".utf8)); exit(2)
         }
