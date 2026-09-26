@@ -6,8 +6,13 @@ import Foundation
 
 // MARK: Catalog (models.json v2)
 
-/// One downloadable precision of a model family. `id` is the variant's stable install id (the key in
-/// models-installed.json); older catalogs used it as the row id.
+/// One precision of a model family. `id` is the variant's stable install id (the key in models-installed.json);
+/// older catalogs used it as the row id.
+///
+/// A variant is either downloaded (pinned `repository`/`revision`/`downloadBytes`) or derived locally from another
+/// precision of the same family (`derivedFrom` = source label): a cast (`dtype`, e.g. `bfloat16`) or an affine
+/// quantization (`bits` 4/8, `groupSize`). A derived variant downloads nothing itself: repository and revision are
+/// empty and downloadBytes 0; see DerivedModels.swift for its source, disk size and the worker manifest.
 public struct CatalogVariant: Codable, Equatable {
     public var id: String
     public var repository: String
@@ -15,9 +20,54 @@ public struct CatalogVariant: Codable, Equatable {
     public var downloadBytes: Int64
     public var architecture: String
     public var processorSource: ProcessorSource?
+    /// Source precision label within the family; nil for a downloaded variant.
+    public var derivedFrom: String?
+    /// Affine quantization of the source (never below 4 bits).
+    public var bits: Int?
+    public var groupSize: Int?
+    /// Float cast of the source (`bfloat16` or `float16`).
+    public var dtype: String?
     public init(id: String, repository: String, revision: String, downloadBytes: Int64, architecture: String, processorSource: ProcessorSource? = nil) {
         self.id = id; self.repository = repository; self.revision = revision; self.downloadBytes = downloadBytes
         self.architecture = architecture; self.processorSource = processorSource
+    }
+    /// A locally derived variant.
+    public init(id: String, architecture: String, derivedFrom: String, bits: Int? = nil, groupSize: Int? = nil, dtype: String? = nil) {
+        self.init(id: id, repository: "", revision: "", downloadBytes: 0, architecture: architecture)
+        self.derivedFrom = derivedFrom; self.bits = bits; self.groupSize = groupSize; self.dtype = dtype
+    }
+    public var isDerived: Bool { derivedFrom != nil }
+    enum CodingKeys: String, CodingKey { case id, repository, revision, downloadBytes, architecture, processorSource, derivedFrom, bits, groupSize, dtype }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        architecture = try c.decode(String.self, forKey: .architecture)
+        derivedFrom = try c.decodeIfPresent(String.self, forKey: .derivedFrom)
+        bits = try c.decodeIfPresent(Int.self, forKey: .bits)
+        groupSize = try c.decodeIfPresent(Int.self, forKey: .groupSize)
+        dtype = try c.decodeIfPresent(String.self, forKey: .dtype)
+        processorSource = try c.decodeIfPresent(ProcessorSource.self, forKey: .processorSource)
+        if derivedFrom == nil {
+            repository = try c.decode(String.self, forKey: .repository)
+            revision = try c.decode(String.self, forKey: .revision)
+            downloadBytes = try c.decode(Int64.self, forKey: .downloadBytes)
+        } else {
+            repository = try c.decodeIfPresent(String.self, forKey: .repository) ?? ""
+            revision = try c.decodeIfPresent(String.self, forKey: .revision) ?? ""
+            downloadBytes = try c.decodeIfPresent(Int64.self, forKey: .downloadBytes) ?? 0
+        }
+    }
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        if !isDerived {
+            try c.encode(repository, forKey: .repository); try c.encode(revision, forKey: .revision)
+            try c.encode(downloadBytes, forKey: .downloadBytes)
+        }
+        try c.encode(architecture, forKey: .architecture)
+        try c.encodeIfPresent(processorSource, forKey: .processorSource)
+        try c.encodeIfPresent(derivedFrom, forKey: .derivedFrom); try c.encodeIfPresent(bits, forKey: .bits)
+        try c.encodeIfPresent(groupSize, forKey: .groupSize); try c.encodeIfPresent(dtype, forKey: .dtype)
     }
 }
 
@@ -96,10 +146,11 @@ private struct LegacyEntry: Decodable {
 
 /// Every variant of a catalog as the downloader's flat record (one per precision). `quantization` keeps the
 /// downloader's legacy spelling (`4-bit`, `8-bit`, `BF16`) that `NativeModelDownload.validate` checks against config.json.
+/// Locally derived variants are not downloads and are skipped (Get downloads their source).
 public func catalogVariants(_ catalog: ModelCatalog) -> [ModelRecommendation] {
     catalog.families.flatMap { family in
         orderedPrecisions(Array(family.variants.keys)).compactMap { label -> ModelRecommendation? in
-            guard let v = family.variants[label] else { return nil }
+            guard let v = family.variants[label], !v.isDerived else { return nil }
             return ModelRecommendation(id: v.id, name: family.name, quantization: legacyQuantization(label), repository: v.repository,
                                        revision: v.revision, downloadBytes: v.downloadBytes, architecture: v.architecture, license: family.license,
                                        recommendation: family.notes ?? "", recommended: family.offered)

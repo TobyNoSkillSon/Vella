@@ -30,7 +30,8 @@ final class CatalogTests: XCTestCase {
         XCTAssertNotNil(try processorSource(variant: "whisper-large-v3-8bit", catalogURL: resources.appendingPathComponent("models.json")))
         for f in catalog.families {
             XCTAssertFalse(f.variants.isEmpty, f.id)
-            XCTAssertTrue(f.variants.values.allSatisfy { $0.revision.count == 40 }, "pinned revisions: \(f.id)")
+            XCTAssertTrue(f.variants.values.allSatisfy { $0.isDerived || $0.revision.count == 40 }, "pinned revisions: \(f.id)")
+            XCTAssertEqual(f.derivationProblems(), [], f.id)
             XCTAssertTrue(f.variants.keys.allSatisfy { labelBits($0) != nil }, "exact precision labels: \(f.id)")
         }
         XCTAssertEqual(catalog.family("granite-4.0-1b-speech")?.offered, false, "weak models are not offered in the app")
@@ -40,8 +41,9 @@ final class CatalogTests: XCTestCase {
         // Coordinator's lineup (26 Sep 2026, from vr-bench's v2-quick screening): offered models and their precisions.
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
         let offered = Dictionary(uniqueKeysWithValues: catalog.families.filter(\.offered).map { ($0.id, Set($0.variants.keys)) })
-        XCTAssertEqual(offered, ["parakeet-v3": ["FP32", "8b", "4b"], "parakeet-v3-ultra": ["BF16"],
-                                 "qwen3-asr-1.7b": ["BF16", "8b", "4b"], "nemotron-3.5-streaming-0.6b": ["BF16", "8b"]])
+        // Every level from native down to 4 bits (Toby, 26 Sep 2026); gaps are derived locally (DerivedModels.swift).
+        XCTAssertEqual(offered, ["parakeet-v3": ["FP32", "BF16", "8b", "4b"], "parakeet-v3-ultra": ["BF16", "8b", "4b"],
+                                 "qwen3-asr-1.7b": ["BF16", "8b", "4b"], "nemotron-3.5-streaming-0.6b": ["BF16", "8b", "4b"]])
         XCTAssertEqual(catalog.family("parakeet-v3")?.native, "FP32", "the Parakeet v3 checkpoint is FP32 on disk")
         // The first offered Dictation family is the first-dictation Get offer (RuntimeBridge.offer): Ultra BF16, 1.25 GB.
         XCTAssertEqual(catalog.offered(.dictation).first?.id, "parakeet-v3-ultra")

@@ -1,0 +1,142 @@
+import XCTest
+@testable import VellaCore
+
+final class DerivedModelTests: XCTestCase {
+    private var resources: URL { URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources") }
+    private func shipped() throws -> ModelCatalog { try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json"))) }
+    private func published(_ id: String, _ bytes: Int64 = 1000) -> CatalogVariant {
+        CatalogVariant(id: id, repository: "o/\(id)", revision: String(repeating: "a", count: 40), downloadBytes: bytes, architecture: "parakeet")
+    }
+    private func family(_ variants: [String: CatalogVariant], native: String = "FP32") -> ModelFamily {
+        ModelFamily(id: "f", name: "F", mode: .dictation, languages: ["en"], params: "0.6B", license: "mit", native: native, variants: variants)
+    }
+
+    func testShippedDerivedVariantsResolveToTheirDownloadSource() throws {
+        let catalog = try shipped()
+        let ultra = try XCTUnwrap(catalog.family("parakeet-v3-ultra"))
+        let v3 = try XCTUnwrap(catalog.family("parakeet-v3"))
+        let nemotron = try XCTUnwrap(catalog.family("nemotron-3.5-streaming-0.6b"))
+        XCTAssertEqual(try ultra.derivation("8b"), DerivationRecipe(sourceLabel: "BF16", source: ultra.variants["BF16"]!, dtype: nil, bits: 8, groupSize: 64))
+        XCTAssertEqual(try ultra.derivation("4b").bits, 4)
+        XCTAssertEqual(try v3.derivation("BF16"), DerivationRecipe(sourceLabel: "FP32", source: v3.variants["FP32"]!, dtype: "bfloat16", bits: nil, groupSize: nil))
+        XCTAssertEqual(try nemotron.derivation("4b").source.id, "nemotron-3.5-asr-streaming-0.6b-bf16")
+        // Get downloads the source; published precisions are their own source.
+        XCTAssertEqual(ultra.downloadSource(of: "4b")?.variant.id, "parakeet-ultra-mlx-bf16")
+        XCTAssertEqual(v3.downloadSource(of: "BF16")?.label, "FP32")
+        XCTAssertEqual(v3.downloadSource(of: "8b")?.variant.id, "parakeet-tdt-0.6b-v3-mlx-8bit")
+        XCTAssertTrue(ultra.isDerived("8b")); XCTAssertFalse(ultra.isDerived("BF16")); XCTAssertFalse(v3.isDerived("4b"))
+        // On disk = the source's files.
+        XCTAssertEqual(ultra.diskBytes("4b"), 1254840214)
+        XCTAssertEqual(v3.diskBytes("BF16"), 2509016021)
+        // Derived variants are not downloads; every install id still resolves, new ones included.
+        let downloads = Set(catalogVariants(catalog).map(\.id))
+        for id in ["parakeet-ultra-mlx-8bit-local", "parakeet-ultra-mlx-4bit-local", "parakeet-tdt-0.6b-v3-mlx-bf16-local", "nemotron-3.5-asr-streaming-0.6b-4bit-local"] {
+            XCTAssertFalse(downloads.contains(id), id)
+            XCTAssertNotNil(catalog.locate(variant: id), id)
+        }
+        XCTAssertEqual(catalog.locate(variant: "parakeet-ultra-mlx-4bit-local")?.precision, "4b")
+        for f in catalog.families { XCTAssertEqual(f.derivationProblems(), [], f.id) }
+        // Precision options include derived levels, never below 4 bits.
+        XCTAssertEqual(precisionOptions(ultra), ["BF16", "8b", "4b"])
+        XCTAssertEqual(precisionOptions(v3), ["FP32", "BF16", "8b", "4b"])
+    }
+
+    func testDerivedVariantRoundTripsWithoutDownloadFields() throws {
+        let json = #"{"id":"x-4","derivedFrom":"BF16","bits":4,"groupSize":64,"architecture":"parakeet"}"#
+        let v = try JSONDecoder().decode(CatalogVariant.self, from: Data(json.utf8))
+        XCTAssertTrue(v.isDerived); XCTAssertEqual(v.repository, ""); XCTAssertEqual(v.downloadBytes, 0)
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(v)) as? [String: Any]
+        XCTAssertEqual(Set(object?.keys.map { $0 } ?? []), ["id", "derivedFrom", "bits", "groupSize", "architecture"])
+        XCTAssertEqual(try JSONDecoder().decode(CatalogVariant.self, from: JSONEncoder().encode(v)), v)
+        // A downloaded variant still requires its pin.
+        XCTAssertThrowsError(try JSONDecoder().decode(CatalogVariant.self, from: Data(#"{"id":"y","architecture":"parakeet"}"#.utf8)))
+    }
+
+    func testChainsComposeCastThenQuantizeAndRejectInvalidRecipes() throws {
+        let f = family(["FP32": published("f32", 4000),
+                        "BF16": CatalogVariant(id: "b", architecture: "parakeet", derivedFrom: "FP32", dtype: "bfloat16"),
+                        "4b": CatalogVariant(id: "q", architecture: "parakeet", derivedFrom: "BF16", bits: 4, groupSize: 64)])
+        XCTAssertEqual(try f.derivation("4b"), DerivationRecipe(sourceLabel: "FP32", source: f.variants["FP32"]!, dtype: "bfloat16", bits: 4, groupSize: 64))
+        XCTAssertEqual(f.downloadSource(of: "4b")?.variant.id, "f32")
+        func problem(_ label: String, _ v: CatalogVariant, native: [String: CatalogVariant] = ["BF16": CatalogVariant(id: "s", repository: "o/s", revision: "r", downloadBytes: 1, architecture: "parakeet")]) -> Bool {
+            var variants = native; variants[label] = v
+            return !family(variants, native: "BF16").derivationProblems().isEmpty
+        }
+        XCTAssertTrue(problem("2b", CatalogVariant(id: "x", architecture: "parakeet", derivedFrom: "BF16", bits: 2, groupSize: 64)), "never below 4 bits")
+        XCTAssertTrue(problem("4b", CatalogVariant(id: "x", architecture: "parakeet", derivedFrom: "BF16", bits: 8, groupSize: 64)), "label must match bits")
+        XCTAssertTrue(problem("4b", CatalogVariant(id: "x", architecture: "parakeet", derivedFrom: "BF16", bits: 4, groupSize: 48)), "group size")
+        XCTAssertTrue(problem("4b", CatalogVariant(id: "x", architecture: "parakeet", derivedFrom: "BF16", bits: 4)), "group size required")
+        XCTAssertTrue(problem("FP32", CatalogVariant(id: "x", architecture: "parakeet", derivedFrom: "BF16", dtype: "float32")), "never upscale")
+        XCTAssertTrue(problem("FP16", CatalogVariant(id: "x", architecture: "parakeet", derivedFrom: "BF16", dtype: "bfloat16")), "BF16 is not FP16")
+        XCTAssertTrue(problem("8b", CatalogVariant(id: "x", architecture: "parakeet", derivedFrom: "FP32", bits: 8, groupSize: 64)), "missing source")
+        XCTAssertTrue(problem("8b", CatalogVariant(id: "x", architecture: "whisper", derivedFrom: "BF16", bits: 8, groupSize: 64)), "architecture")
+        XCTAssertFalse(problem("8b", CatalogVariant(id: "x", architecture: "parakeet", derivedFrom: "BF16", bits: 8, groupSize: 64)))
+        var cyclic = f
+        cyclic.variants["FP32"] = CatalogVariant(id: "f32", architecture: "parakeet", derivedFrom: "4b", dtype: "float32")
+        XCTAssertThrowsError(try cyclic.derivation("4b"))
+        XCTAssertNil(cyclic.downloadSource(of: "4b"))
+        // Quantize-then-quantize is rejected.
+        let twice = family(["BF16": published("s"), "8b": CatalogVariant(id: "e", architecture: "parakeet", derivedFrom: "BF16", bits: 8, groupSize: 64),
+                            "4b": CatalogVariant(id: "f", architecture: "parakeet", derivedFrom: "8b", bits: 4, groupSize: 64)], native: "BF16")
+        XCTAssertThrowsError(try twice.derivation("4b"))
+    }
+
+    func testPrepareDerivedModelWritesAManifestDirectoryIdempotently() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-derived-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let models = root.appendingPathComponent("Models")
+        let source = models.appendingPathComponent("parakeet-ultra-mlx-bf16")
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
+        let ultra = try XCTUnwrap(try shipped().family("parakeet-v3-ultra"))
+        let path = try prepareDerivedModel(family: ultra, precision: "8b", sourcePath: source.path, modelsDirectory: models)
+        XCTAssertEqual(path, models.appendingPathComponent("parakeet-ultra-mlx-8bit-local").standardizedFileURL.path)
+        let manifest = try XCTUnwrap(derivedModelManifest(at: URL(fileURLWithPath: path)))
+        XCTAssertEqual(manifest, DerivedModelManifest(schema: 1, family: "parakeet-v3-ultra", precision: "8b", source: source.standardizedFileURL.path,
+                                                      sourceVariant: "parakeet-ultra-mlx-bf16", sourcePrecision: "BF16", dtype: nil, bits: 8, groupSize: 64))
+        let file = URL(fileURLWithPath: path).appendingPathComponent(DerivedModelManifest.fileName)
+        let before = try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date
+        Thread.sleep(forTimeInterval: 0.02)
+        XCTAssertEqual(try prepareDerivedModel(family: ultra, precision: "8b", sourcePath: source.path, modelsDirectory: models), path)
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date, before, "unchanged manifest is not rewritten")
+        // BF16 and 8b of one source get different model paths (worker identity, gate key, residency).
+        let four = try prepareDerivedModel(family: ultra, precision: "4b", sourcePath: source.path, modelsDirectory: models)
+        XCTAssertNotEqual(four, path)
+        XCTAssertThrowsError(try prepareDerivedModel(family: ultra, precision: "BF16", sourcePath: source.path, modelsDirectory: models), "not derived")
+        XCTAssertThrowsError(try prepareDerivedModel(family: ultra, precision: "8b", sourcePath: root.appendingPathComponent("missing").path, modelsDirectory: models), "source not installed")
+        // A directory holding anything else is never used.
+        try Data().write(to: URL(fileURLWithPath: four).appendingPathComponent("model.safetensors"))
+        XCTAssertThrowsError(try prepareDerivedModel(family: ultra, precision: "4b", sourcePath: source.path, modelsDirectory: models))
+        // Deleting the source removes its manifest-only directories and leaves anything else.
+        XCTAssertEqual(removeDerivedModels(sourcePath: source.path, modelsDirectory: models), [path])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: four))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path))
+    }
+
+    func testMemoryIsMeasuredWhenAvailableElseAScaledEstimateWithANote() throws {
+        let catalog = try shipped()
+        let nemotron = try XCTUnwrap(catalog.family("nemotron-3.5-streaming-0.6b"))
+        let bench = BenchmarkFile(models: ["nemotron-3.5-streaming-0.6b": FamilyBenchmark(precisions: [
+            "BF16": PrecisionResult(memory_mb: 1400), "8b": PrecisionResult(memory_mb: 900)])])
+        XCTAssertEqual(estimatedMemory(family: nemotron, precision: "8b", benchmarks: bench), MemoryEstimate(mb: 900, measured: true, note: nil))
+        let four = try XCTUnwrap(estimatedMemory(family: nemotron, precision: "4b", benchmarks: bench))
+        XCTAssertFalse(four.measured)
+        XCTAssertTrue(four.note?.contains("BF16") == true && four.note?.contains("not measured") == true, four.note ?? "")
+        // 4-bit group-64 weights over 85 % of the bytes: 1400 × (0.85 × 4.5/16 + 0.15) ≈ 544.7 MB.
+        XCTAssertEqual(four.mb, 1400 * (0.85 * 4.5 / 16 + 0.15), accuracy: 0.01)
+        // The weight model reproduces the published Nemotron 8b size from BF16 within 2 %.
+        let predicted8 = try XCTUnwrap(estimatedWeightBytes(FamilyTestHelper.derived8(nemotron), "8b"))
+        XCTAssertEqual(predicted8 / 756247988, 1, accuracy: 0.02)
+        XCTAssertNil(estimatedMemory(family: nemotron, precision: "4b", benchmarks: BenchmarkFile()), "nothing measured: no number")
+    }
+}
+
+private enum FamilyTestHelper {
+    /// Nemotron with its 8b replaced by a derived 8b, to compare the estimate with the published file size.
+    static func derived8(_ f: ModelFamily) -> ModelFamily {
+        var copy = f
+        copy.variants["8b"] = CatalogVariant(id: "n8", architecture: "nemotron_asr", derivedFrom: "BF16", bits: 8, groupSize: 64)
+        return copy
+    }
+}
