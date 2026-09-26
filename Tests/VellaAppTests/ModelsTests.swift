@@ -125,7 +125,7 @@ final class ModelsTests: XCTestCase {
             for column in TableSortColumn.allCases {
                 for ascending in [true, false] {
                     let before = ModelTable.rows(c, mode, sort: column, ascending: ascending).map(\.id)
-                    XCTAssertEqual(Set(before), Set(c.families(mode).map(\.id)), "sections keep their own rows")
+                    XCTAssertEqual(Set(before), Set(c.families(mode).map(\.id) + c.references(mode).map { "reference:" + $0.id }), "sections keep their own rows")
                     for family in c.families(mode) {
                         for precision in c.options(family) {
                             c.preview(family, precision)
@@ -136,6 +136,26 @@ final class ModelsTests: XCTestCase {
                 }
             }
         }
+    }
+
+    /// Cloud reference rows: Dictation only, counted in the table height, sorted with the models by estimated WER.
+    @MainActor func testCloudReferenceRowsInDictation() throws {
+        let fixture = #"""
+        {"schema":1,"models":{"qwen3-asr-1.7b":{"precisions":{"BF16":{"wer":15.06},"8b":{"wer":15.16}}}},
+         "references":{"api":{"reference":true,"estimated":true,"name":"Cloud","mode":"dictation","wer":12.9,"range":[11.3,13.3],"source":"S"}}}
+        """#
+        let c = try controller(benchmarks: fixture)
+        XCTAssertEqual(c.references(.dictation).map(\.id), ["api"])
+        XCTAssertTrue(c.references(.streaming).isEmpty)
+        XCTAssertEqual(c.rowCount, c.families(.dictation).count + c.families(.streaming).count + 1)
+        let rows = ModelTable.rows(c, .dictation, sort: .wer, ascending: true)
+        XCTAssertEqual(rows.first?.id, "reference:api", "12.9 estimated sorts before 15.06 measured")
+        let tips = ModelTable(controller: c).tooltips(c.references(.dictation)[0])
+        XCTAssertTrue(tips.contains { $0.0 == "WER" && $0.1.hasPrefix("Estimated, not measured by us") })
+        XCTAssertTrue(tips.contains { $0.0 == "On disk" && $0.1.contains("never sends audio") })
+        XCTAssertTrue(ModelTable.werHeaderHelp.contains("Hugging Face Open ASR Leaderboard") && ModelTable.werHeaderHelp.contains("substituted, missed or added"))
+        XCTAssertTrue(ModelTable.formatHeaderHelp.contains("No industry standard"))
+        XCTAssertEqual(ModelTable.speedHeaderHelp, "Real-time factor (RTFx): audio seconds per processing second. Higher is faster.")
     }
 
     /// The Q control shows bare widths; the tooltips keep exact formats and say where each precision comes from.

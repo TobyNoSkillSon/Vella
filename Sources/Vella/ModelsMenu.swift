@@ -140,10 +140,16 @@ struct ModelTable: View {
 
     /// Rows of a section in a stable order: each column sorts by the model's best value across its precisions, so
     /// changing a row's selected precision never moves it.
-    @MainActor static func rows(_ controller: ModelsController, _ mode: RecognitionMode, sort: TableSortColumn, ascending: Bool) -> [ModelFamily] {
-        sortedFamilies(controller.families(mode), by: sort.metric, ascending: ascending, benchmarks: controller.benchmarks)
+    /// Cloud reference rows sort with the models (by their estimated WER).
+    @MainActor static func rows(_ controller: ModelsController, _ mode: RecognitionMode, sort: TableSortColumn, ascending: Bool) -> [ModelTableRow] {
+        sortedRows(controller.families(mode), references: controller.references(mode), by: sort.metric, ascending: ascending, benchmarks: controller.benchmarks)
     }
-    private func rows(_ mode: RecognitionMode) -> [ModelFamily] { Self.rows(controller, mode, sort: sortColumn, ascending: ascending) }
+    private func rows(_ mode: RecognitionMode) -> [ModelTableRow] { Self.rows(controller, mode, sort: sortColumn, ascending: ascending) }
+
+    /// Header tooltips, in plain words (Toby, 26 Sep evening).
+    static let werHeaderHelp = "Word error rate: the percentage of words wrong \u{2014} substituted, missed or added \u{2014} out of the words spoken. The industry-standard accuracy metric, as on the Hugging Face Open ASR Leaderboard. Lower is better. Our v2 benchmark is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards."
+    static let formatHeaderHelp = "Our own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. Lower is better."
+    static let speedHeaderHelp = "Real-time factor (RTFx): audio seconds per processing second. Higher is faster."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -152,9 +158,9 @@ struct ModelTable: View {
                 plainHeading("Languages", W.languages, .trailing, help: "Languages the model transcribes.")
                 plainHeading("Params", W.params, .trailing, help: "Model size in parameters.")
                 plainHeading("Q", W.precision, .leading, help: "Weight precision in bits: 32 is FP32, 16 is BF16, 8 and 4 are quantized. Levels below the native precision are made on this Mac from it. Green is recommended: lowest energy per audio minute within 0.5 pt WER of the native precision; faster, then more bits, break ties.")
-                heading("WER", .wer, W.wer, .trailing, help: "Word error rate: wrong, missing or extra words, ignoring case and punctuation. Lower is better.")
-                heading("Format", .format, W.format, .trailing, help: "Character error rate with case and punctuation kept. Lower is better.")
-                heading("Speed", .speed, W.speed, .trailing, help: "Audio transcribed per second of compute, in × real time. Higher is faster.")
+                heading("WER", .wer, W.wer, .trailing, help: Self.werHeaderHelp)
+                heading("Format", .format, W.format, .trailing, help: Self.formatHeaderHelp)
+                heading("Speed", .speed, W.speed, .trailing, help: Self.speedHeaderHelp)
                 heading("J / min", .energy, W.energy, .trailing, help: "Joules per minute of audio: whole-chip energy, net of idle. Lower is better.")
                 heading("Memory", .memory, W.memory, .trailing, help: "Memory with the model loaded, after warm-up.")
                 heading("On disk", .disk, W.disk, .trailing, help: "Download size of the selected precision; for one made on this Mac, its measured size.")
@@ -163,12 +169,17 @@ struct ModelTable: View {
             Divider().opacity(0.35)
             VStack(alignment: .leading, spacing: 3) {
                 ForEach([RecognitionMode.dictation, .streaming], id: \.self) { mode in
-                    let families = rows(mode)
-                    if !families.isEmpty {
+                    let sectionRows = rows(mode)
+                    if !sectionRows.isEmpty {
                         Text(mode.title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
                             .padding(.leading, 6).frame(height: 18, alignment: .bottomLeading)
                             .help(mode == .dictation ? "Transcribes when you finish speaking." : "Types text while you speak.")
-                        ForEach(families) { family in row(family) }
+                        ForEach(sectionRows) { item in
+                            switch item {
+                            case .family(let family): row(family)
+                            case .reference(let reference): referenceRow(reference)
+                            }
+                        }
                     }
                 }
             }
@@ -226,7 +237,7 @@ struct ModelTable: View {
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
                 .help(werHelp(bench))
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
-                .help(bench?.format == nil ? notMeasured : "Character error rate with case and punctuation kept; lower is better." + suiteText(bench) + measured(bench))
+                .help(bench?.format == nil ? notMeasured : "Our case and punctuation measure: character error rate with case and punctuation kept; lower is better." + suiteText(bench) + measured(bench))
             HStack(spacing: 2) {
                 if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 8)).foregroundStyle(.orange).accessibilityLabel("very slow")
@@ -268,6 +279,40 @@ struct ModelTable: View {
             }
             .foregroundStyle(hot ? Color(nsColor: .selectedMenuItemTextColor) : Color.primary)
             .contentShape(Rectangle())
+    }
+
+    /// A cloud API for perspective, like Verdict's hosted reference row: cloud glyph, greyed, no controls, `API` on disk.
+    /// Its WER is an estimate (`~13%`); the tooltip says from where and that we did not measure it.
+    @ViewBuilder private func referenceRow(_ r: ReferenceEntry) -> some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: "cloud").font(.system(size: 10)).frame(width: 12)
+                Text(r.name).font(.system(size: 11)).lineLimit(1)
+            }.frame(width: W.model, alignment: .leading)
+                .help(referenceHelp(r))
+            Text("\u{2014}").frame(width: W.languages, alignment: .trailing)
+            Text("\u{2014}").frame(width: W.params, alignment: .trailing)
+                .help("Not disclosed.")
+            Text("").frame(width: W.precision, alignment: .leading)
+            metric(formatEstimatedErrorRate(r.wer), nil, W.wer, hot: false)
+                .help(referenceWERHelp(r, languageName: languageName))
+            metric(nil, nil, W.format, hot: false)
+                .help("Not estimated: our case and punctuation measure has no public counterpart to anchor on.")
+            metric(nil, nil, W.speed, hot: false).help(Self.referenceNotApplicable)
+            metric(nil, nil, W.energy, hot: false).help(Self.referenceNotApplicable)
+            metric(nil, nil, W.memory, hot: false).help(Self.referenceNotApplicable)
+            Text("API").frame(width: W.disk, alignment: .trailing)
+                .help("Cloud service; nothing to download. Vella never sends audio to it.")
+            Text("").frame(width: W.button + W.trash + 6)
+        }.font(.system(size: 11, design: .monospaced))
+            .padding(.horizontal, 6).frame(height: 30)
+            .foregroundStyle(Color.secondary)
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+    }
+    static let referenceNotApplicable = "Not applicable: a cloud API runs on the provider's servers."
+    private func referenceHelp(_ r: ReferenceEntry) -> String {
+        "\(r.name): a cloud API shown for comparison only. Vella never sends audio to it; its WER is estimated, not measured by us."
     }
 
     private func title(_ action: LoadAction, loading: Bool, downloading: Bool, library: ModelLibrary) -> String {
@@ -359,7 +404,7 @@ struct ModelTable: View {
 
     private func werHelp(_ r: PrecisionResult?) -> String {
         guard let r, r.wer != nil else { return notMeasured }
-        var text = "Word error rate: wrong, missing or extra words, ignoring case and punctuation; lower is better." + suiteText(r)
+        var text = "Word error rate: % of words wrong (substituted, missed or added) out of the words spoken; lower is better." + suiteText(r)
         if let ml = r.multilingual, let by = ml.by_language, !by.isEmpty {
             let parts = by.sorted { $0.key < $1.key }.map { "\(languageName($0.key)) \(String(format: "%.1f%%", $0.value))" }
             text += " By language: " + parts.joined(separator: ", ") + "."
@@ -371,7 +416,7 @@ struct ModelTable: View {
         guard let r, let x = r.speed_x else { return notMeasured }
         var text = family.mode == .streaming
             ? "Streaming replay throughput in × real time: how much faster than speech it keeps up, not microphone-to-text latency."
-            : "Audio transcribed per second of compute, in × real time: \(formatSpeed(x) ?? "") means one minute of audio in \(String(format: "%.2f", 60 / x)) s."
+            : "Real-time factor (RTFx): audio seconds per processing second. \(formatSpeed(x) ?? "") means one minute of audio in \(String(format: "%.2f", 60 / x)) s."
         if family.mode == .dictation, x < slowSpeedFloor { text += " Very slow for dictation: under 20× real time." }
         return text + measured(r)
     }
@@ -397,6 +442,12 @@ struct ModelTable: View {
                 ("On disk", diskHelp(family, precision, installed: installed)),
                 ("WER", werHelp(r)), ("Speed", speedHelp(family, r)),
                 ("Action", actionHelp(controller.action(family), family: family, precision: precision, loaded: controller.loaded(family)?.precision))]
+    }
+
+    /// A reference row's tooltips as (column, text), for table-tooltips.txt.
+    func tooltips(_ r: ReferenceEntry) -> [(String, String)] {
+        [("Model", referenceHelp(r)), ("WER", referenceWERHelp(r, languageName: languageName)), ("Speed", Self.referenceNotApplicable),
+         ("On disk", "Cloud service; nothing to download. Vella never sends audio to it.")]
     }
 
     /// This Mac's chip: the runtime's, else the CPU brand string.

@@ -134,7 +134,9 @@ import VellaCore
     func families(_ mode: RecognitionMode) -> [ModelFamily] {
         catalog.families.filter { $0.mode == mode && ($0.offered || $0.variants.values.contains { library(mode).installed[$0.id] != nil }) }
     }
-    var rowCount: Int { families(.dictation).count + families(.streaming).count }
+    /// Cloud reference rows of a section (estimated WER only; no controls). Shown only beside local models.
+    func references(_ mode: RecognitionMode) -> [ReferenceEntry] { families(mode).isEmpty ? [] : benchmarks.references(mode) }
+    var rowCount: Int { RecognitionMode.allCases.reduce(0) { $0 + families($1).count + references($1).count } }
     var sectionCount: Int { [RecognitionMode.dictation, .streaming].filter { !families($0).isEmpty }.count }
 
     func options(_ f: ModelFamily) -> [String] { precisionOptions(f) }

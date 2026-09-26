@@ -50,14 +50,14 @@ Hover an item for what it does.
 | Languages | Supported languages. |
 | Params | Parameter count. |
 | Q | Bits per weight, as a segmented control: 32 (FP32), 16 (BF16), 8 and 4 (quantized), from the model's native precision down, never below 4. The recommended one is green. Each segment's tooltip names the exact format and whether it is published or made on this Mac from the higher precision. |
-| WER | Word error rate on Vella's benchmark: wrong, missing or extra words, ignoring case and punctuation. Tooltip: word error rate per language. |
-| Format | Character error rate with case and punctuation kept. |
-| Speed | Audio length ÷ transcription time, after loading (× real time). |
+| WER | Word error rate on Vella's benchmark: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. The industry-standard metric, as on the Hugging Face Open ASR Leaderboard; Vella's v2 set is hard (meetings, far-field microphones, accents, earnings calls), so its rates run higher. Tooltip: word error rate per language. |
+| Format | Vella's own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. |
+| Speed | Real-time factor (RTFx): audio seconds per processing second, after loading. |
 | J / min | Joules per minute of audio, whole chip, idle subtracted. |
 | Memory | Loaded footprint. |
 | On disk | Download size (dimmed until downloaded). For a precision made on this Mac, its measured size, else `—`. |
 
-Lower is better for WER, Format, J / min and Memory; higher for Speed. `—` means not measured at that precision; Vella never estimates a figure. Clicking a heading sorts by each model's best value across its precisions, so rows keep their place when you switch precision; models with nothing measured come last. Every figure's tooltip says when and on which Mac it was measured. On a Mac with a different chip family, the footer says `Benchmarks measured on M5 Max`: speed, energy and memory differ on your Mac; accuracy does not.
+Lower is better for WER, Format, J / min and Memory; higher for Speed. `—` means not measured at that precision; Vella never estimates a figure for a local model. The greyed cloud rows in Dictation (ElevenLabs Scribe v2, Microsoft Azure Speech) are for comparison only: Vella never sends audio to them, and their WER (`~13%`) is estimated from the Hugging Face Open ASR Leaderboard, not measured; the tooltip gives the source and range. Clicking a heading sorts by each model's best value across its precisions, so rows keep their place when you switch precision; models with nothing measured come last. Every figure's tooltip says when and on which Mac it was measured. On a Mac with a different chip family, the footer says `Benchmarks measured on M5 Max`: speed, energy and memory differ on your Mac; accuracy does not.
 
 **Recommended precision.** Among a model's measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest J / min (ties: faster, then more bits).
 

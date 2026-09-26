@@ -52,6 +52,10 @@ Measured on Apple M5 Max, macOS 26.6, 2026-09-26. WER and Format on the 240-minu
 | Qwen3 ASR 1.7B | Dictation | 4 | 18.41 | 7.19 | 9/9 | 53× | 55.5 | 2,955 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | 16 | 23.44 | 10.56 | 9/9 | 16× | 91.2 | 2,696 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | 8 (recommended) | 23.45 | 10.58 | 9/9 | 24× | 67.0 | 1,225 MB | v2 |
+| ElevenLabs Scribe v2 (cloud API) | Dictation | — | ~13.4 (estimated, 11.8–13.9) | — | — | — | — | — | estimated |
+| Microsoft Azure Speech (cloud API) | Dictation | — | ~12.9 (estimated, 11.3–13.3) | — | — | — | — | — | estimated |
+
+Cloud API rows are **estimates, not measurements**: we sent no audio to them. Each is the provider's WER on the Hugging Face Open ASR Leaderboard times the median ratio between our v2 WER and the leaderboard WER of the models we measured on both (Parakeet v3, Qwen3 ASR 1.7B, Nemotron 3.5 Streaming); the range uses the lowest and highest ratio. Leaderboard: https://huggingface.co/spaces/hf-audio/open_asr_leaderboard. Sources, anchors and arithmetic are in `references` in [`Resources/benchmarks.json`](Resources/benchmarks.json).
 
 Measured but not offered in the app:
 
@@ -67,8 +71,8 @@ Measured but not offered in the app:
 <!-- BENCHMARK_TABLE_END -->
 
 - **Q** is bits per weight: 32 is FP32, 16 is BF16, 8 and 4 are quantized.
-- **WER** is word error rate: wrong, missing or extra words, ignoring case and punctuation. **Format** is character error rate with case and punctuation kept: how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
-- **Speed** is audio length divided by transcription time after the model is loaded: 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Memory** is the loaded model's footprint.
+- **WER** is word error rate: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. It is the industry-standard metric, as on the Hugging Face Open ASR Leaderboard; our v2 set is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. **Format** is our own measure, with no industry standard: character error rate with case and punctuation kept, i.e. how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
+- **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Memory** is the loaded model's footprint.
 - **Recommended precision.** A model shows its recommended precision until it has been loaded at another: among its measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest energy per minute of audio (ties: faster, then more bits).
 - Figures were measured on an Apple M5 Max. On other Macs, speed, energy and memory differ; accuracy does not. The table says so on other chips.
 
