@@ -872,6 +872,8 @@ final class GlobalShortcut {
         RuntimeBridge.shared.attach(delegate)
         RuntimeBridge.shared.sweepPartialDownloads()   // stale .incomplete partials in Vella's Models folder
         DispatchQueue.main.async { Runtime.shared.start() }
+        // The local HTTP API (loopback; port in worker-status.json) for the `vella` command and agents.
+        DispatchQueue.main.async { APIHost.shared.start(model: delegate.model, controller: delegate.modelsMenu.controller) }
         withExtendedLifetime(delegate) { application.run() }
     }
 }
