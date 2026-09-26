@@ -374,18 +374,16 @@ import VellaCore
         pressure.resume()
     }
     deinit { memoryPressure?.cancel() }
-    /// Warning: drop MLX caches in idle workers. Critical: stop an in-flight request (its audio stays saved) and shed
-    /// all but the first manual model.
+    /// Never stops an in-flight request or load (the model serving it is pinned until it returns). Warning: idle
+    /// workers drop their MLX caches. Critical: unload idle, unpinned models (on-demand first, keeping the first manual
+    /// one), then idle survivors drop their caches.
     func handleMemoryPressure(critical: Bool) {
         guard !slots.isEmpty else { return }
-        if critical {
-            for slot in Array(slots.values) where slot.pending != nil {
-                finish(slot, .failure(VellaError.message("macOS reported critical memory pressure. Inference stopped; saved audio is retained. Close other applications or use a smaller model.")))
-                retire(slot)
+        Task {
+            if critical { await runtime.shed() }
+            for slot in Array(slots.values) where slot.pending == nil && !slot.retiring {
+                _ = try? await send(slot, ["op": "trim"], timeout: 5)
             }
-            Task { await runtime.shed() }
-        } else {
-            for slot in slots.values where slot.pending == nil { Task { _ = try? await self.send(slot, ["op": "trim"], timeout: 5) } }
         }
     }
     /// Honors `VELLA_SUPPORT_DIR` (isolated test and QA runs; reported in status).

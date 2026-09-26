@@ -23,6 +23,7 @@ for line in sys.stdin:
  r=json.loads(line)
  if r.get('op') in ('unload','status','trim'): print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
  mode=r['model'].split('/')[-1]
+ if mode=='slow' and r.get('op')!='load': time.sleep(0.8)
  if mode in ('timeout','stubborn'):
   if mode=='stubborn':
    signal.signal(signal.SIGTERM,signal.SIG_IGN)
@@ -111,22 +112,38 @@ for line in sys.stdin:
         let text = try await backend.transcribe(wav, config: record.manifest.config)
         XCTAssertEqual(text, "Fixture recognized speech.")
     }
-    @MainActor func testMemoryPressureKeepsIdleWorkerStopsBusyOneAndShutdownDoesNotNeedDelayedCallbacks() async throws {
+    @MainActor func testMemoryPressureNeverStopsInFlightRequestAndShedsIdleModels() async throws {
+        let (script, record) = try fixture()
+        let runtime = try runtime()
+        let backend = Backend(helper: script, runtime: runtime)
+        defer { backend.shutdown() }
+        let wav = try record.wav(for: record.manifest.segments[0])
+        var pids: [String: Int32] = [:]
+        for name in ["normal", "other"] {
+            record.manifest.config.model = "/fixture/\(name)"
+            _ = try await backend.transcribe(wav, config: record.manifest.config)
+            pids[name] = try XCTUnwrap(backend.processID)
+        }
+        backend.handleMemoryPressure(critical: false) // warning: caches only, everything stays hot
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(Set(backend.loadedModelIDs), ["normal", "other", ])
+        record.manifest.config.model = "/fixture/slow"
+        let busy = Task { try await backend.transcribe(wav, config: record.manifest.config) }
+        for _ in 0..<200 { if runtime.isLoaded("slow") { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        try await Task.sleep(nanoseconds: 200_000_000) // the request is now in flight
+        let slowPID = try XCTUnwrap(backend.processID)
+        backend.handleMemoryPressure(critical: true)
+        let text = try await busy.value
+        XCTAssertEqual(text, "Fixture recognized speech.", "critical pressure must not stop the in-flight request")
+        XCTAssertEqual(kill(slowPID, 0), 0, "the busy model is pinned, not shed")
+        try await exited(try XCTUnwrap(pids["other"]))
+        XCTAssertEqual(Set(backend.loadedModelIDs), ["normal", "slow"], "shed keeps the first loaded model and the pinned one")
+        XCTAssertTrue(runtime.status.evictions?.last?.reason.hasPrefix("memory pressure") == true)
+    }
+    @MainActor func testShutdownDoesNotNeedDelayedCallbacks() async throws {
         let (script, record) = try fixture()
         let backend = Backend(helper: script, runtime: try runtime())
         let wav = try record.wav(for: record.manifest.segments[0])
-        _ = try await backend.transcribe(wav, config: record.manifest.config)
-        let idlePID = try XCTUnwrap(backend.processID)
-        backend.handleMemoryPressure(critical: false) // warning: trim caches, keep the hot model
-        try await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertEqual(kill(idlePID, 0), 0)
-        XCTAssertEqual(backend.processID, idlePID)
-        record.manifest.config.model = "/fixture/timeout"
-        let busy = Task { try await backend.transcribe(wav, config: record.manifest.config) }
-        try await Task.sleep(nanoseconds: 300_000_000)
-        backend.handleMemoryPressure(critical: true)
-        do { _ = try await busy.value; XCTFail("critical pressure kept a request running") }
-        catch { XCTAssertTrue(error.localizedDescription.contains("critical memory pressure") || error is CancellationError) }
         record.manifest.config.model = "/fixture/stubborn"
         let task = Task { try await backend.transcribe(wav, config: record.manifest.config) }
         for _ in 0..<200 { if backend.loadedModelIDs.contains("stubborn") { break }; try await Task.sleep(nanoseconds: 10_000_000) }
