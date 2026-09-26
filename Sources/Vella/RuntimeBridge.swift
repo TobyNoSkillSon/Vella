@@ -99,7 +99,8 @@ import VellaCore
         Task { await loadAndSelect(ref) }
     }
     func loadAndSelect(_ ref: ModelRef) async {
-        runtime.beginSelection(); defer { runtime.endSelection() }
+        runtime.beginSelection(); runtime.userChanged(ref.id)
+        defer { runtime.userChanged(ref.id); runtime.endSelection() }
         do {
             try await runtime.load(ref)
             select(ref.path, mode: ref.mode)
@@ -113,6 +114,7 @@ import VellaCore
     /// first (its worker reads the source), and after a successful deletion the launch set drops the source and its
     /// derived entries. Order: unload, delete, launch-set clean-up.
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
+        runtime.userChanged(family.id); defer { runtime.userChanged(family.id) }
         let dependents = derivedPaths(source: path, mode: family.mode)
         let loadedPath = runtime.loadedRef(family.id)?.path
         let target = loadedPath.map { loaded in dependents.contains { sameFiles($0, loaded) } ? loaded : path } ?? path

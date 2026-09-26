@@ -574,8 +574,14 @@ final class GlobalShortcut {
                 }
                 let used = session.manifest.config.model
                 let restorePoint = temporaryPrecisionRestorePoint(for: used)
-                // Also after a failure or Stop; in its own task, so this task's cancellation cannot cut it short.
-                let restore: () async -> Void = { [backend] in if let restorePoint { await Task { await backend.restore(restorePoint, after: used) }.value } }
+                // Also after a failure or Stop; in its own task, so this task's cancellation cannot cut it short. Stop
+                // shows idle at once, so the user may load, reload or select before it runs: then their choice stays.
+                let restore: () async -> Void = { [backend, weak self] in
+                    guard let restorePoint else { return }
+                    await Task {
+                        await backend.restore(restorePoint.residency, after: used) { self?.selectedModelPath() == restorePoint.selected }
+                    }.value
+                }
                 let text: String
                 do { text = try await runner.run(session) } catch { await restore(); throw error }
                 await restore()
@@ -608,16 +614,21 @@ final class GlobalShortcut {
     /// A saved recording keeps the model it was recorded with. When that is another precision of the current model's
     /// family, transcribing it replaces the loaded precision (one worker per family) and its launch-set entry. This
     /// records the family first, so that afterwards `Backend.restore` puts it back and the table, the API and the next
-    /// dictation agree on the selected precision again. Nil when the recording uses the selected model itself.
-    private func temporaryPrecisionRestorePoint(for used: String) -> Backend.FamilyResidency? {
-        guard !used.isEmpty, FileManager.default.fileExists(atPath: used),
-              let data = try? Data(contentsOf: configurationURL),
-              let selected = (try? JSONDecoder().decode(Configuration.self, from: data))?.model, !selected.isEmpty,
+    /// dictation agree on the selected precision again. Nil when the recording uses the selected model itself. It also
+    /// records the selection, which must still hold when the family is put back.
+    private func temporaryPrecisionRestorePoint(for used: String) -> (residency: Backend.FamilyResidency, selected: String)? {
+        guard !used.isEmpty, FileManager.default.fileExists(atPath: used), let selected = selectedModelPath(),
               URL(fileURLWithPath: used).standardizedFileURL.path != URL(fileURLWithPath: selected).standardizedFileURL.path else { return nil }
         let runtime = backend.runtime
         let family = runtime.resolve(used, mode: .dictation).id
         guard runtime.resolve(selected, mode: .dictation).id == family else { return nil }
-        return backend.residency(of: family)
+        return (backend.residency(of: family), selected)
+    }
+    /// The dictation model config.json selects now; nil when none is selected or it is unreadable.
+    private func selectedModelPath() -> String? {
+        guard let data = try? Data(contentsOf: configurationURL),
+              let selected = (try? JSONDecoder().decode(Configuration.self, from: data))?.model, !selected.isEmpty else { return nil }
+        return selected
     }
     func retry() {
         guard phase == .failed, let savedSession else { return }

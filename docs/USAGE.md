@@ -182,6 +182,8 @@ vella diagnose                                   # a report for bug reports (see
 
 **Models.** Without `--model`, a file uses your current dictation model. Another model loads on demand at the precision shown in **Models…** and unloads after its **Keep Hot** time, like any on-demand load. It never unloads your dictation model to make room: if memory is short the request is refused with the numbers. Nothing downloads through the command or the API; get models in **Models…**. Streaming models are not used for files.
 
+A file's model is looked up again for each of its segments, when that segment's turn comes, not once for the whole file. If you load, reload or select a model while a long file is being transcribed, the rest of the file uses what you chose: without `--model` (or with `whisper-1` or `current`) that can be another model altogether; `--model` keeps the model, but a Reload at another precision applies to the segments after it. The response does not say which model transcribed which part, and `vella status` afterwards shows only the model selected now.
+
 **The API.** The app serves an OpenAI-compatible API on `127.0.0.1` at a port chosen at launch (`vella url` prints the base URL; it changes when Vella restarts). Code written for OpenAI's transcription endpoint works with only the base URL changed:
 
 ```sh

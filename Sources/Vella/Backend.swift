@@ -153,6 +153,7 @@ import VellaCore
     }
     /// Menu Unload: the model leaves memory and, once its worker has exited, the launch set.
     func unload(_ id: String) async {
+        userChanged(id); defer { userChanged(id) }
         if let entry = entries[id] { await entry.unload() }
         settings.leave(id); persistSettings(); writeStatus()
     }
@@ -291,6 +292,12 @@ import VellaCore
     private(set) var selectionsInFlight = 0
     func beginSelection() { selectionsInFlight += 1 }
     func endSelection() { selectionsInFlight = max(0, selectionsInFlight - 1) }
+    /// Per family, how many of the user's own changes to it (Load, Reload, Unload, Delete) have begun or ended. Work
+    /// that temporarily replaced a family's precision compares this count with the one it recorded first, and puts
+    /// nothing back once the user changed the family in the meantime: the user's later choice wins.
+    private var userChanges: [String: Int] = [:]
+    func userChanged(_ id: String) { userChanges[id, default: 0] &+= 1 }
+    func userChangeCount(_ id: String) -> Int { userChanges[id] ?? 0 }
     /// The API's loopback port once it listens (published in the status file with the API version).
     var apiPort: Int? { didSet { writeStatus() } }
     var apiToken: String?
@@ -539,21 +546,26 @@ struct WorkerExited: LocalizedError {
         })
     }
 
-    /// A family's residency at one moment: its loaded model and class, and its launch-set entry.
+    /// A family's residency at one moment: its loaded model and class, its launch-set entry, and the count of the
+    /// user's changes to it so far.
     struct FamilyResidency {
         let id: String
         let loaded: ModelRef?
         let residency: ResidencyClass?
         let launchEntry: ModelRef?
+        let userChanges: Int
     }
     func residency(of id: String) -> FamilyResidency {
         FamilyResidency(id: id, loaded: runtime.loadedRef(id), residency: runtime.loadedResidency(id),
-                        launchEntry: runtime.settings.launchSet.first { $0.id == id })
+                        launchEntry: runtime.settings.launchSet.first { $0.id == id }, userChanges: runtime.userChangeCount(id))
     }
     /// After `used`, another precision of a family, served a request in place of what `before` recorded (one worker
     /// per family): reload the recorded precision if it was loaded, else unload `used`, and put the launch-set entry
     /// back. Nothing is loaded that was not loaded before. A failed reload keeps `used` and reports the error in status.
-    func restore(_ before: FamilyResidency, after used: String) async {
+    /// Only while the family is as the user left it: once they loaded, reloaded, unloaded or deleted it since `before`,
+    /// or `unchanged` (their selection) no longer holds, nothing is put back, before the reload or after it.
+    func restore(_ before: FamilyResidency, after used: String, while unchanged: () -> Bool = { true }) async {
+        guard runtime.userChangeCount(before.id) == before.userChanges, unchanged() else { return }
         if let now = runtime.loadedRef(before.id), now.path == used {
             if let loaded = before.loaded {
                 if loaded.path != used { try? await preload(loaded, residency: before.residency ?? .onDemand) }
@@ -562,6 +574,7 @@ struct WorkerExited: LocalizedError {
                 runtime.removed(before.id)
             }
         }
+        guard runtime.userChangeCount(before.id) == before.userChanges, unchanged() else { return }
         runtime.restoreLaunchEntry(before.id, to: before.launchEntry)
     }
 
