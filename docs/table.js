@@ -140,6 +140,7 @@ function render() {
   body.append(tr);
  }
  if (!rows.length) { const tr = document.createElement('tr'), td = document.createElement('td'); td.colSpan = columns.length; td.className = 'empty'; td.textContent = 'No matching models'; tr.append(td); body.append(tr); }
+ document.querySelector('#footer').textContent = rows.some(r => r.reference) ? referenceNote : '';
  document.querySelector('#count').textContent = `${rows.length} / ${all.filter(r => r.suite === suite.value).length} rows`;
  for (const button of document.querySelectorAll('th button')) button.parentElement.setAttribute('aria-sort', button.dataset.key === key ? (ascending ? 'ascending' : 'descending') : 'none');
 }
@@ -147,7 +148,7 @@ function render() {
 const dates = [...new Set(all.filter(r => !r.reference).map(r => r.date).filter(Boolean))].sort();
 document.querySelector('#summary').textContent =
  `Measured on ${B.hardware} · ${dates.length ? dates.at(-1) : '—'} · v2: ${B.suites?.v2?.audio_min ?? '—'} minutes of English and 9 other languages. Other Macs differ in speed, energy and memory, not accuracy.`;
-if (all.some(r => r.reference)) document.querySelector('#footer').textContent =
+const referenceNote =
  'Cloud API rows are estimates, not measurements: we sent no audio to them. Each is the provider\'s WER on the Hugging Face Open ASR Leaderboard scaled by the ratio between our v2 WER and the leaderboard WER of the models measured on both. The WER tooltip gives the range and sources.';
 search.addEventListener('input', render); mode.addEventListener('change', render); suite.addEventListener('change', render);
 document.querySelector('#reset').addEventListener('click', () => { search.value = ''; mode.value = ''; suite.value = suites.includes('v2') ? 'v2' : suites[0] || ''; key = 'wer'; ascending = true; render(); document.querySelector('.table-wrap').scrollTo(0, 0); });
