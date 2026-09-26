@@ -94,6 +94,7 @@ final class APIClientTests: XCTestCase {
             .appendingPathComponent("Resources/SKILL.md")
         XCTAssertEqual(skill, try String(contentsOf: source, encoding: .utf8) + "\n")
         XCTAssertTrue(skill.hasPrefix("---\nname: transcribe\n"))
+        XCTAssertEqual(Vella.skillText(bundle: Bundle(for: APIClientTests.self)), try String(contentsOf: source, encoding: .utf8), "the menu's Copy Skill copies the same file")
         let (iCode, wrote, _) = try await vella(nil, ["skill", "--install", empty.path], support: empty)
         XCTAssertEqual(iCode, 0)
         XCTAssertEqual(wrote, "wrote \(empty.path)/transcribe/SKILL.md\n")

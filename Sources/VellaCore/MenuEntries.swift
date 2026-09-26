@@ -32,6 +32,7 @@ public let fitInFreeMemoryHelp = "Checks free memory before loading: a model loa
 public let allowSwapTitle = "Allow swap (slower)"
 public let allowSwapHelp = "Loads even when memory is short; macOS moves data to disk and everything, including other apps, can slow down."
 public let openFilesHelp = "Opens ~/Library/Application Support/Vella: settings, downloaded models and saved recordings."
+public let copySkillHelp = "Copies SKILL.md for a coding agent: when Vella is worth using for audio files, and the vella command, OpenAI-compatible API and Python call."
 public let copyLastHelp = "Copies the last recognized text, including a transcript recovered from a saved recording."
 public let restartWorkerHelp = "Stops Vella's transcription workers; they start again with the next dictation."
 public let modelsHelp = "Compare models and precisions, download, load and unload them."
