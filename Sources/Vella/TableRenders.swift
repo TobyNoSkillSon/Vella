@@ -155,7 +155,7 @@ import VellaCore
     private var app: AppDelegate!
     init(directory: URL) { self.directory = directory }
 
-    struct State { var prefix: String; var settings: DefaultMenuSettings; var fact: String?; var lastText: String }
+    struct State { var prefix: String; var settings: DefaultMenuSettings; var fact: String?; var lastText: String; var pending: (title: String, help: String)? = nil }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -173,6 +173,8 @@ import VellaCore
             State(prefix: "default-", settings: DefaultMenuSettings(availableMB: 86_900), fact: "1 model loaded · 1.3 GB in memory", lastText: "Rendered transcript"),
             State(prefix: "tight-", settings: DefaultMenuSettings(availableMB: 900, lastEvicted: "Nemotron 3.5 Streaming"), fact: "1 model loaded · 1.3 GB in memory", lastText: ""),
             State(prefix: "custom-", settings: DefaultMenuSettings(manualIdleMinutes: 60, onDemandIdleMinutes: 5, allowSwap: true, availableMB: 42_100), fact: nil, lastText: ""),
+            State(prefix: "first-dictation-", settings: DefaultMenuSettings(availableMB: 86_900), fact: nil, lastText: "",
+                  pending: pendingModelEntry(name: "Parakeet v3", precision: "4b", downloadBytes: 637_004_647)),
         ]
         render(states, 0)
     }
@@ -186,11 +188,14 @@ import VellaCore
         app.menuSettings = state.settings
         app.factLine = { state.fact }
         app.model.lastText = state.lastText
+        app.pendingModelRow = { state.pending }
+        if state.pending != nil { app.modelsMenu.controller.runtime = TableRuntime(chip: RenderFixture.chip); RenderFixture.setInstalled(app.modelsMenu.controller, []) }
         app.rebuildMenu()
         let submenus = [("Keep Hot", "keep-hot"), ("Memory", "memory"), ("Mode", "mode")]
         MenuMock.render(app.menu.items, width: 340, to: directory.appendingPathComponent("\(state.prefix)menu.png")) { [self] in
             MenuMock.renderSubmenus(of: app.menu, titles: submenus, into: directory, prefix: state.prefix) { [self] in
                 guard state.prefix == "default-" else { render(states, index + 1); return }
+                // Main-menu tooltips plus the Keep Hot and Memory ones.
                 MenuMock.renderTooltips(of: app.menu, submenus: ["Keep Hot", "Memory"], to: directory.appendingPathComponent("tooltips.png")) { [self] in
                     render(states, index + 1)
                 }

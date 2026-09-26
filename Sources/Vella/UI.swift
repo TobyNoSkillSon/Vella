@@ -48,6 +48,10 @@ final class HUDPanel: NSPanel {
     var menuSettings: MenuSettingsSource = DefaultMenuSettings()
     /// The fact line under the header (e.g. `2 models loaded · 1.9 GB in memory`); nil = no line.
     var factLine: () -> String? = { nil }
+    /// First dictation without a model: the recording is kept and the menu offers one `Get <model> (<size>)` row.
+    /// The runtime sets it (vr-runtime `Model.pendingModelRequest`); nil = no pending request.
+    var pendingModelRow: () -> (title: String, help: String)? = { nil }
+    var getPendingModel: () -> Void = {}
     /// Restart Worker: the runtime's restart; nil = stop the workers (the next dictation starts them again).
     var restartWorkers: (() -> Void)?
     private func makeModelsMenu() -> ModelsMenu {
@@ -250,16 +254,22 @@ final class HUDPanel: NSPanel {
         }
         // The loaded model is the fact most worth knowing before opening Models.
         if let activeModel = modelsMenu.controller.activeLabel(model.mode) { summary += " · \(activeModel)" }
+        let pending = pendingModelRow()
+        if pending != nil, model.phase == .idle || model.phase == .failed { summary = "\(model.mode.title): recording kept, needs a model" }
         let needsPermission = !model.insertionPermission.granted
         let header = NSMenuItem(title: summary, action: needsPermission ? #selector(accessibility) : model.phase == .failed ? #selector(showCaptureError) : nil, keyEquivalent: "")
         header.target = self
         header.isEnabled = needsPermission || model.phase == .failed
-        header.toolTip = model.message
-        header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.phase == .failed || needsPermission ? NSColor.systemOrange : NSColor.systemGreen])
+        // Tooltip only when the header has more to say (errors, permission, progress), not the idle greeting.
+        header.toolTip = model.phase == .idle && !needsPermission ? pending?.help : model.message
+        header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.phase == .failed || needsPermission || pending != nil ? NSColor.systemOrange : NSColor.systemGreen])
         menu.addItem(header)
         if let fact = factLine() {
             let line = NSMenuItem(title: fact, action: nil, keyEquivalent: ""); line.isEnabled = false
             menu.addItem(line)
+        }
+        if let pending {
+            item(pending.title, "arrow.down.circle", #selector(getPending), help: pending.help)
         }
         menu.addItem(.separator())
         let workingShortcut = shortcutManager.isUsingFallback ? (shortcutManager.activeConfiguration ?? .default) : shortcutManager.configuration
@@ -366,6 +376,7 @@ final class HUDPanel: NSPanel {
         }
     }
     @objc private func copyLast() { model.copyLast() }
+    @objc private func getPending() { getPendingModel() }
     @objc private func restartWorker() { if let restartWorkers { restartWorkers() } else { model.stopWorkers() } }
     /// Keep Hot / Memory submenu from VellaCore's entries (section headers, checkmarked choices, short captions).
     private func settingsSubmenu(_ title: String, _ icon: String, _ entries: [SettingsEntry], help: String) -> NSMenuItem {

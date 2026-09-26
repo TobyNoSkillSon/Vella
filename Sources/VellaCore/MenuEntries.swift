@@ -31,9 +31,9 @@ public let fitInFreeMemoryTitle = "Fit in free memory"
 public let fitInFreeMemoryHelp = "Checks free memory before loading: a model loads only if it fits in memory that is free at that moment; otherwise idle models are unloaded (least recently used, on-demand first) or the load is refused with the reason. Best effort: memory use can change after the check."
 public let allowSwapTitle = "Allow swap (slower)"
 public let allowSwapHelp = "Loads even when memory is short; macOS moves data to disk and everything, including other apps, can slow down."
-public let openFilesHelp = "Opens ~/Library/Application Support/Vella: settings, saved recordings, transcripts and the worker log."
+public let openFilesHelp = "Opens ~/Library/Application Support/Vella: settings, downloaded models and saved recordings."
 public let copyLastHelp = "Copies the last recognized text, including a transcript recovered from a saved recording."
-public let restartWorkerHelp = "Stops Vella's transcription workers; the next dictation starts them again and reloads the models kept hot."
+public let restartWorkerHelp = "Stops Vella's transcription workers; they start again with the next dictation."
 public let modelsHelp = "Compare models and precisions, download, load and unload them."
 public let modeHelp = "Dictation transcribes when you finish; Streaming types text while you speak."
 public let microphoneHelp = "The input Vella records from; it falls back to the built-in microphone when this one is missing."
@@ -67,4 +67,10 @@ public func memoryEntries(allowSwap: Bool, availableMB: Double?, lastEvicted: St
     if let lastEvicted { captions.append("Unloaded \(lastEvicted) to make room") }
     if !captions.isEmpty { entries.append(.separator); entries += captions.map { .caption($0) } }
     return entries
+}
+
+/// The first-dictation row when no model is downloaded: `Get Parakeet v3 (637 MB)`, with its tooltip.
+public func pendingModelEntry(name: String, precision: String, downloadBytes: Int64) -> (title: String, help: String) {
+    ("Get \(name) (\(formatBytes(downloadBytes)))",
+     "Downloads \(name) \(precision) from Hugging Face, then transcribes the recording you just made. It is kept until then.")
 }
