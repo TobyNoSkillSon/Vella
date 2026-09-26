@@ -12,6 +12,8 @@ protocol StreamingNative: AnyObject {
 }
 extension StreamingNative {
     func flush() throws -> Bool { false }
+    /// Worker-status engine fields: (engine, reason, optimizations).
+    var engine: (String, String, [String: Bool]) { ("mlx", "No optimized path for this streaming model yet.", [:]) }
     func drain(final: Bool = false) throws -> String {
         if final { let result = text.streamingTrim; text = ""; return result }
         let bytes = Array(text.utf8)

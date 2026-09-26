@@ -12,6 +12,11 @@ final class NemotronNative: StreamingNative {
         if VellaNemotronOptions.f32Weights { VellaNemotronNumerics.convertFloat32Weights(model!) }
         try reset()
     }
+    var engine: (String, String, [String: Bool]) {
+        let active = VellaNemotronOptions.active
+        guard active.values.contains(true) else { return ("mlx", "Stock MLX path (forced).", active) }
+        return ("optimized", "Restructured streaming path with output identical to stock MLX (event streams compared on v2-quick); nothing is approximated, so no self-test is needed.", active)
+    }
     func reset() throws {
         VellaStreamProfile.flush()
         session = nil; text = ""; deferred = false

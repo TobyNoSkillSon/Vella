@@ -34,9 +34,9 @@ final class StreamingModelCache {
         }
         var object: [String: Any] = [
             "worker": "streaming", "pid": Int(getpid()), "event": event, "model": path?.path ?? NSNull(),
-            "engine": native == nil ? NSNull() : "mlx",
-            "engine_reason": native == nil ? NSNull() : "No optimized path for this streaming model yet.",
-            "optimizations": [String: Bool](), "load_s": loadSeconds ?? NSNull(), "memory": memory,
+            "engine": native.map { $0.engine.0 } ?? NSNull(),
+            "engine_reason": native.map { $0.engine.1 } ?? NSNull(),
+            "optimizations": native?.engine.2 ?? [String: Bool](), "load_s": loadSeconds ?? NSNull(), "memory": memory,
         ]
         if !hooks.isEmpty { object["test_hooks"] = hooks }
         return object
