@@ -19,6 +19,8 @@ What `scripts/install.sh` does, in order:
 4. Quits a running Vella, copies the new app beside the old one, verifies it again and swaps it in. If the swap fails the old app is restored. A certificate-signed installation is only replaced by an app with the same signing identity, so macOS privacy permissions carry over.
 5. Starts Vella and waits until it is ready: the app has written its status, nothing is loading, and every model you keep loaded at launch is loaded (a fresh install has none). It prints `ready: …`. Only then is the previous app deleted; if Vella is not ready within 30 minutes, or it runs but a model you keep loaded could not load (`degraded: …`), the previous app is kept and its path printed. `VELLA_ACCEPT_DEGRADED=1` makes a degraded install exit 0; the previous app is still kept.
 
+The installer also links the `vella` command into `~/.local/bin` (see **Transcribe files** below).
+
 Models, recordings and settings in `~/Library/Application Support/Vella` are kept. The whole app bundle is replaced, so files from older versions never linger inside it. The checksum detects a corrupted download; it comes from the same release, so it is not a signature.
 
 `VELLA_BUILD=source scripts/install.sh` builds this checkout instead (Command Line Tools Swift, full Xcode and its Metal Toolchain; the installer prints the command that fixes a missing one) and installs it the same way.
@@ -35,7 +37,7 @@ A fresh install has no model. If you dictate before getting one, Vella keeps the
 1. **Status** — `Vella: ready`, the loaded model and one fact line. Green when ready, grey while loading or downloading, orange when a helper failed (click it for the error and the log).
 2. **Mode** (Dictation or Streaming) · **Microphone** · **Shortcuts**.
 3. **Models…** · **Keep Hot** · **Memory**.
-4. **Copy Last Transcript** (and recovery of an unfinished one) · **Open Vella Files** · **Restart Worker** · **Launch at Login**.
+4. **Copy Last Transcript** (and recovery of an unfinished one) · **Copy Skill for Your Agent** · **Open Vella Files** · **Restart Worker** · **Launch at Login**.
 5. **Support the developer…** · **Quit Vella**.
 
 Hover an item for what it does.
@@ -160,6 +162,53 @@ Mouse confirmation:
 
 Shortcut changes are disabled during capture and processing. **Reset to Default** restores **⌃⌘N · Toggle**. Model and microphone choices are unchanged. If the stored chord is already reserved by another app, Vella reports it on launch rather than taking it over.
 
+## Transcribe files: command line and API
+
+Vella transcribes audio files with the same models, offline. It reads anything macOS decodes (WAV, MP3, M4A/AAC, FLAC, CAF, AIFF), up to 3 hours per file, converts it to 16 kHz mono and cuts it into 5–25 s segments at pauses, like a dictation.
+
+```sh
+vella transcribe talk.m4a                        # the transcript
+vella transcribe talk.m4a --srt > talk.srt       # subtitles; also --vtt, --json, --verbose-json (timed segments)
+vella transcribe talk.m4a --model parakeet-v3    # another downloaded model
+vella models                                     # models usable now, one per line
+vella status                                     # one line: running, loaded models, API address
+vella skill --install ~/.agents/skills           # the agent skill (writes transcribe/SKILL.md)
+```
+
+`vella` starts Vella if it is not running. Transcripts are printed only: never pasted, copied or added to your saved recordings. The file's audio is converted in a private temporary folder that is removed when the request ends.
+
+**Your dictation goes first.** A file waits while you record or while a dictation is being transcribed; a dictation that finishes during a file waits for at most the one segment in progress (usually well under a second). Files are processed one at a time; up to eight more wait in line.
+
+**Models.** Without `--model`, a file uses your current dictation model. Another model loads on demand at the precision shown in **Models…** and unloads after its **Keep Hot** time, like any on-demand load. It never unloads your dictation model to make room: if memory is short the request is refused with the numbers. Nothing downloads through the command or the API; get models in **Models…**. Streaming models are not used for files.
+
+**The API.** The app serves an OpenAI-compatible API on `127.0.0.1` at a port chosen at launch (`vella url` prints the base URL; it changes when Vella restarts). Code written for OpenAI's transcription endpoint works with only the base URL changed:
+
+```sh
+curl -s "$(vella url)/audio/transcriptions" -F file=@talk.m4a -F model=whisper-1 -F response_format=text
+```
+
+```python
+from openai import OpenAI
+import subprocess
+client = OpenAI(base_url=subprocess.check_output(["vella", "url"], text=True).strip(), api_key="local")
+with open("talk.m4a", "rb") as f:
+    result = client.audio.transcriptions.create(model="whisper-1", file=f, response_format="verbose_json")
+print(result.text, [(s.start, s.end) for s in result.segments])
+```
+
+| Route | What it does |
+|---|---|
+| `POST /v1/audio/transcriptions` | multipart/form-data: `file` (required), `model`, `response_format` (`json` default, `text`, `verbose_json`, `srt`, `vtt`), `language`, `prompt`, `temperature`, `timestamp_granularities[]`. |
+| `GET /v1/models`, `GET /v1/models/{id}` | Dictation models whose files are on this Mac, with `precision`, `loaded` and `current`. |
+| `GET /status` | `"api": 1`, version, pid, port, dictation state, the current dictation model, loaded models, memory, and the API queue. |
+
+- `model`: a model id from `/v1/models`; `whisper-1` (what OpenAI examples send), an empty value or `current` means your current dictation model.
+- `language` is echoed in `verbose_json`; the models detect the language themselves. `prompt` and `temperature` are accepted and ignored (decoding is greedy). Timestamps are per segment; word timestamps are not provided. There is no streaming response and no translation endpoint.
+- The key is ignored, but SDKs need one: pass any string.
+- Errors use OpenAI's shape, `{"error": {"message", "type", "param", "code"}}`: 400 invalid request, 404 unknown or not downloaded model (`model_not_found`), 413 over 200 MB, 429 queue full, 507 not enough free memory (`insufficient_memory`).
+- Uploads are limited to 200 MB; a JSON body `{"path": "/absolute/file.m4a", …}` with the same fields transcribes a local file without uploading it (this is what `vella` does).
+- Security: it listens on the IPv4 loopback address only. Requests with an `Origin` header (web pages) or a `Host` other than `127.0.0.1:<port>`/`localhost:<port>` get 403, and POST bodies other than multipart/form-data or JSON get 415, all before any of the body is read. The port and API version are in `~/Library/Application Support/Vella/worker-status.json` (`api_port`, `api`).
+
 ## When little or no text appears
 
 Successful model output is accepted, including no text. Empty recognition is not an error.
@@ -175,6 +224,7 @@ Successful model output is accepted, including no text. Empty recognition is not
 - Recording metadata is written first so an interrupted session stays recoverable. Integrity failures preserve files for recovery rather than silently discarding them. Streaming retries archive the previous event journal first.
 - Vella does not upload recordings or transcripts. Apps you insert text into may sync or send that text according to their own settings.
 - Clipboard managers and Universal Clipboard can still see text you copy or paste. Streaming live insertion avoids the clipboard per chunk; Dictation paste and recovery use the clipboard path described above.
+- The command line and API listen on 127.0.0.1 only; files you send them are transcribed on this Mac and their temporary copies are removed afterwards.
 - Model downloads (after you confirm one) are the only expected network transfer during normal use, plus the release check described above. The recognition helpers run in a sandbox that denies all network access; downloads are a separate helper, `VellaModelTool`.
 
 ## Update notices
@@ -205,5 +255,6 @@ Privacy: GitHub receives a normal HTTPS request to check the latest stable relea
 
 - [README](../README.md) — what Vella does, the model table, install.
 - [AGENTS.md](../AGENTS.md) — the install steps for a coding agent.
+- [Agent skill](../Resources/SKILL.md) — what **Copy Skill for Your Agent** and `vella skill` provide.
 - [Model integration guide](../Resources/AGENT_GUIDE.md) — what a new model needs before Vella can offer it.
 - [License](../LICENSE) and [third-party notices](../THIRD_PARTY_NOTICES.md).
