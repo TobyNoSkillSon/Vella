@@ -241,8 +241,7 @@ import VellaCore
     func crashed(_ id: String, message: String) {
         let entry = entries[id]
         removed(id)
-        log("\(id): \(message)")
-        error = message; writeStatus()
+        error = message; writeStatus() // the exit line itself was logged by the backend; the summary goes to status only
         guard let entry, entry.residency == .manual else { return }
         var policy = restarts[id] ?? RestartPolicy()
         guard let delay = policy.nextDelay() else {

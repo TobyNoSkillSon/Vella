@@ -255,6 +255,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         }
         if !sessionActive, pending == nil, let ref = hotRef {
             hotRef = nil; process = nil
+            runtime.log("\(ref.id): streaming worker exited while idle")
             runtime.crashed(ref.id, message: "\(ref.displayName)'s streaming worker exited. It loads again when needed.")
             return
         }

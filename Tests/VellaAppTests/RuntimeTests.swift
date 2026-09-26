@@ -191,7 +191,10 @@ final class RuntimeTests: XCTestCase {
         }
         try await waitUntil(10) { (try? self.fileStatus(runtime))?.error?.contains("Stopped restarting alpha after 3 attempts") == true }
         XCTAssertNil(try fileStatus(runtime).models["alpha"])
-        XCTAssertTrue(try String(contentsOf: runtime.logURL, encoding: .utf8).contains("stopped restarting after 3 attempts"))
+        let log = try String(contentsOf: runtime.logURL, encoding: .utf8)
+        XCTAssertTrue(log.contains("stopped restarting after 3 attempts"))
+        XCTAssertFalse(log.contains("Worker exited ("), "summaries (which embed the tail) go to status, not back into the log")
+        XCTAssertEqual(log.components(separatedBy: "exited (signal 9)").count - 1, 4, "one exit line per crash")
     }
 
     @MainActor func testFirstDictationWithoutModelKeepsRecordingAndOffersGet() async throws {
