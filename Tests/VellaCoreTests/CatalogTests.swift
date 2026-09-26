@@ -228,6 +228,22 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(Array(tight.suffix(2)), [.caption("~0.9 GB free now"), .caption("Unloaded Parakeet v3 to make room")])
         guard case .choice(allowSwapTitle, true, .memory(allowSwap: true), _) = tight[1] else { return XCTFail() }
     }
+    /// Docs describe the same table, menu and rule the code implements (CHECKLIST 13 string check).
+    func testDocsMatchTheTableMenuAndRule() throws {
+        let root = resources.deletingLastPathComponent()
+        let docs = try ["README.md", "docs/USAGE.md", "Resources/AGENT_GUIDE.md"].map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }
+        let all = docs.joined(separator: "\n")
+        XCTAssertEqual(recommendationMarginPoints, 0.5)
+        XCTAssertTrue(all.contains("within 0.5 points"), "recommended-precision margin")
+        XCTAssertTrue(docs[0].contains("Mode · Microphone · Shortcuts") && docs[0].contains("Models… · Keep Hot · Memory"), "menu order")
+        XCTAssertEqual(keepHotChoices.map(\.minutes), [5, 15, 30, 60, 0])
+        XCTAssertTrue(all.contains("Always (default), 5, 15, 30 or 60 min"), "manual Keep Hot choices and default")
+        for stale in ["In use", "one row per variant", "Install/Use", "inline bit-width picker"] {
+            XCTAssertFalse(all.contains(stale), stale)
+        }
+        for column in ["WER", "Format", "Speed", "J / min", "Memory"] { XCTAssertTrue(docs[1].contains(column), column) }
+    }
+
     /// Wording rule: no tooltip claims what the code does not guarantee.
     func testTooltipsMakeNoStaleClaims() {
         for text in [fitInFreeMemoryHelp, allowSwapHelp, keepHotAlwaysHelp, manualLoadHelp, onDemandLoadHelp, openFilesHelp, restartWorkerHelp] {
