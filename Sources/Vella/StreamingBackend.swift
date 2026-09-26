@@ -198,7 +198,8 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     }
     private func endSession() {
         guard sessionActive else { return }
-        sessionActive = false
+        // The terminal reply is consumed: from now on an EOF is an idle hot worker dying (Review 1 R9).
+        sessionActive = false; receivedDone = false
         if let id = hotRef?.id { runtime.unpin(id) }
     }
     private func finishSession(expectedFrames: Int, generation: UUID) async throws -> String {
@@ -275,8 +276,10 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     private func ended(generation: UUID) {
         guard epoch == generation else { return }
         // A valid terminal reply may be followed by EOF before its awaiting Task
-        // resumes. Keep its epoch until finish() consumes that reply.
-        if receivedDone && pending == nil {
+        // resumes. Keep its epoch until finish() consumes that reply. Only that short window counts: once finish()
+        // has consumed the reply (the session ended), an EOF is an idle hot worker exiting and follows the restart
+        // policy below (Review 1 R9).
+        if receivedDone && pending == nil && sessionActive {
             // Legacy worker that exits after finish: the result stands, the model is no longer hot.
             let id = hotRef?.id; hotRef = nil; process = nil
             if let id { runtime.removed(id) }

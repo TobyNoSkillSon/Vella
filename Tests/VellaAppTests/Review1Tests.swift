@@ -287,6 +287,29 @@ final class Review1Tests: XCTestCase {
         let final = try await stream.finish(expectedFrames: 3200)
         XCTAssertEqual(final, "hello world")
     }
+
+    // MARK: R9 — a manual streaming worker killed after a finished session is restarted
+
+    @MainActor func testR9ManualStreamingWorkerKilledAfterASessionRestarts() async throws {
+        let runtime = try Runtime.isolated(root)
+        let stream = try streaming(runtime); defer { stream.shutdown() }
+        runtime.start(loadLaunchSet: false)
+        try await runtime.load(runtime.resolve(path("nemo"), mode: .streaming)) // manual, Always
+        // Killed before its first session: restarts (worked before the fix too).
+        let first = try XCTUnwrap(stream.processID)
+        kill(first, SIGKILL)
+        try await waitUntil(8) { runtime.status.models["nemo"]?.pid.map { $0 != first } == true }
+        // A finished session, then the idle worker dies: it must restart as well.
+        try await stream.start(config: streamConfig(path("nemo")))
+        try await stream.feed(Data(repeating: 0, count: 6400))
+        let final = try await stream.finish(expectedFrames: 1600)
+        XCTAssertEqual(final, "hello world")
+        let idle = try XCTUnwrap(stream.processID)
+        kill(idle, SIGKILL)
+        try await waitUntil(8) { runtime.status.models["nemo"]?.pid.map { $0 != idle } == true }
+        XCTAssertEqual(runtime.status.models["nemo"]?.residency, "manual")
+        XCTAssertTrue(try String(contentsOf: runtime.logURL, encoding: .utf8).contains("nemo: streaming worker exited while idle"))
+    }
 }
 
 final class Review1HubStub: URLProtocol {
