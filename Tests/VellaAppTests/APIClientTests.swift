@@ -7,9 +7,9 @@ import Foundation
 final class APIClientTests: XCTestCase {
     private var audio: URL!
     override func setUpWithError() throws {
-        try Integration.require()   // runs the vella binary
         audio = FileManager.default.temporaryDirectory.appendingPathComponent("vella-cli-\(UUID().uuidString).wav")
         try writeTestWAV(audio)
+        try Integration.require()   // runs the vella binary; last, because tearDown runs after a skip too
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: audio) }
 
