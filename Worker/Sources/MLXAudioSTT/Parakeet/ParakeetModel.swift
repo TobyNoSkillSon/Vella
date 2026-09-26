@@ -63,6 +63,13 @@ public final class ParakeetModel: Module, STTGenerationModel {
         return p
     }()
 
+    // FastPathCapable (worker gate + runtime fallback). The revision is hashed into the gate key:
+    // bump it whenever kernels, the default component set or the clip set change.
+    public static var fastPathRevision: String { "parakeet-r2-dense-encoder" }
+    /// Token-exact on all five bundled public clips for every precision (4b, 8b, BF16, FP32, ternary).
+    public var fastPathSelfTestClips: [String] { ["clip-a", "clip-b", "clip-c", "clip-d", "clip-e"] }
+    public var fastPathComponents: [String: Bool] { ["encoder": fastEncoder != nil, "decoder": fastDecoder != nil] }
+
     /// Only the worker's isolated model-specific token-ID qualification enables these paths.
     public func configureFastPath(enabled: Bool, component: String = "both") -> Bool {
         fastEncoder = nil
@@ -74,7 +81,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
         guard ["both", "all", "decoder", "encoder", "encoder-no-fused-conv"].contains(component) else { return false }
         let quantized = encoder.layers.first?.relSelfAttn?.linearQ is QuantizedLinear
         let wantsDecoder = component == "both" || component == "all" || component == "decoder"
-        let wantsEncoder = component.hasPrefix("encoder") || component == "all" || (component == "both" && quantized)
+        let wantsEncoder = component.hasPrefix("encoder") || component == "all" || component == "both"
         if wantsDecoder {
             guard let prepared = FastParakeetTDT(self) else { fastEncoder = nil; return false }
             fastDecoder = prepared
