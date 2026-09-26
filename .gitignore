@@ -21,3 +21,6 @@ __pycache__/
 
 # Local promotional work is not part of the source distribution.
 /Marketing/
+
+# Benchmarks, probes, notes, reference code and fixtures: local only.
+/lab/
