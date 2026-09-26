@@ -19,7 +19,8 @@ if [[ "$IDENTITY" == "-" && -d "$APP" ]] && codesign -dv "$APP" 2>&1 | grep -q '
   echo 'Refusing to discard the installed signing identity. Configure VELLA_SIGN_IDENTITY or the local signing-identity file.' >&2
   exit 1
 fi
-if [[ "$IDENTITY" != "-" ]] && ! security find-identity -v -p codesigning | grep -Fq -- "$IDENTITY"; then
+# Without -v: the self-signed release identity is untrusted on purpose (as on users' Macs) and codesign still signs with it.
+if [[ "$IDENTITY" != "-" ]] && ! security find-identity -p codesigning | grep -Fq -- "$IDENTITY"; then
   echo 'Configured signing identity is unavailable. Installation left unchanged.' >&2
   exit 1
 fi
