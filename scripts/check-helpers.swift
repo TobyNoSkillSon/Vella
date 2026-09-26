@@ -2,7 +2,7 @@
 // For VellaWorker and VellaStreamingWorker: the running process owns no window and is
 // not registered as an app (lsappinfo), answers one request on its own pipe, and exits 0
 // when its stdin reaches EOF (the app closing or dying). No model is loaded.
-// Usage: check-helpers <Vella.app>
+// Usage: check-helpers <Vella.app or a folder with the same Contents/ layout>
 import CoreGraphics
 import Foundation
 
