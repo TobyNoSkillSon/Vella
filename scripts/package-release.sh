@@ -21,7 +21,7 @@ codesign --verify --deep --strict "$APP"
 ZIP="Vella-$VERSION-arm64.zip"
 "$PROJECT/scripts/release-zip.sh" "$APP" "$STAGE/$ZIP"
 LISTING="$(zipinfo -1 "$STAGE/$ZIP")"
-for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool \
+for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool Helpers/vella Resources/SKILL.md \
          Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib Resources/models.json \
          Resources/LICENSE Resources/NOTICE Resources/THIRD_PARTY_NOTICES.md; do
   grep -qx "Vella.app/Contents/$f" <<<"$LISTING" || { echo "Archive is missing Vella.app/Contents/$f" >&2; exit 1; }

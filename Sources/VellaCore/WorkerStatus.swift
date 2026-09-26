@@ -93,9 +93,15 @@ public struct WorkerStatus: Codable, Equatable {
     public var gpu: GPUStatus?
     /// Diagnostic environment switches active in this app or its workers. Empty in normal use.
     public var test_hooks: [String: String]?
+    /// The local HTTP API: its version and the loopback port it listens on this launch (nil until it is ready).
+    public var api: Int?
+    public var api_port: Int?
+    /// Per-launch secret a JSON request naming a local file must send (`X-Vella-Token`). Readable only by processes that
+    /// can read this file, which excludes sandboxed apps: they cannot make Vella read files outside their sandbox.
+    public var api_token: String?
     public init() {}
     private enum CodingKeys: String, CodingKey {
-        case schema, updated, app_pid, models, loading, error, memory, settings, launch_set, evictions, refused, gpu, test_hooks
+        case schema, updated, app_pid, models, loading, error, memory, settings, launch_set, evictions, refused, gpu, test_hooks, api, api_port, api_token
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -112,6 +118,9 @@ public struct WorkerStatus: Codable, Equatable {
         refused = try? c.decodeIfPresent(Refusal.self, forKey: .refused)
         gpu = try? c.decodeIfPresent(GPUStatus.self, forKey: .gpu)
         test_hooks = try? c.decodeIfPresent([String: String].self, forKey: .test_hooks)
+        api = try? c.decodeIfPresent(Int.self, forKey: .api)
+        api_port = try? c.decodeIfPresent(Int.self, forKey: .api_port)
+        api_token = try? c.decodeIfPresent(String.self, forKey: .api_token)
     }
     /// Atomic: write a unique temporary file beside the target, then rename(2) over it.
     public func write(to url: URL) throws {

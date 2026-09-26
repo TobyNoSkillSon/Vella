@@ -267,6 +267,19 @@ import VellaCore
         pinned[id] = max(0, (pinned[id] ?? 1) - 1)
         touch(id)
     }
+    /// Keeps a model out of eviction (and its idle timer paused) without counting as a use: the dictation model while
+    /// an API job loads and runs another model. `unshield` re-arms the timer from the unchanged last use.
+    func shield(_ id: String) {
+        pinned[id, default: 0] += 1
+        entries[id]?.timer?.cancel(); entries[id]?.timer = nil
+    }
+    func unshield(_ id: String) {
+        pinned[id] = max(0, (pinned[id] ?? 1) - 1)
+        schedule(id)
+    }
+    /// The API's loopback port once it listens (published in the status file with the API version).
+    var apiPort: Int? { didSet { writeStatus() } }
+    var apiToken: String?
     func touch(_ id: String) {
         guard entries[id] != nil else { return }
         restarts[id]?.reset() // served a request: recovered
@@ -372,6 +385,7 @@ import VellaCore
         next.refused = refused
         next.gpu = gpu
         next.test_hooks = activeTestHooks(environment).merging(workerHooks) { $1 }
+        if let apiPort { next.api = vellaAPIVersion; next.api_port = apiPort; next.api_token = apiToken }
         status = next
         try? next.write(to: statusURL)
     }
@@ -407,7 +421,13 @@ struct WorkerExited: LocalizedError {
     private var retired: [Process] = []
     private var stopGeneration = UUID()
     private var activeCall: UUID?
+    private var activeLane: Lane?
     private var activeSlot: DictationSlot?
+    /// Who asked for a transcription. Dictation has priority: it waits for an in-flight API segment instead of failing,
+    /// and API work starts a segment only when no dictation is active (`APITranscriber`).
+    enum Lane { case dictation, api }
+    /// A transcription request is in flight.
+    var isBusy: Bool { activeCall != nil }
     private var lastSlot: String?
     private(set) var lastMetrics: [String: Double] = [:]
     private(set) var ownership = "Vella runtime unloaded"
@@ -454,15 +474,20 @@ struct WorkerExited: LocalizedError {
 
     // MARK: Requests
 
-    func transcribe(_ file: URL, config: Configuration) async throws -> String {
+    func transcribe(_ file: URL, config: Configuration, lane: Lane = .dictation) async throws -> String {
+        if activeCall != nil, lane == .dictation, activeLane == .api {
+            // One API segment (≤ 25 s of audio) is in flight: wait for it rather than fail the dictation.
+            let until = ProcessInfo.processInfo.systemUptime + requestTimeout + 5
+            while activeCall != nil, ProcessInfo.processInfo.systemUptime < until { try await Task.sleep(nanoseconds: 5_000_000) }
+        }
         guard activeCall == nil else { throw VellaError.message("Vella is already processing another segment.") }
         guard !config.model.isEmpty else { throw VellaError.message("Install a model and choose Use first.") }
         guard let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 2_000_000 else {
             throw VellaError.message("Audio exceeds the bounded segment size. Saved audio is retained.")
         }
-        let call = UUID(); activeCall = call
+        let call = UUID(); activeCall = call; activeLane = lane
         let generation = stopGeneration
-        defer { if activeCall == call { activeCall = nil; activeSlot = nil } }
+        defer { if activeCall == call { activeCall = nil; activeLane = nil; activeSlot = nil } }
         return try await withTaskCancellationHandler(operation: {
             try Task.checkCancellation()
             try await CalibrationStore.shared.cancelAndWait()

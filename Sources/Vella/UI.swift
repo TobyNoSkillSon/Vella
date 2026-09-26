@@ -328,6 +328,7 @@ final class HUDPanel: NSPanel {
         menu.addItem(settingsSubmenu("Memory", "memorychip", memoryEntries(allowSwap: menuSettings.allowSwap, availableMB: menuSettings.availableMB, lastEvicted: menuSettings.lastEvicted), help: memoryHelp))
         menu.addItem(.separator())
         if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast), help: copyLastHelp) }
+        item("Copy Skill for Your Agent", "doc.on.doc", #selector(copySkill), help: copySkillHelp)
         item("Open Saved Recordings", "folder", #selector(savedRecordings), help: "Opens the folder of saved recordings and their transcripts.")
         item("Open Vella Files", "folder", #selector(files), help: openFilesHelp)
         item("Restart Worker", "arrow.clockwise", #selector(restartWorker), enabled: model.phase != .recording && !model.busy, help: restartWorkerHelp)
@@ -384,6 +385,11 @@ final class HUDPanel: NSPanel {
         }
     }
     @objc private func copyLast() { model.copyLast() }
+    /// The bundled Resources/SKILL.md, the same file `vella skill` prints.
+    @objc private func copySkill() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(skillText(), forType: .string)
+    }
     @objc private func getPending() { getPendingModel() }
     @objc private func restartWorker() { if let restartWorkers { restartWorkers() } else { model.stopWorkers() } }
     /// Keep Hot / Memory submenu from VellaCore's entries (section headers, checkmarked choices, short captions).
@@ -708,4 +714,13 @@ final class HUDPanel: NSPanel {
 final class SettingsActionBox: NSObject {
     let action: SettingsAction
     init(_ action: SettingsAction) { self.action = action }
+}
+
+/// Resources/SKILL.md from the app bundle (the source checkout's copy when run unbundled, e.g. tests).
+func skillText(bundle: Bundle = .main) -> String {
+    let candidates = [bundle.url(forResource: "SKILL", withExtension: "md"),
+                      URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+                          .appendingPathComponent("Resources/SKILL.md")]
+    for url in candidates.compactMap({ $0 }) { if let text = try? String(contentsOf: url, encoding: .utf8) { return text } }
+    return "Vella's skill file is missing from the app bundle; run `vella skill` or see the repository's Resources/SKILL.md."
 }
