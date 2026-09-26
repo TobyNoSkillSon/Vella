@@ -31,7 +31,7 @@ final class StreamingTests: XCTestCase {
         \(afterLoop)
         """.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
-        return StreamingBackend(helper: script, timeout: timeout)
+        return StreamingBackend(helper: script, timeout: timeout, runtime: try Runtime.isolated(script.deletingLastPathComponent()))
     }
     func testCaptureQueueBoundAndFinalShortPacket() throws {
         let queue = StreamingPCMBuffer(capacity: 10_000)

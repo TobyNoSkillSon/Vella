@@ -6,6 +6,11 @@ import VellaCore
 
 final class TransportTests: XCTestCase {
     private var roots: [URL] = []
+    @MainActor private func runtime(minuteSeconds: Double = 60) throws -> Runtime {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-ipc-runtime-\(UUID())")
+        roots.append(root)
+        return try Runtime.isolated(root, minuteSeconds: minuteSeconds)
+    }
     override func tearDownWithError() throws { for root in roots { try? FileManager.default.removeItem(at: root) } }
     private func fixture() throws -> (URL, RecordingSession) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-ipc-tests-\(UUID())")
@@ -15,7 +20,10 @@ final class TransportTests: XCTestCase {
 #!/usr/bin/env python3
 import json,sys,time,os,signal
 for line in sys.stdin:
- r=json.loads(line); mode=r['model'].split('/')[-1]
+ r=json.loads(line)
+ if r.get('op') in ('unload','status','trim'): print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
+ mode=r['model'].split('/')[-1]
+ if mode=='slow' and r.get('op')!='load': time.sleep(0.8)
  if mode in ('timeout','stubborn'):
   if mode=='stubborn':
    signal.signal(signal.SIGTERM,signal.SIG_IGN)
@@ -46,7 +54,7 @@ for line in sys.stdin:
         for mode in ["timeout", "failure", "malformed", "exit", "oversize", "wrongid"] {
             let (script, record) = try fixture()
             record.manifest.config.model = "/fixture/\(mode)"
-            let backend = Backend(helper: script, requestTimeout: 0.4)
+            let backend = Backend(helper: script, requestTimeout: 0.4, runtime: try runtime())
             defer { backend.stop() }
             do { _ = try await SessionTranscriber { url, config in try await backend.transcribe(url, config: config) }.run(record); XCTFail(mode) }
             catch { if mode == "timeout" { XCTAssertEqual((error as? URLError)?.code, .timedOut) } }
@@ -59,7 +67,7 @@ for line in sys.stdin:
         for mode in ["empty", "legacyempty"] {
             let (script, record) = try fixture()
             record.manifest.config.model = "/fixture/\(mode)"
-            let backend = Backend(helper: script)
+            let backend = Backend(helper: script, runtime: try runtime())
             defer { backend.stop() }
             let text = try await SessionTranscriber { url, config in try await backend.transcribe(url, config: config) }.run(record)
             XCTAssertEqual(text, "")
@@ -67,10 +75,10 @@ for line in sys.stdin:
             XCTAssertEqual(record.manifest.state, "transcribed")
         }
     }
-    @MainActor func testWarmReuseSwitchAndIdleExit() async throws {
+    @MainActor func testWarmReuseSwitchKeepsBothHotAndIdleExit() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(helper: script, idleTimeout: 0.15)
-        defer { backend.stop() }
+        let backend = Backend(helper: script, runtime: try runtime(minuteSeconds: 0.02)) // 15 min on demand = 0.3 s
+        defer { backend.shutdown() }
         let wav = try record.wav(for: record.manifest.segments[0])
         _ = try await backend.transcribe(wav, config: record.manifest.config)
         let first = try XCTUnwrap(backend.processID)
@@ -80,7 +88,8 @@ for line in sys.stdin:
         _ = try await backend.transcribe(wav, config: record.manifest.config)
         let second = try XCTUnwrap(backend.processID)
         XCTAssertNotEqual(first, second)
-        XCTAssertNotEqual(kill(first, 0), 0, "Old process must exit BEFORE a new model starts")
+        XCTAssertEqual(kill(first, 0), 0, "Another model stays hot within its Keep Hot window")
+        try await exited(first)
         try await exited(second)
         XCTAssertNil(backend.processID)
         _ = try await backend.transcribe(wav, config: record.manifest.config)
@@ -88,7 +97,7 @@ for line in sys.stdin:
     }
     @MainActor func testCancellationKillsOnlyItsOwnWorkerAndAllowsRestart() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(helper: script)
+        let backend = Backend(helper: script, runtime: try runtime())
         defer { backend.stop() }
         let wav = try record.wav(for: record.manifest.segments[0])
         record.manifest.config.model = "/fixture/stubborn"
@@ -103,19 +112,43 @@ for line in sys.stdin:
         let text = try await backend.transcribe(wav, config: record.manifest.config)
         XCTAssertEqual(text, "Fixture recognized speech.")
     }
-    @MainActor func testMemoryPressureReleasesIdleWorkerAndShutdownDoesNotNeedDelayedCallbacks() async throws {
+    @MainActor func testMemoryPressureNeverStopsInFlightRequestAndShedsIdleModels() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(helper: script)
+        let runtime = try runtime()
+        let backend = Backend(helper: script, runtime: runtime)
+        defer { backend.shutdown() }
         let wav = try record.wav(for: record.manifest.segments[0])
-        _ = try await backend.transcribe(wav, config: record.manifest.config)
-        let idlePID = try XCTUnwrap(backend.processID)
-        backend.handleMemoryPressure(critical: false)
-        try await exited(idlePID)
+        var pids: [String: Int32] = [:]
+        for name in ["normal", "other"] {
+            record.manifest.config.model = "/fixture/\(name)"
+            _ = try await backend.transcribe(wav, config: record.manifest.config)
+            pids[name] = try XCTUnwrap(backend.processID)
+        }
+        backend.handleMemoryPressure(critical: false) // warning: caches only, everything stays hot
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(Set(backend.loadedModelIDs), ["normal", "other", ])
+        record.manifest.config.model = "/fixture/slow"
+        let busy = Task { try await backend.transcribe(wav, config: record.manifest.config) }
+        for _ in 0..<200 { if runtime.isLoaded("slow") { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        try await Task.sleep(nanoseconds: 200_000_000) // the request is now in flight
+        let slowPID = try XCTUnwrap(backend.processID)
+        backend.handleMemoryPressure(critical: true)
+        let text = try await busy.value
+        XCTAssertEqual(text, "Fixture recognized speech.", "critical pressure must not stop the in-flight request")
+        XCTAssertEqual(kill(slowPID, 0), 0, "the busy model is pinned, not shed")
+        try await exited(try XCTUnwrap(pids["other"]))
+        XCTAssertEqual(Set(backend.loadedModelIDs), ["normal", "slow"], "shed keeps the first loaded model and the pinned one")
+        XCTAssertTrue(runtime.status.evictions?.last?.reason.hasPrefix("memory pressure") == true)
+    }
+    @MainActor func testShutdownDoesNotNeedDelayedCallbacks() async throws {
+        let (script, record) = try fixture()
+        let backend = Backend(helper: script, runtime: try runtime())
+        let wav = try record.wav(for: record.manifest.segments[0])
         record.manifest.config.model = "/fixture/stubborn"
         let task = Task { try await backend.transcribe(wav, config: record.manifest.config) }
-        for _ in 0..<100 { if backend.processID != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        for _ in 0..<200 { if backend.loadedModelIDs.contains("stubborn") { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        try await Task.sleep(nanoseconds: 300_000_000)
         let pid = try XCTUnwrap(backend.processID)
-        try await Task.sleep(nanoseconds: 100_000_000)
         let start = Date()
         backend.shutdown()
         _ = try? await task.value
@@ -124,7 +157,7 @@ for line in sys.stdin:
     }
     @MainActor func testConcurrentRequestIsRejectedWithoutStoppingOriginal() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(helper: script)
+        let backend = Backend(helper: script, runtime: try runtime())
         defer { backend.stop() }
         let wav = try record.wav(for: record.manifest.segments[0])
         record.manifest.config.model = "/fixture/timeout"
@@ -138,7 +171,7 @@ for line in sys.stdin:
 
     @MainActor func testStopDuringStartupCannotLaunchAReplacement() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(helper: script)
+        let backend = Backend(helper: script, runtime: try runtime())
         defer { backend.shutdown() }
         let wav = try record.wav(for: record.manifest.segments[0])
         record.manifest.config.model = "/fixture/stubborn"
@@ -166,7 +199,7 @@ for line in sys.stdin:
 
     @MainActor func testRepeatedWorkerFailuresRecoverWithoutLosingAudioOrLeakingChildren() async throws {
         let (script, record) = try fixture()
-        let backend = Backend(helper: script)
+        let backend = Backend(helper: script, runtime: try runtime())
         defer { backend.shutdown() }
         let wav = try record.wav(for: record.manifest.segments[0])
         let archive = record.directory.appendingPathComponent(record.manifest.segments[0].filename)
