@@ -55,4 +55,12 @@ final class StatusFilePermissionTests: XCTestCase {
         XCTAssertEqual(aclEntries(target), 0)
         XCTAssertEqual(try mode(target), 0o600)
     }
+
+    /// Without an empty ACL to apply, an inherited entry cannot be removed: the secret must not be written at all.
+    func testNothingIsWrittenWhenTheACLCannotBeCleared() throws {
+        let target = root.appendingPathComponent("worker-status.json.tmp")
+        XCTAssertThrowsError(try writeOwnerOnly(Data("synthetic-token".utf8), to: target, emptyACL: { nil }))
+        let size = (try? FileManager.default.attributesOfItem(atPath: target.path)[.size] as? NSNumber)?.intValue ?? 0
+        XCTAssertEqual(size, 0, "no secret bytes reached the file")
+    }
 }

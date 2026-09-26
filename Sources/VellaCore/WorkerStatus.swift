@@ -146,16 +146,17 @@ public struct WorkerStatus: Codable, Equatable {
 }
 
 /// Creates `url` (which must not exist) readable and writable by its owner only, with any ACL entries inherited from
-/// the directory removed, verifies that, and only then writes `data`.
-public func writeOwnerOnly(_ data: Data, to url: URL) throws {
+/// the directory removed, verifies that, and only then writes `data`. If the ACL cannot be cleared (including when no
+/// empty ACL can be allocated), it throws before writing anything: an inherited entry could still grant others read.
+/// `emptyACL` is replaceable for tests.
+public func writeOwnerOnly(_ data: Data, to url: URL, emptyACL: () -> acl_t? = { acl_init(0) }) throws {
     let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o600)
     guard fd >= 0 else { throw VellaError.message("Could not create \(url.lastPathComponent).") }
     defer { close(fd) }
     guard fchmod(fd, 0o600) == 0 else { throw VellaError.message("Could not restrict \(url.lastPathComponent).") }
-    if let empty = acl_init(0) {
-        defer { acl_free(UnsafeMutableRawPointer(empty)) }
-        guard acl_set_fd_np(fd, empty, ACL_TYPE_EXTENDED) == 0 else { throw VellaError.message("Could not restrict \(url.lastPathComponent).") }
-    }
+    guard let empty = emptyACL() else { throw VellaError.message("Could not restrict \(url.lastPathComponent).") }
+    defer { acl_free(UnsafeMutableRawPointer(empty)) }
+    guard acl_set_fd_np(fd, empty, ACL_TYPE_EXTENDED) == 0 else { throw VellaError.message("Could not restrict \(url.lastPathComponent).") }
     var info = stat()
     guard fstat(fd, &info) == 0, info.st_mode & 0o077 == 0, info.st_uid == geteuid() else {
         throw VellaError.message("Could not restrict \(url.lastPathComponent).")
