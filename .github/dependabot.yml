@@ -1,0 +1,8 @@
+# GitHub Actions only. The Swift dependencies (Worker/Package.swift) are pinned to exact revisions on purpose: a new
+# revision can change numerics and needs parity evidence, so they are updated by hand, never automatically.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

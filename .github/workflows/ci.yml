@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Toolchain. Vella ships Swift compiled by the Command Line Tools' Swift 6.3.3 and MLX's Metal shaders compiled by
+# Xcode's Metal Toolchain (scripts/build.sh, Worker/build-split.sh). The macos-26 image carries Command Line Tools
+# 26.6 (Swift 6.3.3), the compiler releases are built with, so scripts/build.sh runs here unchanged. Xcode 26.6
+# compiles the shaders and runs `swift test`; the parity of optimised kernels is qualified on a real Mac, not on the
+# runner's virtual GPU. No job loads a real model. CI runs the unit tests only: tests that start another program (the
+# app or `vella` binary, a compiler, an installer script) skip under CI=true unless VELLA_INTEGRATION=1, and run locally.
+env:
+  XCODE_APP: /Applications/Xcode_26.6.app
+  CLT_SWIFT: /Library/Developer/CommandLineTools/usr/bin/swift
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Only source in git
+        run: |
+          if git ls-files | grep -E '^(lab|dist|dist-preview|logs|Marketing|\.build)/|\.py$'; then
+            echo "::error::Local-only files are tracked (lab/, dist/, logs/, Marketing/, .build/ or Python)"; exit 1
+          fi
+
+      - name: Select Xcode and check the Swift toolchains
+        run: |
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+          swift --version
+          "$CLT_SWIFT" --version
+          if ! "$CLT_SWIFT" --version 2>&1 | grep -q 'Apple Swift version 6\.3\.3 '; then
+            echo "::warning::Command Line Tools Swift is not 6.3.3; releases are built with 6.3.3 only"
+          fi
+
+      - name: Metal Toolchain
+        run: |
+          if ! xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q 'Status: installed'; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun metal --version
+
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            Worker/.build/repositories
+            Worker/.build/checkouts
+            ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Worker/Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-${{ runner.arch }}-
+
+      # The release path end to end, signed ad hoc: scripts/build.sh (split toolchain, borrow-symbol check, helper
+      # smoke), scripts/release-zip.sh and the archive contents check. Nothing is installed or registered.
+      - name: Build and package (scripts/package-release.sh)
+        env:
+          VELLA_SIGN_IDENTITY: "-"
+          VELLA_XCODE_DEVELOPER_DIR: ${{ env.XCODE_APP }}/Contents/Developer
+          VELLA_RELEASE_OUTPUT_DIR: ${{ runner.temp }}/release
+        run: |
+          scripts/package-release.sh
+          cd "$VELLA_RELEASE_OUTPUT_DIR" && shasum -a 256 -c SHA256SUMS
+
+      - name: Split-build provenance
+        run: cat Worker/.build/split-build-provenance.txt
+
+      - name: swift test (unit tests; integration tests run locally)
+        timeout-minutes: 30
+        env:
+          CI: "true"                # explicit: Integration.require() skips the integration tests
+          NSUnbufferedIO: "YES"     # test output as it happens: a stuck test is then named in the log
+        run: xcrun swift test

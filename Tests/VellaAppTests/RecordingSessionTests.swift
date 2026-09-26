@@ -176,6 +176,7 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
     }
     func testAbruptProcessExitRecoversOpenSegment() throws {
+        try Integration.require()   // runs the app binary
         let root = try root()
         let process = Process(); process.executableURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/Vella")
         process.arguments = ["--session-crash-fixture", root.path]

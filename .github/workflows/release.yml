@@ -1,0 +1,108 @@
+name: Release
+
+# A tag vX.Y.Z builds the release zip with scripts/package-release.sh, attests its build provenance and attaches the
+# zip and SHA256SUMS to a DRAFT release. Nothing is published: the maintainer checks the draft (and the build on the
+# reference Mac) and publishes it by hand. Users can check the zip with
+#   gh attestation verify Vella-X.Y.Z-arm64.zip --repo TobyNoSkillSon/Vella
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+# Same toolchains as ci.yml: Command Line Tools Swift 6.3.3 for all Swift code (required here, not just warned about),
+# Xcode 26.6 with its Metal Toolchain for MLX's shaders. No signing identity exists here: the app is signed ad hoc.
+env:
+  XCODE_APP: /Applications/Xcode_26.6.app
+  CLT_SWIFT: /Library/Developer/CommandLineTools/usr/bin/swift
+
+jobs:
+  release:
+    name: Build, attest and draft
+    runs-on: macos-26
+    timeout-minutes: 120
+    permissions:
+      contents: write       # create the draft release and upload its assets
+      id-token: write       # sign the provenance attestation
+      attestations: write   # store it
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Version from the tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PLIST="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
+          # The installers download the release named after the checkout's Info.plist version.
+          if [[ "$VERSION" != "$PLIST" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match Resources/Info.plist version $PLIST"; exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "out=$RUNNER_TEMP/release/$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Select Xcode and require the release Swift
+        run: |
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+          "$CLT_SWIFT" --version
+          if ! "$CLT_SWIFT" --version 2>&1 | grep -q 'Apple Swift version 6\.3\.3 '; then
+            echo "::error::Releases are built with Command Line Tools Swift 6.3.3"; exit 1
+          fi
+
+      - name: Metal Toolchain
+        run: |
+          if ! xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q 'Status: installed'; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun metal --version
+
+      - name: Package (scripts/package-release.sh)
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          VELLA_SIGN_IDENTITY: "-"
+          VELLA_XCODE_DEVELOPER_DIR: ${{ env.XCODE_APP }}/Contents/Developer
+          VELLA_RELEASE_OUTPUT_DIR: ${{ steps.version.outputs.out }}
+        run: |
+          scripts/package-release.sh "$VERSION"
+          cat Worker/.build/split-build-provenance.txt
+          cd "$VELLA_RELEASE_OUTPUT_DIR" && shasum -a 256 -c SHA256SUMS
+
+      # GitHub stores attestations for public repositories only (user-owned private ones get "Feature not available").
+      # A private copy of this repository (a CI scratch run) still builds and drafts the release, without the attestation.
+      - name: Attest build provenance
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.version.outputs.out }}/Vella-${{ steps.version.outputs.version }}-arm64.zip
+
+      - name: No attestation in a private repository
+        if: ${{ github.event.repository.private }}
+        run: |
+          echo "::warning::Private repository: build provenance is not attested (GitHub stores attestations for public repositories only)"
+
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+          OUT: ${{ steps.version.outputs.out }}
+        run: |
+          # Notes: this version's CHANGELOG.md section, then how to verify the download.
+          NOTES="$RUNNER_TEMP/notes.md"
+          awk -v v="$VERSION" '$0 ~ "^## " v "( |$)" {on=1; next} on && /^## / {exit} on' CHANGELOG.md > "$NOTES"
+          [[ -s "$NOTES" ]] || echo "See CHANGELOG.md." > "$NOTES"
+          {
+            echo
+            echo "Install or update with \`scripts/install.sh\` from a checkout of this tag (see the README): it downloads this zip and checks it against SHA256SUMS before installing. To check the zip's build provenance:"
+            echo
+            echo "    gh attestation verify Vella-$VERSION-arm64.zip --repo $GITHUB_REPOSITORY"
+          } >> "$NOTES"
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Vella $VERSION" --notes-file "$NOTES" \
+            "$OUT/Vella-$VERSION-arm64.zip" "$OUT/SHA256SUMS"
