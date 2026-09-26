@@ -37,7 +37,7 @@ WORKER_BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build --package-path Wor
   echo 'Native workers or pinned MLX shaders missing; build left installed app unchanged.' >&2; exit 1;
 }
 # Xcode 27's Swift 6.4 emits borrow symbols the macOS 26 Swift runtime lacks; such binaries die in dyld.
-for binary in .build/release/Vella .build/release/VellaModelTool "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker"; do
+for binary in .build/release/Vella .build/release/VellaModelTool .build/release/VellaInstallTool "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker"; do
   if nm -u "$binary" | grep -Eq '_swift_(init|end)Borrow'; then
     echo "Unsupported Swift runtime borrow symbol in $(basename "$binary"); build left installed app unchanged." >&2; exit 1
   fi
@@ -79,6 +79,9 @@ print(apps.isEmpty ? "0" : "1")
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Vella "$APP/Contents/MacOS/Vella"
 cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" .build/release/VellaModelTool "$APP/Contents/MacOS/"
+# The installer tool travels inside the app so a release zip holds exactly one bundle.
+mkdir -p "$APP/Contents/Helpers"
+cp .build/release/VellaInstallTool "$APP/Contents/Helpers/VellaInstallTool"
 rm -f "$APP/Contents/MacOS/mlx.metallib"
 rm -rf "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
 cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$APP/Contents/Resources/"
@@ -97,7 +100,8 @@ if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $VELLA_BUNDLE_ID" "$APP/Contents/Info.plist"
 fi
 cp Resources/models.json Resources/benchmark-policy.json Resources/AGENT_GUIDE.md "$APP/Contents/Resources/"
-cp Resources/streaming-models.json "$APP/Contents/Resources/"
+# models.json schema 2 covers both modes; older checkouts also had streaming-models.json.
+if [[ -f Resources/streaming-models.json ]]; then cp Resources/streaming-models.json "$APP/Contents/Resources/"; else rm -f "$APP/Contents/Resources/streaming-models.json"; fi
 # Measured numbers for the Models table (written by the lab benchmark harness).
 if [[ -f Resources/benchmarks.json ]]; then cp Resources/benchmarks.json "$APP/Contents/Resources/"; fi
 # Remove stale Python resources from in-place app updates; model weights and
@@ -121,7 +125,7 @@ for size in 16 32 128 256 512; do
   sips -z "$double" "$double" .build/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vella.icns"
-codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaStreamingWorker" "$APP/Contents/MacOS/VellaModelTool"
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaStreamingWorker" "$APP/Contents/MacOS/VellaModelTool" "$APP/Contents/Helpers/VellaInstallTool"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/VellaWorker_VellaWorker.bundle" 2>/dev/null || true
 codesign --force --sign "$IDENTITY" "$APP"
