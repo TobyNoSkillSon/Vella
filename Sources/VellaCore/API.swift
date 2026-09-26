@@ -16,6 +16,55 @@ public let apiMaxAudioSeconds = 3.0 * 3600
 /// Largest local file a JSON `path` request may name (a 3 h WAV at 48 kHz stereo is ~2.1 GB).
 public let apiMaxPathFileBytes: Int64 = 4 * 1024 * 1024 * 1024
 
+/// Aggregate bounds on what unfinished requests may hold before the job queue sees them. Every connection, and every
+/// upload spooled to disk, holds a reservation from accept or spool to its end; the budget refuses a new one past these
+/// limits, so stalled or slow clients cannot use up the descriptors or the disk that recording needs.
+public struct APIUploadLimits: Equatable, Sendable {
+    /// Open connections at once (including ones still sending their head).
+    public var maxConnections = 32
+    /// Uploads spooled to disk at once: the transcription queue's size (one running, eight waiting).
+    public var maxUploads = 9
+    /// Bytes reserved for spooled uploads at once (each reserves its Content-Length).
+    public var maxUploadBytes: Int64 = 1024 * 1024 * 1024
+    /// Free space an upload must leave on the volume, so recordings can still be written.
+    public var freeSpaceReserve: Int64 = 2 * 1024 * 1024 * 1024
+    /// Seconds from accept to a complete request head.
+    public var headSeconds: Double = 10
+    /// Seconds a body may go without a byte arriving.
+    public var bodyIdleSeconds: Double = 30
+    public init() {}
+}
+
+/// Reservation accounting for `APIUploadLimits`; not thread-safe (the listener uses it on its one queue).
+public struct APIUploadBudget: Equatable {
+    public let limits: APIUploadLimits
+    public private(set) var connections = 0
+    public private(set) var uploads = 0
+    public private(set) var reservedBytes: Int64 = 0
+    public init(_ limits: APIUploadLimits) { self.limits = limits }
+
+    public mutating func openConnection() -> Bool {
+        guard connections < limits.maxConnections else { return false }
+        connections += 1; return true
+    }
+    public mutating func closeConnection() { connections = max(0, connections - 1) }
+    /// Reserves `bytes` for an upload, or the refusal to send instead (nothing is reserved then). `freeBytes` is the
+    /// volume's free space (nil when unknown, which refuses: the reserve cannot be verified).
+    public mutating func reserveUpload(_ bytes: Int64, freeBytes: Int64?) -> APIError? {
+        guard uploads < limits.maxUploads, reservedBytes + bytes <= limits.maxUploadBytes else {
+            return APIError(429, "Vella is already receiving \(uploads) uploads; try again when they finish.")
+        }
+        guard let freeBytes, freeBytes - reservedBytes - bytes >= limits.freeSpaceReserve else {
+            return APIError(507, "not enough free disk space to store the upload and keep room for recordings")
+        }
+        uploads += 1; reservedBytes += bytes
+        return nil
+    }
+    public mutating func releaseUpload(_ bytes: Int64) {
+        uploads = max(0, uploads - 1); reservedBytes = max(0, reservedBytes - bytes)
+    }
+}
+
 /// An error in OpenAI's envelope: `{"error": {"message", "type", "param", "code"}}` with the HTTP status beside it.
 public struct APIError: Error, Equatable {
     public var status: Int
