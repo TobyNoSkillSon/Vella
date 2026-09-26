@@ -111,10 +111,13 @@ final class NoticesTests: XCTestCase {
         let skipped = ["/test/", "/tests/", "/docs/", "/doc/", "/benchmarks/", "/examples/", "/python/", "/backend/cuda/"]
         var missing: [String: String] = [:], scanned = 0
         for tree in ["mlx-swift/Source/Cmlx", "yyjson/src"] {
-            let base = checkouts.appendingPathComponent(tree)
+            // Resolved paths on both sides, so a symlinked checkouts directory still gives correct relative paths.
+            let base = checkouts.appendingPathComponent(tree).resolvingSymlinksInPath()
             let files = try XCTUnwrap(FileManager.default.enumerator(at: base, includingPropertiesForKeys: nil))
             for case let url as URL in files where ["h", "hpp", "c", "cc", "cpp", "metal", "m", "mm"].contains(url.pathExtension) {
-                let rel = tree + "/" + url.path.dropFirst(base.path.count + 1)
+                let path = url.resolvingSymlinksInPath().path
+                guard path.hasPrefix(base.path + "/") else { continue }
+                let rel = tree + "/" + path.dropFirst(base.path.count + 1)
                 if skipped.contains(where: rel.contains) { continue }
                 guard let source = try? String(contentsOf: url, encoding: .utf8) else { continue }
                 scanned += 1
