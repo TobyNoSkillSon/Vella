@@ -134,13 +134,65 @@ final class InstallReadinessTests: XCTestCase {
         XCTAssertEqual(state(waiting), .waiting("waiting for parakeet-v3 to load"))
         XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"error":"Worker exited (code 1)."}"#),
                        .failing("parakeet-v3 not loaded: Worker exited (code 1)."))
+        // Review 1 R6: a refused configured-hot model is settled but degraded, never ready.
         XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"refused":{"model":"parakeet-v3","message":"needs ~2.1 GB; ~0.9 GB free"}}"#),
-                       .ready("Vella running (pid 42), parakeet-v3 not loaded: needs ~2.1 GB; ~0.9 GB free"))
+                       .degraded("Vella running (pid 42), parakeet-v3 not loaded: needs ~2.1 GB; ~0.9 GB free"))
         XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["a","b"],"refused":{"model":"a","message":"m"}}"#),
                        .waiting("waiting for a, b to load"), "a refusal settles only its own model")
         XCTAssertEqual(state(#"{"app_pid":42,"models":{"parakeet-v3":{"precision":"4b"}},"launch_set":["parakeet-v3"]}"#),
                        .ready("Vella running (pid 42), model loaded: parakeet-v3 (4b)"))
     }
+    // Review 1 R6: the ready command never turns a broken launch set into `ready`.
+    func testWaitReportsFailingLaunchSetAsDegradedAfterSettleNeverReady() {
+        var clock = Date(timeIntervalSince1970: 0)
+        let failing = Data(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"error":"Worker exited (code 1)."}"#.utf8)
+        let result = InstallReadiness.wait(read: { failing }, isInstalledApp: { $0 == 42 }, timeout: 1800, interval: 5, settle: 60,
+                                           now: { clock }, sleep: { clock = clock.addingTimeInterval($0) })
+        XCTAssertEqual(result.status, InstallReadiness.degradedExit)
+        XCTAssertEqual(result.line, "degraded: Vella running, parakeet-v3 not loaded: Worker exited (code 1).")
+        XCTAssertEqual(clock.timeIntervalSince1970, 60, "waits out the settle time for a restart first")
+        let refused = Data(#"{"app_pid":42,"models":{},"launch_set":["a"],"refused":{"model":"a","message":"m"}}"#.utf8)
+        XCTAssertEqual(InstallReadiness.wait(read: { refused }, isInstalledApp: { $0 == 42 }, timeout: 10, interval: 5, settle: 60,
+                                             now: { clock }, sleep: { clock = clock.addingTimeInterval($0) }).status, InstallReadiness.degradedExit)
+        let ok = Data(#"{"app_pid":42,"models":{"a":{"precision":"4b"}},"launch_set":["a"]}"#.utf8)
+        XCTAssertEqual(InstallReadiness.wait(read: { ok }, isInstalledApp: { $0 == 42 }, timeout: 10, interval: 5, settle: 60).status, InstallReadiness.readyExit)
+        XCTAssertEqual(InstallReadiness.wait(read: { nil }, isInstalledApp: { _ in true }, timeout: 10, interval: 5, settle: 60,
+                                             now: { clock }, sleep: { clock = clock.addingTimeInterval($0) }).status, InstallReadiness.notReadyExit)
+    }
+    /// install-prepared.sh with a fake prepared app whose tool reports each readiness outcome.
+    func testInstallScriptDeletesThePreviousAppOnlyWhenReady() throws {
+        let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("scripts/install-prepared.sh")
+        for (readyStatus, accept, expectedExit, keepsPrevious) in [(0, false, 0, false), (3, false, 1, true), (1, false, 1, true), (3, true, 0, true)] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-install-script-\(UUID())")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let helpers = root.appendingPathComponent("Prepared.app/Contents/Helpers")
+            try FileManager.default.createDirectory(at: helpers, withIntermediateDirectories: true)
+            let previous = root.appendingPathComponent("Vella.previous.app")
+            try FileManager.default.createDirectory(at: previous, withIntermediateDirectories: true)
+            let tool = helpers.appendingPathComponent("VellaInstallTool")
+            try """
+            #!/bin/bash
+            case "$1" in
+              install) echo "installed x"; echo "previous: \(previous.path)";;
+              ready) [[ \(readyStatus) == 0 ]] && echo "ready: fixture"; [[ \(readyStatus) == 3 ]] && echo "degraded: fixture"; exit \(readyStatus);;
+            esac
+            """.write(to: tool, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tool.path)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = [script.path, root.appendingPathComponent("Prepared.app").path]
+            var env = ["PATH": "/usr/bin:/bin", "HOME": root.path,
+                       "VELLA_DESTINATION_APP": root.appendingPathComponent("Vella.app").path, "VELLA_SUPPORT_DIR": root.appendingPathComponent("support").path]
+            if accept { env["VELLA_ACCEPT_DEGRADED"] = "1" }
+            process.environment = env
+            process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+            try process.run(); process.waitUntilExit()
+            XCTAssertEqual(process.terminationStatus, Int32(expectedExit), "ready exit \(readyStatus), accept \(accept)")
+            XCTAssertEqual(FileManager.default.fileExists(atPath: previous.path), keepsPrevious, "ready exit \(readyStatus), accept \(accept)")
+        }
+    }
+
     func testNotReadyWhileLoading() {
         XCTAssertEqual(state(#"{"app_pid":42,"loading":"parakeet-v3","models":{},"launch_set":[]}"#), .waiting("loading parakeet-v3"))
     }

@@ -225,9 +225,12 @@ import VellaCore
             return true
         } catch { downloadError = error.localizedDescription; message = error.localizedDescription; return false }
     }
-    func download() {
+    /// `pendingRecording`: the first-dictation Get row. The app is deliberately busy then (it holds the saved
+    /// recording in `.preparing` until the model arrives), so that one download is authorized explicitly instead of
+    /// relaxing the general "not while dictating" guard (Review 1 R1). Busy/calibration guards still apply.
+    func download(pendingRecording: Bool = false) {
         guard let selected, !busy, !calibration.isRunning, calibratingID == nil else { return }
-        guard mayChangeModel() else { message = "Finish or stop dictation before installing a model."; return }
+        guard pendingRecording || mayChangeModel() else { message = "Finish or stop dictation before installing a model."; return }
         beforeHeavyWork?()
         downloadingID = selected.id; downloadError = nil
         busy = true; progress = nil; message = "Starting…"

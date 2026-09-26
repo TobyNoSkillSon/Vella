@@ -3,7 +3,8 @@ import VellaCore
 
 // install: transactional swap of a verified, prepared Vella.app; launches it; prints
 //          `previous: <path>` when --keep-previous kept the old app for rollback.
-// ready:   waits until the installed app reports ready (see InstallReadiness); prints `ready: …`.
+// ready:   waits until the installed app reports ready (see InstallReadiness); prints `ready: …` (exit 0), or
+//          `degraded: …` (exit 3) when it runs but a configured-hot model is not loaded; exit 1 when not ready.
 @main struct VellaInstallTool {
     static let usage = """
     Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> [--keep-previous]
@@ -38,27 +39,14 @@ import VellaCore
             let timeout = value("--timeout", in: args).flatMap(Double.init) ?? 1800
             let interval = value("--interval", in: args).flatMap(Double.init) ?? 5
             let file = support.appendingPathComponent(InstallReadiness.statusFileName)
-            let deadline = Date().addingTimeInterval(timeout)
-            // A launch-set model failing with an error is accepted once it has stayed that way
-            // this long (the app retries a crashed worker 3 times within ~12 s).
             let settle = value("--settle", in: args).flatMap(Double.init) ?? 60
-            var state = InstallReadiness.State.waiting("not checked")
-            var failingSince: Date?
-            repeat {
-                state = InstallReadiness.evaluate(status: try? Data(contentsOf: file)) { InstallReadiness.runs($0, app: app) }
-                switch state {
-                case .ready(let line): print("ready: \(line)"); exit(0)
-                case .failing(let reason):
-                    let since = failingSince ?? Date(); failingSince = since
-                    if Date().timeIntervalSince(since) >= settle { print("ready: Vella running, \(reason)"); exit(0) }
-                case .waiting: failingSince = nil
-                }
-                Thread.sleep(forTimeInterval: interval)
-            } while Date() < deadline
-            if case .waiting(let reason) = state {
-                fputs("not ready after \(Int(timeout)) s: \(reason). Status: \(file.path)\n", stderr)
-            }
-            exit(1)
+            // Degraded (a configured-hot model not loaded) is never reported as ready: the caller keeps its
+            // rollback copy (Review 1 R6).
+            let result = InstallReadiness.wait(read: { try? Data(contentsOf: file) }, isInstalledApp: { InstallReadiness.runs($0, app: app) },
+                                               timeout: timeout, interval: interval, settle: settle)
+            if result.status == InstallReadiness.readyExit || result.status == InstallReadiness.degradedExit { print(result.line) }
+            else { fputs("\(result.line). Status: \(file.path)\n", stderr) }
+            exit(result.status)
         default:
             fputs(usage, stderr); exit(2)
         }

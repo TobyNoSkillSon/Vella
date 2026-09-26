@@ -13,6 +13,10 @@ final class NemotronNative: StreamingNative {
     var strict = false
     private(set) var sawNonFinite = false
     private var deferred = false
+    private let path: URL
+    private var gated = false
+    /// Set when a fallback replay disagreed with text already committed; taken once by the session (reply flag).
+    private var incompleteFlag = false
     // Runtime fallback journal: every push since the last reset, in the stock grouping (one entry per 20-ms block),
     // plus all text produced since then, so a failed optimized session can be replayed on stock mid-utterance.
     private var journal: [([Float], Bool)] = []
@@ -28,6 +32,7 @@ final class NemotronNative: StreamingNative {
     /// `gate` false loads stock only (the self-test child); true asks `FastPathGate` (child-process self-test,
     /// persisted verdict) whether the optimized path may run.
     init(_ path: URL, gate: Bool = true) throws {
+        self.path = path
         model = try NemotronASRModel.fromDirectory(path)
         VellaNemotronNumerics.useReferencePositionTable(model!)
         if !VellaNemotronOptions.anyEnabled {
@@ -35,6 +40,7 @@ final class NemotronNative: StreamingNative {
         } else if !gate {
             stockReason = "Self-test reference (stock MLX)."
         } else {
+            gated = true
             switch FastPathGate.qualify(path, revision: VellaNemotronOptions.revision, requiredFamily: nil) {
             case .fast: stockReason = ""; enableOptimized()
             case .stock(let reason): stockReason = reason
@@ -57,6 +63,7 @@ final class NemotronNative: StreamingNative {
         return ("optimized", "Self-tested on this Mac against stock MLX (identical streamed text); output is bit-identical by construction.", VellaNemotronOptions.active)
     }
     var nonFinite: Bool { session?.nonFinite ?? false }
+    func takeIncomplete() -> Bool { defer { incompleteFlag = false }; return incompleteFlag }
     func reset() throws {
         VellaStreamProfile.flush()
         session = nil; text = ""; deferred = false
@@ -108,7 +115,8 @@ final class NemotronNative: StreamingNative {
             if nonFinite || (!strict && Self.faultFired && Self.optimizedFault == "nonfinite" && optimized) { throw StreamingFailure.inference }
         } catch {
             guard optimized, replayable, !strict else { throw error }
-            let taken = produced.utf8.count - text.utf8.count
+            // The bytes of this utterance the app has already taken (drained as committed text).
+            let consumed = Array(produced.utf8.prefix(max(0, produced.utf8.count - text.utf8.count)))
             disableOptimized(Self.faultFired ? "Test fault injected into the optimized streaming path; stock MLX until the model is reloaded."
                              : "The optimized streaming path failed at runtime; stock MLX until the model is reloaded.")
             deferred = false
@@ -116,8 +124,20 @@ final class NemotronNative: StreamingNative {
             session = try VellaNemotronSession(model: model!, optimized: false)
             var replayed = ""
             try withError { for (samples, final) in entries { replayed += try session!.push(samples, final: final) } }
-            produced = replayed
-            text = String(decoding: Array(replayed.utf8).dropFirst(max(0, taken)), as: UTF8.self)
+            if let rest = ReplayBoundary.unconsumed(consumed: consumed, replayed: replayed) {
+                // The replay starts with exactly what was consumed: continue with the unseen suffix.
+                produced = replayed
+                text = rest
+            } else {
+                // The replay disagrees with committed text: no safe boundary. Never duplicate or garble: withhold this
+                // utterance's replay, flag the session incomplete (the app keeps the audio and stops live insertion;
+                // Retry replays the saved audio), and continue on a fresh stock session. The verdict is persisted as
+                // stock so that Retry, in a new worker, runs stock and completes.
+                incompleteFlag = true
+                session = try VellaNemotronSession(model: model!, optimized: false)
+                journal.removeAll(); journalSamples = 0; produced = ""; text = ""
+                if gated, let url = try? FastPathGate.statusURL(path, revision: VellaNemotronOptions.revision) { FastPathGate.persist("stock", to: url) }
+            }
         }
     }
     func close() { VellaStreamProfile.flush(); session = nil; model = nil; journal.removeAll(); Stream.gpu.synchronize(); Memory.clearCache() }

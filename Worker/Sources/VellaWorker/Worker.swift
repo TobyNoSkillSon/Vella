@@ -277,10 +277,9 @@ final class Worker {
         }
         return ["chip": chip, "family": FastPathGate.gpuFamily]
     }()
-    static let hookNames = ["VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
-                            "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR", "VELLA_SUPPORT_DIR"]
     func status(_ event: String) -> [String: Any] {
-        let hooks = ProcessInfo.processInfo.environment.filter { Self.hookNames.contains($0.key) && !$0.value.isEmpty }
+        // Every behaviour-changing or instrumenting env hook, component overrides included (Review 1 R7).
+        let hooks = FastPathGate.reportedEnvironment()
         var memory: [String: Any] = ["mlx_active_mb": Double(Memory.activeMemory) / 1e6, "mlx_cache_mb": Double(Memory.cacheMemory) / 1e6]
         if let footprint = processMemory()["processFootprintBytes"] { memory["footprint_mb"] = Double(footprint) / 1e6 }
         if model is StubModel, let stub = ProcessInfo.processInfo.environment["VELLA_TEST_STUB_FOOTPRINT_MB"].flatMap(Double.init) {

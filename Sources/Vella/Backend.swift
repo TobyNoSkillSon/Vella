@@ -65,6 +65,23 @@ import VellaCore
         minuteSeconds = environment["VELLA_TEST_MINUTE_SECONDS"].flatMap(Double.init).flatMap { $0 > 0 ? $0 : nil } ?? 60
         let config = (try? Data(contentsOf: support.appendingPathComponent("config.json"))).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
         settings = config?.residency ?? ResidencySettings()
+        // One memory-pressure policy for both modes (Review 1 R8).
+        let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
+        memoryPressure = pressure
+        pressure.setEventHandler { [weak self] in
+            guard let self else { return }
+            self.handleMemoryPressure(critical: self.memoryPressure?.data.contains(.critical) == true)
+        }
+        pressure.resume()
+    }
+    deinit { memoryPressure?.cancel() }
+    private var memoryPressure: DispatchSourceMemoryPressure?
+    /// macOS memory pressure, for the loaded models of both modes. Critical: unload idle, unpinned models (on-demand
+    /// first, keeping the first manual one); warning and critical: idle dictation workers drop their MLX caches.
+    /// Pinned models are never unloaded: an in-flight dictation request, a load, or a live stream continues.
+    func handleMemoryPressure(critical: Bool) {
+        if let dictation { dictation.handleMemoryPressure(critical: critical) }
+        else if critical { Task { await shed() } }
     }
 
     /// App launch: publish an empty status (no stale models), keep config.json's residency explicit, then load the
@@ -130,8 +147,25 @@ import VellaCore
         if let entry = entries[id] { await entry.unload() }
         settings.leave(id); persistSettings(); writeStatus()
     }
-    /// Before Delete: same as Unload.
-    func forget(_ id: String) async { await unload(id) }
+    /// Before Delete: unload the model only if these exact files are the loaded ones, and return once its worker has
+    /// exited. The launch set is left alone until the deletion succeeded (`deleted(path:)`). Returns what was loaded.
+    func unloadForDeletion(_ id: String, path: String) async -> (ref: ModelRef, residency: ResidencyClass)? {
+        guard let entry = entries[id], sameFiles(entry.ref.path, path) else { return nil }
+        await entry.unload()
+        removed(id)
+        return (entry.ref, entry.residency)
+    }
+    /// After a successful Delete: drop the launch-set entry for exactly these files, whether the model was loaded or
+    /// already evicted; an entry for another precision of the family is kept.
+    func deleted(path: String) {
+        let before = settings.launchSet.count
+        settings.launchSet.removeAll { sameFiles($0.path, path) }
+        if settings.launchSet.count != before { persistSettings() }
+        writeStatus()
+    }
+    private func sameFiles(_ a: String, _ b: String) -> Bool {
+        URL(fileURLWithPath: a).standardizedFileURL.path == URL(fileURLWithPath: b).standardizedFileURL.path
+    }
     func setKeepHot(manual: Int? = nil, onDemand: Int? = nil) {
         if let manual, KeepHot.choices.contains(manual) { settings.manualIdleMinutes = manual }
         if let onDemand, KeepHot.choices.contains(onDemand) { settings.onDemandIdleMinutes = onDemand }
@@ -157,10 +191,13 @@ import VellaCore
     /// Fit in free memory: admit `ref`, unloading idle models first when needed (on-demand LRU first, never a busy
     /// one or one in `together`), or throw the refusal with the numbers and working remedies. Nothing is unloaded
     /// when unloading everything possible would still not fit. Allow swap admits everything.
-    func admit(_ ref: ModelRef, credit: Double = 0, together: [String] = []) async throws {
+    /// `replacing`: a loaded model this load replaces (the one streaming model, whichever family or precision). The
+    /// caller unloads it only after admission, so its memory is credited and it is never chosen as a victim.
+    func admit(_ ref: ModelRef, credit: Double = 0, together: [String] = [], replacing: String? = nil) async throws {
+        let credit = credit + (replacing.flatMap { entries[$0] }.map(reclaimMB) ?? 0)
         func infos() -> [LoadedModelInfo] {
             order.compactMap { id in
-                guard let entry = entries[id], id != ref.id, (pinned[id] ?? 0) == 0 else { return nil }
+                guard let entry = entries[id], id != ref.id, id != replacing, (pinned[id] ?? 0) == 0 else { return nil }
                 return LoadedModelInfo(id: id, name: entry.ref.displayName, residency: entry.residency, lastUsed: entry.lastUsed, reclaimMB: reclaimMB(entry))
             }
         }
@@ -218,7 +255,14 @@ import VellaCore
         entry.residency = .manual; entries[id] = entry
         settings.join(entry.ref); persistSettings(); schedule(id); writeStatus()
     }
-    func pin(_ id: String) { pinned[id, default: 0] += 1 }
+    /// A pinned model has no idle timer (Review 1 R5): it cannot idle out while it serves, and an expired deadline must
+    /// not re-arm itself every run-loop pass. Unpin re-arms from the new last use.
+    func pin(_ id: String) {
+        pinned[id, default: 0] += 1
+        entries[id]?.timer?.cancel(); entries[id]?.timer = nil
+    }
+    /// Idle-timer callbacks that ran (tests: no churn while pinned).
+    private(set) var idleTimerFirings = 0
     func unpin(_ id: String) {
         pinned[id] = max(0, (pinned[id] ?? 1) - 1)
         touch(id)
@@ -275,11 +319,14 @@ import VellaCore
     private func schedule(_ id: String) {
         guard var entry = entries[id] else { return }
         entry.timer?.cancel(); entry.timer = nil
-        if let deadline = unloadDeadline(lastUsed: entry.lastUsed, residency: entry.residency, settings: settings, minuteSeconds: minuteSeconds) {
+        if (pinned[id] ?? 0) == 0,
+           let deadline = unloadDeadline(lastUsed: entry.lastUsed, residency: entry.residency, settings: settings, minuteSeconds: minuteSeconds) {
             let minutes = settings.idleMinutes(entry.residency), residency = entry.residency
             let work = DispatchWorkItem { [weak self] in
                 guard let self, let current = self.entries[id] else { return }
-                if (self.pinned[id] ?? 0) > 0 || Date().timeIntervalSince1970 + 0.001 < deadline || current.residency != residency { self.schedule(id); return }
+                self.idleTimerFirings += 1
+                if (self.pinned[id] ?? 0) > 0 { return } // unpin re-arms from the new last use
+                if Date().timeIntervalSince1970 + 0.001 < deadline || current.residency != residency { self.schedule(id); return }
                 Task { await self.evict(id, reason: "idle: unused for \(minutes) min (\(residency == .manual ? "manually loaded" : "loaded on demand"))") }
             }
             entry.timer = work
@@ -330,6 +377,12 @@ import VellaCore
     }
 }
 
+/// The dictation worker exited while a request was in flight (crash, jetsam, kill). The request's audio is intact;
+/// `SessionTranscriber` retries that segment once on a fresh worker.
+struct WorkerExited: LocalizedError {
+    var errorDescription: String? { "Vella's inference worker exited. Saved audio is retained." }
+}
+
 /// One private worker process for one loaded dictation model. One request in flight at a time.
 @MainActor final class DictationSlot {
     let ref: ModelRef
@@ -339,6 +392,8 @@ import VellaCore
     var pending: (UUID, CheckedContinuation<[String: Any], Error>)?
     var deadline: DispatchWorkItem?
     var retiring = false
+    /// The worker acknowledged `load`. Until then the slot exists but must not take a request.
+    var loaded = false
     init(ref: ModelRef, process: Process, input: FileHandle) { self.ref = ref; self.process = process; self.input = input }
     var pid: Int32? { process.isRunning ? process.processIdentifier : nil }
 }
@@ -354,7 +409,6 @@ import VellaCore
     private var activeCall: UUID?
     private var activeSlot: DictationSlot?
     private var lastSlot: String?
-    private var memoryPressure: DispatchSourceMemoryPressure?
     private(set) var lastMetrics: [String: Double] = [:]
     private(set) var ownership = "Vella runtime unloaded"
     /// The worker that served the latest request (tests, diagnostics).
@@ -364,20 +418,12 @@ import VellaCore
         self.helperOverride = helper
         self.requestTimeout = requestTimeout
         self.runtime = runtime ?? .shared
-        let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
-        memoryPressure = pressure
-        pressure.setEventHandler { [weak self] in
-            guard let self else { return }
-            self.handleMemoryPressure(critical: self.memoryPressure?.data.contains(.critical) == true)
-        }
-        pressure.resume()
     }
-    deinit { memoryPressure?.cancel() }
-    /// Never stops an in-flight request or load (the model serving it is pinned until it returns). Warning: idle
-    /// workers drop their MLX caches. Critical: unload idle, unpinned models (on-demand first, keeping the first manual
-    /// one), then idle survivors drop their caches.
+    /// Called by the runtime's memory-pressure source (one policy for both modes). Never stops an in-flight request,
+    /// load or live stream (the models serving them are pinned). Warning: idle dictation workers drop their MLX caches.
+    /// Critical: unload idle, unpinned models of either mode (on-demand first, keeping the first manual one), then
+    /// idle survivors drop their caches.
     func handleMemoryPressure(critical: Bool) {
-        guard !slots.isEmpty else { return }
         Task {
             if critical { await runtime.shed() }
             for slot in Array(slots.values) where slot.pending == nil && !slot.retiring {
@@ -452,7 +498,10 @@ import VellaCore
 
     private func ensureSlot(_ ref: ModelRef, residency: ResidencyClass, generation: UUID) async throws -> DictationSlot {
         if let slot = slots[ref.id], slot.process.isRunning, !slot.retiring {
-            if slot.ref.path == ref.path { return slot }
+            if slot.ref.path == ref.path {
+                if !slot.loaded { try await awaitLoaded(slot, generation: generation) }
+                return slot
+            }
             return try await reload(slot, to: ref, residency: residency, generation: generation)
         }
         try await waitForRetired(generation: generation)
@@ -460,6 +509,19 @@ import VellaCore
         try await runtime.admit(ref)
         try checkStartup(generation)
         return try await launch(ref, residency: residency, generation: generation)
+    }
+    /// A request (or another Load) that finds its model still loading (a manual Load or the launch set started it)
+    /// waits for that load instead of failing with "already processing another segment". A failed load fails it.
+    private func awaitLoaded(_ slot: DictationSlot, generation: UUID) async throws {
+        let until = ProcessInfo.processInfo.systemUptime + requestTimeout + 5
+        while !slot.loaded {
+            try checkStartup(generation)
+            guard !slot.retiring, slot.process.isRunning else {
+                throw VellaError.message("\(slot.ref.displayName) did not finish loading. Saved audio is retained; try again.")
+            }
+            guard ProcessInfo.processInfo.systemUptime < until else { throw URLError(.timedOut) }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
     }
     /// Another precision of a loaded family: admit with the loaded one's memory credited, refuse before unloading
     /// anything, and put the working model back if the new one fails to load.
@@ -515,6 +577,7 @@ import VellaCore
             runtime.loadFailed(ref.id, message: (error as? VellaError)?.localizedDescription ?? "\(ref.displayName) did not load.")
             throw error
         }
+        slot.loaded = true
         runtime.register(ref, residency: residency) { [weak self] in await self?.unloadSlot(ref.id) }
         return slot
     }
@@ -567,19 +630,23 @@ import VellaCore
     }
     private func ended(_ slot: DictationSlot) {
         guard slots[slot.ref.id] === slot, !slot.retiring else { return }
-        finish(slot, .failure(VellaError.message("Vella's inference worker exited. Saved audio is retained.")))
         let busy = activeSlot === slot
         let pid = slot.process.processIdentifier
-        retire(slot, notify: false)
         let runtime = self.runtime, id = slot.ref.id, process = slot.process
-        Task { @MainActor in
+        // The waiting request resumes only after this main-actor turn, so the dead worker is fully forgotten (runtime
+        // entry included) before its automatic retry can register a replacement for the same model; a late removal
+        // must never unregister that replacement.
+        finish(slot, .failure(WorkerExited()))
+        retire(slot, notify: busy)
+        Task { @MainActor [weak self] in
             let until = ProcessInfo.processInfo.systemUptime + 1
             while process.isRunning, ProcessInfo.processInfo.systemUptime < until { try? await Task.sleep(nanoseconds: 20_000_000) }
             let status = process.isRunning ? -1 : process.terminationStatus
             let reason = process.isRunning ? Process.TerminationReason.exit : process.terminationReason
             runtime.log("\(id): worker pid \(pid) exited (\(reason == .uncaughtSignal ? "signal" : "code") \(status))")
             let summary = workerExitSummary(status: status, reason: reason, logTail: logTail(runtime.logURL))
-            if busy { runtime.removed(id) } else { runtime.crashed(id, message: summary) }
+            // An idle crash follows the restart policy, unless a replacement already took over this model.
+            if !busy, self?.slots[id] == nil { runtime.crashed(id, message: summary) }
         }
     }
     private func finish(_ slot: DictationSlot, _ result: Result<[String: Any], Error>) {

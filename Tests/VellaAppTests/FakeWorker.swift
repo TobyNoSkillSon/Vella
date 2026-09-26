@@ -3,12 +3,14 @@ import Foundation
 import VellaCore
 
 /// A Python stand-in for VellaWorker speaking the stdio protocol: load/unload/status/trim ops, status push before
-/// every change, transcription replies. The model folder name selects behaviour; `FAKE_FOOTPRINT_MB` sets the
+/// every change, transcription replies. The model folder name selects behaviour (`loadfail`, `slowload` 10 s,
+/// `delayload` 1 s, `slowexit`: ignores SIGTERM and exits 0.5 s after stdin EOF; `crashonce`/`crashalways`: the
+/// worker dies mid-transcription the first time / every time); `FAKE_FOOTPRINT_MB` sets the
 /// footprint it reports. Tests pair it with an isolated `Runtime` (temp support dir, memory file, minute seconds).
 enum FakeWorker {
     static let script = #"""
 #!/usr/bin/env python3
-import json,sys,os,time
+import json,sys,os,time,signal
 model=None
 def push(event):
     fp=float(os.environ.get('FAKE_FOOTPRINT_MB','1000'))
@@ -22,11 +24,17 @@ for line in sys.stdin:
         name=r['model'].split('/')[-1]
         if 'loadfail' in name: model=None; push('load-failed'); print(json.dumps({'id':r['id'],'error':{'code':'load','message':'x'}}),flush=True); continue
         if 'slowload' in name: time.sleep(10)
+        if 'delayload' in name: time.sleep(1)
+        if 'slowexit' in name: signal.signal(signal.SIGTERM, signal.SIG_IGN)
         model=r['model']; push('load'); print(json.dumps({'id':r['id'],'loaded':True}),flush=True); continue
     if op in ('unload','status','trim'):
         if op=='unload': model=None
         push(op); print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
+    name=r['model'].split('/')[-1]; marker=os.path.join(r['model'],'.crashed')
+    if 'crashalways' in name: os._exit(3)
+    if 'crashonce' in name and not os.path.exists(marker): open(marker,'w').close(); os._exit(3)
     print(json.dumps({'id':r['id'],'text':'Fixture recognized speech.','metrics':{'pid':os.getpid()}}),flush=True)
+if model and 'slowexit' in model: time.sleep(0.5)
 """#
     static func install(in root: URL) throws -> URL {
         let url = root.appendingPathComponent("fake-worker.py")

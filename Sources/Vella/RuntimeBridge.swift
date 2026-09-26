@@ -24,6 +24,10 @@ import VellaCore
         }
         delegate.getPendingModel = { [weak self] in self?.model?.getRecommendedModel() }
         delegate.restartWorkers = { [weak self] in self?.restart() }
+        delegate.modelsLoaded = { [weak self] in
+            guard let status = self?.runtime.status else { return false }
+            return !status.models.isEmpty || status.loading != nil
+        }
     }
     func attach(controller: ModelsController, model: Model) {
         self.controller = controller; self.model = model
@@ -55,16 +59,31 @@ import VellaCore
 
     // MARK: ModelRuntimeActions
 
+    /// The model becomes the mode's selection only once it loaded (Review 1 R4): a refused or failed Load/Reload keeps
+    /// the previous selection, so the next dictation uses the model that still works.
     func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {
-        select(path, mode: family.mode)
         let ref = ref(family, precision, path: path)
-        Task { do { try await runtime.load(ref) } catch { controller?.lastError = error.localizedDescription } }
+        Task { await loadAndSelect(ref) }
+    }
+    func loadAndSelect(_ ref: ModelRef) async {
+        do {
+            try await runtime.load(ref)
+            select(ref.path, mode: ref.mode)
+        } catch { controller?.lastError = error.localizedDescription }
     }
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {
         load(family: family, precision: precision, variant: variant, path: path)
     }
     func unload(family: ModelFamily) { Task { await runtime.unload(family.id) } }
-    func forget(family: ModelFamily) { Task { await runtime.forget(family.id) } }
+    func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
+        let unloaded = await runtime.unloadForDeletion(family.id, path: path)
+        guard delete() else {
+            if let unloaded, unloaded.residency == .manual { try? await runtime.load(unloaded.ref) }
+            return false
+        }
+        runtime.deleted(path: path)
+        return true
+    }
     /// Load also selects the model for its mode (what the next dictation uses).
     private func select(_ path: String, mode: RecognitionMode) {
         let url = runtime.configURL
@@ -135,7 +154,7 @@ import VellaCore
         let library = controller.library(offer.mode)
         if let local = library.installed[offer.id] { select(local.path, mode: offer.mode); return local.path }
         library.selectedID = offer.id
-        library.download()
+        library.download(pendingRecording: true)
         while library.downloadingID == offer.id || (library.busy && library.calibratingID == nil && library.installed[offer.id] == nil) {
             try Task.checkCancellation()
             try await Task.sleep(nanoseconds: 200_000_000)

@@ -11,9 +11,12 @@ protocol StreamingNative: AnyObject {
     func flush() throws -> Bool
     /// Worker-status engine fields: (engine, reason, optimizations).
     var engine: (String, String, [String: Bool]) { get }
+    /// True once after text was withheld (a runtime-fallback replay that disagreed with committed text).
+    func takeIncomplete() -> Bool
 }
 extension StreamingNative {
     func flush() throws -> Bool { false }
+    func takeIncomplete() -> Bool { false }
     var engine: (String, String, [String: Bool]) { ("mlx", "No optimized path for this streaming model yet.", [:]) }
     func drain(final: Bool = false) throws -> String {
         if final { let result = text.streamingTrim; text = ""; return result }
@@ -84,6 +87,8 @@ final class StreamingSession {
     var pending: [Float] = []
     var preroll: [[Float]] = []
     var done = false
+    /// Sticky for this session: some recognized text was withheld; the app treats the result as incomplete.
+    var incomplete = false
     init(factory: @escaping (URL) throws -> any StreamingNative) { self.factory = factory }
     func endpoint() throws -> String {
         guard active, let native else { return "" }
@@ -140,8 +145,10 @@ final class StreamingSession {
         let partial = active ? native.text.streamingTrim : ""
         let text = committed.filter { !$0.isEmpty }.joined(separator: " ")
         guard (text + partial).utf8.count <= 8192 else { throw StreamingFailure.inference }
+        if native.takeIncomplete() { incomplete = true }
         var reply: [String: Any] = ["id": id, "frames": frames, "partial": partial, "committed": text]
         if done { reply["done"] = true }
+        if incomplete { reply["incomplete"] = true }
         return reply
     }
     func reply(_ value: Any?) -> [String: Any] {

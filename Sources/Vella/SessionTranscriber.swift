@@ -28,6 +28,8 @@ struct TranscriptionEstimate {
     typealias Request = (URL, Configuration) async throws -> String
     var onChunk: ((Double, Double, Int, Int) -> Void)?
     var onObservation: ((String, Double, Double) -> Void)?
+    /// A segment is retried after its worker crashed (1-based segment index, segment count).
+    var onRetry: ((Int, Int) -> Void)?
     let request: Request
     init(request: @escaping Request) { self.request = request }
 
@@ -51,12 +53,25 @@ struct TranscriptionEstimate {
                 text = ""
             } else {
                 let file = try session.wav(for: segment)
-                let start = ProcessInfo.processInfo.systemUptime
-                text = try await request(file, session.manifest.config).split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                var start = ProcessInfo.processInfo.systemUptime
+                var retried = false
+                var recognized = ""
+                while true {
+                    do { recognized = try await request(file, session.manifest.config); break }
+                    catch is WorkerExited where !retried {
+                        // One automatic retry of this segment on a fresh worker. Finished segments are already saved;
+                        // the caller's Finish-time destination and paste decision are untouched (this stays inside
+                        // the same transcription). A second failure falls through to the manual Retry.
+                        try Task.checkCancellation()
+                        retried = true; onRetry?(i + 1, session.manifest.segments.count)
+                        start = ProcessInfo.processInfo.systemUptime
+                    }
+                }
+                text = recognized.split(whereSeparator: \.isWhitespace).joined(separator: " ")
                 try Task.checkCancellation()
                 let elapsed = ProcessInfo.processInfo.systemUptime - start
-                // Exclude the first (potentially cold) request from warm calibration.
-                if requests > 0, !text.isEmpty {
+                // Exclude the first (potentially cold) request, and a retry (it reloads the model), from warm calibration.
+                if requests > 0, !retried, !text.isEmpty {
                     onObservation?(session.manifest.config.model, Double(segment.frames) / 16_000, elapsed)
                 }
                 requests += 1
