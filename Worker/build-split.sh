@@ -10,15 +10,18 @@ source="$root/.build/checkouts/mlx-swift"
 [[ $(git -C "$source" rev-parse HEAD) == 901941965d82e4a216d4d117231d847d194c563d ]]
 bin=$(DEVELOPER_DIR="$clt" "$clt/usr/bin/swift" build --package-path "$root" -c release --build-system native --show-bin-path)
 metal="$root/.build/split-metal"
-mkdir -p "$metal"
+mkdir -p "$metal" && : > "$metal/compile.log"
 sdk=$(DEVELOPER_DIR="$xcode" xcrun --show-sdk-path)
 # Exactly the ten prepared .metal files compiled by the pinned Cmlx Xcode target.
+# Upstream MLX's kernel flags (CMake and Cmlx.xcconfig): no fast math, precise fp32 functions.
+# Family pin (MTL_FAST_MATH=NO); changing it changes numerics and requalifies every model.
+metal_flags=(-Wall -Wextra -fno-fast-math -Wno-c++17-extensions -Wno-c++20-extensions)
 objects=()
 while IFS= read -r file; do
     name=$(basename "$file" .metal)
     output="$metal/$name.air"
     DEVELOPER_DIR="$xcode" xcrun metal -c -target air64-apple-macos14.0 -isysroot "$sdk" \
-        -fmetal-math-mode=fast -fmetal-math-fp32-functions=fast "$file" -o "$output"
+        "${metal_flags[@]}" "$file" -o "$output" 2>>"$metal/compile.log" || { tail -20 "$metal/compile.log" >&2; exit 1; }
     objects+=("$output")
 done < <(find "$source/Source/Cmlx/mlx-generated/metal" -name '*.metal' | sort)
 [[ ${#objects[@]} == 10 ]]
@@ -41,6 +44,7 @@ PLIST
     DEVELOPER_DIR="$clt" "$clt/usr/bin/clang" --version
     echo 'Shaders: Xcode Metal Toolchain (no Xcode-built Swift artifact used)'
     DEVELOPER_DIR="$xcode" xcrun metal --version
+    echo "Metal flags: ${metal_flags[*]}"
     otool -l "$bin/VellaWorker" | grep -A6 LC_BUILD_VERSION
     shasum -a 256 "$bin/VellaWorker" "$bundle/Contents/Resources/default.metallib" "$root/Package.resolved"
 } > "$root/.build/split-build-provenance.txt"
