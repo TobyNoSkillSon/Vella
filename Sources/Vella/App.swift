@@ -562,6 +562,11 @@ final class GlobalShortcut {
                     let timer = Timer(timeInterval: 0.2, repeats: true) { _ in Task { @MainActor in refresh() } }
                     self.progressTimer = timer; RunLoop.main.add(timer, forMode: .common)
                 }
+                runner.onRetry = { [weak model = self] index, count in
+                    guard let self = model, self.operation == operation else { return }
+                    self.message = "Segment \(index)/\(count): the local worker stopped. Retrying it once; completed segments are saved."
+                    self.onChange?()
+                }
                 var observedAudio = 0.0, observedProcessing = 0.0
                 runner.onObservation = { _, audio, processing in
                     observedAudio += audio; observedProcessing += processing

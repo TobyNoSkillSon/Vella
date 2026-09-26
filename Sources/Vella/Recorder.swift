@@ -178,6 +178,10 @@ private struct CaptureDrain: @unchecked Sendable {
     private var captureDevice = ""
     private(set) var url: URL?
     private(set) var recordingSession: RecordingSession?
+    #if DEBUG
+    /// Tests: a synthetic finished recording, as if captured (no microphone).
+    func adoptForTesting(_ session: RecordingSession) { recordingSession = session }
+    #endif
     func level() -> Double {
         guard let sink else { return 0 }
         sink.lock.lock(); defer { sink.lock.unlock() }; return sink.level

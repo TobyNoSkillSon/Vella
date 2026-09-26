@@ -405,6 +405,81 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(backend.loadedModelIDs, ["alpha-delayload"], "one worker: the request used the loading one")
         XCTAssertEqual(runtime.status.models["alpha-delayload"]?.residency, "manual")
     }
+
+    // MARK: (a) — one automatic retry of a segment after a worker crash mid-transcription
+
+    @MainActor func testWorkerCrashMidSegmentRetriesOnceOnAFreshWorkerElseFailsForManualRetry() async throws {
+        let runtime = try Runtime.isolated(root)
+        let backend = try dictation(runtime); defer { backend.shutdown() }
+        runtime.start(loadLaunchSet: false)
+        let runner = SessionTranscriber(request: { url, config in try await backend.transcribe(url, config: config) })
+        var retries: [Int] = []
+        runner.onRetry = { index, _ in retries.append(index) }
+
+        let once = path("crashonce"); try FileManager.default.createDirectory(atPath: once, withIntermediateDirectories: true)
+        let first = try recording("once", config: Configuration(model: once))
+        let text = try await runner.run(first)
+        XCTAssertEqual(text, "Fixture recognized speech.")
+        XCTAssertEqual(retries, [1])
+        XCTAssertEqual(try RecordingSession(directory: first.directory).manifest.state, "transcribed")
+        XCTAssertNotNil(runtime.status.models["crashonce"], "the retry's fresh worker is registered, not removed by the crash")
+
+        retries = []
+        let always = path("crashalways"); try FileManager.default.createDirectory(atPath: always, withIntermediateDirectories: true)
+        let second = try recording("always", config: Configuration(model: always))
+        do { _ = try await runner.run(second); XCTFail("a repeated crash must not succeed") }
+        catch { XCTAssertTrue(error is WorkerExited, "\(error)") }
+        XCTAssertEqual(retries, [1], "exactly one automatic retry")
+        XCTAssertNil(try RecordingSession(directory: second.directory).manifest.segments[0].text, "left for the manual Retry")
+    }
+
+    @MainActor private final class Focus {
+        var current: String? = "A"
+        var snapshots: [String?] = []
+        func capture() -> Model.DestinationCheck {
+            let selected = current
+            snapshots.append(selected)
+            return { [self] in selected == nil ? "Missing field at Finish" : (selected == current ? nil : "Finish target changed") }
+        }
+    }
+
+    /// Through Finish: the retry keeps the Finish-time destination snapshot and paste semantics (no new snapshot, not
+    /// downgraded to clipboard-only recovery); a second crash falls back to the manual, clipboard-only Retry.
+    @MainActor func testWorkerCrashRetryKeepsFinishDestinationAndPasteSemantics() async throws {
+        for crashes in [1, 2] {
+            let config = root.appendingPathComponent("finish-\(crashes).json")
+            try JSONEncoder().encode(Configuration(executable: "/unused", model: "/synthetic")).write(to: config)
+            let session = try recording("finish-\(crashes)", config: Configuration(executable: "/unused", model: "/synthetic"))
+            let focus = Focus()
+            let board = NSPasteboard.withUniqueName(); defer { board.releaseGlobally() }
+            var calls = 0
+            let model = Model(pasteboard: board, stopCapture: { $0.adoptForTesting(session) },
+                              transcriptionRequest: { _, _ in
+                                  calls += 1
+                                  if calls <= crashes { throw WorkerExited() }
+                                  focus.current = "C" // moved away: the Finish-time check must decide (no real paste in a test)
+                                  return "retried words"
+                              }, configurationURL: config, captureDestination: { focus.capture() })
+            defer { model.cancel() }
+            model.phase = .recording // synthetic capture: no microphone
+            focus.current = "B"
+            model.finish()
+            try await waitUntil { model.phase == .success || model.phase == .failed }
+            XCTAssertEqual(focus.snapshots, ["B"], "the destination is captured once, at Finish")
+            if crashes == 1 {
+                XCTAssertEqual(calls, 2)
+                XCTAssertEqual(model.phase, .success, model.message)
+                XCTAssertTrue(model.message.contains("Finish target changed"), "decided against the Finish-time snapshot: \(model.message)")
+                XCTAssertEqual(board.string(forType: .string), "retried words")
+            } else {
+                XCTAssertEqual(calls, 2, "one automatic retry only")
+                XCTAssertEqual(model.phase, .failed)
+                XCTAssertTrue(model.message.contains("Retry resumes unfinished segments"), model.message)
+                XCTAssertNil(board.string(forType: .string), "nothing pasted or copied")
+                XCTAssertEqual(model.automaticInsertionBlockReason, "Recovered or cancelled recordings are clipboard-only.")
+            }
+        }
+    }
 }
 
 final class Review1HubStub: URLProtocol {

@@ -4,7 +4,8 @@ import VellaCore
 
 /// A Python stand-in for VellaWorker speaking the stdio protocol: load/unload/status/trim ops, status push before
 /// every change, transcription replies. The model folder name selects behaviour (`loadfail`, `slowload` 10 s,
-/// `delayload` 1 s, `slowexit`: ignores SIGTERM and exits 0.5 s after stdin EOF); `FAKE_FOOTPRINT_MB` sets the
+/// `delayload` 1 s, `slowexit`: ignores SIGTERM and exits 0.5 s after stdin EOF; `crashonce`/`crashalways`: the
+/// worker dies mid-transcription the first time / every time); `FAKE_FOOTPRINT_MB` sets the
 /// footprint it reports. Tests pair it with an isolated `Runtime` (temp support dir, memory file, minute seconds).
 enum FakeWorker {
     static let script = #"""
@@ -29,6 +30,9 @@ for line in sys.stdin:
     if op in ('unload','status','trim'):
         if op=='unload': model=None
         push(op); print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
+    name=r['model'].split('/')[-1]; marker=os.path.join(r['model'],'.crashed')
+    if 'crashalways' in name: os._exit(3)
+    if 'crashonce' in name and not os.path.exists(marker): open(marker,'w').close(); os._exit(3)
     print(json.dumps({'id':r['id'],'text':'Fixture recognized speech.','metrics':{'pid':os.getpid()}}),flush=True)
 if model and 'slowexit' in model: time.sleep(0.5)
 """#

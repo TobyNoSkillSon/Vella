@@ -377,6 +377,12 @@ import VellaCore
     }
 }
 
+/// The dictation worker exited while a request was in flight (crash, jetsam, kill). The request's audio is intact;
+/// `SessionTranscriber` retries that segment once on a fresh worker.
+struct WorkerExited: LocalizedError {
+    var errorDescription: String? { "Vella's inference worker exited. Saved audio is retained." }
+}
+
 /// One private worker process for one loaded dictation model. One request in flight at a time.
 @MainActor final class DictationSlot {
     let ref: ModelRef
@@ -624,19 +630,23 @@ import VellaCore
     }
     private func ended(_ slot: DictationSlot) {
         guard slots[slot.ref.id] === slot, !slot.retiring else { return }
-        finish(slot, .failure(VellaError.message("Vella's inference worker exited. Saved audio is retained.")))
         let busy = activeSlot === slot
         let pid = slot.process.processIdentifier
-        retire(slot, notify: false)
         let runtime = self.runtime, id = slot.ref.id, process = slot.process
-        Task { @MainActor in
+        // The waiting request resumes only after this main-actor turn, so the dead worker is fully forgotten (runtime
+        // entry included) before its automatic retry can register a replacement for the same model; a late removal
+        // must never unregister that replacement.
+        finish(slot, .failure(WorkerExited()))
+        retire(slot, notify: busy)
+        Task { @MainActor [weak self] in
             let until = ProcessInfo.processInfo.systemUptime + 1
             while process.isRunning, ProcessInfo.processInfo.systemUptime < until { try? await Task.sleep(nanoseconds: 20_000_000) }
             let status = process.isRunning ? -1 : process.terminationStatus
             let reason = process.isRunning ? Process.TerminationReason.exit : process.terminationReason
             runtime.log("\(id): worker pid \(pid) exited (\(reason == .uncaughtSignal ? "signal" : "code") \(status))")
             let summary = workerExitSummary(status: status, reason: reason, logTail: logTail(runtime.logURL))
-            if busy { runtime.removed(id) } else { runtime.crashed(id, message: summary) }
+            // An idle crash follows the restart policy, unless a replacement already took over this model.
+            if !busy, self?.slots[id] == nil { runtime.crashed(id, message: summary) }
         }
     }
     private func finish(_ slot: DictationSlot, _ result: Result<[String: Any], Error>) {
