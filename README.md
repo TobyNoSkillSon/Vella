@@ -44,14 +44,18 @@ Measured on Apple M5 Max, macOS 26.6, 2026-09-26. WER and Format on the 240-minu
 | Model | Mode | Q | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|
 | Parakeet v3 Ultra | Dictation | 16 (recommended) | 15.52 | 5.76 | 5/9 | 372× | 5.4 | 1,747 MB | v2 |
-| Parakeet v3 | Dictation | 32 (recommended) | 16.43 | 7.97 | 5/9 | 298× | 7.1 | 3,225 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 8 | 15.54 | 5.69 | 5/9 | 242× | 11.1 | 1,852 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 4 | 15.78 | 5.94 | 5/9 | 242× | 10.9 | 1,583 MB | v2 |
+| Parakeet v3 | Dictation | 32 | 16.43 | 7.97 | 5/9 | 298× | 7.1 | 3,225 MB | v2 |
+| Parakeet v3 | Dictation | 16 (recommended) | 16.43 | 7.98 | 5/9 | 332× | 6.1 | 1,896 MB | v2 |
 | Parakeet v3 | Dictation | 8 | 16.55 | 8.05 | 5/9 | 274× | 9.9 | 1,785 MB | v2 |
 | Parakeet v3 | Dictation | 4 | 17.84 | 9.24 | 5/9 | 273× | 9.8 | 1,520 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 16 | 15.06 | 6.74 | 9/9 | 27× | 79.8 | 5,167 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 8 (recommended) | 15.16 | 6.65 | 9/9 | 39× | 69.0 | 3,787 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 4 | 18.41 | 7.19 | 9/9 | 53× | 55.5 | 2,955 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 16 | 15.03 | 6.88 | 9/9 | 24× | 85.6 | 4,555 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 8 | 15.07 | 6.75 | 9/9 | 36× | 76.7 | 3,179 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 4 (recommended) | 15.37 | 7.10 | 9/9 | 50× | 61.8 | 2,240 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | 16 | 23.44 | 10.56 | 9/9 | 16× | 91.2 | 2,696 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | 8 (recommended) | 23.45 | 10.58 | 9/9 | 24× | 67.0 | 1,225 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 4 | 32.97 | 16.18 | 9/9 | 21× | 74.4 | 959 MB | v2 |
 | ElevenLabs Scribe v2 (cloud API) | Dictation | — | ~13.4 (estimated, 11.8–13.9) | — | — | — | — | — | estimated |
 | Microsoft Azure Speech (cloud API) | Dictation | — | ~12.9 (estimated, 11.3–13.3) | — | — | — | — | — | estimated |
 
@@ -61,6 +65,7 @@ Measured but not offered in the app:
 
 | Model | Mode | Q | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|
+| Parakeet TDT-CTC 110M | Dictation | 32 (recommended) | 9.25 | 6.01 | 0/9 | 222× | 5.0 | 889 MB | v2-quick |
 | Qwen3 ASR 0.6B | Dictation | 16 | 7.43 | 5.27 | 9/9 | 57× | 38.4 | 2,367 MB | v2-quick |
 | Qwen3 ASR 0.6B | Dictation | 8 (recommended) | 7.86 | 5.34 | 9/9 | 72× | 34.3 | 1,899 MB | v2-quick |
 | Qwen3 ASR 0.6B | Dictation | 4 | 9.09 | 5.34 | 9/9 | 84× | 29.3 | 1,627 MB | v2-quick |

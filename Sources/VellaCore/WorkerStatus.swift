@@ -175,7 +175,7 @@ public let runtimeTestHookNames = [
     "VELLA_TEST_MEMORY_FILE", "VELLA_TEST_VM_STATS", "VELLA_TEST_MINUTE_SECONDS", "VELLA_SUPPORT_DIR",
     "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
     "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK",
-    "VELLA_QWEN_ENC_BF16",
+    "VELLA_QWEN_ENC_BF16", "VELLA_PARAKEET_FP32_FRONTEND",
 ]
 public func activeTestHooks(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
     environment.filter { runtimeTestHookNames.contains($0.key) && !$0.value.isEmpty }
