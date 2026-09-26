@@ -103,7 +103,7 @@ import VellaCore
         states.append(downloading)
         var refusedLong = State(name: "footer-error-long")
         refusedLong.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")]
-        refusedLong.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 4b, or allow swap in Vella → Memory.", at: now)
+        refusedLong.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 4-bit, or allow swap in Vella → Memory.", at: now)
         states.append(refusedLong)
         var refusedShort = State(name: "footer-error-short")
         refusedShort.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free.", at: now)

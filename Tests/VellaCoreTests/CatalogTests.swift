@@ -96,9 +96,10 @@ final class CatalogTests: XCTestCase {
         for label in precisionSegmentLabels(["FP32", "BF16", "8b", "4b"]) {
             XCTAssertFalse(label.contains("b") || label.contains("BF") || label.contains("FP"), label)
         }
-        XCTAssertEqual(precisionBitsName("BF16"), "16-bit")
-        XCTAssertEqual(precisionBitsName("4b"), "4-bit")
-        XCTAssertEqual(precisionBitsName("ternary"), "ternary")
+        XCTAssertEqual(precisionInProse("BF16"), "BF16")
+        XCTAssertEqual(precisionInProse("FP32"), "FP32")
+        XCTAssertEqual(precisionInProse("8b"), "8-bit")
+        XCTAssertEqual(precisionInProse("4b"), "4-bit")
         XCTAssertEqual(precisionFormatName("BF16"), "BF16 (bfloat16)")
         XCTAssertEqual(precisionFormatName("FP16"), "FP16 (float16)")
         XCTAssertEqual(precisionFormatName("FP32"), "FP32 (float32)")

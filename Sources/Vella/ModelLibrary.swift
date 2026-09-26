@@ -85,7 +85,7 @@ import VellaCore
     /// Menu-header label for the selected model, e.g. "Parakeet v3 4-bit"; nil when none is selected.
     var activeModelLabel: String? {
         guard !activeModelPath.isEmpty, let model = models.first(where: { installed[$0.id]?.path == activeModelPath }) else { return nil }
-        return "\(model.name.replacingOccurrences(of: " ASR \u{B7}", with: "")) \(precisionBitsName(precisionLabel(legacyQuantization: model.quantization)))"
+        return "\(model.name.replacingOccurrences(of: " ASR \u{B7}", with: "")) \(precisionInProse(precisionLabel(legacyQuantization: model.quantization)))"
     }
     var displayedModels: [ModelRecommendation] {
         var rows = models.filter { $0.recommended == true || modelFilePath($0.id) != nil }

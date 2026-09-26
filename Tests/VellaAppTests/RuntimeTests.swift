@@ -137,14 +137,14 @@ final class RuntimeTests: XCTestCase {
         // raw = 3,100 − 2,000 = 1,100 < 1,512: evict beta (on demand) before alpha (manual).
         _ = try await backend.transcribe(try wav(), config: Configuration(model: try model("gamma").path))
         XCTAssertEqual(Set(try fileStatus(runtime).models.keys), ["alpha", "gamma"])
-        XCTAssertTrue(try fileStatus(runtime).evictions?.last?.reason.hasPrefix("memory: made room for gamma at 8b") == true)
+        XCTAssertTrue(try fileStatus(runtime).evictions?.last?.reason.hasPrefix("memory: made room for gamma at 8-bit") == true)
 
         // Cannot fit even after unloading everything: nothing is unloaded, the refusal names need, free, ways out.
         try runtime.setAvailableMB(2_500) // raw = 500; + 2,000 reclaimable = 2,500 ≥ 1,512 would fit…
         try runtime.setAvailableMB(1_400) // raw = −600; + 2,000 = 1,400 < 1,512: refuse
         do { _ = try await backend.transcribe(try wav(), config: Configuration(model: try model("delta").path)); XCTFail("admitted") }
         catch {
-            XCTAssertEqual(error.localizedDescription, "delta at 8b needs ~1.5 GB; ~0.0 GB free without swapping. Unload alpha or gamma, pick 4b, or allow swap in Vella → Memory.")
+            XCTAssertEqual(error.localizedDescription, "delta at 8-bit needs ~1.5 GB; ~0.0 GB free without swapping. Unload alpha or gamma, pick 4-bit, or allow swap in Vella → Memory.")
         }
         XCTAssertEqual(Set(try fileStatus(runtime).models.keys), ["alpha", "gamma"])
         XCTAssertEqual(try fileStatus(runtime).refused?.model, "delta")
@@ -152,7 +152,7 @@ final class RuntimeTests: XCTestCase {
         // Reload alpha at 4b under a deficit: refused before unloading; the working 8b stays loaded.
         try runtime.setAvailableMB(1_000) // raw = −1,000; credit 1,000 → 0; gamma 1,000 would make 1,000 < 1,512
         let alpha4 = runtime.resolve(try model("alpha@4b").path, mode: .dictation)
-        do { try await runtime.load(alpha4); XCTFail("reload admitted") } catch { XCTAssertTrue(error.localizedDescription.hasPrefix("alpha at 4b needs")) }
+        do { try await runtime.load(alpha4); XCTFail("reload admitted") } catch { XCTAssertTrue(error.localizedDescription.hasPrefix("alpha at 4-bit needs")) }
         XCTAssertEqual(try fileStatus(runtime).models["alpha"]?.precision, "8b")
         XCTAssertEqual(try fileStatus(runtime).models["alpha"]?.residency, "manual")
 

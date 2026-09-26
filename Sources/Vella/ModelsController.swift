@@ -138,10 +138,10 @@ import VellaCore
     func activeLabel(_ mode: RecognitionMode) -> String? {
         let lib = library(mode)
         if !lib.activeModelPath.isEmpty, let id = lib.installed.first(where: { $0.value.path == lib.activeModelPath })?.key,
-           let (family, precision) = catalog.locate(variant: id) { return "\(family.name) \(precisionBitsName(precision))" }
+           let (family, precision) = catalog.locate(variant: id) { return "\(family.name) \(precisionInProse(precision))" }
         guard let (id, loaded) = runtime?.loaded.filter({ catalog.family($0.key)?.mode == mode }).sorted(by: { $0.key < $1.key }).first,
               let family = catalog.family(id) else { return lib.activeModelLabel }
-        return "\(family.name) \(precisionBitsName(loaded.precision))"
+        return "\(family.name) \(precisionInProse(loaded.precision))"
     }
     func isLoading(_ f: ModelFamily) -> Bool {
         runtime?.loading == f.id || f.variants.values.contains { library(f.mode).downloadingID == $0.id }
