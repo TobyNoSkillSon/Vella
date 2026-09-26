@@ -561,7 +561,9 @@ public class Qwen3ASRAudioEncoder: Module {
             let posEmb = positionalEmbedding(x.dim(1))
             x = x + posEmb.expandedDimensions(axis: 0)
 
+            let convStart = ProcessInfo.processInfo.systemUptime
             eval(x)
+            if Qwen3ASRModel.profiling { Qwen3ASRModel.encoderClock.conv += ProcessInfo.processInfo.systemUptime - convStart }
 
             // Extract valid-length hidden states
             for i in 0..<batchLen {
@@ -613,10 +615,13 @@ public class Qwen3ASRAudioEncoder: Module {
 
                 // [batchLen, windowLen, d_model] — full self-attention within each window
                 var batch = MLX.stacked(batchItems.map { $0.data }, axis: 0)
+                if Qwen3ASRModel.halfEncoder { batch = batch.asType(.bfloat16) }
                 for layer in layers {
                     batch = layer(batch, mask: nil)
                 }
+                let layerStart = ProcessInfo.processInfo.systemUptime
                 eval(batch)
+                if Qwen3ASRModel.profiling { Qwen3ASRModel.encoderClock.layers += ProcessInfo.processInfo.systemUptime - layerStart }
 
                 for (j, item) in batchItems.enumerated() {
                     processedWindows.append((index: item.index, data: batch[j]))
@@ -1215,6 +1220,24 @@ public class Qwen3ASRModel: Module {
         }
     }
 
+    // MARK: - Profiling (opt-in, VELLA_QWEN_PROFILE=1; adds syncs at phase boundaries)
+
+    public struct Profile {
+        public var mel = 0.0, encoder = 0.0, prefill = 0.0, decode = 0.0, decodeWait = 0.0
+        public var prompt = 0.0, conv = 0.0, layers = 0.0
+        public var promptTokens = 0, decodeSteps = 0
+        public init() {}
+    }
+    public static let profiling = ProcessInfo.processInfo.environment["VELLA_QWEN_PROFILE"] == "1"
+    public var profile = Profile()
+    nonisolated(unsafe) static var encoderClock: (conv: Double, layers: Double) = (0, 0)
+    /// Overlap host graph building with GPU decode (VELLA_QWEN_PIPELINE=0 restores the stock loop).
+    public static let pipelinedDecode = ProcessInfo.processInfo.environment["VELLA_QWEN_PIPELINE"] != "0"
+    /// Experiment: run the audio transformer in bf16 instead of the f32 the f32 mel promotes it to.
+    static let halfEncoder = ProcessInfo.processInfo.environment["VELLA_QWEN_ENC_BF16"] == "1"
+    /// Generated token IDs of the most recent chunk (EOS excluded), for parity and self-tests.
+    public private(set) var lastTokens: [Int] = []
+
     // MARK: - Single Chunk Generation (internal)
 
     private func generateSingleChunk(
@@ -1233,16 +1256,23 @@ public class Qwen3ASRModel: Module {
         let eosTokenIds = [151645, 151643]
         let prefillStepSize = 2048
 
+        let profiling = Qwen3ASRModel.profiling
+        func now() -> Double { ProcessInfo.processInfo.systemUptime }
+        var mark = now()
         let (inputFeatures, featureAttentionMask, numAudioTokens) = preprocessAudio(audio)
+        if profiling { eval(inputFeatures); let t = now(); profile.mel += t - mark; mark = t }
         let inputIds = buildPrompt(
             numAudioTokens: numAudioTokens,
             context: context,
             language: language
         )
         let promptTokenCount = inputIds.dim(1)
+        if profiling { eval(inputIds); let t = now(); profile.prompt += t - mark; mark = t; Qwen3ASRModel.encoderClock = (0, 0) }
 
         let audioFeatures = getAudioFeatures(inputFeatures, featureAttentionMask: featureAttentionMask)
         eval(audioFeatures)
+        if profiling { profile.conv += Qwen3ASRModel.encoderClock.conv; profile.layers += Qwen3ASRModel.encoderClock.layers }
+        if profiling { let t = now(); profile.encoder += t - mark; mark = t; profile.promptTokens += promptTokenCount }
 
         let embeds = model.embedTokens(inputIds)
         let inputsEmbeds = mergeAudioFeatures(
@@ -1291,8 +1321,47 @@ public class Qwen3ASRModel: Module {
 
         // AR loop with asyncEval pipelining: while CPU is consuming token N
         // (item() blocks briefly), GPU computes token N+1 in the background.
+        defer {
+            lastTokens = generatedTokens
+            if profiling { profile.decode += now() - mark; profile.decodeSteps += generatedTokens.count }
+        }
+        // Pipelined greedy decode: step N+1 is built from the still-lazy token N and
+        // queued before the host reads token N, so graph construction and Metal
+        // encoding overlap GPU compute instead of alternating with it. Same ops and
+        // shapes as the loop below (token-exact); one extra step is computed after EOS.
+        if Qwen3ASRModel.pipelinedDecode && repetitionPenalty == 1.0 {
+            func step(_ token: MLXArray) -> MLXArray {
+                callAsFunction(inputIds: token.reshaped(1, 1).asType(.int32), cache: cache)[0..., -1, 0...].argMax(axis: -1)
+            }
+            var queued: MLXArray? = maxTokens > 1 ? step(prevTokenArr) : nil
+            if let queued { asyncEval(queued) }
+            for tokenIndex in 0..<maxTokens {
+                let waitStart = profiling ? now() : 0
+                let token = prevTokenArr.item(Int.self)
+                if profiling {
+                    let t = now()
+                    if tokenIndex == 0 { profile.prefill += t - mark; mark = t } else { profile.decodeWait += t - waitStart }
+                }
+                if eosTokenIds.contains(token) { break }
+                generatedTokens.append(token)
+                if generatedTokens.count >= 24 && Set(generatedTokens.suffix(24)).count <= 3 { break }
+                guard tokenIndex < maxTokens - 1, let next = queued else { break }
+                prevTokenArr = next
+                queued = tokenIndex + 1 < maxTokens - 1 ? step(next) : nil
+                if let queued { asyncEval(queued) }
+                if tokenIndex > 0 && tokenIndex % 256 == 0 { Memory.clearCache() }
+            }
+            let decodedText = tokenizer.decode(tokens: generatedTokens)
+            let parsed = parseGeneratedChunk(decodedText, forcedLanguage: language)
+            return (parsed.text, parsed.language, promptTokenCount, generatedTokens.count)
+        }
         for tokenIndex in 0..<maxTokens {
+            let waitStart = profiling ? now() : 0
             let prevTokenInt = prevTokenArr.item(Int.self)
+            if profiling {
+                let t = now()
+                if tokenIndex == 0 { profile.prefill += t - mark; mark = t } else { profile.decodeWait += t - waitStart }
+            }
 
             if eosTokenIds.contains(prevTokenInt) {
                 break

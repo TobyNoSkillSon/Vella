@@ -13,5 +13,6 @@ let package = Package(name: "VellaWorker", platforms: [.macOS(.v14)], products: 
     .executableTarget(name: "VellaWorker", dependencies: ["MLXAudioSTT"], resources: [.copy("Resources/clip-a.wav"), .copy("Resources/clip-b.wav"), .copy("Resources/clip-c.wav"), .copy("Resources/clip-d.wav"), .copy("Resources/clip-e.wav"), .copy("Resources/ATTRIBUTION.md"), .copy("Resources/LICENSE-CC-BY-4.0.txt")]),
     .executableTarget(name: "VellaStreamingWorker", dependencies: ["MLXAudioSTT"]),
     .executableTarget(name: "VellaStreamingProbe", dependencies: ["MLXAudioSTT"], path: "QA/StreamingProbe"),
-    .executableTarget(name: "VellaStreamingDiagnostics", dependencies: ["MLXAudioSTT"], path: "QA/StreamingDiagnostics")
+    .executableTarget(name: "VellaStreamingDiagnostics", dependencies: ["MLXAudioSTT"], path: "QA/StreamingDiagnostics"),
+    .executableTarget(name: "VellaQwenProbe", dependencies: ["MLXAudioSTT", "MLXAudioCore"], path: "QA/QwenProbe")
 ], swiftLanguageModes: [.v5])
