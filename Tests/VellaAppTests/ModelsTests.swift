@@ -4,15 +4,17 @@ import AppKit
 @testable import Vella
 @testable import VellaCore
 final class ModelsTests: XCTestCase {
-    @MainActor func testCatalogAndReferenceResultsLoad() {
+    @MainActor func testCatalogAndReferenceResultsLoad() throws {
         let library = ModelLibrary()
         XCTAssertGreaterThanOrEqual(library.models.count, 4)
+        try LabFixtures.requireReferences(library)
         XCTAssertNotNil(library.references["Qwen3-ASR-1.7B-bf16"])
         XCTAssertNil(library.references["unmeasured-model-does-not-exist"])
         XCTAssertEqual(library.references["Qwen3-ASR-1.7B-bf16"]?.clips.count, 144)
     }
     @MainActor func testCalibrationRejectsExtrapolation() throws {
-        let result = try XCTUnwrap(ModelLibrary().references["Qwen3-ASR-1.7B-bf16"])
+        let library = ModelLibrary(); try LabFixtures.requireReferences(library)
+        let result = try XCTUnwrap(library.references["Qwen3-ASR-1.7B-bf16"])
         XCTAssertNotNil(result.estimatedSeconds(for: 10))
         XCTAssertNil(result.estimatedSeconds(for: 300))
         XCTAssertNil(result.estimatedSeconds(for: 0))
@@ -66,7 +68,8 @@ final class ModelsTests: XCTestCase {
         XCTAssertLessThan(request.count, 700)
     }
     @MainActor func testReferenceSelectionPrefersMatchingProcessorWithoutRelabeling() throws {
-        let original = try XCTUnwrap(ModelLibrary().references["Qwen3-ASR-1.7B-bf16"])
+        let library = ModelLibrary(); try LabFixtures.requireReferences(library)
+        let original = try XCTUnwrap(library.references["Qwen3-ASR-1.7B-bf16"])
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
         object["machine"] = "Apple M4 Pro"
         let other = try JSONDecoder().decode(BenchmarkResult.self, from: JSONSerialization.data(withJSONObject: object))
@@ -74,7 +77,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(preferredBenchmark([original], processor: "Apple M4 Pro")?.machine, original.machine)
     }
     func testTwentyMinuteSuiteHasDiverseSpeakersAndAlignedClips() throws {
-        let data = try Data(contentsOf: URL(fileURLWithPath: "Resources/Benchmarks/v1/english-20m-v1/manifest.json"))
+        let data = try Data(contentsOf: LabFixtures.require("Resources/Benchmarks/v1/english-20m-v1/manifest.json"))
         let manifest = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let clips = try XCTUnwrap(manifest["clips"] as? [[String: Any]])
         XCTAssertEqual(clips.count, 141)
@@ -85,7 +88,8 @@ final class ModelsTests: XCTestCase {
         XCTAssertTrue(clips.allSatisfy { !($0["reference"] as? String ?? "").isEmpty })
     }
     @MainActor func testProcessorFallbackUsesNearestGenerationThenM5Max() throws {
-        let original = try XCTUnwrap(ModelLibrary().references["Qwen3-ASR-1.7B-bf16"])
+        let library = ModelLibrary(); try LabFixtures.requireReferences(library)
+        let original = try XCTUnwrap(library.references["Qwen3-ASR-1.7B-bf16"])
         func measured(on machine: String) throws -> BenchmarkResult {
             var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
             object["machine"] = machine
@@ -99,6 +103,7 @@ final class ModelsTests: XCTestCase {
     }
     @MainActor func testFormattedResultsAndSorting() throws {
         let library = ModelLibrary()
+        try LabFixtures.requireReferences(library)
         XCTAssertEqual(library.references.count, 16)
         let benchmarkOnly: Set<String> = [
             "Qwen3-ASR-0.6B-4bit", "nemotron-3.5-asr-streaming-0.6b-8bit",
@@ -138,6 +143,7 @@ final class ModelsTests: XCTestCase {
     }
     @MainActor func testMemoryColumnUsesWarmMeasurements() throws {
         let library = ModelLibrary()
+        try LabFixtures.requireReferences(library)
         XCTAssertTrue(library.references.values.allSatisfy { ($0.runtimePeakMLXBytes ?? 0) > 0 })
         let sorted = sortedRecommendations(library.models, results: library.references, column: .memory, ascending: true)
         let values = sorted.compactMap { library.references[$0.id]?.runtimePeakMLXBytes }
