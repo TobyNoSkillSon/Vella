@@ -596,7 +596,7 @@
         "yue"
       ],
       "params": "0.8B",
-      "license": "apache-2.0",
+      "license": "mit",
       "native": "FP16",
       "variants": {
         "FP16": {
