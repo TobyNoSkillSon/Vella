@@ -312,6 +312,32 @@ import VellaCore
             return true
         } catch { message = error.localizedDescription; downloadError = message; return false }
     }
+    /// Menu Load: make a downloaded variant this mode's model (config.json) without stopping workers; the runtime
+    /// then loads it. The previous config is kept as config.previous.json.
+    func selectForMode(_ id: String) throws -> String {
+        guard let expected = models.first(where: { $0.id == id }), let local = installed[id] else {
+            throw VellaError.message("Download this model before loading it.")
+        }
+        try validateModel(URL(fileURLWithPath: local.path), expected: expected)
+        guard registryURL == Self.registry else { activeModelPath = local.path; return local.path }   // isolated tests
+        var config = try Backend().configuration(requiresModel: false)
+        let previous = try (try? Data(contentsOf: Backend.configURL)) ?? JSONEncoder().encode(config)
+        try previous.write(to: Backend.support.appendingPathComponent("config.previous.json"), options: .atomic)
+        config.selectModel(local.path, for: mode)
+        try JSONEncoder().encode(config).write(to: Backend.configURL, options: .atomic)
+        activeModelPath = local.path
+        return local.path
+    }
+    /// Downloads a catalog variant and waits for it (the first-dictation Get row). Returns its local path.
+    func downloadAndWait(_ id: String) async throws -> String {
+        if let local = installed[id] { return local.path }
+        guard !busy else { throw VellaError.message("Another download is running. Try again when it finishes.") }
+        selectedID = id; download()
+        do { while busy && downloadingID == id { try await Task.sleep(nanoseconds: 250_000_000) } }
+        catch { if downloadingID == id { cancel() }; throw error }
+        guard let local = installed[id] else { throw VellaError.message(downloadError ?? "The download did not finish.") }
+        return local.path
+    }
     var agentRequest: String {
         let docs = resources.appendingPathComponent("AGENT_GUIDE.md").path
         let candidates = [resources.deletingLastPathComponent(), resources.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()]
