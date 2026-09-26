@@ -24,6 +24,10 @@ import VellaCore
         }
         delegate.getPendingModel = { [weak self] in self?.model?.getRecommendedModel() }
         delegate.restartWorkers = { [weak self] in self?.restart() }
+        delegate.modelsLoaded = { [weak self] in
+            guard let status = self?.runtime.status else { return false }
+            return !status.models.isEmpty || status.loading != nil
+        }
     }
     func attach(controller: ModelsController, model: Model) {
         self.controller = controller; self.model = model

@@ -480,6 +480,58 @@ final class Review1Tests: XCTestCase {
             }
         }
     }
+
+    // MARK: Residual — a finished download does not unload hot models for calibration
+
+    @MainActor func testResidualDownloadCompletionKeepsHotModelsLoaded() async throws {
+        _ = NSApplication.shared
+        let resources = root.appendingPathComponent("resources", isDirectory: true)
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        let variant = CatalogVariant(id: "fixture-v3-4bit", repository: "org/fixture", revision: String(repeating: "a", count: 40),
+                                     downloadBytes: 4_200, architecture: "parakeet")
+        let family = ModelFamily(id: "fixture-v3", name: "Fixture v3", mode: .dictation, languages: ["en"], params: "0.6B",
+                                 license: "test", native: "4b", variants: ["4b": variant])
+        try JSONEncoder().encode(ModelCatalog(schema: 2, families: [family])).write(to: resources.appendingPathComponent("models.json"))
+        let files: [String: Data] = [
+            "config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel","quantization":{"bits":4}}"#.utf8),
+            "model.safetensors": Data(repeating: 7, count: 4096)]
+        Review1HubStub.handler = { request in
+            if request.url!.path.contains("/api/models/") {
+                let siblings: [[String: Any]] = files.map { name, data in
+                    ["rfilename": name, "size": data.count, "lfs": ["sha256": SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()]]
+                }
+                return (200, try JSONSerialization.data(withJSONObject: ["sha": variant.revision, "siblings": siblings]))
+            }
+            guard let data = files[request.url!.lastPathComponent] else { throw URLError(.fileDoesNotExist) }
+            return (200, data)
+        }
+        // A hot (manual) streaming model on the Model's own streaming backend: what releaseWorkers() would unload.
+        let runtime = try Runtime.isolated(root)
+        let stream = try streaming(runtime)
+        let model = Model(configurationURL: runtime.configURL, streamingBackend: stream); defer { model.shutdown() }
+        try await runtime.load(runtime.resolve(path("nemo"), mode: .streaming))
+        let pid = try XCTUnwrap(stream.processID)
+        // A dictation library that calibrates after a download (injected store, no worker).
+        let registry = root.appendingPathComponent("support/models-installed.json")
+        let http = URLSessionConfiguration.ephemeral; http.protocolClasses = [Review1HubStub.self]
+        let calibration = CalibrationStore(directory: root.appendingPathComponent("calibrations"), resources: resources, worker: { nil })
+        let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry, calibration: calibration)
+        dictation.downloadConfiguration = http
+        let controller = ModelsController(dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"),
+                                          selectionsURL: root.appendingPathComponent("model-precision.json"))
+        let delegate = AppDelegate(model: model)
+        delegate.modelsMenu = delegate.makeModelsMenu(controller: controller) // the real calibration hook
+        RuntimeBridge(runtime: runtime).attach(delegate)
+
+        dictation.selectedID = variant.id; dictation.download()
+        try await waitUntil(10) { dictation.installed[variant.id] != nil && !dictation.busy }
+        XCTAssertEqual(stream.processID, pid, "the hot model stayed loaded after the download")
+        XCTAssertTrue(alive(pid))
+        XCTAssertNotNil(runtime.status.models["nemo"])
+        XCTAssertNil(dictation.calibratingID)
+        XCTAssertTrue(dictation.message.contains("Calibration deferred"), dictation.message)
+    }
 }
 
 final class Review1HubStub: URLProtocol {

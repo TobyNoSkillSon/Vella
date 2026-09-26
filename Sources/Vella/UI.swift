@@ -52,6 +52,8 @@ final class HUDPanel: NSPanel {
     /// The runtime sets it (vr-runtime `Model.pendingModelRequest`); nil = no pending request.
     var pendingModelRow: () -> (title: String, help: String)? = { nil }
     var getPendingModel: () -> Void = {}
+    /// Whether the runtime has a model loaded or loading (calibration never unloads one to run).
+    var modelsLoaded: () -> Bool = { let status = Runtime.shared.status; return !status.models.isEmpty || status.loading != nil }
     /// Restart Worker: the runtime's restart; nil = stop the workers (the next dictation starts them again).
     var restartWorkers: (() -> Void)?
     /// `controller`: an isolated Models controller (tests); the wiring below is the real one either way.
@@ -65,8 +67,13 @@ final class HUDPanel: NSPanel {
                 return self.model.phase != .recording && !self.model.busy && !other.busy && !other.calibration.isRunning
             }
             library.onUse = { [weak self] in self?.model.stopWorkers() }
-            // A download no longer stops the workers: models kept hot stay loaded while another one downloads.
-            library.prepareForCalibration = { [weak self] in try await self?.model.releaseWorkers() }
+            // A download no longer stops the workers: models kept hot stay loaded while another one downloads, and
+            // afterwards. Local calibration (0.6.0, one worker) used to release every worker for a clean timing;
+            // with Keep Hot / the launch set it runs only when nothing is loaded or loading, else it is deferred
+            // (estimates use the measured benchmark speed and observed transcriptions). Never unloads a model.
+            library.prepareForCalibration = { [weak self] in
+                if self?.modelsLoaded() ?? false { throw CancellationError() }
+            }
         }
         // Progress estimate before local calibration: the measured speed of the selected precision (benchmarks.json).
         model.referenceSpeed = { [weak menus] path in
