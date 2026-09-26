@@ -64,7 +64,6 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     private var receivedDone = false
     private var incomplete = false
     var hasIncompleteExecution: Bool { incomplete }
-    private var pressure: DispatchSourceMemoryPressure?
     private(set) var frames = 0
     private(set) var committed = ""
     private(set) var partial = ""
@@ -74,15 +73,11 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     // Fixed-size worker deltas: the live path never rescans all earlier speech.
     var onEvent: ((String, String, Bool) throws -> Void)?
     init(helper: URL? = nil, timeout: TimeInterval = 120, runtime: Runtime? = nil) {
+        // Memory pressure is the runtime's single policy (Review 1 R8): a live stream is pinned and never stopped;
+        // an idle hot streaming model is shed like any other idle model.
         self.helperOverride = helper; self.timeout = timeout; self.runtime = runtime ?? .shared
-        let source = DispatchSource.makeMemoryPressureSource(eventMask: .critical, queue: .main)
-        pressure = source
-        source.setEventHandler { [weak self] in
-            self?.fail(VellaError.message("macOS reported critical memory pressure. Streaming stopped; saved audio is retained."))
-        }
-        source.resume()
     }
-    deinit { pressure?.cancel(); if let process, process.isRunning { kill(process.processIdentifier, SIGKILL) } }
+    deinit { if let process, process.isRunning { kill(process.processIdentifier, SIGKILL) } }
     /// Bumped by stop(), releaseAndWait() and shutdown(): a start/preload that began before it must not go on to
     /// launch or register a worker.
     private var cancelToken = UUID()

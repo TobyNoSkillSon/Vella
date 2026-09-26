@@ -260,6 +260,33 @@ final class Review1Tests: XCTestCase {
         try await waitUntil { runtime.status.models["longstream"] == nil }
         XCTAssertEqual(runtime.status.evictions?.last?.reason, "idle: unused for 15 min (loaded on demand)")
     }
+
+    // MARK: R8 — critical memory pressure never stops a live stream; idle models are shed
+
+    @MainActor func testR8CriticalPressureShedsIdleModelsButKeepsTheLiveStream() async throws {
+        let runtime = try Runtime.isolated(root)
+        let dictation = try dictation(runtime); defer { dictation.shutdown() }
+        let stream = try streaming(runtime); defer { stream.shutdown() }
+        runtime.start(loadLaunchSet: false)
+        try await runtime.load(runtime.resolve(path("alpha"), mode: .dictation)) // first manual: kept
+        let beta = try recording("beta", config: Configuration(model: path("beta")))
+        _ = try await dictation.transcribe(try beta.wav(for: beta.manifest.segments[0]), config: Configuration(model: path("beta"))) // idle, on demand
+        try await stream.start(config: streamConfig(path("live")))
+        try await stream.feed(Data(repeating: 0, count: 6400))
+        let pid = try XCTUnwrap(stream.processID)
+        XCTAssertEqual(Set(runtime.status.models.keys), ["alpha", "beta", "live"])
+
+        runtime.handleMemoryPressure(critical: true) // between packet requests
+        try await waitUntil { runtime.status.models["beta"] == nil }
+        XCTAssertEqual(stream.processID, pid, "the pinned live stream keeps its worker")
+        XCTAssertTrue(alive(pid))
+        XCTAssertNotNil(runtime.status.models["live"])
+        XCTAssertNotNil(runtime.status.models["alpha"])
+        XCTAssertEqual(runtime.status.evictions?.map(\.model), ["beta"])
+        try await stream.feed(Data(repeating: 0, count: 6400))
+        let final = try await stream.finish(expectedFrames: 3200)
+        XCTAssertEqual(final, "hello world")
+    }
 }
 
 final class Review1HubStub: URLProtocol {

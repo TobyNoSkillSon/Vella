@@ -65,6 +65,23 @@ import VellaCore
         minuteSeconds = environment["VELLA_TEST_MINUTE_SECONDS"].flatMap(Double.init).flatMap { $0 > 0 ? $0 : nil } ?? 60
         let config = (try? Data(contentsOf: support.appendingPathComponent("config.json"))).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
         settings = config?.residency ?? ResidencySettings()
+        // One memory-pressure policy for both modes (Review 1 R8).
+        let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
+        memoryPressure = pressure
+        pressure.setEventHandler { [weak self] in
+            guard let self else { return }
+            self.handleMemoryPressure(critical: self.memoryPressure?.data.contains(.critical) == true)
+        }
+        pressure.resume()
+    }
+    deinit { memoryPressure?.cancel() }
+    private var memoryPressure: DispatchSourceMemoryPressure?
+    /// macOS memory pressure, for the loaded models of both modes. Critical: unload idle, unpinned models (on-demand
+    /// first, keeping the first manual one); warning and critical: idle dictation workers drop their MLX caches.
+    /// Pinned models are never unloaded: an in-flight dictation request, a load, or a live stream continues.
+    func handleMemoryPressure(critical: Bool) {
+        if let dictation { dictation.handleMemoryPressure(critical: critical) }
+        else if critical { Task { await shed() } }
     }
 
     /// App launch: publish an empty status (no stale models), keep config.json's residency explicit, then load the
@@ -367,7 +384,6 @@ import VellaCore
     private var activeCall: UUID?
     private var activeSlot: DictationSlot?
     private var lastSlot: String?
-    private var memoryPressure: DispatchSourceMemoryPressure?
     private(set) var lastMetrics: [String: Double] = [:]
     private(set) var ownership = "Vella runtime unloaded"
     /// The worker that served the latest request (tests, diagnostics).
@@ -377,20 +393,12 @@ import VellaCore
         self.helperOverride = helper
         self.requestTimeout = requestTimeout
         self.runtime = runtime ?? .shared
-        let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
-        memoryPressure = pressure
-        pressure.setEventHandler { [weak self] in
-            guard let self else { return }
-            self.handleMemoryPressure(critical: self.memoryPressure?.data.contains(.critical) == true)
-        }
-        pressure.resume()
     }
-    deinit { memoryPressure?.cancel() }
-    /// Never stops an in-flight request or load (the model serving it is pinned until it returns). Warning: idle
-    /// workers drop their MLX caches. Critical: unload idle, unpinned models (on-demand first, keeping the first manual
-    /// one), then idle survivors drop their caches.
+    /// Called by the runtime's memory-pressure source (one policy for both modes). Never stops an in-flight request,
+    /// load or live stream (the models serving them are pinned). Warning: idle dictation workers drop their MLX caches.
+    /// Critical: unload idle, unpinned models of either mode (on-demand first, keeping the first manual one), then
+    /// idle survivors drop their caches.
     func handleMemoryPressure(critical: Bool) {
-        guard !slots.isEmpty else { return }
         Task {
             if critical { await runtime.shed() }
             for slot in Array(slots.values) where slot.pending == nil && !slot.retiring {
