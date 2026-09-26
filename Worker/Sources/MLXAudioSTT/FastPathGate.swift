@@ -12,7 +12,9 @@ public enum FastPathGateError: Error { case invalid }
 /// Shared by both workers (dictation `VellaWorker`, streaming `VellaStreamingWorker`); each worker supplies its own
 /// `fast-selftest --model <dir>` child entry point.
 public enum FastPathGate {
-    public static let version = "native-kernels-7"
+    /// Bumped to 8 with the component configuration in the key (Review 1 R7): a verdict persisted earlier may have
+    /// been qualified under a diagnostic component override, so every model requalifies once.
+    public static let version = "native-kernels-8"
     /// Child exit status when the self-test could not start (not a verdict on the kernels).
     public static let inconclusive: Int32 = 3
     /// Child exit status for evidence against the optimized path.
@@ -50,6 +52,29 @@ public enum FastPathGate {
         return device?.supportsFamily(.apple9) == true ? "apple9" : device?.supportsFamily(.apple8) == true ? "apple8" : "unsupported"
     }
 
+    /// Environment switches that change which optimized components run or what they compute (diagnosis/A-B only).
+    /// The effective set is part of the gate key, so a verdict qualified under an override is never reused for
+    /// production defaults, and the self-test child (which inherits them) tests exactly what the worker will run.
+    public static let componentSwitches = ["VELLA_PARAKEET_FAST"]
+    public static let componentSwitchPrefixes = ["VELLA_NEMO_"]
+    /// "" for production defaults; otherwise the sorted `KEY=value` list of set switches.
+    public static func componentConfiguration(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
+        environment.filter { key, value in
+            !value.isEmpty && (componentSwitches.contains(key) || componentSwitchPrefixes.contains { key.hasPrefix($0) })
+        }.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+    }
+    /// Every release env hook that changes behaviour or adds instrumentation, for the worker status `test_hooks`.
+    public static let reportedSwitches = componentSwitches + ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR",
+        "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
+        "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_STREAM_PROFILE",
+        "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB",
+        "VELLA_TEST_SELFTEST_FAULT"]
+    public static func reportedEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
+        environment.filter { key, value in
+            !value.isEmpty && (reportedSwitches.contains(key) || componentSwitchPrefixes.contains { key.hasPrefix($0) })
+        }
+    }
+
     public static func key(_ path: URL, revision: String) throws -> String {
         var digest = SHA256()
         let entries = try FileManager.default.contentsOfDirectory(at: path, includingPropertiesForKeys: [.isRegularFileKey])
@@ -70,6 +95,8 @@ public enum FastPathGate {
         }
         digest.update(data: Data("\(gpuFamily):\(osBuild):\(version)".utf8))
         if !revision.isEmpty { digest.update(data: Data(":\(revision)".utf8)) }
+        let components = componentConfiguration()
+        if !components.isEmpty { digest.update(data: Data(":components=\(components)".utf8)) }
         return digest.finalize().map { String(format: "%02x", $0) }.joined()
     }
     public static var osBuild: String {

@@ -1,6 +1,7 @@
 import Foundation
 import Darwin
 import MLX
+import MLXAudioSTT
 
 /// Keeps one loaded streaming model across sessions (Keep Hot). A session that ends with a clean `done` reply
 /// leaves the model loaded for the next `start` with the same path; any error still ends the process (fail closed).
@@ -29,9 +30,7 @@ final class StreamingModelCache {
             pointer.withMemoryRebound(to: Optional<rusage_info_t>.self, capacity: 1) { proc_pid_rusage(getpid(), RUSAGE_INFO_V4, $0) }
         }
         if ok == 0 { memory["footprint_mb"] = Double(info.ri_phys_footprint) / 1e6 }
-        let hooks = ProcessInfo.processInfo.environment.filter {
-            ["VELLA_TEST_LOAD_FAULT", "VELLA_FORCE_STOCK", "VELLA_WORKER_DATA_DIR", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_SELFTEST_FAULT"].contains($0.key) && !$0.value.isEmpty
-        }
+        let hooks = FastPathGate.reportedEnvironment()
         var object: [String: Any] = [
             "worker": "streaming", "pid": Int(getpid()), "event": event, "model": path?.path ?? NSNull(),
             "engine": native.map { $0.engine.0 } ?? NSNull(),
