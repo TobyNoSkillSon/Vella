@@ -10,8 +10,6 @@ import MLXNN
 // streamed transcript equals `decode(...)`.
 
 private let nemoPreEncodeMelCache = 16
-private let nemoPosCache = VellaNemotronOptions.positionCache
-private let nemoKVCache = VellaNemotronOptions.keyValueCache
 
 /// Steady-state `linear_pos(posEmb)` per layer. With a full attention cache the
 /// relative-position window is the same every chunk, so the projection is too.
@@ -31,6 +29,9 @@ final class NemotronASRStreamEncoderState {
     var emitted = 0   // subsampled frames already emitted to the decoder (absolute)
     var consumed = 0  // mel frames already consumed by the encoder (absolute)
     /// Projected K/V of the last `leftCache` frames (VELLA_NEMO_KVCACHE=1 mode).
+    /// Optimized-path switches, fixed per session (stock: both false).
+    var usePositionCache = false
+    var useKeyValueCache = false
     var keyCache: [MLXArray?]
     var valueCache: [MLXArray?]
     var live: [MLXArray] { (attnCache + convCache + keyCache + valueCache).compactMap { $0 } + [melCache].compactMap { $0 } }
@@ -55,7 +56,7 @@ extension NemotronASRModel {
         let nHead = attn.nHead, headDim = attn.headDim, scale = attn.scale
         let qSeq = xn.shape[1]
         let kProj: MLXArray, vProj: MLXArray, cacheLen: Int, attnNext: MLXArray
-        if nemoKVCache {
+        if state.useKeyValueCache {
             cacheLen = state.keyCache[layer]?.shape[1] ?? 0
             let newK = attn.linearK(xn), newV = attn.linearV(xn)
             kProj = state.keyCache[layer].map { MLX.concatenated([$0, newK], axis: 1) } ?? newK
@@ -74,11 +75,11 @@ extension NemotronASRModel {
         let qProj = attn.linearQ(xn)
         var pProj: MLXArray
         let cache = positionCache
-        if nemoPosCache, let key = cache.key, key == (cacheLen, qSeq), let hit = cache.projections[layer] {
+        if state.usePositionCache, let key = cache.key, key == (cacheLen, qSeq), let hit = cache.projections[layer] {
             pProj = hit
         } else {
             pProj = attn.linearPos(encoder.posEnc(xn, offset: cacheLen).1)
-            if nemoPosCache && cacheLen == leftCache {
+            if state.usePositionCache && cacheLen == leftCache {
                 if cache.key == nil || cache.key! != (cacheLen, qSeq) {
                     cache.key = (cacheLen, qSeq)
                     cache.projections = [MLXArray?](repeating: nil, count: encoder.layers.count)
@@ -122,7 +123,7 @@ extension NemotronASRModel {
         // cache-aware self-attention (Q = chunk, K/V = [cache ++ chunk])
         let xn = block.normSelfAtt(residual)
         let attnNext: MLXArray
-        if nemoPosCache || nemoKVCache {
+        if state.usePositionCache || state.useKeyValueCache {
             let r = streamAttention(block.selfAttn, layer: layer, xn, attnCache: attnCache, state: state, leftCache: leftCache)
             residual = residual + r.0
             attnNext = r.1

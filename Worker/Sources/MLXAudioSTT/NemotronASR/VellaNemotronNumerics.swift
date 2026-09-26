@@ -26,6 +26,16 @@ public enum VellaNemotronNumerics {
         model.update(parameters: ModuleParameters.unflattened(Dictionary(uniqueKeysWithValues: converted)))
         eval(model)
     }
+    /// Undo `convertFloat32Weights` (Float32 -> BF16 is exact for values that came from BF16):
+    /// the stock weights, for the runtime fallback, without reloading.
+    public static func restoreBF16Weights(_ model: NemotronASRModel) {
+        let restored = model.parameters().flattened().map { key, value -> (String, MLXArray) in
+            (key, value.dtype == .float32 ? value.asType(.bfloat16) : value)
+        }
+        model.update(parameters: ModuleParameters.unflattened(Dictionary(uniqueKeysWithValues: restored)))
+        eval(model)
+        Memory.clearCache()
+    }
     public static func dump(configURL: URL, pcmURL: URL, lengthsURL: URL, output: URL) throws {
         let config = try JSONDecoder().decode(NemotronASRConfig.self, from: Data(contentsOf: configURL))
         let bytes = try Data(contentsOf: pcmURL)

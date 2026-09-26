@@ -19,9 +19,13 @@ public final class VellaNemotronSession {
     /// Predictor output for the current (last, hidden): the LSTM step and the joint's
     /// pred projection only change when a nonblank symbol is emitted.
     private var predictor: (state: NemoLSTMState, projection: MLXArray)?
-    static let batchedDecode = VellaNemotronOptions.batchedDecode
+    private let batchedDecode: Bool
+    /// Set when the optimized path saw a non-finite encoder output (checked inside the argmax sync).
+    public private(set) var nonFinite = false
 
-    public init(model: NemotronASRModel) throws {
+    /// `optimized` false is the stock MLX path; true enables the per-option optimizations
+    /// (`VellaNemotronOptions`, each individually switchable by environment).
+    public init(model: NemotronASRModel, optimized: Bool = false) throws {
         let c = model.preprocessConfig
         guard c.padTo == 0, ["hann", "hanning"].contains(c.window.lowercased()), c.winLength > 1, c.winLength <= c.nFft, ["na", "none"].contains(c.normalize.lowercased()),
               model.defaultAttContextSize.first == 56 else {
@@ -29,6 +33,9 @@ public final class VellaNemotronSession {
         }
         self.model = model
         encoder = NemotronASRStreamEncoderState(layers: model.encoder.layers.count)
+        encoder.usePositionCache = optimized && VellaNemotronOptions.positionCache
+        encoder.useKeyValueCache = optimized && VellaNemotronOptions.keyValueCache
+        batchedDecode = optimized && VellaNemotronOptions.batchedDecode
         last = model.blankTokenID
     }
     public func push(_ chunk: [Float], final: Bool) throws -> String {
@@ -71,7 +78,7 @@ public final class VellaNemotronSession {
                 if VellaStreamProfile.enabled { VellaStreamProfile.time("enc_eval") { eval(features) } }
                 let decodeStart = VellaStreamProfile.enabled ? CFAbsoluteTimeGetCurrent() : 0
                 defer { VellaStreamProfile.add("decode_ms", (CFAbsoluteTimeGetCurrent() - decodeStart) * 1000) }
-                if Self.batchedDecode { text += self.decodeChunk(features); return }
+                if self.batchedDecode { text += self.decodeChunk(features); return }
                 for time in 0..<features.shape[1] {
                     let frame = features[0..., time..<(time + 1), 0...]
                     let cap = self.model.maxSymbols.flatMap { $0 == 0 ? nil : $0 } ?? 10
@@ -136,7 +143,11 @@ public final class VellaNemotronSession {
                 }
                 return joint.outputProj(x).argMax()
             }
-            let predictions = MLX.stacked(logits).asArray(Int32.self)
+            // Finiteness of the chunk rides along in the same host sync (NaN compares false).
+            let finite = (abs(features) .<= MLXArray(Float.greatestFiniteMagnitude)).all().asType(.int32)
+            let read = MLX.concatenated([MLX.stacked(logits).asType(.int32), finite.reshaped([1])]).asArray(Int32.self)
+            let predictions = Array(read.dropLast())
+            if read.last != 1 { nonFinite = true }
             VellaStreamProfile.add("sync_item")
             var index = 0
             while time < count, Int(predictions[index]) == blank { time += 1; index += 1; symbols = 0 }
