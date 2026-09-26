@@ -1,8 +1,7 @@
 import Foundation
 
 // Keep Hot and Memory submenu content as data (unit-tested, drawn by the app's menu builder), and the menu's
-// tooltip strings. Shape follows the Verdict-family reference (Verdict 95ddba5, keepHotMenu/memoryMenu in Core.swift).
-// Settings values come from the runtime (vr-runtime's Residency/Configuration); this file only presents them.
+// tooltip strings. Settings values come from the runtime (Residency/Configuration); this file only presents them.
 
 /// Keep Hot idle windows in minutes; 0 = Always. Idle is timed per model since a dictation last used it (or it loaded).
 public let keepHotChoices: [(minutes: Int, title: String)] = [(5, "5 min idle"), (15, "15 min idle"), (30, "30 min idle"), (60, "60 min idle"), (0, "Always")]

@@ -65,10 +65,10 @@ final class OneStateTests: XCTestCase {
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: [alpha])).write(to: resources.appendingPathComponent("models.json"))
         let registry = support.appendingPathComponent("models-installed.json")
         let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry)
-        let http = URLSessionConfiguration.ephemeral; http.protocolClasses = [Review1HubStub.self]
+        let http = URLSessionConfiguration.ephemeral; http.protocolClasses = [MockHubProtocol.self]
         dictation.downloadConfiguration = http
         let files = alphaFiles, revision = alpha.variants["BF16"]!.revision
-        Review1HubStub.handler = { request in
+        MockHubProtocol.handler = { request in
             let name = request.url!.lastPathComponent
             served(name)
             if request.url!.path.contains("/api/models/") {

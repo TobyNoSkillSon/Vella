@@ -81,6 +81,18 @@ final class DocsTests: XCTestCase {
         }
     }
 
+    /// Every image the README and the user guide show is in the repository.
+    func testDocumentImagesExist() throws {
+        let image = try NSRegularExpression(pattern: #"<img src="([^"]+)""#)
+        for (doc, base) in [("README.md", ""), ("docs/USAGE.md", "docs/")] {
+            let body = try text(doc)
+            let sources = image.matches(in: body, range: NSRange(body.startIndex..., in: body)).map { String(body[Range($0.range(at: 1), in: body)!]) }
+            XCTAssertFalse(sources.isEmpty, doc)
+            for source in sources where !source.hasPrefix("http") { XCTAssertTrue(exists(base + source), "\(doc): \(source)") }
+        }
+        XCTAssertTrue(try text("README.md").contains("docs/images/models.png") && text("README.md").contains("docs/images/menu.png"))
+    }
+
     /// Public documents carry no local paths or internal notes.
     func testPublicDocumentsHaveNoInternalReferences() throws {
         let documents = ["README.md", "AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md", "NOTICE",

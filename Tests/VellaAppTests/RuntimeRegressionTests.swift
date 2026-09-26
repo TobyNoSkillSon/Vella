@@ -5,13 +5,13 @@ import Darwin
 @testable import Vella
 import VellaCore
 
-/// Regression tests for Review 1 (lab/notes/REVIEW.md), one per finding, built from the review's repro: the real
+/// Regression tests for model lifecycle and worker supervision, each built from a reproduction: the real
 /// app/runtime wiring with fake stdio workers, an isolated support dir, a fake memory probe and mocked HTTP.
 /// Nothing touches the user's support dir, models or the network.
-final class Review1Tests: XCTestCase {
+final class RuntimeRegressionTests: XCTestCase {
     private var root: URL!
     override func setUpWithError() throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-review1-\(UUID())")
+        root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-runtime-regression-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: root) }
@@ -29,9 +29,9 @@ final class Review1Tests: XCTestCase {
         return session
     }
 
-    // MARK: R1 — first-dictation Get through the real download permission hook
+    // MARK: first-dictation Get through the real download permission hook
 
-    @MainActor func testR1GetDownloadsThroughRealPermissionHookThenTranscribesClipboardOnly() async throws {
+    @MainActor func testGetDownloadsThroughRealPermissionHookThenTranscribesClipboardOnly() async throws {
         _ = NSApplication.shared
         // Catalog: one offered dictation family, one pinned 4b variant served by the mocked Hub.
         let resources = root.appendingPathComponent("resources", isDirectory: true)
@@ -45,7 +45,7 @@ final class Review1Tests: XCTestCase {
             "config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel","quantization":{"bits":4}}"#.utf8),
             "model.safetensors": Data(repeating: 42, count: 4096)]
         var served: [String] = []
-        Review1HubStub.handler = { request in
+        MockHubProtocol.handler = { request in
             served.append(request.url!.lastPathComponent)
             if request.url!.path.contains("/api/models/") {
                 let siblings: [[String: Any]] = files.map { name, data in
@@ -57,7 +57,7 @@ final class Review1Tests: XCTestCase {
             return (200, data)
         }
         let registry = root.appendingPathComponent("support/models-installed.json")
-        let http = URLSessionConfiguration.ephemeral; http.protocolClasses = [Review1HubStub.self]
+        let http = URLSessionConfiguration.ephemeral; http.protocolClasses = [MockHubProtocol.self]
         let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry)
         dictation.downloadConfiguration = http
         let controller = ModelsController(dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
@@ -135,9 +135,9 @@ final class Review1Tests: XCTestCase {
     private func path(_ name: String) -> String { root.appendingPathComponent("models/\(name)").path }
     private func alive(_ pid: Int32) -> Bool { kill(pid, 0) == 0 }
 
-    // MARK: R2 — replacing the hot streaming model through start keeps process ownership
+    // MARK: replacing the hot streaming model through start keeps process ownership
 
-    @MainActor func testR2StartWithAnotherModelRetiresTheOldChildAndIgnoresItsLateOutput() async throws {
+    @MainActor func testStartWithAnotherModelRetiresTheOldChildAndIgnoresItsLateOutput() async throws {
         let runtime = try Runtime.isolated(root)
         let backend = try streaming(runtime); defer { backend.shutdown() }
         // B hot and idle; its child ignores SIGTERM and, after stdin EOF, writes a late status line and a stray reply.
@@ -158,9 +158,9 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(backend.processID, new, "a clean finish keeps the replacement hot")
     }
 
-    // MARK: R3 — a refused or failed streaming Reload keeps / restores the working model
+    // MARK: a refused or failed streaming Reload keeps / restores the working model
 
-    @MainActor func testR3StreamingReloadRefusalKeepsAndLoadFailureRestoresTheWorkingModel() async throws {
+    @MainActor func testStreamingReloadRefusalKeepsAndLoadFailureRestoresTheWorkingModel() async throws {
         let runtime = try Runtime.isolated(root, availableMB: 10_000)
         let backend = try streaming(runtime); defer { backend.shutdown() }
         runtime.start(loadLaunchSet: false)
@@ -189,7 +189,7 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(final, "hello world")
     }
 
-    // MARK: R4 — a failed or refused Load/Reload does not become the dictation selection
+    // MARK: a failed or refused Load/Reload does not become the dictation selection
 
     /// A Models controller over a fixture catalog (no benchmarks) with the given variants installed in an isolated registry.
     @MainActor private func controller(_ families: [ModelFamily], installed: [String: String]) throws -> ModelsController {
@@ -210,7 +210,7 @@ final class Review1Tests: XCTestCase {
         CatalogVariant(id: id, repository: "org/\(id)", revision: String(repeating: "b", count: 40), downloadBytes: 100_000_000, architecture: "parakeet")
     }
 
-    @MainActor func testR4FailedOrRefusedReloadKeepsTheWorkingModelSelected() async throws {
+    @MainActor func testFailedOrRefusedReloadKeepsTheWorkingModelSelected() async throws {
         let family = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test",
                                  native: "BF16", variants: ["8b": variant("alpha-8bit"), "4b": variant("alpha-4bit"), "BF16": variant("alpha-bf16")])
         let p8 = path("alpha-8b"), p4 = path("alpha-4b-loadfail"), p16 = path("alpha-bf16")
@@ -253,9 +253,9 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(runtime.status.models["alpha"]?.precision, "8b")
     }
 
-    // MARK: R5 — no idle-timer churn while a model is pinned past its deadline
+    // MARK: no idle-timer churn while a model is pinned past its deadline
 
-    @MainActor func testR5PinnedPastDeadlineArmsNoTimerThenUnloadsAfterTheNewIdleWindow() async throws {
+    @MainActor func testPinnedPastDeadlineArmsNoTimerThenUnloadsAfterTheNewIdleWindow() async throws {
         let runtime = try Runtime.isolated(root, minuteSeconds: 0.01) // on demand 15 min = 150 ms
         let backend = try streaming(runtime); defer { backend.shutdown() }
         try await backend.start(config: streamConfig(path("longstream"))) // on demand, pinned for the session
@@ -271,9 +271,9 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(runtime.status.evictions?.last?.reason, "idle: unused for 15 min (loaded on demand)")
     }
 
-    // MARK: R8 — critical memory pressure never stops a live stream; idle models are shed
+    // MARK: critical memory pressure never stops a live stream; idle models are shed
 
-    @MainActor func testR8CriticalPressureShedsIdleModelsButKeepsTheLiveStream() async throws {
+    @MainActor func testCriticalPressureShedsIdleModelsButKeepsTheLiveStream() async throws {
         let runtime = try Runtime.isolated(root)
         let dictation = try dictation(runtime); defer { dictation.shutdown() }
         let stream = try streaming(runtime); defer { stream.shutdown() }
@@ -298,9 +298,9 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(final, "hello world")
     }
 
-    // MARK: R9 — a manual streaming worker killed after a finished session is restarted
+    // MARK: a manual streaming worker killed after a finished session is restarted
 
-    @MainActor func testR9ManualStreamingWorkerKilledAfterASessionRestarts() async throws {
+    @MainActor func testManualStreamingWorkerKilledAfterASessionRestarts() async throws {
         let runtime = try Runtime.isolated(root)
         let stream = try streaming(runtime); defer { stream.shutdown() }
         runtime.start(loadLaunchSet: false)
@@ -321,9 +321,9 @@ final class Review1Tests: XCTestCase {
         XCTAssertTrue(try String(contentsOf: runtime.logURL, encoding: .utf8).contains("nemo: streaming worker exited while idle"))
     }
 
-    // MARK: R10 — Delete is ordered after unload and cleans the launch set even for an evicted model
+    // MARK: Delete is ordered after unload and cleans the launch set even for an evicted model
 
-    @MainActor func testR10DeleteUnloadsFirstCleansTheLaunchSetAndKeepsIntentOnFailure() async throws {
+    @MainActor func testDeleteUnloadsFirstCleansTheLaunchSetAndKeepsIntentOnFailure() async throws {
         _ = NSApplication.shared
         let alpha = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
                                 variants: ["8b": variant("alpha-slowexit-8bit"), "4b": variant("alpha-4bit")])
@@ -398,9 +398,9 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(runtime.settings.launchSet.map(\.id), ["beta"])
     }
 
-    // MARK: Residual — a dictation that finds its model still loading waits for it
+    // MARK: a dictation that finds its model still loading waits for it
 
-    @MainActor func testResidualDictationDuringAPendingLoadAwaitsReadiness() async throws {
+    @MainActor func testDictationDuringAPendingLoadAwaitsReadiness() async throws {
         let runtime = try Runtime.isolated(root)
         let backend = try dictation(runtime); defer { backend.shutdown() }
         runtime.start(loadLaunchSet: false)
@@ -416,7 +416,7 @@ final class Review1Tests: XCTestCase {
         XCTAssertEqual(runtime.status.models["alpha-delayload"]?.residency, "manual")
     }
 
-    // MARK: (a) — one automatic retry of a segment after a worker crash mid-transcription
+    // MARK: one automatic retry of a segment after a worker crash mid-transcription
 
     @MainActor func testWorkerCrashMidSegmentRetriesOnceOnAFreshWorkerElseFailsForManualRetry() async throws {
         let runtime = try Runtime.isolated(root)
@@ -491,9 +491,9 @@ final class Review1Tests: XCTestCase {
         }
     }
 
-    // MARK: Residual — a finished download does not unload hot models for calibration
+    // MARK: a finished download does not unload hot models for calibration
 
-    @MainActor func testResidualDownloadCompletionKeepsHotModelsLoaded() async throws {
+    @MainActor func testDownloadCompletionKeepsHotModelsLoaded() async throws {
         _ = NSApplication.shared
         let resources = root.appendingPathComponent("resources", isDirectory: true)
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
@@ -505,7 +505,7 @@ final class Review1Tests: XCTestCase {
         let files: [String: Data] = [
             "config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel","quantization":{"bits":4}}"#.utf8),
             "model.safetensors": Data(repeating: 7, count: 4096)]
-        Review1HubStub.handler = { request in
+        MockHubProtocol.handler = { request in
             if request.url!.path.contains("/api/models/") {
                 let siblings: [[String: Any]] = files.map { name, data in
                     ["rfilename": name, "size": data.count, "lfs": ["sha256": SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()]]
@@ -523,7 +523,7 @@ final class Review1Tests: XCTestCase {
         let pid = try XCTUnwrap(stream.processID)
         // A dictation library that calibrates after a download (injected store, no worker).
         let registry = root.appendingPathComponent("support/models-installed.json")
-        let http = URLSessionConfiguration.ephemeral; http.protocolClasses = [Review1HubStub.self]
+        let http = URLSessionConfiguration.ephemeral; http.protocolClasses = [MockHubProtocol.self]
         let calibration = CalibrationStore(directory: root.appendingPathComponent("calibrations"), resources: resources, worker: { nil })
         let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry, calibration: calibration)
         dictation.downloadConfiguration = http
@@ -543,7 +543,7 @@ final class Review1Tests: XCTestCase {
     }
 }
 
-final class Review1HubStub: URLProtocol {
+final class MockHubProtocol: URLProtocol {
     static var handler: ((URLRequest) throws -> (Int, Data))!
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }

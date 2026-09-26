@@ -95,8 +95,8 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate {
     static func digest(_ file: URL, size: Int64, etag: String) throws -> Bool {
         let handle = try FileHandle(forReadingFrom: file); defer { try? handle.close() }
         // Each read returns an autoreleased buffer; on a Swift concurrency thread nothing drains them until the task
-        // ends, so without a pool per chunk verifying a multi-GB checkpoint kept the whole file in heap (Review 1 R12,
-        // the pattern FastPathGate.key already fixed).
+        // ends, so without a pool per chunk verifying a multi-GB checkpoint kept the whole file in heap (the
+        // same pattern as FastPathGate.key).
         func each(_ body: (Data) -> Void) throws {
             while try autoreleasepool(invoking: {
                 guard let data = try handle.read(upToCount: 8 * 1024 * 1024), !data.isEmpty else { return false }

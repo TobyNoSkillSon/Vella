@@ -4,24 +4,16 @@ import Carbon
 @testable import Vella
 import VellaCore
 
-/// Independent adversarial QA for configurable activation (w1:p1, spark).
+/// Adversarial tests for configurable activation (key chords, modifier keys and mouse buttons).
 ///
-/// Scope: public source only, synthetic fixtures only. No full-app launch,
-/// no microphone capture, no global input injection (no CGEventPost),
-/// no TCC prompts, no second Vella app.
+/// Synthetic fixtures only: no full-app launch, no microphone capture, no global input injection (no CGEventPost),
+/// no TCC prompts, no second Vella app. Physical and permission behaviour is not faked here.
 ///
-/// Evidence tags (match qa-edge-case-matrix.md):
-/// - [INJ] injected / synthetic fixture evidence in this file
-/// - [RENDER] isolated native view/menu structure (no popUp tracking, no duplicate app)
-/// - [HW] physical / TCC / real-device residual — documented, never faked
-///
-/// Status: integration landed. Update 2026-09-16 (pm): `spark/contract.md` +
-/// `ShortcutCore.swift` + `Shortcuts.swift` + `App.swift`/`UI.swift` wiring present.
-/// Baseline guards retained; contract engine/store/manager tests in Part II;
-/// concrete native bugs from sanitized `coordinator-review.txt` in Part III.
-/// `LiveInsertion.observeUserInput` is legacy (not the production blind path) —
-/// B5/B9 legacy tests below document old helper only; production claims use
-/// `EventTapShortcutRegistrar` statics + `ShortcutEngine` + `ShortcutManager`.
+/// Sections A–G guard persistence, matching, activation, permissions, sleep and the menu; Part II tests the shortcut
+/// engine, store and manager; Part III pins concrete native bugs that were fixed; Parts IV and V cover validation,
+/// rebinding and masks. `LiveInsertion.observeUserInput` is legacy (not the production blind path): the legacy tests
+/// below document the old helper only; production behaviour uses `EventTapShortcutRegistrar` statics +
+/// `ShortcutEngine` + `ShortcutManager`.
 final class ShortcutAdversarialTests: XCTestCase {
 
     // MARK: - Fixtures (synthetic only)
@@ -64,9 +56,9 @@ final class ShortcutAdversarialTests: XCTestCase {
         menu.items.firstIndex(where: { ["Shortcuts", "Shortcut", "Activation", "Keyboard Shortcut"].contains($0.title) })
     }
 
-    // MARK: - A. Persistence & recovery (baseline analogues) [INJ]
+    // MARK: - A. Persistence & recovery (baseline analogues)
 
-    @MainActor func testA1FreshInstallDefaultsToDictationIdle() throws {
+    @MainActor func testFreshInstallDefaultsToDictationIdle() throws {
         let root = try tempRoot()
         let missing = root.appendingPathComponent("config.json")
         let model = Model(configurationURL: missing)
@@ -76,7 +68,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertFalse(model.busy)
     }
 
-    @MainActor func testA2CorruptConfigFallsBackWithoutCrash() throws {
+    @MainActor func testCorruptConfigFallsBackWithoutCrash() throws {
         let root = try tempRoot()
         let url = root.appendingPathComponent("config.json")
         try "not-json{{{".write(to: url, atomically: true, encoding: .utf8)
@@ -88,12 +80,12 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(model.phase, .idle)
     }
 
-    @MainActor func testA3UnknownModeStringFallsBackToDictation() throws {
+    @MainActor func testUnknownModeStringFallsBackToDictation() throws {
         // Configuration.init uses decodeIfPresent + default, but an invalid raw
         // value still throws dataCorrupted at decode time. Production recovers
         // via `try?` in Model.init (falls back to .dictation). Future shortcut
         // prefs must follow the same pattern: never force-unwrap/precondition,
-        // always recover to defaults (A3).
+        // always recover to defaults.
         let payload = #"{"executable":"/unused","model":"/m","mode":"hyperdrive"}"#.data(using: .utf8)!
         XCTAssertThrowsError(try JSONDecoder().decode(Configuration.self, from: payload))
         let root = try tempRoot()
@@ -101,17 +93,17 @@ final class ShortcutAdversarialTests: XCTestCase {
         try payload.write(to: url)
         let model = Model(configurationURL: url)
         defer { model.shutdown() }
-        XCTAssertEqual(model.mode, .dictation, "Unknown enum must recover to defaults via Model fallback (A3)")
+        XCTAssertEqual(model.mode, .dictation, "Unknown enum must recover to defaults via Model fallback")
     }
 
-    @MainActor func testA8FutureSchemaExtraKeysIgnored() throws {
+    @MainActor func testFutureSchemaExtraKeysIgnored() throws {
         let payload = #"{"executable":"/unused","model":"/m","mode":"dictation","futureShortcut":{"chord":"F99"},"unknownArray":[1,2]}"#.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(Configuration.self, from: payload)
         XCTAssertEqual(decoded.mode, .dictation)
         XCTAssertEqual(decoded.model, "/m")
     }
 
-    @MainActor func testA10UpgradeFrom088KeepsModeAndMic() throws {
+    @MainActor func testUpgradeFrom088KeepsModeAndMic() throws {
         let root = try tempRoot()
         let url = root.appendingPathComponent("config.json")
         var settings = Configuration(executable: "/unused", model: "/keep")
@@ -120,22 +112,22 @@ final class ShortcutAdversarialTests: XCTestCase {
         try JSONEncoder().encode(settings).write(to: url, options: .atomic)
         let model = Model(configurationURL: url)
         defer { model.shutdown() }
-        XCTAssertEqual(model.mode, .streaming, "Existing mode must be untouched by shortcut defaults (A10)")
+        XCTAssertEqual(model.mode, .streaming, "Existing mode must be untouched by shortcut defaults")
     }
 
-    @MainActor func testA5EmptyTriggerAnalogueIsInvalid() throws {
+    @MainActor func testEmptyTriggerAnalogueIsInvalid() throws {
         // Analogue: empty model fails validation, so a future
         // "empty trigger (no key/modifiers/mouse)" must likewise be rejected
-        // and fall back to ⌃⌘N rather than registering nothing (A5).
+        // and fall back to ⌃⌘N rather than registering nothing.
         let empty = Configuration(executable: "", model: "")
         XCTAssertThrowsError(try empty.validate())
         let noModel = Configuration(executable: "/unused", model: "")
         XCTAssertThrowsError(try noModel.validate())
     }
 
-    // MARK: - B. Chord matching / modifier-only / repeat [INJ logic]
+    // MARK: - B. Chord matching / modifier-only / repeat
 
-    @MainActor func testB1DeviceIndependentMaskPolicy() {
+    @MainActor func testDeviceIndependentMaskPolicy() {
         // Carbon/NSEvent flags include capsLock/fn/device bits. Raw equality
         // must not be used. The contract must define an explicit mask.
         // Note: NSEvent.deviceIndependentFlagsMask still distinguishes capsLock
@@ -148,28 +140,28 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(
             configured.intersection(relevant),
             eventWithNoise.intersection(relevant),
-            "Relevant-subset comparison must match through capsLock/fn/numericPad noise (B1)"
+            "Relevant-subset comparison must match through capsLock/fn/numericPad noise"
         )
         // Document the SDK trap: deviceIndependent mask alone is insufficient.
         XCTAssertNotEqual(
             configured.intersection(.deviceIndependentFlagsMask),
             eventWithNoise.intersection(.deviceIndependentFlagsMask),
-            "deviceIndependentFlagsMask retains capsLock on this SDK — must not be the sole mask (B1 risk)"
+            "deviceIndependentFlagsMask retains capsLock on this SDK — must not be the sole mask"
         )
     }
 
-    @MainActor func testB3B4ModifierOnlyMustUseExactMatchNotContainment() {
+    @MainActor func testB4ModifierOnlyMustUseExactMatchNotContainment() {
         // Modifier-only trigger (e.g. solo ⌥) must NOT fire while composing a
         // larger chord (e.g. ⌥⌘N). Containment is the bug; exact match is the fix.
         // Generic NSEvent logic (still valid) + production EventTap statics below.
         let trigger: NSEvent.ModifierFlags = [.option]
         let composed: NSEvent.ModifierFlags = [.option, .command]
-        XCTAssertTrue(composed.contains(.option), "Containment would false-fire (B3 trap)")
-        XCTAssertNotEqual(trigger, composed, "Exact match must reject the composed chord (B3)")
+        XCTAssertTrue(composed.contains(.option), "Containment would false-fire")
+        XCTAssertNotEqual(trigger, composed, "Exact match must reject the composed chord")
         // Production path: EventTap requires ONLY our modifier (no extras).
         XCTAssertTrue(EventTapShortcutRegistrar.flagsContain(.maskAlternate, key: .option))
         XCTAssertTrue(EventTapShortcutRegistrar.flagsContainOnly(.maskAlternate, key: .option))
-        XCTAssertFalse(EventTapShortcutRegistrar.flagsContainOnly([.maskAlternate, .maskCommand], key: .option), "Composed ⌥⌘ must not fire solo ⌥ (B3 production)")
+        XCTAssertFalse(EventTapShortcutRegistrar.flagsContainOnly([.maskAlternate, .maskCommand], key: .option), "Composed ⌥⌘ must not fire solo ⌥ (production)")
         // Legacy helper below is not production (blind Streaming uses no monitor).
         let idle = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
         idle.observeUserInput(type: .flagsChanged, modifiers: [])
@@ -177,9 +169,9 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertNil(idle.blockedReason, "Legacy helper: flagsChanged alone never disturbed insertion")
     }
 
-    @MainActor func testB5FlagsChangedNoiseAndMouseMovedIgnored_Legacy() {
+    @MainActor func testFlagsChangedNoiseAndMouseMovedIgnored_Legacy() {
         // LEGACY: documents old `LiveInsertion.observeUserInput` (unused in production blind path).
-        // Production blind Streaming uses `monitorUserInput:false`; no finding depends on this helper.
+        // Production blind Streaming uses `monitorUserInput:false`; nothing below depends on this helper.
         let controller = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
         controller.observeUserInput(type: .flagsChanged)
         controller.observeUserInput(type: .mouseMoved)
@@ -188,7 +180,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertNil(controller.blockedReason)
     }
 
-    @MainActor func testB6B7RepeatAndToggleIdempotenceAtModelLayer() throws {
+    @MainActor func testB7RepeatAndToggleIdempotenceAtModelLayer() throws {
         // Key repeat storm (isARepeat stream) must produce exactly one press edge.
         // At Model layer: second toggle while busy beeps and is ignored; finish
         // when not recording is a no-op (no start/stop flapping).
@@ -205,12 +197,12 @@ final class ShortcutAdversarialTests: XCTestCase {
         // Busy guard: preparing + toggle must stay preparing (no queued finish).
         model.update(.preparing, "Synthetic busy")
         model.toggle() // busy -> NSSound.beep + return (no mic access from this path)
-        XCTAssertEqual(model.phase, .preparing, "Repeat during preparing must not flap (B6/B7/C7)")
+        XCTAssertEqual(model.phase, .preparing, "Repeat during preparing must not flap")
         model.cancel()
         XCTAssertEqual(model.phase, .idle)
     }
 
-    @MainActor func testB9B10SelfEventImmunity_Legacy() async throws {
+    @MainActor func testB10SelfEventImmunity_Legacy() async throws {
         // LEGACY helper check only (not production). Production self-immunity is via
         // Carbon/event-tap source filtering + engine ownership, covered in Part III.
         let controller = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
@@ -218,7 +210,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         controller.observeUserInput(type: .keyDown, marker: LiveInsertion.eventMarker)
         // Retained ⌃⌘N keyDown is explicitly ignored by current policy.
         controller.observeUserInput(type: .keyDown, keyCode: 45, modifiers: [.control, .command])
-        XCTAssertNil(controller.blockedReason, "Self events must not pause (B9/B10)")
+        XCTAssertNil(controller.blockedReason, "Self events must not pause")
         // Genuine user typing/mouse still pauses (control case).
         let typing = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
         typing.observeUserInput(type: .keyDown, keyCode: 0)
@@ -236,7 +228,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(up.type, .keyUp)
     }
 
-    @MainActor func testB9HardcodedNIgnoresSupersetRisk_Legacy() {
+    @MainActor func testHardcodedNIgnoresSupersetRisk_Legacy() {
         // LEGACY: locks old helper shape only. Do not request semantic changes here;
         // production chord policy lives in `ShortcutValidation` + Carbon/event-tap routing.
         let exact = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
@@ -244,22 +236,22 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertNil(exact.blockedReason, "Exact ⌃⌘N ignored (current baseline)")
         let superset = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
         superset.observeUserInput(type: .keyDown, keyCode: 45, modifiers: [.control, .command, .shift])
-        XCTAssertNotNil(superset.blockedReason, "Superset currently pauses — implementer must define B2 policy explicitly")
+        XCTAssertNotNil(superset.blockedReason, "Superset currently pauses — implementer must define the superset policy explicitly")
     }
 
-    // MARK: - C. Activation state machine [INJ]
+    // MARK: - C. Activation state machine
 
-    @MainActor func testC1RetainedTogglePathUnaffected() throws {
+    @MainActor func testRetainedTogglePathUnaffected() throws {
         let config = try tempConfig()
         let delegate = AppDelegate(model: Model(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         delegate.rebuildMenu()
         let start = try XCTUnwrap(delegate.menu.items.first(where: { $0.title.hasPrefix("Start") || $0.title.hasPrefix("Finish") }))
         XCTAssertEqual(start.keyEquivalent, "n")
-        XCTAssertEqual(start.keyEquivalentModifierMask, NSEvent.ModifierFlags([.control, .command]), "Retained ⌃⌘N must be unchanged (C1)")
+        XCTAssertEqual(start.keyEquivalentModifierMask, NSEvent.ModifierFlags([.control, .command]), "Retained ⌃⌘N must be unchanged")
     }
 
-    @MainActor func testC7C9C10C11StaleReleasesAreNoOps() throws {
+    @MainActor func testC9C10C11StaleReleasesAreNoOps() throws {
         let config = try tempConfig()
         let board = syntheticBoard()
         defer { board.releaseGlobally() }
@@ -268,7 +260,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         for phase: Model.Phase in [.idle, .preparing, .transcribing, .success, .failed] {
             model.update(phase, "Synthetic \(phase)")
             model.finish()
-            XCTAssertEqual(model.phase, phase, "finish() outside recording must be no-op (C9/C10/C11)")
+            XCTAssertEqual(model.phase, phase, "finish() outside recording must be no-op")
         }
         XCTAssertNil(board.string(forType: .string), "Stale release must never touch clipboard")
         // Failed with no savedSession: retry is no-op.
@@ -279,16 +271,16 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(model.phase, .idle)
     }
 
-    @MainActor func testC14ModeSwitchGuardedWhileRecording() throws {
+    @MainActor func testModeSwitchGuardedWhileRecording() throws {
         let config = try tempConfig()
         let model = Model(configurationURL: config)
         defer { model.shutdown() }
         model.update(.recording, "Synthetic recording")
-        XCTAssertThrowsError(try model.selectMode(.streaming), "Mode switch while recording must stay blocked (C14/C18 analogue)")
+        XCTAssertThrowsError(try model.selectMode(.streaming), "Mode switch while recording must stay blocked")
         model.update(.idle, "reset")
     }
 
-    @MainActor func testC16SuccessSettlesAndNewPressCancelsTimer() throws {
+    @MainActor func testSuccessSettlesAndNewPressCancelsTimer() throws {
         let config = try tempConfig()
         let model = Model(configurationURL: config)
         defer { model.shutdown() }
@@ -300,9 +292,9 @@ final class ShortcutAdversarialTests: XCTestCase {
         model.cancel()
     }
 
-    // MARK: - D. Start failures & permission [INJ, no TCC]
+    // MARK: - D. Start failures & permission
 
-    @MainActor func testD3DeniedAXNeverStartsAndReleaseIsNoOp() throws {
+    @MainActor func testDeniedAXNeverStartsAndReleaseIsNoOp() throws {
         let (permission, _) = deniedPermission()
         let config = try tempConfig()
         let board = syntheticBoard()
@@ -310,14 +302,14 @@ final class ShortcutAdversarialTests: XCTestCase {
         let model = Model(insertionPermission: permission, pasteboard: board, configurationURL: config)
         defer { model.shutdown() }
         model.toggle()
-        XCTAssertEqual(model.phase, .idle, "AX-denied press must not start (D3)")
+        XCTAssertEqual(model.phase, .idle, "AX-denied press must not start")
         XCTAssertNil(model.recorder.url)
         model.finish()
-        XCTAssertEqual(model.phase, .idle, "Release after denied start is no-op (D1/D3)")
+        XCTAssertEqual(model.phase, .idle, "Release after denied start is no-op")
         XCTAssertNil(board.string(forType: .string))
     }
 
-    @MainActor func testD6CancelClearsSnapshotAndBlocksInsertion() throws {
+    @MainActor func testCancelClearsSnapshotAndBlocksInsertion() throws {
         let board = syntheticBoard()
         defer { board.releaseGlobally() }
         var snapshots = 0
@@ -332,12 +324,12 @@ final class ShortcutAdversarialTests: XCTestCase {
         model.finish()
         XCTAssertEqual(snapshots, 1, "Finish must snapshot synchronously")
         model.cancel()
-        XCTAssertNotNil(model.automaticInsertionBlockReason, "Cancel must release snapshot to clipboard-only (D6/D7)")
+        XCTAssertNotNil(model.automaticInsertionBlockReason, "Cancel must release snapshot to clipboard-only")
     }
 
-    // MARK: - E. Lock / sleep / tap loss [INJ structure, HW residuals documented]
+    // MARK: - E. Lock / sleep / tap loss
 
-    @MainActor func testE3SpaceChangeDoesNotCorruptSyntheticRecording() throws {
+    @MainActor func testSpaceChangeDoesNotCorruptSyntheticRecording() throws {
         let config = try tempConfig()
         let model = Model(configurationURL: config)
         defer { model.shutdown() }
@@ -345,19 +337,19 @@ final class ShortcutAdversarialTests: XCTestCase {
         delegate.configureHUDPanel() // Isolated panel only; no status item, no app run.
         model.update(.recording, "Synthetic recording")
         delegate.activeSpaceChanged()
-        XCTAssertEqual(model.phase, .recording, "Space change must not corrupt gesture/recording state (E3)")
+        XCTAssertEqual(model.phase, .recording, "Space change must not corrupt gesture/recording state")
         model.update(.idle, "reset")
         delegate.activeSpaceChanged()
         XCTAssertEqual(model.phase, .idle)
     }
 
-    // MARK: - F. Menu / UI contract [INJ + RENDER structure]
+    // MARK: - F. Menu / UI contract
 
-    @MainActor func testF1SubmenuPlacementImmediatelyBelowMicrophone() throws {
+    @MainActor func testSubmenuPlacementImmediatelyBelowMicrophone() throws {
         let config = try tempConfig()
         let delegate = AppDelegate(model: Model(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
-        // F1 now REQUIRES Shortcuts (integration landed) at microphoneIndex+1 in every phase.
+        // Shortcuts is required at microphoneIndex+1 in every phase.
         for phase: Model.Phase in [.idle, .preparing, .recording, .transcribing, .success, .failed] {
             delegate.model.update(phase, "Synthetic")
             delegate.rebuildMenu()
@@ -365,28 +357,28 @@ final class ShortcutAdversarialTests: XCTestCase {
                 XCTFail("Microphone item missing in phase \(phase)"); continue
             }
             guard let shortcut = shortcutSubmenuIndex(in: delegate.menu) else {
-                XCTFail("Shortcuts submenu missing in phase \(phase) (F1 REQUIREs it post-integration)"); continue
+                XCTFail("Shortcuts submenu missing in phase \(phase)"); continue
             }
-            XCTAssertEqual(shortcut, mic + 1, "Shortcut submenu must sit immediately below Microphone (F1) in phase \(phase)")
+            XCTAssertEqual(shortcut, mic + 1, "Shortcut submenu must sit immediately below Microphone in phase \(phase)")
             XCTAssertEqual(delegate.menu.items[shortcut].title, "Shortcuts")
         }
     }
 
-    @MainActor func testF2RebuildsStableNoDuplicates() throws {
+    @MainActor func testRebuildsStableNoDuplicates() throws {
         let config = try tempConfig()
         let delegate = AppDelegate(model: Model(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         delegate.rebuildMenu()
         let count = delegate.menu.items.count
         for _ in 0..<5 { delegate.rebuildMenu() }
-        XCTAssertEqual(delegate.menu.items.count, count, "Rebuilds must be idempotent (F2)")
+        XCTAssertEqual(delegate.menu.items.count, count, "Rebuilds must be idempotent")
         let mics = delegate.menu.items.filter { $0.title == "Microphone" }
-        XCTAssertEqual(mics.count, 1, "No duplicate Microphone after rebuilds (F2)")
+        XCTAssertEqual(mics.count, 1, "No duplicate Microphone after rebuilds")
         let shortcuts = delegate.menu.items.filter { ["Shortcuts", "Shortcut", "Activation"].contains($0.title) }
-        XCTAssertLessThanOrEqual(shortcuts.count, 1, "No duplicate shortcut submenu (F2)")
+        XCTAssertLessThanOrEqual(shortcuts.count, 1, "No duplicate shortcut submenu")
     }
 
-    @MainActor func testF3StartItemRetainsCtrlCmdNGlyph() throws {
+    @MainActor func testStartItemRetainsCtrlCmdNGlyph() throws {
         let config = try tempConfig()
         let delegate = AppDelegate(model: Model(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
@@ -394,14 +386,14 @@ final class ShortcutAdversarialTests: XCTestCase {
             delegate.model.update(phase, "Synthetic")
             delegate.rebuildMenu()
             let start = delegate.menu.items.first(where: { $0.title.hasPrefix("Start") || $0.title.hasPrefix("Finish") })
-            let item = try XCTUnwrap(start, "Start/Finish item missing in phase \(phase) (F3)")
-            XCTAssertEqual(item.keyEquivalent, "n", "Start item must retain ⌃⌘N display (F3)")
+            let item = try XCTUnwrap(start, "Start/Finish item missing in phase \(phase)")
+            XCTAssertEqual(item.keyEquivalent, "n", "Start item must retain ⌃⌘N display")
             XCTAssertEqual(item.keyEquivalentModifierMask, NSEvent.ModifierFlags([.control, .command]))
             XCTAssertFalse(item.title.isEmpty)
         }
     }
 
-    @MainActor func testF4EmbeddedControlKeepOpenAnalogue() {
+    @MainActor func testEmbeddedControlKeepOpenAnalogue() {
         // Analogue for the future shortcut rebind/mode control: embedded
         // SettingsMenuItem control must synchronize without dispatching when
         // disabled, and must retain keyboard action (keep-open invariant).
@@ -410,10 +402,10 @@ final class ShortcutAdversarialTests: XCTestCase {
         item.isEnabled = false; item.state = .on; item.synchronize()
         XCTAssertFalse(item.control.isEnabled)
         XCTAssertEqual(item.control.state, .on)
-        XCTAssertNotNil(item.view, "Embedded control view must exist (F4)")
+        XCTAssertNotNil(item.view, "Embedded control view must exist")
     }
 
-    @MainActor func testF5RecordingHintAccuracyBaseline() throws {
+    @MainActor func testRecordingHintAccuracyBaseline() throws {
         // Baseline: recording/streaming hints hardcode ⌃⌘N. After customization
         // they must reflect the active binding or stay accurate — never instruct
         // a chord that doesn't work. Lock baseline wording so drift is visible.
@@ -429,9 +421,9 @@ final class ShortcutAdversarialTests: XCTestCase {
         delegate.model.update(.idle, "reset")
     }
 
-    // MARK: - G. Safety invariants (unchanged surfaces) [INJ]
+    // MARK: - G. Safety invariants (unchanged surfaces)
 
-    @MainActor func testG1NoEnterSendFromGesturePath() throws {
+    @MainActor func testNoEnterSendFromGesturePath() throws {
         // sanitize() must map Return/controls to space, never emit CR/LF.
         XCTAssertEqual(LiveInsertion.sanitize("a\rb\nc"), "a b c")
         XCTAssertEqual(LiveInsertion.sanitize("a\u{0000}b\u{007F}c"), "a b c")
@@ -449,7 +441,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(board.string(forType: .string), "Vella paste verification.")
     }
 
-    @MainActor func testG2NoFocusSteeringFromShortcutLayer() {
+    @MainActor func testNoFocusSteeringFromShortcutLayer() {
         XCTAssertTrue(AccessibilityFocus.isFieldRole("AXTextArea"))
         XCTAssertTrue(AccessibilityFocus.isFieldRole("AXTextField"))
         XCTAssertTrue(AccessibilityFocus.isFieldRole("AXComboBox"))
@@ -462,7 +454,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         AccessibilityFocus.prepare(NSRunningApplication.current)
     }
 
-    @MainActor func testG3G4RecognitionAndRecoveryUntouched() async throws {
+    @MainActor func testG4RecognitionAndRecoveryUntouched() async throws {
         // Dictation finish captures synchronously; streaming captures nothing;
         // recovery/retry are clipboard-only. Any shortcut path must reuse
         // toggle()/finish()/recover() entry points, never a parallel pipeline.
@@ -476,7 +468,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         defer { dictation.onChange = nil; dictation.cancel() }
         dictation.phase = .recording
         dictation.finish()
-        XCTAssertEqual(snapshots, 1, "Dictation Finish must snapshot (G3)")
+        XCTAssertEqual(snapshots, 1, "Dictation Finish must snapshot")
         dictation.cancel()
         let streaming = Model(pasteboard: board,
                               stopCapture: { _ in throw VellaError.message("Synthetic") },
@@ -485,18 +477,18 @@ final class ShortcutAdversarialTests: XCTestCase {
         defer { streaming.onChange = nil; streaming.cancel() }
         streaming.phase = .recording
         streaming.finish()
-        XCTAssertEqual(snapshots, 1, "Streaming Finish must not capture destination (G3 blind/roaming)")
+        XCTAssertEqual(snapshots, 1, "Streaming Finish must not capture destination (blind, roaming)")
         streaming.cancel()
-        XCTAssertEqual(streaming.automaticInsertionBlockReason, "Recovered or cancelled recordings are clipboard-only.", "Recovery stays clipboard-only (G4)")
+        XCTAssertEqual(streaming.automaticInsertionBlockReason, "Recovered or cancelled recordings are clipboard-only.", "Recovery stays clipboard-only")
     }
 
-    @MainActor func testG6NoGlobalInjectionInThisSuite() {
+    @MainActor func testNoGlobalInjectionInThisSuite() {
         // Static guard: this suite must never call CGEvent.post (global injection).
         // We verify provenance structurally via nativeEvents() only.
         XCTAssertNotEqual(LiveInsertion.eventMarker, 0)
     }
 
-    // MARK: - Part II. Contract-bound adversarial tests (real ShortcutCore/Manager) [INJ]
+    // MARK: - Part II. Contract-bound adversarial tests (real ShortcutCore/Manager)
 
     private func engineFixture(config: ShortcutConfiguration, recording: Bool = false, busy: Bool = false, nowValue: TimeInterval = 1000, operation: UInt64 = 0) -> (ShortcutEngine, RecordingBox, TimeBox) {
         let rec = RecordingBox(recording: recording, busy: busy, operation: operation)
@@ -526,8 +518,8 @@ final class ShortcutAdversarialTests: XCTestCase {
     }
 
     func testH2ValidationRejectsDangerousAndEmptyChords() {
-        XCTAssertNotNil(ShortcutValidation.validateKeyChord(keyCode: 45, modifiers: 0), "Empty modifiers must be rejected (A5)")
-        XCTAssertNotNil(ShortcutValidation.validateKeyChord(keyCode: 200, modifiers: 256), "Out-of-range keyCode must be rejected (A4)")
+        XCTAssertNotNil(ShortcutValidation.validateKeyChord(keyCode: 45, modifiers: 0), "Empty modifiers must be rejected")
+        XCTAssertNotNil(ShortcutValidation.validateKeyChord(keyCode: 200, modifiers: 256), "Out-of-range keyCode must be rejected")
         XCTAssertNotNil(ShortcutValidation.validateKeyChord(keyCode: 53, modifiers: 256), "Escape reserved")
         XCTAssertNotNil(ShortcutValidation.validateKeyChord(keyCode: 57, modifiers: 256), "CapsLock rejected")
         XCTAssertNotNil(ShortcutValidation.validateKeyChord(keyCode: 55, modifiers: 256), "Modifier keyCode must use modifier-only")
@@ -547,7 +539,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertTrue(ShortcutConfiguration(trigger: .mouseButton(button: .button3), behavior: .toggle).trigger.requiresEventTap)
         XCTAssertTrue(ShortcutConfiguration(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .toggle).trigger.isKeyChord)
         XCTAssertFalse(ShortcutConfiguration(trigger: .mouseButton(button: .middle), behavior: .toggle).trigger.isKeyChord)
-        // Mouse type prevents primary/secondary by construction (B13).
+        // Mouse type prevents primary/secondary by construction.
         XCTAssertNil(MouseButton(rawValue: 0))
         XCTAssertNil(MouseButton(rawValue: 1))
         XCTAssertEqual(MouseButton.middle.rawValue, 2)
@@ -558,7 +550,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let url = root.appendingPathComponent("shortcuts.json")
-        // Fresh install, no file: defaults, no error (A1).
+        // Fresh install, no file: defaults, no error.
         let fresh = ShortcutStore(fileURL: url)
         fresh.load()
         XCTAssertEqual(fresh.configuration, .default)
@@ -575,13 +567,13 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertFalse(reloaded.save(invalid))
         XCTAssertNotNil(reloaded.lastError)
         XCTAssertEqual(reloaded.configuration, custom, "Invalid save must keep previous (rollback)")
-        // Corrupt payload: keeps in-memory, sets lastError, never crashes (A2).
+        // Corrupt payload: keeps in-memory, sets lastError, never crashes.
         try "not-json{{{".write(to: url, atomically: true, encoding: .utf8)
         let corrupt = ShortcutStore(initial: custom, fileURL: url)
         corrupt.load()
         XCTAssertEqual(corrupt.configuration, custom)
         XCTAssertNotNil(corrupt.lastError)
-        // Unknown enum + future keys: tolerant decode (A3/A8).
+        // Unknown enum + future keys: tolerant decode.
         let future = #"{"trigger":{"kind":"keyChord","keyCode":45,"modifiers":4352,"future":99},"behavior":"toggle","extra":1}"#.data(using: .utf8)!
         try future.write(to: url)
         let tolerant = ShortcutStore(initial: custom, fileURL: url)
@@ -598,18 +590,18 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(rec.starts, 1)
         XCTAssertNotNil(engine.activePressID)
         XCTAssertFalse(engine.press(), "Duplicate press while held suppressed")
-        XCTAssertFalse(engine.press(isRepeat: true), "Repeat suppressed (B6)")
+        XCTAssertFalse(engine.press(isRepeat: true), "Repeat suppressed")
         XCTAssertEqual(rec.starts, 1)
         XCTAssertFalse(engine.release(), "Toggle release always ignored")
         XCTAssertNil(engine.activePressID, "Toggle release clears press")
         // Stale release with no press: suppressed.
         XCTAssertFalse(engine.release())
         XCTAssertFalse(engine.releaseForPressID(999))
-        // Press while busy suppressed (C7).
+        // Press while busy suppressed.
         let (busyEngine, busyRec, _) = engineFixture(config: ShortcutConfiguration(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .toggle), busy: true)
         XCTAssertFalse(busyEngine.press())
         XCTAssertEqual(busyRec.starts, 0)
-        // Press while recording finishes once (C2); second finish flaps nothing.
+        // Press while recording finishes once; second finish flaps nothing.
         let (recEngine, recBox, _) = engineFixture(config: ShortcutConfiguration(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .toggle), recording: true)
         XCTAssertTrue(recEngine.press())
         XCTAssertEqual(recBox.finishes, 1)
@@ -617,7 +609,7 @@ final class ShortcutAdversarialTests: XCTestCase {
     }
 
     func testH6HoldReleaseDuringPreparingCancelsWithoutRunaway() {
-        // C8 highest-risk: hold press starts, release during preparing must cancel (not finish), no runaway.
+        // Highest risk: hold press starts, release during preparing must cancel (not finish), no runaway.
         let (engine, rec, _) = engineFixture(config: ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 4352), behavior: .holdToTalk), busy: true)
         // Foreign busy with no owned capture: press suppressed (never steals).
         XCTAssertFalse(engine.press())
@@ -629,7 +621,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         let pressID = try! XCTUnwrap(owned.activePressID)
         ownedRec.recording = false; ownedRec.busy = true // preparing after start
         XCTAssertTrue(owned.releaseForPressID(pressID))
-        XCTAssertEqual(ownedRec.cancels, 1, "Release during preparing must cancel, not finish (C8)")
+        XCTAssertEqual(ownedRec.cancels, 1, "Release during preparing must cancel, not finish")
         XCTAssertEqual(ownedRec.finishes, 0)
         XCTAssertNil(owned.activePressID)
         XCTAssertNil(owned.activeCaptureID, "No runaway press/capture left")
@@ -649,7 +641,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertTrue(tap.press())
         tapRec.recording = true
         tapTime.now = 1000 + 0.299
-        XCTAssertFalse(tap.release(), "Tap <0.3 keeps (C4)")
+        XCTAssertFalse(tap.release(), "Tap <0.3 keeps")
         XCTAssertEqual(tapRec.finishes, 0)
         XCTAssertEqual(tapRec.cancels, 0)
         XCTAssertNil(tap.activePressID)
@@ -665,20 +657,20 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertTrue(hold.press())
         holdRec.recording = true
         holdTime.now = 2000 + 0.301
-        XCTAssertTrue(hold.release(), "Hold >=0.3 finishes (C5)")
+        XCTAssertTrue(hold.release(), "Hold >=0.3 finishes")
         XCTAssertEqual(holdRec.finishes, 1)
         // Exact boundary 0.300 belongs to hold (finishes).
         let (exact, exactRec, exactTime) = engineFixture(config: cfg, nowValue: 3000)
         XCTAssertTrue(exact.press())
         exactRec.recording = true
         exactTime.now = 3000 + 0.300
-        XCTAssertTrue(exact.release(), "Exact 0.300 finishes (C6)")
+        XCTAssertTrue(exact.release(), "Exact 0.300 finishes")
         XCTAssertEqual(exactRec.finishes, 1)
     }
 
     func testH8StalePressIDsNeverFinishUnrelatedCapture() {
         let (engine, rec, _) = engineFixture(config: ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 4352), behavior: .holdToTalk))
-        XCTAssertFalse(engine.releaseForPressID(12345), "Stale release before press ignored (C9)")
+        XCTAssertFalse(engine.releaseForPressID(12345), "Stale release before press ignored")
         XCTAssertEqual(rec.finishes, 0)
         XCTAssertEqual(rec.cancels, 0)
         XCTAssertTrue(engine.press())
@@ -693,7 +685,7 @@ final class ShortcutAdversarialTests: XCTestCase {
     }
 
     func testH9InterruptionCancelsOwnedHoldWithoutFinish() {
-        // E1/E4: lock/sleep/tap-loss clears press; cancels owned capture; never finishes.
+        // Lock/sleep/tap-loss clears press; cancels owned capture; never finishes.
         let (engine, rec, _) = engineFixture(config: ShortcutConfiguration(trigger: .modifierOnly(key: .control, side: .left), behavior: .holdToTalk))
         XCTAssertTrue(engine.press())
         rec.recording = true
@@ -720,7 +712,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertTrue(engine.press())
         XCTAssertNotNil(engine.activePressID)
         engine.updateConfiguration(ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 4352), behavior: .toggle))
-        XCTAssertNil(engine.activePressID, "Rebind while held must clear old press (C13)")
+        XCTAssertNil(engine.activePressID, "Rebind while held must clear old press")
         XCTAssertNil(engine.activeCaptureID)
         XCTAssertEqual(rec.starts, 1, "No extra sink on rebind")
         XCTAssertEqual(rec.finishes, 0)
@@ -733,7 +725,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         let (idle, _, _) = engineFixture(config: cfg)
         XCTAssertTrue(idle.canChangeSettings)
         let (recording, _, _) = engineFixture(config: cfg, recording: true)
-        XCTAssertFalse(recording.canChangeSettings, "Recording blocks settings (C14/C18)")
+        XCTAssertFalse(recording.canChangeSettings, "Recording blocks settings")
         let (busy, _, _) = engineFixture(config: cfg, busy: true)
         XCTAssertFalse(busy.canChangeSettings)
     }
@@ -805,13 +797,13 @@ final class ShortcutAdversarialTests: XCTestCase {
         let toggleManager = ShortcutManager(engine: toggleEngine, store: ShortcutStore(), registrar: MockShortcutRegistrar())
         toggleManager.permissionCheck = { true }
         toggleManager.handlePress(isRepeat: true)
-        XCTAssertTrue(actions.isEmpty, "Repeat suppressed end-to-end (B6)")
+        XCTAssertTrue(actions.isEmpty, "Repeat suppressed end-to-end")
         toggleManager.handleRelease()
-        XCTAssertTrue(actions.isEmpty, "Stale release suppressed (C9)")
+        XCTAssertTrue(actions.isEmpty, "Stale release suppressed")
         // Denied permission blocks start without sink.
         toggleManager.permissionCheck = { false }
         toggleManager.handlePress()
-        XCTAssertTrue(actions.isEmpty, "Denied permission must not start (D3)")
+        XCTAssertTrue(actions.isEmpty, "Denied permission must not start")
     }
 
     @MainActor func testH15ShortcutMenuFactoryStructure() throws {
@@ -847,7 +839,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertTrue(fnItem.submenu?.items.first?.title.hasPrefix("Current: Fn") == true, "Compact Fn current title")
     }
 
-    // MARK: - Part III. Concrete native bugs (coordinator-review, failing until fixed) [INJ]
+    // MARK: - Part III. Concrete native bugs (regressions)
 
     // Deterministic spec reducer for modifier-only arbitration (no host input).
     // Correct behavior: solo press fires only if no nonmodifier keyDown intervenes
@@ -864,7 +856,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         return false
     }
 
-    func testI1CmdDownCUpCmdUpMustNotActivateSoloCmd() {
+    func testCmdDownCUpCmdUpMustNotActivateSoloCmd() {
         // Deterministic reducer spec (new API): solo Cmd arbitration with otherKeyDown.
         var s = SoloModifierState()
         XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .pending)
@@ -883,7 +875,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(ModifierSoloReducer.step(state: &composed, event: .targetDown(key: .command, side: .left, time: 0, sole: false), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .none)
     }
 
-    func testI2FnMustNotIncludeCapsLockFlag() {
+    func testFnMustNotIncludeCapsLockFlag() {
         // Fn has no stable CG flag on all keyboards; press keyed by keyCode 63.
         // Including maskAlphaShift (Caps Lock) makes CapsLock satisfy Fn checks.
         XCTAssertTrue(EventTapShortcutRegistrar.flagsContain(.maskSecondaryFn, key: .function), "Fn secondary flag counts")
@@ -892,7 +884,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         // After fix, only maskSecondaryFn (or keyCode 63 path) counts for Fn.
     }
 
-    func testI3BothModifierSidesNeedPerDeviceDisambiguation() {
+    func testBothModifierSidesNeedPerDeviceDisambiguation() {
         // KeyCodes are side-distinct; aggregate CG flags are not.
         XCTAssertEqual(EventTapShortcutRegistrar.modifierCode(key: .command, side: .left), 55)
         XCTAssertEqual(EventTapShortcutRegistrar.modifierCode(key: .command, side: .right), 54)
@@ -902,7 +894,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         // keyCode/state, not just aggregate flagsContainOnly.
         let bothHeld: CGEventFlags = [.maskCommand]
         XCTAssertTrue(EventTapShortcutRegistrar.flagsContain(bothHeld, key: .command))
-        XCTAssertTrue(EventTapShortcutRegistrar.flagsContainOnly(bothHeld, key: .command), "Aggregate flags identical for left vs right — documents need for per-device key state (I3)")
+        XCTAssertTrue(EventTapShortcutRegistrar.flagsContainOnly(bothHeld, key: .command), "Aggregate flags identical for left vs right — documents the need for per-device key state")
         // Failing assertion: left-only trigger with right still held must release
         // left hold (left is up). Current aggregate logic keeps isDown true.
         // This is filed as source issue; executable release-routing needs private
@@ -910,7 +902,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertNotEqual(EventTapShortcutRegistrar.modifierCode(key: .control, side: .left), EventTapShortcutRegistrar.modifierCode(key: .control, side: .right), "Sides must route by keyCode, not flags alone")
     }
 
-    func testI4StaleReleaseMustNotCancelForeignMenuFinish() {
+    func testStaleReleaseMustNotCancelForeignMenuFinish() {
         // Genuine ownership: Model.captureGeneration observed via currentOperation.
         // Foreign menu Finish bumps generation; stale release must be suppressed.
         let (engine, rec, _) = engineFixture(config: ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 4352), behavior: .holdToTalk), operation: 10)
@@ -933,7 +925,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(ownedRec.cancels, 1)
     }
 
-    func testI5StaleReleaseMustNotFinishForeignNewStart() {
+    func testStaleReleaseMustNotFinishForeignNewStart() {
         // Genuine ownership: stale press (gen 30) vs foreign new Start (gen 31).
         let (engine, rec, _) = engineFixture(config: ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 4352), behavior: .holdToTalk), operation: 30)
         XCTAssertTrue(engine.press())
@@ -946,7 +938,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(rec.cancels, 0)
     }
 
-    @MainActor func testI6ActivationSuspendedDuringKeyCapture() throws {
+    @MainActor func testActivationSuspendedDuringKeyCapture() throws {
         // Recorder UI must receive keys after menu action; activation suspended during capture.
         let store = ShortcutStore()
         _ = store.save(.default)
@@ -965,7 +957,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         // native menu tracking (filed as source issue; no host tracking asserted here).
     }
 
-    @MainActor func testI7MenuHintAndKeyEquivalentReflectConfiguredBinding() throws {
+    @MainActor func testMenuHintAndKeyEquivalentReflectConfiguredBinding() throws {
         // Recording hint + Start key equivalent must reflect configured binding, never stale ⌃⌘N.
         let store = ShortcutStore()
         _ = store.save(.default)
@@ -985,7 +977,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(start.keyEquivalentModifierMask, NSEvent.ModifierFlags([.control, .command]))
     }
 
-    func testI8TapWhilePreparingRetainsAndLongReleaseCancelsSafely() {
+    func testTapWhilePreparingRetainsAndLongReleaseCancelsSafely() {
         // Tap-or-hold tap while preparing should retain intended operation;
         // long release during preparing must cancel safely, never finish ghost capture.
         let cfg = ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 4352), behavior: .tapOrHold)
@@ -1011,10 +1003,10 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(rec.finishes, 0)
     }
 
-    // MARK: - Part IV. Independent inspection: validation, rebind identity, capture lifecycle [INJ]
+    // MARK: - Part IV. Validation, rebind identity, capture lifecycle
 
     func testJ1KeyValidationUsesCarbonConstants() {
-        // Coordinator: Carbon cmdKey|controlKey is 0x1100 (4352), not 0x100100.
+        // Carbon cmdKey|controlKey is 0x1100 (4352), not 0x100100.
         XCTAssertEqual(ShortcutConfiguration.defaultModifiers, 0x1100, "Carbon control|cmd")
         XCTAssertEqual(ShortcutConfiguration.defaultModifiers, 4352)
         XCTAssertNotEqual(ShortcutConfiguration.defaultModifiers, 0x100100, "Contract stale hex must not be used")
@@ -1051,7 +1043,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         manager.cancelKeyCapture()
         XCTAssertFalse(manager.isCapturingKeys)
         // Local-only monitor gap filed: menu-close + other-app-active misses keys;
-        // needs transient native surface (see findings). No global monitor asserted here.
+        // needs a transient native surface. No global monitor asserted here.
     }
 
     @MainActor func testJ4CustomIgnoredChordFollowsBinding() {
@@ -1070,7 +1062,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertNil(other.blockedReason, "Legacy default still ignored when custom differs (compat)")
     }
 
-    // MARK: - Part V. Strict masks, Shift-printable, physical duration, persistence identity [INJ]
+    // MARK: - Part V. Strict masks, Shift-printable, physical duration, persistence identity
 
     func testK1UnknownCarbonBitsMustNotValidateAsModifier() {
         // Unknown Carbon bits alone (no known control/option/cmd/shift) must not
@@ -1249,7 +1241,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(cancels, 2)
     }
 
-    // MARK: Final native behavior (frozen source) [INJ, synthetic only]
+    // MARK: Final native behavior (frozen source)
 
     @MainActor func testM1SelfEventFilteringIgnoresOwnMarker() {
         // Production arbitrateKeyDown: own streaming keystrokes (marker) never cancel solo.
@@ -1275,7 +1267,7 @@ final class ShortcutAdversarialTests: XCTestCase {
     }
 
     @MainActor func testM3PerDeviceMasksBothSidesCannotRearm() {
-        // Coordinator NX masks: aggregate flags stay set when opposite held; device flags decide.
+        // NX masks: aggregate flags stay set when opposite held; device flags decide.
         XCTAssertTrue(EventTapShortcutRegistrar.sideIsDown(CGEventFlags(rawValue: UInt64(NX_DEVICELCMDKEYMASK)), key: .command, side: .left))
         XCTAssertFalse(EventTapShortcutRegistrar.sideIsDown(CGEventFlags(rawValue: UInt64(NX_DEVICELCMDKEYMASK)), key: .command, side: .right), "Left device bit must not satisfy right")
         // Both sides: non-sole targetDown never rearms pending solo.
@@ -1409,7 +1401,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         }
         NSGraphicsContext.restoreGraphicsState()
         if let png = rep.representation(using: .png, properties: [:]) {
-            try? png.write(to: URL(fileURLWithPath: ".build/qa/shortcuts-20260916/spark/\(filename)"))
+            try? png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent(filename))
         }
     }
 

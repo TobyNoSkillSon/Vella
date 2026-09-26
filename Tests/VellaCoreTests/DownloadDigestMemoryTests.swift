@@ -3,8 +3,8 @@ import CryptoKit
 import Darwin
 @testable import VellaCore
 
-/// Review 1 regressions in VellaCore (lab/notes/REVIEW.md).
-final class Review1CoreTests: XCTestCase {
+/// Download verification keeps memory bounded.
+final class DownloadDigestMemoryTests: XCTestCase {
     private static func footprintMB() -> Double {
         var info = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
@@ -14,9 +14,9 @@ final class Review1CoreTests: XCTestCase {
         return result == KERN_SUCCESS ? Double(info.phys_footprint) / 1e6 : 0
     }
 
-    /// R12: verifying a large download from an async task must not keep the file's bytes alive until the task ends.
+    /// Verifying a large download from an async task must not keep the file's bytes alive until the task ends.
     /// A disposable sparse file (no real weights), hashed on the real download-verification path, both identities.
-    func testR12DownloadDigestKeepsPeakFootprintBoundedAndDigestsMatch() async throws {
+    func testDownloadDigestKeepsPeakFootprintBoundedAndDigestsMatch() async throws {
         let size = 768 * 1024 * 1024
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("vella-r12-\(UUID()).bin")
         defer { try? FileManager.default.removeItem(at: file) }

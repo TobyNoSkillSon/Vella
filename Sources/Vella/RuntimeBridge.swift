@@ -92,7 +92,7 @@ import VellaCore
 
     // MARK: ModelRuntimeActions
 
-    /// The model becomes the mode's selection only once it loaded (Review 1 R4): a refused or failed Load/Reload keeps
+    /// The model becomes the mode's selection only once it loaded: a refused or failed Load/Reload keeps
     /// the previous selection, so the next dictation uses the model that still works.
     func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {
         let ref = ref(family, precision, path: path)
@@ -111,7 +111,7 @@ import VellaCore
     func unload(family: ModelFamily) { Task { await runtime.unload(family.id) } }
     /// Deleting weights also ends every precision made on this Mac from them: a loaded derived precision is unloaded
     /// first (its worker reads the source), and after a successful deletion the launch set drops the source and its
-    /// derived entries. Order as before (Review 1 R10): unload, delete, launch-set clean-up.
+    /// derived entries. Order: unload, delete, launch-set clean-up.
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
         let dependents = derivedPaths(source: path, mode: family.mode)
         let loadedPath = runtime.loadedRef(family.id)?.path

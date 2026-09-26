@@ -2,7 +2,6 @@ import Foundation
 
 // Models catalog (Resources/models.json v2), measured numbers (Resources/benchmarks.json v1) and the Models table's
 // UI-free logic: precision options, the recommended precision, deltas, formatters and the hardware note.
-// Rule and formatter shapes follow the Verdict-family reference (Verdict 95ddba5, Sources/VerdictCore/Core.swift).
 
 // MARK: Catalog (models.json v2)
 
@@ -294,7 +293,7 @@ public struct SuiteInfo: Codable, Equatable {
     public var audio_min: Double?
 }
 
-/// A cloud API shown for perspective (benchmarks.json `references`, written by lab/bench/estimate_api.py). Its WER on
+/// A cloud API shown for perspective (benchmarks.json `references`, written by the maintainer's benchmark tools). Its WER on
 /// v2 is ESTIMATED from a public leaderboard, never measured by us: nothing is sent to it, and it has no download,
 /// precision, speed, energy or memory. `range` is the estimate's spread [low, high] in percent.
 public struct ReferenceEntry: Codable, Equatable, Identifiable {
@@ -476,7 +475,7 @@ public let recommendationMarginPoints = 0.5
 /// WER + 0.5 points, the lowest J / min; ties → faster (higher × real time); then higher bits. The native precision is
 /// the reference, so benchmark noise at a lossy setting cannot move the bar. A precision without energy (or speed)
 /// ranks after those with it. `options` limits candidates to offered precisions. Nil when native WER is not measured.
-/// lab/bench/measure_catalog.py mirrors this rule (cross-checked by CatalogTests).
+/// The benchmark script that writes benchmarks.json applies the same rule (cross-checked by CatalogTests).
 public func recommendedPrecision(_ benchmark: FamilyBenchmark?, native: String, options: [String]? = nil) -> String? {
     guard let benchmark, let reference = benchmark.result(native)?.wer else { return nil }
     let measured: [(label: String, result: PrecisionResult)] = benchmark.precisions.compactMap { label, r in

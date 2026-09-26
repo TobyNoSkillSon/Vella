@@ -87,9 +87,17 @@ Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); a s
 
 Everything lives in the menu: the status line, **Mode · Microphone · Shortcuts**, then **Models… · Keep Hot · Memory**, then your last transcript, files and **Launch at Login**.
 
+<p align="center">
+  <img src="docs/images/menu.png" alt="Vella's menu: status, Start Dictation, Mode, Microphone, Shortcuts, Models, Keep Hot, Memory, copy and file items, Launch at Login, Support and Quit" width="340">
+</p>
+
 **A fresh install downloads and loads nothing.** The first time you dictate without a model, Vella keeps the recording and shows one **Get <model> (<size>)** item for the recommended model; after you confirm the download, it transcribes the waiting recording when the download finishes. **Models…** does the same ahead of time.
 
 **Models…** opens one table with Dictation and Streaming sections. Pick a precision in a row's **Q** control (32, 16, 8, 4); the recommended one is green, and each segment's tooltip names the exact format and whether it is published or made on your Mac. Rows keep their place when you switch precision: each column sorts by the model's best value across its precisions. A loaded model shows the precision it is loaded at; clicking another segment previews it (its figures against the recommended one) and, on a loaded model, turns the button into a green **Reload**, which loads it; closing the menu discards the preview. The precision last loaded is the one dictation uses. **Get** downloads and loads (for a precision made on your Mac, it downloads the weights it is made from), **Load** keeps a model ready, **Unload** frees its memory, and the trash icon deletes its weights. Every download first asks in a popup that names the model, precision, source and exact size; nothing downloads without **Download**.
+
+<p align="center">
+  <img src="docs/images/models.png" alt="The Models table: Parakeet v3 loaded at 4 bits and Optimized on an M5 Max, with its figures against the recommended 16, Nemotron loaded for Streaming, and two estimated cloud API rows" width="920">
+</p>
 
 **Engine.** Under a loaded model's name, **Optimized · <your chip>** means Vella's optimized kernels passed a self-test against the stock path on this Mac when the model loaded. **MLX** means the stock MLX path: the same model, slower. If the optimized path fails during a transcription, Vella redoes that transcription on the stock path and keeps the model there until it is reloaded.
 

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Source: Verdict 95ddba5, Sources/Verdict/PrecisionControl.swift. Options are Vella's exact precision keys (4b, 8b,
+// Options are Vella's exact precision keys (4b, 8b,
 // BF16, FP32); segments show bare widths (32 16 8 4) and each segment's tooltip names the exact format.
 
 /// The Q picker: a mini segmented control whose recommended segment is labelled in the "better" green and
@@ -30,7 +30,7 @@ struct PrecisionControl: NSViewRepresentable {
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     static var font: NSFont { .systemFont(ofSize: NSFont.systemFontSize(for: .mini)) }
-    /// Content width of one segment: Verdict's 21 pt for a bare width; wider only for a longer fallback label.
+    /// Content width of one segment: 21 pt for a bare width; wider only for a longer fallback label.
     static func segmentWidth(_ label: String) -> CGFloat {
         max(21, ceil((label as NSString).size(withAttributes: [.font: font]).width) + 9)
     }

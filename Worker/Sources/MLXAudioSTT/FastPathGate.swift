@@ -12,7 +12,7 @@ public enum FastPathGateError: Error { case invalid }
 /// Shared by both workers (dictation `VellaWorker`, streaming `VellaStreamingWorker`); each worker supplies its own
 /// `fast-selftest --model <dir>` child entry point.
 public enum FastPathGate {
-    /// Bumped to 8 with the component configuration in the key (Review 1 R7): a verdict persisted earlier may have
+    /// Bumped to 8 with the component configuration in the key: a verdict persisted earlier may have
     /// been qualified under a diagnostic component override, so every model requalifies once.
     public static let version = "native-kernels-8"
     /// Child exit status when the self-test could not start (not a verdict on the kernels).

@@ -412,7 +412,7 @@ final class APITests: XCTestCase {
         XCTAssertTrue(log[dictationStart + 1].hasPrefix("end slow-a"))
     }
 
-    /// An API load never evicts the dictation model; it is refused with Verdict-style numbers instead (507).
+    /// An API load never evicts the dictation model; it is refused with the memory numbers instead (507).
     @MainActor func testAPILoadNeverEvictsTheDictationModel() async throws {
         let api = try await APIFixture(availableMB: 100_000)
         defer { api.close() }

@@ -65,7 +65,7 @@ import VellaCore
         minuteSeconds = environment["VELLA_TEST_MINUTE_SECONDS"].flatMap(Double.init).flatMap { $0 > 0 ? $0 : nil } ?? 60
         let config = (try? Data(contentsOf: support.appendingPathComponent("config.json"))).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
         settings = config?.residency ?? ResidencySettings()
-        // One memory-pressure policy for both modes (Review 1 R8).
+        // One memory-pressure policy for both modes.
         let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         memoryPressure = pressure
         pressure.setEventHandler { [weak self] in
@@ -264,7 +264,7 @@ import VellaCore
         entry.residency = .manual; entries[id] = entry
         settings.join(entry.ref); persistSettings(); schedule(id); writeStatus()
     }
-    /// A pinned model has no idle timer (Review 1 R5): it cannot idle out while it serves, and an expired deadline must
+    /// A pinned model has no idle timer: it cannot idle out while it serves, and an expired deadline must
     /// not re-arm itself every run-loop pass. Unpin re-arms from the new last use.
     func pin(_ id: String) {
         pinned[id, default: 0] += 1

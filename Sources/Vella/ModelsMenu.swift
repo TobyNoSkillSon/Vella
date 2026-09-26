@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import VellaCore
 
-// Layout, colours and footer follow the Verdict-family Models table (Verdict 95ddba5, Sources/Verdict/ModelsMenu.swift).
+// The Models table: layout, colours and footer.
 
 /// A transparent, vibrant host lets NSMenu supply its own material and shadow.
 final class MenuTableHostingView: NSHostingView<ModelTable> {
@@ -79,7 +79,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
                 failure.informativeText = library.downloadError ?? "Reopen Models and try again."
                 _ = presentDeletionConfirmation(failure)
             }
-            // With a runtime: unload (awaited) → delete → launch-set clean-up, as one ordered operation (Review 1 R10).
+            // With a runtime: unload (awaited) → delete → launch-set clean-up, as one ordered operation.
             guard let actions = controller.actions else { if !delete() { reportFailure() }; return }
             Task { @MainActor in
                 if !(await actions.delete(family: family, path: path, delete: delete)) { reportFailure() }
@@ -281,7 +281,7 @@ struct ModelTable: View {
             .contentShape(Rectangle())
     }
 
-    /// A cloud API for perspective, like Verdict's hosted reference row: cloud glyph, greyed, no controls, `API` on disk.
+    /// A cloud API for perspective, as a reference row: cloud glyph, greyed, no controls, `API` on disk.
     /// Its WER is an estimate (`~13%`); the tooltip says from where and that we did not measure it.
     @ViewBuilder private func referenceRow(_ r: ReferenceEntry) -> some View {
         HStack(spacing: 6) {

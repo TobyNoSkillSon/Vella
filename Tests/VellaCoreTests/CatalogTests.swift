@@ -38,7 +38,7 @@ final class CatalogTests: XCTestCase {
     }
 
     func testShippedLineup() throws {
-        // Coordinator's lineup (26 Sep 2026, from vr-bench's v2-quick screening): offered models and their precisions.
+        // The lineup chosen from the v2-quick screening (26 Sep 2026): offered models and their precisions.
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
         let offered = Dictionary(uniqueKeysWithValues: catalog.families.filter(\.offered).map { ($0.id, Set($0.variants.keys)) })
         // Every level from native down to 4 bits (Toby, 26 Sep 2026); gaps are derived locally (DerivedModels.swift).
@@ -167,7 +167,7 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(recommendationHelp(FamilyBenchmark(precisions: ["8b": r(5)]), recommended: "8b", native: "BF16").hasSuffix("energy not measured."))
     }
 
-    /// The catalog script (lab/fixtures/recommended_precision.py, used by measure_catalog.py) writes `recommended` per
+    /// The benchmark script writes `recommended` per
     /// family; Core must agree on every family in the shipped benchmarks.json.
     func testShippedRecommendationsMatchCore() throws {
         let url = resources.appendingPathComponent("benchmarks.json")

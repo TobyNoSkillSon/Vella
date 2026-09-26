@@ -1243,7 +1243,7 @@ public class Qwen3ASRModel: Module {
     public private(set) var fastEncoder = false
     private var towerCheckpointDType: DType?
     var lastEncoderFinite = true
-    /// Every consumed optimized-decoder step had finite logits (Review 1 R11), over the whole last `generate` call.
+    /// Every consumed optimized-decoder step had finite logits, over the whole last `generate` call.
     var lastDecoderFinite = true
     /// Test hook (reported in worker status, never inherited by the gate's self-test child): make the optimized
     /// decoder's logits non-finite from this step on, after a finite encoder result, to prove the stock fallback.
@@ -1329,7 +1329,7 @@ public class Qwen3ASRModel: Module {
             firstLast = firstLast / temperature
         }
         var prevTokenArr = firstLast.argMax(axis: -1)
-        // Optimized decoder numerics (Review 1 R11): per step, the logits' sum is finite iff every logit is (NaN
+        // Optimized decoder numerics: per step, the logits' sum is finite iff every logit is (NaN
         // propagates; +Inf/-Inf give Inf or NaN; finite bf16 logits cannot overflow a vocabulary-sized sum). One
         // scalar reduction per step, evaluated together with its token and read once after the loop, only for the
         // steps whose tokens were consumed: no extra host sync per step.
