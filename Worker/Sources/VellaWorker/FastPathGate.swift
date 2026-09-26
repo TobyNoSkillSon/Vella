@@ -58,7 +58,14 @@ enum FastPathGate {
         for file in entries {
             digest.update(data: Data(file.lastPathComponent.utf8))
             let handle = try FileHandle(forReadingFrom: file); defer { try? handle.close() }
-            while let chunk = try handle.read(upToCount: 1024 * 1024), !chunk.isEmpty { digest.update(data: chunk) }
+            // Each read returns an autoreleased NSData. On a Swift concurrency thread nothing drains them until the
+            // task ends, so without a pool per chunk hashing a 1.25 GB checkpoint kept 1.26 GB of heap alive (twice
+            // per load: qualify + gateURL), measured with footprint(1) on M5 Max, 26 Sep 2026.
+            while try autoreleasepool(invoking: {
+                guard let chunk = try handle.read(upToCount: 1024 * 1024), !chunk.isEmpty else { return false }
+                digest.update(data: chunk)
+                return true
+            }) {}
         }
         digest.update(data: Data("\(gpuFamily):\(osBuild):\(version)".utf8))
         if !revision.isEmpty { digest.update(data: Data(":\(revision)".utf8)) }
