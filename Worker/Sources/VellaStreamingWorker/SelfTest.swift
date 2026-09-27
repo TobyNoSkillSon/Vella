@@ -6,8 +6,9 @@ import MLXAudioSTT
 /// streaming path is used. One stream — public clip-b, 1.2 s of silence (an endpoint and reset), clip-e, finish —
 /// goes through the production `StreamingSession` in 100-ms packets on stock MLX and then on the optimized path
 /// of the same loaded model. Exit 0: text non-empty, encoder outputs finite, and every reply (committed, partial,
-/// frames, done) identical — or, with the fused conformer layer, within its tolerance (`maxFusedDeviation`,
-/// `maxWordEdits`). Exit 2: evidence against the optimized path. Exit 3: could not run (inconclusive).
+/// frames, done) identical — or, with the fused conformer layer, within its tolerance (`FusedTolerance`: encoder
+/// deviation, committed words, commit timing, partial replies). Exit 2: evidence against the optimized path.
+/// Exit 3: could not run (inconclusive).
 enum StreamingSelfTest {
     static let clips = ["clip-b", "clip-e"]
 
@@ -28,7 +29,7 @@ enum StreamingSelfTest {
             native.enableOptimized()
             try native.reset()
             let fast = try withError { try replies(native, path: path, audio: audio) }
-            let text = committedText(stock)
+            let text = FusedTolerance.committedText(stock)
             guard !text.isEmpty, !native.sawNonFinite, stock.count == fast.count else { return FastPathGate.verdictFailed }
             guard let deviation = native.fusedDeviation(audio: audio) else {
                 // Every other optimization is bit-identical by construction: every reply must match.
@@ -36,46 +37,14 @@ enum StreamingSelfTest {
                 FastPathGate.debug("streaming self-test: \(stock.count) replies, equal \(equal), text \(text.utf8.count) B")
                 return equal ? 0 : FastPathGate.verdictFailed
             }
-            // Fused layer (summation order differs from stock): the documented tolerance.
-            let edits = wordEdits(text.split(separator: " ").map(String.init), committedText(fast).split(separator: " ").map(String.init))
-            let shape = zip(stock, fast).allSatisfy { a, b in
-                var a = a, b = b
-                for key in ["committed", "partial"] { a[key] = nil; b[key] = nil }
-                return NSDictionary(dictionary: a).isEqual(to: b)
-            }
-            FastPathGate.debug("streaming self-test: \(stock.count) replies, fused deviation rms \(deviation.rms) max \(deviation.max), word edits \(edits), shape \(shape), text \(text.utf8.count) B")
-            return shape && edits <= maxWordEdits && deviation.rms <= maxFusedDeviation ? 0 : FastPathGate.verdictFailed
+            // Fused layer (summation order differs from stock): the documented tolerance, reply timing included.
+            let verdict = FusedTolerance.judge(stock: stock, fast: fast, rms: deviation.rms)
+            FastPathGate.debug("streaming self-test: \(stock.count) replies, fused deviation rms \(deviation.rms) max \(deviation.max), \(verdict.summary), text \(text.utf8.count) B")
+            return verdict.accepted ? 0 : FastPathGate.verdictFailed
         } catch {
             FastPathGate.debug("streaming self-test error: \(error)")
             return FastPathGate.verdictFailed
         }
-    }
-
-    /// Fused-layer tolerance. Deviation: relative RMS ||fused - unfused|| / ||unfused|| of the chunk encoder output over
-    /// the self-test stream. M5 Max, Float32 activations: 0.7e-3 (4b), 1.2e-3 (8b), 1.8e-3 (BF16) — most of it from the
-    /// 1×1 convs as matmuls, the rest from summation order; injected kernel bugs (wrong position bias, dropped conv
-    /// cache) give 0.69-1.42. Text: committed words of the whole stream may differ by at most one edit (a near-tie
-    /// token); every other reply field (frames, endpoints, done) must match.
-    static let maxFusedDeviation: Float = 1e-2
-    static let maxWordEdits = 1
-
-    static func committedText(_ replies: [[String: Any]]) -> String {
-        replies.compactMap { ($0["committed"] as? String).flatMap { $0.isEmpty ? nil : $0 } }.joined(separator: " ")
-    }
-    /// Word-level Levenshtein distance.
-    static func wordEdits(_ a: [String], _ b: [String]) -> Int {
-        guard !a.isEmpty else { return b.count }
-        guard !b.isEmpty else { return a.count }
-        var row = Array(0...b.count)
-        for i in 1...a.count {
-            var previous = row[0]; row[0] = i
-            for j in 1...b.count {
-                let current = row[j]
-                row[j] = min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] == b[j - 1] ? 0 : 1))
-                previous = current
-            }
-        }
-        return row[b.count]
     }
 
     /// The production Session over one fresh session of `native`; replies without their ids.

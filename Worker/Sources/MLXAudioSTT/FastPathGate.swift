@@ -81,7 +81,7 @@ public enum FastPathGate {
         "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
         "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_QWEN_ENC_BF16", "VELLA_WHISPER_PROFILE", "VELLA_WHISPER_ENC_F16", "VELLA_STREAM_PROFILE",
         "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB",
-        "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_MLX_DEVICE"]
+        "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_TEST_ENCODER_NONFINITE", "VELLA_MLX_DEVICE"]
     public static func reportedEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
         environment.filter { key, value in
             !value.isEmpty && (reportedSwitches.contains(key) || componentSwitchPrefixes.contains { key.hasPrefix($0) })
@@ -177,7 +177,8 @@ public enum FastPathGate {
         process.arguments = ["fast-selftest", "--model", path.path]
         // QA-only instrumentation and runtime-fallback fault injection cannot weaken the production qualification.
         process.environment = ProcessInfo.processInfo.environment.filter {
-            !["VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP", "VELLA_TEST_DECODER_NONFINITE"].contains($0.key)
+            !["VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP", "VELLA_TEST_DECODER_NONFINITE",
+              "VELLA_TEST_ENCODER_NONFINITE"].contains($0.key)
         }
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice

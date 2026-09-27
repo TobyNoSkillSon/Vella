@@ -20,7 +20,10 @@ public final class VellaNemotronSession {
     /// pred projection only change when a nonblank symbol is emitted.
     private var predictor: (state: NemoLSTMState, projection: MLXArray)?
     private let batchedDecode: Bool
-    /// Set when the optimized path saw a non-finite encoder output (checked inside the argmax sync).
+    /// Optimized session: every encoder chunk is finite-checked, whether or not decoding is batched.
+    private let checksFinite: Bool
+    /// Set when the optimized path saw a non-finite encoder output (batched decoding: checked inside the argmax
+    /// sync; per-frame decoding: one extra read per chunk).
     public private(set) var nonFinite = false
 
     /// `optimized` false is the stock MLX path; true enables the per-option optimizations
@@ -37,6 +40,7 @@ public final class VellaNemotronSession {
         encoder.useKeyValueCache = optimized && VellaNemotronOptions.keyValueCache
         encoder.useFusedLayer = optimized && VellaNemotronOptions.fusedLayer && model.fusedEncoder != nil
         batchedDecode = optimized && VellaNemotronOptions.batchedDecode
+        checksFinite = optimized
         last = model.blankTokenID
     }
     public func push(_ chunk: [Float], final: Bool) throws -> String {
@@ -80,6 +84,7 @@ public final class VellaNemotronSession {
                 let decodeStart = VellaStreamProfile.enabled ? CFAbsoluteTimeGetCurrent() : 0
                 defer { VellaStreamProfile.add("decode_ms", (CFAbsoluteTimeGetCurrent() - decodeStart) * 1000) }
                 if self.batchedDecode { text += self.decodeChunk(features); return }
+                if self.checksFinite, !Self.finite(features).item(Bool.self) { self.nonFinite = true }
                 for time in 0..<features.shape[1] {
                     let frame = features[0..., time..<(time + 1), 0...]
                     let cap = self.model.maxSymbols.flatMap { $0 == 0 ? nil : $0 } ?? 10
@@ -110,6 +115,11 @@ public final class VellaNemotronSession {
         closed = final
         Memory.clearCache()
         return text
+    }
+
+    /// All of `features` finite (NaN compares false).
+    private static func finite(_ features: MLXArray) -> MLXArray {
+        (abs(features) .<= MLXArray(Float.greatestFiniteMagnitude)).all()
     }
 
     /// Greedy RNNT over one encoder chunk with one host sync per predictor state
@@ -144,8 +154,8 @@ public final class VellaNemotronSession {
                 }
                 return joint.outputProj(x).argMax()
             }
-            // Finiteness of the chunk rides along in the same host sync (NaN compares false).
-            let finite = (abs(features) .<= MLXArray(Float.greatestFiniteMagnitude)).all().asType(.int32)
+            // Finiteness of the chunk rides along in the same host sync.
+            let finite = Self.finite(features).asType(.int32)
             let read = MLX.concatenated([MLX.stacked(logits).asType(.int32), finite.reshaped([1])]).asArray(Int32.self)
             let predictions = Array(read.dropLast())
             if read.last != 1 { nonFinite = true }

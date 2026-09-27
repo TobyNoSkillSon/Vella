@@ -32,11 +32,23 @@ public final class WhisperModel: Module, STTGenerationModel {
     public static let halfEncoder = ProcessInfo.processInfo.environment["VELLA_WHISPER_ENC_F16"] != "0"
     public private(set) var fastDecode = false
     public private(set) var fastEncoder = false
-    /// Every optimized-decoder step (and the language-detection logits) finite, over the whole last `generate` call.
+    /// Every raw decoder-logit tensor consumed while an optimized component is active (language detection, the
+    /// pipelined greedy loop, and every step-by-step attempt including the temperature retries) finite, over the
+    /// whole last `generate` call. Raw logits only: the filtered ones carry intentional -inf masks.
     var lastDecoderFinite = true
-    /// Test hook (reported in worker status, never inherited by the gate's self-test child): make the optimized
-    /// decoder's logits non-finite from this step on, to prove the stock fallback.
-    static let testDecoderFaultStep: Int? = ProcessInfo.processInfo.environment["VELLA_TEST_DECODER_NONFINITE"].flatMap(Int.init)
+    /// An optimized component (the FP16 model or the GPU-side decoder) is active: every attempt is finite-checked.
+    var checksFinite: Bool { fastDecode || fastEncoder }
+    /// Test hook (reported in worker status, never inherited by the gate's self-test child), to prove the stock
+    /// fallback: "<step>" makes the pipelined greedy loop's logits non-finite from that step on; "sampled:<step>"
+    /// does the same in the optimized step-by-step loop on temperature > 0 attempts only (a retry after a finite
+    /// greedy attempt); "loop:<step>" in the optimized step-by-step loop at any temperature.
+    static let testDecoderFault = ProcessInfo.processInfo.environment["VELLA_TEST_DECODER_NONFINITE"] ?? ""
+    static let testDecoderFaultStep: Int? = Int(testDecoderFault)
+    static func testLoopFault(step: Int, temperature: Float) -> Bool {
+        let parts = testDecoderFault.split(separator: ":")
+        guard parts.count == 2, let from = Int(parts[1]), step >= from else { return false }
+        return parts[0] == "loop" || (parts[0] == "sampled" && temperature > 0)
+    }
     /// Token IDs of the last `generate` call: each chunk's final decode (end-of-text excluded), then -1.
     public private(set) var lastTokens: [Int] = []
 
@@ -234,7 +246,7 @@ public final class WhisperModel: Module, STTGenerationModel {
         let detectionHidden = model.decoder(tokens: sot, startPosition: 0, encoderHidden: encoderHidden, caches: &detectionCaches)
         let detectionLogits = model.decoder.projectToVocab(detectionHidden[0, -1]).asType(.float32)
         eval(detectionLogits)
-        if fastDecode { lastDecoderFinite = lastDecoderFinite && detectionLogits.sum().item(Float.self).isFinite }
+        if checksFinite { lastDecoderFinite = lastDecoderFinite && detectionLogits.sum().item(Float.self).isFinite }
         let noSpeechProbability: Float = tokenizer.noSpeechId.map { softmax(detectionLogits)[$0].item(Float.self) } ?? 0
         if tokenizer.isMultilingual, tokenizer.resolveLanguage(language) == nil {
             var mask = [Float](repeating: -.infinity, count: detectionLogits.dim(0))
@@ -284,8 +296,20 @@ public final class WhisperModel: Module, STTGenerationModel {
                     logits: logits, caches: &caches, encoderHidden: encoderHidden, promptCount: promptIds.count,
                     maxTokens: maxTokens, beginSuppress: beginSuppress, suppress: suppress, tokenizer: tokenizer)
             } else {
+            // Raw-logit sums of every consumed step, evaluated with the step's logits and read once per attempt.
+            var sums: [MLXArray] = []
             for step in 0..<maxTokens {
-                eval(logits)
+                if checksFinite, WhisperModel.testLoopFault(step: step, temperature: temperature) {
+                    FastPathGate.debug("whisper: injected non-finite logits, step \(step), temperature \(temperature)")
+                    logits = logits * MLXArray(Float.nan)
+                }
+                if checksFinite {
+                    let sum = logits.sum()
+                    eval(logits, sum)
+                    sums.append(sum)
+                } else {
+                    eval(logits)
+                }
                 var filtered = logits
                 if step == 0 { filtered = suppressLogits(filtered, ids: beginSuppress) }
                 filtered = suppressLogits(filtered, ids: suppress)
@@ -304,6 +328,9 @@ public final class WhisperModel: Module, STTGenerationModel {
                 let token = MLXArray([Int32(next)]).expandedDimensions(axis: 0)
                 hidden = model.decoder(tokens: token, startPosition: promptIds.count + step, encoderHidden: encoderHidden, caches: &caches)
                 logits = model.decoder.projectToVocab(hidden[0, -1]).asType(.float32)
+            }
+            if !sums.isEmpty {
+                lastDecoderFinite = lastDecoderFinite && MLX.stacked(sums).asArray(Float.self).allSatisfy(\.isFinite)
             }
             }
             if profiling { lap(\.decode); profile.decodeSteps += generated.count + 1; profile.attempts += 1 }
@@ -733,7 +760,7 @@ public final class WhisperModel: Module, STTGenerationModel {
 
 extension WhisperModel: FastPathCapable {
     /// Bump whenever the optimized components or their parity reference change.
-    public static var fastPathRevision: String { halfEncoder ? "whisper-1-f16-model" : "whisper-1" }
+    public static var fastPathRevision: String { halfEncoder ? "whisper-2-f16-model" : "whisper-2" }
 
     /// The checkpoint's floating dtype (FP16 for every published Whisper), nil when the encoder is Float32.
     var checkpointHalfDType: DType? {
