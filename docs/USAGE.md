@@ -51,7 +51,7 @@ Hover an item for what it does.
 | Model | Name; under a loaded model, its engine (**Optimized · <chip>** or **MLX**). Tooltip: parameters, native precision, licence. |
 | Languages | Supported languages. |
 | Params | Parameter count. |
-| Q | Bits per weight, as a segmented control: 32 (FP32), 16 (BF16), 8 and 4 (quantized), or FP16 by name for an FP16 model (an older Whisper install), from the model's native precision down, never below 4. The recommended one is green. Each segment's tooltip names the exact format and whether it is published or made on this Mac from the higher precision. |
+| Q | Bits per weight, as a segmented control: 32 (FP32), 16 (BF16), 8 and 4 (quantized), or FP16 by name for an FP16 model (Whisper), from the model's native precision down, never below 4. The recommended one is green. Each segment's tooltip names the exact format and whether it is published or made on this Mac from the higher precision. |
 | WER | Word error rate on Vella's benchmark: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. The industry-standard metric, as on the Hugging Face Open ASR Leaderboard; Vella's v2 set is hard (meetings, far-field microphones, accents, earnings calls), so its rates run higher. Tooltip: word error rate per language. |
 | Format | Vella's own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. |
 | Speed | Real-time factor (RTFx): audio seconds per processing second, after loading. |

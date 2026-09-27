@@ -59,7 +59,7 @@ The pull request template asks for these.
 
 ### Proposing a model
 
-Start with a **New model request** issue. A catalog model needs open weights with a licence that allows local use, an MLX checkpoint (or a conversion you can publish) and an architecture that mlx-swift can run. The Models table offers few models on purpose: accuracy per joule decides, so a model that is slightly more accurate but several times hungrier is not offered.
+Start with a **New model request** issue. A catalog model needs open weights with a licence that allows local use, an MLX checkpoint (or a conversion you can publish) and an architecture that mlx-swift can run. The Models table offers few models on purpose: each must serve a clear purpose the others do not (accuracy, size, languages, speed or another model family). A lower error rate elsewhere does not rule a model out, but a model that duplicates an offered one does not get in.
 
 An implementation adds a family to `Resources/models.json` (every downloadable precision pinned to a repository revision and its exact size), the model code in `Worker/Sources/MLXAudioSTT/<Family>`, and its admission in `Worker/Sources/VellaWorker/Validation.swift`. The pull request must show:
 
