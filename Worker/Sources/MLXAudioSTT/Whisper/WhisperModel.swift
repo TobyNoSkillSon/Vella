@@ -772,6 +772,9 @@ extension WhisperModel: FastPathCapable {
         let saved = model.encoder.positionDType
         if reference { model.encoder.positionDType = checkpointHalfDType }
         defer { if reference { model.encoder.positionDType = saved } }
+        // Temperature fallback samples from MLX's time-seeded global key: seed it so a clip that falls back
+        // samples the same keys on both paths (the self-test child only).
+        MLXRandom.seed(0x5eed)
         _ = generate(audio: audio, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
         return Array(lastTokens.dropLast())
     }
