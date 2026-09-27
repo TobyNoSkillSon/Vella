@@ -78,7 +78,7 @@ public enum FastPathGate {
     /// Every release env hook that changes behaviour or adds instrumentation, for the worker status `test_hooks`.
     public static let reportedSwitches = componentSwitches + ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR",
         "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
-        "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_QWEN_ENC_BF16", "VELLA_STREAM_PROFILE",
+        "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_QWEN_ENC_BF16", "VELLA_WHISPER_PROFILE", "VELLA_WHISPER_ENC_F16", "VELLA_STREAM_PROFILE",
         "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB",
         "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_MLX_DEVICE"]
     public static func reportedEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
