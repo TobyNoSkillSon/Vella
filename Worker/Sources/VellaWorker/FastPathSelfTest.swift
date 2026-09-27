@@ -40,7 +40,7 @@ extension FastPathGate {
             guard model.configureFastPath(enabled: true, component: component) else { debug("unsupported fast modules \(component)"); return false }
             let fast = model.qualificationTokens(audio: samples)
             let finite = model.fastPathFinite
-            debug("\(name): fast \(fast.count); equal \(stock == fast); first different \(Array(zip(stock, fast)).firstIndex(where: { $0.0 != $0.1 }).map(String.init) ?? "none")")
+            debug("\(name): fast \(fast.count); finite \(finite); equal \(stock == fast); first different \(Array(zip(stock, fast)).firstIndex(where: { $0.0 != $0.1 }).map(String.init) ?? "none")")
             _ = model.configureFastPath(enabled: false, component: component)
             guard stock == fast, !stock.isEmpty, finite else { return false }
         }
