@@ -78,6 +78,9 @@ public final class WhisperModel: Module, STTGenerationModel {
         generationParameters: STTGenerateParameters
     ) -> STTOutput {
         let startTime = Date()
+        // Temperature fallback samples from MLX's global key, which is seeded from the clock: seed it per request so
+        // the same audio always gives the same transcript (repeatable results and `vella diagnose` comparisons).
+        MLXRandom.seed(0x5eed)
         let mono = audio.ndim > 1 ? audio.mean(axis: -1) : audio
         let chunks = chunkAudioFor30sWindows(mono)
         lastTokens = []
