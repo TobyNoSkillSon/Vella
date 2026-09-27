@@ -36,8 +36,8 @@ public enum VellaNemotronOptions {
     public static let keyValueCache = requested.keyValueCache
     /// Fused conformer layer (not bit-identical: gated by the self-test tolerance and the quick-set WER gate).
     public static let fusedLayer = requested.fusedLayer
-    /// Bumped whenever an optimization changes, so a persisted self-test verdict is not reused.
-    public static let revision = "nemotron-stream-2"
+    /// Bumped whenever an optimization or its self-test changes, so a persisted self-test verdict is not reused.
+    public static let revision = "nemotron-stream-3"
     public static var anyEnabled: Bool { requested.anyEnabled }
     /// The requested components with their dependencies applied (before the fused encoder is built).
     public static var active: [String: Bool] { requested.effective() }
