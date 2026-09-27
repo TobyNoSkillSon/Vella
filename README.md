@@ -35,7 +35,7 @@
 
 ## Models
 
-Vella offers a small set of open speech-recognition models, chosen for accuracy per joule: Macs run on batteries and power limits, so a model that is slightly more accurate but several times hungrier is not offered. Each model runs at every precision from its native one down to 4 bits: 32, 16, 8 and 4 bits per weight, as far as its native precision allows. Precisions not published by the model's authors are made on your Mac from the higher one when first loaded; nothing extra is downloaded.
+Vella offers a small set of open speech-recognition models, each for a clear purpose: accuracy, size, languages, speed or another model family. A model can be offered even when another has a lower error rate, because it fits a Mac with less memory (Qwen3 ASR 0.6B), covers about 100 languages (Whisper large-v3) or is much faster (Whisper large-v3 turbo); the table shows every figure so you can choose. Each model runs at every precision from its native one down to 4 bits: 32, 16, 8 and 4 bits per weight, as far as its native precision allows. Precisions not published by the model's authors are made on your Mac from the higher one when first loaded; nothing extra is downloaded.
 
 <!-- BENCHMARK_TABLE_START -->
 
@@ -53,6 +53,11 @@ Measured on Apple M5 Max, macOS 26.6, 2026-09-26. WER and Format on the 240-minu
 | Qwen3 ASR 1.7B | Dictation | 16 | 15.03 | 6.88 | 9/9 | 24× | 85.6 | 4,555 MB | v2 |
 | Qwen3 ASR 1.7B | Dictation | 8 | 15.07 | 6.75 | 9/9 | 36× | 76.7 | 3,179 MB | v2 |
 | Qwen3 ASR 1.7B | Dictation | 4 (recommended) | 15.37 | 7.10 | 9/9 | 50× | 61.8 | 2,240 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 16 | 7.43 | 5.27 | 9/9 | 57× | 38.4 | 2,367 MB | v2-quick |
+| Qwen3 ASR 0.6B | Dictation | 8 (recommended) | 7.86 | 5.34 | 9/9 | 72× | 34.3 | 1,899 MB | v2-quick |
+| Qwen3 ASR 0.6B | Dictation | 4 | 9.09 | 5.34 | 9/9 | 84× | 29.3 | 1,627 MB | v2-quick |
+| Whisper large-v3 turbo | Dictation | 8 | 9.19 | 4.95 | 9/9 | 40× | 92.1 | 2,101 MB | v2-quick |
+| Whisper large-v3 turbo | Dictation | 4 | 9.99 | 5.48 | 9/9 | 40× | 87.1 | 1,724 MB | v2-quick |
 | Nemotron 3.5 Streaming | Streaming | 16 | 23.44 | 10.56 | 9/9 | 16× | 91.2 | 2,696 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | 8 (recommended) | 23.45 | 10.58 | 9/9 | 24× | 67.0 | 1,225 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | 4 | 32.97 | 16.18 | 9/9 | 21× | 74.4 | 959 MB | v2 |
@@ -66,16 +71,11 @@ Measured but not offered in the app:
 | Model | Mode | Q | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|
 | Parakeet TDT-CTC 110M | Dictation | 32 (recommended) | 9.25 | 6.01 | 0/9 | 222× | 5.0 | 889 MB | v2-quick |
-| Qwen3 ASR 0.6B | Dictation | 16 | 7.43 | 5.27 | 9/9 | 57× | 38.4 | 2,367 MB | v2-quick |
-| Qwen3 ASR 0.6B | Dictation | 8 (recommended) | 7.86 | 5.34 | 9/9 | 72× | 34.3 | 1,899 MB | v2-quick |
-| Qwen3 ASR 0.6B | Dictation | 4 | 9.09 | 5.34 | 9/9 | 84× | 29.3 | 1,627 MB | v2-quick |
-| Whisper large-v3 turbo | Dictation | 8 | 9.19 | 4.95 | 9/9 | 40× | 92.1 | 2,101 MB | v2-quick |
-| Whisper large-v3 turbo | Dictation | 4 | 9.99 | 5.48 | 9/9 | 40× | 87.1 | 1,724 MB | v2-quick |
 | SenseVoice Small | Dictation | 32 (recommended) | 11.01 | 7.77 | 3/9 | 420× | — | 1,548 MB | v2-quick |
 
 <!-- BENCHMARK_TABLE_END -->
 
-- **Q** is bits per weight: 32 is FP32, 16 is BF16, 8 and 4 are quantized. An FP16 model (an older Whisper install) shows FP16.
+- **Q** is bits per weight: 32 is FP32, 16 is BF16, 8 and 4 are quantized. Whisper's native FP16 shows as FP16.
 - **WER** is word error rate: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. It is the industry-standard metric, as on the Hugging Face Open ASR Leaderboard; our v2 set is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. **Format** is our own measure, with no industry standard: character error rate with case and punctuation kept, i.e. how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
 - **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Memory** is the loaded model's footprint.
 - **Recommended precision.** A model shows its recommended precision until it has been loaded at another: among its measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest energy per minute of audio (ties: faster, then more bits).

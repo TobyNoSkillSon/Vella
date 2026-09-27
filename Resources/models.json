@@ -127,28 +127,6 @@
       "offered": true
     },
     {
-      "id": "parakeet-tdt-ctc-110m",
-      "name": "Parakeet TDT-CTC 110M",
-      "mode": "dictation",
-      "languages": [
-        "en"
-      ],
-      "params": "114M",
-      "license": "cc-by-4.0",
-      "native": "FP32",
-      "variants": {
-        "FP32": {
-          "id": "parakeet-tdt_ctc-110m-mlx-fp32",
-          "repository": "mlx-community/parakeet-tdt_ctc-110m",
-          "revision": "d62547387c356a1ab6bb3d85d98b2103f655282e",
-          "downloadBytes": 458948617,
-          "architecture": "parakeet"
-        }
-      },
-      "offered": false,
-      "notes": "Candidate, not screened: English-only 114M hybrid TDT-CTC (TDT decoder used). Loads in the dictation worker on stock MLX; the Parakeet fast path refuses it (1-layer prediction LSTM), so it runs as MLX until the TDT kernel supports one layer. Screening on v2-quick decides."
-    },
-    {
       "id": "qwen3-asr-1.7b",
       "name": "Qwen3 ASR 1.7B",
       "mode": "dictation",
@@ -192,88 +170,25 @@
           "id": "Qwen3-ASR-1.7B-bf16",
           "repository": "mlx-community/Qwen3-ASR-1.7B-bf16",
           "revision": "e1f6c266914abc5a46e8756e02580f834a6cf8a7",
-          "downloadBytes": 4080710353,
+          "downloadBytes": 4080708834,
           "architecture": "qwen3_asr"
         },
         "8b": {
           "id": "Qwen3-ASR-1.7B-8bit",
           "repository": "mlx-community/Qwen3-ASR-1.7B-8bit",
           "revision": "a8379a2e2f9e313c9292cdf1af4055ab56d50d55",
-          "downloadBytes": 2467859030,
+          "downloadBytes": 2467857511,
           "architecture": "qwen3_asr"
         },
         "4b": {
           "id": "Qwen3-ASR-1.7B-4bit",
           "repository": "mlx-community/Qwen3-ASR-1.7B-4bit",
           "revision": "78a389c776a5483b2d0d4ea5494e11012e0d6159",
-          "downloadBytes": 1607633106,
+          "downloadBytes": 1607631587,
           "architecture": "qwen3_asr"
         }
       },
       "offered": true
-    },
-    {
-      "id": "nemotron-3.5-streaming-0.6b",
-      "name": "Nemotron 3.5 Streaming",
-      "mode": "streaming",
-      "languages": [
-        "en",
-        "es",
-        "fr",
-        "it",
-        "pt",
-        "nl",
-        "de",
-        "tr",
-        "ru",
-        "ar",
-        "hi",
-        "ja",
-        "ko",
-        "vi",
-        "uk",
-        "pl",
-        "sv",
-        "cs",
-        "nb",
-        "da",
-        "bg",
-        "fi",
-        "hr",
-        "sk",
-        "zh",
-        "hu",
-        "ro",
-        "et"
-      ],
-      "params": "0.6B",
-      "license": "OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License",
-      "native": "BF16",
-      "variants": {
-        "BF16": {
-          "id": "nemotron-3.5-asr-streaming-0.6b-bf16",
-          "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b",
-          "revision": "e550040c0478027ed679b2b6b0d055502c103663",
-          "downloadBytes": 1276707588,
-          "architecture": "nemotron_asr"
-        },
-        "8b": {
-          "id": "nemotron-3.5-asr-streaming-0.6b-8bit",
-          "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
-          "revision": "7279359e4481b5e9e185a318bd618e429c6d86cd",
-          "downloadBytes": 756247988,
-          "architecture": "nemotron_asr"
-        },
-        "4b": {
-          "id": "nemotron-3.5-asr-streaming-0.6b-4bit-local",
-          "derivedFrom": "BF16",
-          "bits": 4,
-          "groupSize": 64,
-          "architecture": "nemotron_asr"
-        }
-      },
-      "offered": true,
-      "notes": "Native cache-aware streaming recognition; 320 ms context."
     },
     {
       "id": "qwen3-asr-0.6b",
@@ -337,8 +252,8 @@
           "architecture": "qwen3_asr"
         }
       },
-      "offered": false,
-      "notes": "Benchmark table only: worse than Qwen3 ASR 1.7B at every precision for little speed gain (v2-quick screening, 26 Sep 2026)."
+      "offered": true,
+      "notes": "The smaller Qwen3 ASR: the same 30 languages as the 1.7B in less memory, for Macs with less RAM."
     },
     {
       "id": "whisper-large-v3",
@@ -454,14 +369,14 @@
           "id": "whisper-large-v3-asr-fp16",
           "repository": "mlx-community/whisper-large-v3-asr-fp16",
           "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
-          "downloadBytes": 3087749956,
+          "downloadBytes": 3087748437,
           "architecture": "whisper"
         },
         "8b": {
           "id": "whisper-large-v3-8bit",
           "repository": "mlx-community/whisper-large-v3-8bit",
           "revision": "7fede54fd97b154a4f5e476646484fc023b1bcdf",
-          "downloadBytes": 1650093348,
+          "downloadBytes": 1650091829,
           "architecture": "whisper",
           "processorSource": {
             "repository": "mlx-community/whisper-large-v3-asr-fp16",
@@ -486,8 +401,8 @@
           "architecture": "whisper"
         }
       },
-      "offered": false,
-      "notes": "Benchmark table only: below the 20x speed floor at 4b and FP16, and less accurate than Qwen3 ASR 1.7B (v2-quick screening, 26 Sep 2026)."
+      "offered": true,
+      "notes": "OpenAI's Whisper, another model family, with about 100 languages."
     },
     {
       "id": "whisper-large-v3-turbo",
@@ -621,8 +536,93 @@
           "architecture": "whisper"
         }
       },
+      "offered": true,
+      "notes": "Whisper large-v3 with a 4-layer decoder instead of 32: much faster, the same languages."
+    },
+    {
+      "id": "nemotron-3.5-streaming-0.6b",
+      "name": "Nemotron 3.5 Streaming",
+      "mode": "streaming",
+      "languages": [
+        "en",
+        "es",
+        "fr",
+        "it",
+        "pt",
+        "nl",
+        "de",
+        "tr",
+        "ru",
+        "ar",
+        "hi",
+        "ja",
+        "ko",
+        "vi",
+        "uk",
+        "pl",
+        "sv",
+        "cs",
+        "nb",
+        "da",
+        "bg",
+        "fi",
+        "hr",
+        "sk",
+        "zh",
+        "hu",
+        "ro",
+        "et"
+      ],
+      "params": "0.6B",
+      "license": "OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License",
+      "native": "BF16",
+      "variants": {
+        "BF16": {
+          "id": "nemotron-3.5-asr-streaming-0.6b-bf16",
+          "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b",
+          "revision": "e550040c0478027ed679b2b6b0d055502c103663",
+          "downloadBytes": 1276706069,
+          "architecture": "nemotron_asr"
+        },
+        "8b": {
+          "id": "nemotron-3.5-asr-streaming-0.6b-8bit",
+          "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
+          "revision": "7279359e4481b5e9e185a318bd618e429c6d86cd",
+          "downloadBytes": 756246469,
+          "architecture": "nemotron_asr"
+        },
+        "4b": {
+          "id": "nemotron-3.5-asr-streaming-0.6b-4bit-local",
+          "derivedFrom": "BF16",
+          "bits": 4,
+          "groupSize": 64,
+          "architecture": "nemotron_asr"
+        }
+      },
+      "offered": true,
+      "notes": "Native cache-aware streaming recognition; 320 ms context."
+    },
+    {
+      "id": "parakeet-tdt-ctc-110m",
+      "name": "Parakeet TDT-CTC 110M",
+      "mode": "dictation",
+      "languages": [
+        "en"
+      ],
+      "params": "114M",
+      "license": "cc-by-4.0",
+      "native": "FP32",
+      "variants": {
+        "FP32": {
+          "id": "parakeet-tdt_ctc-110m-mlx-fp32",
+          "repository": "mlx-community/parakeet-tdt_ctc-110m",
+          "revision": "d62547387c356a1ab6bb3d85d98b2103f655282e",
+          "downloadBytes": 458948617,
+          "architecture": "parakeet"
+        }
+      },
       "offered": false,
-      "notes": "Benchmark table only: dominated by Qwen3 ASR 1.7B (similar speed, higher error, more energy; v2-quick screening, 26 Sep 2026)."
+      "notes": "Not offered: English only, and less accurate than the offered Parakeet models (v2-quick screening, 26 Sep 2026)."
     },
     {
       "id": "sensevoice-small",
@@ -711,7 +711,7 @@
           "id": "Voxtral-Mini-4B-Realtime-2602-4bit",
           "repository": "mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit",
           "revision": "fdebf7b2af834a1db4b8a3c99ab7480b333adf9e",
-          "downloadBytes": 3148833321,
+          "downloadBytes": 3148831754,
           "architecture": "voxtral_realtime"
         }
       },
