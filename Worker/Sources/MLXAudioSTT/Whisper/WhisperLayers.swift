@@ -116,6 +116,12 @@ final class WhisperEncoder: Module {
     @ModuleInfo(key: "layers") var layers: [WhisperEncoderLayer]
     @ModuleInfo(key: "layer_norm") var layerNorm: LayerNorm
 
+    /// nil (stock): add the positional embedding in its stored dtype. mlx-whisper checkpoints omit it and the loader
+    /// synthesises it in Float32, which promotes every encoder activation (and, through the cross-attention K/V,
+    /// the decoder's) to Float32 while the weights stay FP16. Set to the checkpoint dtype to run the whole model
+    /// in that dtype, as the reference mlx-whisper does (`sinusoids(...).astype(dtype)`).
+    var positionDType: DType? = nil
+
     init(config: WhisperConfig) {
         self.config = config
         let d = config.dModel
@@ -147,7 +153,9 @@ final class WhisperEncoder: Module {
         var h = gelu(conv1(inputFeatures))
         h = gelu(conv2(h))
         let seqLen = h.shape[1]
-        h = h + embedPositions.weight[0..<seqLen]
+        var positions = embedPositions.weight[0..<seqLen]
+        if let positionDType, positions.dtype != positionDType { positions = positions.asType(positionDType) }
+        h = h + positions
         for layer in layers {
             h = layer(h)
         }

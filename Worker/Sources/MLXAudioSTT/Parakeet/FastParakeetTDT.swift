@@ -9,6 +9,8 @@ final class FastParakeetTDT {
     private let weights: [MLXArray]
     private(set) var lastFinite = true
     private(set) var lastError: String?
+    /// 32-step blocks run by the last decode (profile only).
+    private(set) var lastBlocks = 0
     private let joint = MLXFast.metalKernel(name: "vella_tdt_joint", inputNames: ["enc_p", "t", "pred_p", "W", "b"], outputNames: ["logits"], source: FastParakeetMetal.joint, header: FastParakeetMetal.header)
     private let argmax = MLXFast.metalKernel(name: "vella_tdt_argmax", inputNames: ["logits", "t", "n_frames", "new_syms", "last", "durations", "max_symbols"], outputNames: ["tok_o", "dur_o", "emit_o", "t_o", "syms_o", "last_o"], source: FastParakeetMetal.argmax, header: FastParakeetMetal.header)
     private let lstm1 = MLXFast.metalKernel(name: "vella_tdt_lstm1", inputNames: ["emit", "tok", "h", "c", "ch", "cc", "table", "Wh"], outputNames: ["h_o", "c_o", "ch_o", "cc_o"], source: FastParakeetMetal.lstm1, header: FastParakeetMetal.header)
@@ -100,6 +102,7 @@ final class FastParakeetTDT {
     func decode(_ features: MLXArray, length: Int, onToken: ((Int) -> Void)? = nil) -> ParakeetAlignedResult {
         lastFinite = true
         lastError = nil
+        lastBlocks = 0
         guard let model, let head = model.joint, let decoder = model.decoder else {
             lastFinite = false
             return ParakeetAlignment.sentencesToResult(ParakeetAlignment.tokensToSentences([]))
@@ -132,6 +135,7 @@ final class FastParakeetTDT {
                 lastError = String(describing: error)
                 return ParakeetAlignment.sentencesToResult(ParakeetAlignment.tokensToSentences([]))
             }
+            lastBlocks += 1
             let blockFinite = result[16].item(Bool.self)
             if !blockFinite && lastError == nil {
                 // Diagnostic only: which of the 32 step logits (0-31) or 9 carried states (32-40) went non-finite.

@@ -453,7 +453,10 @@ public final class ParakeetModel: Module, STTGenerationModel {
             let encoded = encodeBatchFeatures(features, lengths: lengths)
             return decodeTDTEncoded(batchFeatures: encoded.0, lengths: encoded.1)
         }
-        // VELLA_PARAKEET_PROFILE=/abs/path: append "frames encoder_s decoder_s" per chunk.
+        // VELLA_PARAKEET_PROFILE=/abs/path: append "frames encoder_s decoder_s ... mel_s= blocks=" per chunk. The log-mel
+        // is evaluated first, so encoder_s excludes it; blocks = 32-step fast decoder blocks (-1: stock decoder).
+        let tm = CFAbsoluteTimeGetCurrent()
+        eval(features)
         let t0 = CFAbsoluteTimeGetCurrent()
         let encoded = encodeBatchFeatures(features, lengths: lengths)
         eval(encoded.0, encoded.1)
@@ -463,7 +466,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
         if let handle = FileHandle(forWritingAtPath: profile) {
             _ = try? handle.seekToEnd()
             let finiteEncoded = MLX.all(MLX.isFinite(encoded.0)).item(Bool.self)
-            try? handle.write(contentsOf: Data("\(features.shape[1]) \(t1 - t0) \(t2 - t1) enc_finite=\(finiteEncoded) fast_finite=\(fastPathFinite) err=\(fastPathError ?? "-")\n".utf8))
+            try? handle.write(contentsOf: Data("\(features.shape[1]) \(t1 - t0) \(t2 - t1) enc_finite=\(finiteEncoded) fast_finite=\(fastPathFinite) err=\(fastPathError ?? "-") mel_s=\(t0 - tm) blocks=\(fastDecoder?.lastBlocks ?? -1)\n".utf8))
             try? handle.close()
         }
         return result
