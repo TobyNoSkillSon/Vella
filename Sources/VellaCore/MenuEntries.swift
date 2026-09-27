@@ -69,4 +69,3 @@ public func memoryEntries(allowSwap: Bool, availableMB: Double?, lastEvicted: St
     if !captions.isEmpty { entries.append(.separator); entries += captions.map { .caption($0) } }
     return entries
 }
-

@@ -1,5 +1,5 @@
 {
- "app_version": "1.0.0 (30)",
+ "app_version": "1.0.0 (35)",
  "chip": "Apple M5 Max",
  "date": "2026-09-27",
  "gate_version": "native-kernels-8",
@@ -165,6 +165,68 @@
     }
    }
   },
+  "qwen3-asr-0.6b": {
+   "4b": {
+    "mlx": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    },
+    "optimized": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    }
+   },
+   "8b": {
+    "mlx": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    },
+    "optimized": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    }
+   },
+   "BF16": {
+    "mlx": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    },
+    "optimized": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    }
+   }
+  },
   "qwen3-asr-1.7b": {
    "4b": {
     "mlx": {
@@ -229,6 +291,130 @@
       "clip-c": "Surely, we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    }
+   }
+  },
+  "whisper-large-v3": {
+   "4b": {
+    "mlx": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas, the elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.\"",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    },
+    "optimized": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas, the elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.\"",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    }
+   },
+   "8b": {
+    "mlx": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    },
+    "optimized": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.\"",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    }
+   },
+   "FP16": {
+    "mlx": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    },
+    "optimized": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    }
+   }
+  },
+  "whisper-large-v3-turbo": {
+   "4b": {
+    "mlx": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    },
+    "optimized": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     }
+    }
+   },
+   "8b": {
+    "mlx": {
+     "transcripts": {
+      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
+     }
+    },
+    "optimized": {
+     "transcripts": {
+      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
+     }
+    }
+   },
+   "FP16": {
+    "mlx": {
+     "transcripts": {
+      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
+     }
+    },
+    "optimized": {
+     "transcripts": {
+      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
      }
     }
    }
