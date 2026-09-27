@@ -14,6 +14,32 @@ public final class WhisperModel: Module, STTGenerationModel {
 
     private var tokenizer: WhisperTokenizer?
 
+    // MARK: - Profiling (opt-in, VELLA_WHISPER_PROFILE=1; adds syncs at phase boundaries)
+
+    public struct Profile {
+        public var mel = 0.0, encoder = 0.0, detect = 0.0, prefill = 0.0, decode = 0.0
+        public var decodeSteps = 0, attempts = 0
+        public var activationDType = ""
+        public init() {}
+    }
+    public static let profiling = ProcessInfo.processInfo.environment["VELLA_WHISPER_PROFILE"] == "1"
+    public var profile = Profile()
+
+    // MARK: - Optimized path state (FastPathCapable; off after load, the worker enables it once the gate qualified it)
+
+    /// Default on: the encoder component runs the model in the checkpoint dtype (see `WhisperEncoder.positionDType`).
+    /// VELLA_WHISPER_ENC_F16=0 keeps the stock Float32 promotion, so the optimized path is decoder-only.
+    public static let halfEncoder = ProcessInfo.processInfo.environment["VELLA_WHISPER_ENC_F16"] != "0"
+    public private(set) var fastDecode = false
+    public private(set) var fastEncoder = false
+    /// Every optimized-decoder step (and the language-detection logits) finite, over the whole last `generate` call.
+    var lastDecoderFinite = true
+    /// Test hook (reported in worker status, never inherited by the gate's self-test child): make the optimized
+    /// decoder's logits non-finite from this step on, to prove the stock fallback.
+    static let testDecoderFaultStep: Int? = ProcessInfo.processInfo.environment["VELLA_TEST_DECODER_NONFINITE"].flatMap(Int.init)
+    /// Token IDs of the last `generate` call: each chunk's final decode (end-of-text excluded), then -1.
+    public private(set) var lastTokens: [Int] = []
+
     public init(config: WhisperConfig, generationConfig: WhisperGenerationConfig? = nil) {
         self.config = config
         self.generationConfig = generationConfig
@@ -42,6 +68,8 @@ public final class WhisperModel: Module, STTGenerationModel {
         let startTime = Date()
         let mono = audio.ndim > 1 ? audio.mean(axis: -1) : audio
         let chunks = chunkAudioFor30sWindows(mono)
+        lastTokens = []
+        lastDecoderFinite = true
 
         var allText: [String] = []
         var allSegments: [[String: Any]] = []
@@ -191,15 +219,22 @@ public final class WhisperModel: Module, STTGenerationModel {
         onTokenDelta: ((String) -> Void)? = nil
     ) -> (text: String, promptTokens: Int, generationTokens: Int, language: String?) {
         guard let tokenizer else { fatalError("Whisper tokenizer not loaded") }
+        let profiling = WhisperModel.profiling
+        func now() -> Double { ProcessInfo.processInfo.systemUptime }
+        var mark = now()
+        func lap(_ keyPath: WritableKeyPath<Profile, Double>) { let t = now(); profile[keyPath: keyPath] += t - mark; mark = t }
         // Python DecodingOptions.fp16 defaults to true, including quantized models.
         let features = WhisperAudio.encoderFeatures(audio: audio, nMels: config.numMelBins).asType(.float16)
+        if profiling { eval(features); lap(\.mel) }
         let encoderHidden = model.encoder(features)
+        if profiling { eval(encoderHidden); lap(\.encoder); profile.activationDType = "\(encoderHidden.dtype)" }
         var language = generationParameters.language
         var detectionCaches = (0..<config.decoderLayers).map { _ in WhisperLayerCache() }
         let sot = MLXArray([Int32(tokenizer.startOfTranscriptId)]).expandedDimensions(axis: 0)
         let detectionHidden = model.decoder(tokens: sot, startPosition: 0, encoderHidden: encoderHidden, caches: &detectionCaches)
         let detectionLogits = model.decoder.projectToVocab(detectionHidden[0, -1]).asType(.float32)
         eval(detectionLogits)
+        if fastDecode { lastDecoderFinite = lastDecoderFinite && detectionLogits.sum().item(Float.self).isFinite }
         let noSpeechProbability: Float = tokenizer.noSpeechId.map { softmax(detectionLogits)[$0].item(Float.self) } ?? 0
         if tokenizer.isMultilingual, tokenizer.resolveLanguage(language) == nil {
             var mask = [Float](repeating: -.infinity, count: detectionLogits.dim(0))
@@ -207,7 +242,11 @@ public final class WhisperModel: Module, STTGenerationModel {
             let languageID = (detectionLogits + MLXArray(mask)).argMax().item(Int.self)
             language = tokenizer.languageToId.first(where: { $0.value == languageID })?.key
         }
+        // The cross-attention K/V depend only on the encoder output: the optimized decoder reuses the detection
+        // pass's projections (same GEMM, same values) instead of recomputing them for every decode attempt.
+        let crossCaches = fastDecode ? detectionCaches : []
         detectionCaches.removeAll()
+        if profiling { lap(\.detect) }
         let promptIds = tokenizer.buildPromptTokens(language: language, task: "transcribe", withoutTimestamps: false)
         let beginSuppress = generationConfig?.beginSuppressTokens ?? [220, tokenizer.endOfTextId]
         var suppress = generationConfig?.suppressTokens ?? []
@@ -221,14 +260,30 @@ public final class WhisperModel: Module, STTGenerationModel {
             ? [0, 0.2, 0.4, 0.6, 0.8, 1] : [generationParameters.temperature]
         var finalText = ""
         var finalCount = 0
+        var finalTokens: [Int] = []
+        // The pipelined loop evaluates the timestamp rules on the GPU; the stock rule that indexes timestamp IDs by
+        // sequence position is empty only while the sequence is shorter than the first timestamp ID (always, at 224).
+        let fast = fastDecode && onTokenDelta == nil && maxTokens < tokenizer.timestampBeginId
         for temperature in temperatures {
             var caches = (0..<config.decoderLayers).map { _ in WhisperLayerCache() }
+            if fast {
+                for index in caches.indices {
+                    caches[index].crossKeys = crossCaches[index].crossKeys
+                    caches[index].crossValues = crossCaches[index].crossValues
+                }
+            }
             let prompt = MLXArray(promptIds.map(Int32.init)).expandedDimensions(axis: 0)
             var hidden = model.decoder(tokens: prompt, startPosition: 0, encoderHidden: encoderHidden, caches: &caches)
             var logits = model.decoder.projectToVocab(hidden[0, -1]).asType(.float32)
             var generated: [Int] = []
             var previousText = ""
             var sumLogProbability: Float = 0
+            if profiling { eval(logits); lap(\.prefill) }
+            if fast && temperature == 0 {
+                (generated, sumLogProbability) = pipelinedGreedy(
+                    logits: logits, caches: &caches, encoderHidden: encoderHidden, promptCount: promptIds.count,
+                    maxTokens: maxTokens, beginSuppress: beginSuppress, suppress: suppress, tokenizer: tokenizer)
+            } else {
             for step in 0..<maxTokens {
                 eval(logits)
                 var filtered = logits
@@ -250,15 +305,123 @@ public final class WhisperModel: Module, STTGenerationModel {
                 hidden = model.decoder(tokens: token, startPosition: promptIds.count + step, encoderHidden: encoderHidden, caches: &caches)
                 logits = model.decoder.projectToVocab(hidden[0, -1]).asType(.float32)
             }
+            }
+            if profiling { lap(\.decode); profile.decodeSteps += generated.count + 1; profile.attempts += 1 }
             finalText = tokenizer.decode(tokens: generated)
             finalCount = generated.count
+            finalTokens = generated
             let average = sumLogProbability / Float(generated.count + 1)
             if noSpeechProbability > 0.6 && average < -1 {
-                finalText = ""; break
+                finalText = ""; finalTokens = []; break
             }
             if average >= -1 && compressionRatio(finalText) <= 2.4 { break }
         }
+        lastTokens += finalTokens + [-1]
         return (finalText, promptIds.count, finalCount, language)
+    }
+
+    // MARK: - Optimized greedy decode
+
+    /// Constant 0/-inf masks for the GPU-side token rules (one per model; the suppress lists are per checkpoint).
+    private struct RuleMasks {
+        let key: [Int]
+        let first: MLXArray      // step 0: begin-suppress + suppress + no-timestamps + the empty-sequence rule
+        let later: MLXArray      // steps >= 1: suppress + no-timestamps
+        let suppressFirst: MLXArray, suppressLater: MLXArray  // the suppress part alone (stock filters before the rules)
+        let timestamps: MLXArray // [begin, vocab)
+        let textToEot: MLXArray  // [0, eot)
+        let text: MLXArray       // [0, begin)
+    }
+    private var ruleMasks: RuleMasks?
+
+    private func masks(count: Int, beginSuppress: [Int], suppress: [Int], tokenizer: WhisperTokenizer) -> RuleMasks {
+        let key = [count, -1] + beginSuppress + [-2] + suppress
+        if let ruleMasks, ruleMasks.key == key { return ruleMasks }
+        let begin = tokenizer.timestampBeginId
+        func mask(_ ids: [Int], _ ranges: [Range<Int>] = []) -> [Float] {
+            var values = [Float](repeating: 0, count: count)
+            for id in ids where id >= 0 && id < count { values[id] = -.infinity }
+            for range in ranges { for id in range.clamped(to: 0..<count) { values[id] = -.infinity } }
+            return values
+        }
+        let lastAllowed = begin + Int((Double(config.maxSourcePositions) / 30).rounded())
+        let emptyRules = [0..<begin] + (lastAllowed + 1 < count ? [(lastAllowed + 1)..<count] : [])
+        let suppressFirst = mask(beginSuppress + suppress)
+        let suppressLater = mask(suppress)
+        let made = RuleMasks(
+            key: key,
+            first: MLXArray(mask([tokenizer.noTimestampsId], emptyRules)),
+            later: MLXArray(mask([tokenizer.noTimestampsId])),
+            suppressFirst: MLXArray(suppressFirst), suppressLater: MLXArray(suppressLater),
+            timestamps: MLXArray(mask([], [begin..<count])),
+            textToEot: MLXArray(mask([], [0..<tokenizer.endOfTextId])),
+            text: MLXArray(mask([], [0..<begin])))
+        ruleMasks = made
+        return made
+    }
+
+    /// Greedy decode with the token rules on the GPU and step N+1 queued from the still-lazy token N before the
+    /// host reads N (one wasted step after end-of-text). Same ops on the same values as the stock loop: the
+    /// suppress masks, then the timestamp rules' mask (0/-inf entries, so one addition equals the stock sequence),
+    /// argmax, and the per-step log-probability summed on the host in the same order. Token-exact with stock.
+    private func pipelinedGreedy(
+        logits first: MLXArray, caches: inout [WhisperLayerCache], encoderHidden: MLXArray, promptCount: Int,
+        maxTokens: Int, beginSuppress: [Int], suppress: [Int], tokenizer: WhisperTokenizer
+    ) -> ([Int], Float) {
+        let begin = tokenizer.timestampBeginId
+        let rules = masks(count: first.dim(0), beginSuppress: beginSuppress, suppress: suppress, tokenizer: tokenizer)
+        let beginArray = MLXArray(Int32(begin))
+        let zero = MLXArray(Float(0))
+        let faultStep = WhisperModel.testDecoderFaultStep
+        func select(_ step: Int, _ raw: MLXArray, _ previous: MLXArray?, _ beforePrevious: MLXArray?) -> (token: MLXArray, logProbability: MLXArray, sum: MLXArray) {
+            var logits = raw
+            if let faultStep, step >= faultStep { logits = logits * MLXArray(Float.nan) }
+            let filtered = logits + (step == 0 ? rules.suppressFirst : rules.suppressLater)
+            let logProbabilities = filtered - filtered.logSumExp()
+            let timestampMass = logProbabilities[begin...].logSumExp()
+            let maxText = logProbabilities[..<begin].max()
+            var mask = (step == 0 ? rules.first : rules.later) + MLX.where(timestampMass .> maxText, rules.text, zero)
+            if let previous {
+                let lastIsTimestamp = previous .>= beginArray
+                let penultimateIsTimestamp = beforePrevious.map { $0 .>= beginArray } ?? MLXArray(true)
+                mask = mask + MLX.where(lastIsTimestamp .&& penultimateIsTimestamp, rules.timestamps, zero)
+                    + MLX.where(lastIsTimestamp .&& .!penultimateIsTimestamp, rules.textToEot, zero)
+            }
+            let final = filtered + mask
+            let token = final.argMax(axis: -1)
+            let chosen = MLX.takeAlong(final, token.reshaped([1]), axis: 0)
+            return (token, chosen - final.logSumExp(), logits.sum())
+        }
+        var current = select(0, first, nil, nil)
+        asyncEval(current.token, current.logProbability, current.sum)
+        var previous: MLXArray? = nil
+        var generated: [Int] = []
+        var logProbabilities: [MLXArray] = []
+        var sums: [MLXArray] = []
+        for step in 0..<maxTokens {
+            var queued: (token: MLXArray, logProbability: MLXArray, sum: MLXArray)? = nil
+            if step + 1 < maxTokens {
+                let hidden = model.decoder(tokens: current.token.reshaped([1, 1]), startPosition: promptCount + step,
+                                           encoderHidden: encoderHidden, caches: &caches)
+                let logits = model.decoder.projectToVocab(hidden[0, -1]).asType(.float32)
+                queued = select(step + 1, logits, current.token, previous)
+                asyncEval(queued!.token, queued!.logProbability, queued!.sum)
+            }
+            let next = current.token.item(Int.self)
+            logProbabilities.append(current.logProbability)
+            sums.append(current.sum)
+            if next == tokenizer.endOfTextId { break }
+            generated.append(next)
+            guard let queued else { break }
+            previous = current.token
+            current = queued
+        }
+        let values = MLX.concatenated(logProbabilities).asArray(Float.self)
+        let finite = MLX.stacked(sums).asArray(Float.self).allSatisfy(\.isFinite)
+        lastDecoderFinite = lastDecoderFinite && finite
+        var sumLogProbability: Float = 0
+        for value in values { sumLogProbability += value }
+        return (generated, sumLogProbability)
     }
 
     private func applyTimestampRules(_ logits: MLXArray, generated: [Int], tokenizer: WhisperTokenizer) -> MLXArray {
@@ -564,6 +727,57 @@ public final class WhisperModel: Module, STTGenerationModel {
 
 
 
+}
+
+// MARK: - Optimized path
+
+extension WhisperModel: FastPathCapable {
+    /// Bump whenever the optimized components or their parity reference change.
+    public static var fastPathRevision: String { halfEncoder ? "whisper-1-f16-model" : "whisper-1" }
+
+    /// The checkpoint's floating dtype (FP16 for every published Whisper), nil when the encoder is Float32.
+    var checkpointHalfDType: DType? {
+        let dtype = model.encoder.conv1.weight.dtype
+        return dtype == .float16 || dtype == .bfloat16 ? dtype : nil
+    }
+
+    /// decoder: the token rules on the GPU and a pipelined greedy loop (token-exact with the stock loop; stock read
+    /// three scalars and rebuilt three vocabulary-sized masks on the host per token, leaving the GPU idle), plus the
+    /// detection pass's cross-attention K/V reused for the prompt (identical values).
+    /// encoder (default): the model in the checkpoint dtype, like the reference mlx-whisper; the Float32 positional
+    /// embedding the loader synthesises otherwise promotes the whole encoder and decoder to Float32 with every FP16
+    /// weight re-cast per call. Different numerics from that stock path, so the self-test's stock reference runs
+    /// in the checkpoint dtype too and must match token for token (the decoder), finite.
+    public func configureFastPath(enabled: Bool, component: String) -> Bool {
+        let decoder = component == "both" || component == "decoder"
+        let encoder = component == "both" || component == "encoder"
+        guard decoder || encoder else { return false }
+        if decoder { fastDecode = enabled; lastDecoderFinite = true }
+        if encoder {
+            let active = enabled && WhisperModel.halfEncoder && checkpointHalfDType != nil
+            model.encoder.positionDType = active ? checkpointHalfDType : nil
+            fastEncoder = active
+        }
+        return true
+    }
+
+    public var fastPathFinite: Bool { lastDecoderFinite }
+
+    public var fastPathComponents: [String: Bool] { ["decoder": fastDecode, "encoder": fastEncoder] }
+
+    /// Token IDs for a self-test clip, exactly as the worker transcribes. With the half-precision encoder the stock
+    /// reference runs in the checkpoint dtype too (the parity reference), so the comparison tests the decoder.
+    public func qualificationTokens(audio: MLXArray) -> [Int] {
+        let reference = WhisperModel.halfEncoder && !fastEncoder
+        let saved = model.encoder.positionDType
+        if reference { model.encoder.positionDType = checkpointHalfDType }
+        defer { if reference { model.encoder.positionDType = saved } }
+        // Temperature fallback samples from MLX's time-seeded global key: seed it so a clip that falls back
+        // samples the same keys on both paths (the self-test child only).
+        MLXRandom.seed(0x5eed)
+        _ = generate(audio: audio, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
+        return Array(lastTokens.dropLast())
+    }
 }
 
 private struct WhisperQuantizedModelConfig: Decodable {

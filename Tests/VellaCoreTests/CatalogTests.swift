@@ -34,20 +34,33 @@ final class CatalogTests: XCTestCase {
             XCTAssertEqual(f.derivationProblems(), [], f.id)
             XCTAssertTrue(f.variants.keys.allSatisfy { labelBits($0) != nil }, "exact precision labels: \(f.id)")
         }
-        XCTAssertEqual(catalog.family("granite-4.0-1b-speech")?.offered, false, "weak models are not offered in the app")
+        XCTAssertEqual(catalog.family("granite-4.0-1b-speech")?.offered, false, "hidden families are not offered in the app")
     }
 
     func testShippedLineup() throws {
-        // The lineup chosen from the v2-quick screening (26 Sep 2026): offered models and their precisions.
+        // A model is offered when it serves a clear purpose (size, languages, family, speed), even if another model has
+        // a lower WER (Toby, 27 Sep 2026): Qwen3 ASR 0.6B for Macs with less RAM, Whisper large-v3 and turbo as another
+        // family with about 100 languages.
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
         let offered = Dictionary(uniqueKeysWithValues: catalog.families.filter(\.offered).map { ($0.id, Set($0.variants.keys)) })
         // Every level from native down to 4 bits (Toby, 26 Sep 2026); gaps are derived locally (DerivedModels.swift).
         XCTAssertEqual(offered, ["parakeet-v3": ["FP32", "BF16", "8b", "4b"], "parakeet-v3-ultra": ["BF16", "8b", "4b"],
-                                 "qwen3-asr-1.7b": ["BF16", "8b", "4b"], "nemotron-3.5-streaming-0.6b": ["BF16", "8b", "4b"]])
+                                 "qwen3-asr-1.7b": ["BF16", "8b", "4b"], "qwen3-asr-0.6b": ["BF16", "8b", "4b"],
+                                 "whisper-large-v3": ["FP16", "8b", "4b"], "whisper-large-v3-turbo": ["FP16", "8b", "4b"],
+                                 "nemotron-3.5-streaming-0.6b": ["BF16", "8b", "4b"]])
+        XCTAssertEqual(catalog.offered(.dictation).map(\.id), ["parakeet-v3-ultra", "parakeet-v3", "qwen3-asr-1.7b", "qwen3-asr-0.6b",
+                                                              "whisper-large-v3", "whisper-large-v3-turbo"])
+        XCTAssertEqual(catalog.offered(.streaming).map(\.id), ["nemotron-3.5-streaming-0.6b"])
         XCTAssertEqual(catalog.family("parakeet-v3")?.native, "FP32", "the Parakeet v3 checkpoint is FP32 on disk")
+        XCTAssertEqual(catalog.family("whisper-large-v3-turbo")?.license, "mit", "turbo is MIT upstream, unlike large-v3")
+        // Every offered family says what it is for (the Model tooltip), except the ones whose purpose is the default.
+        for id in ["qwen3-asr-0.6b", "whisper-large-v3", "whisper-large-v3-turbo"] {
+            XCTAssertFalse(catalog.family(id)?.notes?.isEmpty ?? true, id)
+        }
+        XCTAssertFalse(catalog.families.contains { $0.offered && ($0.notes ?? "").contains("Benchmark table only") })
         // The first offered Dictation family is the first-dictation Get offer (RuntimeBridge.offer): Ultra BF16, 1.25 GB.
         XCTAssertEqual(catalog.offered(.dictation).first?.id, "parakeet-v3-ultra")
-        for id in ["qwen3-asr-0.6b", "whisper-large-v3", "whisper-large-v3-turbo", "sensevoice-small", "granite-4.0-1b-speech", "voxtral-mini-4b-realtime"] {
+        for id in ["parakeet-tdt-ctc-110m", "sensevoice-small", "granite-4.0-1b-speech", "voxtral-mini-4b-realtime"] {
             XCTAssertEqual(catalog.family(id)?.offered, false, id)
         }
         // Earlier install ids of now-unoffered models still resolve (installed copies stay usable and deletable).

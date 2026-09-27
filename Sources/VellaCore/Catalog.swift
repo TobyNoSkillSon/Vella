@@ -202,7 +202,7 @@ public func precisionWidth(_ label: String) -> String? {
     return bits == bits.rounded() ? String(Int(bits)) : String(format: "%g", bits)
 }
 /// Segment labels for a family's options: bare widths (`32 16 8 4`). A bare 16 always means BF16, as the Q heading
-/// says, so an FP16 option (retained Whisper installs) keeps its exact label `FP16`. If two options ever share a
+/// says, so an FP16 option (Whisper) keeps its exact label `FP16`. If two options ever share a
 /// width, every segment falls back to its exact label.
 public func precisionSegmentLabels(_ options: [String]) -> [String] {
     let widths = options.map { precisionWidth($0) }
