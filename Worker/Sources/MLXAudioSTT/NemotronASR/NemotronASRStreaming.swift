@@ -22,6 +22,10 @@ final class NemotronASRPositionCache {
 /// session, across `step` calls). Holding it outside the chunk loop is what lets
 /// the same loop serve both the one-shot `generateStream` and the incremental
 /// `NemotronASRStreamSession`.
+/// Test hook (reported in worker status, never inherited by the gate's self-test child): every fused encoder output
+/// of a session is non-finite from this fused chunk on, to prove the optimized path's runtime finite check.
+let nemoTestEncoderFaultChunk: Int? = ProcessInfo.processInfo.environment["VELLA_TEST_ENCODER_NONFINITE"].flatMap(Int.init)
+
 final class NemotronASRStreamEncoderState {
     var attnCache: [MLXArray?]
     var convCache: [MLXArray?]
@@ -34,6 +38,8 @@ final class NemotronASRStreamEncoderState {
     var useKeyValueCache = false
     /// Fused conformer layer (`VellaNemotronFusedEncoder`); needs the K/V cache mode.
     var useFusedLayer = false
+    /// Chunks this session ran through the fused layer (the encoder-output fault hook counts them).
+    var fusedChunks = 0
     var keyCache: [MLXArray?]
     var valueCache: [MLXArray?]
     var live: [MLXArray] { (attnCache + convCache + keyCache + valueCache).compactMap { $0 } + [melCache].compactMap { $0 } }
@@ -246,6 +252,8 @@ extension NemotronASRModel {
             if state.useFusedLayer, state.useKeyValueCache, let fused = fusedEncoder,
                h.shape[1] <= VellaNemotronFusedMetal.maxRows, leftCache + VellaNemotronFusedMetal.maxRows <= fused.headDim {
                 h = fused(h, model: self, state: state, leftCache: leftCache)
+                if let from = nemoTestEncoderFaultChunk, state.fusedChunks >= from { h = h * MLXArray(Float.nan) }
+                state.fusedChunks += 1
                 onChunk(applyPrompt(h, language: language))
                 continue
             }
