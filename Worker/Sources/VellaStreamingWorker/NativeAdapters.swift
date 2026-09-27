@@ -52,18 +52,27 @@ final class NemotronNative: StreamingNative {
     func enableOptimized() {
         guard !optimized, let model else { return }
         if VellaNemotronOptions.f32Weights { VellaNemotronNumerics.convertFloat32Weights(model) }
+        if VellaNemotronOptions.fusedLayer && VellaNemotronOptions.keyValueCache { VellaNemotronNumerics.prepareFusedEncoder(model) }
         optimized = true
     }
     private func disableOptimized(_ reason: String) {
         guard optimized, let model else { return }
         if VellaNemotronOptions.f32Weights { VellaNemotronNumerics.restoreBF16Weights(model) }
+        VellaNemotronNumerics.dropFusedEncoder(model)
         optimized = false; stockReason = reason
     }
     var engine: (String, String, [String: Bool]) {
         guard optimized else { return ("mlx", stockReason, VellaNemotronOptions.active.mapValues { _ in false }) }
-        return ("optimized", "Self-tested on this Mac against stock MLX (identical streamed text); output is bit-identical by construction.", VellaNemotronOptions.active)
+        return ("optimized", VellaNemotronOptions.fusedLayer && VellaNemotronOptions.keyValueCache
+                ? "Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance)."
+                : "Self-tested on this Mac against stock MLX (identical streamed text); output is bit-identical by construction.", VellaNemotronOptions.active)
     }
     var nonFinite: Bool { session?.nonFinite ?? false }
+    /// Self-test: fused vs unfused chunk-encoder deviation on `audio` (nil when the fused layer is not active).
+    func fusedDeviation(audio: [Float]) -> (rms: Float, max: Float)? {
+        guard optimized, VellaNemotronOptions.fusedLayer, VellaNemotronOptions.keyValueCache, let model else { return nil }
+        return VellaNemotronNumerics.fusedEncoderDeviation(model, audio: audio)
+    }
     func takeIncomplete() -> Bool { defer { incompleteFlag = false }; return incompleteFlag }
     func reset() throws {
         VellaStreamProfile.flush()

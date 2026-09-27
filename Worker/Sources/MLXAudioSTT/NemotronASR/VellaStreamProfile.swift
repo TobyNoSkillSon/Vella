@@ -43,11 +43,13 @@ public enum VellaNemotronOptions {
     public static let batchedDecode = on("BATCHED_DECODE")
     public static let positionCache = on("POSCACHE")
     public static let keyValueCache = on("KVCACHE")
+    /// Fused conformer layer (not bit-identical: gated by the self-test tolerance and the quick-set WER gate).
+    public static let fusedLayer = on("FUSED")
     /// Bumped whenever an optimization changes, so a persisted self-test verdict is not reused.
-    public static let revision = "nemotron-stream-1"
-    public static var anyEnabled: Bool { f32Weights || coalesce || batchedDecode || positionCache || keyValueCache }
+    public static let revision = "nemotron-stream-2"
+    public static var anyEnabled: Bool { f32Weights || coalesce || batchedDecode || positionCache || keyValueCache || fusedLayer }
     public static var active: [String: Bool] {
         ["f32_weights": f32Weights, "coalesce": coalesce, "batched_decode": batchedDecode,
-         "position_cache": positionCache, "kv_cache": keyValueCache]
+         "position_cache": positionCache, "kv_cache": keyValueCache, "fused_layer": fusedLayer && keyValueCache]
     }
 }

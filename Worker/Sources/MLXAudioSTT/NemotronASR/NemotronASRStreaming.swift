@@ -32,6 +32,8 @@ final class NemotronASRStreamEncoderState {
     /// Optimized-path switches, fixed per session (stock: both false).
     var usePositionCache = false
     var useKeyValueCache = false
+    /// Fused conformer layer (`VellaNemotronFusedEncoder`); needs the K/V cache mode.
+    var useFusedLayer = false
     var keyCache: [MLXArray?]
     var valueCache: [MLXArray?]
     var live: [MLXArray] { (attnCache + convCache + keyCache + valueCache).compactMap { $0 } + [melCache].compactMap { $0 } }
@@ -73,20 +75,7 @@ extension NemotronASRModel {
             attnNext = kv[0..., max(0, len - leftCache)..<len, 0...]
         }
         let qProj = attn.linearQ(xn)
-        var pProj: MLXArray
-        let cache = positionCache
-        if state.usePositionCache, let key = cache.key, key == (cacheLen, qSeq), let hit = cache.projections[layer] {
-            pProj = hit
-        } else {
-            pProj = attn.linearPos(encoder.posEnc(xn, offset: cacheLen).1)
-            if state.usePositionCache && cacheLen == leftCache {
-                if cache.key == nil || cache.key! != (cacheLen, qSeq) {
-                    cache.key = (cacheLen, qSeq)
-                    cache.projections = [MLXArray?](repeating: nil, count: encoder.layers.count)
-                }
-                cache.projections[layer] = pProj
-            }
-        }
+        var pProj = streamPositionProjection(attn, layer: layer, xn, cacheLen: cacheLen, leftCache: leftCache, cached: state.usePositionCache)
         let batch = qProj.shape[0]
         let kSeq = kProj.shape[1]
         let posLen = pProj.shape[1]
@@ -106,6 +95,25 @@ extension NemotronASRModel {
             queries: qU, keys: kHeads, values: vHeads, scale: scale, mask: .array(matrixBD))
         let out = attended.transposed(0, 2, 1, 3).reshaped(batch, qSeq, -1)
         return (attn.linearOut(out), attnNext)
+    }
+
+    /// `linear_pos` of the relative-position window for a chunk of `xn.shape[1]` queries after
+    /// `cacheLen` cached frames; with `cached`, the steady-state (full cache) projection is reused.
+    func streamPositionProjection(
+        _ attn: NemoRelPositionMultiHeadAttention, layer: Int, _ xn: MLXArray, cacheLen: Int, leftCache: Int, cached: Bool
+    ) -> MLXArray {
+        let qSeq = xn.shape[1]
+        let cache = positionCache
+        if cached, let key = cache.key, key == (cacheLen, qSeq), let hit = cache.projections[layer] { return hit }
+        let pProj = attn.linearPos(encoder.posEnc(xn, offset: cacheLen).1)
+        if cached && cacheLen == leftCache {
+            if cache.key == nil || cache.key! != (cacheLen, qSeq) {
+                cache.key = (cacheLen, qSeq)
+                cache.projections = [MLXArray?](repeating: nil, count: encoder.layers.count)
+            }
+            cache.projections[layer] = pProj
+        }
+        return pProj
     }
 
     private func nemoStreamBlock(
@@ -235,6 +243,12 @@ extension NemotronASRModel {
             }
             state.emitted = base + hi
             var h = sub[0..., lo..<hi, 0...]
+            if state.useFusedLayer, state.useKeyValueCache, let fused = fusedEncoder,
+               h.shape[1] <= VellaNemotronFusedMetal.maxRows, leftCache + VellaNemotronFusedMetal.maxRows <= fused.headDim {
+                h = fused(h, model: self, state: state, leftCache: leftCache)
+                onChunk(applyPrompt(h, language: language))
+                continue
+            }
             for li in encoder.layers.indices {
                 let r = nemoStreamBlock(
                     encoder.layers[li], layer: li, state: state, h,

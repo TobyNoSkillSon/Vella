@@ -18,6 +18,8 @@ public final class NemotronASRModel: Module, STTGenerationModel {
 
     public var computeDType: DType = .bfloat16
     let positionCache = NemotronASRPositionCache()
+    /// Built by `prepareFusedEncoder()` on the optimized path only (after any load-time weight conversion).
+    var fusedEncoder: VellaNemotronFusedEncoder?
 
     @ModuleInfo(key: "encoder") var encoder: NemotronASRConformer
     @ModuleInfo(key: "prompt_kernel") var promptKernel: NemotronASRPromptKernel?

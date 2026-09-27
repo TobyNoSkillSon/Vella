@@ -35,6 +35,7 @@ public final class VellaNemotronSession {
         encoder = NemotronASRStreamEncoderState(layers: model.encoder.layers.count)
         encoder.usePositionCache = optimized && VellaNemotronOptions.positionCache
         encoder.useKeyValueCache = optimized && VellaNemotronOptions.keyValueCache
+        encoder.useFusedLayer = optimized && VellaNemotronOptions.fusedLayer && model.fusedEncoder != nil
         batchedDecode = optimized && VellaNemotronOptions.batchedDecode
         last = model.blankTokenID
     }

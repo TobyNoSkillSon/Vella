@@ -36,6 +36,39 @@ public enum VellaNemotronNumerics {
         eval(model)
         Memory.clearCache()
     }
+    /// Build the fused conformer layer from the loaded (and possibly converted) weights.
+    /// Returns false when this checkpoint's shapes are not supported (the unfused path stays).
+    @discardableResult
+    public static func prepareFusedEncoder(_ model: NemotronASRModel) -> Bool {
+        model.fusedEncoder = VellaNemotronFusedEncoder(model.encoder)
+        return model.fusedEncoder != nil
+    }
+    public static func dropFusedEncoder(_ model: NemotronASRModel) {
+        model.fusedEncoder = nil
+    }
+    /// Self-test tolerance check for the fused layer: streams `audio` through the chunk encoder twice
+    /// (unfused K/V-cache path, then fused), both in 4-frame chunks from a fresh state, and returns the
+    /// relative RMS deviation ||fused - unfused|| / ||unfused|| and the max deviation max |Δ| / max |unfused|
+    /// over every encoder output frame (non-finite → .infinity), or nil when the fused layer is not prepared.
+    public static func fusedEncoderDeviation(_ model: NemotronASRModel, audio: [Float]) -> (rms: Float, max: Float)? {
+        guard model.fusedEncoder != nil else { return nil }
+        let c = model.preprocessConfig
+        let mel = VellaNemotronFrontend.frames(MLXArray(audio), config: c, start: 0, end: audio.count / c.hopLength + 1)
+        func run(fused: Bool) -> MLXArray {
+            let state = NemotronASRStreamEncoderState(layers: model.encoder.layers.count)
+            state.usePositionCache = true; state.useKeyValueCache = true; state.useFusedLayer = fused
+            var out: [MLXArray] = []
+            model.streamEncodeChunks(mel, language: model.defaultLanguage, limit: mel.shape[1], preserveInputDType: true,
+                                     chunkFrames: 4, flushTail: true, state: state) { out.append($0); eval($0) }
+            return concatenated(out, axis: 1).asType(.float32)
+        }
+        let reference = run(fused: false), fused = run(fused: true)
+        guard reference.shape == fused.shape else { return (.infinity, .infinity) }
+        let delta = fused - reference
+        let values = MLX.stacked([MLX.sqrt((delta * delta).sum() / (reference * reference).sum()),
+                                  abs(delta).max() / abs(reference).max()]).asArray(Float.self)
+        return (values[0].isFinite ? values[0] : .infinity, values[1].isFinite ? values[1] : .infinity)
+    }
     public static func dump(configURL: URL, pcmURL: URL, lengthsURL: URL, output: URL) throws {
         let config = try JSONDecoder().decode(NemotronASRConfig.self, from: Data(contentsOf: configURL))
         let bytes = try Data(contentsOf: pcmURL)
