@@ -20,7 +20,7 @@ import VellaCore
         delegate.factLine = { [weak self] in self?.factLine }
         delegate.pendingModelRow = { [weak self] in
             guard let offer = self?.model?.pendingModelRequest else { return nil }
-            return (offer.title, "Asks before downloading \(offer.name), then transcribes the saved recording and copies the text.")
+            return (offer.title, offer.help)
         }
         delegate.getPendingModel = { [weak self] in self?.getPendingModel() }
         delegate.restartWorkers = { [weak self] in self?.restart() }
@@ -202,17 +202,10 @@ import VellaCore
     // MARK: First dictation without a model
 
     /// The first offered family of the mode (catalog order) at its recommended precision.
-    private func offered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
-        guard let controller, let family = controller.catalog.offered(mode).first else { return nil }
-        let precision = controller.recommended(family) ?? family.native
-        return family.variants[precision] != nil ? (family, precision) : family.variants[family.native] != nil ? (family, family.native) : nil
-    }
+    private func offered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? { controller?.firstOffered(mode) }
     /// The Get row downloads what the recommended precision needs: its own weights, or for a precision made on this
     /// Mac the weights it is made from.
-    func offer(_ mode: RecognitionMode) -> Model.ModelOffer? {
-        guard let (family, precision) = offered(mode), let source = family.downloadSource(of: precision) else { return nil }
-        return Model.ModelOffer(id: source.variant.id, name: family.name, downloadBytes: source.variant.downloadBytes, mode: mode)
-    }
+    func offer(_ mode: RecognitionMode) -> Model.ModelOffer? { controller?.firstOffer(mode) }
     /// After the offered download: the path to use, the derived directory when the recommended precision is made here.
     private func offeredPath(_ offer: Model.ModelOffer, sourcePath: String) throws -> String {
         guard let controller, let (family, precision) = offered(offer.mode), family.isDerived(precision),

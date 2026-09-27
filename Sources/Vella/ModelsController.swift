@@ -171,6 +171,18 @@ import VellaCore
         return text
     }
     func recommended(_ f: ModelFamily) -> String? { recommendedPrecision(for: f, in: benchmarks) }
+    /// What the first dictation without a model offers: the catalog's first offered family at its recommended
+    /// precision (else native).
+    func firstOffered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
+        guard let family = catalog.offered(mode).first else { return nil }
+        let precision = recommended(family) ?? family.native
+        return family.variants[precision] != nil ? (family, precision) : family.variants[family.native] != nil ? (family, family.native) : nil
+    }
+    /// The Get row's download: the offered precision's own weights, or for a precision made on this Mac its source's.
+    func firstOffer(_ mode: RecognitionMode) -> Model.ModelOffer? {
+        guard let (family, precision) = firstOffered(mode), let source = family.downloadSource(of: precision) else { return nil }
+        return Model.ModelOffer(id: source.variant.id, name: family.name, downloadBytes: source.variant.downloadBytes, mode: mode)
+    }
     /// The precision the row returns to without a preview: loaded, else last loaded, else recommended.
     func committed(_ f: ModelFamily) -> String {
         committedPrecision(loaded: loaded(f)?.precision, lastLoaded: lastLoaded(f), recommended: recommended(f), family: f)

@@ -150,8 +150,10 @@ final class GlobalShortcut {
         let name: String
         let downloadBytes: Int64
         let mode: RecognitionMode
-        /// "Get Parakeet v3 (1.3 GB)"
+        /// "Get Parakeet v3 Ultra (1.3 GB)"
         var title: String { "Get \(name) (\(String(format: "%.1f", Double(downloadBytes) / 1e9)) GB)" }
+        /// The Get row's tooltip.
+        var help: String { "Asks before downloading \(name), then transcribes the saved recording and copies the text." }
     }
     /// Set while a saved recording waits for a model; the menu shows one `offer.title` row that calls getRecommendedModel().
     @Published private(set) var pendingModelRequest: ModelOffer?

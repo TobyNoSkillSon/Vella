@@ -333,7 +333,7 @@ import VellaUpdate
             State(prefix: "tight-", settings: DefaultMenuSettings(availableMB: 900, lastEvicted: "Nemotron 3.5 Streaming"), fact: "1 model loaded · 1.3 GB in memory", lastText: ""),
             State(prefix: "custom-", settings: DefaultMenuSettings(manualIdleMinutes: 60, onDemandIdleMinutes: 5, allowSwap: true, availableMB: 42_100), fact: nil, lastText: ""),
             State(prefix: "first-dictation-", settings: DefaultMenuSettings(availableMB: 86_900), fact: nil, lastText: "",
-                  pending: pendingModelEntry(name: "Parakeet v3", precision: "4b", downloadBytes: 637_004_647)),
+                  pending: controller.firstOffer(.dictation).map { ($0.title, $0.help) }),
         ]
         render(states, 0)
     }
