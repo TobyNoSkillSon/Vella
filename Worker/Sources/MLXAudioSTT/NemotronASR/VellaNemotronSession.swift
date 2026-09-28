@@ -20,6 +20,12 @@ public final class VellaNemotronSession {
     /// pred projection only change when a nonblank symbol is emitted.
     private var predictor: (state: NemoLSTMState, projection: MLXArray)?
     private let batchedDecode: Bool
+    /// Per-request mel (`VELLA_NEMO_MELBATCH`): blocks ingested without a frontend call, their frame counts kept
+    /// in `deferredBlocks` and computed in one call when the request is advanced.
+    private let batchedMel: Bool
+    private var deferredBlocks: [Int] = []
+    /// First frame whose mel is not computed yet (== nextFrame when nothing is deferred).
+    private var melFrame = 0
     /// Optimized session: every encoder chunk is finite-checked, whether or not decoding is batched.
     private let checksFinite: Bool
     /// Set when the optimized path saw a non-finite encoder output (batched decoding: checked inside the argmax
@@ -40,6 +46,7 @@ public final class VellaNemotronSession {
         encoder.useKeyValueCache = optimized && VellaNemotronOptions.keyValueCache
         encoder.useFusedLayer = optimized && VellaNemotronOptions.fusedLayer && model.fusedEncoder != nil
         batchedDecode = optimized && VellaNemotronOptions.batchedDecode
+        batchedMel = optimized && VellaNemotronOptions.melBatch
         checksFinite = optimized
         last = model.blankTokenID
     }
@@ -51,28 +58,61 @@ public final class VellaNemotronSession {
         return advance(final: final)
     }
     /// Frontend only: append the mel frames this audio freezes, lazily (no sync).
-    /// A caller that coalesces 20-ms blocks still ingests each block on its own,
-    /// so every mel call keeps the per-block frame grouping (the mel GEMM's
-    /// result depends on its column count) and stays bit-identical.
+    /// A caller that coalesces 20-ms blocks ingests each block on its own; with `batchedMel` the block only records
+    /// its frame count and `computeDeferredMel` runs one frontend call per request (see there why that is exact).
     public func ingest(_ chunk: [Float], final: Bool = false) {
         let c = model.preprocessConfig
         samples += chunk; totalSamples += chunk.count
         let edge = totalSamples - c.nFft / 2
         let end = final ? totalSamples / c.hopLength + 1 : edge >= 0 ? edge / c.hopLength + 1 : 0
+        if batchedMel && !final {
+            // Only the frame count of this block; the frontend runs once per request (`computeDeferredMel`).
+            if end > nextFrame { deferredBlocks.append(end - nextFrame); nextFrame = end }
+            return
+        }
+        computeDeferredMel()
         if end > nextFrame {
-            let localStart = nextFrame - bufferStart / c.hopLength
-            let localEnd = end - bufferStart / c.hopLength
-            let mel = VellaNemotronFrontend.frames(MLXArray(samples), config: c, start: localStart, end: localEnd)
-            VellaStreamProfile.add("mel_calls")
-            if VellaStreamProfile.enabled { VellaStreamProfile.time("mel_eval") { eval(mel) } }
-            pending = pending == nil ? mel : concatenated([pending!, mel], axis: 1)
-            nextFrame = end
-            let lookbehind = (c.nFft / 2 + c.hopLength) / c.hopLength
-            let keep = max(0, nextFrame - lookbehind) * c.hopLength
-            if keep > bufferStart { samples.removeFirst(keep - bufferStart); bufferStart = keep }
+            appendMel(start: nextFrame, end: end)
+            nextFrame = end; melFrame = end
+            trimSamples()
         }
     }
+    private func appendMel(start: Int, end: Int) {
+        let c = model.preprocessConfig
+        let base = bufferStart / c.hopLength
+        let mel = VellaNemotronFrontend.frames(MLXArray(samples), config: c, start: start - base, end: end - base)
+        VellaStreamProfile.add("mel_calls")
+        if VellaStreamProfile.enabled { VellaStreamProfile.time("mel_eval") { eval(mel) } }
+        pending = pending == nil ? mel : concatenated([pending!, mel], axis: 1)
+    }
+    private func trimSamples() {
+        let c = model.preprocessConfig
+        let lookbehind = (c.nFft / 2 + c.hopLength) / c.hopLength
+        let keep = max(0, nextFrame - lookbehind) * c.hopLength
+        if keep > bufferStart { samples.removeFirst(keep - bufferStart); bufferStart = keep }
+    }
+    /// The deferred blocks' mel in one frontend call, identical to one call per block: every frame is an independent
+    /// function of its own samples (elementwise pre-emphasis and window, per-row FFT, the filter GEMM's columns do not
+    /// interact; Python MLX 0.32.2 probe: bit-identical for 2-, 4-, 10- and 32-frame calls). Exception: blocks whose
+    /// window starts before sample 0 (the first 2 frames of a stream) are reflect-padded from the buffer as it was at
+    /// that block, so each keeps its own call as before.
+    private func computeDeferredMel() {
+        guard !deferredBlocks.isEmpty else { return }
+        let c = model.preprocessConfig
+        let firstUnpadded = (c.nFft / 2 + c.hopLength - 1) / c.hopLength
+        var start = melFrame, index = 0
+        while index < deferredBlocks.count {
+            let run = start >= firstUnpadded ? deferredBlocks.count - index : 1
+            let end = start + deferredBlocks[index..<(index + run)].reduce(0, +)
+            appendMel(start: start, end: end)
+            start = end; index += run
+        }
+        deferredBlocks.removeAll(keepingCapacity: true)
+        melFrame = nextFrame
+        trimSamples()
+    }
     private func advance(final: Bool) -> String {
+        computeDeferredMel()
         var text = ""
         if let mel = pending {
             model.streamEncodeChunks(mel, language: model.defaultLanguage,
