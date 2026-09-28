@@ -152,13 +152,48 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(tableSortKey(.disk, family: e, benchmark: FamilyBenchmark(precisions: ["4b": PrecisionResult(disk_mb: 0.5)])), 500_000)
     }
 
-    func testRecommendedMarginIsAgainstNativeAndInclusive() {
-        // 8b is exactly +0.5 pt: inside. 4b is +0.51: outside, although it uses the least energy.
-        let b = FamilyBenchmark(precisions: ["BF16": r(5.12, j: 3), "8b": r(5.62, j: 2), "4b": r(5.63, j: 1)])
+    func testRecommendedToleranceIsAgainstNativeAndInclusive() {
+        // No tolerance_pt: 0.1 pt. 8b is exactly +0.1 pt: inside. 4b is +0.11: outside, although it uses the least energy.
+        let b = FamilyBenchmark(precisions: ["BF16": r(5.12, j: 3), "8b": r(5.22, j: 2), "4b": r(5.23, j: 1)])
         XCTAssertEqual(recommendedPrecision(b, native: "BF16"), "8b")
-        // Noise at a lossy precision (4b better than native) does not move the bar: the margin is native's.
-        let noisy = FamilyBenchmark(precisions: ["BF16": r(5.0, j: 3), "8b": r(5.45, j: 2), "4b": r(4.0, j: 2.5)])
+        // Noise at a lossy precision (4b better than native) does not move the bar: the tolerance is native's.
+        let noisy = FamilyBenchmark(precisions: ["BF16": r(5.0, j: 3), "8b": r(5.08, j: 2), "4b": r(4.0, j: 2.5)])
         XCTAssertEqual(recommendedPrecision(noisy, native: "BF16"), "8b")
+        // A family's measured tolerance widens the band up to its 0.2 pt cap, never beyond.
+        var wide = FamilyBenchmark(precisions: ["BF16": r(5.0, j: 3), "8b": r(5.1, j: 2), "4b": r(5.2, j: 1)], tolerance_pt: 0.2)
+        XCTAssertEqual(recommendedPrecision(wide, native: "BF16"), "4b")
+        wide.tolerance_pt = 0.15
+        XCTAssertEqual(recommendedPrecision(wide, native: "BF16"), "8b")
+        wide.tolerance_pt = 0.5
+        XCTAssertEqual(recommendationTolerance(wide), 0.2, "capped")
+        wide.tolerance_pt = 0.0
+        XCTAssertEqual(recommendationTolerance(wide), 0.1, "floored")
+        XCTAssertEqual(recommendationTolerance(nil), 0.1)
+    }
+
+    /// The recommended segment states the trade whenever a more efficient offered precision was rejected, with the
+    /// file's numbers (Qwen3-ASR 1.7B, r6: 4b 15.37, 8b 15.07, BF16 15.03).
+    func testRecommendationHelpStatesTheRejectedTrade() {
+        let qwen = FamilyBenchmark(precisions: ["BF16": r(15.03, j: 75.47), "8b": r(15.07, j: 67.78), "4b": r(15.37, j: 54.51)])
+        XCTAssertEqual(recommendedPrecision(qwen, native: "BF16"), "8b")
+        XCTAssertEqual(recommendationHelp(qwen, recommended: "8b", native: "BF16"),
+                       "Recommended: lowest energy per audio minute within 0.1 pt WER of the native precision (BF16). "
+                       + "4-bit uses 20% less energy but has 0.30 pt more word errors (0.34 pt over BF16; limit 0.1 pt).")
+        var measured = qwen; measured.tolerance_pt = 0.15
+        XCTAssertTrue(recommendationHelp(measured, recommended: "8b", native: "BF16").hasSuffix("(0.34 pt over BF16; limit 0.15 pt)."))
+        // Not offered → not a trade the user can make.
+        XCTAssertFalse(recommendationHelp(qwen, recommended: "8b", native: "BF16", options: ["BF16", "8b"]).contains("4-bit"))
+        // A rejected precision that is less efficient is not a trade either.
+        let ultra = FamilyBenchmark(precisions: ["BF16": r(15.52, j: 5.18), "8b": r(15.54, j: 9.43), "4b": r(15.78, j: 9.22)])
+        XCTAssertEqual(recommendationHelp(ultra, recommended: "BF16", native: "BF16"),
+                       "Recommended: lowest energy per audio minute within 0.1 pt WER of the native precision (BF16).")
+        // Without energy anywhere the trade is speed.
+        let speed = FamilyBenchmark(precisions: ["BF16": r(5, x: 10), "4b": r(5.5, x: 30)])
+        XCTAssertEqual(recommendationHelp(speed, recommended: "BF16", native: "BF16"),
+                       "Recommended: fastest measured precision within 0.1 pt WER of the native precision (BF16); energy not measured.")
+        let partial = FamilyBenchmark(precisions: ["BF16": r(5, j: 2, x: 10), "4b": r(5.5, j: 2, x: 30)])
+        XCTAssertTrue(recommendationHelp(partial, recommended: "BF16", native: "BF16").hasSuffix(
+            " 4-bit is 3.0× faster but has 0.50 pt more word errors (0.50 pt over BF16; limit 0.1 pt)."))
     }
 
     func testRecommendedTiesMissingEnergyAndOptions() {
@@ -169,14 +204,14 @@ final class CatalogTests: XCTestCase {
         // Missing energy ranks after measured energy, even if it would be faster.
         XCTAssertEqual(recommendedPrecision(FamilyBenchmark(precisions: ["BF16": r(5, j: 9, x: 10), "4b": r(5, x: 900)]), native: "BF16"), "BF16")
         // No energy anywhere: speed decides.
-        XCTAssertEqual(recommendedPrecision(FamilyBenchmark(precisions: ["BF16": r(5, x: 10), "4b": r(5.2, x: 90)]), native: "BF16"), "4b")
+        XCTAssertEqual(recommendedPrecision(FamilyBenchmark(precisions: ["BF16": r(5, x: 10), "4b": r(5.1, x: 90)]), native: "BF16"), "4b")
         // Native WER not measured → no recommendation.
         XCTAssertNil(recommendedPrecision(FamilyBenchmark(precisions: ["4b": r(5, j: 1)]), native: "BF16"))
         XCTAssertNil(recommendedPrecision(nil, native: "BF16"))
         // Candidates are limited to offered precisions.
         XCTAssertEqual(recommendedPrecision(FamilyBenchmark(precisions: ["BF16": r(5, j: 3), "2b": r(5, j: 1)]), native: "BF16", options: ["BF16"]), "BF16")
         XCTAssertEqual(recommendationHelp(FamilyBenchmark(precisions: ["8b": r(5, j: 2)]), recommended: "8b", native: "BF16"),
-                       "Recommended: lowest energy per audio minute within 0.5 pt WER of the native precision (BF16).")
+                       "Recommended: lowest energy per audio minute within 0.1 pt WER of the native precision (BF16).")
         XCTAssertTrue(recommendationHelp(FamilyBenchmark(precisions: ["8b": r(5)]), recommended: "8b", native: "BF16").hasSuffix("energy not measured."))
     }
 
@@ -342,8 +377,10 @@ final class CatalogTests: XCTestCase {
         let root = resources.deletingLastPathComponent()
         let docs = try ["README.md", "docs/USAGE.md", "Resources/AGENT_GUIDE.md"].map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }
         let all = docs.joined(separator: "\n")
-        XCTAssertEqual(recommendationMarginPoints, 0.5)
-        XCTAssertTrue(all.contains("within 0.5 points"), "recommended-precision margin")
+        XCTAssertEqual(defaultRecommendationTolerancePoints, 0.1)
+        XCTAssertEqual(maximumRecommendationTolerancePoints, 0.2)
+        XCTAssertTrue(all.contains("within 0.1 points") && all.contains("up to 0.2 points"), "recommended-precision tolerance")
+        XCTAssertFalse(all.contains("0.5 points"), "retired 0.5-point margin")
         XCTAssertTrue(docs[0].contains("Mode · Microphone · Shortcuts") && docs[0].contains("Models… · Keep Hot · Memory"), "menu order")
         XCTAssertEqual(keepHotChoices.map(\.minutes), [5, 15, 30, 60, 0])
         XCTAssertTrue(all.contains("Always (default), 5, 15, 30 or 60 min"), "manual Keep Hot choices and default")

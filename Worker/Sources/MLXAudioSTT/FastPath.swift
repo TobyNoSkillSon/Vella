@@ -17,12 +17,24 @@ public protocol FastPathCapable: AnyObject {
     var fastPathSelfTestClips: [String] { get }
     /// Changes whenever kernels, fused components or the clip set change, so an old persisted "fast" is not reused.
     static var fastPathRevision: String { get }
+    /// Inexact components that can be dropped on their own (two-stage gate, lab/notes/GATE-REVISION.md). Each is
+    /// self-tested within a tolerance on top of the exact path, and a failure disables only that component. Only
+    /// components that would actually run on this checkpoint and Mac are listed.
+    var fastPathTolerantComponents: [String] { get }
+    /// Tolerant components the next `configureFastPath(enabled: true, …)` leaves off (a gate verdict or the self-test).
+    var fastPathDisabledComponents: Set<String> { get set }
+    /// Words of a qualification token sequence, for the tolerance self-test's word-edit count.
+    func qualificationWords(_ tokens: [Int]) -> [String]
 }
 
 public extension FastPathCapable {
     var fastPathComponents: [String: Bool] { [:] }
     var fastPathSelfTestClips: [String] { ["clip-a", "clip-b", "clip-c", "clip-d", "clip-e"] }
     static var fastPathRevision: String { "" }
+    var fastPathTolerantComponents: [String] { [] }
+    var fastPathDisabledComponents: Set<String> { get { [] } set {} }
+    /// One word per token: the strictest reading when a model does not say how its tokens form words.
+    func qualificationWords(_ tokens: [Int]) -> [String] { tokens.map(String.init) }
 }
 
 /// ParakeetModel's members live in Parakeet/ (vo-parakeet); only the conformance is declared here.

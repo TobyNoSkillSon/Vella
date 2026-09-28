@@ -66,7 +66,7 @@ final class ModelsTests: XCTestCase {
     @MainActor func testRecommendedSelectionDeltasBaseAndPersistence() throws {
         let c = try controller(benchmarks: qwenFixture)
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
-        // 4b and 8b are within 0.5 pt of BF16; 4b uses the least energy.
+        // 4b is within 0.1 pt of BF16 (8b is not); 4b uses the least energy.
         XCTAssertEqual(c.recommended(qwen), "4b")
         XCTAssertEqual(c.selected(qwen), "4b")
         XCTAssertEqual(c.base(qwen), "4b")

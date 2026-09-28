@@ -107,6 +107,16 @@ final class DiagnoseFormatTests: XCTestCase {
         XCTAssertEqual(Diagnose.text(d).last, "gate verdicts: 2 optimized · 1 from an older worker version")
     }
 
+    /// Two-stage gate: a fast verdict with a reason is optimized without a tolerant component; it says which and why.
+    func testPartialGateVerdictListsTheDisabledComponent() {
+        let d = Diagnosis(host: Self.host, running: false, gate: [
+            .init(status: "fast", model: "parakeet-v3-ultra-bf16", reason: "optimized without nax_gemm (word edits 2 > 1 over the clips)",
+                  workerVersion: "native-kernels-9"),
+            .init(status: "fast", model: "m", workerVersion: "native-kernels-9")])
+        XCTAssertEqual(Diagnose.text(d).last,
+                       "gate verdicts: 2 optimized (parakeet-v3-ultra-bf16: optimized without nax_gemm (word edits 2 > 1 over the clips))")
+    }
+
     func testWordEdits() {
         XCTAssertEqual(Diagnose.wordEdits("a b c", "a b c"), 0)
         XCTAssertEqual(Diagnose.wordEdits("a  b\nc", "a b c"), 0, "whitespace does not count")

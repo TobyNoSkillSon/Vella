@@ -51,8 +51,8 @@ Measured on Apple M5 Max, macOS 26.6, 2026-09-28. WER and Format on the 240-minu
 | Parakeet v3 | Dictation | 8 | 16.55 | 8.05 | 5/9 | 279× | 9.4 | 1,804 MB | v2 |
 | Parakeet v3 | Dictation | 4 | 17.84 | 9.24 | 5/9 | 278× | 9.5 | 1,537 MB | v2 |
 | Qwen3 ASR 1.7B | Dictation | 16 | 15.03 | 6.88 | 9/9 | 28× | 75.5 | 4,492 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 8 | 15.07 | 6.75 | 9/9 | 42× | 67.8 | 3,092 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 4 (recommended) | 15.37 | 7.10 | 9/9 | 57× | 54.5 | 2,259 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 8 (recommended) | 15.07 | 6.75 | 9/9 | 42× | 67.8 | 3,092 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 4 | 15.37 | 7.10 | 9/9 | 57× | 54.5 | 2,259 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 16 | 15.99 | 7.26 | 9/9 | 59× | 36.8 | 2,030 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 8 (recommended) | 16.05 | 7.30 | 9/9 | 77× | 31.5 | 1,547 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 4 | 17.62 | 8.48 | 9/9 | 90× | 26.4 | 1,273 MB | v2 |
@@ -82,7 +82,7 @@ Measured but not offered in the app:
 - **Q** is bits per weight: 32 is FP32, 16 is BF16, 8 and 4 are quantized. Whisper's native FP16 shows as FP16.
 - **WER** is word error rate: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. It is the industry-standard metric, as on the Hugging Face Open ASR Leaderboard; our v2 set is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. **Format** is our own measure, with no industry standard: character error rate with case and punctuation kept, i.e. how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
 - **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Memory** is the loaded model's footprint.
-- **Recommended precision.** A model shows its recommended precision until it has been loaded at another: among its measured precisions whose WER is within 0.5 points of its native precision, the one with the lowest energy per minute of audio (ties: faster, then more bits).
+- **Recommended precision.** A model shows its recommended precision until it has been loaded at another: among its measured precisions whose WER is within 0.1 points of its native precision (up to 0.2 points for a model whose measured run-to-run noise is larger), the one with the lowest energy per minute of audio (ties: faster, then more bits).
 - Figures were measured on an Apple M5 Max. On other Macs, speed, energy and memory differ; accuracy does not. The table says so on other chips.
 
 Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); a sortable table is at https://tobynoskillson.github.io/Vella/.

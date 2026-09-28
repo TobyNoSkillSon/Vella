@@ -122,6 +122,7 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
+   "tolerance_pt": 0.1,
    "recommended": "BF16"
   },
   "qwen3-asr-1.7b": {
@@ -217,7 +218,8 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
-   "recommended": "4b"
+   "tolerance_pt": 0.1,
+   "recommended": "8b"
   },
   "nemotron-3.5-streaming-0.6b": {
    "precisions": {
@@ -315,6 +317,7 @@ const VELLA_BENCHMARKS = {
      "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance)."
     }
    },
+   "tolerance_pt": 0.1,
    "recommended": "8b"
   },
   "parakeet-v3-ultra": {
@@ -398,6 +401,7 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
+   "tolerance_pt": 0.1,
    "recommended": "BF16"
   },
   "qwen3-asr-0.6b": {
@@ -493,6 +497,7 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
+   "tolerance_pt": 0.1,
    "recommended": "8b"
   },
   "whisper-large-v3": {
@@ -588,6 +593,7 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
+   "tolerance_pt": 0.1,
    "recommended": "FP16"
   },
   "whisper-large-v3-turbo": {
@@ -683,6 +689,7 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
+   "tolerance_pt": 0.1,
    "recommended": "FP16"
   },
   "sensevoice-small": {
@@ -713,6 +720,7 @@ const VELLA_BENCHMARKS = {
      "note": "quick set only (benchmark-table model); energy not recorded: the worker crashed twice per run, so its restarts cannot be separated from background load; engine: No optimized path for this model yet."
     }
    },
+   "tolerance_pt": 0.1,
    "recommended": "FP32"
   },
   "parakeet-tdt-ctc-110m": {
@@ -739,6 +747,7 @@ const VELLA_BENCHMARKS = {
      "note": "quick set only (benchmark-table model); engine: The optimized path failed its self-test against stock MLX on this Mac."
     }
    },
+   "tolerance_pt": 0.1,
    "recommended": "FP32"
   }
  },

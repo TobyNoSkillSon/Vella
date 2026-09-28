@@ -33,4 +33,4 @@ Precision labels are exact formats: `4b`, `8b`, `BF16`, `FP16`, `FP32` (BF16 and
 
 The Models table reads `Resources/benchmarks.json`: per model and precision, WER, formatting error (character error rate with case and punctuation), multilingual WER by language, speed (× real time), energy (joules per minute of audio, whole chip, idle subtracted), memory, the suite, the date and the hardware. A missing field is not measured and shows `—`. Figures measured on one Mac are labelled with that Mac; they are not measurements of the user's Mac.
 
-The recommended precision is the one with the lowest energy per minute of audio among measured precisions whose WER is within 0.5 points of the native precision (ties: faster, then more bits).
+The recommended precision is the one with the lowest energy per minute of audio among measured precisions whose WER is within the model's tolerance of the native precision (ties: faster, then more bits). The tolerance is the model's `tolerance_pt` in `benchmarks.json`: within 0.1 points of the native precision, up to 0.2 points for a model whose measured run-to-run noise (`noise_pt`) is larger.

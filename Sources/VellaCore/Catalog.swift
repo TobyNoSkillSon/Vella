@@ -283,7 +283,13 @@ public struct FamilyBenchmark: Codable, Equatable {
     public var precisions: [String: PrecisionResult]
     /// The recommended precision as the catalog script computed it (cross-checked against `recommendedPrecision`).
     public var recommended: String?
-    public init(precisions: [String: PrecisionResult], recommended: String? = nil) { self.precisions = precisions; self.recommended = recommended }
+    /// The family's measured noise floor N in WER points (lab/notes/GATE-REVISION.md); absent when not measured.
+    public var noise_pt: Double?
+    /// The family's WER tolerance T = min(0.2, max(0.1, N + 0.05)) points; absent → 0.1.
+    public var tolerance_pt: Double?
+    public init(precisions: [String: PrecisionResult], recommended: String? = nil, noise_pt: Double? = nil, tolerance_pt: Double? = nil) {
+        self.precisions = precisions; self.recommended = recommended; self.noise_pt = noise_pt; self.tolerance_pt = tolerance_pt
+    }
     public func result(_ precision: String) -> PrecisionResult? { precisions[precision] }
 }
 
@@ -349,7 +355,10 @@ public func decodeBenchmarks(_ data: Data?) -> BenchmarkFile {
             guard JSONSerialization.isValidJSONObject(raw), let bytes = try? JSONSerialization.data(withJSONObject: raw), let r = try? JSONDecoder().decode(PrecisionResult.self, from: bytes) else { continue }
             results[label] = r
         }
-        file.models[id] = FamilyBenchmark(precisions: results, recommended: (value as? [String: Any])?["recommended"] as? String)
+        let entry = value as? [String: Any]
+        file.models[id] = FamilyBenchmark(precisions: results, recommended: entry?["recommended"] as? String,
+                                          noise_pt: (entry?["noise_pt"] as? NSNumber)?.doubleValue,
+                                          tolerance_pt: (entry?["tolerance_pt"] as? NSNumber)?.doubleValue)
     }
     // Only entries marked both reference and estimated are shown; anything else is ignored rather than passed off as measured.
     for (id, raw) in object["references"] as? [String: Any] ?? [:] {
@@ -468,35 +477,49 @@ public func referenceWERHelp(_ r: ReferenceEntry, languageName: (String) -> Stri
 
 // MARK: Recommended precision
 
-/// WER margin (percentage points, absolute) a precision may lose against the native precision.
-public let recommendationMarginPoints = 0.5
+/// WER tolerance (percentage points, absolute) a precision may lose against the native precision when the family's
+/// noise floor is unmeasured, and the cap for any family (lab/notes/GATE-REVISION.md: T = min(0.2, max(0.1, N + 0.05))).
+public let defaultRecommendationTolerancePoints = 0.1
+public let maximumRecommendationTolerancePoints = 0.2
 
-/// The recommended precision: among measured precisions (WER present) whose WER is at most the NATIVE precision's
-/// WER + 0.5 points, the lowest J / min; ties → faster (higher × real time); then higher bits. The native precision is
-/// the reference, so benchmark noise at a lossy setting cannot move the bar. A precision without energy (or speed)
-/// ranks after those with it. `options` limits candidates to offered precisions. Nil when native WER is not measured.
-/// The benchmark script that writes benchmarks.json applies the same rule (cross-checked by CatalogTests).
-public func recommendedPrecision(_ benchmark: FamilyBenchmark?, native: String, options: [String]? = nil) -> String? {
-    guard let benchmark, let reference = benchmark.result(native)?.wer else { return nil }
-    let measured: [(label: String, result: PrecisionResult)] = benchmark.precisions.compactMap { label, r in
-        guard let wer = r.wer, options?.contains(label) ?? true,
-              // 1e-9 absorbs float error: 5.62 − 5.12 is not exactly 0.5.
-              wer <= reference + recommendationMarginPoints + 1e-9 else { return nil }
-        return (label, r)
-    }
-    func lower(_ a: Double?, _ b: Double?) -> Bool? {
-        switch (a, b) {
+/// The family's tolerance: benchmarks.json `tolerance_pt`, kept within 0.1–0.2 points; 0.1 when absent.
+public func recommendationTolerance(_ benchmark: FamilyBenchmark?) -> Double {
+    guard let t = benchmark?.tolerance_pt, t.isFinite else { return defaultRecommendationTolerancePoints }
+    return min(maximumRecommendationTolerancePoints, max(defaultRecommendationTolerancePoints, t))
+}
+
+/// Candidate order: lowest J / min; ties → faster (higher × real time); then more bits. Missing energy (or speed) ranks
+/// after present values.
+private func ranksBefore(_ a: (label: String, result: PrecisionResult), _ b: (label: String, result: PrecisionResult)) -> Bool {
+    func lower(_ x: Double?, _ y: Double?) -> Bool? {
+        switch (x, y) {
         case let (x?, y?): return x == y ? nil : x < y
         case (_?, nil): return true
         case (nil, _?): return false
         case (nil, nil): return nil
         }
     }
-    return measured.min { a, b in
-        lower(a.result.j_per_min, b.result.j_per_min)
-            ?? lower(a.result.speed_x.map { -$0 }, b.result.speed_x.map { -$0 })
-            ?? ((labelBits(a.label) ?? 0) != (labelBits(b.label) ?? 0) ? (labelBits(a.label) ?? 0) > (labelBits(b.label) ?? 0) : a.label > b.label)
-    }?.label
+    return lower(a.result.j_per_min, b.result.j_per_min)
+        ?? lower(a.result.speed_x.map { -$0 }, b.result.speed_x.map { -$0 })
+        ?? ((labelBits(a.label) ?? 0) != (labelBits(b.label) ?? 0) ? (labelBits(a.label) ?? 0) > (labelBits(b.label) ?? 0) : a.label > b.label)
+}
+
+/// The recommended precision: among measured precisions (WER present) whose WER is at most the NATIVE precision's
+/// WER + the family's tolerance (`recommendationTolerance`), the lowest J / min; ties → faster; then higher bits. The
+/// native precision is the reference, so benchmark noise at a lossy setting cannot move the bar. A precision without
+/// energy (or speed) ranks after those with it. `options` limits candidates to offered precisions. Nil when native WER
+/// is not measured. The benchmark script that writes benchmarks.json applies the same rule
+/// (lab/fixtures/recommended_precision.py, cross-checked by CatalogTests).
+public func recommendedPrecision(_ benchmark: FamilyBenchmark?, native: String, options: [String]? = nil) -> String? {
+    guard let benchmark, let reference = benchmark.result(native)?.wer else { return nil }
+    let limit = reference + recommendationTolerance(benchmark)
+    let measured: [(label: String, result: PrecisionResult)] = benchmark.precisions.compactMap { label, r in
+        guard let wer = r.wer, options?.contains(label) ?? true,
+              // 1e-9 absorbs float error: 5.22 − 5.12 is not exactly 0.1.
+              wer <= limit + 1e-9 else { return nil }
+        return (label, r)
+    }
+    return measured.min(by: ranksBefore)?.label
 }
 
 public func recommendedPrecision(for family: ModelFamily, in benchmarks: BenchmarkFile) -> String? {
@@ -525,11 +548,42 @@ public func committedPrecision(loaded: String?, lastLoaded: String?, recommended
     shownPrecision(preview: nil, loaded: loaded, lastLoaded: lastLoaded, recommended: recommended, family: family)
 }
 
-/// Tooltip of the recommended segment: states which criterion chose it, energy only when energy was measured.
-public func recommendationHelp(_ benchmark: FamilyBenchmark?, recommended: String, native: String) -> String {
-    let within = "within 0.5 pt WER of the native precision (\(native))"
-    if benchmark?.result(recommended)?.j_per_min != nil { return "Recommended: lowest energy per audio minute \(within)." }
-    return "Recommended: fastest measured precision \(within); energy not measured."
+/// `0.1`, `0.15`, `0.2`: a tolerance in points without trailing zeros.
+func formatPoints(_ value: Double) -> String {
+    var text = String(format: "%.2f", value)
+    while text.hasSuffix("0") { text.removeLast() }
+    if text.hasSuffix(".") { text.removeLast() }
+    return text
+}
+
+/// Tooltip of the recommended segment: which criterion chose it (energy only when energy was measured), and the trade
+/// for every offered precision that would have ranked first but lost more WER than the tolerance allows, with the
+/// numbers from benchmarks.json, e.g. `4-bit uses 20% less energy but has 0.30 pt more word errors (0.34 pt over BF16;
+/// limit 0.1 pt).`
+public func recommendationHelp(_ benchmark: FamilyBenchmark?, recommended: String, native: String, options: [String]? = nil) -> String {
+    let tolerance = recommendationTolerance(benchmark)
+    let within = "within \(formatPoints(tolerance)) pt WER of the native precision (\(native))"
+    guard let benchmark, let chosen = benchmark.result(recommended), chosen.j_per_min != nil else {
+        return "Recommended: fastest measured precision \(within); energy not measured."
+    }
+    var text = "Recommended: lowest energy per audio minute \(within)."
+    guard let nativeWER = benchmark.result(native)?.wer, let chosenWER = chosen.wer else { return text }
+    let rejected = benchmark.precisions.filter { label, r in
+        guard label != recommended, options?.contains(label) ?? true, let wer = r.wer else { return false }
+        return wer > nativeWER + tolerance + 1e-9 && ranksBefore((label, r), (recommended, chosen))
+    }.sorted { ranksBefore(($0.key, $0.value), ($1.key, $1.value)) }
+    for (label, r) in rejected {
+        guard let wer = r.wer else { continue }
+        let gain: String
+        if let e = energyDelta(r.j_per_min, base: chosen.j_per_min), e.tone == .better {
+            gain = "uses \(e.text) energy"
+        } else if let x = speedDelta(r.speed_x, base: chosen.speed_x), x.tone == .better {
+            gain = "is \(x.text)"
+        } else { continue }
+        text += " \(precisionInProse(label)) \(gain) but has \(String(format: "%.2f", wer - chosenWER)) pt more word errors "
+            + "(\(String(format: "%.2f", wer - nativeWER)) pt over \(precisionInProse(native)); limit \(formatPoints(tolerance)) pt)."
+    }
+    return text
 }
 
 /// What the row's button does for the shown precision given the loaded one (nil = not loaded). Without a preview a

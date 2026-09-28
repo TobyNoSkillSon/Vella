@@ -64,11 +64,20 @@ using namespace mpp::tensor_ops;
         return generation >= (family == "p" ? 18 : 17)
     }()
 
-    /// Opt-in: `VELLA_PARAKEET_NAX=1` (part of the gate key). Off by default: on M5 Max it made the v2-mini run ~10 %
-    /// faster, but its reordered sums flip near-tie tokens (Ultra BF16 v2-quick English +3 words vs the fused
-    /// MLX-GEMM path, outside the 0.1-pt band) and other equally valid split-K orders already fail the token-exact
-    /// self-test on clip-a or clip-b.
-    static let enabledByEnvironment = ProcessInfo.processInfo.environment["VELLA_PARAKEET_NAX"] == "1"
+    /// The one default switch. Off until the kernel passes the full-v2 gate of lab/notes/GATE-REVISION.md for Ultra
+    /// and v3 BF16 (on M5 Max it made the v2-mini run ~10 % faster; its reordered sums flip near-tie tokens: Ultra
+    /// BF16 v2-quick English +3 words vs the fused MLX-GEMM path). Flipping it also needs a FastPathGate.version bump.
+    static let enabledByDefault = false
+    /// `VELLA_PARAKEET_NAX=1` / `=0` overrides the default (part of the gate key). An eligible checkpoint then
+    /// self-tests the kernel within a tolerance (ParakeetModel.naxMaxDeviation, ≤ 1 word edit over the clips); a
+    /// failure disables only the kernel and keeps the fused path.
+    static let enabled: Bool = {
+        switch ProcessInfo.processInfo.environment["VELLA_PARAKEET_NAX"] {
+        case "1": return true
+        case "0": return false
+        default: return enabledByDefault
+        }
+    }()
 
     /// Row range: above ~256 rows MLX's own tiling fills the GPU and the split-K kernel no longer wins (M5 Max,
     /// 24-layer encoder stack: T 150 1.21×, T 375 0.99×); up to 8 rows MLX's gemv streams weights at ~390 GB/s

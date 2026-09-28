@@ -67,9 +67,9 @@ public final class ParakeetModel: Module, STTGenerationModel {
     // bump it whenever kernels, the default component set or the clip set change.
     /// The frontend precision is part of the revision: the self-test compares stock and optimized on the same mel, so
     /// a verdict qualified with one frontend says nothing about the other.
-    /// The opt-in NAX GEMM kernel (FastParakeetNAX) has its own revision suffix; the default revision is unchanged.
+    /// The NAX GEMM kernel (FastParakeetNAX) adds its own suffix when enabled (nax2: tolerance self-test, two-stage).
     public static var fastPathRevision: String {
-        (fp32Frontend ? "parakeet-r3-fp32-frontend" : "parakeet-r2-dense-encoder") + (FastParakeetNAX.enabledByEnvironment ? "+nax1" : "")
+        (fp32Frontend ? "parakeet-r3-fp32-frontend" : "parakeet-r2-dense-encoder") + (FastParakeetNAX.enabled ? "+nax2" : "")
     }
     /// Log-mel frontend precision. Default: the input dtype (BF16), matching mlx-audio's rounding. With
     /// `VELLA_PARAKEET_FP32_FRONTEND=1` the worker hands over FP32 samples and the mel is computed in FP32 (as NeMo's
@@ -79,12 +79,25 @@ public final class ParakeetModel: Module, STTGenerationModel {
     public static var inputDType: DType { fp32Frontend ? .float32 : .bfloat16 }
     /// Token-exact on all five bundled public clips for every precision (4b, 8b, BF16, FP32, ternary).
     public var fastPathSelfTestClips: [String] { ["clip-a", "clip-b", "clip-c", "clip-d", "clip-e"] }
-    /// `nax_gemm` is reported only when opted in (`VELLA_PARAKEET_NAX=1`): a false entry reads as a stock fallback
-    /// in the engine tooltip and `vella diagnose`.
+    /// `nax_gemm` is reported only where it could run (enabled, dense BF16 checkpoint, eligible GPU): a false entry
+    /// reads as "stock: nax_gemm" in the engine tooltip and `vella diagnose`, i.e. its self-test disabled it.
     public var fastPathComponents: [String: Bool] {
         var components = ["encoder": fastEncoder != nil, "decoder": fastDecoder != nil]
-        if FastParakeetNAX.enabledByEnvironment { components["nax_gemm"] = fastEncoder?.useNAX ?? false }
+        if naxEligible { components["nax_gemm"] = fastEncoder?.useNAX ?? false }
         return components
+    }
+    /// NAX would run on this checkpoint and Mac: enabled, a dense BF16 encoder, a GPU with tensor ops.
+    var naxEligible: Bool {
+        guard FastParakeetNAX.enabled, FastParakeetNAX.available, let q = encoder.layers.first?.relSelfAttn?.linearQ,
+              !(q is QuantizedLinear) else { return false }
+        return q.weight.dtype == .bfloat16
+    }
+    /// Two-stage gate: the NAX GEMMs are the one inexact component; the fused encoder and decoder stay token-exact.
+    public var fastPathTolerantComponents: [String] { naxEligible ? ["nax_gemm"] : [] }
+    public var fastPathDisabledComponents: Set<String> = []
+    /// SentencePiece pieces joined, split at the word marker (special tokens dropped), as the transcript reads.
+    public func qualificationWords(_ tokens: [Int]) -> [String] {
+        ParakeetTokenizer.decode(tokens: tokens, vocabulary: vocabulary).split(whereSeparator: \.isWhitespace).map(String.init)
     }
     /// Self-test bound on the NAX GEMMs: relative RMS of the fused encoder's output with vs without them, per clip.
     /// The kernel only reorders BF16 sums, so the difference is rounding: 0.014–0.085 on the five clips for Ultra and
@@ -137,7 +150,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
             let dtype: DType = quantized ? .float32 : (dense.isFloatingPoint ? dense : .bfloat16)
             guard let prepared = FastParakeetEncoder(encoder, dense: !quantized, dtype: dtype,
                                                      fusedConvolution: component != "encoder-no-fused-conv",
-                                                     nax: FastParakeetNAX.enabledByEnvironment) else {
+                                                     nax: FastParakeetNAX.enabled && !fastPathDisabledComponents.contains("nax_gemm")) else {
                 fastDecoder = nil
                 return false
             }
@@ -154,8 +167,8 @@ public final class ParakeetModel: Module, STTGenerationModel {
         fastTokenSink = { sink.ids.append($0) }
         defer { tdtTraceEmitter = nil; fastTokenSink = nil }
         _ = generate(audio: audio, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
-        // Inexact component: the tokens must still match stock, and the encoder output must stay within rounding of
-        // the MLX-GEMM fused path; a larger deviation fails the self-test like non-finite output.
+        // Inexact component (tolerance self-test): the encoder output must stay within rounding of the MLX-GEMM fused
+        // path; a larger deviation fails the component like non-finite output. The word-edit bound is the gate's.
         if let deviation = naxEncoderDeviation(audio: audio) {
             FastPathGate.debug("nax encoder deviation rms \(deviation)")
             if !(deviation <= Self.naxMaxDeviation) {

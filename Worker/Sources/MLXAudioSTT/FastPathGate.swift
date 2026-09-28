@@ -9,16 +9,42 @@ public enum FastPathGateError: Error { case invalid }
 /// The test runs in a child process with a deadline, so a kernel hang or GPU fault cannot take down the serving
 /// worker. The verdict is persisted per (model files, GPU family, macOS build, worker version, model fast-path
 /// revision); failure is sticky for that key — never turn a failed test into a fast run.
+/// Two stages (lab/notes/GATE-REVISION.md): exact components must reproduce stock's tokens, or the whole model runs
+/// stock; each inexact (tolerant) component is then tested within its tolerance on top of them, and a failure there
+/// disables only that component: the verdict is "fast" without it.
 /// Shared by both workers (dictation `VellaWorker`, streaming `VellaStreamingWorker`); each worker supplies its own
 /// `fast-selftest --model <dir>` child entry point.
 public enum FastPathGate {
     /// Bumped to 8 with the component configuration in the key: a verdict persisted earlier may have
     /// been qualified under a diagnostic component override, so every model requalifies once.
-    public static let version = "native-kernels-8"
+    /// 9: two-stage gate with tolerance self-tests for inexact components (GATE-REVISION.md).
+    public static let version = "native-kernels-9"
     /// Child exit status when the self-test could not start (not a verdict on the kernels).
     public static let inconclusive: Int32 = 3
     /// Child exit status for evidence against the optimized path.
     public static let verdictFailed: Int32 = 2
+    /// Child exit status: the exact components passed, some tolerant ones failed; the child names them (and why) in
+    /// the file `VELLA_SELFTEST_RESULT` points to, as a JSON object component → reason.
+    public static let componentsFailed: Int32 = 4
+    /// Parent → child only: where the child writes the failed tolerant components.
+    public static let resultVariable = "VELLA_SELFTEST_RESULT"
+    /// Tolerance self-test of inexact components: at most this many word edits against stock in total over the clips.
+    public static let maxTolerantWordEdits = 1
+    /// Word-level Levenshtein distance.
+    public static func wordEdits(_ a: [String], _ b: [String]) -> Int {
+        guard !a.isEmpty else { return b.count }
+        guard !b.isEmpty else { return a.count }
+        var row = Array(0...b.count)
+        for i in 1...a.count {
+            var previous = row[0]; row[0] = i
+            for j in 1...b.count {
+                let current = row[j]
+                row[j] = min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] == b[j - 1] ? 0 : 1))
+                previous = current
+            }
+        }
+        return row[b.count]
+    }
     public static func debug(_ line: String) {
         guard let path = ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"], path.hasPrefix("/") else { return }
         guard let handle = FileHandle(forWritingAtPath: path) else { return }
@@ -68,7 +94,8 @@ public enum FastPathGate {
     /// The effective set is part of the gate key, so a verdict qualified under an override is never reused for
     /// production defaults, and the self-test child (which inherits them) tests exactly what the worker will run.
     public static let componentSwitches = ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND", "VELLA_PARAKEET_NAX",
-                                             "VELLA_QWEN_HOST_LENGTHS", "VELLA_QWEN_PREFILL_HEAD", "VELLA_QWEN_REFERENCE_LENGTHS"]
+                                             "VELLA_QWEN_HOST_LENGTHS", "VELLA_QWEN_PREFILL_HEAD", "VELLA_QWEN_REFERENCE_LENGTHS",
+                                             "VELLA_TEST_TOLERANT_FAULT"]
     public static let componentSwitchPrefixes = ["VELLA_NEMO_"]
     /// "" for production defaults; otherwise the sorted `KEY=value` list of set switches.
     public static func componentConfiguration(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
@@ -81,7 +108,8 @@ public enum FastPathGate {
         "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
         "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_QWEN_ENC_BF16", "VELLA_WHISPER_PROFILE", "VELLA_WHISPER_ENC_F16", "VELLA_STREAM_PROFILE",
         "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB",
-        "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_TEST_ENCODER_NONFINITE", "VELLA_MLX_DEVICE"]
+        "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_TEST_ENCODER_NONFINITE", "VELLA_MLX_DEVICE",
+        "VELLA_SELFTEST_RESULT"]
     public static func reportedEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
         environment.filter { key, value in
             !value.isEmpty && (reportedSwitches.contains(key) || componentSwitchPrefixes.contains { key.hasPrefix($0) })
@@ -125,6 +153,13 @@ public enum FastPathGate {
 
     public static func statusURL(_ path: URL, revision: String) throws -> URL { storage().appendingPathComponent(try key(path, revision: revision) + ".json") }
     public static func status(_ url: URL) -> String? { record(url)?["status"] }
+    /// Tolerant components a persisted "fast" verdict leaves off, with why (`disabled.<component>` keys).
+    public static func disabledComponents(_ url: URL) -> [String: String] {
+        let prefix = "disabled."
+        return Dictionary(uniqueKeysWithValues: (record(url) ?? [:]).compactMap { key, value in
+            key.hasPrefix(prefix) ? (String(key.dropFirst(prefix.count)), value) : nil
+        })
+    }
     private static func record(_ url: URL) -> [String: String]? {
         guard let bytes = try? Data(contentsOf: url), let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: String] else { return nil }
         return object
@@ -138,9 +173,11 @@ public enum FastPathGate {
     public static let inconclusiveLimit = 2
     /// `model` and `reason` are for `vella diagnose` only (the model folder's name, never its path; why it is stock);
     /// the key alone decides reuse.
-    public static func persist(_ value: String, to url: URL, count: Int? = nil, model: URL? = nil, reason: String? = nil) {
+    public static func persist(_ value: String, to url: URL, count: Int? = nil, model: URL? = nil, reason: String? = nil,
+                               disabled: [String: String] = [:]) {
         var object = ["status": value, "workerVersion": version, "gpuFamily": gpuFamily, "osBuild": osBuild,
                       "date": ISO8601DateFormatter().string(from: Date())]
+        for (component, why) in disabled { object["disabled." + component] = why }
         if let count { object["count"] = String(count) }
         if let model { object["model"] = model.lastPathComponent }
         if let reason { object["reason"] = reason }
@@ -150,8 +187,13 @@ public enum FastPathGate {
     }
 
     public enum Verdict: Equatable {
-        case fast
+        /// Optimized; `disabled` names tolerant components whose own self-test failed (component → why).
+        case fast(disabled: [String: String])
         case stock(String)
+    }
+    /// The persisted reason of a partial verdict, e.g. "optimized without nax_gemm (self-test: word edits 3 > 1)".
+    public static func partialReason(_ disabled: [String: String]) -> String {
+        "optimized without " + disabled.keys.sorted().map { "\($0) (\(disabled[$0] ?? "self-test failed"))" }.joined(separator: ", ")
     }
 
     /// The gate decision for a model of type `type` at `path`, running the child self-test the first time.
@@ -166,7 +208,8 @@ public enum FastPathGate {
         }
         // "inconclusive" is not a verdict: the self-test runs again.
         if let previous = status(url), previous != "inconclusive" {
-            return previous == "fast" ? .fast : .stock("The optimized path failed its self-test against stock MLX on this Mac.")
+            return previous == "fast" ? .fast(disabled: disabledComponents(url))
+                                      : .stock("The optimized path failed its self-test against stock MLX on this Mac.")
         }
         if let requiredFamily, gpuFamily != requiredFamily {
             persist("stock", to: url, model: path, reason: "GPU family \(gpuFamily), needs \(requiredFamily)")
@@ -176,10 +219,17 @@ public enum FastPathGate {
         process.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
         process.arguments = ["fast-selftest", "--model", path.path]
         // QA-only instrumentation and runtime-fallback fault injection cannot weaken the production qualification.
-        process.environment = ProcessInfo.processInfo.environment.filter {
+        var environment = ProcessInfo.processInfo.environment.filter {
             !["VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP", "VELLA_TEST_DECODER_NONFINITE",
-              "VELLA_TEST_ENCODER_NONFINITE"].contains($0.key)
+              "VELLA_TEST_ENCODER_NONFINITE", resultVariable].contains($0.key)
         }
+        // Beside the verdicts (never *.json, so `vella diagnose` does not read it as one); removed once read.
+        let result = url.deletingPathExtension().appendingPathExtension("selftest-\(getpid())")
+        try? FileManager.default.createDirectory(at: result.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: result)
+        defer { try? FileManager.default.removeItem(at: result) }
+        environment[resultVariable] = result.path
+        process.environment = environment
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         let exited = DispatchSemaphore(value: 0)
@@ -196,17 +246,28 @@ public enum FastPathGate {
             return .stock("The optimized path's self-test did not finish within 45 s on this Mac.")
         }
         debug("self-test child exit \(process.terminationStatus) reason \(process.terminationReason.rawValue)")
-        // Verdicts are exit 0 (token-exact, finite on every clip) and exit 2 (mismatch, non-finite output or a kernel
-        // error). A timeout above is evidence too. Anything else (setup failure, crash, unexplained status) is
-        // inconclusive: stock for this load, retried next load, persisted as stock after two in a row.
-        guard process.terminationReason == .exit, [0, verdictFailed].contains(process.terminationStatus) else {
+        // Verdicts are exit 0 (exact components token-exact, tolerant ones within tolerance, finite on every clip),
+        // exit 2 (an exact component mismatched, non-finite output or a kernel error) and exit 4 (exact components
+        // passed; the tolerant components named in the result file failed and stay off). A timeout above is evidence
+        // too. Anything else (setup failure, crash, unexplained status, an unreadable result) is inconclusive: stock
+        // for this load, retried next load, persisted as stock after two in a row.
+        guard process.terminationReason == .exit, [0, verdictFailed, componentsFailed].contains(process.terminationStatus) else {
             return recordInconclusive(url, model: path)
+        }
+        if process.terminationStatus == componentsFailed {
+            guard let bytes = try? Data(contentsOf: result),
+                  let disabled = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: String], !disabled.isEmpty else {
+                return recordInconclusive(url, model: path)
+            }
+            persist("fast", to: url, model: path, reason: partialReason(disabled), disabled: disabled)
+            guard status(url) == "fast" else { return .stock("The self-test result could not be saved, so the optimized path stays off.") }
+            return .fast(disabled: disabled)
         }
         let success = process.terminationStatus == 0
         persist(success ? "fast" : "stock", to: url, model: path, reason: success ? nil : "self-test: optimized output differs from stock MLX")
         // If persistence failed, don't enable a path that won't be tested on restart.
         guard success else { return failed }
-        return status(url) == "fast" ? .fast : .stock("The self-test result could not be saved, so the optimized path stays off.")
+        return status(url) == "fast" ? .fast(disabled: [:]) : .stock("The self-test result could not be saved, so the optimized path stays off.")
     }
     private static func recordInconclusive(_ url: URL, model: URL) -> Verdict {
         let count = inconclusiveCount(url) + 1

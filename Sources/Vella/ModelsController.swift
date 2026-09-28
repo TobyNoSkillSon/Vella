@@ -194,7 +194,7 @@ import VellaCore
     }
     func isPreviewing(_ f: ModelFamily) -> Bool { previews[f.id] != nil }
     func recommendedHelp(_ f: ModelFamily) -> String? {
-        recommended(f).map { recommendationHelp(benchmarks.models[f.id], recommended: $0, native: f.native) }
+        recommended(f).map { recommendationHelp(benchmarks.models[f.id], recommended: $0, native: f.native, options: precisionOptions(f)) }
     }
     /// The deltas' base: the recommended precision, else native.
     func base(_ f: ModelFamily) -> String { recommended(f) ?? f.native }
