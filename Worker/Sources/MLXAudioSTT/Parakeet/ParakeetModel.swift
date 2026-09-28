@@ -1,5 +1,6 @@
 import Foundation
 import MLX
+import SmallMGEMM
 import MLXNN
 import MLXAudioCore
 import MLXLMCommon
@@ -67,9 +68,11 @@ public final class ParakeetModel: Module, STTGenerationModel {
     // bump it whenever kernels, the default component set or the clip set change.
     /// The frontend precision is part of the revision: the self-test compares stock and optimized on the same mel, so
     /// a verdict qualified with one frontend says nothing about the other.
-    /// The NAX GEMM kernel (FastParakeetNAX) adds its own suffix when enabled (nax2: tolerance self-test, two-stage).
+    /// The NAX GEMM kernel (FastParakeetNAX) adds its own suffix when enabled (nax2: tolerance self-test, two-stage),
+    /// with the shared SmallMGEMM package's tile revision since the kernel moved there.
     public static var fastPathRevision: String {
-        (fp32Frontend ? "parakeet-r3-fp32-frontend" : "parakeet-r2-dense-encoder") + (FastParakeetNAX.enabled ? "+nax2" : "")
+        (fp32Frontend ? "parakeet-r3-fp32-frontend" : "parakeet-r2-dense-encoder")
+            + (FastParakeetNAX.enabled ? "+nax2+smallm-" + SmallMGEMM.tileRevision : "")
     }
     /// Log-mel frontend precision. Default: the input dtype (BF16), matching mlx-audio's rounding. With
     /// `VELLA_PARAKEET_FP32_FRONTEND=1` the worker hands over FP32 samples and the mel is computed in FP32 (as NeMo's
@@ -171,7 +174,10 @@ public final class ParakeetModel: Module, STTGenerationModel {
         // path; a larger deviation fails the component like non-finite output. The word-edit bound is the gate's.
         if let deviation = naxEncoderDeviation(audio: audio) {
             FastPathGate.debug("nax encoder deviation rms \(deviation)")
-            if !(deviation <= Self.naxMaxDeviation) {
+            if !FastParakeetNAX.libraryFailures.isEmpty {
+                fastPathFinite = false
+                fastPathError = "SmallMGEMM self-test failed: \(FastParakeetNAX.libraryFailures.joined(separator: ", "))"
+            } else if !(deviation <= Self.naxMaxDeviation) {
                 fastPathFinite = false
                 fastPathError = "NAX GEMM deviation \(deviation) > \(Self.naxMaxDeviation)"
             }
