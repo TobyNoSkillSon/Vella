@@ -36,7 +36,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 308.2,
      "j_per_min": 6.76,
      "memory_mb": 3356,
-     "disk_mb": 2393,
+     "disk_mb": 2509,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -66,7 +66,6 @@ const VELLA_BENCHMARKS = {
      "speed_x": 368.1,
      "j_per_min": 4.68,
      "memory_mb": 1785,
-     "disk_mb": 2393,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -96,7 +95,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 278.6,
      "j_per_min": 9.42,
      "memory_mb": 1804,
-     "disk_mb": 867,
+     "disk_mb": 909,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -105,6 +104,7 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": false,
       "reasons": [
+       "English WER +0.12 pt vs FP32 (limit 0.10)",
        "1 clip empty or cut short where FP32 had the words (limit 0)"
       ]
      }
@@ -128,7 +128,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 278.3,
      "j_per_min": 9.51,
      "memory_mb": 1537,
-     "disk_mb": 608,
+     "disk_mb": 637,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -137,18 +137,18 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": false,
       "reasons": [
-       "English WER +1.41 pt vs FP32 (limit 0.20)",
+       "English WER +1.41 pt vs FP32 (limit 0.10)",
        "multilingual mean +0.21 pt vs FP32 (limit 0.20)",
        "Swedish +2.80 pt vs FP32 (limit 2.0)",
-       "format CER +1.27 pt vs FP32 (limit 0.20)",
+       "format CER +1.27 pt vs FP32 (limit 0.10)",
        "3 clips empty or cut short where FP32 had the words (limit 0)"
       ]
      }
     }
    },
    "recommended": "BF16",
-   "noise_pt": 0.15,
-   "tolerance_pt": 0.2,
+   "noise_pt": 0.04,
+   "tolerance_pt": 0.1,
    "noise_ml_pt": 0.15,
    "tolerance_ml_pt": 0.2
   },
@@ -177,7 +177,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 27.6,
      "j_per_min": 75.47,
      "memory_mb": 4492,
-     "disk_mb": 3892,
+     "disk_mb": 4081,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -211,7 +211,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 41.5,
      "j_per_min": 67.78,
      "memory_mb": 3092,
-     "disk_mb": 2354,
+     "disk_mb": 2468,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -220,8 +220,9 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": false,
       "reasons": [
-       "multilingual mean +0.48 pt vs BF16 (limit 0.10)",
-       "Turkish +2.55 pt vs BF16 (limit 2.0)"
+       "multilingual mean +0.38 pt vs BF16 (limit 0.10)",
+       "Turkish +2.55 pt vs BF16 (limit 2.0)",
+       "1 clip empty or cut short where BF16 had the words (limit 0)"
       ]
      }
     },
@@ -248,7 +249,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 57.0,
      "j_per_min": 54.51,
      "memory_mb": 2259,
-     "disk_mb": 1533,
+     "disk_mb": 1608,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -257,23 +258,23 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": false,
       "reasons": [
-       "English WER +0.34 pt vs BF16 (limit 0.10)",
-       "multilingual mean +2.74 pt vs BF16 (limit 0.10)",
-       "Swedish +8.82 pt vs BF16 (limit 2.0)",
-       "Korean +4.84 pt vs BF16 (limit 2.0)",
-       "Turkish +4.10 pt vs BF16 (limit 2.0)",
-       "Polish +2.50 pt vs BF16 (limit 2.0)",
-       "Chinese +2.16 pt vs BF16 (limit 2.0)",
-       "format CER +0.22 pt vs BF16 (limit 0.10)",
+       "English WER +3.35 pt vs BF16 (limit 0.10)",
+       "multilingual mean +2.54 pt vs BF16 (limit 0.10)",
+       "Swedish +7.74 pt vs BF16 (limit 2.0)",
+       "Korean +3.40 pt vs BF16 (limit 2.0)",
+       "Turkish +3.32 pt vs BF16 (limit 2.0)",
+       "Chinese +3.27 pt vs BF16 (limit 2.0)",
+       "Polish +2.68 pt vs BF16 (limit 2.0)",
+       "format CER +0.45 pt vs BF16 (limit 0.10)",
        "1 clip empty or cut short where BF16 had the words (limit 0)"
       ]
      }
     }
    },
-   "recommended": "8b",
-   "noise_pt": 0.05,
+   "recommended": "BF16",
+   "noise_pt": 0.0,
    "tolerance_pt": 0.1,
-   "noise_ml_pt": 0.05,
+   "noise_ml_pt": 0.0,
    "tolerance_ml_pt": 0.1
   },
   "nemotron-3.5-streaming-0.6b": {
@@ -301,7 +302,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 19.6,
      "j_per_min": 78.92,
      "memory_mb": 2700,
-     "disk_mb": 1218,
+     "disk_mb": 1277,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -336,7 +337,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 28.8,
      "j_per_min": 47.02,
      "memory_mb": 1160,
-     "disk_mb": 721,
+     "disk_mb": 756,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -344,10 +345,9 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized",
      "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance).",
      "gate": {
-      "pass": false,
+      "pass": true,
       "reasons": [
-       "multilingual mean +0.60 pt vs BF16 (limit 0.10)",
-       "Japanese +2.03 pt vs BF16 (limit 2.0)"
+       "streaming trade: 1.47x the speed of BF16 (28.8x vs 19.6x real time, needs 1.25x) for multilingual mean +0.60 pt vs BF16 (limit 0.10); Japanese +2.03 pt vs BF16 (limit 2.0)"
       ]
      }
     },
@@ -374,7 +374,6 @@ const VELLA_BENCHMARKS = {
      "speed_x": 28.3,
      "j_per_min": 40.2,
      "memory_mb": 895,
-     "disk_mb": 1218,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -426,7 +425,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 364.6,
      "j_per_min": 5.18,
      "memory_mb": 1753,
-     "disk_mb": 1197,
+     "disk_mb": 1255,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -456,7 +455,6 @@ const VELLA_BENCHMARKS = {
      "speed_x": 287.0,
      "j_per_min": 9.43,
      "memory_mb": 1903,
-     "disk_mb": 1197,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -488,7 +486,6 @@ const VELLA_BENCHMARKS = {
      "speed_x": 284.4,
      "j_per_min": 9.22,
      "memory_mb": 1664,
-     "disk_mb": 1197,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -497,9 +494,9 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": false,
       "reasons": [
-       "English WER +0.26 pt vs BF16 (limit 0.10)",
+       "English WER +0.23 pt vs BF16 (limit 0.10)",
        "multilingual mean +0.92 pt vs BF16 (limit 0.10)",
-       "format CER +0.18 pt vs BF16 (limit 0.10)"
+       "format CER +0.14 pt vs BF16 (limit 0.10)"
       ]
      }
     }
@@ -535,7 +532,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 59.4,
      "j_per_min": 36.78,
      "memory_mb": 2030,
-     "disk_mb": 1497,
+     "disk_mb": 1569,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -569,7 +566,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 77.1,
      "j_per_min": 31.5,
      "memory_mb": 1547,
-     "disk_mb": 964,
+     "disk_mb": 1011,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -578,7 +575,8 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": false,
       "reasons": [
-       "multilingual mean +0.23 pt vs BF16 (limit 0.10)"
+       "English WER +0.17 pt vs BF16 (limit 0.10)",
+       "multilingual mean +0.21 pt vs BF16 (limit 0.10)"
       ]
      }
     },
@@ -605,7 +603,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 89.6,
      "j_per_min": 26.42,
      "memory_mb": 1273,
-     "disk_mb": 680,
+     "disk_mb": 713,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -614,24 +612,26 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": false,
       "reasons": [
-       "English WER +1.63 pt vs BF16 (limit 0.10)",
-       "multilingual mean +10.07 pt vs BF16 (limit 0.10)",
-       "Korean +35.06 pt vs BF16 (limit 2.0)",
-       "Spanish +10.92 pt vs BF16 (limit 2.0)",
-       "Swedish +10.32 pt vs BF16 (limit 2.0)",
-       "Japanese +8.94 pt vs BF16 (limit 2.0)",
-       "Turkish +7.09 pt vs BF16 (limit 2.0)",
-       "Polish +7.06 pt vs BF16 (limit 2.0)",
-       "French +5.73 pt vs BF16 (limit 2.0)",
-       "Chinese +3.45 pt vs BF16 (limit 2.0)",
+       "English WER +1.75 pt vs BF16 (limit 0.10)",
+       "multilingual mean +6.22 pt vs BF16 (limit 0.10)",
+       "Swedish +9.03 pt vs BF16 (limit 2.0)",
+       "Polish +8.59 pt vs BF16 (limit 2.0)",
+       "Japanese +8.43 pt vs BF16 (limit 2.0)",
+       "Turkish +8.08 pt vs BF16 (limit 2.0)",
+       "Spanish +7.91 pt vs BF16 (limit 2.0)",
+       "French +5.57 pt vs BF16 (limit 2.0)",
+       "Korean +3.70 pt vs BF16 (limit 2.0)",
+       "Chinese +2.63 pt vs BF16 (limit 2.0)",
        "German +2.07 pt vs BF16 (limit 2.0)",
-       "format CER +1.22 pt vs BF16 (limit 0.10)"
+       "format CER +1.14 pt vs BF16 (limit 0.10)"
       ]
      }
     }
    },
-   "recommended": "8b",
+   "recommended": "BF16",
+   "noise_pt": 0.0,
    "tolerance_pt": 0.1,
+   "noise_ml_pt": 0.0,
    "tolerance_ml_pt": 0.1
   },
   "whisper-large-v3": {
@@ -659,7 +659,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 27.9,
      "j_per_min": 94.14,
      "memory_mb": 3889,
-     "disk_mb": 2945,
+     "disk_mb": 3088,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -693,7 +693,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 32.1,
      "j_per_min": 110.8,
      "memory_mb": 2656,
-     "disk_mb": 1574,
+     "disk_mb": 1650,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -727,7 +727,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 38.9,
      "j_per_min": 97.52,
      "memory_mb": 2067,
-     "disk_mb": 841,
+     "disk_mb": 882,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -772,7 +772,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 75.8,
      "j_per_min": 58.53,
      "memory_mb": 2459,
-     "disk_mb": 1544,
+     "disk_mb": 1619,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -806,7 +806,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 76.8,
      "j_per_min": 64.82,
      "memory_mb": 1922,
-     "disk_mb": 828,
+     "disk_mb": 868,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -840,7 +840,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 80.4,
      "j_per_min": 63.52,
      "memory_mb": 1689,
-     "disk_mb": 446,
+     "disk_mb": 468,
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -849,19 +849,19 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": false,
       "reasons": [
-       "English WER +0.49 pt vs FP16 (limit 0.20)",
+       "English WER +0.49 pt vs FP16 (limit 0.10)",
        "Turkish +2.44 pt vs FP16 (limit 2.0)",
-       "format CER +0.74 pt vs FP16 (limit 0.20)",
+       "format CER +0.74 pt vs FP16 (limit 0.10)",
        "2 clips empty or cut short where FP16 had the words (limit 0)"
       ]
      }
     }
    },
    "recommended": "FP16",
-   "noise_pt": 0.17,
-   "tolerance_pt": 0.2,
+   "noise_pt": 0.02,
+   "tolerance_pt": 0.1,
    "noise_ml_pt": 0.17,
-   "tolerance_ml_pt": 0.2
+   "tolerance_ml_pt": 0.22
   },
   "sensevoice-small": {
    "precisions": {
@@ -882,7 +882,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 420.0,
      "j_per_min": null,
      "memory_mb": 1548,
-     "disk_mb": 893,
+     "disk_mb": 936,
      "suite": "v2-quick",
      "audio_min": 22.5,
      "date": "2026-09-26",
@@ -910,7 +910,7 @@ const VELLA_BENCHMARKS = {
      "speed_x": 222.2,
      "j_per_min": 5.03,
      "memory_mb": 889,
-     "disk_mb": 438,
+     "disk_mb": 459,
      "suite": "v2-quick",
      "audio_min": 22.5,
      "date": "2026-09-26",
