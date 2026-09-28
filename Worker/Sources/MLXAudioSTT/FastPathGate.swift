@@ -96,7 +96,8 @@ public enum FastPathGate {
     /// production defaults, and the self-test child (which inherits them) tests exactly what the worker will run.
     public static let componentSwitches = ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND", "VELLA_PARAKEET_NAX",
                                              "VELLA_QWEN_HOST_LENGTHS", "VELLA_QWEN_PREFILL_HEAD", "VELLA_QWEN_REFERENCE_LENGTHS",
-                                             "VELLA_TEST_TOLERANT_FAULT"]
+                                             "VELLA_TEST_TOLERANT_FAULT",
+                                             "VELLA_WHISPER_FUSED"]
     public static let componentSwitchPrefixes = ["VELLA_NEMO_"]
     /// "" for production defaults; otherwise the sorted `KEY=value` list of set switches.
     public static func componentConfiguration(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
