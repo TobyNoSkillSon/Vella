@@ -88,7 +88,8 @@ public enum SmallMGEMM {
 
     /// Per-call capability check: false → the caller uses stock MLX for this call.
     /// Covers the GPU family (Apple gen ≥ 17 for the tile kernel's `matmul2d`; the GEMV kernel runs on any Apple
-    /// GPU), dtype (bfloat16/float16), weight format, M range and K alignment (tile: K % 16; dense GEMV: K % 8).
+    /// GPU), dtype (bfloat16/float16), weight format, M range and K alignment (tile: K % 16; dense GEMV: K % 8;
+    /// affine GEMV: bits 4|8, group 64, K % 64).
     public static func supports(m: Int, n: Int, k: Int, dtype: DType, format: WeightFormat, epilogue: EpilogueKind) -> Bool {
         gemvRows.contains(m) ? gemvPlan(m: m, n: n, k: k, dtype: dtype, format: format, epilogue: epilogue) != nil
             : tilePlan(m: m, n: n, k: k, dtype: dtype, format: format, epilogue: epilogue) != nil
@@ -126,7 +127,14 @@ public enum SmallMGEMM {
                 out = gemvKernel([x2, weights.w, up?.w ?? weights.w, bias ?? placeholder, residual ?? placeholder],
                                  template: [("T", x.dtype)] + flags, grid: geometry.grid, threadGroup: geometry.threadGroup,
                                  outputShapes: [[rows, n]], outputDTypes: [x.dtype])[0]
-            case .affine, .mxfp:
+            case .affine(let bits, let groupSize):
+                let u = up ?? weights
+                out = gemvAffineKernel([x2, weights.w, weights.scales!, weights.biases!, u.w, u.scales!, u.biases!,
+                                        bias ?? placeholder, residual ?? placeholder],
+                                       template: [("T", x.dtype), ("BITS", bits), ("GS", groupSize)] + flags,
+                                       grid: geometry.grid, threadGroup: geometry.threadGroup,
+                                       outputShapes: [[rows, n]], outputDTypes: [x.dtype])[0]
+            case .mxfp:
                 return nil
             }
         } else {
@@ -147,7 +155,12 @@ public enum SmallMGEMM {
         switch weights.format {
         case .dense:
             return weights.w.dtype == dtype && weights.w.dim(1) == k
-        case .affine, .mxfp:
+        case .affine(let bits, let groupSize):
+            guard bits == 4 || bits == 8, groupSize > 0, weights.w.dtype == .uint32, weights.w.dim(1) * 32 / bits == k,
+                  let scales = weights.scales, let biases = weights.biases else { return false }
+            let groups = [weights.w.dim(0), k / groupSize]
+            return scales.shape == groups && biases.shape == groups && scales.dtype == dtype && biases.dtype == dtype
+        case .mxfp:
             return false
         }
     }
@@ -189,15 +202,29 @@ public enum SmallMGEMM {
                 }
             }
         }
-        // GEMV: every row count 1…8 appears; N not a multiple of the rows per threadgroup; K not a multiple of 256.
-        let gemvShapes = [(1, 200, 1032), (2, 96, 512), (3, 64, 264), (4, 136, 2048), (5, 72, 776), (6, 48, 128), (7, 520, 1024), (8, 257, 3072)]
+        // GEMV: every row count 1…8 appears; N not a multiple of the rows per threadgroup; K not a multiple of 256;
+        // the last two are in the quantized kernels' range (M ≤ 2, K ≥ 2048).
+        let gemvShapes = [(1, 200, 1032), (2, 96, 512), (3, 64, 264), (4, 136, 2048), (5, 72, 776), (6, 48, 128), (7, 520, 1024), (8, 257, 3072),
+                          (1, 136, 2048), (2, 70, 3072)]
         for (dtypeName, dtype) in [("bf16", DType.bfloat16), ("f16", DType.float16)] {
             for (m, n, k) in gemvShapes {
                 let x = random([m, k], dtype), w = random([n, k], dtype, scale: 0.05), u = random([n, k], dtype, scale: 0.05)
                 let b = random([n], dtype), r = random([m, n], dtype)
+                // Dense and, where K allows, MLX affine 8/4-bit group 64 (reference: MLX's quantized matmul).
                 // (name, gate weights, up weights, stock x · gateᵀ, stock x · upᵀ)
-                let formats: [(String, Weights, Weights, MLXArray, MLXArray)] = [
+                var formats: [(String, Weights, Weights, MLXArray, MLXArray)] = [
                     ("dense", .dense(w), .dense(u), MLX.matmul(x, w.transposed()), MLX.matmul(x, u.transposed()))]
+                if k % 64 == 0 {
+                    for bits in [8, 4] {
+                        let qw = MLX.quantized(w, groupSize: 64, bits: bits), qu = MLX.quantized(u, groupSize: 64, bits: bits)
+                        let format = WeightFormat.affine(bits: bits, groupSize: 64)
+                        let ww = Weights(w: qw.wq, scales: qw.scales, biases: qw.biases, format: format)
+                        let uw = Weights(w: qu.wq, scales: qu.scales, biases: qu.biases, format: format)
+                        formats.append(("affine\(bits)", ww, uw,
+                                        MLX.quantizedMM(x, qw.wq, scales: qw.scales, biases: qw.biases, transpose: true, groupSize: 64, bits: bits),
+                                        MLX.quantizedMM(x, qu.wq, scales: qu.scales, biases: qu.biases, transpose: true, groupSize: 64, bits: bits)))
+                    }
+                }
                 for (formatName, ww, uw, pw, pu) in formats {
                     let cases: [(String, Epilogue, () -> MLXArray)] = [
                         ("none", .none, { pw }), ("bias", .bias(b), { pw + b }), ("residual", .residual(r), { pw + r }),
@@ -257,7 +284,12 @@ public enum SmallMGEMM {
             guard k % 8 == 0 else { return nil }
             // M5 Max, 16 decode shapes (N×K 256…8192): within 3–4 % of each shape's best (R, SGK).
             return GemvPlan(rowsPerGroup: 2, simdgroups: m <= 4 ? 4 : 2)
-        case .affine, .mxfp:
+        case .affine(let bits, let groupSize):
+            // Rows 1…2 and K ≥ 2048 only: there it beat MLX's qmv (M5 Max, FFN blocks, M = 1: 1.06–1.14×); at K 1024
+            // or M ≥ 3 it was slower (0.46–0.8×), so those calls stay on MLX. R = 4 / SGK = 2 measured worse per block.
+            guard bits == 4 || bits == 8, groupSize == 64, k % groupSize == 0, k >= 2048, m <= 2 else { return nil }
+            return GemvPlan(rowsPerGroup: 2, simdgroups: 4)
+        case .mxfp:
             return nil
         }
     }
@@ -392,4 +424,107 @@ using namespace mpp::tensor_ops;
 
     private static let gemvKernel = MLXFast.metalKernel(name: "smallm_gemv", inputNames: ["x", "w", "up", "bias", "res"], outputNames: ["out"],
                                                         source: gemvSource)
+
+    // x [MR, K] row-major T; w = MLX affine-quantized [N, K]: packed uint32 [N, K · BITS / 32], scales and biases
+    // [N, K / GS] (T), element = scale · q + bias. Same threadgroup layout and epilogue as the dense GEMV; each lane
+    // reads 16 bytes of packed weights per row and step (4-bit 32 elements, 8-bit 16), which lie in one group, and
+    // adds scale · Σ x·q + bias · Σ x for it (the product form MLX's qmv uses). The host guarantees K % GS == 0.
+    static let gemvAffineSource = #"""
+    constexpr int PW = 32 / BITS;                 // elements per uint32
+    constexpr int V = 4 * PW;                     // elements per lane and step (one uint4 of packed weights)
+    constexpr uint MASK = (1u << BITS) - 1u;
+    const int K = x_shape[1], N = scales_shape[0];
+    const int KW = K / PW, KG = K / GS;
+    const int n0 = threadgroup_position_in_grid.x * R;
+    const int sg = simdgroup_index_in_threadgroup, lane = thread_index_in_simdgroup;
+    constexpr int G = GATE ? 2 : 1;
+    float acc[G][MR][R];
+    #pragma unroll
+    for (int g = 0; g < G; ++g)
+        #pragma unroll
+        for (int m = 0; m < MR; ++m)
+            #pragma unroll
+            for (int r = 0; r < R; ++r) acc[g][m][r] = 0.0f;
+    for (int k = (sg * 32 + lane) * V; k < K; k += SGK * 32 * V) {
+        uint4 q[G][R];
+        #pragma unroll
+        for (int g = 0; g < G; ++g) {
+            device const uint32_t* wg = g == 0 ? w : upw;
+            #pragma unroll
+            for (int r = 0; r < R; ++r) q[g][r] = *(device const uint4*)(wg + (size_t)min(n0 + r, N - 1) * KW + k / PW);
+        }
+        float dot[G][MR][R];
+        float xs[MR];
+        #pragma unroll
+        for (int m = 0; m < MR; ++m) {
+            xs[m] = 0.0f;
+            #pragma unroll
+            for (int g = 0; g < G; ++g)
+                #pragma unroll
+                for (int r = 0; r < R; ++r) dot[g][m][r] = 0.0f;
+        }
+        #pragma unroll
+        for (int j = 0; j < 4; ++j) {
+            #pragma unroll
+            for (int m = 0; m < MR; ++m) {
+                float xv[PW];
+                #pragma unroll
+                for (int i = 0; i < PW; ++i) { xv[i] = static_cast<float>(x[m * K + k + j * PW + i]); xs[m] += xv[i]; }
+                #pragma unroll
+                for (int g = 0; g < G; ++g)
+                    #pragma unroll
+                    for (int r = 0; r < R; ++r) {
+                        const uint word = q[g][r][j];
+                        float d = 0.0f;
+                        #pragma unroll
+                        for (int i = 0; i < PW; ++i) d += xv[i] * static_cast<float>((word >> (BITS * i)) & MASK);
+                        dot[g][m][r] += d;
+                    }
+            }
+        }
+        #pragma unroll
+        for (int g = 0; g < G; ++g) {
+            device const T* sc = g == 0 ? scales : upscales;
+            device const T* bi = g == 0 ? biases : upbiases;
+            #pragma unroll
+            for (int r = 0; r < R; ++r) {
+                const size_t gi = (size_t)min(n0 + r, N - 1) * KG + k / GS;
+                const float s = static_cast<float>(sc[gi]), b = static_cast<float>(bi[gi]);
+                #pragma unroll
+                for (int m = 0; m < MR; ++m) acc[g][m][r] += s * dot[g][m][r] + b * xs[m];
+            }
+        }
+    }
+    threadgroup float part[SGK][G * MR * R];
+    #pragma unroll
+    for (int g = 0; g < G; ++g)
+        #pragma unroll
+        for (int m = 0; m < MR; ++m)
+            #pragma unroll
+            for (int r = 0; r < R; ++r) {
+                const float v = simd_sum(acc[g][m][r]);
+                if (lane == 0) part[sg][(g * MR + m) * R + r] = v;
+            }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (int e = sg * 32 + lane; e < MR * R; e += SGK * 32) {
+        const int m = e / R, n = n0 + e % R;
+        if (n >= N) continue;
+        float a = 0.0f;
+        #pragma unroll
+        for (int j = 0; j < SGK; ++j) a += part[j][e];
+        if (GATE) {
+            float u = 0.0f;
+            #pragma unroll
+            for (int j = 0; j < SGK; ++j) u += part[j][MR * R + e];
+            a = a / (1.0f + metal::precise::exp(-a)) * u;
+        }
+        if (HAS_BIAS) a += static_cast<float>(bias[n]);
+        if (HAS_RES) a += static_cast<float>(res[m * N + n]);
+        out[m * N + n] = static_cast<T>(a);
+    }
+"""#
+
+    private static let gemvAffineKernel = MLXFast.metalKernel(
+        name: "smallm_gemv_affine", inputNames: ["x", "w", "scales", "biases", "upw", "upscales", "upbiases", "bias", "res"],
+        outputNames: ["out"], source: gemvAffineSource)
 }
