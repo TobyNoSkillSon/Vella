@@ -41,7 +41,11 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "BF16": {
      "wer": 16.43,
@@ -67,7 +71,11 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "8b": {
      "wer": 16.55,
@@ -93,7 +101,13 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "1 clip empty or cut short where FP32 had the words (limit 0)"
+      ]
+     }
     },
     "4b": {
      "wer": 17.84,
@@ -119,12 +133,24 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "English WER +1.41 pt vs FP32 (limit 0.20)",
+       "multilingual mean +0.21 pt vs FP32 (limit 0.20)",
+       "Swedish +2.80 pt vs FP32 (limit 2.0)",
+       "format CER +1.27 pt vs FP32 (limit 0.20)",
+       "3 clips empty or cut short where FP32 had the words (limit 0)"
+      ]
+     }
     }
    },
    "recommended": "BF16",
    "noise_pt": 0.15,
-   "tolerance_pt": 0.2
+   "tolerance_pt": 0.2,
+   "noise_ml_pt": 0.15,
+   "tolerance_ml_pt": 0.2
   },
   "qwen3-asr-1.7b": {
    "precisions": {
@@ -156,7 +182,11 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "8b": {
      "wer": 15.07,
@@ -186,7 +216,14 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "multilingual mean +0.48 pt vs BF16 (limit 0.10)",
+       "Turkish +2.55 pt vs BF16 (limit 2.0)"
+      ]
+     }
     },
     "4b": {
      "wer": 15.37,
@@ -216,12 +253,28 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "English WER +0.34 pt vs BF16 (limit 0.10)",
+       "multilingual mean +2.74 pt vs BF16 (limit 0.10)",
+       "Swedish +8.82 pt vs BF16 (limit 2.0)",
+       "Korean +4.84 pt vs BF16 (limit 2.0)",
+       "Turkish +4.10 pt vs BF16 (limit 2.0)",
+       "Polish +2.50 pt vs BF16 (limit 2.0)",
+       "Chinese +2.16 pt vs BF16 (limit 2.0)",
+       "format CER +0.22 pt vs BF16 (limit 0.10)",
+       "1 clip empty or cut short where BF16 had the words (limit 0)"
+      ]
+     }
     }
    },
    "recommended": "8b",
    "noise_pt": 0.05,
-   "tolerance_pt": 0.1
+   "tolerance_pt": 0.1,
+   "noise_ml_pt": 0.05,
+   "tolerance_ml_pt": 0.1
   },
   "nemotron-3.5-streaming-0.6b": {
    "precisions": {
@@ -254,7 +307,11 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
-     "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance)."
+     "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance).",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "8b": {
      "wer": 23.47,
@@ -285,7 +342,14 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
-     "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance)."
+     "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance).",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "multilingual mean +0.60 pt vs BF16 (limit 0.10)",
+       "Japanese +2.03 pt vs BF16 (limit 2.0)"
+      ]
+     }
     },
     "4b": {
      "wer": 32.97,
@@ -316,11 +380,30 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
-     "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance)."
+     "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance).",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "English WER +9.55 pt vs BF16 (limit 0.10)",
+       "multilingual mean +9.30 pt vs BF16 (limit 0.10)",
+       "Turkish +15.28 pt vs BF16 (limit 2.0)",
+       "Swedish +14.62 pt vs BF16 (limit 2.0)",
+       "Polish +12.00 pt vs BF16 (limit 2.0)",
+       "Chinese +10.99 pt vs BF16 (limit 2.0)",
+       "German +10.34 pt vs BF16 (limit 2.0)",
+       "Japanese +9.07 pt vs BF16 (limit 2.0)",
+       "Korean +5.97 pt vs BF16 (limit 2.0)",
+       "French +3.34 pt vs BF16 (limit 2.0)",
+       "Spanish +2.06 pt vs BF16 (limit 2.0)",
+       "format CER +5.64 pt vs BF16 (limit 0.10)",
+       "14 clips empty or cut short where BF16 had the words (limit 0)"
+      ]
+     }
     }
    },
    "recommended": "8b",
-   "tolerance_pt": 0.1
+   "tolerance_pt": 0.1,
+   "tolerance_ml_pt": 0.1
   },
   "parakeet-v3-ultra": {
    "precisions": {
@@ -348,7 +431,11 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "8b": {
      "wer": 15.54,
@@ -374,7 +461,13 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "multilingual mean +0.17 pt vs BF16 (limit 0.10)"
+      ]
+     }
     },
     "4b": {
      "wer": 15.78,
@@ -400,12 +493,22 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "English WER +0.26 pt vs BF16 (limit 0.10)",
+       "multilingual mean +0.92 pt vs BF16 (limit 0.10)",
+       "format CER +0.18 pt vs BF16 (limit 0.10)"
+      ]
+     }
     }
    },
    "recommended": "BF16",
    "noise_pt": 0.02,
-   "tolerance_pt": 0.1
+   "tolerance_pt": 0.1,
+   "noise_ml_pt": 0.0,
+   "tolerance_ml_pt": 0.1
   },
   "qwen3-asr-0.6b": {
    "precisions": {
@@ -437,7 +540,11 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "8b": {
      "wer": 16.05,
@@ -467,7 +574,13 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "multilingual mean +0.23 pt vs BF16 (limit 0.10)"
+      ]
+     }
     },
     "4b": {
      "wer": 17.62,
@@ -497,11 +610,29 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "English WER +1.63 pt vs BF16 (limit 0.10)",
+       "multilingual mean +10.07 pt vs BF16 (limit 0.10)",
+       "Korean +35.06 pt vs BF16 (limit 2.0)",
+       "Spanish +10.92 pt vs BF16 (limit 2.0)",
+       "Swedish +10.32 pt vs BF16 (limit 2.0)",
+       "Japanese +8.94 pt vs BF16 (limit 2.0)",
+       "Turkish +7.09 pt vs BF16 (limit 2.0)",
+       "Polish +7.06 pt vs BF16 (limit 2.0)",
+       "French +5.73 pt vs BF16 (limit 2.0)",
+       "Chinese +3.45 pt vs BF16 (limit 2.0)",
+       "German +2.07 pt vs BF16 (limit 2.0)",
+       "format CER +1.22 pt vs BF16 (limit 0.10)"
+      ]
+     }
     }
    },
    "recommended": "8b",
-   "tolerance_pt": 0.1
+   "tolerance_pt": 0.1,
+   "tolerance_ml_pt": 0.1
   },
   "whisper-large-v3": {
    "precisions": {
@@ -533,7 +664,11 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "8b": {
      "wer": 17.78,
@@ -563,7 +698,11 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "4b": {
      "wer": 17.75,
@@ -593,11 +732,20 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "Japanese +2.09 pt vs FP16 (limit 2.0)",
+       "format CER +0.18 pt vs FP16 (limit 0.10)",
+       "1 clip empty or cut short where FP16 had the words (limit 0)"
+      ]
+     }
     }
    },
    "recommended": "FP16",
-   "tolerance_pt": 0.1
+   "tolerance_pt": 0.1,
+   "tolerance_ml_pt": 0.1
   },
   "whisper-large-v3-turbo": {
    "precisions": {
@@ -629,7 +777,11 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "8b": {
      "wer": 17.21,
@@ -659,7 +811,11 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": true,
+      "reasons": []
+     }
     },
     "4b": {
      "wer": 17.8,
@@ -689,12 +845,23 @@ const VELLA_BENCHMARKS = {
      "audio_min": 239.7,
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "optimized"
+     "engine": "optimized",
+     "gate": {
+      "pass": false,
+      "reasons": [
+       "English WER +0.49 pt vs FP16 (limit 0.20)",
+       "Turkish +2.44 pt vs FP16 (limit 2.0)",
+       "format CER +0.74 pt vs FP16 (limit 0.20)",
+       "2 clips empty or cut short where FP16 had the words (limit 0)"
+      ]
+     }
     }
    },
    "recommended": "FP16",
    "noise_pt": 0.17,
-   "tolerance_pt": 0.2
+   "tolerance_pt": 0.2,
+   "noise_ml_pt": 0.17,
+   "tolerance_ml_pt": 0.2
   },
   "sensevoice-small": {
    "precisions": {
@@ -725,7 +892,8 @@ const VELLA_BENCHMARKS = {
     }
    },
    "recommended": "FP32",
-   "tolerance_pt": 0.1
+   "tolerance_pt": 0.1,
+   "tolerance_ml_pt": 0.1
   },
   "parakeet-tdt-ctc-110m": {
    "precisions": {
@@ -752,7 +920,8 @@ const VELLA_BENCHMARKS = {
     }
    },
    "recommended": "FP32",
-   "tolerance_pt": 0.1
+   "tolerance_pt": 0.1,
+   "tolerance_ml_pt": 0.1
   }
  },
  "references": {
