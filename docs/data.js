@@ -122,8 +122,9 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
-   "tolerance_pt": 0.1,
-   "recommended": "BF16"
+   "recommended": "BF16",
+   "noise_pt": 0.15,
+   "tolerance_pt": 0.2
   },
   "qwen3-asr-1.7b": {
    "precisions": {
@@ -218,8 +219,9 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
-   "tolerance_pt": 0.1,
-   "recommended": "8b"
+   "recommended": "8b",
+   "noise_pt": 0.05,
+   "tolerance_pt": 0.1
   },
   "nemotron-3.5-streaming-0.6b": {
    "precisions": {
@@ -317,8 +319,8 @@ const VELLA_BENCHMARKS = {
      "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance)."
     }
    },
-   "tolerance_pt": 0.1,
-   "recommended": "8b"
+   "recommended": "8b",
+   "tolerance_pt": 0.1
   },
   "parakeet-v3-ultra": {
    "precisions": {
@@ -401,8 +403,9 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
-   "tolerance_pt": 0.1,
-   "recommended": "BF16"
+   "recommended": "BF16",
+   "noise_pt": 0.02,
+   "tolerance_pt": 0.1
   },
   "qwen3-asr-0.6b": {
    "precisions": {
@@ -497,8 +500,8 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
-   "tolerance_pt": 0.1,
-   "recommended": "8b"
+   "recommended": "8b",
+   "tolerance_pt": 0.1
   },
   "whisper-large-v3": {
    "precisions": {
@@ -593,8 +596,8 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
-   "tolerance_pt": 0.1,
-   "recommended": "FP16"
+   "recommended": "FP16",
+   "tolerance_pt": 0.1
   },
   "whisper-large-v3-turbo": {
    "precisions": {
@@ -689,8 +692,9 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized"
     }
    },
-   "tolerance_pt": 0.1,
-   "recommended": "FP16"
+   "recommended": "FP16",
+   "noise_pt": 0.17,
+   "tolerance_pt": 0.2
   },
   "sensevoice-small": {
    "precisions": {
@@ -720,8 +724,8 @@ const VELLA_BENCHMARKS = {
      "note": "quick set only (benchmark-table model); energy not recorded: the worker crashed twice per run, so its restarts cannot be separated from background load; engine: No optimized path for this model yet."
     }
    },
-   "tolerance_pt": 0.1,
-   "recommended": "FP32"
+   "recommended": "FP32",
+   "tolerance_pt": 0.1
   },
   "parakeet-tdt-ctc-110m": {
    "precisions": {
@@ -747,8 +751,8 @@ const VELLA_BENCHMARKS = {
      "note": "quick set only (benchmark-table model); engine: The optimized path failed its self-test against stock MLX on this Mac."
     }
    },
-   "tolerance_pt": 0.1,
-   "recommended": "FP32"
+   "recommended": "FP32",
+   "tolerance_pt": 0.1
   }
  },
  "references": {
