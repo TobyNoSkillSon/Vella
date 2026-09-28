@@ -34,7 +34,22 @@ public let openFilesHelp = "Opens ~/Library/Application Support/Vella: settings,
 public let copySkillHelp = "Copies SKILL.md for a coding agent: when Vella is worth using for audio files, and the vella command, OpenAI-compatible API and Python call."
 public let copyDiagnosticsHelp = "Copies a short report for a bug report: this Mac, versions, each loaded model's engine and fallbacks, and a timed run of five built-in clips. Nothing you dictated is included."
 public let copyLastHelp = "Copies the last recognized text, including a transcript recovered from a saved recording."
-public let restartWorkerHelp = "Stops Vella's transcription workers; they start again with the next dictation."
+public let restartWorkerHelp = "Stops Vella's transcription workers and starts them again with the models you loaded; other models load with the next dictation."
+public let startWorkerHelp = "No transcription worker is running. Starts one with the models you loaded, else this mode's model."
+public let openSavedRecordingsHelp = "Opens the folder of saved recordings and their transcripts."
+public let accessibilityHeaderHelp = "Vella needs Accessibility access to type into other apps. Click to open System Settings."
+
+/// The worker item: Restart Worker while a worker runs, Start Worker when none does (the family menu, 28 Sep 2026).
+public func workerItemTitle(running: Bool) -> String { running ? "Restart Worker" : "Start Worker" }
+
+/// The menu header's tooltip, only when it adds something to the header's own text: the error of a failed
+/// dictation, the permission to grant, or why a kept recording waits for a model. Nil otherwise (no greeting, no
+/// progress echo).
+public func menuHeaderToolTip(failed: Bool, message: String, needsPermission: Bool, idle: Bool, pending: String?) -> String? {
+    if failed { return message.isEmpty ? nil : message }
+    if needsPermission { return accessibilityHeaderHelp }
+    return idle ? pending : nil
+}
 public let modelsHelp = "Compare models and precisions, download, load and unload them."
 public let modeHelp = "Dictation transcribes when you finish; Streaming types text while you speak."
 public let microphoneHelp = "The input Vella records from; it falls back to the built-in microphone when this one is missing."

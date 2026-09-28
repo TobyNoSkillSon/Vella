@@ -107,4 +107,26 @@ final class DocsTests: XCTestCase {
             }
         }
     }
+
+    /// The user guide's Menu section lists the family block order (VFamily menu alignment, 28 Sep 2026): header and
+    /// fact line; Models, Keep Hot, Memory; the app section; agent, diagnostics, files, worker, login; Support, Update, Quit.
+    func testUserGuideMenuFollowsTheFamilyBlockOrder() throws {
+        let guide = try text("docs/USAGE.md")
+        let section = try XCTUnwrap(guide.components(separatedBy: "## Menu\n").dropFirst().first?.components(separatedBy: "\n## ").first)
+        let blocks = section.components(separatedBy: "\n").filter { $0.first?.isNumber == true }
+        XCTAssertEqual(blocks.count, 5, section)
+        let expected: [[String]] = [
+            ["**Status**", "fact line"],
+            ["**Models…**", "**Keep Hot**", "**Memory**"],
+            ["**Start Dictation**", "**Mode**", "**Microphone**", "**Shortcuts**", "**Copy Last Transcript**", "**Open Saved Recordings**"],
+            ["**Copy Skill for Your Agent**", "**Copy Diagnostics**", "**Open Vella Files**", "**Restart Worker**", "**Start Worker**", "**Launch at Login**"],
+            ["**Support the developer…**", "**Update to X…**", "**Quit Vella**"],
+        ]
+        for (block, titles) in zip(blocks, expected) {
+            let positions = titles.map { block.range(of: $0)?.lowerBound }
+            XCTAssertFalse(positions.contains(nil), "\(titles) in \(block)")
+            let found = positions.compactMap { $0 }
+            XCTAssertEqual(found, found.sorted(), "order within: \(block)")
+        }
+    }
 }

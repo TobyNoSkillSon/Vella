@@ -92,11 +92,22 @@ public struct ModelFamily: Codable, Equatable, Identifiable {
     public var variants: [String: CatalogVariant]
     /// Only offered families appear in the app; the others exist for the published benchmark table.
     public var offered: Bool
+    /// Free-form note: the API's `recommendation` and the benchmark site. Not tooltip text (the table assembles its
+    /// lines from the structured fields below).
     public var notes: String?
+    /// The Model tooltip's facts (TableHelp.swift): who released the model, the year, the licence's display name
+    /// (`license` stays the upstream card's metadata id), and one plain sentence on what it does and does not do.
+    /// Each is optional; an unknown fact is left out of the tooltip.
+    public var publisher: String?
+    public var released: Int?
+    public var licence: String?
+    public var summary: String?
     public init(id: String, name: String, mode: RecognitionMode, languages: [String], params: String, license: String, native: String,
-                variants: [String: CatalogVariant], offered: Bool = true, notes: String? = nil) {
+                variants: [String: CatalogVariant], offered: Bool = true, notes: String? = nil, publisher: String? = nil,
+                released: Int? = nil, licence: String? = nil, summary: String? = nil) {
         self.id = id; self.name = name; self.mode = mode; self.languages = languages; self.params = params; self.license = license
         self.native = native; self.variants = variants; self.offered = offered; self.notes = notes
+        self.publisher = publisher; self.released = released; self.licence = licence; self.summary = summary
     }
     /// The family's variant whose install id is `variantID`.
     public func precision(ofVariant variantID: String) -> String? { variants.first { $0.value.id == variantID }?.key }

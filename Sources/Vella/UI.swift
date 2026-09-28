@@ -59,6 +59,12 @@ final class HUDPanel: NSPanel {
     var modelsLoaded: () -> Bool = { let status = Runtime.shared.status; return !status.models.isEmpty || status.loading != nil }
     /// Restart Worker: the runtime's restart; nil = stop the workers (the next dictation starts them again).
     var restartWorkers: (() -> Void)?
+    /// Start Worker (shown instead of Restart Worker while no worker runs): the runtime's start; nil = nothing to start.
+    var startWorkers: (() -> Void)?
+    /// Whether a transcription worker (dictation or streaming) is running; decides Restart Worker or Start Worker.
+    lazy var workersRunning: () -> Bool = { [unowned self] in
+        self.model.backend.processID != nil || self.model.streamingBackend.processID != nil
+    }
     /// Copy Diagnostics: the bundled `vella diagnose`.
     let diagnostics = DiagnosticsCopier()
     /// `controller`: an isolated Models controller (tests); the wiring below is the real one either way.
@@ -269,8 +275,9 @@ final class HUDPanel: NSPanel {
         let header = NSMenuItem(title: summary, action: needsPermission ? #selector(accessibility) : model.phase == .failed ? #selector(showCaptureError) : nil, keyEquivalent: "")
         header.target = self
         header.isEnabled = needsPermission || model.phase == .failed
-        // Tooltip only when the header has more to say (errors, permission, progress), not the idle greeting.
-        header.toolTip = model.phase == .idle && !needsPermission ? pending?.help : model.message
+        // Tooltip only when it adds something: the permission to grant, the error, or why a recording waits.
+        header.toolTip = menuHeaderToolTip(failed: model.phase == .failed, message: model.message, needsPermission: needsPermission,
+                                           idle: model.phase == .idle, pending: pending?.help)
         header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.phase == .failed || needsPermission || pending != nil ? NSColor.systemOrange : NSColor.systemGreen])
         menu.addItem(header)
         if let fact = factLine() {
@@ -281,6 +288,12 @@ final class HUDPanel: NSPanel {
             item(pending.title, "arrow.down.circle", #selector(getPending), help: pending.help)
         }
         menu.addItem(.separator())
+        // Which models are in memory: the model, how long it stays hot, what happens when memory is short.
+        menu.addItem(modelsMenu.modelItem())
+        menu.addItem(settingsSubmenu("Keep Hot", "flame", keepHotEntries(manualIdle: menuSettings.manualIdleMinutes, onDemandIdle: menuSettings.onDemandIdleMinutes), help: keepHotHelp))
+        menu.addItem(settingsSubmenu("Memory", "memorychip", memoryEntries(allowSwap: menuSettings.allowSwap, availableMB: menuSettings.availableMB, lastEvicted: menuSettings.lastEvicted), help: memoryHelp))
+        menu.addItem(.separator())
+        // The app section: dictate, how (mode, microphone, shortcut), and what it produced.
         let workingShortcut = shortcutManager.isUsingFallback ? (shortcutManager.activeConfiguration ?? .default) : shortcutManager.configuration
         let startKey = ShortcutManager.menuKeyEquivalent(for: workingShortcut)
         item(model.phase == .recording ? "Finish \(model.mode.title)" : "Start \(model.mode.title)", "waveform", #selector(toggle), enabled: !model.busy, key: startKey.key, modifiers: startKey.modifiers)
@@ -322,19 +335,17 @@ final class HUDPanel: NSPanel {
             selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
             openSettings: #selector(accessibility)))
         menu.items.last?.toolTip = menu.items.last?.toolTip ?? shortcutsHelp
-        menu.addItem(.separator())
-        // Which models are in memory: the model, how long it stays hot, what happens when memory is short.
-        menu.addItem(modelsMenu.modelItem())
-        menu.addItem(settingsSubmenu("Keep Hot", "flame", keepHotEntries(manualIdle: menuSettings.manualIdleMinutes, onDemandIdle: menuSettings.onDemandIdleMinutes), help: keepHotHelp))
-        menu.addItem(settingsSubmenu("Memory", "memorychip", memoryEntries(allowSwap: menuSettings.allowSwap, availableMB: menuSettings.availableMB, lastEvicted: menuSettings.lastEvicted), help: memoryHelp))
-        menu.addItem(.separator())
         if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast), help: copyLastHelp) }
+        item("Open Saved Recordings", "folder", #selector(savedRecordings), help: openSavedRecordingsHelp)
+        menu.addItem(.separator())
+        // Agent, support files and the worker.
         item("Copy Skill for Your Agent", "doc.on.doc", #selector(copySkill), help: copySkillHelp)
         item(diagnostics.running ? "Copying Diagnostics…" : "Copy Diagnostics", "stethoscope", #selector(copyDiagnostics),
              enabled: !diagnostics.running, help: copyDiagnosticsHelp)
-        item("Open Saved Recordings", "folder", #selector(savedRecordings), help: "Opens the folder of saved recordings and their transcripts.")
         item("Open Vella Files", "folder", #selector(files), help: openFilesHelp)
-        item("Restart Worker", "arrow.clockwise", #selector(restartWorker), enabled: model.phase != .recording && !model.busy, help: restartWorkerHelp)
+        let running = workersRunning()
+        item(workerItemTitle(running: running), running ? "arrow.clockwise" : "play.circle", #selector(restartWorker),
+             enabled: model.phase != .recording && !model.busy, help: running ? restartWorkerHelp : startWorkerHelp)
         let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
         login.target = self; login.image = NSImage(systemSymbolName: "power.circle", accessibilityDescription: nil)
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -411,7 +422,10 @@ final class HUDPanel: NSPanel {
         rebuildMenuIfIdle()
     }
     @objc private func getPending() { getPendingModel() }
-    @objc private func restartWorker() { if let restartWorkers { restartWorkers() } else { model.stopWorkers() } }
+    @objc private func restartWorker() {
+        guard workersRunning() else { startWorkers?(); return }
+        if let restartWorkers { restartWorkers() } else { model.stopWorkers() }
+    }
     /// Keep Hot / Memory submenu from VellaCore's entries (section headers, checkmarked choices, short captions).
     private func settingsSubmenu(_ title: String, _ icon: String, _ entries: [SettingsEntry], help: String) -> NSMenuItem {
         let root = NSMenuItem(title: title, action: nil, keyEquivalent: "")
@@ -453,9 +467,13 @@ final class HUDPanel: NSPanel {
                 entry.state = entry.representedObject as? String == mode.rawValue ? .on : .off
                 (entry as? SettingsMenuItem)?.synchronize()
             }
-            let summary = "\(mode.title): " + (model.insertionPermission.granted ? "ready" : "Accessibility required")
+            var summary = "\(mode.title): " + (model.insertionPermission.granted ? "ready" : "Accessibility required")
+            // The header keeps the loaded model, as rebuildMenu shows it.
+            if let activeModel = modelsMenu.controller.activeLabel(mode) { summary += " \u{00b7} \(activeModel)" }
             if let header = menu.items.first {
-                header.title = summary; header.toolTip = model.message
+                header.title = summary
+                header.toolTip = menuHeaderToolTip(failed: false, message: model.message, needsPermission: !model.insertionPermission.granted,
+                                                   idle: true, pending: nil)
                 header.action = model.insertionPermission.granted ? nil : #selector(accessibility)
                 header.isEnabled = !model.insertionPermission.granted
                 header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.insertionPermission.granted ? NSColor.systemGreen : NSColor.systemOrange])
