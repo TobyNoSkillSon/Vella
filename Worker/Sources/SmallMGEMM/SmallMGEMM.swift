@@ -12,6 +12,10 @@ import MLXFast
 /// with 8 simdgroups on these GPUs, so small M leaves most cores idle; this kernel was 1.5–3.2× faster per GEMM at
 /// M 16–64 on an M5 Max. Split-K reorders the sums (≤ 1 output ulp per GEMM): every caller gates it by tolerance.
 ///
+/// GEMV kernel (M 1…8, any Apple GPU): one pass over the weights for all rows, float accumulation. Raw bandwidth is
+/// about MLX's gemv; the gain comes from the fused epilogues (the SiLU-gate pair reads gate and up in one pass,
+/// residual/bias added before the single rounding) and fewer launches. Also inexact (different summation order).
+///
 /// Callers: `let y = SmallMGEMM.matmul(x, weights, epilogue: e) ?? stock(x)`. `supports` answers the same question
 /// without building a graph. `revision` is part of every gate key and changes whenever a summation order can change.
 public enum SmallMGEMM {
@@ -63,10 +67,12 @@ public enum SmallMGEMM {
 
     /// Per kernel family; gate keys include the families they use (or `revision` for all).
     public static let tileRevision = "tile-1"
-    public static let revision = tileRevision
+    public static let gemvRevision = "gemv-1"
+    public static let revision = tileRevision + " " + gemvRevision
 
     /// Row ranges per kernel family.
     public static let tileRows = 9 ... 256
+    public static let gemvRows = 1 ... 8
 
     /// Tensor-op matmul needs Metal 4 and an Apple GPU of generation 17 or later (MLX's own test before its NAX
     /// kernels: `applegpu_g<gen><class>`, gen ≥ 17, phones ≥ 18).
@@ -81,31 +87,69 @@ public enum SmallMGEMM {
     // MARK: - Capability
 
     /// Per-call capability check: false → the caller uses stock MLX for this call.
+    /// Covers the GPU family (Apple gen ≥ 17 for the tile kernel's `matmul2d`; the GEMV kernel runs on any Apple
+    /// GPU), dtype (bfloat16/float16), weight format, M range and K alignment (tile: K % 16; dense GEMV: K % 8).
     public static func supports(m: Int, n: Int, k: Int, dtype: DType, format: WeightFormat, epilogue: EpilogueKind) -> Bool {
-        tilePlan(m: m, n: n, k: k, dtype: dtype, format: format, epilogue: epilogue) != nil
+        gemvRows.contains(m) ? gemvPlan(m: m, n: n, k: k, dtype: dtype, format: format, epilogue: epilogue) != nil
+            : tilePlan(m: m, n: n, k: k, dtype: dtype, format: format, epilogue: epilogue) != nil
     }
 
     /// out[M, N] = epilogue(x[..., K] · Wᵀ) with the leading dimensions of x flattened into M; nil when `supports`
-    /// is false for this call or an epilogue operand has the wrong size (bias [N], residual [M, N] or [..., N]).
+    /// is false for this call or an operand does not fit (bias [N], residual [M, N] or [..., N]; the up projection of
+    /// `.siluGate` in the same format and shape as the gate).
     public static func matmul(_ x: MLXArray, _ weights: Weights, epilogue: Epilogue = .none) -> MLXArray? {
         let k = x.dim(-1), n = weights.n, rows = x.size / max(k, 1)
-        guard weights.w.ndim == 2, weights.format == .dense, weights.w.dtype == x.dtype, weights.w.dim(1) == k else { return nil }
-        var bias: MLXArray?, residual: MLXArray?
+        guard fits(weights, k: k, dtype: x.dtype) else { return nil }
+        var bias: MLXArray?, residual: MLXArray?, up: Weights?
         switch epilogue {
         case .none: break
         case .bias(let b): bias = b
         case .residual(let r): residual = r
         case .biasResidual(let b, let r): bias = b; residual = r
-        case .siluGate: return nil
+        case .siluGate(let u): up = u
         }
-        guard bias.map({ $0.size == n }) ?? true, residual.map({ $0.size == rows * n }) ?? true,
-              let simdgroups = tilePlan(m: rows, n: n, k: k, dtype: x.dtype, format: weights.format, epilogue: epilogue.kind) else { return nil }
-        let out = tileKernel([x.reshaped([rows, k]), weights.w, bias ?? placeholder, residual ?? placeholder],
+        guard bias.map({ $0.size == n }) ?? true, residual.map({ $0.size == rows * n }) ?? true else { return nil }
+        if let up {
+            guard up.format == weights.format, up.w.shape == weights.w.shape, up.scales?.shape == weights.scales?.shape,
+                  up.biases?.shape == weights.biases?.shape, fits(up, k: k, dtype: x.dtype) else { return nil }
+        }
+        let x2 = x.reshaped([rows, k])
+        let out: MLXArray
+        if gemvRows.contains(rows) {
+            guard let plan = gemvPlan(m: rows, n: n, k: k, dtype: x.dtype, format: weights.format, epilogue: epilogue.kind) else { return nil }
+            let flags: [(String, any KernelTemplateArg)] = [("MR", rows), ("R", plan.rowsPerGroup), ("SGK", plan.simdgroups),
+                ("GATE", up != nil), ("HAS_BIAS", bias != nil), ("HAS_RES", residual != nil)]
+            let geometry = (grid: ((n + plan.rowsPerGroup - 1) / plan.rowsPerGroup * 32 * plan.simdgroups, 1, 1),
+                            threadGroup: (32 * plan.simdgroups, 1, 1))
+            switch weights.format {
+            case .dense:
+                out = gemvKernel([x2, weights.w, up?.w ?? weights.w, bias ?? placeholder, residual ?? placeholder],
+                                 template: [("T", x.dtype)] + flags, grid: geometry.grid, threadGroup: geometry.threadGroup,
+                                 outputShapes: [[rows, n]], outputDTypes: [x.dtype])[0]
+            case .affine, .mxfp:
+                return nil
+            }
+        } else {
+            guard up == nil, let simdgroups = tilePlan(m: rows, n: n, k: k, dtype: x.dtype, format: weights.format, epilogue: epilogue.kind)
+            else { return nil }
+            out = tileKernel([x2, weights.w, bias ?? placeholder, residual ?? placeholder],
                              template: [("T", x.dtype), ("BM", tile), ("BN", tile), ("SG", simdgroups),
                                         ("HAS_BIAS", bias != nil), ("HAS_RES", residual != nil)],
                              grid: ((rows + tile - 1) / tile * 32 * simdgroups, (n + tile - 1) / tile, 1),
                              threadGroup: (32 * simdgroups, 1, 1), outputShapes: [[rows, n]], outputDTypes: [x.dtype])[0]
+        }
         return out.reshaped(Array(x.shape.dropLast()) + [n])
+    }
+
+    /// The weights' arrays match their format, K and the activation dtype.
+    private static func fits(_ weights: Weights, k: Int, dtype: DType) -> Bool {
+        guard weights.w.ndim == 2 else { return false }
+        switch weights.format {
+        case .dense:
+            return weights.w.dtype == dtype && weights.w.dim(1) == k
+        case .affine, .mxfp:
+            return false
+        }
     }
 
     /// Stands in for an absent epilogue operand (never read); a host constant, so it adds no dispatch.
@@ -145,8 +189,33 @@ public enum SmallMGEMM {
                 }
             }
         }
+        // GEMV: every row count 1…8 appears; N not a multiple of the rows per threadgroup; K not a multiple of 256.
+        let gemvShapes = [(1, 200, 1032), (2, 96, 512), (3, 64, 264), (4, 136, 2048), (5, 72, 776), (6, 48, 128), (7, 520, 1024), (8, 257, 3072)]
+        for (dtypeName, dtype) in [("bf16", DType.bfloat16), ("f16", DType.float16)] {
+            for (m, n, k) in gemvShapes {
+                let x = random([m, k], dtype), w = random([n, k], dtype, scale: 0.05), u = random([n, k], dtype, scale: 0.05)
+                let b = random([n], dtype), r = random([m, n], dtype)
+                // (name, gate weights, up weights, stock x · gateᵀ, stock x · upᵀ)
+                let formats: [(String, Weights, Weights, MLXArray, MLXArray)] = [
+                    ("dense", .dense(w), .dense(u), MLX.matmul(x, w.transposed()), MLX.matmul(x, u.transposed()))]
+                for (formatName, ww, uw, pw, pu) in formats {
+                    let cases: [(String, Epilogue, () -> MLXArray)] = [
+                        ("none", .none, { pw }), ("bias", .bias(b), { pw + b }), ("residual", .residual(r), { pw + r }),
+                        ("biasResidual", .biasResidual(b, r), { pw + b + r }),
+                        ("siluGate", .siluGate(up: uw), { silu(pw) * pu })]
+                    for (epilogueName, epilogue, reference) in cases
+                    where supports(m: m, n: n, k: k, dtype: dtype, format: ww.format, epilogue: epilogue.kind) {
+                        let name = "gemv.\(dtypeName).\(formatName).\(epilogueName)"
+                        record(name, matmul(x, ww, epilogue: epilogue).map { relativeRMS($0, reference()) } ?? .infinity)
+                    }
+                }
+            }
+        }
         return results
     }
+
+    /// silu(a) = a · sigmoid(a), as MLXNN's `silu`, without depending on MLXNN.
+    private static func silu(_ a: MLXArray) -> MLXArray { a * MLX.sigmoid(a) }
 
     /// Self-test bounds per weight format (relative RMS vs stock MLX).
     public static func selfTestBound(_ className: String) -> Float {
@@ -175,6 +244,22 @@ public enum SmallMGEMM {
         guard tensorOpsAvailable, dtype == .bfloat16 || dtype == .float16, format == .dense, epilogue != .siluGate,
               tileRows.contains(m), n > 0, k % 16 == 0, k >= simdgroups * 16 else { return nil }
         return simdgroups
+    }
+
+    private struct GemvPlan { let rowsPerGroup: Int; let simdgroups: Int }
+
+    /// Output features per threadgroup (R) and simdgroups splitting K (SGK) for the GEMV kernels, or nil when they
+    /// cannot run the call. Chosen per shape from the M5 Max microbench (lab notes, 28 Sep).
+    private static func gemvPlan(m: Int, n: Int, k: Int, dtype: DType, format: WeightFormat, epilogue: EpilogueKind) -> GemvPlan? {
+        guard gemvRows.contains(m), n > 0, k > 0, dtype == .bfloat16 || dtype == .float16 else { return nil }
+        switch format {
+        case .dense:
+            guard k % 8 == 0 else { return nil }
+            // M5 Max, 16 decode shapes (N×K 256…8192): within 3–4 % of each shape's best (R, SGK).
+            return GemvPlan(rowsPerGroup: 2, simdgroups: m <= 4 ? 4 : 2)
+        case .affine, .mxfp:
+            return nil
+        }
     }
 
     static let tileHeader = #"""
@@ -227,4 +312,84 @@ using namespace mpp::tensor_ops;
 
     private static let tileKernel = MLXFast.metalKernel(name: "smallm_tile", inputNames: ["x", "w", "bias", "res"], outputNames: ["out"],
                                                         source: tileSource, header: tileHeader)
+
+    // MARK: - GEMV kernel (gemv-1)
+
+    // x [MR, K] and w [N, K] row-major T (bfloat or half), MR = 1…8 rows; out [MR, N] = x · wᵀ, or with GATE
+    // silu(x · wᵀ) ⊙ (x · upᵀ) (up [N, K]), then (+ bias[n]) (+ res[m, n]). One threadgroup = SGK simdgroups computing
+    // R consecutive output features for all MR rows, so every weight element is read once. Lane l of simdgroup s reads
+    // 8 consecutive elements at k = (i · SGK + s) · 256 + 8 l; per lane the products are summed in order in float,
+    // then `simd_sum`, then the SGK partials in order; the epilogue runs in float and rounds once. Absent operands are
+    // 1-element placeholders (`up` = w when GATE is 0). The host guarantees K % 8 == 0.
+    static let gemvSource = #"""
+    constexpr int V = 8;
+    const int K = x_shape[1], N = w_shape[0];
+    const int n0 = threadgroup_position_in_grid.x * R;
+    const int sg = simdgroup_index_in_threadgroup, lane = thread_index_in_simdgroup;
+    constexpr int G = GATE ? 2 : 1;
+    float acc[G][MR][R];
+    #pragma unroll
+    for (int g = 0; g < G; ++g)
+        #pragma unroll
+        for (int m = 0; m < MR; ++m)
+            #pragma unroll
+            for (int r = 0; r < R; ++r) acc[g][m][r] = 0.0f;
+    for (int k = (sg * 32 + lane) * V; k < K; k += SGK * 32 * V) {
+        vec<T, 4> xv[MR][2];
+        #pragma unroll
+        for (int m = 0; m < MR; ++m) {
+            xv[m][0] = *(device const vec<T, 4>*)(x + m * K + k);
+            xv[m][1] = *(device const vec<T, 4>*)(x + m * K + k + 4);
+        }
+        #pragma unroll
+        for (int g = 0; g < G; ++g) {
+            device const T* wg = g == 0 ? w : up;
+            #pragma unroll
+            for (int r = 0; r < R; ++r) {
+                const size_t row = (size_t)min(n0 + r, N - 1) * K;
+                const vec<T, 4> w0 = *(device const vec<T, 4>*)(wg + row + k);
+                const vec<T, 4> w1 = *(device const vec<T, 4>*)(wg + row + k + 4);
+                #pragma unroll
+                for (int m = 0; m < MR; ++m) {
+                    float s = 0.0f;
+                    #pragma unroll
+                    for (int i = 0; i < 4; ++i) s += static_cast<float>(xv[m][0][i]) * static_cast<float>(w0[i]);
+                    #pragma unroll
+                    for (int i = 0; i < 4; ++i) s += static_cast<float>(xv[m][1][i]) * static_cast<float>(w1[i]);
+                    acc[g][m][r] += s;
+                }
+            }
+        }
+    }
+    threadgroup float part[SGK][G * MR * R];
+    #pragma unroll
+    for (int g = 0; g < G; ++g)
+        #pragma unroll
+        for (int m = 0; m < MR; ++m)
+            #pragma unroll
+            for (int r = 0; r < R; ++r) {
+                const float v = simd_sum(acc[g][m][r]);
+                if (lane == 0) part[sg][(g * MR + m) * R + r] = v;
+            }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (int e = sg * 32 + lane; e < MR * R; e += SGK * 32) {
+        const int m = e / R, n = n0 + e % R;
+        if (n >= N) continue;
+        float a = 0.0f;
+        #pragma unroll
+        for (int j = 0; j < SGK; ++j) a += part[j][e];
+        if (GATE) {
+            float u = 0.0f;
+            #pragma unroll
+            for (int j = 0; j < SGK; ++j) u += part[j][MR * R + e];
+            a = a / (1.0f + metal::precise::exp(-a)) * u;
+        }
+        if (HAS_BIAS) a += static_cast<float>(bias[n]);
+        if (HAS_RES) a += static_cast<float>(res[m * N + n]);
+        out[m * N + n] = static_cast<T>(a);
+    }
+"""#
+
+    private static let gemvKernel = MLXFast.metalKernel(name: "smallm_gemv", inputNames: ["x", "w", "up", "bias", "res"], outputNames: ["out"],
+                                                        source: gemvSource)
 }
