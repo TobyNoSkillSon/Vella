@@ -43,6 +43,15 @@ final class WorkerSwitchReportingTests: XCTestCase {
         XCTAssertEqual(hidden.sorted(), [], "worker switches missing from reportedSwitches")
     }
 
+    /// `vella diagnose` counts gate verdicts of the bundled reference's gate version when no model is loaded, so the
+    /// reference must name the version the workers write.
+    func testDiagnoseReferenceNamesTheWorkersGateVersion() throws {
+        let gate = try source(Self.gate)
+        let version = try XCTUnwrap(matches(#"static let version = "([a-z0-9-]+)""#, in: gate).first)
+        let data = try Data(contentsOf: Self.root.appendingPathComponent("Resources/diagnose-reference.json"))
+        XCTAssertEqual(DiagnoseReference.decode(data)?.gate_version, version)
+    }
+
     func testQwenEncoderOverrideIsReportedByTheApp() {
         XCTAssertEqual(activeTestHooks(["VELLA_QWEN_ENC_BF16": "0", "HOME": "/x"]), ["VELLA_QWEN_ENC_BF16": "0"])
     }

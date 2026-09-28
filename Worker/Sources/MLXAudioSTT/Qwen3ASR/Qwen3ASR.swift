@@ -1260,9 +1260,18 @@ public class Qwen3ASRModel: Module {
     public var profile = Profile()
     nonisolated(unsafe) static var encoderClock: (conv: Double, layers: Double) = (0, 0)
     /// Optimized path (FastPathCapable, off after load; the worker enables it once the gate qualified it).
-    /// decoder: pipelined greedy decode. encoder: audio transformer in BF16 like the original PyTorch model (default),
-    /// or with VELLA_QWEN_ENC_BF16=0 the audio tower held in f32 (the stock numerics without per-call weight casts).
-    public static let bf16Encoder = ProcessInfo.processInfo.environment["VELLA_QWEN_ENC_BF16"] != "0"
+    /// decoder: pipelined greedy decode. encoder: the audio tower held in f32, the stock numerics without per-call
+    /// weight casts (default), or with VELLA_QWEN_ENC_BF16=1 the audio transformer in BF16 like the original PyTorch
+    /// model. The BF16 encoder is off by default since 28 Sep (manager ruling, lab/notes/GATE-REVISION.md): on full
+    /// v2 it emptied a German segment that stock transcribes and raised format CER beyond the tolerance.
+    static let bf16EncoderByDefault = false
+    public static let bf16Encoder: Bool = {
+        switch ProcessInfo.processInfo.environment["VELLA_QWEN_ENC_BF16"] {
+        case "1": return true
+        case "0": return false
+        default: return bf16EncoderByDefault
+        }
+    }()
     public private(set) var fastDecode = false
     /// Lab A/B switches for parts of the optimized path (default on; the fast-path revision names a switched-off part).
     static let prefillSkipsHead = ProcessInfo.processInfo.environment["VELLA_QWEN_PREFILL_HEAD"] != "0"
@@ -2010,10 +2019,10 @@ public class Qwen3ASRModel: Module {
 // MARK: - Optimized path
 
 extension Qwen3ASRModel: FastPathCapable {
-    /// r2: the encoder component is the BF16 audio transformer and the self-test's reference encodes in BF16 too.
-    /// VELLA_QWEN_ENC_BF16=0 keeps r1 (f32 tower, token-exact against f32 stock), so its old verdicts still apply.
+    /// r2: the encoder component is the BF16 audio transformer and the self-test's reference encodes in BF16 too
+    /// (VELLA_QWEN_ENC_BF16=1). r3 (default since 28 Sep): the f32 tower, token-exact against f32 stock.
     public static var fastPathRevision: String {
-        (bf16Encoder ? "qwen3-asr-2-bf16-encoder" : "qwen3-asr-1") + "-p3"
+        (bf16Encoder ? "qwen3-asr-2-bf16-encoder" : "qwen3-asr-3-f32-encoder") + "-p3"
             + (prefillSkipsHead ? "" : "-prefill-head") + (encoderHostLengths ? "" : "-device-lengths") + (qwen3ASRReferenceLengths ? "-reference-lengths" : "")
     }
 
@@ -2024,12 +2033,12 @@ extension Qwen3ASRModel: FastPathCapable {
     }
 
     /// decoder: build step N+1 from the lazy token N before reading it (same kernels, token-exact).
-    /// encoder (default): the f32 log-mel promotes the audio tower to f32 and MLX re-casts every BF16 weight inside
-    /// every call. The original PyTorch model runs the tower in BF16; so does this component: the transformer
+    /// encoder with VELLA_QWEN_ENC_BF16=1: the f32 log-mel promotes the audio tower to f32 and MLX re-casts every BF16
+    /// weight inside every call. The original PyTorch model runs the tower in BF16; so does this component: the transformer
     /// layers take their input in the checkpoint dtype, weights untouched (no extra memory). Its numerics differ
     /// from the f32 stock path, so the parity reference is the BF16 encoder (Toby, 26 Sep 2026): the self-test's
     /// stock run encodes in BF16 too and must match the fast run token for token (the decoder), finite.
-    /// encoder with VELLA_QWEN_ENC_BF16=0: hold the tower in f32, the identical f32 graph without those casts
+    /// encoder (default): hold the tower in f32, the identical f32 graph without those casts
     /// (bit-identical, +2 bytes/param resident). Disabling restores the checkpoint dtype exactly either way.
     public func configureFastPath(enabled: Bool, component: String) -> Bool {
         let decoder = component == "both" || component == "decoder"

@@ -311,7 +311,8 @@ public enum Diagnose {
         return out
     }
 
-    /// "gate verdicts: 2 optimized, 1 stock (parakeet-…-4bit: self-test: …)", current worker version only.
+    /// "gate verdicts: 2 optimized, 1 stock (parakeet-…-4bit: self-test: …)", current worker version only. Partial
+    /// verdicts count as optimized and list their reason ("optimized without nax_gemm (…)").
     static func gateLine(_ d: Diagnosis) -> String {
         guard !d.gate.isEmpty else { return "gate verdicts: none yet (a model's first load runs its self-test)" }
         // Without a loaded model the current version is unknown: the newest recorded one stands in for it.
@@ -323,7 +324,8 @@ public enum Diagnose {
             return n == 0 ? nil : "\(n) \(status == "fast" ? "optimized" : status)"
         }
         var line = "gate verdicts: " + (counts.isEmpty ? "none for this worker version" : counts.joined(separator: ", "))
-        let notFast = current.filter { $0.status != "fast" }.map { v -> String in
+        // A "fast" verdict with a reason is partial: a tolerant component failed its own self-test and stays off.
+        let notFast = current.filter { $0.status != "fast" || $0.reason != nil }.map { v -> String in
             let name = safeModelName(v.model) ?? "unnamed"
             return v.reason.map { "\(name): \(redact($0))" } ?? name
         }

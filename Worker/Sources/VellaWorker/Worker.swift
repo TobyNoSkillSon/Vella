@@ -24,20 +24,26 @@ import MLXAudioSTT
             case "mismatch": exit(FastPathGate.verdictFailed)
             default: break
             }
-            let passed: Bool
+            let outcome: FastPathGate.SelfTestOutcome
             do {
                 let worker = Worker()
                 // A setup failure says nothing about the kernels: inconclusive, not a sticky verdict.
                 guard let model = try? await withError({ try await worker.loadStock(path, architecture: architecture) }),
                       let capable = model as? any FastPathCapable else { exit(FastPathGate.inconclusive) }
-                passed = try withError { try FastPathGate.runSelfTest(capable, input: { Worker.input(for: model, $0) }) }
+                outcome = try withError { try FastPathGate.runSelfTest(capable, input: { Worker.input(for: model, $0) }) }
             } catch {
                 if let log = ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"], log.hasPrefix("/") {
                     try? String(describing: error).write(toFile: log, atomically: true, encoding: .utf8)
                 }
-                passed = false
+                outcome = FastPathGate.SelfTestOutcome(passed: false)
             }
-            exit(passed ? 0 : FastPathGate.verdictFailed)
+            guard outcome.passed else { exit(FastPathGate.verdictFailed) }
+            guard !outcome.failed.isEmpty else { exit(0) }
+            // Exact components passed; only the named tolerant ones stay off. No result file → inconclusive.
+            guard let result = ProcessInfo.processInfo.environment[FastPathGate.resultVariable], result.hasPrefix("/"),
+                  let bytes = try? JSONSerialization.data(withJSONObject: outcome.failed),
+                  (try? bytes.write(to: URL(fileURLWithPath: result))) != nil else { exit(FastPathGate.inconclusive) }
+            exit(FastPathGate.componentsFailed)
         }
         if CommandLine.arguments.dropFirst().first == "calibrate" {
             let status = await CalibrationCommand.run(arguments: Array(CommandLine.arguments.dropFirst(2)), output: output)
@@ -115,6 +121,8 @@ final class Worker {
     /// nil = optimized path active; otherwise why the model runs on stock MLX.
     private var stockReason: String? = "No model loaded."
     private var optimizations: [String: Bool] = [:]
+    /// Tolerant components the gate left off for this model (component → why its self-test failed).
+    private var disabledComponents: [String: String] = [:]
     private var gateURL: URL?
     #if VELLA_QUALIFICATION
     var qualificationRetirement: [String: Any] = [:]
@@ -147,7 +155,7 @@ final class Worker {
         let cacheThreads = Array(compilationCaches.keys)
         #endif
         model = nil; path = nil; architecture = nil; loadSeconds = nil; gateURL = nil
-        stockReason = "No model loaded."; optimizations = [:]
+        stockReason = "No model loaded."; optimizations = [:]; disabledComponents = [:]
         try withError {
             Stream.gpu.synchronize()
             STTRuntime.clearModelIndependentCaches()
@@ -209,10 +217,13 @@ final class Worker {
         gateURL = type.flatMap { try? FastPathGate.statusURL(path, revision: $0.fastPathRevision) }
         let loaded = try await loadStock(path, architecture: architecture)
         self.architecture = architecture
-        optimizations = [:]
+        optimizations = [:]; disabledComponents = [:]
         if let capable = loaded as? any FastPathCapable, let verdict {
             switch verdict {
-            case .fast:
+            case .fast(let disabled):
+                // Two-stage gate: a tolerant component whose own self-test failed stays off; the rest is optimized.
+                disabledComponents = disabled
+                capable.fastPathDisabledComponents = Set(disabled.keys)
                 if capable.configureFastPath(enabled: true, component: "both") {
                     stockReason = nil; optimizations = capable.fastPathComponents
                 } else {
@@ -260,6 +271,7 @@ final class Worker {
                     trackCompilationCache()
                     do { output = try runStock(model, input, parameters) }
                     catch {
+                        // fastPathDisabledComponents still holds the gate's verdict: restored without them.
                         if !capable.configureFastPath(enabled: true, component: "both") {
                             stockReason = "The optimized path could not be restored after a failed request."
                         }
@@ -302,6 +314,8 @@ final class Worker {
             "optimizations": optimizations, "load_s": loadSeconds ?? NSNull(), "memory": memory, "gpu": Self.gpu,
         ]
         if !hooks.isEmpty { object["test_hooks"] = hooks }
+        // Per-component self-test result: components off because their own tolerance test failed, and why.
+        if !disabledComponents.isEmpty { object["disabled_components"] = disabledComponents }
         return object
     }
 

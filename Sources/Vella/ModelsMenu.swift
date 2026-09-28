@@ -150,6 +150,12 @@ struct ModelTable: View {
     static let werHeaderHelp = "Word error rate: the percentage of words wrong \u{2014} substituted, missed or added \u{2014} out of the words spoken. The industry-standard accuracy metric, as on the Hugging Face Open ASR Leaderboard. Lower is better. Our v2 benchmark is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards."
     static let formatHeaderHelp = "Our own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. Lower is better."
     static let speedHeaderHelp = "Real-time factor (RTFx): audio seconds per processing second. Higher is faster."
+    static let energyHeaderHelp = "Joules per minute of audio: whole-chip energy, net of idle. Lower is better."
+    static let memoryHeaderHelp = "Peak memory of Vella's model worker with the model loaded. Lower is better."
+    static let diskHeaderHelp = "Download size of the selected precision; for one made on this Mac, the size of the weights it is made from."
+    /// The column headings' tooltips (the Q heading's is inline), for the render harness's table-tooltips.txt.
+    static let headerHelps: [(String, String)] = [("WER", werHeaderHelp), ("Format", formatHeaderHelp), ("Speed", speedHeaderHelp),
+                                                  ("J / min", energyHeaderHelp), ("Memory", memoryHeaderHelp), ("On disk", diskHeaderHelp)]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -157,13 +163,13 @@ struct ModelTable: View {
                 heading("Model", .name, W.model, .leading)
                 plainHeading("Languages", W.languages, .trailing, help: "Languages the model transcribes.")
                 plainHeading("Params", W.params, .trailing, help: "Model size in parameters.")
-                plainHeading("Q", W.precision, .leading, help: "Weight precision in bits: 32 is FP32, 16 is BF16, 8 and 4 are quantized; an FP16 model shows FP16. Levels below the native precision are made on this Mac from it. Green is recommended: lowest energy per audio minute within 0.5 pt WER of the native precision; faster, then more bits, break ties.")
+                plainHeading("Q", W.precision, .leading, help: "Weight precision in bits: 32 is FP32, 16 is BF16, 8 and 4 are quantized; an FP16 model shows FP16. Levels below the native precision are made on this Mac from it. Green is recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (English WER within 0.1 pt, up to 0.2 pt for a model with measured run-to-run noise; other languages; no dropped segments); faster, then more bits, break ties. Its tooltip names any more efficient precision that was rejected, and why.")
                 heading("WER", .wer, W.wer, .trailing, help: Self.werHeaderHelp)
                 heading("Format", .format, W.format, .trailing, help: Self.formatHeaderHelp)
                 heading("Speed", .speed, W.speed, .trailing, help: Self.speedHeaderHelp)
-                heading("J / min", .energy, W.energy, .trailing, help: "Joules per minute of audio: whole-chip energy, net of idle. Lower is better.")
-                heading("Memory", .memory, W.memory, .trailing, help: "Memory with the model loaded, after warm-up.")
-                heading("On disk", .disk, W.disk, .trailing, help: "Download size of the selected precision; for one made on this Mac, its measured size.")
+                heading("J / min", .energy, W.energy, .trailing, help: Self.energyHeaderHelp)
+                heading("Memory", .memory, W.memory, .trailing, help: Self.memoryHeaderHelp)
+                heading("On disk", .disk, W.disk, .trailing, help: Self.diskHeaderHelp)
                 Text("").frame(width: W.button + W.trash + 6)
             }.padding(.horizontal, 6)
             Divider().opacity(0.35)
@@ -237,7 +243,7 @@ struct ModelTable: View {
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
                 .help(werHelp(bench))
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
-                .help(bench?.format == nil ? notMeasured : "Our case and punctuation measure: character error rate with case and punctuation kept; lower is better." + suiteText(bench) + measured(bench))
+                .help(formatHelp(bench))
             HStack(spacing: 2) {
                 if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 8)).foregroundStyle(.orange).accessibilityLabel("very slow")
@@ -246,9 +252,9 @@ struct ModelTable: View {
             }.frame(width: W.speed, alignment: .trailing)
                 .help(speedHelp(family, bench))
             metric(formatEnergy(bench?.j_per_min), compare ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot)
-                .help(bench?.j_per_min == nil ? notMeasured : "Joules per minute of audio: whole-chip energy (CPU, GPU, Neural Engine, memory) while transcribing, net of idle." + measured(bench))
+                .help(energyHelp(bench))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
-                .help(bench?.memory_mb == nil ? notMeasured : "Memory with this model loaded, after warm-up." + measured(bench))
+                .help(memoryHelp(bench))
             Text(controller.disk(family, precision).map(formatBytes) ?? "—").frame(width: W.disk, alignment: .trailing)
                 .foregroundStyle(installed == nil ? (hot ? Color(nsColor: .selectedMenuItemTextColor).opacity(0.6) : Color.secondary) : (hot ? Color(nsColor: .selectedMenuItemTextColor) : Color.primary))
                 .help(diskHelp(family, precision, installed: installed != nil))
@@ -292,17 +298,17 @@ struct ModelTable: View {
                 .help(referenceHelp(r))
             Text("\u{2014}").frame(width: W.languages, alignment: .trailing)
             Text("\u{2014}").frame(width: W.params, alignment: .trailing)
-                .help("Not disclosed.")
+                .help(Self.referenceParams)
             Text("").frame(width: W.precision, alignment: .leading)
             metric(formatEstimatedErrorRate(r.wer), nil, W.wer, hot: false)
-                .help(referenceWERHelp(r, languageName: languageName))
+                .help(referenceWERBasis(r))
             metric(nil, nil, W.format, hot: false)
-                .help("Not estimated: our case and punctuation measure has no public counterpart to anchor on.")
+                .help(Self.referenceFormat)
             metric(nil, nil, W.speed, hot: false).help(Self.referenceNotApplicable)
             metric(nil, nil, W.energy, hot: false).help(Self.referenceNotApplicable)
             metric(nil, nil, W.memory, hot: false).help(Self.referenceNotApplicable)
             Text("API").frame(width: W.disk, alignment: .trailing)
-                .help("Cloud service; nothing to download. Vella never sends audio to it.")
+                .help(Self.referenceDisk)
             Text("").frame(width: W.button + W.trash + 6)
         }.font(.system(size: 11, design: .monospaced))
             .padding(.horizontal, 6).frame(height: 30)
@@ -311,8 +317,16 @@ struct ModelTable: View {
             .accessibilityElement(children: .combine)
     }
     static let referenceNotApplicable = "Not applicable: a cloud API runs on the provider's servers."
+    static let referenceParams = "Not disclosed by the provider."
+    static let referenceFormat = "Not estimated: our case and punctuation measure has no public counterpart to anchor on."
+    static let referenceDisk = "Cloud service; nothing to download. Vella never sends audio to it."
     private func referenceHelp(_ r: ReferenceEntry) -> String {
-        "\(r.name): a cloud API shown for comparison only. Vella never sends audio to it; its WER is estimated, not measured by us."
+        let what = "a proprietary cloud speech-to-text API" + (r.provider.map { " from \($0)" } ?? "")
+        return "\(r.name): \(what), shown for comparison only. Vella never sends audio to it; its WER is estimated, not measured by us."
+    }
+    /// The estimate's basis (source board, method, range) plus when we made it.
+    private func referenceWERBasis(_ r: ReferenceEntry) -> String {
+        referenceWERHelp(r, languageName: languageName) + (r.wer != nil ? r.date.map { " Estimate made \($0)." } ?? "" : "")
     }
 
     private func title(_ action: LoadAction, loading: Bool, downloading: Bool, library: ModelLibrary) -> String {
@@ -348,10 +362,14 @@ struct ModelTable: View {
     private func diskHelp(_ family: ModelFamily, _ precision: String, installed: Bool) -> String {
         guard let v = family.variants[precision] else { return "No download at this precision." }
         if let source = controller.derivedSource(family, precision) {
-            let size = controller.disk(family, precision) == nil ? " Size not measured yet." : " Measured size of the weights made on this Mac."
-            return "Made on this Mac from the \(precisionFormatName(source)) weights; nothing extra to download." + size
+            // Derived precisions are made tensor by tensor at load (DerivedModels.swift); only the source is stored.
+            let r = controller.result(family, precision)
+            let size = controller.disk(family, precision) == nil ? " Size not measured yet."
+                : " The size is those \(precisionFormatName(source)) files on disk." + measured(r)
+            return "Made on this Mac at load from the \(precisionFormatName(source)) weights; nothing extra is downloaded or stored." + size
         }
-        return installed ? "Downloaded from Hugging Face: \(v.repository)." : "Not downloaded: \(formatBytes(v.downloadBytes)) from Hugging Face (\(v.repository)), after you confirm."
+        let basis = " The size is the pinned Hugging Face revision's files."
+        return (installed ? "Downloaded from Hugging Face: \(v.repository)." : "Not downloaded: \(formatBytes(v.downloadBytes)) from Hugging Face (\(v.repository)), after you confirm.") + basis
     }
 
     /// Value on top, delta vs the recommended precision beneath it in small type.
@@ -389,10 +407,18 @@ struct ModelTable: View {
 
     private let notMeasured = "Not measured at this precision."
 
+    /// Who measured a figure, on which Mac and when. Every local figure is ours (lab/bench); cloud rows are estimates.
     private func measured(_ r: PrecisionResult?) -> String {
         guard let r else { return "" }
-        let at = [r.date, r.hardware].compactMap { $0 }.joined(separator: ", ")
-        return at.isEmpty ? "" : " Measured \(at)."
+        let on = r.hardware.map { " on \($0)" } ?? ""
+        let when = r.date.map { ", \($0)" } ?? ""
+        return on.isEmpty && when.isEmpty ? " Measured by us." : " Measured by us\(on)\(when)."
+    }
+    /// Speed, energy and memory come from one run of the quick suite per precision, in an idle-checked measurement
+    /// window (lab/bench/final_catalog.py `quick` → `record`); accuracy comes from the row's own suite.
+    private var performanceSuite: String {
+        guard let s = controller.benchmarks.suites?["v2-quick"] else { return "" }
+        return " Benchmark \(s.id ?? "v2-quick")" + (s.audio_min.map { String(format: ", %.1f min of audio", $0) } ?? "")
     }
     private func suiteText(_ r: PrecisionResult?) -> String {
         guard let r, let suite = r.suite else { return "" }
@@ -418,7 +444,33 @@ struct ModelTable: View {
             ? "Streaming replay throughput in × real time: how much faster than speech it keeps up, not microphone-to-text latency."
             : "Real-time factor (RTFx): audio seconds per processing second. \(formatSpeed(x) ?? "") means one minute of audio in \(String(format: "%.2f", 60 / x)) s."
         if family.mode == .dictation, x < slowSpeedFloor { text += " Very slow for dictation: under 20× real time." }
-        return text + measured(r)
+        let suite = performanceSuite
+        return text + (suite.isEmpty ? "" : suite + ", timed after loading.") + measured(r)
+    }
+    private func formatHelp(_ r: PrecisionResult?) -> String {
+        guard let r, r.format != nil else { return notMeasured }
+        return "Our case and punctuation measure: character error rate with case and punctuation kept; lower is better." + suiteText(r) + measured(r)
+    }
+    private func energyHelp(_ r: PrecisionResult?) -> String {
+        guard let r, r.j_per_min != nil else { return notMeasured }
+        let suite = performanceSuite
+        return "Joules per minute of audio: whole-chip energy (CPU, GPU, Neural Engine, memory) while transcribing, read from the chip's energy counters, net of its power with the model loaded and idle."
+            + (suite.isEmpty ? "" : suite + ".") + measured(r)
+    }
+    private func memoryHelp(_ r: PrecisionResult?) -> String {
+        guard let r, r.memory_mb != nil else { return notMeasured }
+        let suite = performanceSuite
+        return "Peak memory footprint of Vella's model worker with this model loaded, loading included."
+            + (suite.isEmpty ? "" : suite + ".") + measured(r)
+    }
+    /// A catalog licence id (the upstream card's metadata) as its exact name; free-form licences pass through.
+    static func licenseName(_ id: String) -> String {
+        switch id.lowercased() {
+        case "cc-by-4.0": return "CC BY 4.0"
+        case "apache-2.0": return "Apache-2.0"
+        case "mit": return "MIT"
+        default: return id
+        }
     }
     private func languagesHelp(_ family: ModelFamily) -> String {
         guard !family.languages.isEmpty else { return "Languages not listed." }
@@ -428,7 +480,7 @@ struct ModelTable: View {
         var parts = ["\(family.name) · \(family.params.isEmpty ? "size not listed" : family.params + " parameters") · native \(precisionFormatName(family.native))."]
         if let notes = family.notes, !notes.isEmpty { parts.append(notes) }
         if let loaded { parts.append("Loaded at \(precisionFormatName(loaded.precision))" + (loaded.residency == "on_demand" ? " on demand." : loaded.residency == "manual" ? ", kept hot." : ".")) }
-        parts.append("License: \(family.license).")
+        parts.append("License: \(Self.licenseName(family.license)).")
         return parts.joined(separator: " ")
     }
 
@@ -439,15 +491,17 @@ struct ModelTable: View {
         let installed = controller.installed(family, precision) != nil
         let head: [(String, String)] = [("Model", modelHelp(family, loaded: controller.loaded(family))), ("Languages", languagesHelp(family))]
         return head + controller.options(family).map { ("Q \($0)", controller.segmentHelp(family, $0)) } + [
+                ("WER", werHelp(r)), ("Format", formatHelp(r)), ("Speed", speedHelp(family, r)),
+                ("J / min", energyHelp(r)), ("Memory", memoryHelp(r)),
                 ("On disk", diskHelp(family, precision, installed: installed)),
-                ("WER", werHelp(r)), ("Speed", speedHelp(family, r)),
                 ("Action", actionHelp(controller.action(family), family: family, precision: precision, loaded: controller.loaded(family)?.precision))]
     }
 
     /// A reference row's tooltips as (column, text), for table-tooltips.txt.
     func tooltips(_ r: ReferenceEntry) -> [(String, String)] {
-        [("Model", referenceHelp(r)), ("WER", referenceWERHelp(r, languageName: languageName)), ("Speed", Self.referenceNotApplicable),
-         ("On disk", "Cloud service; nothing to download. Vella never sends audio to it.")]
+        [("Model", referenceHelp(r)), ("Params", Self.referenceParams), ("WER", referenceWERBasis(r)), ("Format", Self.referenceFormat),
+         ("Speed", Self.referenceNotApplicable), ("J / min", Self.referenceNotApplicable), ("Memory", Self.referenceNotApplicable),
+         ("On disk", Self.referenceDisk)]
     }
 
     /// This Mac's chip: the runtime's, else the CPU brand string.

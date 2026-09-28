@@ -20,9 +20,22 @@ final class StubModel: STTGenerationModel, FastPathCapable {
         return AsyncThrowingStream { continuation in continuation.yield(.result(output)); continuation.finish() }
     }
     func configureFastPath(enabled: Bool, component: String) -> Bool { fast = enabled; return enabled }
-    var fastPathFinite: Bool { true }
-    func qualificationTokens(audio: MLXArray) -> [Int] { [1, 2, 3] }
-    var fastPathComponents: [String: Bool] { ["stub": true] }
+    /// Two-stage gate test hook (`VELLA_TEST_TOLERANT_FAULT`, part of the gate key): the stub gains a tolerant
+    /// component `stub_tolerant` whose output differs from stock by one word per clip (`edit`, within tolerance),
+    /// by two (`edits`, over it) or is non-finite (`nonfinite`).
+    static var tolerantFault: String? { ProcessInfo.processInfo.environment["VELLA_TEST_TOLERANT_FAULT"].flatMap { $0.isEmpty ? nil : $0 } }
+    var disabled: Set<String> = []
+    var fastPathDisabledComponents: Set<String> { get { disabled } set { disabled = newValue } }
+    var fastPathTolerantComponents: [String] { Self.tolerantFault == nil ? [] : ["stub_tolerant"] }
+    private var tolerantActive: Bool { fast && Self.tolerantFault != nil && !disabled.contains("stub_tolerant") }
+    var fastPathFinite: Bool { !(tolerantActive && Self.tolerantFault == "nonfinite") }
+    func qualificationTokens(audio: MLXArray) -> [Int] {
+        guard tolerantActive else { return [1, 2, 3] }
+        return Self.tolerantFault == "edits" ? [1, 7, 8] : [1, 2, 7]
+    }
+    var fastPathComponents: [String: Bool] {
+        Self.tolerantFault == nil ? ["stub": true] : ["stub": true, "stub_tolerant": tolerantActive]
+    }
     var fastPathSelfTestClips: [String] { ["clip-a"] }
     static var fastPathRevision: String { "stub-1" }
 }

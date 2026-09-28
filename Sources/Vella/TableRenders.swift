@@ -217,7 +217,7 @@ import VellaUpdate
             let controller = RenderFixture.controller(installed: RenderFixture.downloaded)
             controller.runtime = TableRuntime(chip: RenderFixture.chip)
             let table = ModelTable(controller: controller)
-            let headers = ["Header · WER: \(ModelTable.werHeaderHelp)", "Header · Format: \(ModelTable.formatHeaderHelp)", "Header · Speed: \(ModelTable.speedHeaderHelp)", ""]
+            let headers = ModelTable.headerHelps.map { "Header · \($0.0): \($0.1)" } + [""]
             let lines = headers + [RecognitionMode.dictation, .streaming].flatMap { mode in
                 controller.families(mode).flatMap { family in table.tooltips(family).map { "\(family.name) · \($0.0): \($0.1)" } + [""] }
                     + controller.references(mode).flatMap { r in table.tooltips(r).map { "\(r.name) · \($0.0): \($0.1)" } + [""] }

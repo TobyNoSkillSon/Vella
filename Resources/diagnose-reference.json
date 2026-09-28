@@ -2,7 +2,7 @@
  "app_version": "1.0.0 (35)",
  "chip": "Apple M5 Max",
  "date": "2026-09-28",
- "gate_version": "native-kernels-8",
+ "gate_version": "native-kernels-10",
  "gpu_family": "apple9",
  "hardware": "Apple M5 Max, macOS 26.6",
  "method": "api",
