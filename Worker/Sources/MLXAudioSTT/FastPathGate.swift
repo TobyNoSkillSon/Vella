@@ -18,7 +18,8 @@ public enum FastPathGate {
     /// Bumped to 8 with the component configuration in the key: a verdict persisted earlier may have
     /// been qualified under a diagnostic component override, so every model requalifies once.
     /// 9: two-stage gate with tolerance self-tests for inexact components (GATE-REVISION.md).
-    public static let version = "native-kernels-9"
+    /// 10: Parakeet NAX GEMMs on by default; Qwen3-ASR's BF16 audio encoder off by default.
+    public static let version = "native-kernels-10"
     /// Child exit status when the self-test could not start (not a verdict on the kernels).
     public static let inconclusive: Int32 = 3
     /// Child exit status for evidence against the optimized path.

@@ -17,9 +17,9 @@ final class DiagnoseCLITests: XCTestCase {
         let support = api.runtime.support
         let gate = support.appendingPathComponent("Worker/FastPath")
         try FileManager.default.createDirectory(at: gate, withIntermediateDirectories: true)
-        try JSONSerialization.data(withJSONObject: ["status": "stock", "workerVersion": "native-kernels-9", "model": "fake-b",
+        try JSONSerialization.data(withJSONObject: ["status": "stock", "workerVersion": "native-kernels-10", "model": "fake-b",
                                                     "reason": "self-test timed out (45 s)"]).write(to: gate.appendingPathComponent("k1.json"))
-        try JSONSerialization.data(withJSONObject: ["status": "fast", "workerVersion": "native-kernels-9"]).write(to: gate.appendingPathComponent("k2.json"))
+        try JSONSerialization.data(withJSONObject: ["status": "fast", "workerVersion": "native-kernels-10"]).write(to: gate.appendingPathComponent("k2.json"))
 
         var (code, out, err) = try await vella(support, ["diagnose"])
         XCTAssertEqual(code, 0, err)

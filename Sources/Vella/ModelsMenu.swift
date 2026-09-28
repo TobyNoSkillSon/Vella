@@ -163,7 +163,7 @@ struct ModelTable: View {
                 heading("Model", .name, W.model, .leading)
                 plainHeading("Languages", W.languages, .trailing, help: "Languages the model transcribes.")
                 plainHeading("Params", W.params, .trailing, help: "Model size in parameters.")
-                plainHeading("Q", W.precision, .leading, help: "Weight precision in bits: 32 is FP32, 16 is BF16, 8 and 4 are quantized; an FP16 model shows FP16. Levels below the native precision are made on this Mac from it. Green is recommended: lowest energy per audio minute within the model's WER tolerance of the native precision (0.1 pt, up to 0.2 pt for a model with measured run-to-run noise); faster, then more bits, break ties. Its tooltip names any precision rejected for more word errors.")
+                plainHeading("Q", W.precision, .leading, help: "Weight precision in bits: 32 is FP32, 16 is BF16, 8 and 4 are quantized; an FP16 model shows FP16. Levels below the native precision are made on this Mac from it. Green is recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (English WER within 0.1 pt, up to 0.2 pt for a model with measured run-to-run noise; other languages; no dropped segments); faster, then more bits, break ties. Its tooltip names any more efficient precision that was rejected, and why.")
                 heading("WER", .wer, W.wer, .trailing, help: Self.werHeaderHelp)
                 heading("Format", .format, W.format, .trailing, help: Self.formatHeaderHelp)
                 heading("Speed", .speed, W.speed, .trailing, help: Self.speedHeaderHelp)

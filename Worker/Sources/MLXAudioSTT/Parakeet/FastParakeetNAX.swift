@@ -64,10 +64,11 @@ using namespace mpp::tensor_ops;
         return generation >= (family == "p" ? 18 : 17)
     }()
 
-    /// The one default switch. Off until the kernel passes the full-v2 gate of lab/notes/GATE-REVISION.md for Ultra
-    /// and v3 BF16 (on M5 Max it made the v2-mini run ~10 % faster; its reordered sums flip near-tie tokens: Ultra
-    /// BF16 v2-quick English +3 words vs the fused MLX-GEMM path). Flipping it also needs a FastPathGate.version bump.
-    static let enabledByDefault = false
+    /// The one default switch. On since 28 Sep: the kernel passed the full-v2 gate of lab/notes/GATE-REVISION.md for
+    /// Ultra and v3 BF16 against the fused MLX-GEMM path and stock (lab/bench/GATE-RESULTS.md); on M5 Max it made the
+    /// v2-mini run ~10 % faster. Its reordered sums flip near-tie tokens, so it is the gate's one tolerant Parakeet
+    /// component. Flipping it needs a FastPathGate.version bump.
+    static let enabledByDefault = true
     /// `VELLA_PARAKEET_NAX=1` / `=0` overrides the default (part of the gate key). An eligible checkpoint then
     /// self-tests the kernel within a tolerance (ParakeetModel.naxMaxDeviation, ≤ 1 word edit over the clips); a
     /// failure disables only the kernel and keeps the fused path.

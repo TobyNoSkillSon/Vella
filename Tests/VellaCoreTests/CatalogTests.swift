@@ -178,7 +178,7 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(recommendedPrecision(qwen, native: "BF16"), "8b")
         XCTAssertEqual(recommendationHelp(qwen, recommended: "8b", native: "BF16"),
                        "Recommended: lowest energy per audio minute within 0.1 pt WER of the native precision (BF16). "
-                       + "4-bit uses 20% less energy but has 0.30 pt more word errors (0.34 pt over BF16; limit 0.1 pt).")
+                       + "4-bit uses 20% less energy (55 J vs 68 J per audio minute) but has 0.30 pt more word errors (0.34 pt over BF16; limit 0.1 pt).")
         var measured = qwen; measured.tolerance_pt = 0.15
         XCTAssertTrue(recommendationHelp(measured, recommended: "8b", native: "BF16").hasSuffix("(0.34 pt over BF16; limit 0.15 pt)."))
         // Not offered → not a trade the user can make.
@@ -193,7 +193,43 @@ final class CatalogTests: XCTestCase {
                        "Recommended: fastest measured precision within 0.1 pt WER of the native precision (BF16); energy not measured.")
         let partial = FamilyBenchmark(precisions: ["BF16": r(5, j: 2, x: 10), "4b": r(5.5, j: 2, x: 30)])
         XCTAssertTrue(recommendationHelp(partial, recommended: "BF16", native: "BF16").hasSuffix(
-            " 4-bit is 3.0× faster but has 0.50 pt more word errors (0.50 pt over BF16; limit 0.1 pt)."))
+            " 4-bit is 3.0× faster (30.0× vs 10.0× real time) but has 0.50 pt more word errors (0.50 pt over BF16; limit 0.1 pt)."))
+    }
+
+    /// With gate verdicts in the file, `gate.pass` decides (thresholds live in the benchmark tools); the native
+    /// precision is always a candidate; a precision without a verdict falls back to the English-WER tolerance.
+    func testRecommendedFollowsTheGateVerdict() {
+        func g(_ wer: Double, j: Double, pass: Bool?, _ reasons: [String] = []) -> PrecisionResult {
+            var result = r(wer, j: j); result.gate = pass.map { GateResult(pass: $0, reasons: reasons) }; return result
+        }
+        // Qwen3-ASR 1.7B under the gate: 8b and 4b fail on the multilingual mean → BF16, the trades stated.
+        let qwen = FamilyBenchmark(precisions: [
+            "BF16": g(15.03, j: 75.47, pass: nil),
+            "8b": g(15.07, j: 67.78, pass: false, ["multilingual mean +0.48 pt (limit 0.10)", "Turkish +2.55 pt (limit 2.0)"]),
+            "4b": g(15.37, j: 54.51, pass: false, ["English +0.34 pt (limit 0.10)"])])
+        XCTAssertEqual(recommendedPrecision(qwen, native: "BF16"), "BF16")
+        XCTAssertEqual(recommendationHelp(qwen, recommended: "BF16", native: "BF16"),
+                       "Recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (BF16). "
+                       + "4-bit uses 28% less energy (55 J vs 75 J per audio minute) but fails the quality gate: English +0.34 pt (limit 0.10). "
+                       + "8-bit uses 10% less energy (68 J vs 75 J per audio minute) but fails the quality gate: multilingual mean +0.48 pt (limit 0.10); Turkish +2.55 pt (limit 2.0).")
+        // A pass beyond the English tolerance (decided by the tools, e.g. on streaming speed) is taken, and said.
+        let stream = FamilyBenchmark(precisions: [
+            "BF16": g(23.42, j: 78.92, pass: false),
+            "8b": g(23.47, j: 47.02, pass: true, ["passes on speed: 1.47x faster than BF16 with English within 0.10 pt; multilingual mean +0.60 pt"]),
+            "4b": g(32.97, j: 40.2, pass: false, [])])
+        XCTAssertEqual(recommendedPrecision(stream, native: "BF16"), "8b", "native's own gate field is ignored")
+        XCTAssertEqual(recommendationHelp(stream, recommended: "8b", native: "BF16"),
+                       "Recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (BF16). "
+                       + "8-bit: passes on speed: 1.47x faster than BF16 with English within 0.10 pt; multilingual mean +0.60 pt. "
+                       + "4-bit uses 15% less energy (40 J vs 47 J per audio minute) but fails the quality gate.")
+        let wide = FamilyBenchmark(precisions: ["BF16": g(5, j: 3, pass: nil), "4b": g(9, j: 1, pass: true)])
+        XCTAssertEqual(recommendedPrecision(wide, native: "BF16"), "4b")
+        // A failed verdict wins over an English WER inside the tolerance.
+        let failed = FamilyBenchmark(precisions: ["BF16": g(5, j: 3, pass: nil), "8b": g(5.0, j: 2, pass: false, ["1 empty segment"])])
+        XCTAssertEqual(recommendedPrecision(failed, native: "BF16"), "BF16")
+        // Mixed file: a precision without a verdict uses the tolerance.
+        let mixed = FamilyBenchmark(precisions: ["BF16": g(5, j: 3, pass: nil), "8b": g(5.05, j: 2, pass: nil), "4b": g(5.3, j: 1, pass: false)])
+        XCTAssertEqual(recommendedPrecision(mixed, native: "BF16"), "8b")
     }
 
     func testRecommendedTiesMissingEnergyAndOptions() {
@@ -379,7 +415,8 @@ final class CatalogTests: XCTestCase {
         let all = docs.joined(separator: "\n")
         XCTAssertEqual(defaultRecommendationTolerancePoints, 0.1)
         XCTAssertEqual(maximumRecommendationTolerancePoints, 0.2)
-        XCTAssertTrue(all.contains("within 0.1 points") && all.contains("up to 0.2 points"), "recommended-precision tolerance")
+        XCTAssertTrue(all.contains("pass Vella's quality gate") && all.contains("within 0.1 points") && all.contains("up to 0.2 points"),
+                      "recommended precision: the quality gate and its English tolerance")
         XCTAssertFalse(all.contains("0.5 points"), "retired 0.5-point margin")
         XCTAssertTrue(docs[0].contains("Mode · Microphone · Shortcuts") && docs[0].contains("Models… · Keep Hot · Memory"), "menu order")
         XCTAssertEqual(keepHotChoices.map(\.minutes), [5, 15, 30, 60, 0])

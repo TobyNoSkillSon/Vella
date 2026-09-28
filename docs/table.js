@@ -89,7 +89,7 @@ function tooltip(row, key) {
  }
  switch (key) {
   case 'name': return `Licence: ${row.family.license}.${row.family.offered ? '' : ' Measured, but not offered in the app.'}${row.url ? ' Opens the model on Hugging Face.' : ''}`;
-  case 'q': return formatName(row.label) + (row.published ? ', published' : ', made on the Mac from the higher precision') + (row.recommended ? '. Recommended: lowest energy per audio minute within 0.1 points of the native precision\'s WER (up to 0.2 points for a model with measured run-to-run noise).' : '.');
+  case 'q': return formatName(row.label) + (row.published ? ', published' : ', made on the Mac from the higher precision') + (row.recommended ? '. Recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (English WER within 0.1 points, up to 0.2 points for a model with measured run-to-run noise; other languages, no dropped segments).' : '.');
   case 'wer': return row.byLanguage ? `By language: ${byLanguage(row.byLanguage, false)}.` : '';
   case 'speed': return row.engine === 'optimized' ? 'Vella\'s optimized path, self-tested against stock MLX.' : row.engine === 'mlx' ? 'Stock MLX path.' : '';
   case 'date': return [row.hardware, row.note].filter(Boolean).join('. ');

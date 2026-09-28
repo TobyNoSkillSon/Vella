@@ -245,6 +245,20 @@ public struct MultilingualResult: Codable, Equatable {
 
 /// Measured figures for one family at one precision. Every field is optional: absent = not measured (`—`).
 /// `wer` and `format` are percentages (5.12 = 5.12 %).
+/// The quality-gate verdict of a lower precision against the native one (lab/notes/GATE-REVISION.md), written per
+/// precision by the benchmark tools (lab/bench/gate_check.py). `reasons` are short, user-readable: why it failed, or
+/// on what grounds it passed when that needs saying (e.g. a streaming model passing on speed).
+public struct GateResult: Codable, Equatable {
+    public var pass: Bool
+    public var reasons: [String]
+    public init(pass: Bool, reasons: [String] = []) { self.pass = pass; self.reasons = reasons }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        pass = try c.decode(Bool.self, forKey: .pass)
+        reasons = (try? c.decodeIfPresent([String].self, forKey: .reasons)) ?? []
+    }
+}
+
 public struct PrecisionResult: Codable, Equatable {
     public var wer: Double?
     public var format: Double?
@@ -259,12 +273,15 @@ public struct PrecisionResult: Codable, Equatable {
     public var hardware: String?
     public var engine: String?
     public var note: String?
+    /// The quality gate against the native precision; nil in files written before the gate (then the English-WER
+    /// tolerance decides, see `recommendedPrecision`).
+    public var gate: GateResult?
     public init(wer: Double? = nil, format: Double? = nil, multilingual: MultilingualResult? = nil, speed_x: Double? = nil, j_per_min: Double? = nil,
                 memory_mb: Double? = nil, disk_mb: Double? = nil, suite: String? = nil, audio_min: Double? = nil, date: String? = nil,
-                hardware: String? = nil, engine: String? = nil, note: String? = nil) {
+                hardware: String? = nil, engine: String? = nil, note: String? = nil, gate: GateResult? = nil) {
         self.wer = wer; self.format = format; self.multilingual = multilingual; self.speed_x = speed_x; self.j_per_min = j_per_min
         self.memory_mb = memory_mb; self.disk_mb = disk_mb; self.suite = suite; self.audio_min = audio_min; self.date = date
-        self.hardware = hardware; self.engine = engine; self.note = note
+        self.hardware = hardware; self.engine = engine; self.note = note; self.gate = gate
     }
     public init(from decoder: Decoder) throws {
         // A wrongly typed field is treated as not measured rather than dropping the whole result.
@@ -276,6 +293,7 @@ public struct PrecisionResult: Codable, Equatable {
         suite = try? c.decodeIfPresent(String.self, forKey: .suite); audio_min = try? c.decodeIfPresent(Double.self, forKey: .audio_min)
         date = try? c.decodeIfPresent(String.self, forKey: .date); hardware = try? c.decodeIfPresent(String.self, forKey: .hardware)
         engine = try? c.decodeIfPresent(String.self, forKey: .engine); note = try? c.decodeIfPresent(String.self, forKey: .note)
+        gate = try? c.decodeIfPresent(GateResult.self, forKey: .gate)
     }
 }
 
@@ -504,19 +522,28 @@ private func ranksBefore(_ a: (label: String, result: PrecisionResult), _ b: (la
         ?? ((labelBits(a.label) ?? 0) != (labelBits(b.label) ?? 0) ? (labelBits(a.label) ?? 0) > (labelBits(b.label) ?? 0) : a.label > b.label)
 }
 
-/// The recommended precision: among measured precisions (WER present) whose WER is at most the NATIVE precision's
-/// WER + the family's tolerance (`recommendationTolerance`), the lowest J / min; ties → faster; then higher bits. The
-/// native precision is the reference, so benchmark noise at a lossy setting cannot move the bar. A precision without
-/// energy (or speed) ranks after those with it. `options` limits candidates to offered precisions. Nil when native WER
-/// is not measured. The benchmark script that writes benchmarks.json applies the same rule
-/// (lab/fixtures/recommended_precision.py, cross-checked by CatalogTests).
+/// Whether a measured precision may be recommended: the native precision always; another one when its quality gate
+/// against native passed (`gate.pass`), or, in a file without a gate verdict for it, when its WER is at most the
+/// native WER + the family's tolerance. The thresholds live in the benchmark tools, not here.
+func passesGate(_ label: String, _ r: PrecisionResult, native: String, nativeWER: Double, tolerance: Double) -> Bool {
+    if label == native { return true }
+    if let gate = r.gate { return gate.pass }
+    guard let wer = r.wer else { return false }
+    // 1e-9 absorbs float error: 5.22 − 5.12 is not exactly 0.1.
+    return wer <= nativeWER + tolerance + 1e-9
+}
+
+/// The recommended precision: among the native precision and the measured precisions (WER present) that pass the
+/// quality gate against it (`passesGate`), the lowest J / min; ties → faster (higher × real time); then higher bits.
+/// A precision without energy (or speed) ranks after those with it. `options` limits candidates to offered
+/// precisions. Nil when native WER is not measured. The benchmark script that writes benchmarks.json applies the same
+/// rule (lab/fixtures/recommended_precision.py, cross-checked by CatalogTests).
 public func recommendedPrecision(_ benchmark: FamilyBenchmark?, native: String, options: [String]? = nil) -> String? {
     guard let benchmark, let reference = benchmark.result(native)?.wer else { return nil }
-    let limit = reference + recommendationTolerance(benchmark)
+    let tolerance = recommendationTolerance(benchmark)
     let measured: [(label: String, result: PrecisionResult)] = benchmark.precisions.compactMap { label, r in
-        guard let wer = r.wer, options?.contains(label) ?? true,
-              // 1e-9 absorbs float error: 5.22 − 5.12 is not exactly 0.1.
-              wer <= limit + 1e-9 else { return nil }
+        guard r.wer != nil, options?.contains(label) ?? true,
+              passesGate(label, r, native: native, nativeWER: reference, tolerance: tolerance) else { return nil }
         return (label, r)
     }
     return measured.min(by: ranksBefore)?.label
@@ -556,32 +583,43 @@ func formatPoints(_ value: Double) -> String {
     return text
 }
 
-/// Tooltip of the recommended segment: which criterion chose it (energy only when energy was measured), and the trade
-/// for every offered precision that would have ranked first but lost more WER than the tolerance allows, with the
-/// numbers from benchmarks.json, e.g. `4-bit uses 20% less energy but has 0.30 pt more word errors (0.34 pt over BF16;
-/// limit 0.1 pt).`
+/// Tooltip of the recommended segment: which criterion chose it (energy only when energy was measured); on what
+/// grounds the recommended precision passed when its gate says so; and, for every offered precision that would have
+/// ranked first but failed, the trade with the file's numbers and the gate's reasons, e.g. `4-bit uses 28% less
+/// energy (55 J vs 75 J per audio minute) but fails the quality gate: multilingual mean +0.48 pt (limit 0.10).`
 public func recommendationHelp(_ benchmark: FamilyBenchmark?, recommended: String, native: String, options: [String]? = nil) -> String {
     let tolerance = recommendationTolerance(benchmark)
-    let within = "within \(formatPoints(tolerance)) pt WER of the native precision (\(native))"
+    let gated = benchmark?.precisions.contains { $0.key != native && $0.value.gate != nil } ?? false
+    let criterion = gated ? "among the precisions that pass the quality gate against the native precision (\(native))"
+                          : "within \(formatPoints(tolerance)) pt WER of the native precision (\(native))"
     guard let benchmark, let chosen = benchmark.result(recommended), chosen.j_per_min != nil else {
-        return "Recommended: fastest measured precision \(within); energy not measured."
+        return "Recommended: fastest measured precision \(criterion); energy not measured."
     }
-    var text = "Recommended: lowest energy per audio minute \(within)."
-    guard let nativeWER = benchmark.result(native)?.wer, let chosenWER = chosen.wer else { return text }
+    var text = "Recommended: lowest energy per audio minute \(criterion)."
+    if recommended != native, let gate = chosen.gate, gate.pass, !gate.reasons.isEmpty {
+        text += " \(precisionInProse(recommended)): \(gate.reasons.joined(separator: "; "))."
+    }
+    guard let nativeWER = benchmark.result(native)?.wer else { return text }
     let rejected = benchmark.precisions.filter { label, r in
-        guard label != recommended, options?.contains(label) ?? true, let wer = r.wer else { return false }
-        return wer > nativeWER + tolerance + 1e-9 && ranksBefore((label, r), (recommended, chosen))
+        guard label != recommended, options?.contains(label) ?? true, r.wer != nil else { return false }
+        return !passesGate(label, r, native: native, nativeWER: nativeWER, tolerance: tolerance) && ranksBefore((label, r), (recommended, chosen))
     }.sorted { ranksBefore(($0.key, $0.value), ($1.key, $1.value)) }
     for (label, r) in rejected {
         guard let wer = r.wer else { continue }
         let gain: String
-        if let e = energyDelta(r.j_per_min, base: chosen.j_per_min), e.tone == .better {
-            gain = "uses \(e.text) energy"
-        } else if let x = speedDelta(r.speed_x, base: chosen.speed_x), x.tone == .better {
-            gain = "is \(x.text)"
+        if let e = energyDelta(r.j_per_min, base: chosen.j_per_min), e.tone == .better, let a = formatEnergy(r.j_per_min), let b = formatEnergy(chosen.j_per_min) {
+            gain = "uses \(e.text) energy (\(a) vs \(b) per audio minute)"
+        } else if let x = speedDelta(r.speed_x, base: chosen.speed_x), x.tone == .better, let a = formatSpeed(r.speed_x), let b = formatSpeed(chosen.speed_x) {
+            gain = "is \(x.text) (\(a) vs \(b) real time)"
         } else { continue }
-        text += " \(precisionInProse(label)) \(gain) but has \(String(format: "%.2f", wer - chosenWER)) pt more word errors "
-            + "(\(String(format: "%.2f", wer - nativeWER)) pt over \(precisionInProse(native)); limit \(formatPoints(tolerance)) pt)."
+        let why: String
+        if let gate = r.gate {
+            why = "fails the quality gate" + (gate.reasons.isEmpty ? "." : ": " + gate.reasons.joined(separator: "; ") + ".")
+        } else {
+            why = "has \(String(format: "%.2f", wer - (chosen.wer ?? nativeWER))) pt more word errors "
+                + "(\(String(format: "%.2f", wer - nativeWER)) pt over \(precisionInProse(native)); limit \(formatPoints(tolerance)) pt)."
+        }
+        text += " \(precisionInProse(label)) \(gain) but \(why)"
     }
     return text
 }
