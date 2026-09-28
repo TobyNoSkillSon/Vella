@@ -135,7 +135,10 @@ public enum SmallMGEMM {
                                        grid: geometry.grid, threadGroup: geometry.threadGroup,
                                        outputShapes: [[rows, n]], outputDTypes: [x.dtype])[0]
             case .mxfp:
-                return nil
+                let u = up ?? weights
+                out = gemvMXFP4Kernel([x2, weights.w, weights.scales!, u.w, u.scales!, bias ?? placeholder, residual ?? placeholder],
+                                      template: [("T", x.dtype)] + flags, grid: geometry.grid, threadGroup: geometry.threadGroup,
+                                      outputShapes: [[rows, n]], outputDTypes: [x.dtype])[0]
             }
         } else {
             guard up == nil, let simdgroups = tilePlan(m: rows, n: n, k: k, dtype: x.dtype, format: weights.format, epilogue: epilogue.kind)
@@ -160,8 +163,10 @@ public enum SmallMGEMM {
                   let scales = weights.scales, let biases = weights.biases else { return false }
             let groups = [weights.w.dim(0), k / groupSize]
             return scales.shape == groups && biases.shape == groups && scales.dtype == dtype && biases.dtype == dtype
-        case .mxfp:
-            return false
+        case .mxfp(let bits):
+            guard bits == 4, weights.w.dtype == .uint32, weights.w.dim(1) * 8 == k, let scales = weights.scales,
+                  weights.biases == nil else { return false }
+            return scales.dtype == .uint8 && scales.shape == [weights.w.dim(0), k / 32]
         }
     }
 
@@ -224,6 +229,11 @@ public enum SmallMGEMM {
                                         MLX.quantizedMM(x, qw.wq, scales: qw.scales, biases: qw.biases, transpose: true, groupSize: 64, bits: bits),
                                         MLX.quantizedMM(x, qu.wq, scales: qu.scales, biases: qu.biases, transpose: true, groupSize: 64, bits: bits)))
                     }
+                    let mw = MLX.quantized(w, groupSize: 32, bits: 4, mode: .mxfp4), mu = MLX.quantized(u, groupSize: 32, bits: 4, mode: .mxfp4)
+                    formats.append(("mxfp4", Weights(w: mw.wq, scales: mw.scales, format: .mxfp(bits: 4)),
+                                    Weights(w: mu.wq, scales: mu.scales, format: .mxfp(bits: 4)),
+                                    MLX.quantizedMM(x, mw.wq, scales: mw.scales, biases: nil, transpose: true, groupSize: 32, bits: 4, mode: .mxfp4),
+                                    MLX.quantizedMM(x, mu.wq, scales: mu.scales, biases: nil, transpose: true, groupSize: 32, bits: 4, mode: .mxfp4)))
                 }
                 for (formatName, ww, uw, pw, pu) in formats {
                     let cases: [(String, Epilogue, () -> MLXArray)] = [
@@ -289,8 +299,11 @@ public enum SmallMGEMM {
             // or M ≥ 3 it was slower (0.46–0.8×), so those calls stay on MLX. R = 4 / SGK = 2 measured worse per block.
             guard bits == 4 || bits == 8, groupSize == 64, k % groupSize == 0, k >= 2048, m <= 2 else { return nil }
             return GemvPlan(rowsPerGroup: 2, simdgroups: 4)
-        case .mxfp:
-            return nil
+        case .mxfp(let bits):
+            // MXFP4 only (MXFP8 not built). One row and K ≥ 2048 only: there it beat MLX's qmv (M5 Max: 1.15–1.17× per
+            // FFN block); two or more rows or K 1024 were slower (0.47–0.92×).
+            guard bits == 4, k % 32 == 0, k >= 2048, m == 1 else { return nil }
+            return GemvPlan(rowsPerGroup: 2, simdgroups: 4)
         }
     }
 
@@ -527,4 +540,104 @@ using namespace mpp::tensor_ops;
     private static let gemvAffineKernel = MLXFast.metalKernel(
         name: "smallm_gemv_affine", inputNames: ["x", "w", "scales", "biases", "upw", "upscales", "upbiases", "bias", "res"],
         outputNames: ["out"], source: gemvAffineSource)
+
+    // x [MR, K] row-major T; w = MLX MXFP4 [N, K]: packed uint32 [N, K / 8] of E2M1 codes (low nibble first), scales
+    // uint8 [N, K / 32] (E8M0: 2^(s − 127), s = 0 → 2^−127), element = code value · scale, no biases. Same threadgroup
+    // layout and epilogue as the dense GEMV; each lane reads one group (16 bytes of codes) per row and step. The host
+    // guarantees K % 32 == 0.
+    static let gemvMXFP4Source = #"""
+    const int K = x_shape[1], N = scales_shape[0];
+    const int KW = K / 8, KG = K / 32;
+    const int n0 = threadgroup_position_in_grid.x * R;
+    const int sg = simdgroup_index_in_threadgroup, lane = thread_index_in_simdgroup;
+    constexpr int G = GATE ? 2 : 1;
+    float acc[G][MR][R];
+    #pragma unroll
+    for (int g = 0; g < G; ++g)
+        #pragma unroll
+        for (int m = 0; m < MR; ++m)
+            #pragma unroll
+            for (int r = 0; r < R; ++r) acc[g][m][r] = 0.0f;
+    for (int k = (sg * 32 + lane) * 32; k < K; k += SGK * 32 * 32) {
+        uint4 q[G][R];
+        #pragma unroll
+        for (int g = 0; g < G; ++g) {
+            device const uint32_t* wg = g == 0 ? w : upw;
+            #pragma unroll
+            for (int r = 0; r < R; ++r) q[g][r] = *(device const uint4*)(wg + (size_t)min(n0 + r, N - 1) * KW + k / 8);
+        }
+        float dot[G][MR][R];
+        #pragma unroll
+        for (int g = 0; g < G; ++g)
+            #pragma unroll
+            for (int m = 0; m < MR; ++m)
+                #pragma unroll
+                for (int r = 0; r < R; ++r) dot[g][m][r] = 0.0f;
+        #pragma unroll
+        for (int j = 0; j < 4; ++j) {
+            #pragma unroll
+            for (int m = 0; m < MR; ++m) {
+                float xv[8];
+                #pragma unroll
+                for (int i = 0; i < 8; ++i) xv[i] = static_cast<float>(x[m * K + k + j * 8 + i]);
+                #pragma unroll
+                for (int g = 0; g < G; ++g)
+                    #pragma unroll
+                    for (int r = 0; r < R; ++r) {
+                        const uint word = q[g][r][j];
+                        float d = 0.0f;
+                        #pragma unroll
+                        for (int i = 0; i < 8; ++i) {
+                            const uint c = (word >> (4 * i)) & 0xFu;
+                            const float v = static_cast<float>(as_type<half>(ushort((c & 7u) << 9))) * 16384.0f;
+                            d += xv[i] * ((c & 8u) ? -v : v);
+                        }
+                        dot[g][m][r] += d;
+                    }
+            }
+        }
+        #pragma unroll
+        for (int g = 0; g < G; ++g) {
+            device const uint8_t* sc = g == 0 ? scales : upscales;
+            #pragma unroll
+            for (int r = 0; r < R; ++r) {
+                const uint8_t e = sc[(size_t)min(n0 + r, N - 1) * KG + k / 32];
+                const float s = as_type<float>(e == 0 ? 0x400000u : (uint(e) << 23));
+                #pragma unroll
+                for (int m = 0; m < MR; ++m) acc[g][m][r] += s * dot[g][m][r];
+            }
+        }
+    }
+    threadgroup float part[SGK][G * MR * R];
+    #pragma unroll
+    for (int g = 0; g < G; ++g)
+        #pragma unroll
+        for (int m = 0; m < MR; ++m)
+            #pragma unroll
+            for (int r = 0; r < R; ++r) {
+                const float v = simd_sum(acc[g][m][r]);
+                if (lane == 0) part[sg][(g * MR + m) * R + r] = v;
+            }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (int e = sg * 32 + lane; e < MR * R; e += SGK * 32) {
+        const int m = e / R, n = n0 + e % R;
+        if (n >= N) continue;
+        float a = 0.0f;
+        #pragma unroll
+        for (int j = 0; j < SGK; ++j) a += part[j][e];
+        if (GATE) {
+            float u = 0.0f;
+            #pragma unroll
+            for (int j = 0; j < SGK; ++j) u += part[j][MR * R + e];
+            a = a / (1.0f + metal::precise::exp(-a)) * u;
+        }
+        if (HAS_BIAS) a += static_cast<float>(bias[n]);
+        if (HAS_RES) a += static_cast<float>(res[m * N + n]);
+        out[m * N + n] = static_cast<T>(a);
+    }
+"""#
+
+    private static let gemvMXFP4Kernel = MLXFast.metalKernel(
+        name: "smallm_gemv_mxfp4", inputNames: ["x", "w", "scales", "upw", "upscales", "bias", "res"],
+        outputNames: ["out"], source: gemvMXFP4Source)
 }
