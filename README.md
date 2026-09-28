@@ -51,8 +51,8 @@ Measured on Apple M5 Max, macOS 26.6, 2026-09-28. WER and Format on the 240-minu
 | Parakeet v3 | Dictation | 8 | 16.55 | 8.05 | 5/9 | 279× | 9.4 | 1,804 MB | v2 |
 | Parakeet v3 | Dictation | 4 | 17.84 | 9.24 | 5/9 | 278× | 9.5 | 1,537 MB | v2 |
 | Qwen3 ASR 1.7B | Dictation | 16 | 15.03 | 6.88 | 9/9 | 28× | 75.5 | 4,492 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 8 | 15.07 | 6.75 | 9/9 | 42× | 67.8 | 3,092 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 4 (recommended) | 15.37 | 7.10 | 9/9 | 57× | 54.5 | 2,259 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 8 (recommended) | 15.07 | 6.75 | 9/9 | 42× | 67.8 | 3,092 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 4 | 15.37 | 7.10 | 9/9 | 57× | 54.5 | 2,259 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 16 | 15.99 | 7.26 | 9/9 | 59× | 36.8 | 2,030 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 8 (recommended) | 16.05 | 7.30 | 9/9 | 77× | 31.5 | 1,547 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 4 | 17.62 | 8.48 | 9/9 | 90× | 26.4 | 1,273 MB | v2 |
