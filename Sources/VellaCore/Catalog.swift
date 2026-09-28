@@ -254,6 +254,51 @@ public struct MultilingualResult: Codable, Equatable {
     }
 }
 
+/// Reply-time percentiles in milliseconds (lab/bench/vbench.py). Dictation (`kind` segment): the wait for each sent
+/// segment's text, the last one being the wait after Finish. Streaming (`kind` packet): every 100-ms packet's reply;
+/// `chunk_*` are the packets that run an encoder chunk (the slowest 1 in 3.2).
+public struct LatencyResult: Codable, Equatable {
+    public var p50: Double?
+    public var p95: Double?
+    public var n: Int?
+    public var kind: String?
+    public var chunk_p50: Double?
+    public var chunk_p95: Double?
+    public init(p50: Double? = nil, p95: Double? = nil, n: Int? = nil, kind: String? = nil, chunk_p50: Double? = nil, chunk_p95: Double? = nil) {
+        self.p50 = p50; self.p95 = p95; self.n = n; self.kind = kind; self.chunk_p50 = chunk_p50; self.chunk_p95 = chunk_p95
+    }
+}
+
+/// The stock-MLX baseline of a precision: the same model with every Vella optimization off (plain MLX), which is what
+/// any Apple-silicon Mac runs when its load-time self-test does not qualify the fast path. Measured in the same session
+/// as the optimized figures, on the recommended precision only.
+public struct StockBaseline: Codable, Equatable {
+    public var wer: Double?
+    public var format: Double?
+    public var multilingual: MultilingualResult?
+    public var speed_x: Double?
+    public var j_per_min: Double?
+    public var memory_mb: Double?
+    public var latency_ms: LatencyResult?
+    public var suite: String?
+    public var date: String?
+    public var hardware: String?
+    public init(wer: Double? = nil, format: Double? = nil, multilingual: MultilingualResult? = nil, speed_x: Double? = nil, j_per_min: Double? = nil,
+                memory_mb: Double? = nil, latency_ms: LatencyResult? = nil, suite: String? = nil, date: String? = nil, hardware: String? = nil) {
+        self.wer = wer; self.format = format; self.multilingual = multilingual; self.speed_x = speed_x; self.j_per_min = j_per_min
+        self.memory_mb = memory_mb; self.latency_ms = latency_ms; self.suite = suite; self.date = date; self.hardware = hardware
+    }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        wer = try? c.decodeIfPresent(Double.self, forKey: .wer); format = try? c.decodeIfPresent(Double.self, forKey: .format)
+        multilingual = try? c.decodeIfPresent(MultilingualResult.self, forKey: .multilingual)
+        speed_x = try? c.decodeIfPresent(Double.self, forKey: .speed_x); j_per_min = try? c.decodeIfPresent(Double.self, forKey: .j_per_min)
+        memory_mb = try? c.decodeIfPresent(Double.self, forKey: .memory_mb); latency_ms = try? c.decodeIfPresent(LatencyResult.self, forKey: .latency_ms)
+        suite = try? c.decodeIfPresent(String.self, forKey: .suite); date = try? c.decodeIfPresent(String.self, forKey: .date)
+        hardware = try? c.decodeIfPresent(String.self, forKey: .hardware)
+    }
+}
+
 /// Measured figures for one family at one precision. Every field is optional: absent = not measured (`—`).
 /// `wer` and `format` are percentages (5.12 = 5.12 %).
 /// The quality-gate verdict of a lower precision against the native one (lab/notes/GATE-REVISION.md), written per
@@ -287,12 +332,18 @@ public struct PrecisionResult: Codable, Equatable {
     /// The quality gate against the native precision; nil in files written before the gate (then the English-WER
     /// tolerance decides, see `recommendedPrecision`).
     public var gate: GateResult?
+    /// Reply-time percentiles of the optimized run (same quick-suite run as speed and energy).
+    public var latency_ms: LatencyResult?
+    /// The stock-MLX baseline measured beside this precision (recommended precisions only).
+    public var stock: StockBaseline?
     public init(wer: Double? = nil, format: Double? = nil, multilingual: MultilingualResult? = nil, speed_x: Double? = nil, j_per_min: Double? = nil,
                 memory_mb: Double? = nil, disk_mb: Double? = nil, suite: String? = nil, audio_min: Double? = nil, date: String? = nil,
-                hardware: String? = nil, engine: String? = nil, note: String? = nil, gate: GateResult? = nil) {
+                hardware: String? = nil, engine: String? = nil, note: String? = nil, gate: GateResult? = nil,
+                latency_ms: LatencyResult? = nil, stock: StockBaseline? = nil) {
         self.wer = wer; self.format = format; self.multilingual = multilingual; self.speed_x = speed_x; self.j_per_min = j_per_min
         self.memory_mb = memory_mb; self.disk_mb = disk_mb; self.suite = suite; self.audio_min = audio_min; self.date = date
         self.hardware = hardware; self.engine = engine; self.note = note; self.gate = gate
+        self.latency_ms = latency_ms; self.stock = stock
     }
     public init(from decoder: Decoder) throws {
         // A wrongly typed field is treated as not measured rather than dropping the whole result.
@@ -305,6 +356,8 @@ public struct PrecisionResult: Codable, Equatable {
         date = try? c.decodeIfPresent(String.self, forKey: .date); hardware = try? c.decodeIfPresent(String.self, forKey: .hardware)
         engine = try? c.decodeIfPresent(String.self, forKey: .engine); note = try? c.decodeIfPresent(String.self, forKey: .note)
         gate = try? c.decodeIfPresent(GateResult.self, forKey: .gate)
+        latency_ms = try? c.decodeIfPresent(LatencyResult.self, forKey: .latency_ms)
+        stock = try? c.decodeIfPresent(StockBaseline.self, forKey: .stock)
     }
 }
 
@@ -711,7 +764,7 @@ public func engineLabel(engine: String?, chip: String?) -> String {
 }
 /// Tooltip for the engine label: which path answers, the optimized components as the worker reports them
 /// (component → active) and, off the optimized path, the worker's reason. Never invents a cause.
-public func engineHelp(engine: String?, reason: String?, optimizations: [String: Bool]?, chip: String?, precision: String) -> String {
+public func engineHelp(engine: String?, reason: String?, optimizations: [String: Bool]?, chip: String?, precision: String, stock baseline: String? = nil) -> String {
     var lines: [String] = []
     let active = (optimizations ?? [:]).filter(\.value).keys.sorted()
     let stock = (optimizations ?? [:]).filter { !$0.value }.keys.sorted()
@@ -725,6 +778,7 @@ public func engineHelp(engine: String?, reason: String?, optimizations: [String:
         lines.append("Stock MLX path: the same model without Vella's optimizations; slower." + why)
     }
     lines.append("Precision: \(precisionInProse(precision))")
+    if let baseline { lines.append(baseline) }   // stockLine(_:) of the loaded precision
     return lines.joined(separator: "\n")
 }
 

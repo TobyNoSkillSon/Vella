@@ -54,9 +54,19 @@ public func suiteDescription(_ key: String?, suites: [String: SuiteInfo]?) -> St
 /// Speed, energy and memory come from one run of the quick suite per precision; accuracy from the row's own suite.
 public let performanceSuite = "v2-quick"
 
-/// Line 1 `<what> on <suite>, <detail>: <which way is better>`, line 2 the provenance.
-private func figure(_ what: String, on suite: String?, _ detail: String? = nil, better: String, _ r: PrecisionResult) -> String {
+/// Line 1 `<what> on <suite>, <detail>: <which way is better>`, line 2 the provenance, and for Speed, J / min and
+/// Memory a third line with the stock-MLX baseline when one was measured (`stockLine`).
+private func figure(_ what: String, on suite: String?, _ detail: String? = nil, better: String, _ r: PrecisionResult, stock: Bool = false) -> String {
     what + (suite.map { " on \($0)" } ?? "") + (detail.map { ", \($0)" } ?? "") + ": \(better)\n" + measuredProvenance(r)
+        + ((stock ? stockLine(r) : nil).map { "\n" + $0 } ?? "")
+}
+
+/// The stock-MLX baseline in one line: `Stock MLX on any Mac: 58× · 95 J · 2.4 GB` (speed, joules per audio minute, peak
+/// memory; a figure that was not measured is left out). Nil when the precision has no stock baseline.
+public func stockLine(_ r: PrecisionResult?) -> String? {
+    guard let s = r?.stock else { return nil }
+    let parts = [formatSpeed(s.speed_x), formatEnergy(s.j_per_min), formatMemory(s.memory_mb)].compactMap { $0 }
+    return parts.isEmpty ? nil : "Stock MLX on any Mac: " + parts.joined(separator: " \u{00b7} ")
 }
 
 public func werHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
@@ -73,22 +83,22 @@ public func speedHelp(_ mode: RecognitionMode, _ r: PrecisionResult?, suites: [S
     guard let r, let x = r.speed_x else { return notMeasuredHelp }
     let suite = suites?[performanceSuite] != nil ? suiteDescription(performanceSuite, suites: suites) : nil
     if mode == .streaming {
-        return figure("Streaming replay speed in \u{00d7} real time", on: suite, "not microphone-to-text latency", better: "higher is faster", r)
+        return figure("Streaming replay speed in \u{00d7} real time", on: suite, "not microphone-to-text latency", better: "higher is faster", r, stock: true)
     }
     return figure("Speed in \u{00d7} real time", on: suite, "timed after loading",
-                  better: "higher is faster" + (x < slowSpeedFloor ? "; under 20\u{00d7} is very slow for dictation" : ""), r)
+                  better: "higher is faster" + (x < slowSpeedFloor ? "; under 20\u{00d7} is very slow for dictation" : ""), r, stock: true)
 }
 
 public func energyHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
     guard let r, r.j_per_min != nil else { return notMeasuredHelp }
     let suite = suites?[performanceSuite] != nil ? suiteDescription(performanceSuite, suites: suites) : nil
-    return figure("Whole-chip joules per audio minute", on: suite, "net of loaded idle power", better: "lower is better", r)
+    return figure("Whole-chip joules per audio minute", on: suite, "net of loaded idle power", better: "lower is better", r, stock: true)
 }
 
 public func memoryHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
     guard let r, r.memory_mb != nil else { return notMeasuredHelp }
     let suite = suites?[performanceSuite] != nil ? suiteDescription(performanceSuite, suites: suites) : nil
-    return figure("Peak memory of Vella's model worker", on: suite, "loading included", better: "lower is better", r)
+    return figure("Peak memory of Vella's model worker", on: suite, "loading included", better: "lower is better", r, stock: true)
 }
 
 /// The Languages cell: the languages the model transcribes, then (when measured) the word error rate per benchmark

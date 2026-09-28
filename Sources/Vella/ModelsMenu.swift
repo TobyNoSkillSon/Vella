@@ -227,7 +227,8 @@ struct ModelTable: View {
                         Text(engineLabel(engine: loaded.engine, chip: runtime?.chip)).font(.system(size: 9, weight: .medium))
                             .foregroundStyle(Self.tone(.better, hot: hot)).lineLimit(1)
                             .appKitTooltip(engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
-                                                      chip: runtime?.chip, precision: loaded.precision))
+                                                      chip: runtime?.chip, precision: loaded.precision,
+                                                      stock: stockLine(controller.result(family, loaded.precision))))
                     }
                 }
             }.frame(width: W.model, alignment: .leading)
@@ -395,7 +396,8 @@ struct ModelTable: View {
         var cells: [(String, String)] = [("Model", modelHelp(family, loaded: loaded))]
         if let loaded, loaded.engine != nil {
             cells.append(("Engine", engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
-                                               chip: runtime?.chip, precision: loaded.precision)))
+                                               chip: runtime?.chip, precision: loaded.precision,
+                                                      stock: stockLine(controller.result(family, loaded.precision)))))
         }
         if let languages = languagesHelp(family, r) { cells.append(("Languages", languages)) }
         cells += controller.options(family).map { ("Q \($0)", controller.segmentHelp(family, $0)) }

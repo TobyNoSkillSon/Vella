@@ -39,6 +39,20 @@ function modelRows() {
     suite: r.suite || null, date: r.date || null, engine: r.engine || null, note: r.note || null, hardware: r.hardware || B.hardware,
     url: source.repository ? repoURL(source.repository) : null, published
    });
+   // The stock-MLX baseline of the recommended precision: a row of its own, always placed directly under that row.
+   const st = r.stock;
+   if (st) {
+    const sml = st.multilingual || {};
+    rows.push({
+     id: `${id}/${label}/stock`, stockOf: `${id}/${label}`, name: 'Stock MLX (any Mac)', familyName: family.name, family, label, reference: false,
+     mode: family.mode, q: bits(label), recommended: false,
+     wer: st.wer ?? null, format: st.format ?? null, languages: sml.coverage ?? null, byLanguage: sml.by_language || null,
+     speed: st.speed_x ?? null, energy: st.j_per_min ?? null, memory: st.memory_mb ?? null,
+     disk: published ? variant.downloadBytes / 1e6 : r.disk_mb ?? null,
+     suite: st.suite || r.suite || null, date: st.date || null, engine: 'mlx', note: null, hardware: st.hardware || B.hardware,
+     url: null, published
+    });
+   }
   }
  }
  return rows;
@@ -88,7 +102,8 @@ function tooltip(row, key) {
   return key === 'name' ? 'A cloud API, shown for perspective. No audio was sent to it.' : '';
  }
  switch (key) {
-  case 'name': return `Licence: ${row.family.license}.${row.family.offered ? '' : ' Measured, but not offered in the app.'}${row.url ? ' Opens the model on Hugging Face.' : ''}`;
+  case 'name': if (row.stockOf) return `${row.familyName} at ${formatName(row.label)} with every Vella optimization off (plain MLX): what any Apple-silicon Mac runs when the load-time self-test does not qualify the fast path. Same suites and session as the row above.`;
+   return `Licence: ${row.family.license}.${row.family.offered ? '' : ' Measured, but not offered in the app.'}${row.url ? ' Opens the model on Hugging Face.' : ''}`;
   case 'q': return formatName(row.label) + (row.published ? ', published' : ', made on the Mac from the higher precision') + (row.recommended ? '. Recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (English WER within 0.1 points, up to 0.2 points for a model with measured run-to-run noise; other languages, no dropped segments).' : '.');
   case 'wer': return row.byLanguage ? `By language: ${byLanguage(row.byLanguage, false)}.` : '';
   case 'speed': return row.engine === 'optimized' ? 'Vella\'s optimized path, self-tested against stock MLX.' : row.engine === 'mlx' ? 'Stock MLX path.' : '';
@@ -118,16 +133,18 @@ for (const [field, label, hint] of columns) {
 
 function render() {
  const query = search.value.trim().toLowerCase();
- const rows = all.filter(row => (!query || row.name.toLowerCase().includes(query)) && (!mode.value || row.mode === mode.value) && row.suite === suite.value);
- rows.sort((a, b) => {
+ const shown = all.filter(row => (!query || (row.familyName || row.name).toLowerCase().includes(query)) && (!mode.value || row.mode === mode.value) && row.suite === suite.value);
+ const main = shown.filter(row => !row.stockOf), stock = shown.filter(row => row.stockOf);
+ main.sort((a, b) => {
   const x = a[key], y = b[key];
   if (x == null || y == null) return x == null ? (y == null ? a.id.localeCompare(b.id) : 1) : -1;
   const order = typeof x === 'number' ? x - y : String(x).localeCompare(String(y));
   return (ascending ? order : -order) || a.id.localeCompare(b.id);
  });
+ const rows = main.flatMap(row => [row, ...stock.filter(s => s.stockOf === row.id)]);
  const body = document.querySelector('#rows'); body.replaceChildren();
  for (const row of rows) {
-  const tr = document.createElement('tr'); tr.dataset.id = row.id; if (row.reference) tr.className = 'reference';
+  const tr = document.createElement('tr'); tr.dataset.id = row.id; if (row.reference) tr.className = 'reference'; if (row.stockOf) tr.className = 'stock';
   for (const [field] of columns) {
    const td = document.createElement('td'); td.dataset.key = field;
    const title = tooltip(row, field); if (title) td.title = title;

@@ -33,10 +33,16 @@ const VELLA_BENCHMARKS = {
        "sv": 23.23
       }
      },
-     "speed_x": 308.2,
-     "j_per_min": 6.76,
-     "memory_mb": 3356,
+     "speed_x": 302.4,
+     "j_per_min": 7.13,
+     "memory_mb": 3231,
      "disk_mb": 2509,
+     "latency_ms": {
+      "p50": 18.1,
+      "p95": 28.9,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -48,24 +54,30 @@ const VELLA_BENCHMARKS = {
      }
     },
     "BF16": {
-     "wer": 16.43,
+     "wer": 16.45,
      "format": 7.98,
      "multilingual": {
-      "mean": 21.99,
-      "macro_wer": 21.99,
+      "mean": 21.91,
+      "macro_wer": 21.91,
       "macro_cer": null,
       "coverage": 5,
       "by_language": {
-       "pl": 8.28,
+       "pl": 8.4,
        "de": 12.14,
-       "fr": 38.27,
-       "es": 28.46,
-       "sv": 22.8
+       "fr": 37.95,
+       "es": 28.03,
+       "sv": 23.01
       }
      },
-     "speed_x": 368.1,
-     "j_per_min": 4.68,
-     "memory_mb": 1785,
+     "speed_x": 404.1,
+     "j_per_min": 5.22,
+     "memory_mb": 1735,
+     "latency_ms": {
+      "p50": 13.8,
+      "p95": 22.0,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -74,6 +86,35 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": true,
       "reasons": []
+     },
+     "stock": {
+      "wer": 16.39,
+      "format": 7.9,
+      "multilingual": {
+       "mean": 22.14,
+       "macro_wer": 22.14,
+       "macro_cer": null,
+       "coverage": 5,
+       "by_language": {
+        "pl": 8.59,
+        "de": 12.59,
+        "fr": 38.27,
+        "es": 28.46,
+        "sv": 22.8
+       }
+      },
+      "speed_x": 222.7,
+      "j_per_min": 6.87,
+      "memory_mb": 1735,
+      "latency_ms": {
+       "p50": 24.3,
+       "p95": 46.6,
+       "n": 231,
+       "kind": "segment"
+      },
+      "suite": "v2",
+      "date": "2026-09-28",
+      "hardware": "Apple M5 Max, macOS 26.6"
      }
     },
     "8b": {
@@ -92,10 +133,16 @@ const VELLA_BENCHMARKS = {
        "sv": 22.8
       }
      },
-     "speed_x": 278.6,
-     "j_per_min": 9.42,
-     "memory_mb": 1804,
+     "speed_x": 277.9,
+     "j_per_min": 9.82,
+     "memory_mb": 1758,
      "disk_mb": 909,
+     "latency_ms": {
+      "p50": 20.6,
+      "p95": 30.8,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -125,10 +172,16 @@ const VELLA_BENCHMARKS = {
        "sv": 26.02
       }
      },
-     "speed_x": 278.3,
-     "j_per_min": 9.51,
-     "memory_mb": 1537,
+     "speed_x": 277.0,
+     "j_per_min": 9.64,
+     "memory_mb": 1520,
      "disk_mb": 637,
+     "latency_ms": {
+      "p50": 20.8,
+      "p95": 32.0,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -155,29 +208,35 @@ const VELLA_BENCHMARKS = {
   "qwen3-asr-1.7b": {
    "precisions": {
     "BF16": {
-     "wer": 15.03,
-     "format": 6.88,
+     "wer": 15.06,
+     "format": 6.74,
      "multilingual": {
-      "mean": 14.1,
-      "macro_wer": 15.59,
-      "macro_cer": 11.12,
+      "mean": 14.15,
+      "macro_wer": 15.6,
+      "macro_cer": 11.25,
       "coverage": 9,
       "by_language": {
        "pl": 15.41,
-       "de": 11.42,
+       "de": 10.34,
        "fr": 14.16,
-       "es": 12.64,
-       "sv": 23.66,
-       "tr": 16.28,
-       "ja": 6.21,
-       "zh": 13.1,
-       "ko": 14.05
+       "es": 12.81,
+       "sv": 24.73,
+       "tr": 16.17,
+       "ja": 6.4,
+       "zh": 13.22,
+       "ko": 14.13
       }
      },
-     "speed_x": 27.6,
-     "j_per_min": 75.47,
-     "memory_mb": 4492,
+     "speed_x": 27.3,
+     "j_per_min": 75.59,
+     "memory_mb": 5092,
      "disk_mb": 4081,
+     "latency_ms": {
+      "p50": 185.8,
+      "p95": 519.6,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -186,32 +245,72 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": true,
       "reasons": []
+     },
+     "stock": {
+      "wer": 15.06,
+      "format": 6.74,
+      "multilingual": {
+       "mean": 14.15,
+       "macro_wer": 15.6,
+       "macro_cer": 11.25,
+       "coverage": 9,
+       "by_language": {
+        "pl": 15.41,
+        "de": 10.34,
+        "fr": 14.16,
+        "es": 12.81,
+        "sv": 24.73,
+        "tr": 16.17,
+        "ja": 6.4,
+        "zh": 13.22,
+        "ko": 14.13
+       }
+      },
+      "speed_x": 24.0,
+      "j_per_min": 85.57,
+      "memory_mb": 4600,
+      "latency_ms": {
+       "p50": 211.0,
+       "p95": 586.7,
+       "n": 231,
+       "kind": "segment"
+      },
+      "suite": "v2",
+      "date": "2026-09-28",
+      "hardware": "Apple M5 Max, macOS 26.6"
      }
     },
     "8b": {
-     "wer": 15.07,
-     "format": 6.75,
+     "wer": 15.16,
+     "format": 6.65,
      "multilingual": {
-      "mean": 14.58,
-      "macro_wer": 16.23,
-      "macro_cer": 11.28,
+      "mean": 14.53,
+      "macro_wer": 16.2,
+      "macro_cer": 11.2,
       "coverage": 9,
       "by_language": {
        "pl": 15.77,
        "de": 11.78,
        "fr": 14.16,
-       "es": 12.55,
-       "sv": 24.3,
-       "tr": 18.83,
-       "ja": 6.28,
+       "es": 12.04,
+       "sv": 24.73,
+       "tr": 18.72,
+       "ja": 6.34,
        "zh": 13.1,
-       "ko": 14.47
+       "ko": 14.17
       }
      },
-     "speed_x": 41.5,
-     "j_per_min": 67.78,
-     "memory_mb": 3092,
+     "speed_x": 40.6,
+     "j_per_min": 68.06,
+     "energy_note": "median of 3 runs, repeat spread 2.5 %; foreign-load flag fired on every run",
+     "memory_mb": 3689,
      "disk_mb": 2468,
+     "latency_ms": {
+      "p50": 126.4,
+      "p95": 333.7,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -227,29 +326,35 @@ const VELLA_BENCHMARKS = {
      }
     },
     "4b": {
-     "wer": 15.37,
-     "format": 7.1,
+     "wer": 18.41,
+     "format": 7.19,
      "multilingual": {
-      "mean": 16.84,
-      "macro_wer": 18.37,
-      "macro_cer": 13.79,
+      "mean": 16.69,
+      "macro_wer": 18.22,
+      "macro_cer": 13.64,
       "coverage": 9,
       "by_language": {
-       "pl": 17.9,
-       "de": 12.5,
-       "fr": 14.56,
+       "pl": 18.09,
+       "de": 12.23,
+       "fr": 14.64,
        "es": 12.38,
        "sv": 32.47,
-       "tr": 20.38,
-       "ja": 7.23,
-       "zh": 15.26,
-       "ko": 18.89
+       "tr": 19.49,
+       "ja": 6.91,
+       "zh": 16.49,
+       "ko": 17.53
       }
      },
-     "speed_x": 57.0,
-     "j_per_min": 54.51,
-     "memory_mb": 2259,
+     "speed_x": 56.4,
+     "j_per_min": 55.94,
+     "memory_mb": 2867,
      "disk_mb": 1608,
+     "latency_ms": {
+      "p50": 93.2,
+      "p95": 224.6,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -280,29 +385,37 @@ const VELLA_BENCHMARKS = {
   "nemotron-3.5-streaming-0.6b": {
    "precisions": {
     "BF16": {
-     "wer": 23.42,
+     "wer": 23.39,
      "format": 10.55,
      "multilingual": {
-      "mean": 26.86,
-      "macro_wer": 28.06,
-      "macro_cer": 24.45,
+      "mean": 26.9,
+      "macro_wer": 28.09,
+      "macro_cer": 24.53,
       "coverage": 9,
       "by_language": {
-       "pl": 24.67,
+       "pl": 24.6,
        "de": 17.81,
        "fr": 17.66,
        "es": 16.42,
-       "sv": 40.43,
+       "sv": 40.65,
        "tr": 51.38,
-       "ja": 14.2,
+       "ja": 14.33,
        "zh": 28.6,
-       "ko": 30.56
+       "ko": 30.68
       }
      },
-     "speed_x": 19.6,
-     "j_per_min": 78.92,
-     "memory_mb": 2700,
+     "speed_x": 27.1,
+     "j_per_min": 54.37,
+     "memory_mb": 1614,
      "disk_mb": 1277,
+     "latency_ms": {
+      "p50": 0.7,
+      "p95": 10.9,
+      "n": 15040,
+      "kind": "packet",
+      "chunk_p50": 9.3,
+      "chunk_p95": 12.0
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -312,6 +425,41 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": true,
       "reasons": []
+     },
+     "stock": {
+      "wer": 23.15,
+      "format": 10.47,
+      "multilingual": {
+       "mean": 27.68,
+       "macro_wer": 28.94,
+       "macro_cer": 25.16,
+       "coverage": 9,
+       "by_language": {
+        "pl": 25.52,
+        "de": 18.17,
+        "fr": 18.3,
+        "es": 16.17,
+        "sv": 43.01,
+        "tr": 52.49,
+        "ja": 15.16,
+        "zh": 29.12,
+        "ko": 31.21
+       }
+      },
+      "speed_x": 7.3,
+      "j_per_min": 189.33,
+      "memory_mb": 2081,
+      "latency_ms": {
+       "p50": 1.5,
+       "p95": 40.0,
+       "n": 15040,
+       "kind": "packet",
+       "chunk_p50": 37.8,
+       "chunk_p95": 41.4
+      },
+      "suite": "v2",
+      "date": "2026-09-28",
+      "hardware": "Apple M5 Max, macOS 26.6"
      }
     },
     "8b": {
@@ -334,10 +482,18 @@ const VELLA_BENCHMARKS = {
        "ko": 31.28
       }
      },
-     "speed_x": 28.8,
-     "j_per_min": 47.02,
-     "memory_mb": 1160,
+     "speed_x": 27.4,
+     "j_per_min": 40.11,
+     "memory_mb": 1088,
      "disk_mb": 756,
+     "latency_ms": {
+      "p50": 0.7,
+      "p95": 11.0,
+      "n": 15040,
+      "kind": "packet",
+      "chunk_p50": 9.2,
+      "chunk_p95": 12.1
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -345,9 +501,9 @@ const VELLA_BENCHMARKS = {
      "engine": "optimized",
      "note": "engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance).",
      "gate": {
-      "pass": true,
+      "pass": false,
       "reasons": [
-       "streaming trade: 1.47x the speed of BF16 (28.8x vs 19.6x real time, needs 1.25x) for multilingual mean +0.60 pt vs BF16 (limit 0.10); Japanese +2.03 pt vs BF16 (limit 2.0)"
+       "multilingual mean +0.55 pt vs BF16 (limit 0.10)"
       ]
      }
     },
@@ -371,9 +527,17 @@ const VELLA_BENCHMARKS = {
        "ko": 36.53
       }
      },
-     "speed_x": 28.3,
-     "j_per_min": 40.2,
-     "memory_mb": 895,
+     "speed_x": 30.1,
+     "j_per_min": 39.57,
+     "memory_mb": 821,
+     "latency_ms": {
+      "p50": 0.7,
+      "p95": 10.1,
+      "n": 15040,
+      "kind": "packet",
+      "chunk_p50": 8.3,
+      "chunk_p95": 11.5
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -383,49 +547,55 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": false,
       "reasons": [
-       "English WER +9.55 pt vs BF16 (limit 0.10)",
-       "multilingual mean +9.30 pt vs BF16 (limit 0.10)",
+       "English WER +9.59 pt vs BF16 (limit 0.10)",
+       "multilingual mean +9.25 pt vs BF16 (limit 0.10)",
        "Turkish +15.28 pt vs BF16 (limit 2.0)",
-       "Swedish +14.62 pt vs BF16 (limit 2.0)",
-       "Polish +12.00 pt vs BF16 (limit 2.0)",
+       "Swedish +14.41 pt vs BF16 (limit 2.0)",
+       "Polish +12.06 pt vs BF16 (limit 2.0)",
        "Chinese +10.99 pt vs BF16 (limit 2.0)",
        "German +10.34 pt vs BF16 (limit 2.0)",
-       "Japanese +9.07 pt vs BF16 (limit 2.0)",
-       "Korean +5.97 pt vs BF16 (limit 2.0)",
+       "Japanese +8.94 pt vs BF16 (limit 2.0)",
+       "Korean +5.86 pt vs BF16 (limit 2.0)",
        "French +3.34 pt vs BF16 (limit 2.0)",
        "Spanish +2.06 pt vs BF16 (limit 2.0)",
-       "format CER +5.64 pt vs BF16 (limit 0.10)",
-       "14 clips empty or cut short where BF16 had the words (limit 0)"
+       "format CER +5.63 pt vs BF16 (limit 0.10)",
+       "15 clips empty or cut short where BF16 had the words (limit 0)"
       ]
      }
     }
    },
-   "recommended": "8b",
+   "recommended": "BF16",
    "tolerance_pt": 0.1,
    "tolerance_ml_pt": 0.1
   },
   "parakeet-v3-ultra": {
    "precisions": {
     "BF16": {
-     "wer": 15.52,
-     "format": 5.76,
+     "wer": 15.54,
+     "format": 5.8,
      "multilingual": {
       "mean": 12.91,
       "macro_wer": 12.91,
       "macro_cer": null,
       "coverage": 5,
       "by_language": {
-       "pl": 6.94,
-       "de": 8.54,
-       "fr": 15.99,
-       "es": 13.93,
-       "sv": 19.14
+       "pl": 7.0,
+       "de": 8.72,
+       "fr": 16.07,
+       "es": 13.84,
+       "sv": 18.92
       }
      },
-     "speed_x": 364.6,
-     "j_per_min": 5.18,
-     "memory_mb": 1753,
+     "speed_x": 387.4,
+     "j_per_min": 4.65,
+     "memory_mb": 1740,
      "disk_mb": 1255,
+     "latency_ms": {
+      "p50": 13.9,
+      "p95": 22.4,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -434,6 +604,35 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": true,
       "reasons": []
+     },
+     "stock": {
+      "wer": 15.5,
+      "format": 5.82,
+      "multilingual": {
+       "mean": 12.9,
+       "macro_wer": 12.91,
+       "macro_cer": null,
+       "coverage": 5,
+       "by_language": {
+        "pl": 7.06,
+        "de": 8.54,
+        "fr": 16.07,
+        "es": 13.93,
+        "sv": 18.92
+       }
+      },
+      "speed_x": 228.8,
+      "j_per_min": 6.67,
+      "memory_mb": 1732,
+      "latency_ms": {
+       "p50": 23.7,
+       "p95": 45.4,
+       "n": 231,
+       "kind": "segment"
+      },
+      "suite": "v2",
+      "date": "2026-09-28",
+      "hardware": "Apple M5 Max, macOS 26.6"
      }
     },
     "8b": {
@@ -452,9 +651,15 @@ const VELLA_BENCHMARKS = {
        "sv": 19.14
       }
      },
-     "speed_x": 287.0,
-     "j_per_min": 9.43,
-     "memory_mb": 1903,
+     "speed_x": 284.4,
+     "j_per_min": 9.63,
+     "memory_mb": 1862,
+     "latency_ms": {
+      "p50": 19.7,
+      "p95": 30.6,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -483,9 +688,15 @@ const VELLA_BENCHMARKS = {
        "sv": 20.43
       }
      },
-     "speed_x": 284.4,
-     "j_per_min": 9.22,
-     "memory_mb": 1664,
+     "speed_x": 281.5,
+     "j_per_min": 9.41,
+     "memory_mb": 1610,
+     "latency_ms": {
+      "p50": 20.2,
+      "p95": 30.7,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -510,29 +721,35 @@ const VELLA_BENCHMARKS = {
   "qwen3-asr-0.6b": {
    "precisions": {
     "BF16": {
-     "wer": 15.99,
-     "format": 7.26,
+     "wer": 15.97,
+     "format": 7.29,
      "multilingual": {
-      "mean": 20.87,
-      "macro_wer": 24.58,
-      "macro_cer": 13.47,
+      "mean": 20.82,
+      "macro_wer": 24.45,
+      "macro_cer": 13.55,
       "coverage": 9,
       "by_language": {
-       "pl": 25.88,
-       "de": 15.56,
-       "fr": 16.39,
-       "es": 13.16,
+       "pl": 25.7,
+       "de": 15.47,
+       "fr": 16.23,
+       "es": 13.24,
        "sv": 49.46,
-       "tr": 27.02,
-       "ja": 9.13,
+       "tr": 26.58,
+       "ja": 9.32,
        "zh": 14.8,
-       "ko": 16.47
+       "ko": 16.55
       }
      },
-     "speed_x": 59.4,
-     "j_per_min": 36.78,
-     "memory_mb": 2030,
+     "speed_x": 59.0,
+     "j_per_min": 35.91,
+     "memory_mb": 2364,
      "disk_mb": 1569,
+     "latency_ms": {
+      "p50": 86.3,
+      "p95": 232.5,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -541,32 +758,71 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": true,
       "reasons": []
+     },
+     "stock": {
+      "wer": 15.97,
+      "format": 7.29,
+      "multilingual": {
+       "mean": 20.82,
+       "macro_wer": 24.45,
+       "macro_cer": 13.55,
+       "coverage": 9,
+       "by_language": {
+        "pl": 25.7,
+        "de": 15.47,
+        "fr": 16.23,
+        "es": 13.24,
+        "sv": 49.46,
+        "tr": 26.58,
+        "ja": 9.32,
+        "zh": 14.8,
+        "ko": 16.55
+       }
+      },
+      "speed_x": 46.9,
+      "j_per_min": 40.2,
+      "memory_mb": 2086,
+      "latency_ms": {
+       "p50": 108.0,
+       "p95": 293.1,
+       "n": 231,
+       "kind": "segment"
+      },
+      "suite": "v2",
+      "date": "2026-09-28",
+      "hardware": "Apple M5 Max, macOS 26.6"
      }
     },
     "8b": {
-     "wer": 16.05,
-     "format": 7.3,
+     "wer": 16.14,
+     "format": 7.29,
      "multilingual": {
-      "mean": 21.1,
-      "macro_wer": 24.71,
-      "macro_cer": 13.88,
+      "mean": 21.02,
+      "macro_wer": 24.63,
+      "macro_cer": 13.8,
       "coverage": 9,
       "by_language": {
-       "pl": 25.82,
-       "de": 15.92,
-       "fr": 16.63,
-       "es": 13.76,
-       "sv": 49.03,
-       "tr": 27.13,
-       "ja": 9.19,
-       "zh": 15.44,
-       "ko": 17.0
+       "pl": 25.52,
+       "de": 15.74,
+       "fr": 16.23,
+       "es": 13.5,
+       "sv": 49.46,
+       "tr": 27.35,
+       "ja": 9.38,
+       "zh": 15.2,
+       "ko": 16.81
       }
      },
-     "speed_x": 77.1,
-     "j_per_min": 31.5,
-     "memory_mb": 1547,
+     "speed_x": 76.3,
+     "j_per_min": 33.09,
+     "memory_mb": 1887,
      "disk_mb": 1011,
+     "latency_ms": {
+      "p50": 67.4,
+      "p95": 173.3,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -581,29 +837,35 @@ const VELLA_BENCHMARKS = {
      }
     },
     "4b": {
-     "wer": 17.62,
-     "format": 8.48,
+     "wer": 17.72,
+     "format": 8.43,
      "multilingual": {
-      "mean": 30.95,
-      "macro_wer": 31.78,
-      "macro_cer": 29.28,
+      "mean": 27.04,
+      "macro_wer": 31.32,
+      "macro_cer": 18.48,
       "coverage": 9,
       "by_language": {
-       "pl": 32.95,
-       "de": 17.63,
-       "fr": 22.12,
-       "es": 24.08,
-       "sv": 59.78,
-       "tr": 34.11,
-       "ja": 18.07,
-       "zh": 18.25,
-       "ko": 51.53
+       "pl": 34.29,
+       "de": 17.54,
+       "fr": 21.8,
+       "es": 21.15,
+       "sv": 58.49,
+       "tr": 34.66,
+       "ja": 17.76,
+       "zh": 17.43,
+       "ko": 20.25
       }
      },
-     "speed_x": 89.6,
-     "j_per_min": 26.42,
-     "memory_mb": 1273,
+     "speed_x": 89.0,
+     "j_per_min": 28.06,
+     "memory_mb": 1619,
      "disk_mb": 713,
+     "latency_ms": {
+      "p50": 57.2,
+      "p95": 144.1,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -656,10 +918,17 @@ const VELLA_BENCHMARKS = {
        "ko": 31.77
       }
      },
-     "speed_x": 27.9,
-     "j_per_min": 94.14,
-     "memory_mb": 3889,
+     "speed_x": 28.4,
+     "j_per_min": 110.9,
+     "energy_note": "median of 2 clean runs (110.4–111.4)",
+     "memory_mb": 3838,
      "disk_mb": 3088,
+     "latency_ms": {
+      "p50": 166.6,
+      "p95": 393.6,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -690,10 +959,17 @@ const VELLA_BENCHMARKS = {
        "ko": 31.58
       }
      },
-     "speed_x": 32.1,
-     "j_per_min": 110.8,
-     "memory_mb": 2656,
+     "speed_x": 33.3,
+     "j_per_min": 109.91,
+     "energy_note": "median of 3 clean runs (109.7–110.0)",
+     "memory_mb": 2653,
      "disk_mb": 1650,
+     "latency_ms": {
+      "p50": 145.1,
+      "p95": 310.4,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -702,6 +978,39 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": true,
       "reasons": []
+     },
+     "stock": {
+      "wer": 17.64,
+      "format": 8.59,
+      "multilingual": {
+       "mean": 19.78,
+       "macro_wer": 17.45,
+       "macro_cer": 24.43,
+       "coverage": 9,
+       "by_language": {
+        "pl": 8.53,
+        "de": 8.36,
+        "fr": 22.51,
+        "es": 19.17,
+        "sv": 30.97,
+        "tr": 15.17,
+        "ja": 12.56,
+        "zh": 29.18,
+        "ko": 31.55
+       }
+      },
+      "speed_x": 17.3,
+      "j_per_min": 171.21,
+      "memory_mb": 2832,
+      "latency_ms": {
+       "p50": 279.2,
+       "p95": 715.7,
+       "n": 231,
+       "kind": "segment"
+      },
+      "suite": "v2",
+      "date": "2026-09-28",
+      "hardware": "Apple M5 Max, macOS 26.6"
      }
     },
     "4b": {
@@ -724,10 +1033,16 @@ const VELLA_BENCHMARKS = {
        "ko": 26.79
       }
      },
-     "speed_x": 38.9,
-     "j_per_min": 97.52,
-     "memory_mb": 2067,
+     "speed_x": 41.0,
+     "j_per_min": 97.9,
+     "memory_mb": 2081,
      "disk_mb": 882,
+     "latency_ms": {
+      "p50": 130.5,
+      "p95": 270.5,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -743,7 +1058,7 @@ const VELLA_BENCHMARKS = {
      }
     }
    },
-   "recommended": "FP16",
+   "recommended": "8b",
    "tolerance_pt": 0.1,
    "tolerance_ml_pt": 0.1
   },
@@ -769,10 +1084,16 @@ const VELLA_BENCHMARKS = {
        "ko": 28.33
       }
      },
-     "speed_x": 75.8,
-     "j_per_min": 58.53,
-     "memory_mb": 2459,
+     "speed_x": 76.3,
+     "j_per_min": 59.17,
+     "memory_mb": 2460,
      "disk_mb": 1619,
+     "latency_ms": {
+      "p50": 72.5,
+      "p95": 116.0,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -781,6 +1102,39 @@ const VELLA_BENCHMARKS = {
      "gate": {
       "pass": true,
       "reasons": []
+     },
+     "stock": {
+      "wer": 17.2,
+      "format": 7.67,
+      "multilingual": {
+       "mean": 21.77,
+       "macro_wer": 20.78,
+       "macro_cer": 23.77,
+       "coverage": 9,
+       "by_language": {
+        "pl": 9.68,
+        "de": 9.89,
+        "fr": 22.99,
+        "es": 19.09,
+        "sv": 44.52,
+        "tr": 18.49,
+        "ja": 13.57,
+        "zh": 29.71,
+        "ko": 28.03
+       }
+      },
+      "speed_x": 14.7,
+      "j_per_min": 140.04,
+      "memory_mb": 3346,
+      "latency_ms": {
+       "p50": 335.4,
+       "p95": 950.8,
+       "n": 231,
+       "kind": "segment"
+      },
+      "suite": "v2",
+      "date": "2026-09-28",
+      "hardware": "Apple M5 Max, macOS 26.6"
      }
     },
     "8b": {
@@ -803,10 +1157,16 @@ const VELLA_BENCHMARKS = {
        "ko": 28.33
       }
      },
-     "speed_x": 76.8,
-     "j_per_min": 64.82,
-     "memory_mb": 1922,
+     "speed_x": 77.8,
+     "j_per_min": 64.45,
+     "memory_mb": 1925,
      "disk_mb": 868,
+     "latency_ms": {
+      "p50": 71.7,
+      "p95": 102.3,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",
@@ -837,10 +1197,16 @@ const VELLA_BENCHMARKS = {
        "ko": 28.67
       }
      },
-     "speed_x": 80.4,
-     "j_per_min": 63.52,
-     "memory_mb": 1689,
+     "speed_x": 82.2,
+     "j_per_min": 63.11,
+     "memory_mb": 1688,
      "disk_mb": 468,
+     "latency_ms": {
+      "p50": 66.7,
+      "p95": 91.6,
+      "n": 231,
+      "kind": "segment"
+     },
      "suite": "v2",
      "audio_min": 239.7,
      "date": "2026-09-28",

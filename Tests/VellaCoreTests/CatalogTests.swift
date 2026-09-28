@@ -381,6 +381,19 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(partly.contains("stock: prefill")); XCTAssertTrue(partly.contains("Why: self-test failed."))
         let stock = engineHelp(engine: "mlx", reason: nil, optimizations: nil, chip: nil, precision: "4b")
         XCTAssertTrue(stock.hasPrefix("Stock MLX path")); XCTAssertFalse(stock.contains("Why"), "never invents a cause")
+        let baseline = PrecisionResult(speed_x: 364.6, stock: StockBaseline(speed_x: 58.04, j_per_min: 95.2, memory_mb: 2412))
+        XCTAssertEqual(stockLine(baseline), "Stock MLX on any Mac: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
+        XCTAssertEqual(stockLine(PrecisionResult(stock: StockBaseline(speed_x: 228.8, memory_mb: 1732))), "Stock MLX on any Mac: 229\u{00d7} \u{00b7} 1.73 GB", "an unmeasured figure is left out")
+        XCTAssertNil(stockLine(PrecisionResult(speed_x: 364.6))); XCTAssertNil(stockLine(nil))
+        let loaded = engineHelp(engine: "optimized", reason: nil, optimizations: nil, chip: "M5 Max", precision: "BF16", stock: stockLine(baseline))
+        XCTAssertEqual(loaded.components(separatedBy: "\n").last, "Stock MLX on any Mac: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
+    }
+    func testStockBaselineDecodes() throws {
+        let json = #"{"speed_x": 387.4, "latency_ms": {"p50": 13.9, "p95": 22.4, "n": 231, "kind": "segment"}, "stock": {"wer": 15.5, "speed_x": "fast", "j_per_min": 6.67, "memory_mb": 1732, "latency_ms": {"p50": 23.7, "p95": 45.4}, "suite": "v2"}}"#
+        let r = try JSONDecoder().decode(PrecisionResult.self, from: Data(json.utf8))
+        XCTAssertEqual(r.latency_ms?.p95, 22.4); XCTAssertEqual(r.latency_ms?.kind, "segment")
+        XCTAssertEqual(r.stock?.wer, 15.5); XCTAssertNil(r.stock?.speed_x, "a wrongly typed figure is not measured")
+        XCTAssertEqual(r.stock?.latency_ms?.p50, 23.7); XCTAssertEqual(r.stock?.memory_mb, 1732)
     }
     func testFooterNoticePriority() {
         let refusal = TableRefusal(message: "needs ~4.2 GB", at: 1000)

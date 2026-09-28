@@ -41,30 +41,39 @@ Parakeet transcribes at about 365× real time, Qwen3 ASR 1.7B and Whisper large-
 
 Measured on Apple M5 Max, macOS 26.6, 2026-09-28. WER and Format on the 240-minute v2 benchmark (`v2`) or its 22.5-minute quick subset (`v2-quick`); Languages = benchmark languages supported, of 9.
 
+Each recommended row has a **Stock MLX (any Mac)** baseline row under it: the same model and precision with every Vella optimization off (plain MLX), which is what any Apple-silicon Mac runs when its load-time self-test does not qualify the fast path. Same suites, same session.
+
 | Model | Mode | Q | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|
-| Parakeet v3 Ultra | Dictation | 16 (recommended) | 15.52 | 5.76 | 5/9 | 365× | 5.2 | 1,753 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 8 | 15.54 | 5.69 | 5/9 | 287× | 9.4 | 1,903 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 4 | 15.78 | 5.94 | 5/9 | 284× | 9.2 | 1,664 MB | v2 |
-| Parakeet v3 | Dictation | 32 | 16.43 | 7.97 | 5/9 | 308× | 6.8 | 3,356 MB | v2 |
-| Parakeet v3 | Dictation | 16 (recommended) | 16.43 | 7.98 | 5/9 | 368× | 4.7 | 1,785 MB | v2 |
-| Parakeet v3 | Dictation | 8 | 16.55 | 8.05 | 5/9 | 279× | 9.4 | 1,804 MB | v2 |
-| Parakeet v3 | Dictation | 4 | 17.84 | 9.24 | 5/9 | 278× | 9.5 | 1,537 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 16 (recommended) | 15.03 | 6.88 | 9/9 | 28× | 75.5 | 4,492 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 8 | 15.07 | 6.75 | 9/9 | 42× | 67.8 | 3,092 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 4 | 15.37 | 7.10 | 9/9 | 57× | 54.5 | 2,259 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 16 (recommended) | 15.99 | 7.26 | 9/9 | 59× | 36.8 | 2,030 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 8 | 16.05 | 7.30 | 9/9 | 77× | 31.5 | 1,547 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 4 | 17.62 | 8.48 | 9/9 | 90× | 26.4 | 1,273 MB | v2 |
-| Whisper large-v3 | Dictation | FP16 (recommended) | 17.68 | 8.63 | 9/9 | 28× | 94.1 | 3,889 MB | v2 |
-| Whisper large-v3 | Dictation | 8 | 17.78 | 8.60 | 9/9 | 32× | 110.8 | 2,656 MB | v2 |
-| Whisper large-v3 | Dictation | 4 | 17.75 | 8.82 | 9/9 | 39× | 97.5 | 2,067 MB | v2 |
-| Whisper large-v3 turbo | Dictation | FP16 (recommended) | 17.31 | 7.69 | 9/9 | 76× | 58.5 | 2,459 MB | v2 |
-| Whisper large-v3 turbo | Dictation | 8 | 17.21 | 7.70 | 9/9 | 77× | 64.8 | 1,922 MB | v2 |
-| Whisper large-v3 turbo | Dictation | 4 | 17.80 | 8.43 | 9/9 | 80× | 63.5 | 1,689 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 16 | 23.42 | 10.55 | 9/9 | 20× | 78.9 | 2,700 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 8 (recommended) | 23.47 | 10.58 | 9/9 | 29× | 47.0 | 1,160 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 4 | 32.97 | 16.19 | 9/9 | 28× | 40.2 | 895 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 16 (recommended) | 15.54 | 5.80 | 5/9 | 387× | 4.7 | 1,740 MB | v2 |
+| ↳ Stock MLX (any Mac) | Dictation | 16 | 15.50 | 5.82 | 5/9 | 229× | 6.7 | 1,732 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 8 | 15.54 | 5.69 | 5/9 | 284× | 9.6 | 1,862 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 4 | 15.78 | 5.94 | 5/9 | 282× | 9.4 | 1,610 MB | v2 |
+| Parakeet v3 | Dictation | 32 | 16.43 | 7.97 | 5/9 | 302× | 7.1 | 3,231 MB | v2 |
+| Parakeet v3 | Dictation | 16 (recommended) | 16.45 | 7.98 | 5/9 | 404× | 5.2 | 1,735 MB | v2 |
+| ↳ Stock MLX (any Mac) | Dictation | 16 | 16.39 | 7.90 | 5/9 | 223× | 6.9 | 1,735 MB | v2 |
+| Parakeet v3 | Dictation | 8 | 16.55 | 8.05 | 5/9 | 278× | 9.8 | 1,758 MB | v2 |
+| Parakeet v3 | Dictation | 4 | 17.84 | 9.24 | 5/9 | 277× | 9.6 | 1,520 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 16 (recommended) | 15.06 | 6.74 | 9/9 | 27× | 75.6 | 5,092 MB | v2 |
+| ↳ Stock MLX (any Mac) | Dictation | 16 | 15.06 | 6.74 | 9/9 | 24× | 85.6 | 4,600 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 8 | 15.16 | 6.65 | 9/9 | 41× | 68.1 | 3,689 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 4 | 18.41 | 7.19 | 9/9 | 56× | 55.9 | 2,867 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 16 (recommended) | 15.97 | 7.29 | 9/9 | 59× | 35.9 | 2,364 MB | v2 |
+| ↳ Stock MLX (any Mac) | Dictation | 16 | 15.97 | 7.29 | 9/9 | 47× | 40.2 | 2,086 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 8 | 16.14 | 7.29 | 9/9 | 76× | 33.1 | 1,887 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 4 | 17.72 | 8.43 | 9/9 | 89× | 28.1 | 1,619 MB | v2 |
+| Whisper large-v3 | Dictation | FP16 | 17.68 | 8.63 | 9/9 | 28× | 110.9 | 3,838 MB | v2 |
+| Whisper large-v3 | Dictation | 8 (recommended) | 17.78 | 8.60 | 9/9 | 33× | 109.9 | 2,653 MB | v2 |
+| ↳ Stock MLX (any Mac) | Dictation | 8 | 17.64 | 8.59 | 9/9 | 17× | 171.2 | 2,832 MB | v2 |
+| Whisper large-v3 | Dictation | 4 | 17.75 | 8.82 | 9/9 | 41× | 97.9 | 2,081 MB | v2 |
+| Whisper large-v3 turbo | Dictation | FP16 (recommended) | 17.31 | 7.69 | 9/9 | 76× | 59.2 | 2,460 MB | v2 |
+| ↳ Stock MLX (any Mac) | Dictation | FP16 | 17.20 | 7.67 | 9/9 | 15× | 140.0 | 3,346 MB | v2 |
+| Whisper large-v3 turbo | Dictation | 8 | 17.21 | 7.70 | 9/9 | 78× | 64.5 | 1,925 MB | v2 |
+| Whisper large-v3 turbo | Dictation | 4 | 17.80 | 8.43 | 9/9 | 82× | 63.1 | 1,688 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 16 (recommended) | 23.39 | 10.55 | 9/9 | 27× | 54.4 | 1,614 MB | v2 |
+| ↳ Stock MLX (any Mac) | Streaming | 16 | 23.15 | 10.47 | 9/9 | 7× | 189.3 | 2,081 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 8 | 23.47 | 10.58 | 9/9 | 27× | 40.1 | 1,088 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 4 | 32.97 | 16.19 | 9/9 | 30× | 39.6 | 821 MB | v2 |
 | ElevenLabs Scribe v2 (cloud API) | Dictation | — | ~13.4 (estimated, 11.8–13.9) | — | — | — | — | — | estimated |
 | Microsoft Azure Speech (cloud API) | Dictation | — | ~12.9 (estimated, 11.3–13.3) | — | — | — | — | — | estimated |
 

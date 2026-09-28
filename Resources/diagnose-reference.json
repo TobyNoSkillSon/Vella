@@ -10,7 +10,7 @@
   "parakeet-v3": {
    "4b": {
     "mlx": {
-     "speed_x": 119.7,
+     "speed_x": 124.8,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -20,7 +20,7 @@
      }
     },
     "optimized": {
-     "speed_x": 175.2,
+     "speed_x": 181.6,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -32,7 +32,7 @@
    },
    "8b": {
     "mlx": {
-     "speed_x": 120.0,
+     "speed_x": 126.4,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -42,7 +42,7 @@
      }
     },
     "optimized": {
-     "speed_x": 169.0,
+     "speed_x": 179.9,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -54,7 +54,7 @@
    },
    "BF16": {
     "mlx": {
-     "speed_x": 158.4,
+     "speed_x": 165.4,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -64,7 +64,7 @@
      }
     },
     "optimized": {
-     "speed_x": 218.3,
+     "speed_x": 251.7,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -76,7 +76,7 @@
    },
    "FP32": {
     "mlx": {
-     "speed_x": 148.7,
+     "speed_x": 154.1,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -86,7 +86,7 @@
      }
     },
     "optimized": {
-     "speed_x": 194.8,
+     "speed_x": 209.8,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -100,7 +100,7 @@
   "parakeet-v3-ultra": {
    "4b": {
     "mlx": {
-     "speed_x": 151.6,
+     "speed_x": 160.6,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -110,7 +110,7 @@
      }
     },
     "optimized": {
-     "speed_x": 172.1,
+     "speed_x": 182.8,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -122,7 +122,7 @@
    },
    "8b": {
     "mlx": {
-     "speed_x": 152.1,
+     "speed_x": 160.1,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply",
@@ -132,7 +132,7 @@
      }
     },
     "optimized": {
-     "speed_x": 176.6,
+     "speed_x": 181.8,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply",
@@ -144,7 +144,7 @@
    },
    "BF16": {
     "mlx": {
-     "speed_x": 163.9,
+     "speed_x": 171.9,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply",
@@ -154,10 +154,10 @@
      }
     },
     "optimized": {
-     "speed_x": 206.0,
+     "speed_x": 256.8,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
       "clip-c": "surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
@@ -168,7 +168,7 @@
   "qwen3-asr-0.6b": {
    "4b": {
     "mlx": {
-     "speed_x": 53.1,
+     "speed_x": 56.1,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -178,7 +178,7 @@
      }
     },
     "optimized": {
-     "speed_x": 75.1,
+     "speed_x": 76.0,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -190,7 +190,7 @@
    },
    "8b": {
     "mlx": {
-     "speed_x": 48.4,
+     "speed_x": 50.3,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -200,7 +200,7 @@
      }
     },
     "optimized": {
-     "speed_x": 63.7,
+     "speed_x": 65.4,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -212,7 +212,7 @@
    },
    "BF16": {
     "mlx": {
-     "speed_x": 39.6,
+     "speed_x": 42.4,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -222,7 +222,7 @@
      }
     },
     "optimized": {
-     "speed_x": 50.9,
+     "speed_x": 52.2,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -236,7 +236,7 @@
   "qwen3-asr-1.7b": {
    "4b": {
     "mlx": {
-     "speed_x": 34.7,
+     "speed_x": 37.5,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of De Mau the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -246,7 +246,7 @@
      }
     },
     "optimized": {
-     "speed_x": 48.0,
+     "speed_x": 48.7,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of De Mau the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -258,7 +258,7 @@
    },
    "8b": {
     "mlx": {
-     "speed_x": 29.2,
+     "speed_x": 29.9,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -268,7 +268,7 @@
      }
     },
     "optimized": {
-     "speed_x": 35.4,
+     "speed_x": 36.4,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -280,7 +280,7 @@
    },
    "BF16": {
     "mlx": {
-     "speed_x": 21.5,
+     "speed_x": 22.3,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -290,9 +290,9 @@
      }
     },
     "optimized": {
-     "speed_x": 24.4,
+     "speed_x": 24.9,
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of De Maule the Elder.",
+      "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
       "clip-c": "Surely, we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
@@ -304,7 +304,7 @@
   "whisper-large-v3": {
    "4b": {
     "mlx": {
-     "speed_x": 17.0,
+     "speed_x": 17.4,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas, the elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -314,7 +314,7 @@
      }
     },
     "optimized": {
-     "speed_x": 32.8,
+     "speed_x": 35.0,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas, the elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -326,7 +326,7 @@
    },
    "8b": {
     "mlx": {
-     "speed_x": 16.4,
+     "speed_x": 17.0,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -336,7 +336,7 @@
      }
     },
     "optimized": {
-     "speed_x": 30.3,
+     "speed_x": 31.9,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -348,7 +348,7 @@
    },
    "FP16": {
     "mlx": {
-     "speed_x": 4.7,
+     "speed_x": 5.2,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -358,7 +358,7 @@
      }
     },
     "optimized": {
-     "speed_x": 27.4,
+     "speed_x": 28.3,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -372,7 +372,7 @@
   "whisper-large-v3-turbo": {
    "4b": {
     "mlx": {
-     "speed_x": 34.2,
+     "speed_x": 35.4,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -382,7 +382,7 @@
      }
     },
     "optimized": {
-     "speed_x": 62.2,
+     "speed_x": 64.4,
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -394,7 +394,7 @@
    },
    "8b": {
     "mlx": {
-     "speed_x": 32.7,
+     "speed_x": 33.9,
      "transcripts": {
       "clip-a": "it was one of the masterly and charming stories of de maw the elder",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -404,7 +404,7 @@
      }
     },
     "optimized": {
-     "speed_x": 58.3,
+     "speed_x": 60.1,
      "transcripts": {
       "clip-a": "it was one of the masterly and charming stories of de maw the elder",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -416,7 +416,7 @@
    },
    "FP16": {
     "mlx": {
-     "speed_x": 12.8,
+     "speed_x": 14.8,
      "transcripts": {
       "clip-a": "it was one of the masterly and charming stories of de maw the elder",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
@@ -426,7 +426,7 @@
      }
     },
     "optimized": {
-     "speed_x": 58.3,
+     "speed_x": 60.3,
      "transcripts": {
       "clip-a": "it was one of the masterly and charming stories of de maw the elder",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
