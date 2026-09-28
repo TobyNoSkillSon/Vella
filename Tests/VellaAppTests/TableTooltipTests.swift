@@ -82,7 +82,8 @@ final class TableTooltipTests: XCTestCase {
                 if l.count == 3 { XCTAssertNotNil(l[2].range(of: Self.provenance, options: .regularExpression), label) }
                 assertNoTrailingPeriod(text, label)
             case let c where c.hasPrefix("Q "):
-                XCTAssertTrue((1...5).contains(l.count), label)
+                // The recommended segment adds the rule and one line per rejected, more efficient precision.
+                XCTAssertTrue((1...8).contains(l.count), label)
                 XCTAssertTrue(l[0].hasPrefix(precisionFormatName(String(c.dropFirst(2)))), label)
             case "Engine":
                 XCTAssertNotNil(loaded, label)

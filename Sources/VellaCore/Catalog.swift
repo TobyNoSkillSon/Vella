@@ -490,20 +490,6 @@ public func sortedRows(_ families: [ModelFamily], references: [ReferenceEntry], 
 /// `~13%`: a reference's estimated WER, rounded to whole percent because it is an estimate.
 public func formatEstimatedErrorRate(_ percent: Double?) -> String? { percent.map { String(format: "~%.0f%%", $0) } }
 
-/// The WER tooltip of a reference row: estimated, from where, the range, and that we did not measure it.
-public func referenceWERHelp(_ r: ReferenceEntry, languageName: (String) -> String = { $0 }) -> String {
-    guard let wer = r.wer else { return "Not estimated." }
-    var text = String(format: "Estimated, not measured by us: ~%.1f%% word error rate on our v2 benchmark", wer)
-    if let range = r.range, range.count == 2 { text += String(format: ", range %.1f–%.1f%%", range[0], range[1]) }
-    text += "."
-    if let source = r.source { text += " Estimated from the \(source)." }
-    if let method = r.method { text += " " + method }
-    if let by = r.multilingual?.by_language, !by.isEmpty {
-        text += " Estimated by language: " + by.sorted { $0.key < $1.key }.map { "\(languageName($0.key)) ~\(String(format: "%.0f%%", $0.value))" }.joined(separator: ", ") + "."
-    }
-    return text
-}
-
 // MARK: Recommended precision
 
 /// WER tolerance (percentage points, absolute) a precision may lose against the native precision when the family's
@@ -604,12 +590,15 @@ public func recommendationHelp(_ benchmark: FamilyBenchmark?, recommended: Strin
     let criterion = gated ? "among the precisions that pass the quality gate against the native precision (\(native))"
                           : "within \(formatPoints(tolerance)) pt WER of the native precision (\(native))"
     guard let benchmark, let chosen = benchmark.result(recommended), chosen.j_per_min != nil else {
-        return "Recommended: fastest measured precision \(criterion); energy not measured."
+        return "Recommended: fastest measured precision \(criterion)\nEnergy not measured"
     }
-    var text = "Recommended: lowest energy per audio minute \(criterion)."
+    // One line per statement (the tooltip format): the rule, then at most one line per rejected precision, each
+    // naming its gain and its first two gate reasons.
+    var lines = ["Recommended: lowest energy per audio minute \(criterion)"]
     if recommended != native, let gate = chosen.gate, gate.pass, !gate.reasons.isEmpty {
-        text += " \(precisionInProse(recommended)): \(gate.reasons.joined(separator: "; "))."
+        lines.append("\(precisionInProse(recommended)): \(gate.reasons.prefix(2).joined(separator: "; "))")
     }
+    var text: String { lines.joined(separator: "\n") }
     guard let nativeWER = benchmark.result(native)?.wer else { return text }
     let rejected = benchmark.precisions.filter { label, r in
         guard label != recommended, options?.contains(label) ?? true, r.wer != nil else { return false }
@@ -625,12 +614,13 @@ public func recommendationHelp(_ benchmark: FamilyBenchmark?, recommended: Strin
         } else { continue }
         let why: String
         if let gate = r.gate {
-            why = "fails the quality gate" + (gate.reasons.isEmpty ? "." : ": " + gate.reasons.joined(separator: "; ") + ".")
+            let more = gate.reasons.count > 2 ? " (+\(gate.reasons.count - 2) more)" : ""
+            why = "fails the quality gate" + (gate.reasons.isEmpty ? "" : ": " + gate.reasons.prefix(2).joined(separator: "; ") + more)
         } else {
             why = "has \(String(format: "%.2f", wer - (chosen.wer ?? nativeWER))) pt more word errors "
-                + "(\(String(format: "%.2f", wer - nativeWER)) pt over \(precisionInProse(native)); limit \(formatPoints(tolerance)) pt)."
+                + "(\(String(format: "%.2f", wer - nativeWER)) pt over \(precisionInProse(native)); limit \(formatPoints(tolerance)) pt)"
         }
-        text += " \(precisionInProse(label)) \(gain) but \(why)"
+        lines.append("\(precisionInProse(label)) \(gain) but \(why)")
     }
     return text
 }
