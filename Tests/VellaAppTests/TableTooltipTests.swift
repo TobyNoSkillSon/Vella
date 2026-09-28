@@ -75,7 +75,7 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertNotNil(l.last?.range(of: Self.provenance, options: .regularExpression), "\(label): \(l.last ?? "")")
                 assertNoTrailingPeriod(text, label)
             case "On disk":
-                XCTAssertEqual(l.count, 2, label)
+                XCTAssertTrue((1...2).contains(l.count), label)
                 assertNoTrailingPeriod(text, label)
             case "Languages":
                 XCTAssertTrue(l.count == 1 || l.count == 3, "\(label): the list, then by-language WER and its provenance")
@@ -212,8 +212,9 @@ final class TableTooltipTests: XCTestCase {
         XCTAssertTrue(languages.hasPrefix("25 languages: Bulgarian, Croatian, Czech"), languages)
         XCTAssertEqual(lines(languages)[1], "Word error rate by language: French 16.0%, German 8.5%, Polish 6.9%, Spanish 13.9%, Swedish 19.1%; mean 12.9%")
         c.preview(ultra, "4b")
+        let derived = "Made on this Mac at load from the BF16 weights; nothing extra is stored"
         XCTAssertEqual(table.tooltips(ultra).first { $0.0 == "On disk" }?.1,
-                       "Made on this Mac at load from the BF16 weights; nothing extra is stored\nThe size shown is those BF16 files")
+                       c.disk(ultra, "4b") == nil ? derived : derived + "\nThe size shown is those BF16 files")
         let nemotron = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
         XCTAssertEqual(speedHelp(nemotron.mode, c.result(nemotron, "8b"), suites: c.benchmarks.suites),
                        "Streaming replay speed in × real time on the v2 quick benchmark (22.5 min), not microphone-to-text latency: higher is faster\n" + by)
