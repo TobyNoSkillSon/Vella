@@ -5,27 +5,42 @@ description: Transcribe audio files offline with Vella, the local speech-to-text
 
 # Transcribe audio with Vella
 
-Vella runs speech-recognition models on this Mac (Apple Silicon). Nothing leaves the machine. The same models the user dictates with transcribe your files; the user's own dictation always goes first, so a file may wait a moment while they speak.
+Vella runs speech-recognition models on this Mac (Apple Silicon); nothing leaves the machine. The models the user dictates with also transcribe your files. The user's own dictation always goes first, so a file may wait a moment while they speak.
 
-## 1. Decide it fits
+## When to use
 
-Use it when you have an audio file (or a video's audio track saved as audio) and need its words. It returns plain text, OpenAI-style JSON, timed segments (5–25 s each, cut at pauses), or SRT/VTT subtitles.
+Fits when you have an audio file (or a video's audio track saved as audio) and need its words: plain text, OpenAI-style JSON, timed segments (5–25 s each, cut at pauses), or SRT/VTT subtitles.
 
-It does not translate, identify speakers, or give word-level timestamps. Very long files are fine up to 3 hours; split longer ones.
+Use another tool to translate, to identify speakers or for word-level timestamps. Split files longer than 3 hours.
 
-## 2. Call it
+## Install
 
-Shell, one file (prints the transcript; starts Vella if it is not running):
+`vella status` prints one line when Vella is installed. If `vella` is missing, try `~/.local/bin/vella`; if that is missing too, ask the user before installing: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` (Apple Silicon, macOS 14 or newer; it ends with `ready: …`). A fresh install has no model: the user gets one in Vella → Models….
+
+## Results
+
+`vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Commands start Vella if it is not running, except `vella diagnose`.
+
+## Commands
 
 ```sh
-vella transcribe talk.m4a                      # plain text
+vella transcribe talk.m4a                      # the transcript as plain text
 vella transcribe talk.m4a --srt > talk.srt     # subtitles; --vtt, --json, --verbose-json (segments) also work
-vella transcribe talk.m4a --model parakeet-v3  # a specific model; `vella models` lists the ones on this Mac
+vella transcribe talk.m4a --model parakeet-v3  # a specific model
+vella transcribe talk.m4a --language pl        # a language hint
+vella models                                   # parakeet-v3-ultra  Parakeet v3 Ultra · BF16 · loaded · current dictation model   (one line per model on this Mac)
+vella status                                   # Vella 1.0.0 running (pid 29335), parakeet-v3-ultra BF16 loaded · dictation model Parakeet v3 Ultra (BF16) · API http://127.0.0.1:63080/v1
+vella url                                      # http://127.0.0.1:63080/v1
+vella diagnose                                 # a bug report for the user; its last line is a prefilled GitHub issue link
 ```
 
-`vella status` prints one line (running, loaded models, API address); `vella url` prints the base URL.
+## Done when
 
-Any language or SDK: Vella's local API is OpenAI-compatible, so code written for OpenAI's transcription endpoint works with only the base URL changed. The key is ignored but the SDKs require one:
+You have the transcript and have read enough of it to confirm it matches the audio (right language, no long stretches missing). Tell the user which file you transcribed and which model you asked for (the `--model` id, or their current dictation model). Vella picks the model again for each segment, so if the user loads or selects another model while a long file runs, the later part uses it; `vella status` afterwards names only the model selected now. Automatic transcripts misspell names and jargon: say so when those matter, and never present the text as a verbatim quote without checking it.
+
+## API
+
+Vella's local API is OpenAI-compatible: `POST /v1/audio/transcriptions` and `GET /v1/models` at the base URL from `vella url` (127.0.0.1 only). Code written for OpenAI's transcription endpoint works with only the base URL changed. The key is ignored, but the SDKs require one. The port changes when Vella restarts, so read it each time (`vella url`, or `api_port` in `~/Library/Application Support/Vella/worker-status.json`).
 
 ```python
 from openai import OpenAI
@@ -35,12 +50,15 @@ with open("talk.m4a", "rb") as f:
     text = client.audio.transcriptions.create(model="whisper-1", file=f, response_format="text")
 ```
 
-`model="whisper-1"` means the user's current dictation model; any id from `GET /v1/models` picks another downloaded model (it loads on demand and unloads after the user's Keep Hot time). Vella never downloads a model through the API: if a model is missing, ask the user to get it in Vella → Models….
+```sh
+curl -s "$(vella url)/audio/transcriptions" -F file=@talk.m4a -F response_format=srt
+```
 
-curl: `curl -s "$(vella url)/audio/transcriptions" -F file=@talk.m4a -F response_format=srt`. The port changes when Vella restarts, so read it each time (`vella url`, or `api_port` in `~/Library/Application Support/Vella/worker-status.json`).
+`model="whisper-1"` means the user's current dictation model; any id from `GET /v1/models` picks another downloaded model (it loads on demand and unloads after the user's Keep Hot time). `response_format` is `text`, `json` (`{"text": "…", "usage": …}`), `verbose_json` (adds `segments` with `start`, `end`, `text`), `srt` or `vtt`.
 
-## 3. Done when
+## Limits
 
-You have the transcript and have read enough of it to confirm it matches the audio (right language, no long stretches missing). Tell the user which file you transcribed and which model you asked for (the `--model` id, or their current dictation model). Vella picks the model again for each segment, so if the user loads or selects another model in Vella while a long file runs, the later part uses it; `vella status` afterwards names only the model selected now, not what transcribed the file. Automatic transcripts misspell names and jargon: say so when those matter, and never present the text as a verbatim quote without checking it.
-
-If Vella answers with an error, pass its one-line message to the user: it says what to do (for example "not downloaded; get it in Vella → Models…" or a memory refusal with the model's size). If transcripts look broken or transcription is far slower than expected, run `vella diagnose` and give the user its report and the bug-report link on its last line.
+- No translation, no speaker labels, no word-level timestamps; files up to 3 hours.
+- Vella never downloads a model through the API or the CLI. If a model is missing, ask the user to get it in Vella → Models….
+- The user's dictation takes priority; a file waits while they speak.
+- If transcripts look broken or transcription is far slower than expected, run `vella diagnose` and give the user its report and the bug-report link on its last line; they decide whether to file it. It never starts Vella and loads nothing unless you pass `--load`.
