@@ -53,7 +53,11 @@ final class NemotronNative: StreamingNative {
     }
     func enableOptimized() {
         guard !optimized, let model else { return }
-        if VellaNemotronOptions.f32Weights { VellaNemotronNumerics.convertFloat32Weights(model) }
+        if VellaNemotronOptions.f32Weights {
+            let switches = VellaNemotronOptions.requested
+            VellaNemotronNumerics.convertFloat32Weights(model, keep: { key in
+                switches.fusedActive() && VellaNemotronNumerics.fusedBF16Weight(key, bf16Linears: switches.bf16Linears) })
+        }
         fusedPrepared = VellaNemotronOptions.requested.fusedActive() && VellaNemotronNumerics.prepareFusedEncoder(model)
         optimized = true
     }

@@ -21,7 +21,7 @@ final class VellaNemotronFusedEncoder {
         let bits: Int
         let mode: QuantizationMode
 
-        init?(_ layers: [Linear]) {
+        init?(_ layers: [Linear], denseBF16: Bool = false) {
             guard layers.allSatisfy({ $0.bias == nil }) else { return nil }
             let quantized = layers.compactMap { $0 as? QuantizedLinear }
             if quantized.count == layers.count {
@@ -35,7 +35,9 @@ final class VellaNemotronFusedEncoder {
                 if let biases { fused["biases"] = biases }
                 Self.share(layers, fused)
             } else if quantized.isEmpty, layers.allSatisfy({ $0.weight.dtype == layers[0].weight.dtype }) {
-                weight = MLX.concatenated(layers.map(\.weight), axis: 0)
+                let dense = MLX.concatenated(layers.map(\.weight), axis: 0)
+                // Lever b: the BF16 checkpoint's Float32 copy back in BF16 (lossless only); MLX promotes it per call.
+                weight = denseBF16 ? (VellaNemotronFusedEncoder.losslessBF16(dense) ?? dense) : dense
                 scales = nil; biases = nil; groupSize = 0; bits = 0; mode = .affine
                 Self.share(layers, ["weight": weight])
             } else {
@@ -64,6 +66,44 @@ final class VellaNemotronFusedEncoder {
         }
     }
 
+    /// A bias-free dense BF16 Linear run by the small-M kernel (`VellaNemotronFusedMetal.linear`): M <= 8 rows of
+    /// Float32 activations, Float32 accumulation, optional SiLU epilogue, one dispatch. Any other input runs the stock
+    /// module (`fallback`), which reads the same BF16 weight (MLX promotes it per call: stock's exact values).
+    struct SmallLinear {
+        let weight: MLXArray
+        let n: Int, k: Int
+        let shape: (r: Int, s: Int)
+        let fallback: (MLXArray) -> MLXArray
+
+        init?(weight: MLXArray, fallback: @escaping (MLXArray) -> MLXArray) {
+            let n = weight.shape[0], k = weight.shape[1]
+            let shape = VellaNemotronFusedMetal.linearShape(n: n, k: k)
+            guard weight.dtype == .bfloat16, weight.ndim == 2, shape.r >= 1, shape.s >= 1,
+                  shape.r * VellaNemotronFusedMetal.maxRows <= shape.s * 32, k % (shape.s * 256) == 0, n % shape.r == 0 else { return nil }
+            self.weight = weight; self.n = n; self.k = k; self.shape = shape; self.fallback = fallback
+        }
+
+        /// A dense Linear whose Float32 copy is exactly BF16 (the BF16 checkpoint): converted back and shared with the
+        /// stock module; nil for quantized or non-BF16 weights.
+        init?(_ linear: Linear) {
+            guard linear.bias == nil, let w = VellaNemotronFusedEncoder.bf16(linear) else { return nil }
+            self.init(weight: w, fallback: { linear($0) })
+        }
+
+        func callAsFunction(_ x: MLXArray, silu: Bool = false) -> MLXArray {
+            let m = x.shape[1]
+            guard x.dtype == .float32, x.ndim == 3, x.shape[0] == 1, m >= 1, m <= VellaNemotronFusedMetal.maxRows, x.shape[2] == k else {
+                let y = fallback(x)
+                return silu ? MLXNN.silu(y) : y
+            }
+            let (r, s) = shape
+            return VellaNemotronFusedEncoder.linearKernel(
+                [x, weight], template: [("N", n), ("KD", k), ("M", m), ("R", r), ("S", s), ("SILU", silu)],
+                grid: (n / r * s * 32, 1, 1), threadGroup: (s * 32, 1, 1),
+                outputShapes: [[1, m, n]], outputDTypes: [.float32])[0]
+        }
+    }
+
     private struct Norm {
         let weight: MLXArray
         let bias: MLXArray
@@ -78,6 +118,8 @@ final class VellaNemotronFusedEncoder {
         let block: NemotronASRConformerBlock
         let qkv: Projection
         let pw1, pw2: MLXArray  // (out, in) BF16 1×1 conv weights, shared with the stock modules
+        /// BF16 small-M kernels for FF1/FF2 (linear1 with the SiLU epilogue), Q/K/V and linear_out (`VELLA_NEMO_BF16LINEAR`).
+        let ff1a, ff1b, ff2a, ff2b, qkvLin, outLin: SmallLinear?
         let dw: MLXArray        // (C, K)
         let ff1, att, conv, convLN, ff2, out: Norm
     }
@@ -90,7 +132,9 @@ final class VellaNemotronFusedEncoder {
     private var dims: [Int: MLXArray] = [:]
     private var zeros: [DType: MLXArray] = [:]
 
-    init?(_ encoder: NemotronASRConformer) {
+    /// `denseBF16`: the dense (BF16 checkpoint) Linears in BF16 (lossless only; the load skips their Float32 copies),
+    /// shared with the stock modules and run through `SmallLinear`. Quantized checkpoints keep MLX's quantized matmul.
+    init?(_ encoder: NemotronASRConformer, denseBF16: Bool = false) {
         let first = encoder.layers[0]
         let d = first.selfAttn.nFeat, h = first.selfAttn.nHead, hd = first.selfAttn.headDim
         let k = first.conv.depthwiseConv.weight.shape[1]
@@ -100,14 +144,19 @@ final class VellaNemotronFusedEncoder {
             let a = b.selfAttn, c = b.conv
             guard a.nHead == h, a.headDim == hd, c.depthwiseConv.bias == nil, c.pointwiseConv1.bias == nil, c.pointwiseConv2.bias == nil,
                   c.depthwiseConv.weight.shape == [d, k, 1], c.pointwiseConv1.weight.shape == [2 * d, 1, d], c.pointwiseConv2.weight.shape == [d, 1, d],
-                  let qkv = Projection([a.linearQ, a.linearK, a.linearV]),
+                  let qkv = Projection([a.linearQ, a.linearK, a.linearV], denseBF16: denseBF16),
                   let ff1 = Norm(b.normFeedForward1), let att = Norm(b.normSelfAtt), let conv = Norm(b.normConv),
                   let convLN = Norm(c.batchNorm), let ff2 = Norm(b.normFeedForward2), let out = Norm(b.normOut) else { return nil }
             // The 1×1 convs run from BF16 weights (half the traffic of the Float32 copies); only when that is exact.
             guard let pw1 = Self.bf16(c.pointwiseConv1), let pw2 = Self.bf16(c.pointwiseConv2) else { return nil }
+            func small(_ l: Linear) -> SmallLinear? { denseBF16 ? SmallLinear(l) : nil }
+            let qkvLin = denseBF16 && qkv.scales == nil ? SmallLinear(weight: qkv.weight, fallback: { qkv($0) }) : nil
             built.append(Layer(block: b, qkv: qkv,
                                pw1: pw1.reshaped([2 * d, d]),
                                pw2: pw2.reshaped([d, d]),
+                               ff1a: small(b.feedForward1.linear1), ff1b: small(b.feedForward1.linear2),
+                               ff2a: small(b.feedForward2.linear1), ff2b: small(b.feedForward2.linear2),
+                               qkvLin: qkvLin, outLin: small(a.linearOut),
                                dw: c.depthwiseConv.weight.reshaped([d, k]),
                                ff1: ff1, att: att, conv: conv, convLN: convLN, ff2: ff2, out: out))
         }
@@ -118,14 +167,28 @@ final class VellaNemotronFusedEncoder {
 
     /// The conv's weight as BF16 if that is lossless (checkpoint values are BF16); the stock module then uses it too.
     private static func bf16(_ conv: Conv1d) -> MLXArray? {
-        let w = conv.weight
+        guard let b = losslessBF16(conv.weight) else { return nil }
+        if b !== conv.weight { _ = conv.update(parameters: ModuleParameters.unflattened(["weight": b])) }
+        return b
+    }
+    /// Same for a dense Linear (lever b): the stock module then reads BF16 and MLX promotes it per call, which
+    /// gives the values of the Float32 copy exactly.
+    fileprivate static func bf16(_ linear: Linear) -> MLXArray? {
+        guard !(linear is QuantizedLinear), let b = losslessBF16(linear.weight) else { return nil }
+        if b !== linear.weight { _ = linear.update(parameters: ModuleParameters.unflattened(["weight": b])) }
+        return b
+    }
+    fileprivate static func losslessBF16(_ w: MLXArray) -> MLXArray? {
         guard w.dtype != .bfloat16 else { return w }
+        guard w.dtype == .float32 else { return nil }
         let b = w.asType(.bfloat16)
         guard MLX.all(b.asType(w.dtype) .== w).item(Bool.self) else { return nil }
         eval(b)
-        _ = conv.update(parameters: ModuleParameters.unflattened(["weight": b]))
         return b
     }
+    fileprivate static let linearKernel = MLXFast.metalKernel(
+        name: "vella_nemo_linear_bf16", inputNames: ["x", "W"], outputNames: ["y"],
+        source: VellaNemotronFusedMetal.linear, header: VellaNemotronFusedMetal.header)
 
     private func dimsArray(_ m: Int, _ c: Int, _ cn: Int) -> MLXArray {
         let key = m | (c << 16) | (cn << 32)
@@ -186,10 +249,10 @@ final class VellaNemotronFusedEncoder {
         for (li, l) in layers.enumerated() {
             let b = l.block, a = b.selfAttn
             // FF1 (½ residual)
-            var f = b.feedForward1.linear2(MLXNN.silu(b.feedForward1.linear1(h)))
+            var f = feedForward(h, b.feedForward1, l.ff1a, l.ff1b)
             (x, h) = addNorm(x, f, half: true, l.att)
             // relative-position attention over [K/V cache ++ chunk]; the kernel also writes the next K/V cache
-            let qkv = l.qkv(h)
+            let qkv = l.qkvLin?(h) ?? l.qkv(h)
             let cacheLen = state.keyCache[li]?.shape[1] ?? 0
             let cn = Swift.min(cacheLen + m, leftCache)
             let position = model.streamPositionProjection(a, layer: li, h, cacheLen: cacheLen, leftCache: leftCache, cached: state.usePositionCache)
@@ -202,7 +265,7 @@ final class VellaNemotronFusedEncoder {
                 outputShapes: [[1, m, d], [1, cn, d], [1, cn, d]], outputDTypes: [dtype, dtype, dtype])
             state.keyCache[li] = att[1]
             state.valueCache[li] = att[2]
-            (x, h) = addNorm(x, a.linearOut(att[0]), half: false, l.conv)
+            (x, h) = addNorm(x, l.outLin?(att[0]) ?? a.linearOut(att[0]), half: false, l.conv)
             // GLU + causal depthwise conv + LayerNorm + SiLU; the kernel also writes the next conv cache
             let conv = Self.convKernel(
                 [gemv(h, l.pw1), state.convCache[li] ?? zeroRows(dtype), l.dw, l.convLN.weight, l.convLN.bias],
@@ -212,19 +275,75 @@ final class VellaNemotronFusedEncoder {
             state.convCache[li] = conv[1]
             (x, h) = addNorm(x, gemv(conv[0], l.pw2), half: false, l.ff2)
             // FF2 (½ residual), normOut, and the next layer's first norm
-            f = b.feedForward2.linear2(MLXNN.silu(b.feedForward2.linear1(h)))
+            f = feedForward(h, b.feedForward2, l.ff2a, l.ff2b)
             let next = li + 1 < layers.count ? layers[li + 1].ff1 : l.out
             (x, h) = addNorm(x, f, half: true, l.out, next)
         }
         state.attnCache = state.attnCache.map { _ in nil }
         return x
     }
+
+    /// linear2(silu(linear1(h))): two small-M kernels (SiLU in the first one's epilogue) when both are eligible.
+    private func feedForward(_ h: MLXArray, _ ff: NemotronASRFeedForward, _ a: SmallLinear?, _ b: SmallLinear?) -> MLXArray {
+        if let a, let b { return b(a(h, silu: true)) }
+        return ff.linear2(MLXNN.silu(ff.linear1(h)))
+    }
 }
 
 enum VellaNemotronFusedMetal {
     /// Rows per chunk the kernels support (a streaming chunk has 4 frames; the flush tail a few more).
     static let maxRows = 8
+    /// Small-M linear shape: output columns per threadgroup (R) and simdgroups splitting K (S). Lab override (both):
+    /// `VELLA_NEMO_GEMV_R` / `VELLA_NEMO_GEMV_S` (part of the gate key like every `VELLA_NEMO_` switch).
+    /// Default per shape from a dependent-chain microbench (M5 Max, M = 4, BF16 weights; `lab/perf/vk-stream/gemvchain.py`):
+    /// K 4096 (FF linear2) R8 S4, N >= 2048 (FF linear1, Q/K/V) R2 S4, 1024x1024 R2 S2.
+    static func linearShape(n: Int, k: Int) -> (r: Int, s: Int) {
+        let env = ProcessInfo.processInfo.environment
+        if let r = env["VELLA_NEMO_GEMV_R"].flatMap(Int.init), let s = env["VELLA_NEMO_GEMV_S"].flatMap(Int.init) { return (r, s) }
+        if k >= 4096 { return (8, 4) }
+        return n >= 2048 ? (2, 4) : (2, 2)
+    }
 
+    /// y (M, N) = x (M, KD) * W^T for M <= 8 Float32 rows: a threadgroup of S simdgroups owns R output columns, each
+    /// simdgroup a contiguous K/S slice (8 consecutive K per lane and step), float accumulation, the S partial sums
+    /// added in threadgroup memory in simdgroup order; SILU applies x*sigmoid(x) to the sum. The weight is read once
+    /// for all M rows. W is BF16 (N, KD) row-major.
+    static let linear = #"""
+constexpr int KS = KD / S;
+uint lane = thread_index_in_simdgroup;
+uint sg = simdgroup_index_in_threadgroup;
+uint n0 = threadgroup_position_in_grid.x * R;
+threadgroup float red[S][M][R];
+float acc[M][R];
+for (int m = 0; m < M; m++) for (int r = 0; r < R; r++) acc[m][r] = 0.0f;
+for (int k = int(sg) * KS + int(lane) * 8; k < int(sg + 1) * KS; k += 256) {
+    float xv[M][8];
+    for (int m = 0; m < M; m++) {
+        const device float4* xr = reinterpret_cast<const device float4*>(x + m * KD + k);
+        float4 a = xr[0], b = xr[1];
+        xv[m][0] = a.x; xv[m][1] = a.y; xv[m][2] = a.z; xv[m][3] = a.w;
+        xv[m][4] = b.x; xv[m][5] = b.y; xv[m][6] = b.z; xv[m][7] = b.w;
+    }
+    for (int r = 0; r < R; r++) {
+        float wv[8];
+        vn_load8(W + (n0 + r) * KD + k, wv);
+        for (int m = 0; m < M; m++) { float s = 0.0f; for (int u = 0; u < 8; u++) s += xv[m][u] * wv[u]; acc[m][r] += s; }
+    }
+}
+for (int m = 0; m < M; m++) for (int r = 0; r < R; r++) {
+    float s = simd_sum(acc[m][r]);
+    if (lane == 0) red[sg][m][r] = s;
+}
+threadgroup_barrier(mem_flags::mem_threadgroup);
+uint t = sg * 32 + lane;
+if (t < uint(M * R)) {
+    int m = int(t) / R, r = int(t) % R;
+    float s = 0.0f;
+    for (int i = 0; i < S; i++) s += red[i][m][r];
+    if (SILU) s = s / (1.0f + metal::precise::exp(-s));
+    y[m * N + n0 + r] = s;
+}
+"""#
     static let header = #"""
 #define rt(v) float(static_cast<T>(v))
 // Per-row sums over a threadgroup of C threads (one channel per thread) for up to 8 rows at once;

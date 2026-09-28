@@ -19,12 +19,21 @@ public enum VellaNemotronNumerics {
     /// Converting those weights once at load (lossless) gives bit-identical output
     /// without the per-op conversions. The prediction network stays BF16: its
     /// embedding feeds a BF16 x BF16 LSTM matmul, which Float32 weights would change.
-    public static func convertFloat32Weights(_ model: NemotronASRModel) {
+    /// `keep`: weights the fused layer reads in BF16 anyway (it would convert them straight back), left out so the
+    /// load never holds their Float32 copies (peak memory).
+    public static func convertFloat32Weights(_ model: NemotronASRModel, keep: (String) -> Bool = { _ in false }) {
         let converted = model.parameters().flattened().map { key, value -> (String, MLXArray) in
-            (key, !key.hasPrefix("decoder.") && value.dtype == .bfloat16 ? value.asType(.float32) : value)
+            (key, !key.hasPrefix("decoder.") && value.dtype == .bfloat16 && !keep(key) ? value.asType(.float32) : value)
         }
         model.update(parameters: ModuleParameters.unflattened(Dictionary(uniqueKeysWithValues: converted)))
         eval(model)
+    }
+    /// The encoder weights the fused layer keeps in BF16: the 1x1 conv weights, and with `bf16Linears` the dense
+    /// feed-forward and attention Linears. Unfused layers still run on them exactly (MLX promotes BF16 per call).
+    public static func fusedBF16Weight(_ key: String, bf16Linears: Bool) -> Bool {
+        guard key.hasPrefix("encoder.layers."), key.hasSuffix(".weight") else { return false }
+        if key.contains(".conv.pointwise_conv") { return true }
+        return bf16Linears && (key.contains(".feed_forward") || key.contains(".self_attn.linear_"))
     }
     /// Undo `convertFloat32Weights` (Float32 -> BF16 is exact for values that came from BF16):
     /// the stock weights, for the runtime fallback, without reloading.
@@ -40,7 +49,9 @@ public enum VellaNemotronNumerics {
     /// Returns false when this checkpoint's shapes are not supported (the unfused path stays).
     @discardableResult
     public static func prepareFusedEncoder(_ model: NemotronASRModel) -> Bool {
-        model.fusedEncoder = VellaNemotronFusedEncoder(model.encoder)
+        let switches = VellaNemotronOptions.requested
+        model.fusedEncoder = VellaNemotronFusedEncoder(model.encoder, denseBF16: switches.bf16Linears)
+        Memory.clearCache()   // the Float32 copies the BF16 Linears replaced
         return model.fusedEncoder != nil
     }
     public static func dropFusedEncoder(_ model: NemotronASRModel) {

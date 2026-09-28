@@ -11,17 +11,20 @@ public enum VellaNemotronOptions {
         public var f32Weights, coalesce, batchedDecode, positionCache, keyValueCache, fusedLayer: Bool
         /// One frontend call per request instead of one per 20-ms block (needs `coalesce`; exact).
         public var melBatch: Bool
+        /// Fused layer only, BF16 checkpoints: the dense encoder Linears stay BF16 (no Float32 copy) and run through
+        /// the small-M BF16 kernel (not bit-identical: within the fused layer's self-test tolerance).
+        public var bf16Linears: Bool
         public init(f32Weights: Bool, coalesce: Bool, batchedDecode: Bool, positionCache: Bool, keyValueCache: Bool, fusedLayer: Bool,
-                    melBatch: Bool = false) {
+                    melBatch: Bool = false, bf16Linears: Bool = false) {
             self.f32Weights = f32Weights; self.coalesce = coalesce; self.batchedDecode = batchedDecode
             self.positionCache = positionCache; self.keyValueCache = keyValueCache; self.fusedLayer = fusedLayer
-            self.melBatch = melBatch
+            self.melBatch = melBatch; self.bf16Linears = bf16Linears
         }
         public init(environment: [String: String], forcedStock: Bool) {
             func on(_ name: String) -> Bool { !forcedStock && environment["VELLA_NEMO_" + name] != "0" }
             self.init(f32Weights: on("F32"), coalesce: on("COALESCE"), batchedDecode: on("BATCHED_DECODE"),
                       positionCache: on("POSCACHE"), keyValueCache: on("KVCACHE"), fusedLayer: on("FUSED"),
-                      melBatch: on("MELBATCH"))
+                      melBatch: on("MELBATCH"), bf16Linears: on("BF16LINEAR"))
         }
         /// The fused layer runs only on the K/V-cache path, and only when its encoder could be built for this checkpoint.
         public func fusedActive(prepared: Bool = true) -> Bool { fusedLayer && keyValueCache && prepared }
@@ -29,7 +32,8 @@ public enum VellaNemotronOptions {
         public func effective(fusedPrepared: Bool = true) -> [String: Bool] {
             ["f32_weights": f32Weights, "coalesce": coalesce, "batched_decode": batchedDecode,
              "position_cache": positionCache, "kv_cache": keyValueCache, "fused_layer": fusedActive(prepared: fusedPrepared),
-             "mel_batch": melBatch && coalesce]
+             "mel_batch": melBatch && coalesce,
+             "bf16_linears": bf16Linears && fusedActive(prepared: fusedPrepared)]
         }
         /// At least one component would run: the fused layer alone (K/V cache off) runs nothing.
         public var anyEnabled: Bool { effective().values.contains(true) }
@@ -45,7 +49,7 @@ public enum VellaNemotronOptions {
     /// Per-request mel frontend (the session only defers the mel when the worker coalesces requests).
     public static let melBatch = requested.melBatch && requested.coalesce
     /// Bumped whenever an optimization or its self-test changes, so a persisted self-test verdict is not reused.
-    public static let revision = "nemotron-stream-4"
+    public static let revision = "nemotron-stream-5"
     public static var anyEnabled: Bool { requested.anyEnabled }
     /// The requested components with their dependencies applied (before the fused encoder is built).
     public static var active: [String: Bool] { requested.effective() }

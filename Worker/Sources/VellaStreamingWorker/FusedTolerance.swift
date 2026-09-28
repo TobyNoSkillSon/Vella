@@ -6,6 +6,7 @@ enum FusedTolerance {
     /// Relative RMS ||fused - unfused|| / ||unfused|| of the chunk encoder output over the self-test stream.
     /// M5 Max, Float32 activations: 0.7e-3 (4b), 1.2e-3 (8b), 1.8e-3 (BF16) — most of it from the 1×1 convs as
     /// matmuls, the rest from summation order; injected kernel bugs (wrong position bias, dropped conv cache) give 0.69-1.42.
+    /// BF16 with its Linears on the BF16 small-M kernel (`VELLA_NEMO_BF16LINEAR`, 28 Sep): 6.0e-3.
     static let maxFusedDeviation: Float = 1e-2
     /// Committed words of the whole stream may differ by at most one edit (a near-tie token).
     static let maxWordEdits = 1
