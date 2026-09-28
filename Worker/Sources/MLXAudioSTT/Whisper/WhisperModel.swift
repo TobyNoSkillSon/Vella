@@ -23,6 +23,13 @@ public final class WhisperModel: Module, STTGenerationModel {
         public init() {}
     }
     public static let profiling = ProcessInfo.processInfo.environment["VELLA_WHISPER_PROFILE"] == "1"
+    /// Per-request sampling seed for temperature fallback. Lab-only override `VELLA_WHISPER_SEED` (decimal or 0x hex)
+    /// measures the sampling noise floor of the quality gate (lab/notes/GATE-REVISION.md); the app never sets it.
+    static let samplingSeed: UInt64 = {
+        guard let raw = ProcessInfo.processInfo.environment["VELLA_WHISPER_SEED"] else { return 0x5eed }
+        let hex = raw.lowercased().hasPrefix("0x")
+        return UInt64(hex ? String(raw.dropFirst(2)) : raw, radix: hex ? 16 : 10) ?? 0x5eed
+    }()
     public var profile = Profile()
 
     // MARK: - Optimized path state (FastPathCapable; off after load, the worker enables it once the gate qualified it)
@@ -80,7 +87,7 @@ public final class WhisperModel: Module, STTGenerationModel {
         let startTime = Date()
         // Temperature fallback samples from MLX's global key, which is seeded from the clock: seed it per request so
         // the same audio always gives the same transcript (repeatable results and `vella diagnose` comparisons).
-        MLXRandom.seed(0x5eed)
+        MLXRandom.seed(WhisperModel.samplingSeed)
         let mono = audio.ndim > 1 ? audio.mean(axis: -1) : audio
         let chunks = chunkAudioFor30sWindows(mono)
         lastTokens = []
@@ -804,7 +811,7 @@ extension WhisperModel: FastPathCapable {
         defer { if reference { model.encoder.positionDType = saved } }
         // Temperature fallback samples from MLX's time-seeded global key: seed it so a clip that falls back
         // samples the same keys on both paths (the self-test child only).
-        MLXRandom.seed(0x5eed)
+        MLXRandom.seed(WhisperModel.samplingSeed)
         _ = generate(audio: audio, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
         return Array(lastTokens.dropLast())
     }
