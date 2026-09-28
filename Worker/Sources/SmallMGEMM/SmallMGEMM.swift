@@ -86,36 +86,64 @@ public enum SmallMGEMM {
     }
 
     /// out[M, N] = epilogue(x[..., K] · Wᵀ) with the leading dimensions of x flattened into M; nil when `supports`
-    /// is false for this call.
+    /// is false for this call or an epilogue operand has the wrong size (bias [N], residual [M, N] or [..., N]).
     public static func matmul(_ x: MLXArray, _ weights: Weights, epilogue: Epilogue = .none) -> MLXArray? {
         let k = x.dim(-1), n = weights.n, rows = x.size / max(k, 1)
-        guard weights.w.ndim == 2, weights.w.dtype == x.dtype, weights.w.dim(1) == k else { return nil }
-        guard let plan = tilePlan(m: rows, n: n, k: k, dtype: x.dtype, format: weights.format, epilogue: epilogue.kind) else { return nil }
-        let x2 = x.reshaped([rows, k])
-        let out = tileKernelBF16([x2, weights.w], template: [("BM", tile), ("BN", tile), ("SG", plan.simdgroups)],
-                                 grid: ((rows + tile - 1) / tile * 32 * plan.simdgroups, (n + tile - 1) / tile, 1),
-                                 threadGroup: (32 * plan.simdgroups, 1, 1), outputShapes: [[rows, n]], outputDTypes: [.bfloat16])[0]
+        guard weights.w.ndim == 2, weights.format == .dense, weights.w.dtype == x.dtype, weights.w.dim(1) == k else { return nil }
+        var bias: MLXArray?, residual: MLXArray?
+        switch epilogue {
+        case .none: break
+        case .bias(let b): bias = b
+        case .residual(let r): residual = r
+        case .biasResidual(let b, let r): bias = b; residual = r
+        case .siluGate: return nil
+        }
+        guard bias.map({ $0.size == n }) ?? true, residual.map({ $0.size == rows * n }) ?? true,
+              let simdgroups = tilePlan(m: rows, n: n, k: k, dtype: x.dtype, format: weights.format, epilogue: epilogue.kind) else { return nil }
+        let out = tileKernel([x.reshaped([rows, k]), weights.w, bias ?? placeholder, residual ?? placeholder],
+                             template: [("T", x.dtype), ("BM", tile), ("BN", tile), ("SG", simdgroups),
+                                        ("HAS_BIAS", bias != nil), ("HAS_RES", residual != nil)],
+                             grid: ((rows + tile - 1) / tile * 32 * simdgroups, (n + tile - 1) / tile, 1),
+                             threadGroup: (32 * simdgroups, 1, 1), outputShapes: [[rows, n]], outputDTypes: [x.dtype])[0]
         return out.reshaped(Array(x.shape.dropLast()) + [n])
     }
 
+    /// Stands in for an absent epilogue operand (never read); a host constant, so it adds no dispatch.
+    private static let placeholder = MLXArray([Float(0)])
+
     // MARK: - Self-test
 
-    /// Runs every supported (kernel, dtype, format, epilogue, M class) on fixed random inputs against stock MLX and
-    /// returns the relative RMS per class (non-finite → ∞). Classes this GPU cannot run are absent.
+    /// Runs every supported (kernel, dtype, format, epilogue) class on fixed random inputs covering its M range and
+    /// edge cases against stock MLX and returns the largest relative RMS per class (non-finite → ∞). Classes this GPU
+    /// cannot run are absent. Class names: "<kernel>.<dtype>.<format>.<epilogue>", e.g. "tile.f16.dense.bias".
     public static func selfTest() -> [String: Float] {
         var results: [String: Float] = [:]
-        func random(_ shape: [Int], _ index: Int, _ dtype: DType, scale: Float = 1) -> MLXArray {
-            (MLXRandom.normal(shape, key: MLXRandom.key(UInt64(0x5eed + index))) * scale).asType(dtype)
+        var seed: UInt64 = 0x5eed
+        func random(_ shape: [Int], _ dtype: DType, scale: Float = 1) -> MLXArray {
+            seed += 1
+            return (MLXRandom.normal(shape, key: MLXRandom.key(seed)) * scale).asType(dtype)
         }
-        // (M, N, K): both simdgroup counts, a partial row tile, a partial column tile.
-        let tileShapes = [(9, 96, 256), (33, 200, 512), (100, 160, 1024), (256, 64, 384)]
-        for (index, (m, n, k)) in tileShapes.enumerated() {
-            let dtype = DType.bfloat16
-            guard supports(m: m, n: n, k: k, dtype: dtype, format: .dense, epilogue: .none) else { continue }
-            let x = random([m, k], 2 * index, dtype), w = random([n, k], 2 * index + 1, dtype, scale: 0.05)
-            let reference = MLX.matmul(x, w.transposed())
-            let name = "tile.bf16.dense.none.m\(m)"
-            results[name] = matmul(x, .dense(w)).map { relativeRMS($0, reference) } ?? .infinity
+        func record(_ name: String, _ value: Float) { results[name] = Swift.max(results[name] ?? 0, value) }
+        // (M, N, K): both simdgroup counts, partial row and column tiles, uneven K splits (K % (SG * 16) != 0).
+        let tileShapes = [(9, 96, 272), (33, 200, 512), (100, 160, 1040), (256, 64, 384)]
+        let epilogues: [(String, EpilogueKind)] = [("none", .none), ("bias", .bias), ("residual", .residual), ("biasResidual", .biasResidual)]
+        for (dtypeName, dtype) in [("bf16", DType.bfloat16), ("f16", DType.float16)] {
+            for (m, n, k) in tileShapes {
+                let x = random([m, k], dtype), w = random([n, k], dtype, scale: 0.05)
+                let b = random([n], dtype), r = random([m, n], dtype)
+                let product = MLX.matmul(x, w.transposed())
+                for (epilogueName, kind) in epilogues where supports(m: m, n: n, k: k, dtype: dtype, format: .dense, epilogue: kind) {
+                    let epilogue: Epilogue, reference: MLXArray
+                    switch kind {
+                    case .bias: epilogue = .bias(b); reference = product + b
+                    case .residual: epilogue = .residual(r); reference = product + r
+                    case .biasResidual: epilogue = .biasResidual(b, r); reference = product + b + r
+                    default: epilogue = .none; reference = product
+                    }
+                    let name = "tile.\(dtypeName).dense.\(epilogueName)"
+                    record(name, matmul(x, .dense(w), epilogue: epilogue).map { relativeRMS($0, reference) } ?? .infinity)
+                }
+            }
         }
         return results
     }
@@ -140,14 +168,13 @@ public enum SmallMGEMM {
     // MARK: - Tile kernel (tile-1)
 
     private static let tile = 32
-    private struct TilePlan { let simdgroups: Int }
-
-    private static func tilePlan(m: Int, n: Int, k: Int, dtype: DType, format: WeightFormat, epilogue: EpilogueKind) -> TilePlan? {
+    /// Simdgroups per threadgroup for the tile kernel, or nil when it cannot run the call.
+    private static func tilePlan(m: Int, n: Int, k: Int, dtype: DType, format: WeightFormat, epilogue: EpilogueKind) -> Int? {
         // More simdgroups for fewer rows: 8 up to 64 rows, 4 above (microbench, M5 Max).
         let simdgroups = m <= 64 ? 8 : 4
-        guard tensorOpsAvailable, dtype == .bfloat16, format == .dense, epilogue == .none, tileRows.contains(m), n > 0,
-              k > 0, k % (simdgroups * 16) == 0 else { return nil }
-        return TilePlan(simdgroups: simdgroups)
+        guard tensorOpsAvailable, dtype == .bfloat16 || dtype == .float16, format == .dense, epilogue != .siluGate,
+              tileRows.contains(m), n > 0, k % 16 == 0, k >= simdgroups * 16 else { return nil }
+        return simdgroups
     }
 
     static let tileHeader = #"""
@@ -156,15 +183,19 @@ public enum SmallMGEMM {
 using namespace mpp::tensor_ops;
 """#
 
-    // x [M, K] and w [N, K] row-major BF16; out [M, N]. Grid: x = M tiles (threadgroups sharing a weight tile are
-    // dispatched together), y = N tiles. The host guarantees K % (SG * 16) == 0.
-    static let tileSourceBF16 = #"""
+    // x [M, K] and w [N, K] row-major T (bfloat or half); out [M, N] = x · wᵀ (+ bias[n]) (+ res[m, n]).
+    // Grid: x = M tiles (threadgroups sharing a weight tile are dispatched together), y = N tiles. K is split into
+    // 16-wide chunks spread over the SG simdgroups as evenly as possible; with K % (SG * 16) == 0 every simdgroup gets
+    // K / SG, which is tile-1's order. The epilogue adds in float and rounds once; `bias`/`res` are 1-element
+    // placeholders when HAS_BIAS/HAS_RES is 0. The host guarantees K % 16 == 0 and K >= SG * 16.
+    static let tileSource = #"""
     const int M = x_shape[0], K = x_shape[1], N = w_shape[0];
     const int tm = threadgroup_position_in_grid.x, tn = threadgroup_position_in_grid.y;
     const int sg = simdgroup_index_in_threadgroup;
-    const int kc = K / SG;
-    auto A = tensor<device bfloat, dextents<int32_t, 2>, tensor_inline>((device bfloat*)x + sg * kc, dextents<int32_t, 2>(kc, M), array<int, 2>{1, K});
-    auto B = tensor<device bfloat, dextents<int32_t, 2>, tensor_inline>((device bfloat*)w + sg * kc, dextents<int32_t, 2>(kc, N), array<int, 2>{1, K});
+    const int chunks = K / 16, base = chunks / SG, extra = chunks % SG;
+    const int k0 = 16 * (sg * base + min(sg, extra)), kc = 16 * (base + (sg < extra ? 1 : 0));
+    auto A = tensor<device T, dextents<int32_t, 2>, tensor_inline>((device T*)x + k0, dextents<int32_t, 2>(kc, M), array<int, 2>{1, K});
+    auto B = tensor<device T, dextents<int32_t, 2>, tensor_inline>((device T*)w + k0, dextents<int32_t, 2>(kc, N), array<int, 2>{1, K});
     constexpr auto desc = matmul2d_descriptor(BM, BN, static_cast<int>(dynamic_extent), false, true, false);
     matmul2d<desc, execution_simdgroup> op;
     auto mA = A.slice(0, tm * BM);
@@ -186,10 +217,14 @@ using namespace mpp::tensor_ops;
         #pragma unroll
         for (int j = 0; j < SG; ++j) s += red[j][e];
         const int n = tn * BN + e % BN, m = tm * BM + e / BN;
-        if (n < N && m < M) out[m * N + n] = static_cast<bfloat>(s);
+        if (n < N && m < M) {
+            if (HAS_BIAS) s += static_cast<float>(bias[n]);
+            if (HAS_RES) s += static_cast<float>(res[m * N + n]);
+            out[m * N + n] = static_cast<T>(s);
+        }
     }
 """#
 
-    private static let tileKernelBF16 = MLXFast.metalKernel(name: "smallm_tile1_bf16", inputNames: ["x", "w"], outputNames: ["out"],
-                                                            source: tileSourceBF16, header: tileHeader)
+    private static let tileKernel = MLXFast.metalKernel(name: "smallm_tile", inputNames: ["x", "w", "bias", "res"], outputNames: ["out"],
+                                                        source: tileSource, header: tileHeader)
 }
