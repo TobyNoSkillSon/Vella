@@ -31,6 +31,16 @@ The tests never touch your installed app, its settings, recordings or models. Te
 
 CI runs only the fast unit tests. The integration tests (everything that starts another program: the fake worker, a built helper, the `vella` binary, the installer scripts) skip when `CI=true` and run locally by default; `VELLA_INTEGRATION=1` runs them even under `CI=true`. Run the full suite locally before a pull request that touches the helpers, the CLI, the API or the scripts. Tests with a real model are opt-in through their own environment variables and never run in CI.
 
+### Release check
+
+```sh
+scripts/release-check.sh            # everything CI and the release workflow check, run on your Mac
+scripts/release-check.sh --ci       # the CI test set only (unit tests, CI=true)
+scripts/release-check.sh --signed   # maintainer: sign with "Vella Release Signing" and check the signature as release.yml does
+```
+
+It runs the steps of `.github/workflows/ci.yml` and `release.yml` locally: tracked files are source only; Command Line Tools Swift 6.3.3 and the Metal Toolchain are present; `CHANGELOG.md` has a section for the version in `Resources/Info.plist` (it becomes the release notes); relative links in the public docs resolve; `scripts/package-release.sh` builds, smoke-tests and zips the app into `.build/release-check/<time>/release/`; `SHA256SUMS` verifies; `xcrun swift test` passes. It prints one line per step and ends with the zip's path and SHA-256. It installs, uploads, tags and publishes nothing. Run it before a pull request that touches the build, the scripts or the docs, and before every tag.
+
 Real-model parity and benchmarks need downloaded weights and a quiet GPU. The maintainer runs them on the reference Mac (an M5 Max) before a change that affects numerics is merged.
 
 ## Layout
@@ -50,7 +60,7 @@ Real-model parity and benchmarks need downloaded weights and a quiet GPU. The ma
 Open an issue first for anything larger than a fix, so we can agree on the approach before you spend time on it. Then:
 
 - Keep one change per pull request, matching the style of the surrounding code.
-- Run `scripts/build.sh` and `xcrun swift test` (integration tests included, as above).
+- Run `scripts/release-check.sh` (or at least `scripts/build.sh` and `xcrun swift test`, integration tests included, as above).
 - Update the docs your change touches (README, `docs/USAGE.md`, `Resources/SKILL.md`, `AGENTS.md`) and add a line to `CHANGELOG.md` for anything a user would notice.
 - Add no new dependencies without discussing them first. The app package has none, on purpose.
 - Measure performance claims and say on what hardware (chip, memory, macOS). An unmeasured speed-up will not be merged.
