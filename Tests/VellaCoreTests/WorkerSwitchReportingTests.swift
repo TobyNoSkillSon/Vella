@@ -60,6 +60,10 @@ final class WorkerSwitchReportingTests: XCTestCase {
         XCTAssertEqual(activeTestHooks(["VELLA_WHISPER_ENC_F16": "0", "HOME": "/x"]), ["VELLA_WHISPER_ENC_F16": "0"])
     }
 
+    func testWhisperFusedDecodeSwitchIsReportedByTheApp() {
+        XCTAssertEqual(activeTestHooks(["VELLA_WHISPER_FUSED": "0", "HOME": "/x"]), ["VELLA_WHISPER_FUSED": "0"])
+    }
+
     func testParakeetFrontendSwitchIsReportedByTheApp() {
         XCTAssertEqual(activeTestHooks(["VELLA_PARAKEET_FP32_FRONTEND": "1", "HOME": "/x"]), ["VELLA_PARAKEET_FP32_FRONTEND": "1"])
     }

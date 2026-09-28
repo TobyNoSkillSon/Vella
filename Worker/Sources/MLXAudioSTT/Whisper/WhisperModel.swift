@@ -39,6 +39,11 @@ public final class WhisperModel: Module, STTGenerationModel {
     public static let halfEncoder = ProcessInfo.processInfo.environment["VELLA_WHISPER_ENC_F16"] != "0"
     public private(set) var fastDecode = false
     public private(set) var fastEncoder = false
+    /// The fused decode step (`WhisperFusedDecoder`), built once when the decoder component is first enabled; used
+    /// only while the model runs in the checkpoint dtype (the encoder component).
+    private var fusedDecoder: WhisperFusedDecoder?
+    private var fusedDecoderBuilt = false
+    private var activeFusedDecoder: WhisperFusedDecoder? { fastDecode && fastEncoder ? fusedDecoder : nil }
     /// Every raw decoder-logit tensor consumed while an optimized component is active (language detection, the
     /// pipelined greedy loop, and every step-by-step attempt including the temperature retries) finite, over the
     /// whole last `generate` call. Raw logits only: the filtered ones carry intentional -inf masks.
@@ -438,8 +443,9 @@ public final class WhisperModel: Module, STTGenerationModel {
         for step in 0..<maxTokens {
             var queued: (token: MLXArray, logProbability: MLXArray, sum: MLXArray)? = nil
             if step + 1 < maxTokens {
-                let hidden = model.decoder(tokens: current.token.reshaped([1, 1]), startPosition: promptCount + step,
-                                           encoderHidden: encoderHidden, caches: &caches)
+                let token = current.token.reshaped([1, 1])
+                let hidden = activeFusedDecoder?.step(model.decoder, token: token, position: promptCount + step, caches: &caches)
+                    ?? model.decoder(tokens: token, startPosition: promptCount + step, encoderHidden: encoderHidden, caches: &caches)
                 let logits = model.decoder.projectToVocab(hidden[0, -1]).asType(.float32)
                 queued = select(step + 1, logits, current.token, previous)
                 asyncEval(queued!.token, queued!.logProbability, queued!.sum)
@@ -770,7 +776,7 @@ public final class WhisperModel: Module, STTGenerationModel {
 
 extension WhisperModel: FastPathCapable {
     /// Bump whenever the optimized components or their parity reference change.
-    public static var fastPathRevision: String { halfEncoder ? "whisper-2-f16-model" : "whisper-2" }
+    public static var fastPathRevision: String { halfEncoder ? "whisper-3-f16-model" : "whisper-3" }
 
     /// The checkpoint's floating dtype (FP16 for every published Whisper), nil when the encoder is Float32.
     var checkpointHalfDType: DType? {
@@ -789,7 +795,13 @@ extension WhisperModel: FastPathCapable {
         let decoder = component == "both" || component == "decoder"
         let encoder = component == "both" || component == "encoder"
         guard decoder || encoder else { return false }
-        if decoder { fastDecode = enabled; lastDecoderFinite = true }
+        if decoder {
+            fastDecode = enabled; lastDecoderFinite = true
+            if enabled && !fusedDecoderBuilt {
+                fusedDecoderBuilt = true
+                fusedDecoder = WhisperFusedDecoder(model.decoder)
+            }
+        }
         if encoder {
             let active = enabled && WhisperModel.halfEncoder && checkpointHalfDType != nil
             model.encoder.positionDType = active ? checkpointHalfDType : nil
@@ -800,7 +812,16 @@ extension WhisperModel: FastPathCapable {
 
     public var fastPathFinite: Bool { lastDecoderFinite }
 
-    public var fastPathComponents: [String: Bool] { ["decoder": fastDecode, "encoder": fastEncoder] }
+    /// The transcript's words (special and timestamp tokens dropped), for the tolerance self-test's word edits.
+    public func qualificationWords(_ tokens: [Int]) -> [String] {
+        guard let tokenizer else { return tokens.map(String.init) }
+        return tokenizer.decode(tokens: tokens.filter { $0 >= 0 && $0 < tokenizer.endOfTextId })
+            .split(whereSeparator: \.isWhitespace).map(String.init)
+    }
+
+    public var fastPathComponents: [String: Bool] {
+        ["decoder": fastDecode, "encoder": fastEncoder, "fused_decode": activeFusedDecoder != nil]
+    }
 
     /// Token IDs for a self-test clip, exactly as the worker transcribes. With the half-precision encoder the stock
     /// reference runs in the checkpoint dtype too (the parity reference), so the comparison tests the decoder.
