@@ -67,7 +67,7 @@ public enum FastPathGate {
     /// Environment switches that change which optimized components run or what they compute (diagnosis/A-B only).
     /// The effective set is part of the gate key, so a verdict qualified under an override is never reused for
     /// production defaults, and the self-test child (which inherits them) tests exactly what the worker will run.
-    public static let componentSwitches = ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND",
+    public static let componentSwitches = ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND", "VELLA_PARAKEET_NAX",
                                              "VELLA_QWEN_HOST_LENGTHS", "VELLA_QWEN_PREFILL_HEAD", "VELLA_QWEN_REFERENCE_LENGTHS"]
     public static let componentSwitchPrefixes = ["VELLA_NEMO_"]
     /// "" for production defaults; otherwise the sorted `KEY=value` list of set switches.

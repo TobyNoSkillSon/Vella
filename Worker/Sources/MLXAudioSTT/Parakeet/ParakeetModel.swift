@@ -67,7 +67,10 @@ public final class ParakeetModel: Module, STTGenerationModel {
     // bump it whenever kernels, the default component set or the clip set change.
     /// The frontend precision is part of the revision: the self-test compares stock and optimized on the same mel, so
     /// a verdict qualified with one frontend says nothing about the other.
-    public static var fastPathRevision: String { fp32Frontend ? "parakeet-r3-fp32-frontend" : "parakeet-r2-dense-encoder" }
+    /// The opt-in NAX GEMM kernel (FastParakeetNAX) has its own revision suffix; the default revision is unchanged.
+    public static var fastPathRevision: String {
+        (fp32Frontend ? "parakeet-r3-fp32-frontend" : "parakeet-r2-dense-encoder") + (FastParakeetNAX.enabledByEnvironment ? "+nax1" : "")
+    }
     /// Log-mel frontend precision. Default: the input dtype (BF16), matching mlx-audio's rounding. With
     /// `VELLA_PARAKEET_FP32_FRONTEND=1` the worker hands over FP32 samples and the mel is computed in FP32 (as NeMo's
     /// preprocessor does), then cast to the compute dtype before the encoder. The encoder and decoder are unchanged.
@@ -76,7 +79,41 @@ public final class ParakeetModel: Module, STTGenerationModel {
     public static var inputDType: DType { fp32Frontend ? .float32 : .bfloat16 }
     /// Token-exact on all five bundled public clips for every precision (4b, 8b, BF16, FP32, ternary).
     public var fastPathSelfTestClips: [String] { ["clip-a", "clip-b", "clip-c", "clip-d", "clip-e"] }
-    public var fastPathComponents: [String: Bool] { ["encoder": fastEncoder != nil, "decoder": fastDecoder != nil] }
+    /// `nax_gemm` is reported only when opted in (`VELLA_PARAKEET_NAX=1`): a false entry reads as a stock fallback
+    /// in the engine tooltip and `vella diagnose`.
+    public var fastPathComponents: [String: Bool] {
+        var components = ["encoder": fastEncoder != nil, "decoder": fastDecoder != nil]
+        if FastParakeetNAX.enabledByEnvironment { components["nax_gemm"] = fastEncoder?.useNAX ?? false }
+        return components
+    }
+    /// Self-test bound on the NAX GEMMs: relative RMS of the fused encoder's output with vs without them, per clip.
+    /// The kernel only reorders BF16 sums, so the difference is rounding: 0.014–0.085 on the five clips for Ultra and
+    /// v3 BF16 (the fused MLX-GEMM path itself sits 0.014–0.065 from the stock modules), while injected kernel faults
+    /// (a dropped K slice, one zeroed column in 32, a zeroed last row) gave 0.46–0.98 (M5 Max, 28 Sep 2026).
+    static let naxMaxDeviation: Float = 0.2
+    /// Relative RMS ||nax − mlx|| / ||mlx|| of the fused encoder output on `audio`'s log-mel (non-finite → ∞), or nil
+    /// when the NAX GEMMs are not active.
+    public func naxEncoderDeviation(audio: MLXArray) -> Float? {
+        guard let fastEncoder, fastEncoder.useNAX else { return nil }
+        let mel = ParakeetAudio.logMelSpectrogram(normalizeAudioToMono(audio), config: preprocessConfig)
+        var features = mel.ndim == 2 ? mel.expandedDimensions(axis: 0) : mel
+        features = features.asType(computeDType)
+        let lengths = MLXArray([Int32(features.shape[1])])
+        fastEncoder.useNAX = false
+        let reference = fastEncoder.call(features, lengths: lengths).0.asType(.float32)
+        fastEncoder.useNAX = true
+        let nax = fastEncoder.call(features, lengths: lengths).0.asType(.float32)
+        let delta = nax - reference
+        let value = MLX.sqrt((delta * delta).sum() / (reference * reference).sum()).item(Float.self)
+        if ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"] != nil {
+            // Lab calibration: how far the (already accepted) fused MLX-GEMM encoder sits from the stock modules.
+            let stock = encoder(features, lengths: lengths).0.asType(.float32)
+            let d1 = reference - stock, d2 = nax - stock
+            let v = MLX.stacked([MLX.sqrt((d1 * d1).sum() / (stock * stock).sum()), MLX.sqrt((d2 * d2).sum() / (stock * stock).sum())]).asArray(Float.self)
+            FastPathGate.debug("frames \(features.shape[1]) fused-mlx vs stock \(v[0]) nax vs stock \(v[1]) nax vs fused-mlx \(value)")
+        }
+        return value.isFinite ? value : .infinity
+    }
 
     /// Only the worker's isolated model-specific token-ID qualification enables these paths.
     public func configureFastPath(enabled: Bool, component: String = "both") -> Bool {
@@ -99,7 +136,8 @@ public final class ParakeetModel: Module, STTGenerationModel {
             let dense = encoder.layers.first?.relSelfAttn?.linearQ.weight.dtype ?? .bfloat16
             let dtype: DType = quantized ? .float32 : (dense.isFloatingPoint ? dense : .bfloat16)
             guard let prepared = FastParakeetEncoder(encoder, dense: !quantized, dtype: dtype,
-                                                     fusedConvolution: component != "encoder-no-fused-conv") else {
+                                                     fusedConvolution: component != "encoder-no-fused-conv",
+                                                     nax: FastParakeetNAX.enabledByEnvironment) else {
                 fastDecoder = nil
                 return false
             }
@@ -116,6 +154,15 @@ public final class ParakeetModel: Module, STTGenerationModel {
         fastTokenSink = { sink.ids.append($0) }
         defer { tdtTraceEmitter = nil; fastTokenSink = nil }
         _ = generate(audio: audio, generationParameters: STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30))
+        // Inexact component: the tokens must still match stock, and the encoder output must stay within rounding of
+        // the MLX-GEMM fused path; a larger deviation fails the self-test like non-finite output.
+        if let deviation = naxEncoderDeviation(audio: audio) {
+            FastPathGate.debug("nax encoder deviation rms \(deviation)")
+            if !(deviation <= Self.naxMaxDeviation) {
+                fastPathFinite = false
+                fastPathError = "NAX GEMM deviation \(deviation) > \(Self.naxMaxDeviation)"
+            }
+        }
         return sink.ids
     }
 
