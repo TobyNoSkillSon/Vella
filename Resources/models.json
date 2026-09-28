@@ -59,6 +59,10 @@
         }
       },
       "offered": true,
+      "publisher": "Moondream",
+      "released": 2026,
+      "licence": "CC BY 4.0",
+      "summary": "NVIDIA's Parakeet v3, post-trained for dictation in 25 European languages; none from outside Europe",
       "notes": "Moondream's post-trained version of NVIDIA's Parakeet v3, released in September 2026: the same 0.6B architecture and 25 European languages. In Vella: dictation in those languages, and the model offered for your first dictation. MLX conversion by selcukkubur, tensor-identical to moondream/parakeet-ultra @73175eb; 8b and 4b are made on this Mac from BF16."
     },
     {
@@ -125,6 +129,10 @@
         }
       },
       "offered": true,
+      "publisher": "NVIDIA",
+      "released": 2025,
+      "licence": "CC BY 4.0",
+      "summary": "The unmodified Parakeet v3 that Ultra is post-trained from: the same 25 European languages, no others",
       "notes": "NVIDIA's Parakeet TDT 0.6B v3, released in August 2025: a FastConformer-TDT speech recognizer for 25 European languages. In Vella: dictation in those languages with the unmodified original that Parakeet v3 Ultra is post-trained from. MLX conversions by animaslabs."
     },
     {
@@ -190,6 +198,10 @@
         }
       },
       "offered": true,
+      "publisher": "Qwen (Alibaba)",
+      "released": 2026,
+      "licence": "Apache-2.0",
+      "summary": "Dictation in 30 languages, including Chinese, Japanese and Korean, which Parakeet lacks; slower than Parakeet",
       "notes": "Qwen3-ASR 1.7B from Alibaba's Qwen team, released in January 2026: speech recognition built on Qwen3-Omni for 30 languages and 22 Chinese dialects. In Vella: dictation in languages Parakeet lacks, such as Chinese, Japanese and Korean. MLX conversions by mlx-community."
     },
     {
@@ -255,6 +267,10 @@
         }
       },
       "offered": true,
+      "publisher": "Qwen (Alibaba)",
+      "released": 2026,
+      "licence": "Apache-2.0",
+      "summary": "The smaller Qwen3 ASR: the same 30 languages in less memory, a little less accurate than the 1.7B",
       "notes": "The smaller Qwen3-ASR from Alibaba's Qwen team, released with the 1.7B in January 2026. In Vella: the same 30 languages in less memory, for Macs with less RAM. MLX conversions by mlx-community."
     },
     {
@@ -404,6 +420,10 @@
         }
       },
       "offered": true,
+      "publisher": "OpenAI",
+      "released": 2023,
+      "licence": "Apache-2.0",
+      "summary": "Dictation in about 100 languages, the most of any model here, from a family other than Parakeet and Qwen",
       "notes": "OpenAI's Whisper large-v3, released in November 2023: an encoder-decoder transformer trained on 5 million hours of weakly and pseudo-labeled audio. In Vella: dictation in about 100 languages, from a model family other than Parakeet and Qwen. MLX conversions by mlx-community."
     },
     {
@@ -539,6 +559,10 @@
         }
       },
       "offered": true,
+      "publisher": "OpenAI",
+      "released": 2024,
+      "licence": "MIT",
+      "summary": "Whisper large-v3 with 4 decoder layers instead of 32: the same languages, much faster, a little less accurate outside English",
       "notes": "OpenAI's Whisper large-v3 turbo, released in 2024: large-v3 pruned from 32 decoder layers to 4, then fine-tuned. In Vella: much faster dictation in the same languages. MLX conversions by mlx-community."
     },
     {
@@ -602,6 +626,10 @@
         }
       },
       "offered": true,
+      "publisher": "NVIDIA",
+      "released": 2026,
+      "licence": "OpenMDW-1.1 (MLX conversion: NVIDIA Open Model License)",
+      "summary": "Transcribes audio as it arrives, so Streaming mode types while you speak; not used for Dictation",
       "notes": "NVIDIA's Nemotron 3.5 ASR Streaming 0.6B, released in 2026: a cache-aware FastConformer-RNNT model that transcribes audio as it arrives, for 40 language-locales. In Vella: Streaming mode, typing text while you speak. MLX conversions by mlx-community."
     },
     {

@@ -24,6 +24,7 @@ import VellaCore
         }
         delegate.getPendingModel = { [weak self] in self?.getPendingModel() }
         delegate.restartWorkers = { [weak self] in self?.restart() }
+        delegate.startWorkers = { [weak self] in self?.start() }
         delegate.modelsLoaded = { [weak self] in
             guard let status = self?.runtime.status else { return false }
             return !status.models.isEmpty || status.loading != nil
@@ -183,6 +184,24 @@ import VellaCore
         Task {
             try? await model.releaseWorkers()
             await runtime.loadLaunchSet()
+        }
+    }
+    /// Start Worker (no worker running): the launch set, as at app launch; with an empty launch set, the current
+    /// mode's selected model, loaded on demand as a dictation would load it. Nothing selected: nothing to start.
+    func start() {
+        guard let model else { return }
+        Task {
+            await runtime.loadLaunchSet()
+            guard runtime.status.models.isEmpty, runtime.status.loading == nil,
+                  let config = try? model.backend.configuration(requiresModel: false) else { return }
+            let mode = model.mode
+            let path = mode == .dictation ? config.model : config.streamingModel
+            guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
+            let ref = runtime.resolve(path, mode: mode)
+            switch mode {
+            case .dictation: try? await model.backend.preload(ref, residency: .onDemand)
+            case .streaming: try? await model.streamingBackend.preload(ref, residency: .onDemand)
+            }
         }
     }
 

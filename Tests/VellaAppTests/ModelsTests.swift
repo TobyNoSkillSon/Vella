@@ -151,7 +151,7 @@ final class ModelsTests: XCTestCase {
         let rows = ModelTable.rows(c, .dictation, sort: .wer, ascending: true)
         XCTAssertEqual(rows.first?.id, "reference:api", "12.9 estimated sorts before 15.06 measured")
         let tips = ModelTable(controller: c).tooltips(c.references(.dictation)[0])
-        XCTAssertTrue(tips.contains { $0.0 == "WER" && $0.1.hasPrefix("Estimated, not measured by us") })
+        XCTAssertTrue(tips.contains { $0.0 == "WER" && $0.1.hasPrefix("Estimated English word error rate") && $0.1.hasSuffix("Estimate scaled from the S") })
         XCTAssertTrue(tips.contains { $0.0 == "On disk" && $0.1.contains("never sends audio") })
         XCTAssertTrue(ModelTable.werHeaderHelp.contains("Hugging Face Open ASR Leaderboard") && ModelTable.werHeaderHelp.contains("substituted, missed or added"))
         XCTAssertTrue(ModelTable.formatHeaderHelp.contains("No industry standard"))
@@ -167,12 +167,13 @@ final class ModelsTests: XCTestCase {
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         XCTAssertEqual(c.segmentLabels(parakeet).first, "32")
         let bf16 = c.segmentHelp(qwen, "BF16")
-        XCTAssertTrue(bf16.hasPrefix("BF16 (bfloat16), the model's native precision. Published: mlx-community/Qwen3-ASR-1.7B-bf16."), bf16)
-        XCTAssertTrue(c.segmentHelp(qwen, "4b").hasPrefix("4-bit quantized. Published:"))
-        XCTAssertTrue(c.segmentHelp(qwen, "4b").contains("Recommended"), "the recommended segment says so")
-        XCTAssertTrue(c.segmentHelp(parakeet, "FP32").contains("Not measured yet."), "fixture has no Parakeet figures")
+        XCTAssertTrue(bf16.hasPrefix("BF16 (bfloat16) · native precision\nPublished on Hugging Face"), bf16)
+        XCTAssertFalse(bf16.contains("/"), "no repository id: \(bf16)")
+        XCTAssertTrue(c.segmentHelp(qwen, "4b").hasPrefix("4-bit quantized\nPublished on Hugging Face"))
+        XCTAssertTrue(c.segmentHelp(qwen, "4b").contains("\nRecommended"), "the recommended segment says so")
+        XCTAssertTrue(c.segmentHelp(parakeet, "FP32").contains("\nNot measured yet"), "fixture has no Parakeet figures")
         c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16")])
-        XCTAssertTrue(c.segmentHelp(qwen, "8b").hasSuffix("Loaded at BF16 (bfloat16); Reload loads this precision instead. Closing the menu keeps BF16 (bfloat16)."))
+        XCTAssertTrue(c.segmentHelp(qwen, "8b").hasSuffix("\nLoaded at BF16 (bfloat16); Reload loads this precision instead, closing the menu keeps BF16 (bfloat16)"))
     }
 
     /// A precision made on this Mac: selectable, `\u{2014}` until measured, Get fetches its source, Load hands the worker
@@ -191,8 +192,8 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(c.disk(ultra, "4b"))
         XCTAssertNotNil(c.disk(ultra, "BF16"))
         let help = c.segmentHelp(ultra, "4b")
-        XCTAssertTrue(help.hasPrefix("4-bit quantized. Made on this Mac from the BF16 (bfloat16) weights; loading it downloads those first ("), help)
-        XCTAssertTrue(help.contains("Not measured yet."), help)
+        XCTAssertTrue(help.hasPrefix("4-bit quantized\nMade on this Mac from the BF16 (bfloat16) weights; loading downloads those first ("), help)
+        XCTAssertTrue(help.contains("\nNot measured yet"), help)
         XCTAssertFalse(help.contains("Published"), help)
         // Get downloads the source.
         XCTAssertEqual(c.action(ultra), .get)
@@ -238,16 +239,41 @@ final class ModelsTests: XCTestCase {
         let delegate = AppDelegate(model: model)
         delegate.modelsMenu = ModelsMenu(controller: try controller())
         delegate.factLine = { "1 model loaded · 1.3 GB in memory" }
+        delegate.workersRunning = { true }
         model.lastText = "text"
         delegate.rebuildMenu()
-        let titles = delegate.menu.items.filter { !$0.isSeparatorItem }.map(\.title).dropFirst()   // header text varies
-        XCTAssertEqual(Array(titles), ["1 model loaded · 1.3 GB in memory", "Start Dictation", "Mode", "Microphone", "Shortcuts",
-                                       "Models…", "Keep Hot", "Memory",
-                                       "Copy Last Transcript", "Copy Skill for Your Agent", "Copy Diagnostics", "Open Saved Recordings", "Open Vella Files", "Restart Worker", "Launch at Login",
-                                       "Support the developer…", "Quit Vella"])
+        // The family block order (VFamily menu alignment, 28 Sep 2026), block by block between separators.
+        var blocks: [[String]] = [[]]
+        for item in delegate.menu.items { if item.isSeparatorItem { blocks.append([]) } else { blocks[blocks.count - 1].append(item.title) } }
+        XCTAssertEqual(blocks.count, 5)
+        XCTAssertEqual(Array(blocks[0].dropFirst()), ["1 model loaded · 1.3 GB in memory"], "header (text varies), then the fact line")
+        XCTAssertEqual(Array(blocks.dropFirst()), [
+            ["Models…", "Keep Hot", "Memory"],
+            ["Start Dictation", "Mode", "Microphone", "Shortcuts", "Copy Last Transcript", "Open Saved Recordings"],
+            ["Copy Skill for Your Agent", "Copy Diagnostics", "Open Vella Files", "Restart Worker", "Launch at Login"],
+            ["Support the developer…", "Quit Vella"],
+        ])
         for title in ["Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Skill for Your Agent", "Copy Diagnostics", "Open Vella Files", "Restart Worker"] {
             XCTAssertNotNil(delegate.menu.item(withTitle: title)?.toolTip, title)
         }
+        XCTAssertEqual(delegate.menu.item(withTitle: "Restart Worker")?.toolTip, restartWorkerHelp)
+        // No worker running: the same item reads Start Worker, in the same place, and starts one.
+        var started = 0
+        delegate.workersRunning = { false }; delegate.startWorkers = { started += 1 }
+        delegate.rebuildMenu()
+        XCTAssertNil(delegate.menu.item(withTitle: "Restart Worker"))
+        let start = try XCTUnwrap(delegate.menu.item(withTitle: "Start Worker"))
+        XCTAssertEqual(start.toolTip, startWorkerHelp)
+        XCTAssertEqual(delegate.menu.items[delegate.menu.index(of: start) + 1].title, "Launch at Login")
+        _ = start.target?.perform(start.action, with: start)
+        XCTAssertEqual(started, 1)
+        // The header keeps the loaded model and has a tooltip only when it adds something.
+        XCTAssertNil(menuHeaderToolTip(failed: false, message: "Your voice, right where you need it.", needsPermission: false, idle: true, pending: nil))
+        XCTAssertNil(menuHeaderToolTip(failed: false, message: "Transcribing 2/5", needsPermission: false, idle: false, pending: "why"))
+        XCTAssertEqual(menuHeaderToolTip(failed: false, message: "x", needsPermission: true, idle: true, pending: nil), accessibilityHeaderHelp)
+        XCTAssertEqual(menuHeaderToolTip(failed: true, message: "The worker stopped.", needsPermission: true, idle: false, pending: nil), "The worker stopped.")
+        XCTAssertEqual(menuHeaderToolTip(failed: false, message: "x", needsPermission: false, idle: true, pending: "Recording kept"), "Recording kept")
+        XCTAssertEqual(workerItemTitle(running: true), "Restart Worker")
         // Keep Hot choice applies through the settings source.
         let settings = DefaultMenuSettings(); delegate.menuSettings = settings
         delegate.rebuildMenu()

@@ -34,11 +34,11 @@ A fresh install has no model. If you dictate before getting one, Vella keeps the
 
 ## Menu
 
-1. **Status** — `Vella: ready`, the loaded model and one fact line. Green when ready, grey while loading or downloading, orange when a helper failed (click it for the error and the log).
-2. **Mode** (Dictation or Streaming) · **Microphone** · **Shortcuts**.
-3. **Models…** · **Keep Hot** · **Memory**.
-4. **Copy Last Transcript** (and recovery of an unfinished one) · **Copy Skill for Your Agent** · **Copy Diagnostics** · **Open Vella Files** · **Restart Worker** · **Launch at Login**.
-5. **Support the developer…** · **Quit Vella**.
+1. **Status** — `Vella: ready`, the loaded model and one fact line. Green when ready, grey while loading or downloading, orange when a helper failed (click it for the error and the log). It shows a tooltip only when there is more to say: the error, the Accessibility permission to grant, or why a recording waits for a model.
+2. **Models…** · **Keep Hot** · **Memory**.
+3. **Start Dictation** · **Mode** (Dictation or Streaming) · **Microphone** · **Shortcuts** · **Copy Last Transcript** (and recovery of an unfinished one) · **Open Saved Recordings**.
+4. **Copy Skill for Your Agent** · **Copy Diagnostics** · **Open Vella Files** · **Restart Worker** (**Start Worker** when no worker is running) · **Launch at Login**.
+5. **Support the developer…** · **Update to X…** (when a newer release is out) · **Quit Vella**.
 
 Hover an item for what it does.
 

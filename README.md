@@ -89,10 +89,10 @@ Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); a s
 
 ## The app
 
-Everything lives in the menu: the status line, **Mode · Microphone · Shortcuts**, then **Models… · Keep Hot · Memory**, then your last transcript, files and **Launch at Login**.
+Everything lives in the menu: the status line, then **Models… · Keep Hot · Memory**, then **Start Dictation** with **Mode · Microphone · Shortcuts**, your last transcript and saved recordings, then the agent skill, diagnostics, files, the worker and **Launch at Login**.
 
 <p align="center">
-  <img src="docs/images/menu.png" alt="Vella's menu: status, Start Dictation, Mode, Microphone, Shortcuts, Models, Keep Hot, Memory, copy and file items, Launch at Login, Support and Quit" width="340">
+  <img src="docs/images/menu.png" alt="Vella's menu: status, Models, Keep Hot, Memory, Start Dictation, Mode, Microphone, Shortcuts, Copy Last Transcript, Open Saved Recordings, agent, diagnostics and file items, Restart Worker, Launch at Login, Support and Quit" width="340">
 </p>
 
 **A fresh install downloads and loads nothing.** The first time you dictate without a model, Vella keeps the recording and shows one **Get <model> (<size>)** item for the recommended model; after you confirm the download, it transcribes the waiting recording when the download finishes. **Models…** does the same ahead of time.

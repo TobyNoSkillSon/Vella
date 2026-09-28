@@ -217,10 +217,10 @@ import VellaUpdate
             let controller = RenderFixture.controller(installed: RenderFixture.downloaded)
             controller.runtime = TableRuntime(chip: RenderFixture.chip)
             let table = ModelTable(controller: controller)
-            let headers = ModelTable.headerHelps.map { "Header · \($0.0): \($0.1)" } + [""]
-            let lines = headers + [RecognitionMode.dictation, .streaming].flatMap { mode in
-                controller.families(mode).flatMap { family in table.tooltips(family).map { "\(family.name) · \($0.0): \($0.1)" } + [""] }
-                    + controller.references(mode).flatMap { r in table.tooltips(r).map { "\(r.name) · \($0.0): \($0.1)" } + [""] }
+            // One block per cell: "[Row · Column]" then the tooltip's lines as shown.
+            let lines = [RecognitionMode.dictation, .streaming].flatMap { mode in
+                controller.families(mode).flatMap { family in table.tooltips(family).map { "[\(family.name) · \($0.0)]\n\($0.1)\n" } }
+                    + controller.references(mode).flatMap { r in table.tooltips(r).map { "[\(r.name) · \($0.0)]\n\($0.1)\n" } }
             }
             try? lines.joined(separator: "\n").write(to: directory.appendingPathComponent("table-tooltips.txt"), atomically: true, encoding: .utf8)
             renderPrompts(controller) {
@@ -280,7 +280,7 @@ import VellaUpdate
     private func renderUpdate(done: @escaping () -> Void) {
         let release = Self.sampleRelease
         app.menuSettings = DefaultMenuSettings(availableMB: 86_900)
-        app.factLine = { nil }; app.model.lastText = ""; app.pendingModelRow = { nil }
+        app.factLine = { nil }; app.model.lastText = ""; app.pendingModelRow = { nil }; app.workersRunning = { true }
         app.updates.preview(.available(release)); app.rebuildMenu()
         MenuMock.render(app.menu.items, width: 340, to: directory.appendingPathComponent("update-menu.png")) { [self] in
             let alert = app.updates.confirmation(release)
@@ -314,7 +314,8 @@ import VellaUpdate
     private var app: AppDelegate!
     init(directory: URL) { self.directory = directory }
 
-    struct State { var prefix: String; var settings: DefaultMenuSettings; var fact: String?; var lastText: String; var pending: (title: String, help: String)? = nil }
+    /// `worker`: a transcription worker is running (Restart Worker); false shows Start Worker.
+    struct State { var prefix: String; var settings: DefaultMenuSettings; var fact: String?; var lastText: String; var pending: (title: String, help: String)? = nil; var worker = true }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -333,7 +334,7 @@ import VellaUpdate
             State(prefix: "tight-", settings: DefaultMenuSettings(availableMB: 900, lastEvicted: "Nemotron 3.5 Streaming"), fact: "1 model loaded · 1.3 GB in memory", lastText: ""),
             State(prefix: "custom-", settings: DefaultMenuSettings(manualIdleMinutes: 60, onDemandIdleMinutes: 5, allowSwap: true, availableMB: 42_100), fact: nil, lastText: ""),
             State(prefix: "first-dictation-", settings: DefaultMenuSettings(availableMB: 86_900), fact: nil, lastText: "",
-                  pending: controller.firstOffer(.dictation).map { ($0.title, $0.help) }),
+                  pending: controller.firstOffer(.dictation).map { ($0.title, $0.help) }, worker: false),
         ]
         render(states, 0)
     }
@@ -348,6 +349,7 @@ import VellaUpdate
         app.factLine = { state.fact }
         app.model.lastText = state.lastText
         app.pendingModelRow = { state.pending }
+        app.workersRunning = { state.worker }
         if state.pending != nil { app.modelsMenu.controller.runtime = TableRuntime(chip: RenderFixture.chip); RenderFixture.setInstalled(app.modelsMenu.controller, []) }
         app.rebuildMenu()
         let submenus = [("Keep Hot", "keep-hot"), ("Memory", "memory"), ("Mode", "mode")]

@@ -153,9 +153,6 @@ struct ModelTable: View {
     static let energyHeaderHelp = "Joules per minute of audio: whole-chip energy, net of idle. Lower is better."
     static let memoryHeaderHelp = "Peak memory of Vella's model worker with the model loaded. Lower is better."
     static let diskHeaderHelp = "Download size of the selected precision; for one made on this Mac, the size of the weights it is made from."
-    /// The column headings' tooltips (the Q heading's is inline), for the render harness's table-tooltips.txt.
-    static let headerHelps: [(String, String)] = [("WER", werHeaderHelp), ("Format", formatHeaderHelp), ("Speed", speedHeaderHelp),
-                                                  ("J / min", energyHeaderHelp), ("Memory", memoryHeaderHelp), ("On disk", diskHeaderHelp)]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -179,7 +176,7 @@ struct ModelTable: View {
                     if !sectionRows.isEmpty {
                         Text(mode.title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
                             .padding(.leading, 6).frame(height: 18, alignment: .bottomLeading)
-                            .help(mode == .dictation ? "Transcribes when you finish speaking." : "Types text while you speak.")
+                            .appKitTooltip(mode == .dictation ? "Transcribes when you finish speaking" : "Types text while you speak")
                         ForEach(sectionRows) { item in
                             switch item {
                             case .family(let family): row(family)
@@ -229,46 +226,46 @@ struct ModelTable: View {
                     if let loaded, loaded.engine != nil {
                         Text(engineLabel(engine: loaded.engine, chip: runtime?.chip)).font(.system(size: 9, weight: .medium))
                             .foregroundStyle(Self.tone(.better, hot: hot)).lineLimit(1)
-                            .help(engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
-                                             chip: runtime?.chip, precision: loaded.precision))
+                            .appKitTooltip(engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
+                                                      chip: runtime?.chip, precision: loaded.precision))
                     }
                 }
             }.frame(width: W.model, alignment: .leading)
-                .help(modelHelp(family, loaded: loaded))
+                .appKitTooltip(modelHelp(family, loaded: loaded))
             Text(formatLanguages(family.languages)).frame(width: W.languages, alignment: .trailing)
-                .help(languagesHelp(family))
+                .appKitTooltip(languagesHelp(family, bench))
             Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params, alignment: .trailing)
             precisionPicker(family, enabled: !loading, hot: hot)
                 .frame(width: W.precision, alignment: .leading)
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
-                .help(werHelp(bench))
+                .appKitTooltip(werHelp(bench, suites: suites))
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
-                .help(formatHelp(bench))
+                .appKitTooltip(formatHelp(bench, suites: suites))
             HStack(spacing: 2) {
                 if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 8)).foregroundStyle(.orange).accessibilityLabel("very slow")
                 }
                 metric(formatSpeed(bench?.speed_x), compare ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, nil, hot: hot)
             }.frame(width: W.speed, alignment: .trailing)
-                .help(speedHelp(family, bench))
+                .appKitTooltip(speedHelp(family.mode, bench, suites: suites))
             metric(formatEnergy(bench?.j_per_min), compare ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot)
-                .help(energyHelp(bench))
+                .appKitTooltip(energyHelp(bench, suites: suites))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
-                .help(memoryHelp(bench))
+                .appKitTooltip(memoryHelp(bench, suites: suites))
             Text(controller.disk(family, precision).map(formatBytes) ?? "—").frame(width: W.disk, alignment: .trailing)
                 .foregroundStyle(installed == nil ? (hot ? Color(nsColor: .selectedMenuItemTextColor).opacity(0.6) : Color.secondary) : (hot ? Color(nsColor: .selectedMenuItemTextColor) : Color.primary))
-                .help(diskHelp(family, precision, installed: installed != nil))
+                .appKitTooltip(diskHelp(family, precision))
             loadButton(title(action, loading: loading, downloading: downloading, library: library), reload: action == .reload && !loading && !downloading) {
                 controller.perform(family)
             }.frame(width: W.button)
                 .disabled(loading || variant == nil || (action != .get && !controller.runtimeAvailable)
                           || (action == .unload && controller.actions == nil) || (controller.anyBusy && !downloading))
-                .help(actionHelp(action, family: family, precision: precision, loaded: loaded?.precision))
+                .accessibilityHint(actionHelp(action, family: family, precision: precision, loaded: loaded?.precision))
             Button { requestDelete(family) } label: { Image(systemName: "trash").frame(width: W.trash) }
                 .buttonStyle(.plain)
                 .opacity(controller.localPath(family, precision) == nil ? 0 : 1)
                 .disabled(controller.localPath(family, precision) == nil || loading)
-                .help("Delete the \(precisionFormatName(precision)) weights (with confirmation)")
+                .accessibilityHint("Moves the \(precisionFormatName(precision)) weights to the Trash, after you confirm")
                 .accessibilityLabel("Delete \(family.name) \(precisionFormatName(precision))")
         }.font(.system(size: 11, design: .monospaced))
             .padding(.horizontal, 6).frame(height: 30)
@@ -295,38 +292,25 @@ struct ModelTable: View {
                 Image(systemName: "cloud").font(.system(size: 10)).frame(width: 12)
                 Text(r.name).font(.system(size: 11)).lineLimit(1)
             }.frame(width: W.model, alignment: .leading)
-                .help(referenceHelp(r))
+                .appKitTooltip(referenceModelHelp(r))
             Text("\u{2014}").frame(width: W.languages, alignment: .trailing)
             Text("\u{2014}").frame(width: W.params, alignment: .trailing)
-                .help(Self.referenceParams)
             Text("").frame(width: W.precision, alignment: .leading)
             metric(formatEstimatedErrorRate(r.wer), nil, W.wer, hot: false)
-                .help(referenceWERBasis(r))
+                .appKitTooltip(referenceWERTooltip(r))
             metric(nil, nil, W.format, hot: false)
-                .help(Self.referenceFormat)
-            metric(nil, nil, W.speed, hot: false).help(Self.referenceNotApplicable)
-            metric(nil, nil, W.energy, hot: false).help(Self.referenceNotApplicable)
-            metric(nil, nil, W.memory, hot: false).help(Self.referenceNotApplicable)
+                .appKitTooltip(referenceFormatHelp)
+            metric(nil, nil, W.speed, hot: false).appKitTooltip(referenceNotApplicableHelp)
+            metric(nil, nil, W.energy, hot: false).appKitTooltip(referenceNotApplicableHelp)
+            metric(nil, nil, W.memory, hot: false).appKitTooltip(referenceNotApplicableHelp)
             Text("API").frame(width: W.disk, alignment: .trailing)
-                .help(Self.referenceDisk)
+                .appKitTooltip(referenceDiskHelp)
             Text("").frame(width: W.button + W.trash + 6)
         }.font(.system(size: 11, design: .monospaced))
             .padding(.horizontal, 6).frame(height: 30)
             .foregroundStyle(Color.secondary)
             .contentShape(Rectangle())
             .accessibilityElement(children: .combine)
-    }
-    static let referenceNotApplicable = "Not applicable: a cloud API runs on the provider's servers."
-    static let referenceParams = "Not disclosed by the provider."
-    static let referenceFormat = "Not estimated: our case and punctuation measure has no public counterpart to anchor on."
-    static let referenceDisk = "Cloud service; nothing to download. Vella never sends audio to it."
-    private func referenceHelp(_ r: ReferenceEntry) -> String {
-        let what = "a proprietary cloud speech-to-text API" + (r.provider.map { " from \($0)" } ?? "")
-        return "\(r.name): \(what), shown for comparison only. Vella never sends audio to it; its WER is estimated, not measured by us."
-    }
-    /// The estimate's basis (source board, method, range) plus when we made it.
-    private func referenceWERBasis(_ r: ReferenceEntry) -> String {
-        referenceWERHelp(r, languageName: languageName) + (r.wer != nil ? r.date.map { " Estimate made \($0)." } ?? "" : "")
     }
 
     private func title(_ action: LoadAction, loading: Bool, downloading: Bool, library: ModelLibrary) -> String {
@@ -346,6 +330,7 @@ struct ModelTable: View {
         let size = formatBytes(v.downloadBytes)
         return root == precision ? "Asks, then downloads \(size) from Hugging Face" : "Asks, then downloads the \(precisionFormatName(root)) weights (\(size)) it is made from"
     }
+    /// The row button's accessibility hint (a Button carries no hover text inside the menu).
     private func actionHelp(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?) -> String {
         let mode = family.mode.title.lowercased()
         let derived = controller.derivedSource(family, precision) != nil
@@ -359,17 +344,10 @@ struct ModelTable: View {
             return (controller.available(family, precision) ? "Unload the loaded precision and " + swap : downloadText(family, precision) + ", then " + swap) + make
         }
     }
-    private func diskHelp(_ family: ModelFamily, _ precision: String, installed: Bool) -> String {
-        guard let v = family.variants[precision] else { return "No download at this precision." }
-        if let source = controller.derivedSource(family, precision) {
-            // Derived precisions are made tensor by tensor at load (DerivedModels.swift); only the source is stored.
-            let r = controller.result(family, precision)
-            let size = controller.disk(family, precision) == nil ? " Size not measured yet."
-                : " The size is those \(precisionFormatName(source)) files on disk." + measured(r)
-            return "Made on this Mac at load from the \(precisionFormatName(source)) weights; nothing extra is downloaded or stored." + size
-        }
-        let basis = " The size is the pinned Hugging Face revision's files."
-        return (installed ? "Downloaded from Hugging Face: \(v.repository)." : "Not downloaded: \(formatBytes(v.downloadBytes)) from Hugging Face (\(v.repository)), after you confirm.") + basis
+    /// Derived precisions are made tensor by tensor at load (DerivedModels.swift); only the source is stored.
+    private func diskHelp(_ family: ModelFamily, _ precision: String) -> String {
+        VellaCore.diskHelp(family, precision, installed: controller.installed(family, precision) != nil,
+                           derivedSource: controller.derivedSource(family, precision), sizeKnown: controller.disk(family, precision) != nil)
     }
 
     /// Value on top, delta vs the recommended precision beneath it in small type.
@@ -405,104 +383,34 @@ struct ModelTable: View {
         }
     }
 
-    private let notMeasured = "Not measured at this precision."
+    /// The suites the benchmark file describes (names and minutes for the figures' tooltips).
+    private var suites: [String: SuiteInfo]? { controller.benchmarks.suites }
 
-    /// Who measured a figure, on which Mac and when. Every local figure is ours (lab/bench); cloud rows are estimates.
-    private func measured(_ r: PrecisionResult?) -> String {
-        guard let r else { return "" }
-        let on = r.hardware.map { " on \($0)" } ?? ""
-        let when = r.date.map { ", \($0)" } ?? ""
-        return on.isEmpty && when.isEmpty ? " Measured by us." : " Measured by us\(on)\(when)."
-    }
-    /// Speed, energy and memory come from one run of the quick suite per precision, in an idle-checked measurement
-    /// window (lab/bench/final_catalog.py `quick` → `record`); accuracy comes from the row's own suite.
-    private var performanceSuite: String {
-        guard let s = controller.benchmarks.suites?["v2-quick"] else { return "" }
-        return " Benchmark \(s.id ?? "v2-quick")" + (s.audio_min.map { String(format: ", %.1f min of audio", $0) } ?? "")
-    }
-    private func suiteText(_ r: PrecisionResult?) -> String {
-        guard let r, let suite = r.suite else { return "" }
-        let name = controller.benchmarks.suites?[suite]?.id ?? suite
-        return " Benchmark \(name)" + (r.audio_min.map { String(format: ", %.1f min of audio", $0) } ?? "") + "."
-    }
-    private static let names = Locale(identifier: "en_US")
-    private func languageName(_ code: String) -> String { Self.names.localizedString(forLanguageCode: code) ?? code }
-
-    private func werHelp(_ r: PrecisionResult?) -> String {
-        guard let r, r.wer != nil else { return notMeasured }
-        var text = "Word error rate: % of words wrong (substituted, missed or added) out of the words spoken; lower is better." + suiteText(r)
-        if let ml = r.multilingual, let by = ml.by_language, !by.isEmpty {
-            let parts = by.sorted { $0.key < $1.key }.map { "\(languageName($0.key)) \(String(format: "%.1f%%", $0.value))" }
-            text += " By language: " + parts.joined(separator: ", ") + "."
-            if let mean = ml.mean { text += String(format: " Multilingual mean %.1f%%", mean) + (ml.coverage.map { " over \($0) languages" } ?? "") + "." }
-        }
-        return text + measured(r)
-    }
-    private func speedHelp(_ family: ModelFamily, _ r: PrecisionResult?) -> String {
-        guard let r, let x = r.speed_x else { return notMeasured }
-        var text = family.mode == .streaming
-            ? "Streaming replay throughput in × real time: how much faster than speech it keeps up, not microphone-to-text latency."
-            : "Real-time factor (RTFx): audio seconds per processing second. \(formatSpeed(x) ?? "") means one minute of audio in \(String(format: "%.2f", 60 / x)) s."
-        if family.mode == .dictation, x < slowSpeedFloor { text += " Very slow for dictation: under 20× real time." }
-        let suite = performanceSuite
-        return text + (suite.isEmpty ? "" : suite + ", timed after loading.") + measured(r)
-    }
-    private func formatHelp(_ r: PrecisionResult?) -> String {
-        guard let r, r.format != nil else { return notMeasured }
-        return "Our case and punctuation measure: character error rate with case and punctuation kept; lower is better." + suiteText(r) + measured(r)
-    }
-    private func energyHelp(_ r: PrecisionResult?) -> String {
-        guard let r, r.j_per_min != nil else { return notMeasured }
-        let suite = performanceSuite
-        return "Joules per minute of audio: whole-chip energy (CPU, GPU, Neural Engine, memory) while transcribing, read from the chip's energy counters, net of its power with the model loaded and idle."
-            + (suite.isEmpty ? "" : suite + ".") + measured(r)
-    }
-    private func memoryHelp(_ r: PrecisionResult?) -> String {
-        guard let r, r.memory_mb != nil else { return notMeasured }
-        let suite = performanceSuite
-        return "Peak memory footprint of Vella's model worker with this model loaded, loading included."
-            + (suite.isEmpty ? "" : suite + ".") + measured(r)
-    }
-    /// A catalog licence id (the upstream card's metadata) as its exact name; free-form licences pass through.
-    static func licenseName(_ id: String) -> String {
-        switch id.lowercased() {
-        case "cc-by-4.0": return "CC BY 4.0"
-        case "apache-2.0": return "Apache-2.0"
-        case "mit": return "MIT"
-        default: return id
-        }
-    }
-    private func languagesHelp(_ family: ModelFamily) -> String {
-        guard !family.languages.isEmpty else { return "Languages not listed." }
-        return family.languages.map(languageName).joined(separator: ", ") + "."
-    }
-    private func modelHelp(_ family: ModelFamily, loaded: LoadedFamily?) -> String {
-        var parts = ["\(family.name) · \(family.params.isEmpty ? "size not listed" : family.params + " parameters") · native \(precisionFormatName(family.native))."]
-        if let notes = family.notes, !notes.isEmpty { parts.append(notes) }
-        if let loaded { parts.append("Loaded at \(precisionFormatName(loaded.precision))" + (loaded.residency == "on_demand" ? " on demand." : loaded.residency == "manual" ? ", kept hot." : ".")) }
-        parts.append("License: \(Self.licenseName(family.license)).")
-        return parts.joined(separator: " ")
-    }
-
-    /// Every tooltip of a row as (column, text), for the render harness's table-tooltips.txt.
+    /// Every tooltip of a row as (column, text) in column order: the cells show these texts through AppKit tooltips;
+    /// the render harness writes them to table-tooltips.txt and TableTooltipTests checks the format of each one.
     func tooltips(_ family: ModelFamily) -> [(String, String)] {
         let precision = controller.selected(family)
         let r = controller.result(family, precision)
-        let installed = controller.installed(family, precision) != nil
-        let head: [(String, String)] = [("Model", modelHelp(family, loaded: controller.loaded(family))), ("Languages", languagesHelp(family))]
-        return head + controller.options(family).map { ("Q \($0)", controller.segmentHelp(family, $0)) } + [
-                ("WER", werHelp(r)), ("Format", formatHelp(r)), ("Speed", speedHelp(family, r)),
-                ("J / min", energyHelp(r)), ("Memory", memoryHelp(r)),
-                ("On disk", diskHelp(family, precision, installed: installed)),
-                ("Action", actionHelp(controller.action(family), family: family, precision: precision, loaded: controller.loaded(family)?.precision))]
+        let loaded = controller.loaded(family)
+        var cells: [(String, String)] = [("Model", modelHelp(family, loaded: loaded))]
+        if let loaded, loaded.engine != nil {
+            cells.append(("Engine", engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
+                                               chip: runtime?.chip, precision: loaded.precision)))
+        }
+        if let languages = languagesHelp(family, r) { cells.append(("Languages", languages)) }
+        cells += controller.options(family).map { ("Q \($0)", controller.segmentHelp(family, $0)) }
+        return cells + [("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
+                        ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),
+                        ("Memory", memoryHelp(r, suites: suites)), ("On disk", diskHelp(family, precision))]
     }
 
-    /// A reference row's tooltips as (column, text), for table-tooltips.txt.
+    /// A reference row's tooltips as (column, text); Languages, Params and Q have none (nothing is known).
     func tooltips(_ r: ReferenceEntry) -> [(String, String)] {
-        [("Model", referenceHelp(r)), ("Params", Self.referenceParams), ("WER", referenceWERBasis(r)), ("Format", Self.referenceFormat),
-         ("Speed", Self.referenceNotApplicable), ("J / min", Self.referenceNotApplicable), ("Memory", Self.referenceNotApplicable),
-         ("On disk", Self.referenceDisk)]
+        [("Model", referenceModelHelp(r)), ("WER", referenceWERTooltip(r)), ("Format", referenceFormatHelp),
+         ("Speed", referenceNotApplicableHelp), ("J / min", referenceNotApplicableHelp), ("Memory", referenceNotApplicableHelp),
+         ("On disk", referenceDiskHelp)]
     }
+
 
     /// This Mac's chip: the runtime's, else the CPU brand string.
     static let localChip: String? = {
@@ -520,7 +428,7 @@ struct ModelTable: View {
         Group {
             let appError = controller.lastError ?? (busyLibrary == nil ? [controller.dictation, controller.streaming].compactMap(\.downloadError).first : nil)
             if let error = footerNotice(lastError: appError, workerError: runtime?.workerError, refusal: runtime?.refusal, now: Date().timeIntervalSince1970) {
-                let text = Text(error).font(.system(size: 10)).foregroundStyle(.red).lineLimit(1).help(error)
+                let text = Text(error).font(.system(size: 10)).foregroundStyle(.red).lineLimit(1).appKitTooltip(error)
                 ViewThatFits(in: .horizontal) {
                     HStack { text.fixedSize(); Spacer(minLength: 16); requestButton }
                     HStack { text; Spacer(minLength: 0) }
@@ -528,7 +436,7 @@ struct ModelTable: View {
             } else if let busyLibrary {
                 HStack {
                     if busyLibrary.progress == nil { ProgressView().controlSize(.mini) }
-                    Text(busyLibrary.message).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).help(busyLibrary.message)
+                    Text(busyLibrary.message).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).appKitTooltip(busyLibrary.message)
                     Spacer(minLength: 16)
                     Button("Cancel") { controller.cancelDownloads() }
                 }
@@ -539,7 +447,7 @@ struct ModelTable: View {
                         Text("Loading \(controller.catalog.family(loading)?.name ?? loading)…").font(.system(size: 10)).foregroundStyle(.secondary)
                     } else if let note = hardwareNote(thisChip: runtime?.chip ?? Self.localChip, measuredOn: measurementChip(controller.benchmarks)) {
                         Text(note.text).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
-                            .padding(.leading, 8).help(note.help)
+                            .padding(.leading, 8).appKitTooltip(note.help)
                     }
                     Spacer(minLength: 16)
                     requestButton
@@ -563,15 +471,16 @@ struct ModelTable: View {
                 Image(systemName: "doc.on.doc").accessibilityHidden(true)
             }.padding(.horizontal, 8).contentShape(Rectangle())
         }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize()
-            .help(controller.dictation.agentRequest)
             .accessibilityHint("Copies installation instructions to the clipboard. Nothing is sent automatically.")
     }
 
     private func plainHeading(_ text: String, _ width: CGFloat, _ alignment: Alignment, help: String) -> some View {
-        Text(text).frame(width: width, alignment: alignment).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary).help(help)
+        Text(text).frame(width: width, alignment: alignment).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary).appKitTooltip(help)
     }
 
-    /// Sortable heading; the active one is primary with a small arrow in an overlay, so the label never shifts.
+    /// Sortable heading; the active one is primary with a small arrow in an overlay, so the label never shifts. A Button
+    /// carries no hover text inside the menu (TooltipCell.swift), so `help` is its accessibility hint; each cell's
+    /// tooltip says what its figure is.
     private func heading(_ text: String, _ column: TableSortColumn, _ width: CGFloat, _ alignment: Alignment, help: String? = nil) -> some View {
         Button {
             if sortColumn == column { ascending.toggle() } else { sortColumn = column; ascending = true }
@@ -587,7 +496,7 @@ struct ModelTable: View {
                 }
                 .frame(width: width, alignment: alignment)
         }.buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundStyle(sortColumn == column ? .primary : .secondary)
-            .help(column == .name ? "Sort by name." : (help.map { $0 + " " } ?? "") + "Sorts by each model's best value across its precisions.")
+            .accessibilityHint(column == .name ? "Sort by name." : (help.map { $0 + " " } ?? "") + "Sorts by each model's best value across its precisions.")
     }
 }
 

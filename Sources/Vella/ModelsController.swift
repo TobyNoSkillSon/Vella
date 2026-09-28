@@ -149,26 +149,25 @@ import VellaCore
 
     /// A Q segment's tooltip: the exact format, where it comes from (published, or made on this Mac from a higher
     /// precision), whether it is measured, and the recommendation or the loaded precision when they apply.
+    /// A Q segment's tooltip (an NSSegmentedControl tooltip, in the family line format): the format, where the weights
+    /// come from, whether it is measured, the recommendation when it is the recommended one, and what Reload does.
     func segmentHelp(_ f: ModelFamily, _ precision: String) -> String {
-        var text = precisionFormatName(precision)
-        if precision == f.native { text += ", the model's native precision" }
+        var lines = [precisionFormatName(precision) + (precision == f.native ? " \u{00b7} native precision" : "")]
         if let source = derivedSource(f, precision) {
-            text += ". Made on this Mac from the \(precisionFormatName(source)) weights"
+            var line = "Made on this Mac from the \(precisionFormatName(source)) weights"
             if let root = downloadRoot(f, precision), let v = f.variants[root], installed(f, root) == nil {
-                text += "; loading it downloads those first (\(formatBytes(v.downloadBytes)), after you confirm)"
+                line += "; loading downloads those first (\(formatBytes(v.downloadBytes)), after you confirm)"
             }
-            text += "."
+            lines.append(line)
         } else if let v = f.variants[precision], !v.repository.isEmpty {
-            text += ". Published: \(v.repository)."
-        } else {
-            text += "."
+            lines.append("Published on Hugging Face")
         }
-        if result(f, precision)?.wer == nil { text += " Not measured yet." }
-        if precision == recommended(f), let help = recommendedHelp(f) { text += " " + help }
+        if result(f, precision)?.wer == nil { lines.append("Not measured yet") }
+        if precision == recommended(f), let help = recommendedHelp(f) { lines.append(help) }
         if let loaded = loaded(f)?.precision, loaded != precision {
-            text += " Loaded at \(precisionFormatName(loaded)); Reload loads this precision instead. Closing the menu keeps \(precisionFormatName(loaded))."
+            lines.append("Loaded at \(precisionFormatName(loaded)); Reload loads this precision instead, closing the menu keeps \(precisionFormatName(loaded))")
         }
-        return text
+        return lines.joined(separator: "\n")
     }
     func recommended(_ f: ModelFamily) -> String? { recommendedPrecision(for: f, in: benchmarks) }
     /// What the first dictation without a model offers: the catalog's first offered family at its recommended
@@ -326,7 +325,7 @@ import VellaCore
             action == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path)
                               : actions.load(family: f, precision: precision, variant: variant, path: path)
         } else if variant.isDerived {
-            lastError = "\(f.name) at \(precisionFormatName(precision)) needs the recognition worker; use Restart Worker and try again."
+            lastError = "\(f.name) at \(precisionFormatName(precision)) needs the recognition worker; use Start Worker (or Restart Worker) in Vella's menu and try again."
         } else {
             lib.selectedID = variant.id
             if !lib.useSelected() { lastError = lib.downloadError }
