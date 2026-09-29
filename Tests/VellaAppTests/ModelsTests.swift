@@ -82,18 +82,19 @@ final class ModelsTests: XCTestCase {
     }}}}
     """#
 
-    /// No recommended cell: an unloaded, never-loaded row shows Standard 16; deltas are against Standard 16; a click or a
+    /// No recommended cell: an unloaded, never-loaded row shows Optimized 16 · Fast; deltas are against Standard 16; a click or a
     /// switch flip is a preview that a new controller does not remember.
     @MainActor func testDefaultStandard16DeltasAndNoPersistenceOfPreviews() throws {
         let c = try controller(benchmarks: Self.tierFixture)
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
         XCTAssertEqual(c.currentSelection(qwen), .fallback)
         XCTAssertEqual(c.selected(qwen), "BF16")
-        XCTAssertFalse(c.showsDeltas(qwen), "Standard 16 is the reference")
+        XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t16, path: .optimized, mode: .fast), "never loaded: Optimized 16 · Fast")
         XCTAssertEqual(c.tiers(qwen, .optimized), [.t16, .t8])
         XCTAssertEqual(c.tiers(qwen, .standard), [.t16, .t8], "a pending Standard 8 is present (measure pending), not absent")
         XCTAssertTrue(c.switchAvailable(qwen), "Fast runs an inexact component at 16")
         c.select(qwen, tier: .t16, path: .optimized)
+        c.setMode(qwen, .exact)
         XCTAssertEqual(c.shownResult(qwen)?.speed_x, 60, "Optimized with the switch at Exact")
         c.setMode(qwen, .fast)
         XCTAssertEqual(c.shownResult(qwen)?.speed_x, 80)
@@ -158,7 +159,7 @@ final class ModelsTests: XCTestCase {
         c.runtime = TableRuntime()
         XCTAssertEqual(c.action(qwen), .load)
         c.perform(qwen)
-        XCTAssertEqual(spy.calls.last, "load qwen3-asr-1.7b BF16 /fixture/q16", "the default: Standard 16")
+        XCTAssertEqual(spy.calls.last, "load qwen3-asr-1.7b BF16 /fixture/q16", "the default: Optimized 16 · Fast")
         c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "4b", engine: "optimized")])
         XCTAssertEqual(c.action(qwen), .unload)
         c.perform(qwen)
@@ -225,6 +226,7 @@ final class ModelsTests: XCTestCase {
     @MainActor func testTierCellTooltips() throws {
         let c = try controller(benchmarks: Self.tierFixture)
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
+        c.setMode(qwen, .exact)   // the default is Fast; start from Exact
         XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .standard), "bf16, as published\nReference for the deltas · M5 Max, 28 Sep")
         XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\n+1.5× speed · −25 % energy · same WER · M5 Max, 28 Sep")
         c.setMode(qwen, .fast)

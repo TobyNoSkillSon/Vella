@@ -86,7 +86,8 @@ final class RecipeRuntimeTests: XCTestCase {
 
     func testDefaultSelectionRule() {
         let fast = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
-        XCTAssertEqual(defaultSelection(recorded: nil, precision: "BF16", usedBefore: false), .fallback, "never loaded: Standard 16")
+        XCTAssertEqual(defaultSelection(recorded: nil, precision: "BF16", usedBefore: false), .fallback, "never loaded: Optimized 16 · Fast")
+        XCTAssertEqual(ModelSelection.fallback, ModelSelection(tier: .t16, path: .optimized, mode: .fast), "fresh installs never land on Standard")
         XCTAssertEqual(defaultSelection(recorded: nil, precision: "8b", usedBefore: true), fast, "used before selections: what it ran")
         XCTAssertEqual(defaultSelection(recorded: ModelSelection(tier: .t16, path: .optimized, mode: .exact), precision: "8b", usedBefore: true),
                        ModelSelection(tier: .t8, path: .optimized, mode: .exact), "the recorded path and switch at the loaded tier")

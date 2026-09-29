@@ -30,8 +30,9 @@ public struct ModelSelection: Codable, Equatable, Hashable {
     /// The switch position; kept on a Standard selection too (the switch is per model, independent of the row).
     public var mode: OptimizedMode
     public init(tier: ModelTier, path: EnginePath, mode: OptimizedMode) { self.tier = tier; self.path = path; self.mode = mode }
-    /// Nothing chosen yet: Standard 16 (Exact).
-    public static let fallback = ModelSelection(tier: .t16, path: .standard, mode: .exact)
+    /// Nothing chosen yet: Optimized 16 · Fast (family ruling: fresh installs and on-demand loads never land on Standard;
+    /// the table falls back to Standard 16 only where no Optimized 16 cell exists).
+    public static let fallback = ModelSelection(tier: .t16, path: .optimized, mode: .fast)
     /// The benchmarks.json cell this selection runs.
     public var segmentKey: SegmentKey {
         path == .standard ? .standard : mode == .exact ? .optimized_exact : .optimized_fast

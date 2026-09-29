@@ -221,7 +221,8 @@ import VellaCore
         return ModelSelection(tier: tier, path: optimized ? .optimized : .standard, mode: stored?.mode ?? (optimized ? .fast : .exact))
     }
     /// What the row returns to without a preview (ONE state): the loaded selection; else the last used (config.json
-    /// `selections`, or a legacy `lastLoaded` precision on the path it then ran: Optimized · Fast); else Standard 16.
+    /// `selections`, or a legacy `lastLoaded` precision on the path it then ran: Optimized · Fast); else Optimized 16 ·
+    /// Fast where that cell exists, else Standard 16 (`valid`).
     /// An unloaded selection whose cell is no longer present falls back to Standard at its tier, then Standard 16.
     func committedSelection(_ f: ModelFamily) -> ModelSelection {
         if let s = loadedSelection(f) { return s }

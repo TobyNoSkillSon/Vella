@@ -662,7 +662,7 @@ func passesGate(_ label: String, _ r: PrecisionResult, native: String, nativeWER
 /// quality gate against it (`passesGate`), the lowest J / min; ties → faster (higher × real time); then higher bits.
 /// A precision without energy (or speed) ranks after those with it. `options` limits candidates to offered
 /// precisions. Nil when native WER is not measured. The benchmark script that writes benchmarks.json applies the same
-/// rule (lab/fixtures/recommended_precision.py, cross-checked by CatalogTests).
+/// rule (lab/bench/fixtures/recommended_precision.py, cross-checked by CatalogTests).
 public func recommendedPrecision(_ benchmark: FamilyBenchmark?, native: String, options: [String]? = nil) -> String? {
     guard let benchmark, let reference = benchmark.result(native)?.wer else { return nil }
     let tolerance = recommendationTolerance(benchmark)

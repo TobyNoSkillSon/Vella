@@ -52,12 +52,13 @@ public struct ModelRef: Codable, Hashable {
 public func workerRecipe(_ selection: ModelSelection?) -> String { (selection?.segmentKey ?? .optimized_fast).rawValue }
 /// The selection a load runs when none is passed (an on-demand dictation, an API request, the first-dictation Get):
 /// the family's recorded selection (config.json `selections`) at the precision's tier; else, for a family used before
-/// selections existed (it has a `lastLoaded` entry or is a mode's model), Optimized · Fast, which is what it ran; else
-/// Standard (Exact), the default for a model never loaded.
+/// selections existed (it has a `lastLoaded` entry or is a mode's model), Optimized · Fast, which is what it ran; a
+/// model never loaded also gets Optimized · Fast (family ruling, 29 Sep: fresh installs and on-demand agent loads never
+/// land on Standard). `usedBefore` is kept for callers and documentation; both cases now give the same selection.
 public func defaultSelection(recorded: ModelSelection?, precision: String, usedBefore: Bool) -> ModelSelection {
     let tier = modelTier(ofPrecision: precision) ?? recorded?.tier ?? .t16
     if var recorded { recorded.tier = tier; return recorded }
-    return usedBefore ? ModelSelection(tier: tier, path: .optimized, mode: .fast) : ModelSelection(tier: tier, path: .standard, mode: .exact)
+    return ModelSelection(tier: tier, path: .optimized, mode: .fast)
 }
 /// `defaultSelection` from config.json (nil = none) and the launch set: what a load of `family` at `precision` from
 /// `path` runs when no selection is passed.

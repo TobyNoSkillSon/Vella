@@ -248,8 +248,8 @@ import VellaCore
         return try prepareDerivedModel(family: family, precision: precision, sourcePath: sourcePath,
                                        modelsDirectory: controller.library(offer.mode).modelsDirectory)
     }
-    /// The first-dictation Get row's selection: the family's recorded one, else Standard at the offered tier (the
-    /// default for a model never loaded).
+    /// The first-dictation Get row's selection: the family's recorded one, else Optimized · Fast at the offered tier
+    /// (the default for a model never loaded).
     private func offerSelection(_ offer: Model.ModelOffer) -> ModelSelection? {
         guard let (family, precision) = offered(offer.mode) else { return nil }
         let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }

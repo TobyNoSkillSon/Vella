@@ -526,7 +526,7 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(docs[1].contains("best value across its precisions"), "stable sort documented")
         // One state and download confirmation (Toby, 26 Sep 2026).
         XCTAssertTrue(docs[1].contains("always shows the precision it is loaded at") && docs[1].contains("Closing the menu without Reload discards the preview")
-                      && docs[1].contains("else Standard 16"),
+                      && docs[1].contains("else Optimized 16 · Fast"),
                       "USAGE: loaded precision wins; previews are transient")
         XCTAssertTrue(docs[1].contains("the one its next dictation (or streaming session) loads"), "USAGE: dictation uses what was last loaded")
         XCTAssertTrue(docs[1].contains("nothing downloads without **Download**") && docs[1].contains("**Cancel** is the default"), "USAGE: download popup")
