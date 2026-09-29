@@ -80,7 +80,7 @@ func streamingModelPath(_ value: Any?) throws -> URL {
             return url
         }
         let config = try configuration("config.json")
-        guard let type = config["model_type"] as? String, ["nemotron_asr", "voxtral_realtime"].contains(type),
+        guard let type = config["model_type"] as? String, type == "nemotron_asr",
               try FileManager.default.contentsOfDirectory(atPath: url.path).contains(where: { $0.hasSuffix(".safetensors") }) else { throw StreamingFailure.invalid }
         if FileManager.default.fileExists(atPath: url.appendingPathComponent("tokenizer_config.json").path) { _ = try configuration("tokenizer_config.json") }
         return url

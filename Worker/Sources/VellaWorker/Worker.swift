@@ -190,10 +190,8 @@ final class Worker {
         let type: Any.Type
         switch architecture {
         case "parakeet": type = ParakeetModel.self
-        case "sensevoice": type = SenseVoiceModel.self
         case "whisper": type = WhisperModel.self
         case "qwen3_asr": type = Qwen3ASRModel.self
-        case "granite_speech": type = GraniteSpeechModel.self
         case "stub": type = StubModel.self
         default: return nil
         }
@@ -210,10 +208,8 @@ final class Worker {
         }
         switch architecture {
         case "parakeet": return try autoreleasepool { try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true) }
-        case "sensevoice": return try autoreleasepool { try SenseVoiceModel.fromDirectory(path) }
         case "whisper": return try await WhisperModel.fromDirectory(path)
         case "qwen3_asr": return try await Qwen3ASRModel.fromModelDirectory(path)
-        case "granite_speech": return try await GraniteSpeechModel.fromDirectory(path)
         case "stub" where StubModel.enabled: return StubModel(path)
         default: throw RequestError.invalid
         }

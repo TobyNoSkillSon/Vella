@@ -1247,66 +1247,6 @@
    "tolerance_pt": 0.1,
    "noise_ml_pt": 0.17,
    "tolerance_ml_pt": 0.22
-  },
-  "sensevoice-small": {
-   "precisions": {
-    "FP32": {
-     "wer": 11.01,
-     "format": 7.77,
-     "multilingual": {
-      "mean": 8.13,
-      "macro_wer": null,
-      "macro_cer": 8.13,
-      "coverage": 3,
-      "by_language": {
-       "ja": 4.64,
-       "zh": 4.83,
-       "ko": 14.91
-      }
-     },
-     "speed_x": 420.0,
-     "j_per_min": null,
-     "memory_mb": 1548,
-     "disk_mb": 936,
-     "suite": "v2-quick",
-     "audio_min": 22.5,
-     "date": "2026-09-26",
-     "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "mlx",
-     "note": "quick set only (benchmark-table model); energy not recorded: the worker crashed twice per run, so its restarts cannot be separated from background load; engine: No optimized path for this model yet; Segmentation fixed on 2026-09-29; accuracy re-measure pending"
-    }
-   },
-   "recommended": "FP32",
-   "tolerance_pt": 0.1,
-   "tolerance_ml_pt": 0.1
-  },
-  "parakeet-tdt-ctc-110m": {
-   "precisions": {
-    "FP32": {
-     "wer": 9.25,
-     "format": 6.01,
-     "multilingual": {
-      "mean": null,
-      "macro_wer": null,
-      "macro_cer": null,
-      "coverage": 0,
-      "by_language": {}
-     },
-     "speed_x": 222.2,
-     "j_per_min": 5.03,
-     "memory_mb": 889,
-     "disk_mb": 459,
-     "suite": "v2-quick",
-     "audio_min": 22.5,
-     "date": "2026-09-26",
-     "hardware": "Apple M5 Max, macOS 26.6",
-     "engine": "mlx",
-     "note": "quick set only (benchmark-table model); engine: The optimized path failed its self-test against stock MLX on this Mac; Segmentation fixed on 2026-09-29; accuracy re-measure pending"
-    }
-   },
-   "recommended": "FP32",
-   "tolerance_pt": 0.1,
-   "tolerance_ml_pt": 0.1
   }
  },
  "references": {

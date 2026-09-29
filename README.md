@@ -79,13 +79,6 @@ Each recommended row has a **Stock MLX (any Mac)** baseline row under it: the sa
 
 Cloud API rows are **estimates, not measurements**: we sent no audio to them. Each is the provider's WER on the Hugging Face Open ASR Leaderboard times the median ratio between our v2 WER and the leaderboard WER of the models we measured on both (Parakeet v3, Qwen3 ASR 1.7B, Nemotron 3.5 Streaming); the range uses the lowest and highest ratio. Leaderboard: https://huggingface.co/spaces/hf-audio/open_asr_leaderboard. Sources, anchors and arithmetic are in `references` in [`Resources/benchmarks.json`](Resources/benchmarks.json).
 
-Measured but not offered in the app:
-
-| Model | Mode | Q | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
-|---|---|---|---|---|---|---|---|---|---|
-| Parakeet TDT-CTC 110M ¹ | Dictation | 32 (recommended) | 9.25 | 6.01 | 0/9 | 222× | 5.0 | 889 MB | v2-quick |
-| SenseVoice Small ¹ | Dictation | 32 (recommended) | 11.01 | 7.77 | 3/9 | 420× | — | 1,548 MB | v2-quick |
-
 ¹ Segmentation fixed on 2026-09-29; accuracy re-measure pending.
 
 <!-- BENCHMARK_TABLE_END -->

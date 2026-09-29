@@ -69,11 +69,10 @@ func admitCheckpoint(_ path: URL) throws -> String {
     let config = try jsonObject(path.appendingPathComponent("config.json"))
     if let value = config["model_type"], !(value is NSNull), !(value is String) { throw RequestError.invalid }
     var architecture = config["model_type"] as? String
-    // NeMo transducer checkpoints carry no model_type: plain RNNT/TDT, and the hybrid TDT-CTC (e.g. parakeet-tdt_ctc-110m).
-    if architecture == nil, let target = config["target"] as? String, ["nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel",
-        "nemo.collections.asr.models.hybrid_rnnt_ctc_bpe_models.EncDecHybridRNNTCTCBPEModel"].contains(target) { architecture = "parakeet" }
+    // NeMo transducer checkpoints carry no model_type: plain RNNT/TDT.
+    if architecture == nil, config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" { architecture = "parakeet" }
     let stub = StubModel.enabled && architecture == "stub" // Test hook, reported in status.
-    guard let architecture, stub || ["parakeet", "qwen3_asr", "whisper", "sensevoice", "granite_speech"].contains(architecture) else { throw RequestError.invalid }
+    guard let architecture, stub || ["parakeet", "qwen3_asr", "whisper"].contains(architecture) else { throw RequestError.invalid }
     let rawQuant = pythonTruthy(config["quantization"]) ? config["quantization"] :
         pythonTruthy(config["quantization_config"]) ? config["quantization_config"] : [:]
     guard let quant = rawQuant as? [String: Any] else { throw RequestError.invalid }
@@ -98,9 +97,6 @@ func admitCheckpoint(_ path: URL) throws -> String {
     }
     guard let entries = FileManager.default.enumerator(at: path, includingPropertiesForKeys: nil) else { throw RequestError.invalid }
     for case let file as URL in entries where file.pathExtension == "py" { throw RequestError.invalid }
-    if architecture == "sensevoice" {
-        guard (try path.appendingPathComponent("am.mvn").resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else { throw RequestError.invalid }
-    }
     guard try FileManager.default.contentsOfDirectory(at: path, includingPropertiesForKeys: nil).contains(where: { $0.pathExtension == "safetensors" }) else { throw RequestError.invalid }
     return architecture
 }

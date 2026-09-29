@@ -31,7 +31,7 @@ mlx-swift|expm1f by Norbert Juffa (adapted in MLX Metal kernels)|expm1/erf Metal
 mlx-swift|nlohmann/json third-party parts (vendored in mlx-swift)|Grisu2 number formatting, UTF-8 decoding, Hedley macros and integer_sequence inside JSON|MIT (per the nlohmann/json SPDX headers; the Abseil code is Apache-2.0, text under metal-cpp above)|Source/Cmlx/json/include/nlohmann/detail/conversions/to_chars.hpp:1-8,Source/Cmlx/json/include/nlohmann/detail/conversions/to_chars.hpp:25-33,Source/Cmlx/json/include/nlohmann/detail/output/serializer.hpp:1-8,Source/Cmlx/json/include/nlohmann/detail/output/serializer.hpp:897-898,Source/Cmlx/json/include/nlohmann/thirdparty/hedley/hedley.hpp:3-14,Source/Cmlx/json/include/nlohmann/detail/meta/cpp_future.hpp:1-8,Source/Cmlx/json/include/nlohmann/detail/meta/cpp_future.hpp:40-41
 swift-numerics|swift-numerics|real-number protocols used by mlx-swift|Apache-2.0 with Runtime Library Exception|LICENSE.txt
 mlx-swift-lm|mlx-swift-lm (MLXLMCommon)|quantization configuration, key-value caches and attention helpers of the speech models|MIT|LICENSE
-swift-transformers|swift-transformers (Tokenizers, Hub)|tokenizer.json loading for the Qwen3 ASR, Whisper and Granite Speech tokenizers; its download code is never called|Apache-2.0|LICENSE
+swift-transformers|swift-transformers (Tokenizers, Hub)|tokenizer.json loading for the Qwen3 ASR and Whisper tokenizers; its download code is never called|Apache-2.0|LICENSE
 swift-jinja|swift-jinja|chat templates, linked by swift-transformers|Apache-2.0|LICENSE
 yyjson|yyjson|JSON parsing, linked by swift-transformers|MIT|LICENSE
 swift-collections|swift-collections (OrderedCollections)|ordered dictionaries, linked by swift-transformers|Apache-2.0 with Runtime Library Exception|LICENSE.txt
@@ -41,7 +41,7 @@ swift-syntax|swift-syntax|not in the app: resolved for the macro targets of mlx-
 '
 # Code copied or adapted into Worker/Sources, with its licence file in Worker/.
 ADAPTED='
-mlx-audio-swift|https://github.com/Blaizzy/mlx-audio-swift at 01dec7c9bdce3088a6b6b7ab9f2e403458195efb|the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper, SenseVoice, Granite Speech, Voxtral Realtime), generation and output types, audio, DSP and SentencePiece utilities; changed for Vella (local loading only, optimized paths)|MIT|Worker/LICENSE-mlx-audio-swift
+mlx-audio-swift|https://github.com/Blaizzy/mlx-audio-swift at 01dec7c9bdce3088a6b6b7ab9f2e403458195efb|the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper), generation and output types, audio, DSP and SentencePiece utilities; changed for Vella (local loading only, optimized paths)|MIT|Worker/LICENSE-mlx-audio-swift
 mlx-audio|https://github.com/Blaizzy/mlx-audio at v0.5.1|the mel filterbank of the Parakeet front end and the streaming DSP|MIT|Worker/LICENSE-mlx-audio-python
 mlx-whisper|https://github.com/ml-explore/mlx-examples (whisper)|Whisper decoding settings|MIT|Worker/LICENSE-mlx-whisper
 '
@@ -49,15 +49,11 @@ mlx-whisper|https://github.com/ml-explore/mlx-examples (whisper)|Whisper decodin
 UPSTREAM='
 parakeet-v3-ultra|moondream/parakeet-ultra (post-trained from nvidia/parakeet-tdt-0.6b-v3)
 parakeet-v3|nvidia/parakeet-tdt-0.6b-v3
-parakeet-tdt-ctc-110m|nvidia/parakeet-tdt_ctc-110m
 qwen3-asr-1.7b|Qwen/Qwen3-ASR-1.7B
 qwen3-asr-0.6b|Qwen/Qwen3-ASR-0.6B
 nemotron-3.5-streaming-0.6b|nvidia/nemotron-3.5-asr-streaming-0.6b
 whisper-large-v3|openai/whisper-large-v3
 whisper-large-v3-turbo|openai/whisper-large-v3-turbo
-sensevoice-small|FunAudioLLM/SenseVoiceSmall
-granite-4.0-1b-speech|ibm-granite/granite-4.0-1b-speech
-voxtral-mini-4b-realtime|mistralai/Voxtral-Mini-4B-Realtime-2602
 '
 
 pins="$(jq -r '.pins[] | [.identity, .location, (.state.version // "revision"), .state.revision] | join("|")' "$RESOLVED")"
@@ -166,7 +162,7 @@ EOF
   done
   cat <<'EOF'
 
-Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream card specifies the OpenMDW License 1.1 (https://openmdw.ai/license/1-1/); its MLX conversions still carry the NVIDIA Open Model License in their card metadata. SenseVoice Small uses FunASR's model licence (https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE).
+Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream card specifies the OpenMDW License 1.1 (https://openmdw.ai/license/1-1/); its MLX conversions still carry the NVIDIA Open Model License in their card metadata.
 
 ## Apple
 

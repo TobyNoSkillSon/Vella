@@ -141,7 +141,7 @@ public func decodeCatalog(_ data: Data) throws -> ModelCatalog {
             families[index].variants[precision] = variant
             if entry.recommended == true { families[index].offered = true }
         } else {
-            let mode: RecognitionMode = ["nemotron_asr", "voxtral_realtime"].contains(entry.architecture) ? .streaming : .dictation
+            let mode: RecognitionMode = entry.architecture == "nemotron_asr" ? .streaming : .dictation
             families.append(ModelFamily(id: entry.id, name: entry.name, mode: mode, languages: [], params: "", license: entry.license,
                                         native: precision, variants: [precision: variant], offered: entry.recommended ?? true, notes: entry.recommendation))
         }

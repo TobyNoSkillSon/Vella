@@ -106,9 +106,9 @@ enum CalibrationCommand {
             var parameters: [String: Any] = [:]
             // Match the reference's inspect.signature filtering of supported options.
             if architecture != "parakeet" { parameters["verbose"] = false }
-            if ["qwen3_asr", "granite_speech"].contains(architecture) { parameters["max_tokens"] = 1024 }
+            if architecture == "qwen3_asr" { parameters["max_tokens"] = 1024 }
             if ["parakeet", "qwen3_asr", "whisper"].contains(architecture) { parameters["chunk_duration"] = 30.0 }
-            if architecture != "sensevoice" { parameters["stream"] = false }
+            parameters["stream"] = false
             try emit("result", ["result": [
                 "audioSeconds": sample.seconds, "loadSeconds": loadSeconds,
                 "firstRequestSeconds": first, "warmSeconds": warm,

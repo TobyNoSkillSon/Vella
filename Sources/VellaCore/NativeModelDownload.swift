@@ -1,10 +1,9 @@
 import Foundation
 import CryptoKit
 
-/// NeMo transducer checkpoints carry no `model_type`; these targets load as Parakeet: plain RNNT/TDT and the
-/// hybrid TDT-CTC (e.g. parakeet-tdt_ctc-110m). Mirrors the worker's `admitCheckpoint`.
-public let parakeetNemoTargets: Set<String> = ["nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel",
-                                               "nemo.collections.asr.models.hybrid_rnnt_ctc_bpe_models.EncDecHybridRNNTCTCBPEModel"]
+/// NeMo transducer checkpoints carry no `model_type`; this target loads as Parakeet (plain RNNT/TDT). Mirrors the
+/// worker's `admitCheckpoint`.
+public let parakeetNemoTargets: Set<String> = ["nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel"]
 /// The architecture a checkpoint's config.json declares: `model_type`, else "parakeet" for a NeMo transducer target.
 public func checkpointArchitecture(_ config: [String: Any]?) -> String? {
     if let type = config?["model_type"] as? String { return type }
@@ -272,7 +271,6 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate {
                 if (try path.resourceValues(forKeys: [.isSymbolicLinkKey])).isSymbolicLink == true { throw DownloadError.invalid("Linked model asset is not supported") }
             }
         }
-        if architecture == "sensevoice" && !manager.fileExists(atPath: folder.appendingPathComponent("am.mvn").path) { throw DownloadError.invalid("SenseVoice normalization file am.mvn is required") }
         let quant = (config?["quantization"] ?? config?["quantization_config"]) as? [String: Any]
         let bits = quant?["bits"] as? Int
         let expectedBits = Int(expected.quantization.split(separator: "-").first ?? "")

@@ -54,13 +54,6 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(root.submenu?.items.first?.submenu)
         XCTAssertFalse(menus.controller.families(.dictation).isEmpty)
         XCTAssertFalse(menus.controller.families(.streaming).isEmpty)
-        XCTAssertFalse(menus.controller.families(.dictation).contains { $0.id == "granite-4.0-1b-speech" }, "not offered")
-    }
-
-    @MainActor func testNonOfferedFamilyStaysManageableWhenDownloaded() throws {
-        let c = try controller()
-        c.dictation.installed["granite-4.0-1b-speech-4bit"] = InstalledModel(path: "/fixture/granite")
-        XCTAssertTrue(c.families(.dictation).contains { $0.id == "granite-4.0-1b-speech" })
     }
 
     @MainActor func testRecommendedSelectionDeltasBaseAndPersistence() throws {

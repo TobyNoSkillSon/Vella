@@ -34,7 +34,6 @@ final class CatalogTests: XCTestCase {
             XCTAssertEqual(f.derivationProblems(), [], f.id)
             XCTAssertTrue(f.variants.keys.allSatisfy { labelBits($0) != nil }, "exact precision labels: \(f.id)")
         }
-        XCTAssertEqual(catalog.family("granite-4.0-1b-speech")?.offered, false, "hidden families are not offered in the app")
     }
 
     func testShippedLineup() throws {
@@ -60,12 +59,15 @@ final class CatalogTests: XCTestCase {
         XCTAssertFalse(catalog.families.contains { $0.offered && ($0.notes ?? "").contains("Benchmark table only") })
         // The first offered Dictation family is the first-dictation Get offer (RuntimeBridge.offer): Ultra BF16, 1.25 GB.
         XCTAssertEqual(catalog.offered(.dictation).first?.id, "parakeet-v3-ultra")
+        // Removed from the catalog (Toby, 29 Sep 2026): Parakeet TDT-CTC 110M, SenseVoice Small, Granite 4.0 1B, Voxtral
+        // Realtime 4B. Their registry entries are pruned at launch (`retiredModelIDs`); their files are not touched.
         for id in ["parakeet-tdt-ctc-110m", "sensevoice-small", "granite-4.0-1b-speech", "voxtral-mini-4b-realtime"] {
-            XCTAssertEqual(catalog.family(id)?.offered, false, id)
+            XCTAssertNil(catalog.family(id), id)
         }
-        // Earlier install ids of now-unoffered models still resolve (installed copies stay usable and deletable).
-        for id in ["SenseVoiceSmall", "SenseVoiceSmall-4bit", "whisper-large-v3-asr-fp16", "whisper-large-v3-asr-4bit",
-                   "Voxtral-Mini-4B-Realtime-2602-4bit", "nemotron-3.5-asr-streaming-0.6b-bf16", "Qwen3-ASR-1.7B-4bit", "Qwen3-ASR-1.7B-8bit"] {
+        XCTAssertTrue(catalog.families.allSatisfy(\.offered))
+        // Install ids of the kept models still resolve (installed copies stay usable and deletable).
+        for id in ["whisper-large-v3-asr-fp16", "whisper-large-v3-asr-4bit", "nemotron-3.5-asr-streaming-0.6b-bf16",
+                   "nemotron-3.5-asr-streaming-0.6b-8bit", "Qwen3-ASR-1.7B-4bit", "Qwen3-ASR-1.7B-8bit", "parakeet-tdt-0.6b-v3-mlx-4bit"] {
             XCTAssertNotNil(catalog.locate(variant: id), id)
         }
     }
