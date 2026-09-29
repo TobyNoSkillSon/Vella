@@ -33,6 +33,8 @@ struct TierControl: View {
     static let title = "Precision"
     static let headerHelp = "Bits per weight. 16 = as released; 8 and 4 compressed on your Mac \u{2014} smaller, faster, slightly less accurate."
     /// The one interlock line, shared by the Precision segments and the Exact/Fast switch in every app.
+    /// The selected cell's fill on a loaded row.
+    static let hotSelection = NSColor(white: 0.1, alpha: 0.85)
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
     /// Columns, highest precision first. Labels are bare: 16, 8, 4.
     static let columns = ["16", "8", "4"]
@@ -137,6 +139,18 @@ private struct TierSegments: NSViewRepresentable {
         override var intrinsicContentSize: NSSize {
             NSSize(width: TierControl.segmentsWidth(segmentCount), height: TierControl.segmentHeight)
         }
+        /// A loaded row rings its selected cell in white: on the accent-blue row a fill alone does not stand out.
+        var ringsSelection = false { didSet { if ringsSelection != oldValue { needsDisplay = true } } }
+        override func draw(_ dirtyRect: NSRect) {
+            super.draw(dirtyRect)
+            guard ringsSelection, selectedSegment >= 0, selectedSegment < segmentCount else { return }
+            let x = CGFloat(selectedSegment) * (TierControl.cellWidth - 1)
+            let cell = NSRect(x: x, y: 0, width: TierControl.cellWidth - 1, height: bounds.height).insetBy(dx: 1, dy: 1.5)
+            let ring = NSBezierPath(roundedRect: cell, xRadius: 5, yRadius: 5)
+            ring.lineWidth = 1.5
+            NSColor.white.withAlphaComponent(isEnabled ? 0.95 : 0.5).setStroke()
+            ring.stroke()
+        }
     }
 
     func makeNSView(context: Context) -> NSSegmentedControl {
@@ -168,7 +182,10 @@ private struct TierSegments: NSViewRepresentable {
         }
         control.selectedSegment = selected.flatMap { tiers.firstIndex(of: $0) } ?? -1
         control.isEnabled = enabled
-        control.selectedSegmentBezelColor = hot ? .controlAccentColor : nil
+        // On a loaded (accent-blue) row an accent selection disappears into the row; a near-black selection with the
+        // white label stands out from the light unselected cells there.
+        control.selectedSegmentBezelColor = hot ? TierControl.hotSelection : nil
+        (control as? Control)?.ringsSelection = hot
         control.needsDisplay = true
     }
 }
