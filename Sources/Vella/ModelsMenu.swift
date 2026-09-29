@@ -107,7 +107,8 @@ struct ModelTable: View {
     static let width: CGFloat = 968
     /// Every row fits without scrolling: heading, dividers and footer, 39 pt per row (two tier rows), 21 pt per section label.
     static func height(rows: Int, sections: Int) -> CGFloat { 64 + CGFloat(rows) * rowPitch + CGFloat(sections) * 21 }
-    static let rowHeight: CGFloat = 36
+    /// A row holds the two tier rows (TierControl.height) with a little air.
+    static let rowHeight: CGFloat = max(36, TierControl.height + 2)
     static let rowPitch: CGFloat = rowHeight + 3
     @MainActor static func height(_ c: ModelsController) -> CGFloat { height(rows: c.rowCount, sections: c.sectionCount) }
 

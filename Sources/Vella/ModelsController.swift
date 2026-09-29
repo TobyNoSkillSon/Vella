@@ -1,3 +1,4 @@
+import os
 import AppKit
 import Combine
 import Foundation
@@ -245,19 +246,26 @@ import VellaCore
     /// What the row shows: a running confirmed download's selection, else the preview, else the committed one.
     func currentSelection(_ f: ModelFamily) -> ModelSelection { pendingSelections[f.id] ?? previews[f.id] ?? committedSelection(f) }
     /// A segment click: preview that cell (its numbers, deltas and button). Picking the committed cell ends the preview.
+    static let log = Logger(subsystem: "dev.vella.dictation", category: "models-table")
     func select(_ f: ModelFamily, tier: ModelTier, path: EnginePath) {
+        Self.log.notice("segment click \(f.id, privacy: .public) \(tier.rawValue, privacy: .public) \(path == .standard ? "standard" : "optimized", privacy: .public)")
         setPreview(f, ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode))
     }
     /// A switch flip: the Optimized cell of the shown tier in that mode (from a Standard cell too: the switch is about
     /// the Optimized row). Applies at the next load, like a segment click.
     func setMode(_ f: ModelFamily, _ mode: OptimizedMode) {
+        Self.log.notice("switch click \(f.id, privacy: .public) \(mode == .fast ? "fast" : "exact", privacy: .public)")
         let current = currentSelection(f)
         var next = ModelSelection(tier: current.tier, path: .optimized, mode: mode)
         if !isPresent(f, next) { next.path = current.path }
         setPreview(f, next)
     }
     private func setPreview(_ f: ModelFamily, _ s: ModelSelection) {
-        guard !inUse(f) else { return }
+        guard !inUse(f) else {
+            let loading = runtime?.loading ?? "-"
+            Self.log.notice("click refused (in use): preview \(self.previewInUse, privacy: .public) loadingFamily \(self.isLoading(f), privacy: .public) runtimeLoading \(loading, privacy: .public) mayChange \(self.library(f.mode).mayChangeModel(), privacy: .public)")
+            return
+        }
         previews[f.id] = s == committedSelection(f) ? nil : s
     }
     /// In use: recording, dictating, streaming or loading (segments and switch disabled; a change applies at the next

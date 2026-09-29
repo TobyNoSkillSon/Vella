@@ -249,6 +249,8 @@ import VellaUpdate
                     + controller.references(mode).flatMap { r in table.tooltips(r).map { "[\(r.name) · \($0.0)]\n\($0.1)\n" } }
             }
             try? lines.joined(separator: "\n").write(to: directory.appendingPathComponent("table-tooltips.txt"), atomically: true, encoding: .utf8)
+            Self.renderFirstFrame(controller, to: directory.appendingPathComponent("models-first-frame.png"),
+                                  check: directory.appendingPathComponent("models-first-frame-check.txt"))
             renderPrompts(controller) {
                 try? FileManager.default.removeItem(at: RenderFixture.root)
                 NSApp.terminate(nil)
@@ -272,6 +274,32 @@ import VellaUpdate
         TableRenderDelegate.renderTable(controller, to: directory.appendingPathComponent("models-\(state.name).png")) { [self] in
             render(states, index + 1)
         }
+    }
+
+    /// The table as the menu first shows it: one layout pass, drawn at once, no run-loop turn and no click (the tier
+    /// rows once overlapped only in this frame). `check` lists every tier row pair's frames and whether they overlap.
+    static func renderFirstFrame(_ controller: ModelsController, to url: URL, check: URL) {
+        let table = MenuTableHostingView(rootView: ModelTable(controller: controller))
+        table.frame = NSRect(x: 0, y: 0, width: ModelTable.width, height: ModelTable.height(controller))
+        let window = NSWindow(contentRect: table.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua); window.backgroundColor = NSColor(calibratedRed: 0.13, green: 0.13, blue: 0.14, alpha: 1)
+        window.contentView = table
+        table.layoutSubtreeIfNeeded()
+        if let rep = table.bitmapImageRepForCachingDisplay(in: table.bounds) {
+            table.cacheDisplay(in: table.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?.write(to: url)
+        }
+        var controls: [NSRect] = []
+        func walk(_ v: NSView) { if v is NSSegmentedControl { controls.append(v.convert(v.bounds, to: table)) }; v.subviews.forEach(walk) }
+        walk(table)
+        // Pair rows by their shared left edge region: two controls within one table row (same TierControl) are the
+        // ones whose vertical centres are less than a row pitch apart.
+        let sorted = controls.sorted { ($0.minY, $0.minX) < ($1.minY, $1.minX) }
+        var overlaps = 0
+        for (i, a) in sorted.enumerated() { for b in sorted[(i + 1)...] where a.intersects(b) { overlaps += 1 } }
+        let lines = ["tier segment controls: \(controls.count)", "overlapping pairs on the first frame: \(overlaps)",
+                     "heights: \(Set(controls.map { Int($0.height) }).sorted())"] + sorted.map { "\($0)" }
+        try? lines.joined(separator: "\n").write(to: check, atomically: true, encoding: .utf8)
     }
 
     /// The table on the menu's dark panel colour, as it appears inside the Models… submenu.

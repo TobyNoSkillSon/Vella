@@ -18,7 +18,7 @@ struct ExactFastSwitch: View {
     static let sameHelp = "Fast measures the same as Exact for this model"
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
     static let width: CGFloat = 44
-    static let height: CGFloat = 32
+    static let height: CGFloat = TierControl.height   // beside the two tier rows, same height
 
     let position: Position
     /// False: Fast measures identically to Exact for this model (greyed).
@@ -100,6 +100,7 @@ private final class SwitchView: NSView {
         guard chosen != position else { return }
         position = chosen; needsDisplay = true
         onChange?(chosen)
+        HostRefresh.after(self)
     }
 
     // Accessibility: a two-state switch reading "Fast" or "Exact".

@@ -31,11 +31,19 @@ struct TierControl: View {
     static let columns = ["16", "8", "4"]
     static let labelWidth: CGFloat = 46
     static let rowSpacing: CGFloat = 2
-    static let rowHeight: CGFloat = 15
+    /// A mini NSSegmentedControl's height (16 pt on macOS 26). The geometry is explicit so the FIRST layout (a menu
+    /// opening) already has both rows apart: the segments never report their size to the layout themselves, because
+    /// a hosted NSControl can take the environment's larger control size until its first update, which drew Standard
+    /// over the bottom of Optimized until a click relaid the row (29 Sep).
+    static let segmentHeight: CGFloat = 16
+    static let rowHeight: CGFloat = segmentHeight
     /// Width of one tier column (a bare two-digit label in a mini segment).
     static let cellWidth: CGFloat = 23
-    /// Height of both rows; the Exact/Fast switch beside them uses the same.
+    /// Height of both rows (2 × segment height + spacing): the control's own size, which the table row and the
+    /// Exact/Fast switch beside it use.
     static let height: CGFloat = 2 * rowHeight + rowSpacing
+    /// Width of a row's segments: each segment is `cellWidth - 2` wide plus a 1 pt divider, less the outer one.
+    static func segmentsWidth(_ count: Int) -> CGFloat { count == 0 ? 0 : CGFloat(count) * (cellWidth - 1) - 1 }
     /// Label plus three cells.
     static let width: CGFloat = labelWidth + 4 + CGFloat(columns.count) * cellWidth
 
@@ -54,7 +62,8 @@ struct TierControl: View {
         VStack(alignment: .leading, spacing: Self.rowSpacing) {
             row(.optimized, optimized)
             row(.standard, standard)
-        }.frame(width: Self.width, height: Self.height, alignment: .leading)
+        }.frame(width: Self.width, height: Self.height, alignment: .topLeading)
+        .fixedSize()
     }
 
     /// A cell's tooltip as shown: the app's text, plus the interlock line while in use.
@@ -70,10 +79,27 @@ struct TierControl: View {
                 TierSegments(tiers: tiers, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot,
                              help: { Self.tooltip(help(Cell(row, $0)), enabled: enabled) },
                              onSelect: { onSelect(Cell(row, $0)) })
-                    .fixedSize()
+                    .frame(width: Self.segmentsWidth(tiers.count), height: Self.rowHeight)
                     .padding(.leading, CGFloat(Self.columns.firstIndex(of: first) ?? 0) * Self.cellWidth)
             }
-        }.frame(height: Self.rowHeight)
+        }.frame(width: Self.width, height: Self.rowHeight, alignment: .leading)
+    }
+}
+
+/// After a click inside a menu, redraw the hosting view on the next run-loop pass in the menu's tracking mode as well:
+/// a SwiftUI table hosted in an NSMenuItem must show the new cell while the menu stays open, whatever run-loop mode
+/// SwiftUI's own update is scheduled in. Shared with ExactFastSwitch.swift.
+enum HostRefresh {
+    static func after(_ view: NSView) {
+        var host: NSView = view
+        while let parent = host.superview { host = parent }
+        RunLoop.main.perform(inModes: [.common, .eventTracking, .default]) { [weak host] in
+            guard let host else { return }
+            host.needsLayout = true
+            host.layoutSubtreeIfNeeded()
+            host.needsDisplay = true
+            host.displayIfNeeded()
+        }
     }
 }
 
@@ -93,13 +119,26 @@ private struct TierSegments: NSViewRepresentable {
             let index = sender.selectedSegment
             guard parent.tiers.indices.contains(index) else { return }
             parent.onSelect(parent.tiers[index])
+            HostRefresh.after(sender)
         }
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     static var font: NSFont { .systemFont(ofSize: NSFont.systemFontSize(for: .mini)) }
 
+    /// Always mini and always one row high, whatever size the hosting environment pushes onto it.
+    final class Control: NSSegmentedControl {
+        override var controlSize: NSControl.ControlSize {
+            get { super.controlSize }
+            set { super.controlSize = .mini }
+        }
+        override var intrinsicContentSize: NSSize {
+            NSSize(width: TierControl.segmentsWidth(segmentCount), height: TierControl.rowHeight)
+        }
+    }
+
     func makeNSView(context: Context) -> NSSegmentedControl {
-        let control = NSSegmentedControl()
+        let control = Control()
+        control.controlSize = .mini
         control.trackingMode = .selectOne
         control.target = context.coordinator
         control.action = #selector(Coordinator.changed(_:))
@@ -111,7 +150,9 @@ private struct TierSegments: NSViewRepresentable {
         context.coordinator.parent = self
         update(control)
     }
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSSegmentedControl, context: Context) -> CGSize? { nsView.intrinsicContentSize }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSSegmentedControl, context: Context) -> CGSize? {
+        CGSize(width: TierControl.segmentsWidth(tiers.count), height: TierControl.rowHeight)
+    }
 
     private func update(_ control: NSSegmentedControl) {
         if control.segmentCount != tiers.count { control.segmentCount = tiers.count }
