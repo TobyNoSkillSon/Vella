@@ -1353,7 +1353,6 @@ enum ShortcutMenuFactory {
             entry.state = manager.configuration.behavior == behavior ? .on : .off
             entry.isEnabled = canEdit
             entry.synchronize()
-            entry.toolTip = behavior == .tapOrHold ? "Tap (<0.3s) keeps recording; hold finishes on release." : nil
             menu.addItem(entry)
         }
         menu.addItem(.separator())
@@ -1366,7 +1365,6 @@ enum ShortcutMenuFactory {
             let record = NSMenuItem(title: "Record Key Chord…", action: recordKeys, keyEquivalent: "")
             record.target = target as? NSObject
             record.isEnabled = canEdit
-            record.toolTip = "Carbon press/release; no new permissions."
             menu.addItem(record)
         }
         // Modifier-only picker (nested to keep the top submenu compact).

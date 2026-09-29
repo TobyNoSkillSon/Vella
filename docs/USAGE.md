@@ -34,10 +34,10 @@ A fresh install has no model. If you dictate before getting one, Vella keeps the
 
 ## Menu
 
-1. **Status** — `Vella: ready`, the loaded model and one fact line. Green when ready, grey while loading or downloading, orange when a helper failed (click it for the error and the log). It shows a tooltip only when there is more to say: the error, the Accessibility permission to grant, or why a recording waits for a model.
+1. **Status** — `Vella: ready`, the loaded model and one fact line. Green when ready, grey while loading or downloading, orange when a helper failed (click it for the error and the log). It shows a tooltip only when there is more to say: the error, the Accessibility permission to grant, or why a recording waits for a model. Other items have no tooltip when their title says what they do; tooltips remain on **Copy Skill for Your Agent**, the waiting recording's **Get** row, the Keep Hot and Memory entries with a rule behind them, and **Update** after a failed attempt.
 2. **Models…** · **Keep Hot** · **Memory**.
 3. **Start Dictation** · **Mode** (Dictation or Streaming) · **Microphone** · **Shortcuts** · **Copy Last Transcript** (and recovery of an unfinished one) · **Open Saved Recordings**.
-4. **Copy Skill for Your Agent** · **Copy Diagnostics** · **Open Vella Files** · **Restart Worker** (**Start Worker** when no worker is running) · **Launch at Login**.
+4. **Copy Skill for Your Agent** · **Open Vella Files** · **Restart Worker** (**Start Worker** when no worker is running) · **Launch at Login**.
 5. **Support the developer…** · **Update to X…** (when a newer release is out) · **Quit Vella**.
 
 Hover an item for what it does.
@@ -224,7 +224,7 @@ Successful model output is accepted, including no text. Empty recognition is not
 
 ## Reporting a problem
 
-**Copy Diagnostics** in the menu, or `vella diagnose` in Terminal, prints one screen for a bug report and ends with a link that opens a prefilled GitHub issue:
+`vella diagnose` in Terminal prints one screen for a bug report and ends with a link that opens a prefilled GitHub issue:
 
 - this Mac: chip, model, memory, macOS and its build, and the GPU family the optimized kernels are checked against;
 - the versions of Vella, its `vella` command, its API and its recognition helpers;

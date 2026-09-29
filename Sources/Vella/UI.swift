@@ -65,8 +65,6 @@ final class HUDPanel: NSPanel {
     lazy var workersRunning: () -> Bool = { [unowned self] in
         self.model.backend.processID != nil || self.model.streamingBackend.processID != nil
     }
-    /// Copy Diagnostics: the bundled `vella diagnose`.
-    let diagnostics = DiagnosticsCopier()
     /// `controller`: an isolated Models controller (tests); the wiring below is the real one either way.
     func makeModelsMenu(controller: ModelsController? = nil) -> ModelsMenu {
         let menus = ModelsMenu(controller: controller)
@@ -290,8 +288,8 @@ final class HUDPanel: NSPanel {
         menu.addItem(.separator())
         // Which models are in memory: the model, how long it stays hot, what happens when memory is short.
         menu.addItem(modelsMenu.modelItem())
-        menu.addItem(settingsSubmenu("Keep Hot", "flame", keepHotEntries(manualIdle: menuSettings.manualIdleMinutes, onDemandIdle: menuSettings.onDemandIdleMinutes), help: keepHotHelp))
-        menu.addItem(settingsSubmenu("Memory", "memorychip", memoryEntries(allowSwap: menuSettings.allowSwap, availableMB: menuSettings.availableMB, lastEvicted: menuSettings.lastEvicted), help: memoryHelp))
+        menu.addItem(settingsSubmenu("Keep Hot", "flame", keepHotEntries(manualIdle: menuSettings.manualIdleMinutes, onDemandIdle: menuSettings.onDemandIdleMinutes)))
+        menu.addItem(settingsSubmenu("Memory", "memorychip", memoryEntries(allowSwap: menuSettings.allowSwap, availableMB: menuSettings.availableMB, lastEvicted: menuSettings.lastEvicted)))
         menu.addItem(.separator())
         // The app section: dictate, how (mode, microphone, shortcut), and what it produced.
         let workingShortcut = shortcutManager.isUsingFallback ? (shortcutManager.activeConfiguration ?? .default) : shortcutManager.configuration
@@ -303,7 +301,7 @@ final class HUDPanel: NSPanel {
             item("Delete This Saved Recording…", "trash", #selector(deleteSaved))
         }
         let modes = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
-        modes.image = NSImage(systemSymbolName: "switch.2", accessibilityDescription: nil); modes.toolTip = modeHelp
+        modes.image = NSImage(systemSymbolName: "switch.2", accessibilityDescription: nil)
         let modeMenu = NSMenu(); modeMenu.autoenablesItems = false
         for mode in RecognitionMode.allCases {
             let entry = SettingsMenuItem(title: mode.title, target: self, action: #selector(selectMode(_:)))
@@ -314,7 +312,7 @@ final class HUDPanel: NSPanel {
         }
         modes.submenu = modeMenu; menu.addItem(modes)
         let microphones = NSMenuItem(title: "Microphone", action: nil, keyEquivalent: "")
-        microphones.image = NSImage(systemSymbolName: "mic", accessibilityDescription: nil); microphones.toolTip = microphoneHelp
+        microphones.image = NSImage(systemSymbolName: "mic", accessibilityDescription: nil)
         let devices = NSMenu(); devices.autoenablesItems = false
         let selected = try? model.backend.configuration(requiresModel: false).preferredMicrophone
         for device in Recorder.devices() {
@@ -334,24 +332,21 @@ final class HUDPanel: NSPanel {
             cancelCapture: #selector(cancelShortcutCapture), selectModifier: #selector(selectShortcutModifier(_:)),
             selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
             openSettings: #selector(accessibility)))
-        menu.items.last?.toolTip = menu.items.last?.toolTip ?? shortcutsHelp
-        if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast), help: copyLastHelp) }
-        item("Open Saved Recordings", "folder", #selector(savedRecordings), help: openSavedRecordingsHelp)
+        if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast)) }
+        item("Open Saved Recordings", "folder", #selector(savedRecordings))
         menu.addItem(.separator())
         // Agent, support files and the worker.
         item("Copy Skill for Your Agent", "doc.on.doc", #selector(copySkill), help: copySkillHelp)
-        item(diagnostics.running ? "Copying Diagnostics…" : "Copy Diagnostics", "stethoscope", #selector(copyDiagnostics),
-             enabled: !diagnostics.running, help: copyDiagnosticsHelp)
-        item("Open Vella Files", "folder", #selector(files), help: openFilesHelp)
+        item("Open Vella Files", "folder", #selector(files))
         let running = workersRunning()
         item(workerItemTitle(running: running), running ? "arrow.clockwise" : "play.circle", #selector(restartWorker),
-             enabled: model.phase != .recording && !model.busy, help: running ? restartWorkerHelp : startWorkerHelp)
+             enabled: model.phase != .recording && !model.busy)
         let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
         login.target = self; login.image = NSImage(systemSymbolName: "power.circle", accessibilityDescription: nil)
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
         menu.addItem(.separator())
-        item("Support the developer…", "heart", #selector(supportDeveloper), help: supportHelp)
+        item("Support the developer…", "heart", #selector(supportDeveloper))
         if let update = updates.menuItem() { menu.addItem(update) }
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
     }
@@ -398,38 +393,15 @@ final class HUDPanel: NSPanel {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(skillText(), forType: .string)
     }
-    /// Copies `vella diagnose`'s report, then offers its prefilled GitHub bug report.
-    @objc private func copyDiagnostics() {
-        diagnostics.run { [weak self] result in
-            guard let self else { return }
-            self.rebuildMenuIfIdle()
-            switch result {
-            case .success(let report):
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(report.text, forType: .string)
-                let alert = NSAlert()
-                alert.messageText = "Diagnostics copied"
-                if report.issue != nil { alert.addButton(withTitle: "Open Bug Report…") }
-                alert.addButton(withTitle: "Done")
-                // The report finishes after the menu has closed: bring the alert to the front.
-                NSApp.activate()
-                let response = alert.runModal()
-                if let issue = report.issue, response == .alertFirstButtonReturn { _ = self.openExternalURL(issue) }
-            case .failure(let error):
-                NSAlert(error: error).runModal()
-            }
-        }
-        rebuildMenuIfIdle()
-    }
     @objc private func getPending() { getPendingModel() }
     @objc private func restartWorker() {
         guard workersRunning() else { startWorkers?(); return }
         if let restartWorkers { restartWorkers() } else { model.stopWorkers() }
     }
     /// Keep Hot / Memory submenu from VellaCore's entries (section headers, checkmarked choices, short captions).
-    private func settingsSubmenu(_ title: String, _ icon: String, _ entries: [SettingsEntry], help: String) -> NSMenuItem {
+    private func settingsSubmenu(_ title: String, _ icon: String, _ entries: [SettingsEntry]) -> NSMenuItem {
         let root = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        root.image = NSImage(systemSymbolName: icon, accessibilityDescription: nil); root.toolTip = help
+        root.image = NSImage(systemSymbolName: icon, accessibilityDescription: nil)
         let sub = NSMenu(); sub.autoenablesItems = false
         for entry in entries {
             switch entry {

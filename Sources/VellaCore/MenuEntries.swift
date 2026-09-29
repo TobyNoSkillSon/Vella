@@ -1,7 +1,9 @@
 import Foundation
 
 // Keep Hot and Memory submenu content as data (unit-tested, drawn by the app's menu builder), and the menu's
-// tooltip strings. Settings values come from the runtime (Residency/Configuration); this file only presents them.
+// tooltip strings. A menu item has a tooltip only where its title cannot carry the meaning (Toby, 29 Sep): Copy Skill
+// for Your Agent, the header reporting an error or permission (or a kept recording that waits), the Get row of a
+// waiting recording, the Keep Hot / Memory entries with a rule behind them, and Update after a failed attempt. Settings values come from the runtime (Residency/Configuration); this file only presents them.
 
 /// Keep Hot idle windows in minutes; 0 = Always. Idle is timed per model since a dictation last used it (or it loaded).
 public let keepHotChoices: [(minutes: Int, title: String)] = [(5, "5 min idle"), (15, "15 min idle"), (30, "30 min idle"), (60, "60 min idle"), (0, "Always")]
@@ -30,13 +32,7 @@ public let fitInFreeMemoryTitle = "Fit in free memory"
 public let fitInFreeMemoryHelp = "Checks free memory before loading: a model loads only if it fits in memory that is free at that moment; otherwise idle models are unloaded (least recently used, on-demand first) or the load is refused with the reason. Best effort: memory use can change after the check."
 public let allowSwapTitle = "Allow swap (slower)"
 public let allowSwapHelp = "Loads even when memory is short; macOS moves data to disk and everything, including other apps, can slow down."
-public let openFilesHelp = "Opens ~/Library/Application Support/Vella: settings, downloaded models and saved recordings."
-public let copySkillHelp = "Copies SKILL.md for a coding agent: when Vella is worth using for audio files, and the vella command, OpenAI-compatible API and Python call."
-public let copyDiagnosticsHelp = "Copies a short report for a bug report: this Mac, versions, each loaded model's engine and fallbacks, and a timed run of five built-in clips. Nothing you dictated is included."
-public let copyLastHelp = "Copies the last recognized text, including a transcript recovered from a saved recording."
-public let restartWorkerHelp = "Stops Vella's transcription workers and starts them again with the models you loaded; other models load with the next dictation."
-public let startWorkerHelp = "No transcription worker is running. Starts one with the models you loaded, else this mode's model."
-public let openSavedRecordingsHelp = "Opens the folder of saved recordings and their transcripts."
+public let copySkillHelp = "Copies Vella's skill for a coding agent to the clipboard: when Vella is worth using for audio files, and how to call the vella command, its OpenAI-compatible API or Python. Paste it into your agent's skills."
 public let accessibilityHeaderHelp = "Vella needs Accessibility access to type into other apps. Click to open System Settings."
 
 /// The worker item: Restart Worker while a worker runs, Start Worker when none does (the family menu, 28 Sep 2026).
@@ -50,13 +46,6 @@ public func menuHeaderToolTip(failed: Bool, message: String, needsPermission: Bo
     if needsPermission { return accessibilityHeaderHelp }
     return idle ? pending : nil
 }
-public let modelsHelp = "Compare models and precisions, download, load and unload them."
-public let modeHelp = "Dictation transcribes when you finish; Streaming types text while you speak."
-public let microphoneHelp = "The input Vella records from; it falls back to the built-in microphone when this one is missing."
-public let shortcutsHelp = "The key, modifier or mouse button that starts and finishes a dictation."
-public let keepHotHelp = "How long an idle model stays in memory before Vella unloads it."
-public let memoryHelp = "What Vella does when a model would not fit in free memory."
-public let supportHelp = "Opens GitHub Sponsors in your browser."
 
 /// Keep Hot: manually loaded (Load in Models…, the launch set) and loaded on demand (a dictation needed it).
 public func keepHotEntries(manualIdle: Int, onDemandIdle: Int) -> [SettingsEntry] {

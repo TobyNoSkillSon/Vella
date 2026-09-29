@@ -34,7 +34,6 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         if !controller.previewing { controller.reload() }
         let root = NSMenuItem(title: "Models…", action: nil, keyEquivalent: "")
         root.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
-        root.toolTip = modelsHelp
         let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self; tableMenu = menu
         let item = NSMenuItem()
         let view = MenuTableHostingView(rootView: ModelTable(controller: controller, requestDelete: { [weak self] family in self?.confirmDeletion(family) }))

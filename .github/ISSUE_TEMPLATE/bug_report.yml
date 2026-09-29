@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Run `vella diagnose` in Terminal and paste its output below (or use **Copy Diagnostics** in Vella's menu). It contains no recordings or transcripts of yours, only your chip, macOS, versions, engine states and timings on the built-in test clips. The link it prints opens this form with the fields filled in.
+        Run `vella diagnose` in Terminal and paste its output below. It contains no recordings or transcripts of yours, only your chip, macOS, versions, engine states and timings on the built-in test clips. The link it prints opens this form with the fields filled in.
   - type: textarea
     id: what-happened
     attributes:

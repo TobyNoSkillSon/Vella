@@ -3,7 +3,8 @@ import Foundation
 @testable import Vella
 @testable import VellaCore
 
-/// `vella diagnose` against the stub API (fake worker, isolated support dir), and the menu's Copy Diagnostics.
+/// `vella diagnose` against the stub API (fake worker, isolated support dir). The menu has no Copy Diagnostics item
+/// (Toby, 29 Sep): users file issues; the command stays for agents and the skill.
 final class DiagnoseCLITests: XCTestCase {
     @MainActor private func vella(_ support: URL, _ arguments: [String]) async throws -> (Int32, String, String) {
         let env = ["VELLA_SUPPORT_DIR": support.path, "VELLA_NO_LAUNCH": "1", "HOME": NSHomeDirectory(), "PATH": "/usr/bin:/bin"]
@@ -67,50 +68,5 @@ final class DiagnoseCLITests: XCTestCase {
         XCTAssertTrue(out.contains("\nMac: "), out)
         XCTAssertTrue(out.contains("Vella is not running: start it from Applications and run `vella diagnose` again."), out)
         XCTAssertTrue(out.contains("Vella%20not%20running"), "the issue title says so")
-    }
-}
-
-final class DiagnosticsCopierTests: XCTestCase {
-    func testParseKeepsTheWholeReportAndFindsTheLink() {
-        let output = "vella diagnose\nMac: M1\n\nreport it (a prefilled GitHub bug report; add what you saw): \(Diagnose.repository)/issues/new?template=bug_report.yml&title=x\n"
-        let report = DiagnosticsCopier.parse(output)
-        XCTAssertEqual(report.text, output.trimmingCharacters(in: .whitespacesAndNewlines))
-        XCTAssertEqual(report.issue?.absoluteString, "\(Diagnose.repository)/issues/new?template=bug_report.yml&title=x")
-        XCTAssertNil(DiagnosticsCopier.parse("no link").issue)
-    }
-
-    @MainActor func testRunsTheHelperOnceAndReportsItsError() async throws {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("vella-copier-\(UUID())")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: dir) }
-        let helper = dir.appendingPathComponent("vella")
-        try "#!/bin/sh\n[ \"$1\" = diagnose ] && [ \"$VELLA_NO_LAUNCH\" = 1 ] || { echo 'error: bad call' >&2; exit 1; }\necho 'vella diagnose'\necho 'report it: \(Diagnose.repository)/issues/new?template=bug_report.yml&title=t'\n"
-            .write(to: helper, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
-        let copier = DiagnosticsCopier()
-        copier.helper = helper
-        copier.environment = ["PATH": "/usr/bin:/bin"]
-        let report = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<DiagnosticsCopier.Report, Error>) in
-            copier.run { continuation.resume(with: $0) }
-            XCTAssertTrue(copier.running)
-            copier.run { _ in XCTFail("a second run while one is going is ignored") }
-        }
-        XCTAssertFalse(copier.running)
-        XCTAssertTrue(report.text.hasPrefix("vella diagnose\n"))
-        XCTAssertNotNil(report.issue)
-
-        try "#!/bin/sh\necho 'error: Vella is not running' >&2\nexit 1\n".write(to: helper, atomically: true, encoding: .utf8)
-        let failure = await withCheckedContinuation { (continuation: CheckedContinuation<String, Never>) in
-            copier.run { result in
-                if case .failure(let error) = result { continuation.resume(returning: error.localizedDescription) } else { continuation.resume(returning: "succeeded") }
-            }
-        }
-        XCTAssertEqual(failure, "error: Vella is not running")
-
-        copier.helper = dir.appendingPathComponent("missing")
-        let missing = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-            copier.run { result in if case .failure = result { continuation.resume(returning: true) } else { continuation.resume(returning: false) } }
-        }
-        XCTAssertTrue(missing)
     }
 }

@@ -347,20 +347,62 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(Array(blocks.dropFirst()), [
             ["Models…", "Keep Hot", "Memory"],
             ["Start Dictation", "Mode", "Microphone", "Shortcuts", "Copy Last Transcript", "Open Saved Recordings"],
-            ["Copy Skill for Your Agent", "Copy Diagnostics", "Open Vella Files", "Restart Worker", "Launch at Login"],
+            ["Copy Skill for Your Agent", "Open Vella Files", "Restart Worker", "Launch at Login"],
             ["Support the developer…", "Quit Vella"],
         ])
-        for title in ["Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Skill for Your Agent", "Copy Diagnostics", "Open Vella Files", "Restart Worker"] {
-            XCTAssertNotNil(delegate.menu.item(withTitle: title)?.toolTip, title)
+        XCTAssertFalse(delegate.menu.items.contains { $0.title.contains("Diagnostics") }, "no Copy Diagnostics (the vella diagnose command stays)")
+        // Tooltips only where the title cannot carry the meaning (Toby, 29 Sep 20:50): here only Copy Skill for Your Agent.
+        var tipped: [String: String] = [:]
+        func collect(_ menu: NSMenu, _ path: String) {
+            for item in menu.items where !item.isSeparatorItem {
+                let name = path.isEmpty ? item.title : path + " → " + item.title
+                if let tip = item.toolTip { tipped[name] = tip }
+                if let sub = item.submenu { collect(sub, name) }
+            }
         }
-        XCTAssertEqual(delegate.menu.item(withTitle: "Restart Worker")?.toolTip, restartWorkerHelp)
+        collect(delegate.menu, "")
+        XCTAssertEqual(tipped["Copy Skill for Your Agent"], copySkillHelp)
+        XCTAssertEqual(tipped["Keep Hot → Manually loaded"], manualLoadHelp)
+        XCTAssertEqual(tipped["Keep Hot → Loaded on demand"], onDemandLoadHelp)
+        XCTAssertEqual(tipped["Keep Hot → Always"], keepHotAlwaysHelp)
+        XCTAssertEqual(tipped["Memory → Fit in free memory"], fitInFreeMemoryHelp)
+        XCTAssertEqual(tipped["Memory → Allow swap (slower)"], allowSwapHelp)
+        let survivors: Set<String> = ["Copy Skill for Your Agent", "Keep Hot → Manually loaded", "Keep Hot → Loaded on demand", "Keep Hot → Always",
+                                      "Memory → Fit in free memory", "Memory → Allow swap (slower)"]
+        // The header (first item) has one only while it reports an error or permission (menuHeaderToolTip, below).
+        let header = delegate.menu.items[0]
+        XCTAssertEqual(header.toolTip, menuHeaderToolTip(failed: false, message: "", needsPermission: !model.insertionPermission.granted, idle: true, pending: nil))
+        XCTAssertEqual(Set(tipped.keys.filter { !$0.hasPrefix("Models…") && $0 != header.title }), survivors, "every other item says what it does in its title")
+        for title in ["Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Last Transcript", "Open Saved Recordings",
+                      "Open Vella Files", "Restart Worker", "Launch at Login", "Support the developer…", "Quit Vella", "Start Dictation"] {
+            let item = try XCTUnwrap(delegate.menu.item(withTitle: title), title)
+            XCTAssertNil(item.toolTip, title)
+        }
+        for sub in ["Mode", "Microphone", "Shortcuts"] {
+            for item in delegate.menu.item(withTitle: sub)?.submenu?.items ?? [] where item.identifier != ShortcutMenuFactory.errorID {
+                XCTAssertNil(item.toolTip, "\(sub) → \(item.title)")
+            }
+        }
+        // A kept recording waiting for a model: its Get row says what follows the download (the title cannot).
+        delegate.pendingModelRow = { ("Get Parakeet v3 Ultra (1.3 GB)", "Asks before downloading Parakeet v3 Ultra, then transcribes the saved recording and copies the text.") }
+        delegate.rebuildMenu()
+        XCTAssertEqual(delegate.menu.item(withTitle: "Get Parakeet v3 Ultra (1.3 GB)")?.toolTip,
+                       "Asks before downloading Parakeet v3 Ultra, then transcribes the saved recording and copies the text.")
+        delegate.pendingModelRow = { nil }
+        delegate.rebuildMenu()
+        // Surviving texts carry no stale model names, retired UI terms or internal names.
+        for text in tipped.values + [accessibilityHeaderHelp] {
+            for stale in ["110M", "SenseVoice", "Granite", "Voxtral", "Tier", "FP32", "fp32", "SKILL.md", "Carbon", "worker", " Q "] {
+                XCTAssertFalse(text.contains(stale), "\(stale) in: \(text)")
+            }
+        }
         // No worker running: the same item reads Start Worker, in the same place, and starts one.
         var started = 0
         delegate.workersRunning = { false }; delegate.startWorkers = { started += 1 }
         delegate.rebuildMenu()
         XCTAssertNil(delegate.menu.item(withTitle: "Restart Worker"))
         let start = try XCTUnwrap(delegate.menu.item(withTitle: "Start Worker"))
-        XCTAssertEqual(start.toolTip, startWorkerHelp)
+        XCTAssertNil(start.toolTip, "Start Worker says what it does")
         XCTAssertEqual(delegate.menu.items[delegate.menu.index(of: start) + 1].title, "Launch at Login")
         _ = start.target?.perform(start.action, with: start)
         XCTAssertEqual(started, 1)

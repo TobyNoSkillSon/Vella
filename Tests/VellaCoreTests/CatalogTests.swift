@@ -553,7 +553,7 @@ final class CatalogTests: XCTestCase {
 
     /// Wording rule: no tooltip claims what the code does not guarantee.
     func testTooltipsMakeNoStaleClaims() {
-        for text in [fitInFreeMemoryHelp, allowSwapHelp, keepHotAlwaysHelp, manualLoadHelp, onDemandLoadHelp, openFilesHelp, restartWorkerHelp] {
+        for text in [fitInFreeMemoryHelp, allowSwapHelp, keepHotAlwaysHelp, manualLoadHelp, onDemandLoadHelp, copySkillHelp, accessibilityHeaderHelp] {
             XCTAssertFalse(text.localizedCaseInsensitiveContains("never pushes"), text)
             XCTAssertFalse(text.localizedCaseInsensitiveContains("guarantee"), text)
         }
