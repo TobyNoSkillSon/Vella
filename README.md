@@ -41,9 +41,9 @@ Parakeet transcribes at about 365× real time, Qwen3 ASR 1.7B and Whisper large-
 
 Measured on Apple M5 Max, macOS 26.6, 2026-09-28. WER and Format on the 240-minute v2 benchmark (`v2`); speed, energy and memory on its 22.5-minute quick subset; Languages = benchmark languages supported, of 9.
 
-Rows follow the Models table. **Tier** is the precision kept: 16 is the checkpoint as published (bf16 or fp16; Parakeet v3 is converted once from its fp32 release), 8 and 4 are affine 8- and 4-bit (group 64). **Standard** is stock MLX, what any Apple-silicon Mac runs. **Optimized** adds Vella's kernels for this chip: **Exact** only those whose output is identical to Standard, **Fast** also chip-specific kernels within the model's own noise; where no such kernel qualified, Exact and Fast are the same row. A tier that breaks against 16 (lost clips, errors, or +5 pt WER, +10 pt in one language) is not offered.
+Rows follow the Models table. **Precision** is bits per weight: 16 is the checkpoint as published (bf16 or fp16; Parakeet v3 is converted once from its fp32 release), 8 and 4 are affine 8- and 4-bit (group 64). **Standard** is stock MLX, what any Apple-silicon Mac runs. **Optimized** adds Vella's kernels for this chip: **Exact** only those whose output is identical to Standard, **Fast** also chip-specific kernels within the model's own noise; where no such kernel qualified, Exact and Fast are the same row. A precision that breaks against 16 (lost clips, errors, or +5 pt WER, +10 pt in one language) is not offered.
 
-| Model | Mode | Tier | Path | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
+| Model | Mode | Precision | Path | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Parakeet v3 Ultra ¹ | Dictation | 16 | Standard | 15.50 | 5.82 | 5/9 | 229× | 6.7 | 1,732 MB | v2 |
 | Parakeet v3 Ultra | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | measure pending |
@@ -90,7 +90,7 @@ Cloud API rows are **estimates, not measurements**: we sent no audio to them. Ea
 
 <!-- BENCHMARK_TABLE_END -->
 
-- **Tier** is the precision kept: 16 is the checkpoint as published, 8 and 4 are affine-quantized on your Mac from it. **Standard** and **Optimized** are the two ways to run a tier; **Exact** and **Fast** are Optimized's two recipes.
+- **Precision** is bits per weight: 16 is the checkpoint as published, 8 and 4 are affine-quantized on your Mac from it. **Standard** and **Optimized** are the two ways to run a precision; **Exact** and **Fast** are Optimized's two recipes.
 - **WER** is word error rate: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. It is the industry-standard metric, as on the Hugging Face Open ASR Leaderboard; our v2 set is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. **Format** is our own measure, with no industry standard: character error rate with case and punctuation kept, i.e. how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
 - **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Memory** is the loaded model's footprint.
 - **Which tiers are offered.** A tier is offered unless it breaks against 16: a clip it leaves empty or cuts short, a request error, English or average word error rate 5 points worse, or one language 10 points worse. A tier that is merely worse is offered with its loss in the figures and the tooltip; Vella's quality gate (English word error rate within 0.1 points of 16, up to 0.2 points for a model whose measured run-to-run noise is larger, the other languages within a similar limit, no dropped or cut-off segments) says whether a tier loses nothing measurable. No tier is recommended: you choose.
