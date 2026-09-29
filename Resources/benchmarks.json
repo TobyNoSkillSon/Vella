@@ -426,23 +426,23 @@
       "reasons": []
      },
      "stock": {
-      "wer": 23.15,
-      "format": 10.47,
+      "wer": 23.44,
+      "format": 10.56,
       "multilingual": {
-       "mean": 27.68,
-       "macro_wer": 28.94,
+       "mean": 28.02,
+       "macro_wer": 28.02,
        "macro_cer": 25.16,
        "coverage": 9,
        "by_language": {
-        "pl": 25.52,
-        "de": 18.17,
-        "fr": 18.3,
-        "es": 16.17,
-        "sv": 43.01,
-        "tr": 52.49,
-        "ja": 15.16,
-        "zh": 29.12,
-        "ko": 31.21
+        "pl": 24.54,
+        "de": 17.81,
+        "fr": 17.66,
+        "es": 16.42,
+        "sv": 40.43,
+        "tr": 51.27,
+        "ja": 14.2,
+        "zh": 28.6,
+        "ko": 30.6
        }
       },
       "speed_x": 7.3,
@@ -459,7 +459,7 @@
       "suite": "v2",
       "date": "2026-09-28",
       "hardware": "Apple M5 Max, macOS 26.6",
-      "note": "Stock measured with different sharding (5-way vs 2-way; in streaming each clip depends on its neighbours); rerun pending."
+      "accuracy_run": "stock-v2-2shard (2-way sharding, matching the optimized run)"
      }
     },
     "8b": {
