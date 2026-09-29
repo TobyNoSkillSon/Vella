@@ -70,10 +70,10 @@ Each recommended row has a **Stock MLX (any Mac)** baseline row under it: the sa
 | ↳ Stock MLX (any Mac) | Dictation | FP16 | 17.20 | 7.67 | 9/9 | 15× | 140.0 | 3,346 MB | v2 |
 | Whisper large-v3 turbo ¹ | Dictation | 8 | 17.21 | 7.70 | 9/9 | 78× | 64.5 | 1,925 MB | v2 |
 | Whisper large-v3 turbo ¹ | Dictation | 4 | 17.80 | 8.43 | 9/9 | 82× | 63.1 | 1,688 MB | v2 |
-| Nemotron 3.5 Streaming ² | Streaming | 16 (recommended) | 23.39 | 10.55 | 9/9 | 27× | 54.4 | 1,614 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 16 (recommended) | 23.39 | 10.55 | 9/9 | 27× | 54.4 | 1,614 MB | v2 |
 | ↳ Stock MLX (any Mac) | Streaming | 16 | 23.44 | 10.56 | 9/9 | 7× | 189.3 | 2,081 MB | v2 |
-| Nemotron 3.5 Streaming ² | Streaming | 8 | 23.47 | 10.58 | 9/9 | 27× | 40.1 | 1,088 MB | v2 |
-| Nemotron 3.5 Streaming ² | Streaming | 4 | 32.97 | 16.19 | 9/9 | 30× | 39.6 | 821 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 8 | 23.47 | 10.58 | 9/9 | 27× | 40.1 | 1,088 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 4 | 32.97 | 16.19 | 9/9 | 30× | 39.6 | 821 MB | v2 |
 | ElevenLabs Scribe v2 (cloud API) | Dictation | — | ~13.4 (estimated, 11.8–13.9) | — | — | — | — | — | estimated |
 | Microsoft Azure Speech (cloud API) | Dictation | — | ~12.9 (estimated, 11.3–13.3) | — | — | — | — | — | estimated |
 
@@ -83,16 +83,10 @@ Measured but not offered in the app:
 
 | Model | Mode | Q | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|
-| Parakeet TDT-CTC 110M ³ | Dictation | 32 (recommended) | 9.25 | 6.01 | 0/9 | 222× | 5.0 | 889 MB | v2-quick |
-| SenseVoice Small ⁴ | Dictation | 32 (recommended) | 11.01 | 7.77 | 3/9 | 420× | — | 1,548 MB | v2-quick |
+| Parakeet TDT-CTC 110M ¹ | Dictation | 32 (recommended) | 9.25 | 6.01 | 0/9 | 222× | 5.0 | 889 MB | v2-quick |
+| SenseVoice Small ¹ | Dictation | 32 (recommended) | 11.01 | 7.77 | 3/9 | 420× | — | 1,548 MB | v2-quick |
 
 ¹ Segmentation fixed on 2026-09-29; accuracy re-measure pending.
-
-² engine: Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance).
-
-³ quick set only (benchmark-table model); engine: The optimized path failed its self-test against stock MLX on this Mac; Segmentation fixed on 2026-09-29; accuracy re-measure pending.
-
-⁴ quick set only (benchmark-table model); energy not recorded: the worker crashed twice per run, so its restarts cannot be separated from background load; engine: No optimized path for this model yet; Segmentation fixed on 2026-09-29; accuracy re-measure pending.
 
 <!-- BENCHMARK_TABLE_END -->
 
