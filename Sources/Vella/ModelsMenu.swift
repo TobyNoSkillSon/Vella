@@ -473,12 +473,27 @@ struct ModelTable: View {
         } else {
             TierControl(optimized: optimized, standard: standard,
                         selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
-                        enabled: !controller.inUse(family), hot: hot,
+                        enabled: !controller.inUse(family), unmeasured: unmeasuredCells(family, optimized: optimized, standard: standard), hot: hot,
                         help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0.tier) ?? .t16, path: $0.row == .standard ? .standard : .optimized) },
                         onSelect: { cell in
                             if let tier = ModelTier(rawValue: cell.tier) { controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized) }
                         })
         }
+    }
+
+    /// Cells without a measurement (greyed, 'Not measured yet'); the loaded cell always stays selectable.
+    private func unmeasuredCells(_ family: ModelFamily, optimized: [String], standard: [String]) -> Set<TierControl.Cell> {
+        let mode = controller.currentSelection(family).mode
+        let loaded = controller.loadedSelection(family)
+        var off: Set<TierControl.Cell> = []
+        for (row, tiers, path) in [(TierControl.Row.optimized, optimized, EnginePath.optimized), (.standard, standard, .standard)] {
+            for raw in tiers {
+                guard let tier = ModelTier(rawValue: raw) else { continue }
+                let s = ModelSelection(tier: tier, path: path, mode: mode)
+                if !controller.measured(family, s), s != loaded { off.insert(TierControl.Cell(row, raw)) }
+            }
+        }
+        return off
     }
 
     /// The Exact/Fast switch (ExactFastSwitch.swift) beside the Optimized row: up Fast, down Exact; none for a model
@@ -487,6 +502,7 @@ struct ModelTable: View {
         if controller.hasOptimizedPath(family) {
             ExactFastSwitch(position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
                             available: controller.switchAvailable(family), enabled: !controller.inUse(family),
+                            exactAvailable: controller.exactAvailable(family),
                             onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
         } else {
             Color.clear.frame(height: 1)
@@ -511,15 +527,21 @@ struct ModelTable: View {
         let slots = capabilitySlots(family)
         for c in Capability.allCases { if let slot = slots[c] { cells.append(("Capability \(c.rawValue)", slot.help)) } }
         let optimized = controller.hasOptimizedPath(family)
+        let optimizedTiers = optimized ? controller.precisions(family) : []
+        let standardTiers = controller.tiers(family, .standard)
+        let off = unmeasuredCells(family, optimized: optimizedTiers.map(\.rawValue), standard: standardTiers.map(\.rawValue))
+        for tier in optimizedTiers {
+            cells.append(("Precision Optimized \(tier.rawValue)", off.contains(TierControl.Cell(.optimized, tier.rawValue)) ? TierControl.notMeasuredHelp
+                          : TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .optimized), enabled: enabled)))
+        }
+        for tier in standardTiers {
+            cells.append(("Precision Standard \(tier.rawValue)", off.contains(TierControl.Cell(.standard, tier.rawValue)) ? TierControl.notMeasuredHelp
+                          : TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .standard), enabled: enabled)))
+        }
         if optimized {
-            for tier in controller.precisions(family) {
-                cells.append(("Precision Optimized \(tier.rawValue)", TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .optimized), enabled: enabled)))
-            }
+            cells.append(("Exact/Fast", ExactFastSwitch.tooltip(available: controller.switchAvailable(family), enabled: enabled,
+                                                                exactAvailable: controller.exactAvailable(family))))
         }
-        for tier in controller.tiers(family, .standard) {
-            cells.append(("Precision Standard \(tier.rawValue)", TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .standard), enabled: enabled)))
-        }
-        if optimized { cells.append(("Exact/Fast", ExactFastSwitch.tooltip(available: controller.switchAvailable(family), enabled: enabled))) }
         let action = controller.action(family)
         return cells + [("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
                         ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),

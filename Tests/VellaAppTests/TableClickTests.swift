@@ -32,6 +32,17 @@ import SwiftUI
         c.runtime = TableRuntime()
         return c
     }
+    /// As after a night window: every Exact cell of `id` measured (a copy of its Fast numbers), so Exact is selectable.
+    private func measureExact(_ c: ModelsController, _ id: String) {
+        guard var m = c.benchmarks.models[id] else { return }
+        for (tier, var t) in m.tiers {
+            if let fast = t.cells[.optimized_fast], var exact = t.cells[.optimized_exact], exact.isPending {
+                exact.result = fast.result; exact.measured = fast.measured; t.cells[.optimized_exact] = exact
+            }
+            m.tiers[tier] = t
+        }
+        c.benchmarks.models[id] = m
+    }
     private func host(_ c: ModelsController, requestDelete: @escaping (ModelFamily) -> Void = { _ in }) -> (NSWindow, NSView) {
         let view = MenuTableHostingView(rootView: ModelTable(controller: c, requestDelete: requestDelete))
         view.frame = NSRect(x: 0, y: 0, width: ModelTable.width, height: ModelTable.height(c))
@@ -128,6 +139,7 @@ import SwiftUI
     /// keeps every precision Standard has.
     func testThePrecisionRowsUnderEachSwitchPosition() throws {
         let c = try controller()
+        measureExact(c, "whisper-large-v3-turbo")
         c.benchmarks.models["whisper-large-v3-turbo"]?.tiers[.t8]?.cells[.optimized_exact] = nil
         let (window, view) = host(c)
         let turbo = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
@@ -154,6 +166,7 @@ import SwiftUI
     /// else flips it.
     func testAClickAnywhereOnTheSwitchFlipsIt() throws {
         let c = try controller()
+        measureExact(c, "whisper-large-v3-turbo")
         let (window, view) = host(c)
         let order = familiesInRowOrder(c)
         let switches = topDown(all(SwitchView.self, in: view))
@@ -269,5 +282,44 @@ import SwiftUI
         XCTAssertTrue(c.visibleReferences(.dictation).isEmpty, "cloud rows state no capabilities")
         XCTAssertLessThan(ModelTable.height(c), height + ModelTable.stripHeight)
         XCTAssertEqual(c.filterableCapabilities, [.cjk], "every model here is multilingual: only CJK tells them apart")
+    }
+
+    /// Family rule (29 Sep): a cell or switch position without a measurement is unavailable: greyed with "Not measured
+    /// yet", and a click on it changes nothing. It becomes selectable once the data has its numbers.
+    func testUnmeasuredCellsAndExactAreUnavailable() throws {
+        let c = try controller()
+        let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        let fast16 = ModelSelection(tier: .t16, path: .optimized, mode: .fast)
+        XCTAssertEqual(c.currentSelection(ultra), fast16)
+        // Ultra's Exact recipes: 16 unmeasured, 8/4 measured (Exact = Fast there), so Exact is available and moves to 8.
+        XCTAssertFalse(c.measured(ultra, ModelSelection(tier: .t16, path: .optimized, mode: .exact)))
+        // Standard 8 of Ultra has no measurement: refused.
+        XCTAssertFalse(c.measured(ultra, ModelSelection(tier: .t8, path: .standard, mode: .fast)))
+        c.select(ultra, tier: .t8, path: .standard)
+        XCTAssertEqual(c.currentSelection(ultra), fast16, "an unmeasured cell is never selected")
+        // A model with no measured Exact recipe at all: the Exact position is unavailable.
+        let turbo = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
+        XCTAssertFalse(c.exactAvailable(turbo))
+        c.setMode(turbo, .exact)
+        XCTAssertEqual(c.currentSelection(turbo).mode, .fast, "Exact is not measured yet: the switch stays on Fast")
+        let (window, view) = host(c)
+        let order = familiesInRowOrder(c)
+        let index = try XCTUnwrap(order.firstIndex { $0.id == turbo.id })
+        let s = topDown(all(SwitchView.self, in: view))[index]
+        XCTAssertTrue(s.exactUnavailable)
+        XCTAssertTrue(s.toolTip?.contains(ExactFastSwitch.exactNotMeasuredHelp) == true)
+        let r = s.convert(s.bounds, to: nil)
+        click(window, at: NSPoint(x: r.midX, y: r.midY))
+        XCTAssertEqual(c.currentSelection(turbo).mode, .fast, "a real click on the unavailable Exact does nothing")
+        // Once measured, Exact is selectable.
+        measureExact(c, turbo.id)
+        XCTAssertTrue(c.exactAvailable(turbo))
+        c.setMode(turbo, .exact)
+        XCTAssertEqual(c.currentSelection(turbo).mode, .exact)
+        // The greyed segment itself: disabled with the tooltip.
+        let (_, standardRow) = try XCTUnwrap(try segmentRows(c, view)[ultra.id])
+        XCTAssertFalse(standardRow.isEnabled(forSegment: 1), "Ultra Standard 8 greyed")
+        XCTAssertEqual(standardRow.toolTip(forSegment: 1), TierControl.notMeasuredHelp)
+        XCTAssertTrue(standardRow.isEnabled(forSegment: 0), "Standard 16 is measured")
     }
 }

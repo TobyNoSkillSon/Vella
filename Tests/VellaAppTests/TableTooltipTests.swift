@@ -86,6 +86,8 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertEqual(l.count, 2, "\(label): the model's state, then what a click does")
                 XCTAssertTrue(["Loaded", "On disk, not loaded", "Not downloaded"].contains(l[0]), "\(label): \(l[0])")
                 XCTAssertNotNil(l.last?.range(of: "^(Asks, then downloads|Load it for|Free its memory|Unload the loaded precision)", options: .regularExpression), "\(label): \(l.last ?? "")")
+            case let c where c.hasPrefix("Precision ") && text == TierControl.notMeasuredHelp:
+                continue   // an unmeasured cell: greyed, one line (family rule, 29 Sep)
             case let c where c.hasPrefix("Precision "):
                 // Flavour; delta vs Standard 16 with its basis; for a worse precision its loss; while in use the interlock.
                 XCTAssertTrue((2...4).contains(l.count), label)
@@ -99,7 +101,7 @@ final class TableTooltipTests: XCTestCase {
                 assertNoTrailingPeriod(text, label)
             case "Exact/Fast":
                 XCTAssertEqual(l[0], ExactFastSwitch.help, label)
-                XCTAssertTrue(l.dropFirst().allSatisfy { $0 == ExactFastSwitch.sameHelp || $0 == ExactFastSwitch.inUseHelp }, label)
+                XCTAssertTrue(l.dropFirst().allSatisfy { [ExactFastSwitch.sameHelp, ExactFastSwitch.inUseHelp, ExactFastSwitch.exactNotMeasuredHelp].contains($0) }, label)
             case "Engine":
                 XCTAssertNotNil(loaded, label)
             default:
@@ -110,7 +112,7 @@ final class TableTooltipTests: XCTestCase {
             + table.controller.tiers(family, .standard).map { "Precision Standard \($0.rawValue)" }
         let capabilityColumns = Capability.allCases.filter { capabilitySlots(family)[$0] != nil }.map { "Capability \($0.rawValue)" }
         XCTAssertFalse(capabilityColumns.isEmpty, "every Vella model is multilingual")
-        let expected = ["Model"] + (loaded?.engine != nil ? ["Engine"] : []) + capabilityColumns + precisionColumns + ["Exact/Fast"]
+        let expected = ["Model"] + (loaded?.engine != nil && table.controller.couplingNote(family) == nil ? ["Engine"] : []) + capabilityColumns + precisionColumns + ["Exact/Fast"]
             + ["WER", "Format", "Speed", "J / min", "Memory", "Action"]
         XCTAssertEqual(columns, expected, "\(family.id) \(state)")
     }

@@ -27,6 +27,8 @@ struct ExactFastSwitch: View {
     static let help = "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise."
     static let sameHelp = "Always on: Fast measures the same as Exact for this model"
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
+    /// The Exact position with no measured recipe: greyed, not selectable.
+    static let exactNotMeasuredHelp = "Exact: not measured yet"
     static let pillWidth: CGFloat = 18
     static let width: CGFloat = showsWords ? 52 : pillWidth
     /// About one segment row high (28 pt beside a 24 pt Optimized row), so it reads as that row's.
@@ -37,16 +39,21 @@ struct ExactFastSwitch: View {
     let available: Bool
     /// False: the model is in use.
     let enabled: Bool
+    /// False: no Exact recipe of this model has a measurement yet; the Exact position is greyed and a click does nothing
+    /// (from Exact itself a click still goes to Fast).
+    var exactAvailable = true
     let onChange: (Position) -> Void
 
     /// The tooltip as shown for a state.
-    static func tooltip(available: Bool, enabled: Bool) -> String {
-        [help, available ? nil : sameHelp, enabled ? nil : inUseHelp].compactMap { $0 }.joined(separator: "\n")
+    static func tooltip(available: Bool, enabled: Bool, exactAvailable: Bool = true) -> String {
+        [help, available ? nil : sameHelp, available && !exactAvailable ? exactNotMeasuredHelp : nil, enabled ? nil : inUseHelp]
+            .compactMap { $0 }.joined(separator: "\n")
     }
 
     var body: some View {
-        SwitchRepresentable(position: available ? position : .fast, active: available && enabled, greyed: !available,
-                            tooltip: Self.tooltip(available: available, enabled: enabled), onChange: onChange)
+        SwitchRepresentable(position: available ? position : .fast, active: available && enabled && (exactAvailable || position == .exact),
+                            greyed: !available, exactUnavailable: available && !exactAvailable,
+                            tooltip: Self.tooltip(available: available, enabled: enabled, exactAvailable: exactAvailable), onChange: onChange)
             .frame(width: Self.width, height: Self.height)
     }
 }
@@ -55,6 +62,7 @@ private struct SwitchRepresentable: NSViewRepresentable {
     let position: ExactFastSwitch.Position
     let active: Bool
     let greyed: Bool
+    var exactUnavailable = false
     let tooltip: String
     let onChange: (ExactFastSwitch.Position) -> Void
 
@@ -64,7 +72,7 @@ private struct SwitchRepresentable: NSViewRepresentable {
         CGSize(width: ExactFastSwitch.width, height: ExactFastSwitch.height)
     }
     private func update(_ view: SwitchView) {
-        view.position = position; view.active = active; view.greyed = greyed; view.onChange = onChange
+        view.position = position; view.active = active; view.greyed = greyed; view.exactUnavailable = exactUnavailable; view.onChange = onChange
         if view.toolTip != tooltip { view.toolTip = tooltip }
         view.needsDisplay = true
     }
@@ -76,6 +84,8 @@ final class SwitchView: NSView {
     var position: ExactFastSwitch.Position = .exact
     var active = true
     var greyed = false
+    /// The Exact position has no measurement: its word is dimmed; the switch stays on Fast.
+    var exactUnavailable = false
     var onChange: ((ExactFastSwitch.Position) -> Void)?
 
     override var isFlipped: Bool { true }
@@ -92,7 +102,7 @@ final class SwitchView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         // Locked while in use: the whole switch at reduced opacity (system colours keep their own alpha). Greyed (Fast =
         // Exact): a grey pill pinned up, so "always on" never reads as a live Fast.
-        NSGraphicsContext.current?.cgContext.setAlpha(greyed ? 0.55 : active ? 1 : 0.4)
+        NSGraphicsContext.current?.cgContext.setAlpha(greyed || exactUnavailable ? 0.55 : active ? 1 : 0.4)
         let track = self.track
         let path = NSBezierPath(roundedRect: track, xRadius: Self.trackWidth / 2, yRadius: Self.trackWidth / 2)
         (position == .fast && !greyed ? NSColor.controlAccentColor : NSColor.tertiaryLabelColor).setFill()

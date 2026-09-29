@@ -100,12 +100,14 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(c.shownResult(qwen)?.speed_x, 80)
         XCTAssertEqual(speedDelta(c.shownResult(qwen)?.speed_x, base: c.baseResult(qwen)?.speed_x), Delta("2.0× faster", .better))
         XCTAssertTrue(c.showsDeltas(qwen))
+        let before = c.currentSelection(qwen)
         c.select(qwen, tier: .t8, path: .standard)
-        XCTAssertEqual(c.selected(qwen), "8b")
-        XCTAssertNil(c.shownResult(qwen)?.wer, "Standard 8: measure pending")
+        XCTAssertEqual(c.currentSelection(qwen), before, "Standard 8 has no measurement: unavailable, not a row of dashes")
+        XCTAssertFalse(c.measured(qwen, ModelSelection(tier: .t8, path: .standard, mode: .fast)))
         // Flipping the switch from a Standard cell selects the Optimized cell of that tier.
+        c.select(qwen, tier: .t16, path: .standard)
         c.setMode(qwen, .exact)
-        XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t8, path: .optimized, mode: .exact))
+        XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t16, path: .optimized, mode: .exact))
         let reopened = ModelsController(dictation: c.dictation, streaming: c.streaming, benchmarksURL: c.dictation.resources.appendingPathComponent("missing.json"))
         reopened.benchmarks = c.benchmarks
         XCTAssertEqual(reopened.currentSelection(qwen), .fallback)

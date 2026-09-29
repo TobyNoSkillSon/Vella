@@ -233,6 +233,19 @@ import VellaCore
         let keys: [SegmentKey] = !switchAvailable(f) ? [.optimized_exact, .optimized_fast] : mode == .exact ? [.optimized_exact] : [.optimized_fast]
         return offeredTiers(f).filter { tier in keys.contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
     }
+    /// A cell has numbers (family rule, 29 Sep: a cell or switch position without a measurement is unavailable, never a
+    /// row of dashes). Families without tiers in the file (unmeasured catalog) count as measured, so they stay usable.
+    func measured(_ f: ModelFamily, _ s: ModelSelection) -> Bool {
+        guard let b = benchmark(f), !b.tiers.isEmpty else { return true }
+        guard let cell = benchmarkCell(b, s) else { return false }
+        return !cell.isPending
+    }
+    /// Tiers of the Optimized row for a switch position that have a measurement.
+    func measuredPrecisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] {
+        precisions(f, mode).filter { measured(f, ModelSelection(tier: $0, path: .optimized, mode: mode)) }
+    }
+    /// The Exact position can be chosen: some Exact recipe is measured (where Fast = Exact the switch is pinned anyway).
+    func exactAvailable(_ f: ModelFamily) -> Bool { !switchAvailable(f) || !measuredPrecisions(f, .exact).isEmpty }
     /// The Optimized row's segments as the row shows them (the current switch position).
     func precisions(_ f: ModelFamily) -> [ModelTier] { precisions(f, currentSelection(f).mode) }
     /// The model has an Optimized row (and so the Exact/Fast switch); every shipped Vella model does.
@@ -276,16 +289,18 @@ import VellaCore
     /// `s` when its cell is present, else the Optimized cell at its tier (its switch position, then the other), else
     /// Optimized 16, else the first present cell; Standard only for a model without an Optimized path.
     func valid(_ f: ModelFamily, _ s: ModelSelection) -> ModelSelection {
-        if isPresent(f, s) { return s }
+        // A selectable cell: present and measured (an unmeasured cell is greyed, never the row's selection).
+        let ok: (ModelSelection) -> Bool = { self.isPresent(f, $0) && self.measured(f, $0) }
+        if ok(s) { return s }
         for tier in [s.tier] + ModelTier.allCases {
             for mode in [s.mode, s.mode == .fast ? .exact : .fast] {
                 let optimized = ModelSelection(tier: tier, path: .optimized, mode: mode)
-                if hasOptimizedPath(f), isPresent(f, optimized) { return optimized }
+                if hasOptimizedPath(f), ok(optimized) { return optimized }
             }
             let standard = ModelSelection(tier: tier, path: .standard, mode: s.mode)
-            if isPresent(f, standard) { return standard }
+            if ok(standard) { return standard }
         }
-        return s
+        return isPresent(f, s) ? s : s
     }
     /// What the row shows: a running confirmed download's selection, else the preview, else the committed one.
     func currentSelection(_ f: ModelFamily) -> ModelSelection { pendingSelections[f.id] ?? previews[f.id] ?? committedSelection(f) }
@@ -293,7 +308,9 @@ import VellaCore
     static let log = Logger(subsystem: "dev.vella.dictation", category: "models-table")
     func select(_ f: ModelFamily, tier: ModelTier, path: EnginePath) {
         Self.log.notice("segment click \(f.id, privacy: .public) \(tier.rawValue, privacy: .public) \(path == .standard ? "standard" : "optimized", privacy: .public)")
-        guard setPreview(f, ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode)) else { return }
+        let s = ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode)
+        guard measured(f, s) || s == loadedSelection(f) else { Self.log.notice("click refused (not measured)"); return }
+        guard setPreview(f, s) else { return }
         couplingNotes[f.id] = nil
     }
     /// A precision pick without a row (API, tests): the Optimized cell at that tier (Standard only for a model without
@@ -307,8 +324,9 @@ import VellaCore
         let current = currentSelection(f)
         var next = ModelSelection(tier: current.tier, path: .optimized, mode: mode)
         var moved: ModelTier?
-        if !isPresent(f, next) {
-            let offered = precisions(f, mode)
+        if mode == .exact, switchAvailable(f), !exactAvailable(f) { Self.log.notice("switch refused (Exact not measured)"); return }
+        if !isPresent(f, next) || !measured(f, next) {
+            let offered = measuredPrecisions(f, mode).isEmpty ? precisions(f, mode) : measuredPrecisions(f, mode)
             if hasOptimizedPath(f), let tier = offered.contains(.t16) ? .t16 : offered.first { moved = current.tier; next.tier = tier }
             else { next.path = current.path }
         }

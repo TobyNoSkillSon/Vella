@@ -60,6 +60,9 @@ struct TierControl: View {
     let standard: [String]
     let selected: Cell?
     let enabled: Bool
+    /// Cells whose recipe has no measurement yet: shown greyed with `notMeasuredHelp`, never selectable (family rule,
+    /// 29 Sep). They become selectable as soon as the app's data has their numbers.
+    var unmeasured: Set<Cell> = []
     /// The model is loaded: the selected segment uses the accent colour.
     var hot = false
     /// Tooltip per cell (the app's flavour and "vs Standard 16" lines).
@@ -68,6 +71,8 @@ struct TierControl: View {
 
     /// A segment's tooltip as shown: the app's text, plus the interlock line while in use.
     static func tooltip(_ text: String, enabled: Bool) -> String { enabled ? text : text + "\n" + inUseHelp }
+    /// The tooltip of a cell with no measurement.
+    static let notMeasuredHelp = "Not measured yet"
 
     var body: some View {
         VStack(alignment: .leading, spacing: Self.rowSpacing) {
@@ -83,8 +88,10 @@ struct TierControl: View {
             Text(shown.isEmpty ? "" : row.title).font(Self.labelFont).lineLimit(1).fixedSize()
                 .frame(width: Self.labelWidth, alignment: .leading)
             if let first = shown.first {
-                TierSegments(tiers: shown, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot,
-                             help: { Self.tooltip(help(Cell(row, $0)), enabled: enabled) }, onSelect: { onSelect(Cell(row, $0)) })
+                let off = Set(shown.filter { unmeasured.contains(Cell(row, $0)) })
+                TierSegments(tiers: shown, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot, unmeasured: off,
+                             help: { off.contains($0) ? Self.notMeasuredHelp : Self.tooltip(help(Cell(row, $0)), enabled: enabled) },
+                             onSelect: { tier in if !off.contains(tier) { onSelect(Cell(row, tier)) } })
                     .frame(width: Self.segmentsWidth(shown.count), height: Self.segmentHeight)
                     .padding(.leading, CGFloat(Self.columns.firstIndex(of: first) ?? 0) * Self.cellWidth)
             }
@@ -115,6 +122,7 @@ private struct TierSegments: NSViewRepresentable {
     let selected: String?
     let enabled: Bool
     let hot: Bool
+    var unmeasured: Set<String> = []
     let help: (String) -> String
     let onSelect: (String) -> Void
 
@@ -179,6 +187,7 @@ private struct TierSegments: NSViewRepresentable {
             control.setLabel(tier, forSegment: i)
             control.setWidth(TierControl.cellWidth - 2, forSegment: i)
             control.setToolTip(help(tier), forSegment: i)
+            control.setEnabled(!unmeasured.contains(tier), forSegment: i)
         }
         control.selectedSegment = selected.flatMap { tiers.firstIndex(of: $0) } ?? -1
         control.isEnabled = enabled

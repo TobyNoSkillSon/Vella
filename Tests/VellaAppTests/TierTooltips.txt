@@ -1,6 +1,5 @@
 [Parakeet v3 Ultra · Precision Optimized 16 · Exact]
-bf16, as published
-Measure pending
+Not measured yet
 
 [Parakeet v3 Ultra · Precision Optimized 8 · Exact]
 8-bit weights throughout (affine-8 g64)
@@ -17,14 +16,10 @@ bf16, as published
 Reference for the deltas · M5 Max, 28 Sep
 
 [Parakeet v3 Ultra · Precision Standard 8]
-8-bit weights throughout (affine-8 g64)
-Measure pending
-Loss vs 16: multilingual mean +0.17 pt
+Not measured yet
 
 [Parakeet v3 Ultra · Precision Standard 4]
-4-bit weights throughout (affine-4 g64)
-Measure pending
-Loss vs 16: English WER +0.23 pt, multilingual mean +0.92 pt, format CER +0.14 pt
+Not measured yet
 
 [Parakeet v3 Ultra · Exact/Fast]
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
@@ -45,7 +40,7 @@ Loss vs 16: English WER +0.23 pt, multilingual mean +0.92 pt, format CER +0.14 p
 
 [Parakeet v3 · Precision Optimized 16 · Exact]
 bf16, converted once from the published fp32
-Measure pending
+vs Standard 16: +1.8× speed · −24 % energy · WER +0.06 · M5 Max, 28 Sep
 
 [Parakeet v3 · Precision Standard 16]
 bf16, converted once from the published fp32
@@ -53,6 +48,7 @@ Reference for the deltas · M5 Max, 28 Sep
 
 [Parakeet v3 · Exact/Fast]
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: not measured yet
 
 [Parakeet v3 · Precision Optimized 16 · Fast]
 bf16, converted once from the published fp32
@@ -88,9 +84,7 @@ bf16, as published
 Reference for the deltas · M5 Max, 28 Sep
 
 [Qwen3 ASR 0.6B · Precision Standard 8]
-8-bit weights throughout (affine-8 g64)
-Measure pending
-Loss vs 16: English WER +0.17 pt, multilingual mean +0.21 pt
+Not measured yet
 
 [Qwen3 ASR 0.6B · Exact/Fast]
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
@@ -107,15 +101,14 @@ Loss vs 16: English WER +0.17 pt, multilingual mean +0.21 pt
 
 [Whisper large-v3 · Precision Optimized 16 · Exact]
 fp16, as published
-Measure pending
+No Standard 16 measurement to compare with yet · M5 Max, 28 Sep
 
 [Whisper large-v3 · Precision Optimized 8 · Exact]
 8-bit weights throughout (affine-8 g64)
-Measure pending
+No Standard 16 measurement to compare with yet · M5 Max, 28 Sep
 
 [Whisper large-v3 · Precision Standard 16]
-fp16, as published
-Measure pending
+Not measured yet
 
 [Whisper large-v3 · Precision Standard 8]
 8-bit weights throughout (affine-8 g64)
@@ -123,6 +116,7 @@ No Standard 16 measurement to compare with yet · M5 Max, 28 Sep
 
 [Whisper large-v3 · Exact/Fast]
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: not measured yet
 
 [Whisper large-v3 · Precision Optimized 16 · Fast]
 fp16, as published
@@ -134,11 +128,11 @@ No Standard 16 measurement to compare with yet · M5 Max, 28 Sep
 
 [Whisper large-v3 turbo · Precision Optimized 16 · Exact]
 fp16, as published
-Measure pending
+vs Standard 16: +5.2× speed · −58 % energy · WER +0.11 · M5 Max, 28 Sep
 
 [Whisper large-v3 turbo · Precision Optimized 8 · Exact]
 8-bit weights throughout (affine-8 g64)
-Measure pending
+vs Standard 16: +5.3× speed · −54 % energy · WER +0.01 · M5 Max, 28 Sep
 
 [Whisper large-v3 turbo · Precision Standard 16]
 fp16, as published
@@ -150,6 +144,7 @@ vs Standard 16: +2.7× speed · −35 % energy · WER +0.06 · M5 Max, 28 Sep
 
 [Whisper large-v3 turbo · Exact/Fast]
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: not measured yet
 
 [Whisper large-v3 turbo · Precision Optimized 16 · Fast]
 fp16, as published
@@ -161,11 +156,11 @@ vs Standard 16: +5.3× speed · −54 % energy · WER +0.01 · M5 Max, 28 Sep
 
 [Nemotron 3.5 Streaming · Precision Optimized 16 · Exact]
 bf16, as published
-Measure pending
+vs Standard 16: +3.7× speed · −71 % energy · WER −0.05 · M5 Max, 28 Sep
 
 [Nemotron 3.5 Streaming · Precision Optimized 8 · Exact]
 8-bit weights throughout (affine-8 g64)
-Measure pending
+vs Standard 16: +3.8× speed · −79 % energy · WER +0.03 · M5 Max, 28 Sep
 Loss vs 16: multilingual mean +0.55 pt
 
 [Nemotron 3.5 Streaming · Precision Standard 16]
@@ -173,12 +168,11 @@ bf16, as published
 Reference for the deltas · M5 Max, 28 Sep
 
 [Nemotron 3.5 Streaming · Precision Standard 8]
-8-bit weights throughout (affine-8 g64)
-Measure pending
-Loss vs 16: multilingual mean +0.55 pt
+Not measured yet
 
 [Nemotron 3.5 Streaming · Exact/Fast]
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: not measured yet
 
 [Nemotron 3.5 Streaming · Precision Optimized 16 · Fast]
 bf16, as published
