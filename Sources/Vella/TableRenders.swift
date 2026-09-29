@@ -39,8 +39,8 @@ import VellaUpdate
 
 /// Runtime stand-in for renders: nothing loads.
 @MainActor final class PreviewActions: ModelRuntimeActions {
-    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {}
-    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {}
+    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {}
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {}
     func unload(family: ModelFamily) {}
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool { false }
 }
@@ -141,7 +141,35 @@ import VellaUpdate
         states.append(otherChip)
         states.append(State(name: "unmeasured-no-benchmarks", benchmarks: BenchmarkFile()))
         writeEngineTooltips(states)
-        render(states, 0)
+        Self.renderControls(to: directory.appendingPathComponent("controls.png")) { [self] in render(states, 0) }
+    }
+
+    /// The shared tier rows and Exact/Fast switch (TierControl.swift, ExactFastSwitch.swift) in their states, one per line.
+    static func renderControls(to url: URL, done: @escaping () -> Void) {
+        func line(_ title: String, _ optimized: [String], _ standard: [String], _ selected: TierControl.Cell?, enabled: Bool = true, hot: Bool = false,
+                  position: ExactFastSwitch.Position = .exact, available: Bool = true) -> some View {
+            HStack(spacing: 8) {
+                Text(title).font(.system(size: 10)).foregroundStyle(.secondary).frame(width: 190, alignment: .leading)
+                TierControl(optimized: optimized, standard: standard, selected: selected, enabled: enabled, hot: hot, help: { _ in "" }, onSelect: { _ in })
+                ExactFastSwitch(position: position, available: available, enabled: enabled, onChange: { _ in })
+            }.padding(.horizontal, 6).frame(height: 38)
+        }
+        let sheet = VStack(alignment: .leading, spacing: 4) {
+            line("Standard 16 · Exact", ["16"], ["16"], .init(.standard, "16"))
+            line("Optimized 16 · Fast", ["16"], ["16", "8"], .init(.optimized, "16"), position: .fast)
+            line("Optimized 8 · loaded", ["16", "8", "4"], ["16", "8", "4"], .init(.optimized, "8"), hot: true, position: .fast)
+            line("Fast same as Exact (greyed)", ["16", "8"], ["16", "8"], .init(.optimized, "16"), available: false)
+            line("In use (disabled)", ["16"], ["16", "8"], .init(.standard, "8"), enabled: false, position: .fast)
+            line("Optimized 8 only", ["8"], ["16", "8"], .init(.standard, "16"))
+        }.padding(8)
+        let view = NSHostingView(rootView: sheet)
+        view.frame = NSRect(x: 0, y: 0, width: 360, height: 6 * 42 + 16)
+        let container = NSView(frame: view.frame)
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(calibratedRed: 0.13, green: 0.13, blue: 0.14, alpha: 1).cgColor
+        container.addSubview(view)
+        container.appearance = NSAppearance(named: .darkAqua)
+        MenuMock.capture(container, to: url, done: done)
     }
 
     /// A config.json whose modes' models are the render fixture's installed paths.

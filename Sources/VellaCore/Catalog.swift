@@ -846,8 +846,13 @@ public struct LoadedFamily: Equatable {
     public var engineReason: String?
     public var optimizations: [String: Bool]?
     public var residency: String?
-    public init(precision: String, engine: String? = nil, engineReason: String? = nil, optimizations: [String: Bool]? = nil, residency: String? = nil) {
+    /// What the worker runs (its status `recipe`); nil = not reported (an older worker): the table reads engine
+    /// `optimized` as Optimized · Fast and anything else as Standard (`runningSelection`).
+    public var selection: ModelSelection?
+    public init(precision: String, engine: String? = nil, engineReason: String? = nil, optimizations: [String: Bool]? = nil, residency: String? = nil,
+                selection: ModelSelection? = nil) {
         self.precision = precision; self.engine = engine; self.engineReason = engineReason; self.optimizations = optimizations; self.residency = residency
+        self.selection = selection
     }
 }
 

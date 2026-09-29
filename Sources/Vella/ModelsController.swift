@@ -7,9 +7,9 @@ import VellaCore
 /// back to selecting the model for its mode (the pre-residency behaviour) and Unload is unavailable.
 @MainActor protocol ModelRuntimeActions: AnyObject {
     /// Menu Load: select for its mode and keep hot (manual residency, joins the launch set).
-    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String)
+    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection)
     /// Menu Reload: same family at another precision, in place of the loaded one.
-    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String)
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection)
     /// Menu Unload: free its memory; it stays downloaded and leaves the launch set.
     func unload(family: ModelFamily)
     /// Delete, ordered after unload: unload these files if they are the loaded ones and wait for the
@@ -322,8 +322,8 @@ import VellaCore
             catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error)"; return }
         }
         if let actions {
-            action == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path)
-                              : actions.load(family: f, precision: precision, variant: variant, path: path)
+            action == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path, selection: selectionToCommit(f, precision))
+                              : actions.load(family: f, precision: precision, variant: variant, path: path, selection: selectionToCommit(f, precision))
         } else if variant.isDerived {
             lastError = "\(f.name) at \(precisionFormatName(precision)) needs the recognition worker; use Start Worker (or Restart Worker) in Vella's menu and try again."
         } else {
@@ -331,6 +331,10 @@ import VellaCore
             if !lib.useSelected() { lastError = lib.downloadError }
             reloadConfig()
         }
+    }
+    /// The selection a Load/Reload of `precision` carries (placeholder until the tier table lands: Optimized · Fast at that tier, today's behaviour).
+    func selectionToCommit(_ f: ModelFamily, _ precision: String) -> ModelSelection {
+        ModelSelection(tier: modelTier(ofPrecision: precision) ?? .t16, path: .optimized, mode: .fast)
     }
     func cancelDownloads() { dictation.cancel(); streaming.cancel() }
 }

@@ -6,8 +6,8 @@ import AppKit
 
 @MainActor private final class RuntimeSpy: ModelRuntimeActions {
     var calls: [String] = []
-    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) { calls.append("load \(family.id) \(precision) \(path)") }
-    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) { calls.append("reload \(family.id) \(precision) \(path)") }
+    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("load \(family.id) \(precision) \(path)") }
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("reload \(family.id) \(precision) \(path)") }
     func unload(family: ModelFamily) { calls.append("unload \(family.id)") }
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
         calls.append("delete \(family.id)"); return delete()

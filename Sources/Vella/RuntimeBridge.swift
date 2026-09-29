@@ -95,7 +95,7 @@ import VellaCore
 
     /// The model becomes the mode's selection only once it loaded: a refused or failed Load/Reload keeps
     /// the previous selection, so the next dictation uses the model that still works.
-    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {
+    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
         let ref = ref(family, precision, path: path)
         Task { await loadAndSelect(ref) }
     }
@@ -107,8 +107,8 @@ import VellaCore
             select(ref.path, mode: ref.mode)
         } catch { controller?.lastError = error.localizedDescription }
     }
-    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String) {
-        load(family: family, precision: precision, variant: variant, path: path)
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
+        load(family: family, precision: precision, variant: variant, path: path, selection: selection)
     }
     func unload(family: ModelFamily) { Task { await runtime.unload(family.id) } }
     /// Deleting weights also ends every precision made on this Mac from them: a loaded derived precision is unloaded
