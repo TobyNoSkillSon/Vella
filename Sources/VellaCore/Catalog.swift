@@ -538,10 +538,13 @@ public func isPublished(_ family: ModelFamily, _ label: String) -> Bool {
     return !v.repository.isEmpty && v.downloadBytes > 0
 }
 
-/// The table's On disk for a precision in bytes: a published download's pinned size, else the measured size; nil =
+/// The table's On disk for a precision in bytes: a published download's pinned size, a stored conversion's converted
+/// size, else the measured size; nil =
 /// `—`. Unlike `ModelFamily.diskBytes`, a derived precision never borrows its source's size.
 public func tableDiskBytes(_ family: ModelFamily, _ label: String, _ result: PrecisionResult?) -> Int64? {
     if isPublished(family, label), let v = family.variants[label] { return v.downloadBytes }
+    // A conversion stored at Get (Parakeet v3's bf16 from fp32) has files of its own: its converted size.
+    if let v = family.variants[label], v.isStored, let bytes = family.diskBytes(label) { return bytes }
     return result?.disk_mb.map { Int64(($0 * 1_000_000).rounded()) }
 }
 

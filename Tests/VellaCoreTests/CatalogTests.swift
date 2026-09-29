@@ -131,7 +131,7 @@ final class CatalogTests: XCTestCase {
     private func named(_ id: String, _ labels: [String], native: String = "BF16") -> ModelFamily {
         var f = family(native: native, labels); f.id = id; f.name = id.uppercased(); return f
     }
-    func testSortKeyIsTheBestValueAcrossPrecisions() {
+    func testSortKeyIsTheBestValueAcrossPrecisions() throws {
         let a = named("a", ["BF16", "8b", "4b"]), b = named("b", ["BF16", "8b"]), c = named("c", ["BF16"]), d = named("d", ["BF16", "4b"])
         let file = BenchmarkFile(models: [
             "a": FamilyBenchmark(precisions: ["BF16": r(5.0, j: 9, x: 100), "8b": r(5.2, j: 4, x: 300), "4b": r(7.0, j: 6, x: 200)]),
@@ -154,6 +154,11 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(tableSortKey(.disk, family: e, benchmark: nil), 2_000_000)
         XCTAssertNil(tableDiskBytes(e, "4b", nil), "never estimated")
         XCTAssertEqual(tableSortKey(.disk, family: e, benchmark: FamilyBenchmark(precisions: ["4b": PrecisionResult(disk_mb: 0.5)])), 500_000)
+        // A conversion stored at Get (Parakeet v3's bf16 from the fp32 release) shows its converted size, about half the source.
+        let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
+        let v3 = try XCTUnwrap(catalog.family("parakeet-v3"))
+        let stored = try XCTUnwrap(tableDiskBytes(v3, "BF16", nil), "stored bf16 has a size")
+        XCTAssertTrue((1_000_000_000...1_400_000_000).contains(stored), "\(stored)")
     }
 
     func testRecommendedToleranceIsAgainstNativeAndInclusive() {
