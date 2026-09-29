@@ -1,6 +1,6 @@
 // swift-tools-version: 5.9
 import PackageDescription
-let package = Package(name: "Vella", platforms: [.macOS(.v14)], products: [.executable(name: "Vella", targets: ["Vella"]), .executable(name: "VellaModelTool", targets: ["VellaModelTool"]), .executable(name: "VellaInstallTool", targets: ["VellaInstallTool"]),
+let package = Package(name: "Vella", platforms: [.macOS("26.0")], products: [.executable(name: "Vella", targets: ["Vella"]), .executable(name: "VellaModelTool", targets: ["VellaModelTool"]), .executable(name: "VellaInstallTool", targets: ["VellaInstallTool"]),
     // The `vella` command (shipped as Contents/Helpers/vella; `vella` and `Vella` collide on a case-insensitive disk).
     .executable(name: "vella-cli", targets: ["VellaCLI"])], targets: [
     .target(name: "VellaCore"),

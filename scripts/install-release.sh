@@ -12,7 +12,7 @@ DRY_RUN=0
 [[ $# -le 2 && ( $# -lt 2 || "$DRY_RUN" == 1 ) ]] || { echo 'Usage: install-release.sh VERSION [--dry-run]' >&2; exit 2; }
 [[ "$(uname -m)" == arm64 ]] || { echo 'Vella requires an Apple Silicon Mac' >&2; exit 1; }
 OS="$(sw_vers -productVersion)"
-[[ "${OS%%.*}" -ge 14 ]] || { echo "Vella requires macOS 14 or newer ($OS)" >&2; exit 1; }
+[[ "${OS%%.*}" -ge 26 ]] || { echo "Vella requires macOS 26 or newer ($OS)" >&2; exit 1; }
 BASE="${VELLA_RELEASE_BASE_URL:-https://github.com/TobyNoSkillSon/Vella/releases/download/v$VERSION}"
 # file:// serves a locally packaged release (scripts/package-release.sh) for testing.
 [[ "$BASE" == https://* || "$BASE" == file://* ]] || { echo 'Release base URL must use HTTPS' >&2; exit 1; }

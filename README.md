@@ -10,7 +10,7 @@ Press **Control + Command + N**, speak, press it again: Vella transcribes on you
 curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
 ```
 
-Apple Silicon, macOS 14 or newer. No Xcode, Python or developer account.
+Apple Silicon, macOS 26 or newer. No Xcode, Python or developer account.
 
 [Models](#models) · [Install](#install) · [Using it](#using-it) · [For your agent](#for-your-agent) · [Privacy](#privacy) · [User guide](docs/USAGE.md) · [Sponsor](https://github.com/sponsors/TobyNoSkillSon)
 

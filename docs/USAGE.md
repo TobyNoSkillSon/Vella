@@ -9,7 +9,7 @@ git clone https://github.com/TobyNoSkillSon/Vella && cd Vella
 scripts/install.sh            # later: git pull && scripts/install.sh
 ```
 
-Requirements: an Apple Silicon Mac with macOS 14 or newer. The prebuilt app needs no Xcode, Python or developer account.
+Requirements: an Apple Silicon Mac with macOS 26 or newer. The prebuilt app needs no Xcode, Python or developer account.
 
 What `scripts/install.sh` does, in order:
 

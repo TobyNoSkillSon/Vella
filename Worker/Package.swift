@@ -1,6 +1,6 @@
 // swift-tools-version:6.2
 import PackageDescription
-let package = Package(name: "VellaWorker", platforms: [.macOS(.v14)], products: [
+let package = Package(name: "VellaWorker", platforms: [.macOS("26.0")], products: [
     .executable(name: "VellaWorker", targets: ["VellaWorker"]),
     .executable(name: "VellaStreamingWorker", targets: ["VellaStreamingWorker"])
 ], dependencies: [
