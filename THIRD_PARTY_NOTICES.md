@@ -936,7 +936,7 @@ SOFTWARE.
 - package: swift-transformers revision (150169bfba0889c229a2ce7494cf8949f18e6906)
 - source: https://github.com/huggingface/swift-transformers.git
 - licence: Apache-2.0
-- used for: tokenizer.json loading for the Qwen3 ASR, Whisper and Granite Speech tokenizers; its download code is never called
+- used for: tokenizer.json loading for the Qwen3 ASR and Whisper tokenizers; its download code is never called
 
 `LICENSE`
 
@@ -2367,7 +2367,7 @@ This code was copied into `Worker/Sources` and changed there. Its licence files 
 
 - source: https://github.com/Blaizzy/mlx-audio-swift at 01dec7c9bdce3088a6b6b7ab9f2e403458195efb
 - licence: MIT
-- used for: the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper, SenseVoice, Granite Speech, Voxtral Realtime), generation and output types, audio, DSP and SentencePiece utilities; changed for Vella (local loading only, optimized paths)
+- used for: the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper), generation and output types, audio, DSP and SentencePiece utilities; changed for Vella (local loading only, optimized paths)
 
 `Worker/LICENSE-mlx-audio-swift`
 
@@ -2473,18 +2473,14 @@ Vella.app contains no model weights. When you confirm a download, VellaModelTool
 | Model | In the app | Licence | Upstream weights | MLX downloads (Hugging Face) |
 |---|---|---|---|---|
 | Parakeet v3 Ultra | yes | cc-by-4.0 | moondream/parakeet-ultra (post-trained from nvidia/parakeet-tdt-0.6b-v3) | `selcukkubur/parakeet-ultra-mlx` |
-| Parakeet v3 | yes | cc-by-4.0 | nvidia/parakeet-tdt-0.6b-v3 | `animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit`, `animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit`, `animaslabs/parakeet-tdt-0.6b-v3-mlx` |
-| Parakeet TDT-CTC 110M | no | cc-by-4.0 | nvidia/parakeet-tdt_ctc-110m | `mlx-community/parakeet-tdt_ctc-110m` |
-| Qwen3 ASR 1.7B | yes | apache-2.0 | Qwen/Qwen3-ASR-1.7B | `mlx-community/Qwen3-ASR-1.7B-4bit`, `mlx-community/Qwen3-ASR-1.7B-8bit`, `mlx-community/Qwen3-ASR-1.7B-bf16` |
-| Nemotron 3.5 Streaming | yes | OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License | nvidia/nemotron-3.5-asr-streaming-0.6b | `mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit`, `mlx-community/nemotron-3.5-asr-streaming-0.6b` |
-| Qwen3 ASR 0.6B | no | apache-2.0 | Qwen/Qwen3-ASR-0.6B | `mlx-community/Qwen3-ASR-0.6B-4bit`, `mlx-community/Qwen3-ASR-0.6B-8bit`, `mlx-community/Qwen3-ASR-0.6B-bf16` |
-| Whisper large-v3 | no | apache-2.0 | openai/whisper-large-v3 | `mlx-community/whisper-large-v3-8bit`, `mlx-community/whisper-large-v3-asr-4bit`, `mlx-community/whisper-large-v3-asr-fp16` |
-| Whisper large-v3 turbo | no | mit | openai/whisper-large-v3-turbo | `mlx-community/whisper-large-v3-turbo-asr-4bit`, `mlx-community/whisper-large-v3-turbo-asr-8bit`, `mlx-community/whisper-large-v3-turbo-asr-fp16` |
-| SenseVoice Small | no | SenseVoice upstream custom model license (see repository) | FunAudioLLM/SenseVoiceSmall | `mlx-community/SenseVoiceSmall`, `vanch007/SenseVoiceSmall-4bit` |
-| Granite 4.0 1B Speech | no | apache-2.0 | ibm-granite/granite-4.0-1b-speech | `mlx-community/granite-4.0-1b-speech-4bit`, `mlx-community/granite-4.0-1b-speech-8bit` |
-| Voxtral Realtime 4B | no | apache-2.0 | mistralai/Voxtral-Mini-4B-Realtime-2602 | `mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit` |
+| Parakeet v3 | yes | cc-by-4.0 | nvidia/parakeet-tdt-0.6b-v3 | `animaslabs/parakeet-tdt-0.6b-v3-mlx` |
+| Qwen3 ASR 1.7B | yes | apache-2.0 | Qwen/Qwen3-ASR-1.7B | `mlx-community/Qwen3-ASR-1.7B-bf16` |
+| Qwen3 ASR 0.6B | yes | apache-2.0 | Qwen/Qwen3-ASR-0.6B | `mlx-community/Qwen3-ASR-0.6B-bf16` |
+| Whisper large-v3 | yes | apache-2.0 | openai/whisper-large-v3 | `mlx-community/whisper-large-v3-asr-fp16` |
+| Whisper large-v3 turbo | yes | mit | openai/whisper-large-v3-turbo | `mlx-community/whisper-large-v3-turbo-asr-fp16` |
+| Nemotron 3.5 Streaming | yes | OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License | nvidia/nemotron-3.5-asr-streaming-0.6b | `mlx-community/nemotron-3.5-asr-streaming-0.6b` |
 
-Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream card specifies the OpenMDW License 1.1 (https://openmdw.ai/license/1-1/); its MLX conversions still carry the NVIDIA Open Model License in their card metadata. SenseVoice Small uses FunASR's model licence (https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE).
+Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream card specifies the OpenMDW License 1.1 (https://openmdw.ai/license/1-1/); its MLX conversions still carry the NVIDIA Open Model License in their card metadata.
 
 ## Apple
 

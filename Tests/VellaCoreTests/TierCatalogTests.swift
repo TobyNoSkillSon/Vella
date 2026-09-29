@@ -24,6 +24,19 @@ final class TierCatalogTests: XCTestCase {
         XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("nemotron-3.5-streaming-0.6b"))), ["BF16", "8b"])
     }
 
+    /// `tiers_offered` is the tiers benchmarks.json marks present (schema 2 `tiers.<t>.presence.offered`).
+    func testTiersOfferedMatchBenchmarkPresence() throws {
+        let object = try JSONSerialization.jsonObject(with: Data(contentsOf: resources.appendingPathComponent("benchmarks.json"))) as? [String: Any]
+        let models = try XCTUnwrap(object?["models"] as? [String: Any])
+        for f in try catalog().families {
+            guard let tiers = (models[f.id] as? [String: Any])?["tiers"] as? [String: Any] else { continue }
+            let present = tiers.compactMap { key, value -> String? in
+                ((value as? [String: Any])?["presence"] as? [String: Any])?["offered"] as? Bool == true ? key : nil
+            }
+            XCTAssertEqual(Set(present), Set(f.tiersOffered ?? []), f.id)
+        }
+    }
+
     func testEveryFamilyDownloadsItsSixteenBitCheckpointAndDerivesTheRest() throws {
         for f in try catalog().families {
             let download = try XCTUnwrap(f.download, f.id)

@@ -28,8 +28,8 @@ vella transcribe talk.m4a                      # the transcript as plain text
 vella transcribe talk.m4a --srt > talk.srt     # subtitles; --vtt, --json, --verbose-json (segments) also work
 vella transcribe talk.m4a --model parakeet-v3  # a specific model
 vella transcribe talk.m4a --language pl        # a language hint
-vella models                                   # parakeet-v3-ultra  Parakeet v3 Ultra · BF16 · loaded · current dictation model   (one line per model on this Mac)
-vella status                                   # Vella 1.0.0 running (pid 29335), parakeet-v3-ultra BF16 loaded · dictation model Parakeet v3 Ultra (BF16) · API http://127.0.0.1:63080/v1
+vella models                                   # parakeet-v3-ultra  Parakeet v3 Ultra · 16 · Optimized Fast · loaded · current dictation model   (one line per model on this Mac)
+vella status                                   # Vella 1.0.0 running (pid 29335), parakeet-v3-ultra 16 loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:63080/v1
 vella url                                      # http://127.0.0.1:63080/v1
 vella diagnose                                 # a bug report for the user; its last line is a prefilled GitHub issue link
 ```
