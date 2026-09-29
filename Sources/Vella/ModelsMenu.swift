@@ -104,9 +104,11 @@ enum TableSortColumn: CaseIterable {
 }
 
 struct ModelTable: View {
-    static let width: CGFloat = 900
-    /// Every row fits without scrolling: heading, dividers and footer, 33 pt per row, 21 pt per section label.
-    static func height(rows: Int, sections: Int) -> CGFloat { 64 + CGFloat(rows) * 33 + CGFloat(sections) * 21 }
+    static let width: CGFloat = 968
+    /// Every row fits without scrolling: heading, dividers and footer, 39 pt per row (two tier rows), 21 pt per section label.
+    static func height(rows: Int, sections: Int) -> CGFloat { 64 + CGFloat(rows) * rowPitch + CGFloat(sections) * 21 }
+    static let rowHeight: CGFloat = 36
+    static let rowPitch: CGFloat = rowHeight + 3
     @MainActor static func height(_ c: ModelsController) -> CGFloat { height(rows: c.rowCount, sections: c.sectionCount) }
 
     @ObservedObject var controller: ModelsController
@@ -119,7 +121,8 @@ struct ModelTable: View {
 
     /// Column widths; spacing 6 between columns.
     private enum W {
-        static let model: CGFloat = 152, languages: CGFloat = 64, params: CGFloat = 42, precision: CGFloat = 100
+        static let model: CGFloat = 152, languages: CGFloat = 64, params: CGFloat = 42
+        static let precision: CGFloat = TierControl.width + 4 + ExactFastSwitch.width
         static let wer: CGFloat = 54, format: CGFloat = 54, speed: CGFloat = 64, energy: CGFloat = 58, memory: CGFloat = 64, disk: CGFloat = 64
         static let button: CGFloat = 58, trash: CGFloat = 18
     }
@@ -152,6 +155,7 @@ struct ModelTable: View {
     static let speedHeaderHelp = "Real-time factor (RTFx): audio seconds per processing second. Higher is faster."
     static let energyHeaderHelp = "Joules per minute of audio: whole-chip energy, net of idle. Lower is better."
     static let memoryHeaderHelp = "Peak memory of Vella's model worker with the model loaded. Lower is better."
+    static let tierHeaderHelp = "Precision kept: 16 is the checkpoint as published, 8 and 4 are made on this Mac from it. Standard runs stock MLX, as on any Apple-silicon Mac; Optimized adds Vella's kernels for this chip. A tier that breaks against 16 is not offered. A change applies at the next load."
     static let diskHeaderHelp = "Download size of the selected precision; for one made on this Mac, the size of the weights it is made from."
 
     var body: some View {
@@ -160,7 +164,7 @@ struct ModelTable: View {
                 heading("Model", .name, W.model, .leading)
                 plainHeading("Languages", W.languages, .trailing, help: "Languages the model transcribes.")
                 plainHeading("Params", W.params, .trailing, help: "Model size in parameters.")
-                plainHeading("Q", W.precision, .leading, help: "Weight precision in bits: 32 is FP32, 16 is BF16, 8 and 4 are quantized; an FP16 model shows FP16. Levels below the native precision are made on this Mac from it. Green is recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (English WER within 0.1 pt, up to 0.2 pt for a model with measured run-to-run noise; other languages; no dropped segments); faster, then more bits, break ties. Its tooltip names any more efficient precision that was rejected, and why.")
+                plainHeading("Tier", W.precision, .leading, help: Self.tierHeaderHelp)
                 heading("WER", .wer, W.wer, .trailing, help: Self.werHeaderHelp)
                 heading("Format", .format, W.format, .trailing, help: Self.formatHeaderHelp)
                 heading("Speed", .speed, W.speed, .trailing, help: Self.speedHeaderHelp)
@@ -209,9 +213,9 @@ struct ModelTable: View {
         let precision = controller.selected(family)
         let variant = family.variants[precision]
         let installed = controller.installed(family, precision)
-        let bench = controller.result(family, precision)
-        let base = controller.result(family, controller.base(family))
-        let compare = precision != controller.base(family)
+        let bench = controller.shownResult(family)
+        let base = controller.baseResult(family)
+        let compare = controller.showsDeltas(family)
         let action = controller.action(family)
         let library = controller.library(family.mode)
         // A confirmed download for this row (a precision made here downloads its source).
@@ -224,11 +228,10 @@ struct ModelTable: View {
                     Text(family.name).font(.system(size: 11)).lineLimit(1)
                     // Engine label beneath a loaded model. Both paths work, so both are green; the tooltip says which.
                     if let loaded, loaded.engine != nil {
-                        Text(engineLabel(engine: loaded.engine, chip: runtime?.chip)).font(.system(size: 9, weight: .medium))
+                        Text(engineLabel(engine: loaded.engine, chip: runtime?.chip, selection: controller.loadedSelection(family).map { effectiveSelection($0, engine: loaded.engine) })).font(.system(size: 9, weight: .medium))
                             .foregroundStyle(Self.tone(.better, hot: hot)).lineLimit(1)
                             .appKitTooltip(engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
-                                                      chip: runtime?.chip, precision: loaded.precision,
-                                                      stock: stockLine(controller.result(family, loaded.precision))))
+                                                      chip: runtime?.chip, precision: loaded.precision))
                     }
                 }
             }.frame(width: W.model, alignment: .leading)
@@ -236,7 +239,7 @@ struct ModelTable: View {
             Text(formatLanguages(family.languages)).frame(width: W.languages, alignment: .trailing)
                 .appKitTooltip(languagesHelp(family, bench))
             Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params, alignment: .trailing)
-            precisionPicker(family, enabled: !loading, hot: hot)
+            tierPicker(family, hot: hot)
                 .frame(width: W.precision, alignment: .leading)
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
                 .appKitTooltip(werHelp(bench, suites: suites))
@@ -269,7 +272,7 @@ struct ModelTable: View {
                 .accessibilityHint("Moves the \(precisionFormatName(precision)) weights to the Trash, after you confirm")
                 .accessibilityLabel("Delete \(family.name) \(precisionFormatName(precision))")
         }.font(.system(size: 11, design: .monospaced))
-            .padding(.horizontal, 6).frame(height: 30)
+            .padding(.horizontal, 6).frame(height: Self.rowHeight)
             .background(hot ? Self.hotRow : .clear, in: RoundedRectangle(cornerRadius: 4))
             .background {
                 if downloading, let value = library.progress {
@@ -308,7 +311,7 @@ struct ModelTable: View {
                 .appKitTooltip(referenceDiskHelp)
             Text("").frame(width: W.button + W.trash + 6)
         }.font(.system(size: 11, design: .monospaced))
-            .padding(.horizontal, 6).frame(height: 30)
+            .padding(.horizontal, 6).frame(height: Self.rowHeight)
             .foregroundStyle(Color.secondary)
             .contentShape(Rectangle())
             .accessibilityElement(children: .combine)
@@ -351,7 +354,7 @@ struct ModelTable: View {
                            derivedSource: controller.derivedSource(family, precision), sizeKnown: controller.disk(family, precision) != nil)
     }
 
-    /// Value on top, delta vs the recommended precision beneath it in small type.
+    /// Value on top, delta vs Standard 16 beneath it in small type.
     @ViewBuilder private func metric(_ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool) -> some View {
         VStack(alignment: .trailing, spacing: 0) {
             Text(value ?? "—").lineLimit(1)
@@ -371,16 +374,28 @@ struct ModelTable: View {
         }
     }
 
-    @ViewBuilder private func precisionPicker(_ family: ModelFamily, enabled: Bool, hot: Bool) -> some View {
-        let options = controller.options(family)
-        if options.isEmpty {
+    /// `Optimized [16][8][4]` above `Standard [16][8][4]`, the Exact/Fast switch beside them (TierControl.swift,
+    /// ExactFastSwitch.swift). Present cells only; disabled while the model is in use.
+    @ViewBuilder private func tierPicker(_ family: ModelFamily, hot: Bool) -> some View {
+        let selection = controller.currentSelection(family)
+        let optimized = controller.tiers(family, .optimized).map(\.rawValue)
+        let standard = controller.tiers(family, .standard).map(\.rawValue)
+        let enabled = !controller.inUse(family)
+        if optimized.isEmpty && standard.isEmpty {
             Text("—").foregroundStyle(.secondary)
         } else {
-            PrecisionControl(options: options, labels: controller.segmentLabels(family), selected: controller.selected(family),
-                             recommended: controller.recommended(family), hot: hot, enabled: enabled,
-                             help: { controller.segmentHelp(family, $0) }) { label in
-                controller.preview(family, label)
-            }.controlSize(.mini).fixedSize()
+            HStack(spacing: 4) {
+                TierControl(optimized: optimized, standard: standard,
+                            selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
+                            enabled: enabled, hot: hot,
+                            help: { cell in controller.tierHelp(family, tier: ModelTier(rawValue: cell.tier) ?? .t16, path: cell.row == .standard ? .standard : .optimized) },
+                            onSelect: { cell in
+                                guard let tier = ModelTier(rawValue: cell.tier) else { return }
+                                controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized)
+                            })
+                ExactFastSwitch(position: selection.mode == .fast ? .fast : .exact, available: controller.switchAvailable(family), enabled: enabled,
+                                onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
+            }
         }
     }
 
@@ -391,16 +406,22 @@ struct ModelTable: View {
     /// the render harness writes them to table-tooltips.txt and TableTooltipTests checks the format of each one.
     func tooltips(_ family: ModelFamily) -> [(String, String)] {
         let precision = controller.selected(family)
-        let r = controller.result(family, precision)
+        let r = controller.shownResult(family)
         let loaded = controller.loaded(family)
+        let enabled = !controller.inUse(family)
         var cells: [(String, String)] = [("Model", modelHelp(family, loaded: loaded))]
         if let loaded, loaded.engine != nil {
             cells.append(("Engine", engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
-                                               chip: runtime?.chip, precision: loaded.precision,
-                                                      stock: stockLine(controller.result(family, loaded.precision)))))
+                                               chip: runtime?.chip, precision: loaded.precision)))
         }
         if let languages = languagesHelp(family, r) { cells.append(("Languages", languages)) }
-        cells += controller.options(family).map { ("Q \($0)", controller.segmentHelp(family, $0)) }
+        for path in [EnginePath.optimized, .standard] {
+            for tier in controller.tiers(family, path) {
+                cells.append(("\(path == .optimized ? "Optimized" : "Standard") \(tier.rawValue)",
+                              TierControl.tooltip(controller.tierHelp(family, tier: tier, path: path), enabled: enabled)))
+            }
+        }
+        cells.append(("Exact/Fast", ExactFastSwitch.tooltip(available: controller.switchAvailable(family), enabled: enabled)))
         return cells + [("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
                         ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),
                         ("Memory", memoryHelp(r, suites: suites)), ("On disk", diskHelp(family, precision))]

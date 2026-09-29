@@ -101,19 +101,19 @@ final class OneStateTests: XCTestCase {
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
         c.dictation.installed["parakeet-tdt-0.6b-v3-mlx-4bit"] = InstalledModel(path: "/fixture/p4")
-        c.dictation.installed["Qwen3-ASR-1.7B-8bit"] = InstalledModel(path: "/fixture/q8")
+        c.dictation.installed["Qwen3-ASR-0.6B-bf16"] = InstalledModel(path: "/fixture/q06")
         c.streaming.installed["nemotron-3.5-asr-streaming-0.6b-8bit"] = InstalledModel(path: "/fixture/n8")
         try JSONEncoder().encode(Configuration(model: "/fixture/p4", streamingModel: "/fixture/n8")).write(to: configURL)
         let legacy = support.appendingPathComponent("model-precision.json")
-        try JSONEncoder().encode(["parakeet-v3": nativeSelection, "qwen3-asr-1.7b": "8b", "parakeet-v3-ultra": nativeSelection,
-                                  "qwen3-asr-0.6b": "4b", "nemotron-3.5-streaming-0.6b": nativeSelection]).write(to: legacy)
+        try JSONEncoder().encode(["parakeet-v3": nativeSelection, "qwen3-asr-0.6b": "8b", "parakeet-v3-ultra": nativeSelection,
+                                  "qwen3-asr-1.7b": "4b", "nemotron-3.5-streaming-0.6b": nativeSelection]).write(to: legacy)
         c.runtime = TableRuntime(loaded: ["parakeet-v3": LoadedFamily(precision: "4b", residency: "on_demand")])
 
         c.migrateLegacySelections(from: legacy)
         XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path), "read once, then deleted")
         let config = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
-        XCTAssertEqual(config.lastLoaded, ["qwen3-asr-1.7b": "8b"],
-                       "kept only for a family without a load record whose precision is on disk; FP32 (a partial) and Ultra (absent) dropped")
+        XCTAssertEqual(config.lastLoaded, ["qwen3-asr-0.6b": "8b"],
+                       "kept only for a family without a load record whose precision is offered and on disk; FP32 (no tier), Ultra (absent) and Qwen 1.7B 4 (not offered) dropped")
         XCTAssertEqual(config.model, "/fixture/p4", "the dictation model is untouched")
 
         // The loaded row shows what is loaded and offers Unload, not a Reload.
@@ -124,7 +124,9 @@ final class OneStateTests: XCTestCase {
         c.runtime = TableRuntime()
         XCTAssertEqual(c.selected(parakeet), "4b")
         XCTAssertEqual(c.action(parakeet), .load)
-        XCTAssertEqual(c.selected(qwen), "8b", "the migrated last-loaded precision")
+        let qwen06 = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
+        XCTAssertEqual(c.selected(qwen06), "8b", "the migrated last-loaded precision")
+        XCTAssertEqual(c.currentSelection(qwen06), ModelSelection(tier: .t8, path: .optimized, mode: .fast), "used before selections existed: Optimized Fast")
         // Streaming the same way, with its own model: the stored BF16 never overrides streaming's 8-bit model.
         let nemotron = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
         XCTAssertEqual(c.selected(nemotron), "8b")
@@ -135,7 +137,7 @@ final class OneStateTests: XCTestCase {
         XCTAssertEqual(c.action(qwen), .unload)
         // A second migration finds nothing.
         c.migrateLegacySelections(from: legacy)
-        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).lastLoaded, ["qwen3-asr-1.7b": "8b"])
+        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).lastLoaded, ["qwen3-asr-0.6b": "8b"])
     }
 
     /// A legacy file in another directory than config.json is never migrated into it (or deleted).
@@ -162,8 +164,8 @@ final class OneStateTests: XCTestCase {
         c.runtime = TableRuntime(loaded: ["parakeet-v3": LoadedFamily(precision: "4b")])
         XCTAssertEqual(c.action(parakeet), .unload)
 
-        c.preview(parakeet, "FP32")
-        XCTAssertEqual(c.selected(parakeet), "FP32", "the preview shows its own numbers")
+        c.preview(parakeet, "BF16")
+        XCTAssertEqual(c.selected(parakeet), "BF16", "the preview shows its own numbers")
         XCTAssertTrue(c.isPreviewing(parakeet))
         XCTAssertEqual(c.action(parakeet), .reload)
         XCTAssertTrue(c.needsDownload(parakeet))
@@ -249,7 +251,7 @@ final class OneStateTests: XCTestCase {
 
         XCTAssertEqual(prompts.map(\.title), ["Download Alpha · 16 (BF16)?", "Download Alpha · 16 (BF16) to make 4 (4-bit)?", "Download Alpha · 16 (BF16)?"])
         XCTAssertTrue(prompts.allSatisfy { $0.variantID == "alpha-bf16" && $0.body.contains("4,200 bytes") })
-        XCTAssertTrue(prompts[1].body.contains("made on this Mac from its BF16 (bfloat16) weights"), prompts[1].body)
+        XCTAssertTrue(prompts[1].body.contains("is made on this Mac from the 16-bit weights each time it loads"), prompts[1].body)
         XCTAssertTrue(prompts[2].body.contains("in place of the loaded 4-bit"), prompts[2].body)
         try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertTrue(served.isEmpty, "Cancel: no request reached the Hub")

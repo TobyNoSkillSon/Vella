@@ -6,8 +6,13 @@ import AppKit
 
 @MainActor private final class RuntimeSpy: ModelRuntimeActions {
     var calls: [String] = []
-    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("load \(family.id) \(precision) \(path)") }
-    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("reload \(family.id) \(precision) \(path)") }
+    var selections: [ModelSelection] = []
+    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
+        calls.append("load \(family.id) \(precision) \(path)"); selections.append(selection)
+    }
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
+        calls.append("reload \(family.id) \(precision) \(path)"); selections.append(selection)
+    }
     func unload(family: ModelFamily) { calls.append("unload \(family.id)") }
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
         calls.append("delete \(family.id)"); return delete()
@@ -56,26 +61,89 @@ final class ModelsTests: XCTestCase {
         XCTAssertFalse(menus.controller.families(.streaming).isEmpty)
     }
 
-    @MainActor func testRecommendedSelectionDeltasBaseAndPersistence() throws {
-        let c = try controller(benchmarks: qwenFixture)
-        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
-        // 4b is within 0.1 pt of BF16 (8b is not); 4b uses the least energy.
-        XCTAssertEqual(c.recommended(qwen), "4b")
-        XCTAssertEqual(c.selected(qwen), "4b")
-        XCTAssertEqual(c.base(qwen), "4b")
-        XCTAssertEqual(errorRateDelta(c.result(qwen, "8b")?.wer, base: c.result(qwen, c.base(qwen))?.wer), Delta("+0.1 pt", .worse))
-        c.preview(qwen, "BF16")
+    /// A schema-2 fixture for Qwen3 ASR 0.6B: 16 on both rows, 8 on both rows (worse than 16), 4 absent (breaks).
+    static let tierFixture = #"""
+    {"schema":2,"models":{"qwen3-asr-0.6b":{"tiers":{
+     "16":{"precision":"BF16","presence":{"offered":true,"reasons":[]},"gate":{"status":"pass","reasons":[],"loss":[]},
+       "standard":{"wer":16.0,"speed_x":40.0,"j_per_min":40.0,"memory_mb":2000,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                   "recipe":{"layers":{"all":"bf16"},"kernels":[],"inexact":[],"gate_revision":"stock"},"gate":{"status":"pass","reasons":[]}},
+       "optimized_exact":{"wer":16.0,"speed_x":60.0,"j_per_min":30.0,"memory_mb":2100,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                   "recipe":{"layers":{"all":"bf16"},"kernels":["decoder"],"inexact":[]},"gate":{"status":"pass","reasons":[]}},
+       "optimized_fast":{"wer":16.05,"speed_x":80.0,"j_per_min":26.0,"memory_mb":2100,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                   "recipe":{"layers":{"all":"bf16"},"kernels":["decoder","nax_gemm"],"inexact":["nax_gemm"]},"gate":{"status":"pass","reasons":[]}}},
+     "8":{"precision":"8b","presence":{"offered":true,"reasons":[]},"gate":{"status":"fail","reasons":["English WER +0.17 pt vs 16 (limit 0.10)"],"loss":["English WER +0.17 pt"]},
+       "standard":{"measured":null,"recipe":{"layers":{"all":"affine-8 g64"},"kernels":[],"inexact":[],"gate_revision":"stock"},"note":"measure pending"},
+       "optimized_exact":{"wer":16.17,"speed_x":76.0,"j_per_min":33.0,"memory_mb":1900,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                   "recipe":{"layers":{"all":"affine-8 g64"},"kernels":["decoder"],"inexact":[]}},
+       "optimized_fast":{"wer":16.17,"speed_x":76.0,"j_per_min":33.0,"memory_mb":1900,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                   "recipe":{"layers":{"all":"affine-8 g64"},"kernels":["decoder"],"inexact":[]}}},
+     "4":{"precision":"4b","presence":{"offered":false,"reasons":["multilingual mean +6.22 pt vs 16 (absent from +5.0)"]},"gate":{"status":"fail","reasons":[]},
+       "standard":{"recipe":{"layers":{"all":"affine-4 g64"}}},"optimized_exact":{"recipe":{"layers":{"all":"affine-4 g64"}}},"optimized_fast":{"recipe":{"layers":{"all":"affine-4 g64"}}}}
+    }}}}
+    """#
+
+    /// No recommended cell: an unloaded, never-loaded row shows Standard 16; deltas are against Standard 16; a click or a
+    /// switch flip is a preview that a new controller does not remember.
+    @MainActor func testDefaultStandard16DeltasAndNoPersistenceOfPreviews() throws {
+        let c = try controller(benchmarks: Self.tierFixture)
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
+        XCTAssertEqual(c.currentSelection(qwen), .fallback)
         XCTAssertEqual(c.selected(qwen), "BF16")
-        // A preview is not persisted: a new controller shows the recommended precision again.
+        XCTAssertFalse(c.showsDeltas(qwen), "Standard 16 is the reference")
+        XCTAssertEqual(c.tiers(qwen, .optimized), [.t16, .t8])
+        XCTAssertEqual(c.tiers(qwen, .standard), [.t16, .t8], "a pending Standard 8 is present (measure pending), not absent")
+        XCTAssertTrue(c.switchAvailable(qwen), "Fast runs an inexact component at 16")
+        c.select(qwen, tier: .t16, path: .optimized)
+        XCTAssertEqual(c.shownResult(qwen)?.speed_x, 60, "Optimized with the switch at Exact")
+        c.setMode(qwen, .fast)
+        XCTAssertEqual(c.shownResult(qwen)?.speed_x, 80)
+        XCTAssertEqual(speedDelta(c.shownResult(qwen)?.speed_x, base: c.baseResult(qwen)?.speed_x), Delta("2.0× faster", .better))
+        XCTAssertTrue(c.showsDeltas(qwen))
+        c.select(qwen, tier: .t8, path: .standard)
+        XCTAssertEqual(c.selected(qwen), "8b")
+        XCTAssertNil(c.shownResult(qwen)?.wer, "Standard 8: measure pending")
+        // Flipping the switch from a Standard cell selects the Optimized cell of that tier.
+        c.setMode(qwen, .exact)
+        XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t8, path: .optimized, mode: .exact))
         let reopened = ModelsController(dictation: c.dictation, streaming: c.streaming, benchmarksURL: c.dictation.resources.appendingPathComponent("missing.json"))
         reopened.benchmarks = c.benchmarks
-        XCTAssertEqual(reopened.selected(qwen), "4b")
+        XCTAssertEqual(reopened.currentSelection(qwen), .fallback)
+    }
+
+    /// The presence rule: a tier absent in the file is absent on both rows; `cellPresent` reads `presence` only.
+    @MainActor func testAbsentTierIsOmittedFromBothRows() throws {
+        let file = decodeBenchmarks(Data(Self.tierFixture.utf8))
+        let b = try XCTUnwrap(file.models["qwen3-asr-0.6b"])
+        for segment in SegmentKey.allCases {
+            XCTAssertFalse(cellPresent(b, tier: .t4, segment: segment))
+            XCTAssertTrue(cellPresent(b, tier: .t8, segment: segment), "worse than 16 on the gate, but offered")
+        }
+        XCTAssertTrue(cellPresent(nil, tier: .t4, segment: .standard), "an unmeasured family shows its catalog cells as pending")
+        XCTAssertEqual(b.precisions.keys.sorted(), ["8b", "BF16"], "per-precision readers see offered tiers only")
+        XCTAssertEqual(b.precisions["BF16"]?.speed_x, 80, "the shipping cell (Optimized Fast)")
+        XCTAssertEqual(b.precisions["BF16"]?.stock?.speed_x, 40, "Standard as the stock baseline")
+    }
+
+    /// In use (recording, dictating, streaming, loading): no preview, the controls are disabled.
+    @MainActor func testInUseBlocksChanges() throws {
+        let c = try controller(benchmarks: Self.tierFixture)
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
+        c.dictation.mayChangeModel = { false }
+        XCTAssertTrue(c.inUse(qwen))
+        c.select(qwen, tier: .t8, path: .optimized)
+        c.setMode(qwen, .fast)
+        XCTAssertEqual(c.currentSelection(qwen), .fallback, "nothing changes while in use")
+        c.dictation.mayChangeModel = { true }
+        c.runtime = TableRuntime(loading: "qwen3-asr-0.6b")
+        XCTAssertTrue(c.inUse(qwen), "loading")
+        c.runtime = TableRuntime()
+        XCTAssertFalse(c.inUse(qwen))
     }
 
     @MainActor func testPreviewNeverWritesSelections() throws {
         let c = try controller()
         c.previewing = true
-        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
         c.preview(qwen, "8b")
         XCTAssertEqual(c.selected(qwen), "8b")
         XCTAssertNil(c.configURL, "isolated: no config.json to write")
@@ -90,16 +158,18 @@ final class ModelsTests: XCTestCase {
         c.runtime = TableRuntime()
         XCTAssertEqual(c.action(qwen), .load)
         c.perform(qwen)
-        XCTAssertEqual(spy.calls.last, "load qwen3-asr-1.7b 4b /fixture/q4")
+        XCTAssertEqual(spy.calls.last, "load qwen3-asr-1.7b BF16 /fixture/q16", "the default: Standard 16")
         c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "4b", engine: "optimized")])
         XCTAssertEqual(c.action(qwen), .unload)
         c.perform(qwen)
         XCTAssertEqual(spy.calls.last, "unload qwen3-asr-1.7b")
-        // Another precision selected for the loaded model: green Reload.
-        c.preview(qwen, "BF16")
+        // Another cell selected for the loaded model: green Reload.
+        c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized")])
+        c.select(qwen, tier: .t16, path: .standard)
         XCTAssertEqual(c.action(qwen), .reload)
         c.perform(qwen)
         XCTAssertEqual(spy.calls.last, "reload qwen3-asr-1.7b BF16 /fixture/q16")
+        XCTAssertEqual(spy.selections.last, ModelSelection(tier: .t16, path: .standard, mode: .fast), "the switch position is kept")
         // A model a dictation loaded on demand is not a pending change.
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         c.dictation.installed["parakeet-tdt-0.6b-v3-mlx-8bit"] = InstalledModel(path: "/fixture/p8")
@@ -151,22 +221,26 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(ModelTable.speedHeaderHelp, "Real-time factor (RTFx): audio seconds per processing second. Higher is faster.")
     }
 
-    /// The Q control shows bare widths; the tooltips keep exact formats and say where each precision comes from.
-    @MainActor func testQLabelsAndSegmentTooltips() throws {
-        let c = try controller(benchmarks: qwenFixture)
-        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
-        XCTAssertEqual(Array(c.segmentLabels(qwen).prefix(1)), ["16"])
-        XCTAssertTrue(c.segmentLabels(qwen).allSatisfy { Int($0) != nil }, "bare widths only")
+    /// Tier cell tooltips: flavour; delta vs Standard 16 with its basis; the loss of a worse tier; the switch's text.
+    @MainActor func testTierCellTooltips() throws {
+        let c = try controller(benchmarks: Self.tierFixture)
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .standard), "bf16, as published\nReference for the deltas · M5 Max, 28 Sep")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\n+1.5× speed · −25 % energy · same WER · M5 Max, 28 Sep")
+        c.setMode(qwen, .fast)
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\n+2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .optimized),
+                       "8-bit weights throughout (affine-8 g64)\n+1.9× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep\nLoss vs 16: English WER +0.17 pt")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .standard), "8-bit weights throughout (affine-8 g64)\nMeasure pending\nLoss vs 16: English WER +0.17 pt")
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
-        XCTAssertEqual(c.segmentLabels(parakeet).first, "32")
-        let bf16 = c.segmentHelp(qwen, "BF16")
-        XCTAssertTrue(bf16.hasPrefix("BF16 (bfloat16) · native precision\nPublished on Hugging Face"), bf16)
-        XCTAssertFalse(bf16.contains("/"), "no repository id: \(bf16)")
-        XCTAssertTrue(c.segmentHelp(qwen, "4b").hasPrefix("4-bit quantized\nPublished on Hugging Face"))
-        XCTAssertTrue(c.segmentHelp(qwen, "4b").contains("\nRecommended"), "the recommended segment says so")
-        XCTAssertTrue(c.segmentHelp(parakeet, "FP32").contains("\nNot measured yet"), "fixture has no Parakeet figures")
-        c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16")])
-        XCTAssertTrue(c.segmentHelp(qwen, "8b").hasSuffix("\nLoaded at BF16 (bfloat16); Reload loads this precision instead, closing the menu keeps BF16 (bfloat16)"))
+        XCTAssertEqual(tierFlavour(parakeet, tier: .t16, cell: nil), "bf16, converted once from the published fp32")
+        let per = BenchmarkCell(recipe: CellRecipe(layers: ["decoder": "affine-8 g64", "encoder": "bf16"]))
+        XCTAssertEqual(tierFlavour(qwen, tier: .t8, cell: per), "8-bit decoder, 16-bit encoder (affine-8 g64)")
+        XCTAssertEqual(ExactFastSwitch.help, "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.")
+        XCTAssertEqual(ExactFastSwitch.tooltip(available: true, enabled: true), ExactFastSwitch.help)
+        XCTAssertEqual(ExactFastSwitch.tooltip(available: false, enabled: false),
+                       ExactFastSwitch.help + "\nFast measures the same as Exact for this model\nLocked while the model is in use; a change applies at the next load")
+        XCTAssertEqual(ExactFastSwitch.inUseHelp, TierControl.inUseHelp, "one interlock line in both shared controls")
     }
 
     /// A precision made on this Mac: selectable, `\u{2014}` until measured, Get fetches its source, Load hands the worker
@@ -177,17 +251,14 @@ final class ModelsTests: XCTestCase {
         c.runtime = TableRuntime()
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
         XCTAssertEqual(c.options(ultra), ["BF16", "8b", "4b"])
-        XCTAssertEqual(c.segmentLabels(ultra), ["16", "8", "4"])
+        XCTAssertEqual(c.tiers(ultra, .optimized), [.t16, .t8, .t4])
         c.preview(ultra, "4b")
         XCTAssertEqual(c.selected(ultra), "4b", "derived precisions are selectable")
         // Not measured: every figure is absent, including On disk (never the source's size, never an estimate).
         XCTAssertNil(c.result(ultra, "4b"))
         XCTAssertNil(c.disk(ultra, "4b"))
         XCTAssertNotNil(c.disk(ultra, "BF16"))
-        let help = c.segmentHelp(ultra, "4b")
-        XCTAssertTrue(help.hasPrefix("4-bit quantized\nMade on this Mac from the BF16 (bfloat16) weights; loading downloads those first ("), help)
-        XCTAssertTrue(help.contains("\nNot measured yet"), help)
-        XCTAssertFalse(help.contains("Published"), help)
+        XCTAssertEqual(c.tierHelp(ultra, tier: .t4, path: .standard), "4-bit weights throughout (affine-4 g64)\nMeasure pending")
         // Get downloads the source.
         XCTAssertEqual(c.action(ultra), .get)
         XCTAssertEqual(c.downloadRoot(ultra, "4b"), "BF16")
@@ -197,7 +268,6 @@ final class ModelsTests: XCTestCase {
         try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
         c.dictation.installed["parakeet-ultra-mlx-bf16"] = InstalledModel(path: source.path)
         XCTAssertEqual(c.action(ultra), .load)
-        XCTAssertFalse(c.segmentHelp(ultra, "4b").contains("downloads those"), "source already downloaded")
         c.perform(ultra)
         let derivedDir = c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-4bit-local").standardizedFileURL.path
         XCTAssertEqual(spy.calls.last, "load parakeet-v3-ultra 4b \(derivedDir)")

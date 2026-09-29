@@ -1,11 +1,13 @@
 'use strict';
-// The benchmark table: one row per measured model and precision (VELLA_BENCHMARKS, VELLA_MODELS from data.js),
-// plus the cloud APIs as estimated reference rows. Absent figures show —.
+// The benchmark table: one row per offered model × tier × path, as in the app's Models table (VELLA_BENCHMARKS schema 2,
+// VELLA_MODELS from data.js), plus the cloud APIs as estimated reference rows. Absent figures show —; a cell not measured
+// yet says "measure pending". Tiers that break against 16 are not rows (the footer lists them).
 const B = VELLA_BENCHMARKS, families = Object.fromEntries(VELLA_MODELS.families.map(f => [f.id, f]));
 const columns = [
  ['name', 'Model'],
  ['mode', 'Mode'],
- ['q', 'Q', 'Bits per weight: 32 is FP32, 16 is BF16 or FP16, 8 and 4 are quantized. Green: the recommended precision.'],
+ ['tier', 'Tier', 'Precision kept: 16 is the checkpoint as published (bf16 or fp16), 8 and 4 are affine 8- and 4-bit (group 64) made on the Mac from it.'],
+ ['path', 'Path', 'Standard: stock MLX, what any Apple-silicon Mac runs. Optimized: Vella\'s kernels for this chip; Exact uses only kernels whose output is identical to Standard, Fast adds chip-specific kernels within the model\'s own noise.'],
  ['wer', 'WER', 'Word error rate: the percentage of words wrong (substituted, missed or added), ignoring case and punctuation. Lower is better. Per-language rates are in the tooltip.'],
  ['format', 'Format', 'Character error rate with case and punctuation kept: how much editing the finished text needs. Lower is better.'],
  ['languages', 'Languages', 'Benchmark languages besides English that the model supports, of 9.'],
@@ -17,40 +19,37 @@ const columns = [
  ['date', 'Measured']
 ];
 const higherIsBetter = new Set(['speed']);
-const bits = label => ({FP32: 32, BF16: 16, FP16: 16})[label.toUpperCase()] ?? (/^\d+(\.\d+)?b$/i.test(label) ? parseFloat(label) : null);
-const formatName = label => ({FP32: 'FP32 (float32)', BF16: 'BF16 (bfloat16)', FP16: 'FP16 (float16)'})[label.toUpperCase()] ?? `${bits(label)}-bit quantized`;
 const repoURL = repo => `https://huggingface.co/${repo}`;
+const flavour = (tier, recipe) => {
+ const all = (recipe.layers || {}).all;
+ if (tier === '16') return `${all || 'bf16'}${recipe.converted_from ? `, converted once from the published ${recipe.converted_from}` : ', as published'}`;
+ return `${tier}-bit weights throughout (affine-${tier} g64)`;
+};
+// Standard, then Optimized: one Optimized row where Fast runs no inexact kernel (Exact = Fast), as in the README.
+const pathRows = t => t.optimized_fast.recipe.inexact.length
+ ? [['Standard', t.standard], ['Optimized · Exact', t.optimized_exact], ['Optimized · Fast', t.optimized_fast]]
+ : [['Standard', t.standard], ['Optimized (Exact = Fast)', t.optimized_fast]];
 
+const absent = [];
 function modelRows() {
  const rows = [];
  for (const [id, model] of Object.entries(B.models)) {
   const family = families[id]; if (!family) continue;
-  for (const [label, r] of Object.entries(model.precisions)) {
-   const variant = family.variants[label] || {};
-   const source = variant.repository ? variant : family.variants[variant.derivedFrom] || {};
-   const published = Boolean(variant.repository) && variant.downloadBytes > 0;
-   const ml = r.multilingual || {};
-   rows.push({
-    id: `${id}/${label}`, name: family.name, family, label, reference: false,
-    mode: family.mode, q: bits(label), recommended: model.recommended === label,
-    wer: r.wer ?? null, format: r.format ?? null, languages: ml.coverage ?? null, byLanguage: ml.by_language || null,
-    speed: r.speed_x ?? null, energy: r.j_per_min ?? null, memory: r.memory_mb ?? null,
-    disk: published ? variant.downloadBytes / 1e6 : r.disk_mb ?? null,
-    suite: r.suite || null, date: r.date || null, engine: r.engine || null, note: r.note || null, hardware: r.hardware || B.hardware,
-    url: source.repository ? repoURL(source.repository) : null, published
-   });
-   // The stock-MLX baseline of the recommended precision: a row of its own, always placed directly under that row.
-   const st = r.stock;
-   if (st) {
-    const sml = st.multilingual || {};
+  // Integer-like keys enumerate ascending in JS: walk 16, 8, 4 explicitly.
+  for (const [tier, t] of ['16', '8', '4'].filter(k => (model.tiers || {})[k]).map(k => [k, model.tiers[k]])) {
+   if (!t.presence.offered) { absent.push(`${family.name} ${tier} (${t.presence.reasons[0].split(' (absent from')[0]})`); continue; }
+   const variant = family.variants[t.precision] || {};
+   const root = family.download?.repo || (variant.repository ? variant.repository : (family.variants[variant.derivedFrom] || {}).repository);
+   for (const [path, c] of pathRows(t)) {
+    const ml = c.multilingual || {}, m = c.measured;
     rows.push({
-     id: `${id}/${label}/stock`, stockOf: `${id}/${label}`, name: 'Stock MLX (any Mac)', familyName: family.name, family, label, reference: false,
-     mode: family.mode, q: bits(label), recommended: false,
-     wer: st.wer ?? null, format: st.format ?? null, languages: sml.coverage ?? null, byLanguage: sml.by_language || null,
-     speed: st.speed_x ?? null, energy: st.j_per_min ?? null, memory: st.memory_mb ?? null,
-     disk: published ? variant.downloadBytes / 1e6 : r.disk_mb ?? null,
-     suite: st.suite || r.suite || null, date: st.date || null, engine: 'mlx', note: st.note || null, hardware: st.hardware || B.hardware,
-     url: null, published
+     id: `${id}/${tier}/${path}`, name: family.name, family, reference: false,
+     mode: family.mode, tier: Number(tier), tierLabel: tier, path, flavour: flavour(tier, c.recipe), loss: t.gate.status === 'pass' ? [] : (t.gate.loss || []),
+     wer: c.wer ?? null, format: c.format ?? null, languages: ml.coverage ?? null, byLanguage: ml.by_language || null,
+     speed: c.speed_x ?? null, energy: c.j_per_min ?? null, memory: c.memory_mb ?? null, disk: c.disk_mb ?? null,
+     suite: m?.suite || 'v2', date: m?.date || null, pending: !m, note: c.note || null, hardware: m?.hardware || B.hardware,
+     kernels: c.recipe.kernels || [], inexact: c.recipe.inexact || [],
+     url: root ? repoURL(root) : null
     });
    }
   }
@@ -61,7 +60,7 @@ function referenceRows() {
  return Object.entries(B.references || {}).filter(([, r]) => r.reference && r.estimated).map(([id, r]) => ({
   id: `reference/${id}`, name: `${r.name} (cloud API)`, reference: true, mode: r.mode || 'dictation', q: null,
   wer: r.wer ?? null, range: r.range || null, byLanguage: (r.multilingual || {}).by_language || null,
-  format: null, languages: null, speed: null, energy: null, memory: null, disk: null,
+  tier: null, path: null, format: null, languages: null, speed: null, energy: null, memory: null, disk: null,
   suite: 'v2', date: r.date || null, source: r.source, method: r.method
  }));
 }
@@ -79,11 +78,13 @@ function display(row, key) {
  const v = row[key];
  if (row.reference && key === 'wer') return v == null ? "—" : `~${v.toFixed(1)}%`;
  if (row.reference && key === 'suite') return 'estimated';
+ if (key === 'date' && row.pending) return 'measure pending';
  if (v == null) return '—';
  switch (key) {
   case 'mode': return v === 'streaming' ? 'Streaming' : 'Dictation';
   case 'wer': case 'format': return pct(v);
   case 'languages': return `${v}/9`;
+  case 'tier': return row.tierLabel;
   case 'speed': return speed(v);
   case 'energy': return energy(v);
   case 'memory': case 'disk': return size(v);
@@ -102,11 +103,10 @@ function tooltip(row, key) {
   return key === 'name' ? 'A cloud API, shown for perspective. No audio was sent to it.' : '';
  }
  switch (key) {
-  case 'name': if (row.stockOf) return `${row.familyName} at ${formatName(row.label)} with every Vella optimization off (plain MLX): what any Apple-silicon Mac runs when the load-time self-test does not qualify the fast path. Same suites and session as the row above.`;
-   return `Licence: ${row.family.license}.${row.family.offered ? '' : ' Measured, but not offered in the app.'}${row.url ? ' Opens the model on Hugging Face.' : ''}`;
-  case 'q': return formatName(row.label) + (row.published ? ', published' : ', made on the Mac from the higher precision') + (row.recommended ? '. Recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (English WER within 0.1 points, up to 0.2 points for a model with measured run-to-run noise; other languages, no dropped segments).' : '.');
+  case 'name': return `Licence: ${row.family.license}.${row.url ? ' Opens the model on Hugging Face.' : ''}`;
+  case 'tier': return row.flavour + (row.loss.length ? `. Loss vs 16: ${row.loss.join(', ')}.` : '.');
+  case 'path': return row.path === 'Standard' ? 'Stock MLX.' : `Kernels: ${row.kernels.join(', ') || 'none'}${row.inexact.length ? `; inexact, within the model's noise: ${row.inexact.join(', ')}` : ''}.`;
   case 'wer': return row.byLanguage ? `By language: ${byLanguage(row.byLanguage, false)}.` : '';
-  case 'speed': return row.engine === 'optimized' ? 'Vella\'s optimized path, self-tested against stock MLX.' : row.engine === 'mlx' ? 'Stock MLX path.' : '';
   case 'date': return [row.hardware, row.note].filter(Boolean).join('. ');
   default: return '';
  }
@@ -134,35 +134,31 @@ for (const [field, label, hint] of columns) {
 function render() {
  const query = search.value.trim().toLowerCase();
  const shown = all.filter(row => (!query || (row.familyName || row.name).toLowerCase().includes(query)) && (!mode.value || row.mode === mode.value) && row.suite === suite.value);
- const main = shown.filter(row => !row.stockOf), stock = shown.filter(row => row.stockOf);
- main.sort((a, b) => {
+ const rows = shown.slice().sort((a, b) => {
   const x = a[key], y = b[key];
   if (x == null || y == null) return x == null ? (y == null ? a.id.localeCompare(b.id) : 1) : -1;
   const order = typeof x === 'number' ? x - y : String(x).localeCompare(String(y));
   return (ascending ? order : -order) || a.id.localeCompare(b.id);
  });
- const rows = main.flatMap(row => [row, ...stock.filter(s => s.stockOf === row.id)]);
  const body = document.querySelector('#rows'); body.replaceChildren();
  for (const row of rows) {
-  const tr = document.createElement('tr'); tr.dataset.id = row.id; if (row.reference) tr.className = 'reference'; if (row.stockOf) tr.className = 'stock';
+  const tr = document.createElement('tr'); tr.dataset.id = row.id; if (row.reference) tr.className = 'reference'; if (row.pending) tr.className = 'pending';
   for (const [field] of columns) {
    const td = document.createElement('td'); td.dataset.key = field;
    const title = tooltip(row, field); if (title) td.title = title;
    if (field === 'name' && row.url) { const a = document.createElement('a'); a.textContent = row.name; a.href = row.url; td.append(a); }
    else td.textContent = display(row, field);
-   if (field === 'name' && !row.reference && !row.family.offered) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'not in the app'; td.append(tag); }
-   if (field === 'q' && row.recommended) { td.classList.add('recommended'); td.textContent += ' · recommended'; }
    tr.append(td);
   }
   body.append(tr);
  }
  if (!rows.length) { const tr = document.createElement('tr'), td = document.createElement('td'); td.colSpan = columns.length; td.className = 'empty'; td.textContent = 'No matching models'; tr.append(td); body.append(tr); }
- document.querySelector('#footer').textContent = rows.some(r => r.reference) ? referenceNote : '';
+ document.querySelector('#footer').textContent = [absent.length ? `Not offered (breaks against 16): ${absent.join('; ')}.` : '', rows.some(r => r.reference) ? referenceNote : ''].filter(Boolean).join(' ');
  document.querySelector('#count').textContent = `${rows.length} / ${all.filter(r => r.suite === suite.value).length} rows`;
  for (const button of document.querySelectorAll('th button')) button.parentElement.setAttribute('aria-sort', button.dataset.key === key ? (ascending ? 'ascending' : 'descending') : 'none');
 }
 
-const dates = [...new Set(all.filter(r => !r.reference).map(r => r.date).filter(Boolean))].sort();
+const dates = [...new Set(all.filter(r => !r.reference && !r.pending).map(r => r.date).filter(Boolean))].sort();
 document.querySelector('#summary').textContent =
  `Measured on ${B.hardware} · ${dates.length ? dates.at(-1) : '—'} · v2: ${B.suites?.v2?.audio_min ?? '—'} minutes of English and 9 other languages. Other Macs differ in speed, energy and memory, not accuracy.`;
 const referenceNote =

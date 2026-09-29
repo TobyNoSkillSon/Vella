@@ -21,17 +21,22 @@ import VellaCore
 /// The Models table's state: catalog families of both modes, measured numbers, what is downloaded (the two mode
 /// libraries) and what is loaded (the runtime).
 ///
-/// ONE state per model (Toby, 26 Sep 2026): a row shows its loaded precision; a segment the user picks is a transient
-/// preview (its numbers, deltas and the green Reload) that closing the menu discards; an unloaded row shows the
-/// precision it was last loaded at (config.json: the mode's model, else `lastLoaded`), else the recommended one. Only
-/// Load/Reload changes what dictation uses. Every download asks first (`confirmDownload`).
+/// ONE state per model (Toby, 26 Sep 2026): a row shows what is loaded (tier × Standard/Optimized × Exact/Fast); a
+/// cell the user picks or a switch flip is a transient preview (its numbers, deltas vs Standard 16 and the green
+/// Reload) that closing the menu discards; an unloaded row shows what it was last loaded with (config.json
+/// `selections`), else Standard 16. Only Load/Reload changes what dictation uses, and only while the model is not in
+/// use. Every download asks first (`confirmDownload`).
 @MainActor final class ModelsController: ObservableObject {
     let dictation: ModelLibrary
     let streaming: ModelLibrary
     @Published var catalog: ModelCatalog
     @Published var benchmarks: BenchmarkFile
-    /// Family id → previewed precision; never persisted.
-    @Published private(set) var previews: [String: String] = [:]
+    /// Family id → previewed selection (a segment click or a switch flip, not yet loaded); never persisted.
+    @Published private(set) var previews: [String: ModelSelection] = [:]
+    /// Family id → the selection a confirmed download will load when it finishes.
+    @Published private(set) var pendingSelections: [String: ModelSelection] = [:]
+    /// Render harness: draw every row as in use (segments and switch disabled).
+    var previewInUse = false
     /// Family id → the precision whose confirmed download is running; it loads when the download finishes.
     @Published private(set) var pendingLoads: [String: String] = [:]
     /// config.json as last read: the modes' models and `lastLoaded`. Nil without one (isolated tests, renders).
@@ -140,41 +145,17 @@ import VellaCore
     var sectionCount: Int { [RecognitionMode.dictation, .streaming].filter { !families($0).isEmpty }.count }
 
     func options(_ f: ModelFamily) -> [String] { precisionOptions(f) }
-    /// The Q control's segment labels (bare widths), parallel to `options`.
-    func segmentLabels(_ f: ModelFamily) -> [String] { precisionSegmentLabels(options(f)) }
     /// The precision a derived one is made from, nil for a published precision.
     func derivedSource(_ f: ModelFamily, _ precision: String) -> String? { f.variants[precision]?.derivedFrom }
     /// On disk for a precision: a published download's pinned size, else the measured size (`\u{2014}` otherwise).
     func disk(_ f: ModelFamily, _ precision: String) -> Int64? { tableDiskBytes(f, precision, result(f, precision)) }
 
-    /// A Q segment's tooltip: the exact format, where it comes from (published, or made on this Mac from a higher
-    /// precision), whether it is measured, and the recommendation or the loaded precision when they apply.
-    /// A Q segment's tooltip (an NSSegmentedControl tooltip, in the family line format): the format, where the weights
-    /// come from, whether it is measured, the recommendation when it is the recommended one, and what Reload does.
-    func segmentHelp(_ f: ModelFamily, _ precision: String) -> String {
-        var lines = [precisionFormatName(precision) + (precision == f.native ? " \u{00b7} native precision" : "")]
-        if let source = derivedSource(f, precision) {
-            var line = "Made on this Mac from the \(precisionFormatName(source)) weights"
-            if let root = downloadRoot(f, precision), let v = f.variants[root], installed(f, root) == nil {
-                line += "; loading downloads those first (\(formatBytes(v.downloadBytes)), after you confirm)"
-            }
-            lines.append(line)
-        } else if let v = f.variants[precision], !v.repository.isEmpty {
-            lines.append("Published on Hugging Face")
-        }
-        if result(f, precision)?.wer == nil { lines.append("Not measured yet") }
-        if precision == recommended(f), let help = recommendedHelp(f) { lines.append(help) }
-        if let loaded = loaded(f)?.precision, loaded != precision {
-            lines.append("Loaded at \(precisionFormatName(loaded)); Reload loads this precision instead, closing the menu keeps \(precisionFormatName(loaded))")
-        }
-        return lines.joined(separator: "\n")
-    }
     func recommended(_ f: ModelFamily) -> String? { recommendedPrecision(for: f, in: benchmarks) }
-    /// What the first dictation without a model offers: the catalog's first offered family at its recommended
-    /// precision (else native).
+    /// What the first dictation without a model offers: the catalog's first offered family at 16 (the default
+    /// selection is Standard 16; no precision is recommended), else native.
     func firstOffered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
         guard let family = catalog.offered(mode).first else { return nil }
-        let precision = recommended(family) ?? family.native
+        let precision = precisionLabel(family, tier: .t16) ?? family.native
         return family.variants[precision] != nil ? (family, precision) : family.variants[family.native] != nil ? (family, family.native) : nil
     }
     /// The Get row's download: the offered precision's own weights, or for a precision made on this Mac its source's.
@@ -182,20 +163,129 @@ import VellaCore
         guard let (family, precision) = firstOffered(mode), let source = family.downloadSource(of: precision) else { return nil }
         return Model.ModelOffer(id: source.variant.id, name: family.name, downloadBytes: source.variant.downloadBytes, mode: mode)
     }
-    /// The precision the row returns to without a preview: loaded, else last loaded, else recommended.
+    /// The precision the row returns to without a preview: the committed selection's tier.
+    /// ONE state: a loaded model shows its loaded precision, an unloaded one what it was last loaded at (what dictation
+    /// loads for its mode's model), offered or not; else the committed selection's tier.
     func committed(_ f: ModelFamily) -> String {
-        committedPrecision(loaded: loaded(f)?.precision, lastLoaded: lastLoaded(f), recommended: recommended(f), family: f)
+        if let loaded = loaded(f)?.precision { return effectivePrecision(stored: loaded, native: f.native) }
+        if let last = lastLoaded(f).map({ effectivePrecision(stored: $0, native: f.native) }), f.variants[last] != nil,
+           !options(f).contains(last) { return last }
+        return label(f, committedSelection(f))
     }
     /// The precision the row shows: a running confirmed download's, else the preview, else the committed one.
     func selected(_ f: ModelFamily) -> String {
-        shownPrecision(preview: pendingLoads[f.id] ?? previews[f.id], loaded: loaded(f)?.precision, lastLoaded: lastLoaded(f),
-                       recommended: recommended(f), family: f)
+        if let pending = pendingLoads[f.id] { return pending }
+        if previews[f.id] == nil { return committed(f) }
+        return label(f, currentSelection(f))
+    }
+    /// The cell the row's segments mark: the shown selection when it is the shown precision's tier (a loaded or
+    /// last-used precision whose tier is no longer offered marks none).
+    func shownCell(_ f: ModelFamily) -> ModelSelection? {
+        let s = currentSelection(f)
+        return precisionLabel(f, tier: s.tier) == selected(f) && isPresent(f, s) ? s : nil
     }
     func isPreviewing(_ f: ModelFamily) -> Bool { previews[f.id] != nil }
-    func recommendedHelp(_ f: ModelFamily) -> String? {
-        recommended(f).map { recommendationHelp(benchmarks.models[f.id], recommended: $0, native: f.native, options: precisionOptions(f)) }
+
+    // MARK: Tier × path × Exact/Fast (TierControl, ExactFastSwitch)
+
+    func benchmark(_ f: ModelFamily) -> FamilyBenchmark? { benchmarks.models[f.id] }
+    /// The catalog precision of a selection's tier; the committed precision rule when the catalog has none.
+    func label(_ f: ModelFamily, _ s: ModelSelection) -> String {
+        if let l = precisionLabel(f, tier: s.tier), options(f).contains(l) { return l }
+        return shownPrecision(preview: nil, loaded: loaded(f)?.precision, lastLoaded: lastLoaded(f), recommended: nil, family: f)
     }
-    /// The deltas' base: the recommended precision, else native.
+    /// Tiers a row offers: the catalog's options whose cell is present (`cellPresent`, the one presence rule).
+    func tiers(_ f: ModelFamily, _ path: EnginePath) -> [ModelTier] {
+        let segment: SegmentKey = path == .standard ? .standard : .optimized_exact
+        return ModelTier.allCases.filter { tier in
+            guard let l = precisionLabel(f, tier: tier), options(f).contains(l) else { return false }
+            return cellPresent(benchmark(f), tier: tier, segment: segment)
+        }
+    }
+    func isPresent(_ f: ModelFamily, _ s: ModelSelection) -> Bool { tiers(f, s.path).contains(s.tier) }
+    /// The Exact/Fast switch is live: some offered tier's Fast recipe runs an inexact component. Unmeasured families
+    /// (no tiers in the file) keep it live.
+    func switchAvailable(_ f: ModelFamily) -> Bool {
+        guard let b = benchmark(f), !b.tiers.isEmpty else { return true }
+        return fastDiffersFromExact(b)
+    }
+    /// The loaded model's selection: as the worker reports it, else from the engine (optimized → Optimized with the
+    /// remembered switch, default Fast; anything else → Standard) at the loaded tier.
+    func loadedSelection(_ f: ModelFamily) -> ModelSelection? {
+        guard let loaded = loaded(f) else { return nil }
+        if let s = loaded.selection { return s }
+        let tier = modelTier(ofPrecision: loaded.precision) ?? .t16
+        let stored = config?.selections[f.id]
+        let optimized = loaded.engine == nil || loaded.engine == "optimized"
+        if let stored, stored.tier == tier, optimized == (stored.path == .optimized) { return stored }
+        return ModelSelection(tier: tier, path: optimized ? .optimized : .standard, mode: stored?.mode ?? (optimized ? .fast : .exact))
+    }
+    /// What the row returns to without a preview (ONE state): the loaded selection; else the last used (config.json
+    /// `selections`, or a legacy `lastLoaded` precision on the path it then ran: Optimized · Fast); else Standard 16.
+    /// An unloaded selection whose cell is no longer present falls back to Standard at its tier, then Standard 16.
+    func committedSelection(_ f: ModelFamily) -> ModelSelection {
+        if let s = loadedSelection(f) { return s }
+        // Same rule as the runtime's on-demand loads (VellaCore `defaultSelection`).
+        let stored = config?.selections[f.id]
+        let candidate = lastLoaded(f).map { defaultSelection(recorded: stored, precision: $0, usedBefore: true) } ?? stored ?? .fallback
+        return valid(f, candidate)
+    }
+    /// `s` when its cell is present, else Standard at its tier, else Standard 16, else the first present cell.
+    func valid(_ f: ModelFamily, _ s: ModelSelection) -> ModelSelection {
+        if isPresent(f, s) { return s }
+        for tier in [s.tier] + ModelTier.allCases {
+            let standard = ModelSelection(tier: tier, path: .standard, mode: s.mode)
+            if isPresent(f, standard) { return standard }
+            let optimized = ModelSelection(tier: tier, path: .optimized, mode: s.mode)
+            if isPresent(f, optimized) { return optimized }
+        }
+        return s
+    }
+    /// What the row shows: a running confirmed download's selection, else the preview, else the committed one.
+    func currentSelection(_ f: ModelFamily) -> ModelSelection { pendingSelections[f.id] ?? previews[f.id] ?? committedSelection(f) }
+    /// A segment click: preview that cell (its numbers, deltas and button). Picking the committed cell ends the preview.
+    func select(_ f: ModelFamily, tier: ModelTier, path: EnginePath) {
+        setPreview(f, ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode))
+    }
+    /// A switch flip: the Optimized cell of the shown tier in that mode (from a Standard cell too: the switch is about
+    /// the Optimized row). Applies at the next load, like a segment click.
+    func setMode(_ f: ModelFamily, _ mode: OptimizedMode) {
+        let current = currentSelection(f)
+        var next = ModelSelection(tier: current.tier, path: .optimized, mode: mode)
+        if !isPresent(f, next) { next.path = current.path }
+        setPreview(f, next)
+    }
+    private func setPreview(_ f: ModelFamily, _ s: ModelSelection) {
+        guard !inUse(f) else { return }
+        previews[f.id] = s == committedSelection(f) ? nil : s
+    }
+    /// In use: recording, dictating, streaming or loading (segments and switch disabled; a change applies at the next
+    /// load, and the no-change-during-recording safety still guards the commit).
+    func inUse(_ f: ModelFamily) -> Bool {
+        previewInUse || isLoading(f) || runtime?.loading != nil || !library(f.mode).mayChangeModel()
+    }
+    /// The shown cell's figures: schema 2 → the selection's cell; a schema-1 file → the precision's result.
+    func shownResult(_ f: ModelFamily) -> PrecisionResult? {
+        guard let b = benchmark(f), !b.tiers.isEmpty, let cell = shownCell(f) else { return result(f, selected(f)) }
+        return benchmarkCell(b, cell)?.result
+    }
+    /// The deltas' base: Standard 16 (schema 2); the recommended precision in a schema-1 file.
+    func baseResult(_ f: ModelFamily) -> PrecisionResult? {
+        guard let b = benchmark(f), !b.tiers.isEmpty else { return result(f, base(f)) }
+        return b.tiers[.t16]?.cells[.standard].flatMap { $0.isPending ? nil : $0.result }
+    }
+    /// Deltas show unless the row shows Standard 16 itself.
+    func showsDeltas(_ f: ModelFamily) -> Bool {
+        guard let b = benchmark(f), !b.tiers.isEmpty else { return selected(f) != base(f) }
+        let s = currentSelection(f)
+        return !(s.tier == .t16 && s.path == .standard)
+    }
+    func tierHelp(_ f: ModelFamily, tier: ModelTier, path: EnginePath) -> String {
+        let mode = currentSelection(f).mode
+        let segment: SegmentKey = path == .standard ? .standard : mode == .exact ? .optimized_exact : .optimized_fast
+        return tierCellHelp(f, benchmark(f), tier: tier, segment: segment)
+    }
+    /// The deltas' base in a schema-1 file (no tiers): the recommended precision, else native.
     func base(_ f: ModelFamily) -> String { recommended(f) ?? f.native }
     func result(_ f: ModelFamily, _ precision: String) -> PrecisionResult? { benchmarks.models[f.id]?.result(precision) }
     func installed(_ f: ModelFamily, _ precision: String) -> InstalledModel? {
@@ -205,9 +295,7 @@ import VellaCore
     func downloadRoot(_ f: ModelFamily, _ precision: String) -> String? { f.downloadSource(of: precision)?.label }
     /// Whether the precision can load without a download: its own weights, or (derived) its source's.
     func available(_ f: ModelFamily, _ precision: String) -> Bool {
-        if installed(f, precision) != nil { return true }
-        guard derivedSource(f, precision) != nil, let root = downloadRoot(f, precision) else { return false }
-        return installed(f, root) != nil
+        precisionAvailable(f, precision) { self.library(f.mode).installed[$0]?.path }
     }
     /// Any downloaded precision of the family (its partial downloads too), for the trash button.
     func localPath(_ f: ModelFamily, _ precision: String) -> String? { f.variants[precision].flatMap { library(f.mode).modelFilePath($0.id) } }
@@ -235,22 +323,30 @@ import VellaCore
     var anyBusy: Bool { dictation.busy || streaming.busy || runtime?.loading != nil }
     var runtimeAvailable: Bool { runtime?.available ?? true }
 
+    /// Unload when the row shows what is loaded, Reload when it shows another cell (tier, row or switch), else
+    /// Load or Get.
     func action(_ f: ModelFamily) -> LoadAction {
         let precision = selected(f)
-        return loadAction(selected: precision, loaded: loaded(f)?.precision, native: f.native, downloaded: available(f, precision))
+        guard let loadedNow = loadedSelection(f) else { return available(f, precision) ? .load : .get }
+        let shown = currentSelection(f)
+        let same = previews[f.id] == nil || (shown.tier == loadedNow.tier && shown.segmentKey == loadedNow.segmentKey
+            && effectivePrecision(stored: loaded(f)?.precision ?? "", native: f.native) == precision)
+        return same ? .unload : .reload
     }
     /// Whether the row's button starts a download (after the confirmation popup).
     func needsDownload(_ f: ModelFamily) -> Bool { action(f) != .unload && !available(f, selected(f)) }
 
-    /// A Q segment click: preview that precision (its numbers, deltas and button). Picking the committed precision
-    /// ends the preview. Nothing is written; only Load/Reload changes the model.
+    /// A precision pick (API, tests): preview that tier on the shown row and switch. Nothing is written; only
+    /// Load/Reload changes the model.
     func preview(_ f: ModelFamily, _ precision: String) {
-        previews[f.id] = precision == committed(f) ? nil : precision
+        guard let tier = modelTier(ofPrecision: precision) else { return }
+        let current = currentSelection(f)
+        previews[f.id] = { let s = ModelSelection(tier: tier, path: current.path, mode: current.mode); return s == committedSelection(f) ? nil : s }()
     }
     /// The menu closed: previews end without effect.
     func discardPreviews() { if !previews.isEmpty { previews = [:] } }
     /// Render harness: previews without a click.
-    func previewSelections(_ values: [String: String]) { previews = values }
+    func previewSelections(_ values: [String: ModelSelection]) { previews = values }
 
     /// The row button. Unload goes to the runtime; Get/Load/Reload of weights on disk load now; anything that needs a
     /// download first asks in the confirmation popup, then downloads and loads.
@@ -285,13 +381,14 @@ import VellaCore
         let lib = library(f.mode)
         lib.selectedID = sourceID
         pendingLoads[f.id] = precision
+        pendingSelections[f.id] = currentSelection(f)
         let started = lib.download(approval: approval, calibrate: false) { [weak self] installed in
             guard let self else { return }
             // A failure or cancellation stays in the footer (the library's error line).
-            guard installed, self.available(f, precision) else { self.pendingLoads[f.id] = nil; return }
+            guard installed, self.available(f, precision) else { self.pendingLoads[f.id] = nil; self.pendingSelections[f.id] = nil; return }
             self.commitWhenIdle(f, precision)
         }
-        if !started { pendingLoads[f.id] = nil; lastError = lib.downloadError ?? lib.message }
+        if !started { pendingLoads[f.id] = nil; pendingSelections[f.id] = nil; lastError = lib.downloadError ?? lib.message }
     }
 
     /// After a confirmed download: load once no dictation is recording or transcribing. A recording that started
@@ -305,26 +402,27 @@ import VellaCore
             }
             return
         }
-        pendingLoads[f.id] = nil
-        commit(f, precision, loaded(f) == nil ? .load : .reload)
+        let selection = pendingSelections[f.id]
+        pendingLoads[f.id] = nil; pendingSelections[f.id] = nil
+        commit(f, precision, loaded(f) == nil ? .load : .reload, selection: selection)
     }
     static var idlePollSeconds = 0.2
 
     /// Load or Reload weights that are on disk. The runtime makes the model its mode's model once it loaded.
-    private func commit(_ f: ModelFamily, _ precision: String, _ action: LoadAction) {
-        guard let variant = f.variants[precision], let source = f.downloadSource(of: precision) else { return }
+    private func commit(_ f: ModelFamily, _ precision: String, _ action: LoadAction, selection: ModelSelection? = nil) {
+        let selection = selection ?? selectionToCommit(f, precision)
+        guard let variant = f.variants[precision] else { return }
         let lib = library(f.mode)
-        guard let local = lib.installed[source.variant.id] else { return }
-        var path = local.path
-        if variant.isDerived {
-            // The worker derives from the source; the derived directory (a manifest) keeps its own model identity.
-            do { path = try prepareDerivedModel(family: f, precision: precision, sourcePath: local.path, modelsDirectory: lib.modelsDirectory) }
-            catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error)"; return }
-        }
+        // Its own checkpoint loads as is; a precision made at load gets its manifest (the worker reads the root).
+        let path: String
+        do {
+            guard let resolved = try precisionLoadPath(f, precision, installedPath: { lib.installed[$0]?.path }, modelsDirectory: lib.modelsDirectory) else { return }
+            path = resolved
+        } catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error)"; return }
         if let actions {
-            action == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path, selection: selectionToCommit(f, precision))
-                              : actions.load(family: f, precision: precision, variant: variant, path: path, selection: selectionToCommit(f, precision))
-        } else if variant.isDerived {
+            action == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path, selection: selection)
+                              : actions.load(family: f, precision: precision, variant: variant, path: path, selection: selection)
+        } else if lib.installed[variant.id] == nil {
             lastError = "\(f.name) at \(precisionFormatName(precision)) needs the recognition worker; use Start Worker (or Restart Worker) in Vella's menu and try again."
         } else {
             lib.selectedID = variant.id
@@ -332,9 +430,11 @@ import VellaCore
             reloadConfig()
         }
     }
-    /// The selection a Load/Reload of `precision` carries (placeholder until the tier table lands: Optimized · Fast at that tier, today's behaviour).
+    /// The selection a Load/Reload of `precision` carries: the shown one (its tier is `precision`'s).
     func selectionToCommit(_ f: ModelFamily, _ precision: String) -> ModelSelection {
-        ModelSelection(tier: modelTier(ofPrecision: precision) ?? .t16, path: .optimized, mode: .fast)
+        var s = currentSelection(f)
+        if let tier = modelTier(ofPrecision: precision) { s.tier = tier }
+        return s
     }
     func cancelDownloads() { dictation.cancel(); streaming.cancel() }
 }

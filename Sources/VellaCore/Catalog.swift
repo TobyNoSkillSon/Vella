@@ -425,8 +425,19 @@ public struct FamilyBenchmark: Codable, Equatable {
     public var noise_pt: Double?
     /// The family's WER tolerance T = min(0.2, max(0.1, N + 0.05)) points; absent → 0.1.
     public var tolerance_pt: Double?
-    public init(precisions: [String: PrecisionResult], recommended: String? = nil, noise_pt: Double? = nil, tolerance_pt: Double? = nil) {
+    /// Schema 2 (Benchmarks.swift): tier → Standard / Optimized Exact / Optimized Fast cells. Empty in a schema-1 file,
+    /// whose `precisions` are then the only figures.
+    public var tiers: [ModelTier: TierBenchmark] = [:]
+    /// Codable covers the schema-1 fields; `decodeBenchmarks` reads the tiers.
+    enum CodingKeys: String, CodingKey { case precisions, recommended, noise_pt, tolerance_pt }
+    public init(precisions: [String: PrecisionResult], recommended: String? = nil, noise_pt: Double? = nil, tolerance_pt: Double? = nil,
+                tiers: [ModelTier: TierBenchmark] = [:]) {
         self.precisions = precisions; self.recommended = recommended; self.noise_pt = noise_pt; self.tolerance_pt = tolerance_pt
+        self.tiers = tiers
+    }
+    /// A schema-2 family: its tiers, with `precisions` derived for the per-precision readers.
+    public init(tiers: [ModelTier: TierBenchmark], noise_pt: Double? = nil, tolerance_pt: Double? = nil) {
+        self.init(precisions: legacyPrecisions(tiers), noise_pt: noise_pt, tolerance_pt: tolerance_pt, tiers: tiers)
     }
     public func result(_ precision: String) -> PrecisionResult? { precisions[precision] }
 }
@@ -486,6 +497,14 @@ public func decodeBenchmarks(_ data: Data?) -> BenchmarkFile {
         file.suites = try? JSONDecoder().decode([String: SuiteInfo].self, from: bytes)
     }
     for (id, value) in object["models"] as? [String: Any] ?? [:] {
+        if let rawTiers = (value as? [String: Any])?["tiers"] as? [String: Any] {
+            var tiers: [ModelTier: TierBenchmark] = [:]
+            for (key, raw) in rawTiers { if let tier = ModelTier(rawValue: key), let t = decodeTier(raw) { tiers[tier] = t } }
+            let entry = value as? [String: Any]
+            file.models[id] = FamilyBenchmark(tiers: tiers, noise_pt: (entry?["noise_pt"] as? NSNumber)?.doubleValue,
+                                              tolerance_pt: (entry?["tolerance_pt"] as? NSNumber)?.doubleValue)
+            continue
+        }
         guard let precisions = (value as? [String: Any])?["precisions"] as? [String: Any] else { continue }
         var results: [String: PrecisionResult] = [:]
         for (label, raw) in precisions {
@@ -828,10 +847,12 @@ public let slowSpeedFloor = 20.0
 // MARK: Engine label
 
 /// `Optimized · M5 Max` on the optimized path (self-tested at load, no runtime fallback), else `MLX`.
-public func engineLabel(engine: String?, chip: String?) -> String {
-    guard engine == "optimized" else { return "MLX" }
-    guard let chip = displayChip(chip) else { return "Optimized" }
-    return "Optimized \u{00b7} " + chip
+/// With the loaded selection: `Standard` on stock MLX as chosen, `Optimized Exact \u{00b7} M5 Max` / `Optimized Fast \u{00b7} M5 Max`.
+public func engineLabel(engine: String?, chip: String?, selection: ModelSelection? = nil) -> String {
+    guard engine == "optimized" else { return selection?.path == .standard ? "Standard" : "MLX" }
+    let name = selection.map { $0.mode == .exact ? "Optimized Exact" : "Optimized Fast" } ?? "Optimized"
+    guard let chip = displayChip(chip) else { return name }
+    return name + " \u{00b7} " + chip
 }
 /// Tooltip for the engine label: which path answers, the optimized components as the worker reports them
 /// (component → active) and, off the optimized path, the worker's reason. Never invents a cause.

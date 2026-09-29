@@ -31,8 +31,8 @@ import VellaUpdate
             for id in ids where library.models.contains(where: { $0.id == id }) { library.installed[id] = InstalledModel(path: "/render/\(id)") }
         }
     }
-    static let downloaded = ["parakeet-tdt-0.6b-v3-mlx-4bit", "parakeet-tdt-0.6b-v3-mlx-8bit", "Qwen3-ASR-1.7B-bf16", "Qwen3-ASR-1.7B-4bit",
-                             "nemotron-3.5-asr-streaming-0.6b-8bit"]
+    static let downloaded = ["parakeet-tdt-0.6b-v3-mlx-fp32", "Qwen3-ASR-1.7B-bf16", "Qwen3-ASR-0.6B-bf16",
+                             "nemotron-3.5-asr-streaming-0.6b-bf16", "nemotron-3.5-asr-streaming-0.6b-8bit"]
     static let optimized: [String: Bool] = ["encoder": true, "decoder": true]
     static let previewActions = PreviewActions()
 }
@@ -41,6 +41,7 @@ import VellaUpdate
 @MainActor final class PreviewActions: ModelRuntimeActions {
     func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {}
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {}
+
     func unload(family: ModelFamily) {}
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool { false }
 }
@@ -54,7 +55,9 @@ import VellaUpdate
         var installed: [String] = RenderFixture.downloaded
         var runtime = TableRuntime(chip: RenderFixture.chip)
         /// Previewed segments (a click, not yet loaded).
-        var selections: [String: String] = [:]
+        var selections: [String: ModelSelection] = [:]
+        /// Every row in use (dictating): segments and switch disabled.
+        var inUse = false
         /// config.json: the modes' models and lastLoaded (what an unloaded row shows).
         var config: Configuration? = nil
         var lastError: String? = nil
@@ -70,72 +73,65 @@ import VellaUpdate
         let now = Date().timeIntervalSince1970
         let chip = RenderFixture.chip
         var states: [State] = []
+        func sel(_ tier: ModelTier, _ path: EnginePath, _ mode: OptimizedMode = .exact) -> ModelSelection { ModelSelection(tier: tier, path: path, mode: mode) }
+        let fast = RenderFixture.optimized
         states.append(State(name: "fresh-nothing-downloaded", installed: []))
+        // Downloaded, nothing loaded, nothing chosen yet: every row shows Standard 16.
         states.append(State(name: "downloaded-nothing-loaded"))
-        // Nothing loaded: each row shows the precision it was last loaded at (Parakeet v3 4 is dictation's model,
-        // Qwen was last loaded at 16, Nemotron 8 is streaming's model); rows never loaded show the recommended one.
-        var lastLoaded = State(name: "unloaded-shows-last-loaded")
-        lastLoaded.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit", streaming: "nemotron-3.5-asr-streaming-0.6b-8bit",
-                                        lastLoaded: ["qwen3-asr-1.7b": "BF16"])
-        states.append(lastLoaded)
+        // Nothing loaded: each row shows the cell it was last loaded with (config.json selections).
+        var lastUsed = State(name: "unloaded-shows-last-used")
+        lastUsed.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-bf16-local", lastLoaded: ["qwen3-asr-0.6b": "8b", "parakeet-v3": "BF16"],
+                                      selections: ["qwen3-asr-0.6b": sel(.t8, .optimized, .fast), "parakeet-v3": sel(.t16, .optimized, .fast)])
+        states.append(lastUsed)
+        // Loaded: Parakeet v3 on Optimized 16 Fast (hot, Unload), Nemotron on Optimized 8 Fast.
         var loaded = State(name: "loaded")
-        loaded.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit", streaming: "nemotron-3.5-asr-streaming-0.6b-8bit")
-        loaded.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual"),
-                                 "nemotron-3.5-streaming-0.6b": LoadedFamily(precision: "8b", engine: "optimized", optimizations: ["encoder": true], residency: "on_demand")]
+        loaded.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-bf16-local", streaming: "nemotron-3.5-asr-streaming-0.6b-8bit",
+                                    selections: ["parakeet-v3": sel(.t16, .optimized, .fast), "nemotron-3.5-streaming-0.6b": sel(.t8, .optimized, .fast)])
+        loaded.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "BF16", engine: "optimized", optimizations: fast.merging(["nax_gemm": true]) { $1 },
+                                                             residency: "manual", selection: sel(.t16, .optimized, .fast)),
+                                 "nemotron-3.5-streaming-0.6b": LoadedFamily(precision: "8b", engine: "optimized", optimizations: ["fused_layer": true],
+                                                                             residency: "on_demand", selection: sel(.t8, .optimized, .fast))]
         states.append(loaded)
-        // Toby's 1.0.0 case: Parakeet v3 loaded at 4 (config said FP32). The row shows 4 with Unload; clicking 32 is a
-        // preview with its numbers, deltas and the green Reload (which asks before the 2.5 GB download).
-        var bug = State(name: "parakeet-4-loaded-preview-32-reload")
-        bug.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit")
-        bug.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "on_demand")]
-        bug.selections = ["parakeet-v3": "FP32"]
-        states.append(bug)
-        var reload = State(name: "qwen-16-loaded-preview-8-reload")
-        reload.runtime.loaded = ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized", optimizations: ["decoder": true, "prefill": true], residency: "manual")]
-        reload.selections = ["qwen3-asr-1.7b": "8b"]
+        // Whisper large-v3 loaded on Standard 16; the row previews Optimized 8 Fast (its numbers, deltas vs Standard 16,
+        // and the green Reload). Whisper offers 16 and 8 on both rows.
+        var whisper = State(name: "whisper-16-and-8")
+        whisper.installed = RenderFixture.downloaded + ["whisper-large-v3-asr-fp16"]
+        whisper.runtime.loaded = ["whisper-large-v3": LoadedFamily(precision: "FP16", engine: "mlx", engineReason: "Standard path selected",
+                                                                   residency: "manual", selection: sel(.t16, .standard, .fast))]
+        whisper.selections = ["whisper-large-v3": sel(.t8, .optimized, .fast), "whisper-large-v3-turbo": sel(.t8, .standard)]
+        states.append(whisper)
+        // In use (dictating): segments and switch disabled; a change applies at the next load.
+        var inUse = State(name: "disabled-in-use")
+        inUse.config = loaded.config
+        inUse.runtime.loaded = loaded.runtime.loaded
+        inUse.inUse = true
+        states.append(inUse)
+        // Qwen 1.7B loaded at 16 Optimized; previewing Standard 16 (Reload). Qwen's switch is greyed (Exact = Fast).
+        var reload = State(name: "qwen-optimized-loaded-preview-standard-reload")
+        reload.runtime.loaded = ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized", optimizations: ["decoder": true, "encoder": true],
+                                                                residency: "manual", selection: sel(.t16, .optimized, .exact))]
+        reload.selections = ["qwen3-asr-1.7b": sel(.t16, .standard)]
         states.append(reload)
-        // Precisions made on this Mac, selected before measurement: figures read \u{2014}; Get downloads the source,
-        // Load appears once the source is downloaded (Ultra BF16 here).
-        var derived = State(name: "derived-selected-unmeasured")
-        derived.installed = RenderFixture.downloaded + ["parakeet-ultra-mlx-bf16"]
-        derived.selections = ["parakeet-v3": "BF16", "parakeet-v3-ultra": "4b", "nemotron-3.5-streaming-0.6b": "4b"]
-        states.append(derived)
-        var derivedLoaded = State(name: "derived-loaded")
-        derivedLoaded.installed = RenderFixture.downloaded + ["parakeet-ultra-mlx-bf16"]
-        derivedLoaded.runtime.loaded = ["parakeet-v3-ultra": LoadedFamily(precision: "8b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")]
-        states.append(derivedLoaded)
         var fallback = State(name: "mlx-fallback")
-        fallback.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "mlx",
+        fallback.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "BF16", engine: "mlx",
             engineReason: "the optimized path returned non-finite values during a dictation; switched to the stock MLX path until reload",
-            optimizations: ["encoder": false, "decoder": false], residency: "manual")]
+            optimizations: ["encoder": false, "decoder": false], residency: "manual", selection: sel(.t16, .optimized, .fast))]
         states.append(fallback)
-        var partly = State(name: "partly-optimized")
-        partly.runtime.loaded = ["qwen3-asr-1.7b": LoadedFamily(precision: "8b", engine: "mlx", engineReason: "the fused prefill self-test failed on this Mac",
-            optimizations: ["decoder": true, "prefill": false], residency: "on_demand")]
-        states.append(partly)
         var loadingState = State(name: "footer-loading")
         loadingState.runtime.loading = "qwen3-asr-1.7b"
         states.append(loadingState)
-        // After Download in the popup: the row shows the downloading precision with its progress; it loads when done.
+        // After Download in the popup: the row shows the downloading cell with its progress; it loads when done.
         var downloading = State(name: "footer-downloading")
-        downloading.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit")
-        downloading.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "on_demand")]
-        downloading.downloading = ("parakeet-tdt-0.6b-v3-mlx-fp32", 0.23)
-        downloading.selections = ["parakeet-v3": "FP32"]
+        downloading.downloading = ("parakeet-ultra-mlx-bf16", 0.23)
+        downloading.selections = ["parakeet-v3-ultra": sel(.t8, .optimized)]
         states.append(downloading)
-        // A stalled download ends with its reason on the footer's error line; its partial files are gone.
         var failed = State(name: "footer-download-failed")
-        failed.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-4bit")
-        failed.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "on_demand")]
-        failed.downloadError = "Parakeet v3 FP32 download failed: it stalled (no data from Hugging Face for 2 minutes). Partial files removed."
+        failed.downloadError = "Parakeet v3 Ultra download failed: it stalled (no data from Hugging Face for 2 minutes). Partial files removed."
         states.append(failed)
         var refusedLong = State(name: "footer-error-long")
-        refusedLong.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")]
-        refusedLong.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 4-bit, or allow swap in Vella → Memory.", at: now)
+        refusedLong.runtime.loaded = loaded.runtime.loaded
+        refusedLong.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 8, or allow swap in Vella → Memory.", at: now)
         states.append(refusedLong)
-        var refusedShort = State(name: "footer-error-short")
-        refusedShort.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free.", at: now)
-        states.append(refusedShort)
         var otherChip = State(name: "other-chip-M3-Pro")
         otherChip.runtime.chip = chip == "M3 Pro" ? "M5 Max" : "M3 Pro"
         states.append(otherChip)
@@ -173,10 +169,12 @@ import VellaUpdate
     }
 
     /// A config.json whose modes' models are the render fixture's installed paths.
-    static func config(dictation: String? = nil, streaming: String? = nil, lastLoaded: [String: String] = [:]) -> Configuration {
+    static func config(dictation: String? = nil, streaming: String? = nil, lastLoaded: [String: String] = [:],
+                       selections: [String: ModelSelection] = [:]) -> Configuration {
         var config = Configuration(model: dictation.map { "/render/\($0)" } ?? "")
         config.streamingModel = streaming.map { "/render/\($0)" } ?? ""
         config.lastLoaded = lastLoaded
+        config.selections = selections
         return config
     }
 
@@ -191,8 +189,8 @@ import VellaUpdate
         if let f = catalog.family("parakeet-v3-ultra"), let p = downloadPrompt(family: f, precision: "8b", followUp: .load, freeBytes: free) {
             prompts.append(("derived-ultra-8", p))
         }
-        // The first-dictation Get row offers the first offered dictation model at its recommended precision.
-        if let f = catalog.offered(.dictation).first, let p = downloadPrompt(family: f, precision: controller.recommended(f) ?? f.native, followUp: .transcribe, freeBytes: free) {
+        // The first-dictation Get row offers the first offered dictation model at 16.
+        if let f = catalog.offered(.dictation).first, let p = downloadPrompt(family: f, precision: precisionLabel(f, tier: .t16) ?? f.native, followUp: .transcribe, freeBytes: free) {
             prompts.append(("first-dictation", p))
         }
         let text = prompts.map { "\($0.0)\n\($0.1.title)\n\n\($0.1.body)\n" }.joined(separator: "\n")
@@ -263,12 +261,13 @@ import VellaUpdate
         controller.runtime = state.runtime
         controller.previewConfig(state.config)
         controller.previewSelections(state.selections)
+        controller.previewInUse = state.inUse
         controller.lastError = state.lastError
         controller.dictation.downloadError = state.downloadError
         if let d = state.downloading, let library = [controller.dictation, controller.streaming].first(where: { $0.models.contains { $0.id == d.id } }) {
             library.downloadingID = d.id; library.busy = true; library.progress = d.progress
             let total = library.models.first { $0.id == d.id }?.downloadBytes ?? 0
-            library.message = "Parakeet v3 FP32 \u{00b7} Downloading from Hugging Face… \(formatBytes(Int64(Double(total) * d.progress))) of \(formatBytes(total))"
+            library.message = "Parakeet v3 Ultra 16 \u{00b7} Downloading from Hugging Face… \(formatBytes(Int64(Double(total) * d.progress))) of \(formatBytes(total))"
         }
         TableRenderDelegate.renderTable(controller, to: directory.appendingPathComponent("models-\(state.name).png")) { [self] in
             render(states, index + 1)

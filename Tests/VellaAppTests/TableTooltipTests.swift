@@ -49,8 +49,8 @@ final class TableTooltipTests: XCTestCase {
 
     private static let figures: Set<String> = ["WER", "Format", "Speed", "J / min", "Memory"]
     private static let provenance = #"^Measured by Vella · M5 Max · 20\d\d-\d\d-\d\d$"#
-    private static let stockFigures: Set<String> = ["Speed", "J / min", "Memory"]
-    private static let stockPattern = #"^Stock MLX on any Mac: [0-9.]+× · [0-9.]+ J · [0-9.]+ (MB|GB)$"#
+    /// Line 2 of a tier cell: the delta vs Standard 16 with its basis, the reference itself, or pending.
+    private static let deltaPattern = #"^((\+[0-9.]+× speed|[0-9.]+× speed|same speed)( · (−|\+)[0-9]+ % energy| · same energy)?( · WER (−|\+)[0-9.]+| · same WER)? · M5 Max, \d+ Sep|Reference for the deltas · M5 Max, \d+ Sep|No Standard 16 measurement to compare with yet · M5 Max, \d+ Sep|Measure pending)$"#
 
     /// Checks every cell of one row's tooltips against the format, and that each cell has one.
     @MainActor private func checkRow(_ table: ModelTable, _ family: ModelFamily, loaded: LoadedFamily?, state: String) {
@@ -72,12 +72,11 @@ final class TableTooltipTests: XCTestCase {
                 assertNoTrailingPeriod(text, label)
             case let c where Self.figures.contains(c):
                 if text == notMeasuredHelp { continue }
-                // Speed, J / min and Memory add the stock-MLX baseline as a third line where one was measured.
-                let stock = Self.stockFigures.contains(column) && table.controller.result(family, table.controller.selected(family))?.stock != nil
-                XCTAssertEqual(l.count, stock ? 3 : 2, "\(label): what it is, then where it comes from\(stock ? ", then the stock baseline" : "")")
+                // Two lines: what it is, then who measured it (Standard is its own row now: no stock-baseline line).
+                XCTAssertEqual(l.count, 2, "\(label): what it is, then where it comes from")
+                guard l.count == 2 else { continue }
                 XCTAssertNotNil(l[0].range(of: #": (lower is better|higher is faster)"#, options: .regularExpression), "\(label): \(l[0])")
                 XCTAssertNotNil(l[1].range(of: Self.provenance, options: .regularExpression), "\(label): \(l[1])")
-                if stock { XCTAssertNotNil(l[2].range(of: Self.stockPattern, options: .regularExpression), "\(label): \(l[2])") }
                 assertNoTrailingPeriod(text, label)
             case "On disk":
                 XCTAssertTrue((1...2).contains(l.count), label)
@@ -86,23 +85,36 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertTrue(l.count == 1 || l.count == 3, "\(label): the list, then by-language WER and its provenance")
                 if l.count == 3 { XCTAssertNotNil(l[2].range(of: Self.provenance, options: .regularExpression), label) }
                 assertNoTrailingPeriod(text, label)
-            case let c where c.hasPrefix("Q "):
-                // The recommended segment adds the rule and one line per rejected, more efficient precision.
-                XCTAssertTrue((1...8).contains(l.count), label)
-                XCTAssertTrue(l[0].hasPrefix(precisionFormatName(String(c.dropFirst(2)))), label)
+            case let c where c.hasPrefix("Optimized ") || c.hasPrefix("Standard "):
+                // Flavour; delta vs Standard 16 with its basis; for a worse tier its loss; while in use the interlock.
+                XCTAssertTrue((2...4).contains(l.count), label)
+                guard l.count >= 2 else { continue }
+                XCTAssertNotNil(l[0].range(of: #"^(bf16|fp16), (as published|converted once from the published fp32)$|^[48]-bit weights throughout \(affine-[48] g64\)$"#,
+                                           options: .regularExpression), "\(label): \(l[0])")
+                XCTAssertNotNil(l[1].range(of: Self.deltaPattern, options: .regularExpression), "\(label): \(l[1])")
+                for extra in l.dropFirst(2) {
+                    XCTAssertTrue(extra.hasPrefix("Loss vs 16: ") || extra == TierControl.inUseHelp, "\(label): \(extra)")
+                }
+                assertNoTrailingPeriod(text, label)
+            case "Exact/Fast":
+                XCTAssertEqual(l[0], ExactFastSwitch.help, label)
+                XCTAssertTrue(l.dropFirst().allSatisfy { $0 == ExactFastSwitch.sameHelp || $0 == ExactFastSwitch.inUseHelp }, label)
             case "Engine":
                 XCTAssertNotNil(loaded, label)
             default:
                 XCTFail("\(label): unexpected column")
             }
         }
-        let expected = ["Model"] + (loaded?.engine != nil ? ["Engine"] : []) + ["Languages"] + table.controller.options(family).map { "Q \($0)" }
+        let tierColumns = [EnginePath.optimized, .standard].flatMap { path in
+            table.controller.tiers(family, path).map { "\(path == .optimized ? "Optimized" : "Standard") \($0.rawValue)" }
+        }
+        let expected = ["Model"] + (loaded?.engine != nil ? ["Engine"] : []) + ["Languages"] + tierColumns + ["Exact/Fast"]
             + ["WER", "Format", "Speed", "J / min", "Memory", "On disk"]
         XCTAssertEqual(columns, expected, "\(family.id) \(state)")
     }
 
-    /// Every tooltip the table renders, for every offered row at every offered precision, unloaded and loaded
-    /// (on demand and kept hot, with the engine label), follows the family format.
+    /// Every tooltip the table renders, for every offered row in every present cell and switch position, unloaded and
+    /// loaded (on demand and kept hot, with the engine label), follows the family format.
     @MainActor func testEveryRenderedTooltipFollowsTheFamilyFormat() throws {
         let c = try shippedController()
         let table = ModelTable(controller: c)
@@ -113,15 +125,22 @@ final class TableTooltipTests: XCTestCase {
             for loaded in [nil, LoadedFamily(precision: c.options(family)[0], engine: "optimized", optimizations: ["decoder": true], residency: "manual"),
                            LoadedFamily(precision: c.options(family).last!, engine: "mlx", engineReason: "no optimized path for this model", residency: "on_demand")] {
                 c.runtime = TableRuntime(loaded: loaded.map { [family.id: $0] } ?? [:], chip: "Apple M5 Max")
-                for precision in c.options(family) {
-                    c.preview(family, precision)
-                    checkRow(table, family, loaded: loaded, state: "\(precision)\(loaded.map { " loaded \($0.precision)" } ?? "")")
-                    checked += 1
+                for path in [EnginePath.standard, .optimized] {
+                    for tier in c.tiers(family, path) {
+                        for mode in [OptimizedMode.exact, .fast] {
+                            c.discardPreviews()
+                            c.select(family, tier: tier, path: path)
+                            if path == .optimized { c.setMode(family, mode) }
+                            checkRow(table, family, loaded: loaded,
+                                     state: "\(path) \(tier.rawValue) \(mode)\(loaded.map { " loaded \($0.precision)" } ?? "")")
+                            checked += 1
+                        }
+                    }
                 }
                 c.discardPreviews()
             }
         }
-        XCTAssertEqual(checked, 3 * families.reduce(0) { $0 + c.options($1).count })
+        XCTAssertGreaterThan(checked, 3 * 2 * families.count)
         for r in c.references(.dictation) + c.references(.streaming) {
             let cells = table.tooltips(r)
             XCTAssertEqual(cells.map(\.0), ["Model", "WER", "Format", "Speed", "J / min", "Memory", "On disk"])
@@ -130,6 +149,29 @@ final class TableTooltipTests: XCTestCase {
                 assertNoTrailingPeriod(text, "\(r.id) [\(column)]")
             }
         }
+    }
+
+    /// Every tier cell's tooltip of the shipped table (both rows, both switch positions), pinned in
+    /// TierTooltips.txt beside this file. `VELLA_PIN_UPDATE=1 swift test --filter TableTooltipTests` rewrites it after
+    /// a deliberate change (review the diff).
+    @MainActor func testTierCellTooltipsArePinned() throws {
+        let c = try shippedController()
+        let table = ModelTable(controller: c)
+        var blocks: [String] = []
+        for family in c.families(.dictation) + c.families(.streaming) {
+            for mode in [OptimizedMode.exact, .fast] {
+                c.discardPreviews()
+                if let first = c.tiers(family, .optimized).first { c.select(family, tier: first, path: .optimized); c.setMode(family, mode) }
+                for (column, text) in table.tooltips(family) where column.hasPrefix("Optimized ") || (mode == .exact && (column.hasPrefix("Standard ") || column == "Exact/Fast")) {
+                    blocks.append("[\(family.name) · \(column)\(column.hasPrefix("Optimized ") ? " · \(mode == .exact ? "Exact" : "Fast")" : "")]\n\(text)\n")
+                }
+            }
+            c.discardPreviews()
+        }
+        let text = blocks.joined(separator: "\n")
+        let pin = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("TierTooltips.txt")
+        if ProcessInfo.processInfo.environment["VELLA_PIN_UPDATE"] == "1" { try text.write(to: pin, atomically: true, encoding: .utf8) }
+        XCTAssertEqual(text, try String(contentsOf: pin, encoding: .utf8))
     }
 
     /// The Model tooltip of every offered row, as the catalog's structured fields assemble it.
@@ -205,20 +247,19 @@ final class TableTooltipTests: XCTestCase {
         let c = try shippedController()
         let table = ModelTable(controller: c)
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
-        c.preview(ultra, "BF16")
+        c.select(ultra, tier: .t16, path: .optimized); c.setMode(ultra, .fast)   // Optimized 16 Fast (measured 28 Sep)
         let tips = Dictionary(table.tooltips(ultra).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
         let by = "Measured by Vella · M5 Max · 2026-09-28"
-        let stock = "\nStock MLX on any Mac: 229× · 6.7 J · 1.73 GB"   // the recommended BF16 carries its stock-MLX baseline
         XCTAssertEqual(tips["WER"], "English word error rate on the v2 benchmark (240 min): lower is better\n" + by)
         XCTAssertEqual(tips["Format"], "Character error rate on the v2 benchmark (240 min), with case and punctuation kept: lower is better\n" + by)
-        XCTAssertEqual(tips["Speed"], "Speed in × real time on the v2 quick benchmark (22.5 min), timed after loading: higher is faster\n" + by + stock)
-        XCTAssertEqual(tips["J / min"], "Whole-chip joules per audio minute on the v2 quick benchmark (22.5 min), net of loaded idle power: lower is better\n" + by + stock)
-        XCTAssertEqual(tips["Memory"], "Peak memory of Vella's model worker on the v2 quick benchmark (22.5 min), loading included: lower is better\n" + by + stock)
+        XCTAssertEqual(tips["Speed"], "Speed in × real time on the v2 quick benchmark (22.5 min), timed after loading: higher is faster\n" + by)
+        XCTAssertEqual(tips["J / min"], "Whole-chip joules per audio minute on the v2 quick benchmark (22.5 min), net of loaded idle power: lower is better\n" + by)
+        XCTAssertEqual(tips["Memory"], "Peak memory of Vella's model worker on the v2 quick benchmark (22.5 min), loading included: lower is better\n" + by)
         XCTAssertEqual(tips["On disk"], "Not downloaded\nDownloads \(formatBytes(ultra.variants["BF16"]!.downloadBytes)) from Hugging Face after you confirm")
         let languages = try XCTUnwrap(tips["Languages"])
         XCTAssertTrue(languages.hasPrefix("25 languages: Bulgarian, Croatian, Czech"), languages)
         XCTAssertEqual(lines(languages)[1], "Word error rate by language: French 16.1%, German 8.7%, Polish 7.0%, Spanish 13.8%, Swedish 18.9%; mean 12.9%")
-        c.preview(ultra, "4b")
+        c.select(ultra, tier: .t4, path: .optimized)
         let derived = "Made on this Mac at load from the BF16 weights; nothing extra is stored"
         XCTAssertEqual(table.tooltips(ultra).first { $0.0 == "On disk" }?.1,
                        c.disk(ultra, "4b") == nil ? derived : derived + "\nThe size shown is those BF16 files")

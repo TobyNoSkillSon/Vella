@@ -259,19 +259,92 @@ final class CatalogTests: XCTestCase {
 
     /// The benchmark script writes `recommended` per
     /// family; Core must agree on every family in the shipped benchmarks.json.
-    func testShippedRecommendationsMatchCore() throws {
+    /// The README benchmark table (lab/bench/measure_catalog.py --readme) pins every offered cell: one row per tier and
+    /// path in the Models table's order (Standard, then Optimized; one Optimized row where Exact = Fast), its WER and
+    /// Format as in benchmarks.json, `measure pending` for a cell not measured; absent tiers only in "Not offered".
+    func testReadmeTablePinsEveryCell() throws {
+        let root = resources.deletingLastPathComponent()
+        let readme = try String(contentsOf: root.appendingPathComponent("README.md"), encoding: .utf8)
+        let table = readme.components(separatedBy: "<!-- BENCHMARK_TABLE_START -->")[1].components(separatedBy: "<!-- BENCHMARK_TABLE_END -->")[0]
+        let lines = table.components(separatedBy: "\n")
+        let file = decodeBenchmarks(try Data(contentsOf: resources.appendingPathComponent("benchmarks.json")))
+        let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
+        func fmt(_ v: Double?) -> String { v.map { String(format: "%.2f", $0) } ?? "—" }
+        var rows = 0
+        for family in catalog.families {
+            let bench = try XCTUnwrap(file.models[family.id], family.id)
+            let mode = family.mode == .streaming ? "Streaming" : "Dictation"
+            for tier in ModelTier.allCases {
+                guard let t = bench.tiers[tier] else { continue }
+                let mine = lines.filter { $0.range(of: "^\\| \(NSRegularExpression.escapedPattern(for: family.name))( [⁰¹²³⁴⁵⁶⁷⁸⁹]+)? \\|", options: .regularExpression) != nil }
+                    .filter { $0.contains(" | \(mode) | \(tier.rawValue) | ") }
+                guard t.presence.offered else {
+                    XCTAssertTrue(mine.isEmpty, "\(family.id) \(tier.rawValue): an absent tier has no row")
+                    let notOffered = try XCTUnwrap(lines.first { $0.hasPrefix("Not offered: ") })
+                    XCTAssertTrue(notOffered.contains("\(family.name) \(tier.rawValue) ("), "\(family.id) \(tier.rawValue) listed as not offered")
+                    continue
+                }
+                var paths: [(String, BenchmarkCell?)] = [("Standard", t.cells[.standard])]
+                if t.cells[.optimized_fast]?.recipe.inexact.isEmpty ?? true { paths.append(("Optimized (Exact = Fast)", t.cells[.optimized_fast])) }
+                else { paths += [("Optimized · Exact", t.cells[.optimized_exact]), ("Optimized · Fast", t.cells[.optimized_fast])] }
+                XCTAssertEqual(mine.count, paths.count, "\(family.id) \(tier.rawValue)")
+                for (path, cell) in paths {
+                    let c = try XCTUnwrap(cell)
+                    let expected = " | \(mode) | \(tier.rawValue) | \(path) | \(fmt(c.result.wer)) | \(fmt(c.result.format)) | "
+                    let row = mine.first { $0.contains(expected) }
+                    XCTAssertNotNil(row, "\(family.id) \(tier.rawValue) \(path): \(expected)")
+                    if c.isPending { XCTAssertTrue(row?.hasSuffix("| measure pending |") ?? false, "\(family.id) \(tier.rawValue) \(path) pending") }
+                    rows += 1
+                }
+            }
+        }
+        XCTAssertEqual(lines.filter { $0.hasPrefix("| ") && !$0.hasPrefix("| Model") && !$0.contains("(cloud API)") }.count, rows, "no other model rows")
+        XCTAssertTrue(table.contains("Segmentation fixed on 2026-09-29; accuracy re-measure pending."), "the re-measure footnote stays")
+    }
+
+    /// The shipped benchmarks.json (schema 2): every catalog family, tiers 16/8/4 only (never fp32), all three cells per
+    /// tier, every measured cell with hardware, date and suite, and presence as ruled on 29 Sep (lab/notes/models-table-ROUND.md).
+    func testShippedBenchmarksAreSchema2WithTheRuledPresence() throws {
         let url = resources.appendingPathComponent("benchmarks.json")
-        guard FileManager.default.fileExists(atPath: url.path) else { throw XCTSkip("Resources/benchmarks.json not measured yet") }
         let file = decodeBenchmarks(try Data(contentsOf: url))
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
+        XCTAssertEqual(file.schema, 2)
+        XCTAssertEqual(Set(file.models.keys), Set(catalog.families.map(\.id)), "a benchmark row for every catalog family, none for removed ones")
+        let offered: [String: [ModelTier]] = [
+            "parakeet-v3": [.t16], "parakeet-v3-ultra": [.t16, .t8, .t4], "qwen3-asr-1.7b": [.t16], "qwen3-asr-0.6b": [.t16, .t8],
+            "nemotron-3.5-streaming-0.6b": [.t16, .t8], "whisper-large-v3": [.t16, .t8], "whisper-large-v3-turbo": [.t16, .t8]]
         for (id, bench) in file.models {
-            guard let family = catalog.family(id) else { continue }
-            XCTAssertEqual(recommendedPrecision(for: family, in: file), bench.recommended, id)
+            let family = try XCTUnwrap(catalog.family(id))
+            XCTAssertEqual(ModelTier.allCases.filter { cellPresent(bench, tier: $0, segment: .standard) }, offered[id], id)
+            XCTAssertEqual(family.tiersOffered, offered[id]?.map(\.rawValue), "\(id): models.json tiers_offered agrees with the presence")
+            XCTAssertFalse(bench.precisions.keys.contains("FP32"), "\(id): fp32 is never a tier")
+            for (tier, t) in bench.tiers {
+                XCTAssertEqual(modelTier(ofPrecision: t.precision), tier, id)
+                XCTAssertEqual(Set(t.cells.keys), Set(SegmentKey.allCases), "\(id) \(tier.rawValue)")
+                if !t.presence.offered { XCTAssertFalse(t.presence.reasons.isEmpty, "\(id) \(tier.rawValue): absent says why") }
+                if t.gate.status == .fail && tier != .t16 {
+                    XCTAssertTrue(t.gate.reasons.contains { $0.contains("uniform affine-\(tier.rawValue) g64 recipe") }, "\(id) \(tier.rawValue): the verdict names the uniform recipe")
+                }
+                for (key, cell) in t.cells where !cell.isPending {
+                    XCTAssertNotNil(cell.measured?.hardware, "\(id) \(tier.rawValue) \(key)"); XCTAssertNotNil(cell.measured?.date, "\(id) \(tier.rawValue) \(key)")
+                    XCTAssertEqual(cell.measured?.suite, "v2", "\(id) \(tier.rawValue) \(key)")
+                }
+                XCTAssertTrue(t.cells[.optimized_exact]?.recipe.inexact.isEmpty ?? false, "\(id): Exact runs no inexact kernel")
+                XCTAssertEqual(t.cells[.standard]?.recipe.gate_revision, "stock")
+            }
         }
-        // Every measured result names its hardware and date.
-        for (id, bench) in file.models { for (p, result) in bench.precisions {
-            XCTAssertNotNil(result.hardware, "\(id) \(p)"); XCTAssertNotNil(result.date, "\(id) \(p)")
-        } }
+        // Mapping of the 28 Sep numbers: Qwen and Ultra 8/4 have no inexact kernel (Exact = Fast, the switch greyed for
+        // Qwen); Parakeet's NAX, Nemotron's fused layer and Whisper's half encoder are inexact (Exact pending).
+        XCTAssertFalse(fastDiffersFromExact(file.models["qwen3-asr-1.7b"]))
+        XCTAssertFalse(fastDiffersFromExact(file.models["qwen3-asr-0.6b"]))
+        for id in ["parakeet-v3", "parakeet-v3-ultra", "nemotron-3.5-streaming-0.6b", "whisper-large-v3", "whisper-large-v3-turbo"] {
+            XCTAssertTrue(fastDiffersFromExact(file.models[id]), id)
+            XCTAssertTrue(file.models[id]?.tiers[.t16]?.cells[.optimized_exact]?.isPending ?? false, "\(id): Exact 16 measure pending")
+        }
+        XCTAssertEqual(file.models["parakeet-v3"]?.tiers[.t16]?.cells[.optimized_fast]?.recipe.inexact, ["nax_gemm"])
+        XCTAssertEqual(file.models["parakeet-v3"]?.tiers[.t16]?.cells[.standard]?.recipe.converted_from, "fp32")
+        XCTAssertEqual(file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_exact]?.result.speed_x,
+                       file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_fast]?.result.speed_x)
     }
 
     // MARK: Selection and load action
@@ -434,8 +507,10 @@ final class CatalogTests: XCTestCase {
         let all = docs.joined(separator: "\n")
         XCTAssertEqual(defaultRecommendationTolerancePoints, 0.1)
         XCTAssertEqual(maximumRecommendationTolerancePoints, 0.2)
-        XCTAssertTrue(all.contains("pass Vella's quality gate") && all.contains("within 0.1 points") && all.contains("up to 0.2 points"),
-                      "recommended precision: the quality gate and its English tolerance")
+        XCTAssertTrue(all.contains("Vella's quality gate") && all.contains("within 0.1 points of 16") && all.contains("up to 0.2 points"),
+                      "the quality gate and its English tolerance")
+        XCTAssertTrue(docs[0].contains("breaks against 16") && docs[1].contains("breaks against 16"), "presence rule")
+        XCTAssertTrue(docs[0].contains("No tier is recommended") && docs[1].contains("Nothing is marked as recommended"), "no recommended cell")
         XCTAssertFalse(all.contains("0.5 points"), "retired 0.5-point margin")
         XCTAssertTrue(docs[0].contains("Mode · Microphone · Shortcuts") && docs[0].contains("Models… · Keep Hot · Memory"), "menu order")
         XCTAssertEqual(keepHotChoices.map(\.minutes), [5, 15, 30, 60, 0])
@@ -444,12 +519,14 @@ final class CatalogTests: XCTestCase {
             XCTAssertFalse(all.contains(stale), stale)
         }
         for column in ["WER", "Format", "Speed", "J / min", "Memory"] { XCTAssertTrue(docs[1].contains(column), column) }
-        // The Q column: bare widths in the table docs, 16 = BF16; exact labels stay in the agent guide's schema.
-        XCTAssertTrue(docs[1].contains("| Q | Bits per weight") && docs[1].contains("16 (BF16)"), "USAGE Q column")
-        XCTAssertTrue(docs[0].contains("| Model | Mode | Q |") && docs[0].contains("16 is BF16"), "README table")
+        // The Tier column: Optimized above Standard, bare 16/8/4, the Exact/Fast switch.
+        XCTAssertTrue(docs[1].contains("| Tier | Two segment rows, **Optimized** `16 8 4` above **Standard** `16 8 4`") && docs[1].contains("down **Exact**"), "USAGE Tier column")
+        XCTAssertTrue(docs[0].contains("| Model | Mode | Tier | Path |") && docs[0].contains("**Optimized** `16 8 4` above **Standard** `16 8 4`"), "README table")
+        XCTAssertTrue(docs[1].contains("locked; a change applies at the next load") && docs[0].contains("locked; a change applies at the next load"), "in-use interlock")
         XCTAssertTrue(docs[1].contains("best value across its precisions"), "stable sort documented")
         // One state and download confirmation (Toby, 26 Sep 2026).
-        XCTAssertTrue(docs[1].contains("always shows the precision it is loaded at") && docs[1].contains("Closing the menu without Reload discards the preview"),
+        XCTAssertTrue(docs[1].contains("always shows the precision it is loaded at") && docs[1].contains("Closing the menu without Reload discards the preview")
+                      && docs[1].contains("else Standard 16"),
                       "USAGE: loaded precision wins; previews are transient")
         XCTAssertTrue(docs[1].contains("the one its next dictation (or streaming session) loads"), "USAGE: dictation uses what was last loaded")
         XCTAssertTrue(docs[1].contains("nothing downloads without **Download**") && docs[1].contains("**Cancel** is the default"), "USAGE: download popup")

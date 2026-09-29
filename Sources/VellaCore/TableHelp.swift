@@ -156,3 +156,78 @@ public func referenceWERTooltip(_ r: ReferenceEntry) -> String {
     let from = referenceSourceName(r.source).map { "Estimate scaled from the \($0)" } ?? "Estimate, not measured by Vella"
     return what + ": lower is better\n" + [from, r.date].compactMap { $0 }.joined(separator: " \u{00b7} ")
 }
+
+// MARK: Tier cells (Optimized / Standard rows × 16 / 8 / 4)
+
+/// Line 1 of a tier cell's tooltip: the flavour of the weights. `bf16, as published`; `bf16, converted once from the
+/// published fp32`; `8-bit weights throughout (affine-8 g64)`; a per-layer recipe `8-bit decoder, 16-bit encoder (affine-8 g64)`.
+public func tierFlavour(_ family: ModelFamily, tier: ModelTier, cell: BenchmarkCell?) -> String {
+    let layers = cell?.recipe.layers ?? [:]
+    if tier == .t16 {
+        let format = layers["all"] ?? (modelTier(ofPrecision: family.native) == .t16 ? family.native.lowercased() : "bf16")
+        if let source = cell?.recipe.converted_from ?? (modelTier(ofPrecision: family.native) == nil ? family.native.lowercased() : nil) {
+            return "\(format), converted once from the published \(source)"
+        }
+        return "\(format), as published"
+    }
+    let affine = "affine-\(tier.rawValue) g64"
+    let groups = layers.filter { $0.key != "all" }
+    if groups.isEmpty { return "\(tier.rawValue)-bit weights throughout (\(affine))" }
+    // Per-layer recipe: quantized groups first, then the 16-bit ones, each as "<bits> <group>".
+    func bits(_ format: String) -> String { format.hasPrefix("affine-") ? String(format.dropFirst(7).prefix { $0.isNumber }) + "-bit" : "16-bit" }
+    let parts = groups.sorted { ($0.value.hasPrefix("affine") ? 0 : 1, $0.key) < ($1.value.hasPrefix("affine") ? 0 : 1, $1.key) }
+        .map { "\(bits($0.value)) \($0.key)" }
+    return parts.joined(separator: ", ") + " (\(affine))"
+}
+
+/// `28 Sep` from `2026-09-28`; nil when not a date.
+public func shortDate(_ iso: String?) -> String? {
+    guard let iso, iso.count >= 10 else { return nil }
+    let parts = iso.prefix(10).split(separator: "-")
+    guard parts.count == 3, let month = Int(parts[1]), let day = Int(parts[2]), (1...12).contains(month) else { return nil }
+    let names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    return "\(day) \(names[month - 1])"
+}
+
+/// `M5 Max, 28 Sep`: where and when a cell was measured.
+public func cellBasis(_ cell: BenchmarkCell?) -> String? {
+    let chip = displayChip(cell?.measured?.hardware?.split(separator: ",").first.map(String.init))
+    let parts = [chip, shortDate(cell?.measured?.date)].compactMap { $0 }
+    return parts.isEmpty ? nil : parts.joined(separator: ", ")
+}
+
+/// Line 2 of a tier cell's tooltip: the change against Standard 16 with its basis,
+/// `+2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep`. The Standard 16 cell itself is the reference.
+public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: Bool) -> String {
+    guard let cell, !cell.isPending else { return "Measure pending" }
+    let basis = cellBasis(cell)
+    if isBase { return (["Reference for the deltas", basis].compactMap { $0 }).joined(separator: " \u{00b7} ") }
+    guard let base, !base.isPending else { return (["No Standard 16 measurement to compare with yet", basis].compactMap { $0 }).joined(separator: " \u{00b7} ") }
+    var parts: [String] = []
+    let r = cell.result, b = base.result
+    if let x = r.speed_x, let y = b.speed_x, y > 0 {
+        let ratio = x / y
+        parts.append(abs(ratio - 1) < 0.05 ? "same speed" : ratio >= 1 ? String(format: "+%.1f\u{00d7} speed", ratio) : String(format: "%.1f\u{00d7} speed", ratio))
+    }
+    if let x = r.j_per_min, let y = b.j_per_min, y > 0 {
+        let change = (x / y - 1) * 100
+        parts.append(abs(change) < 1 ? "same energy" : (change < 0 ? "\u{2212}" : "+") + String(format: "%.0f %% energy", abs(change)))
+    }
+    if let x = r.wer, let y = b.wer {
+        let d = x - y
+        parts.append(abs(d) < 0.005 ? "same WER" : "WER " + (d < 0 ? "\u{2212}" : "+") + String(format: "%.2f", abs(d)))
+    }
+    return (parts + [basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
+}
+
+/// A tier cell's tooltip: flavour; delta vs Standard 16 with its basis; for an offered tier that is worse than 16 on the
+/// recommendation gate, the loss in numbers.
+public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, tier: ModelTier, segment: SegmentKey) -> String {
+    let t = benchmark?.tiers[tier]
+    let cell = benchmarkCell(benchmark, ModelSelection(tier: tier, path: segment == .standard ? .standard : .optimized,
+                                                       mode: segment == .optimized_fast ? .fast : .exact))
+    var lines = [tierFlavour(family, tier: tier, cell: cell)]
+    lines.append(tierDeltaLine(cell, base: benchmark?.tiers[.t16]?.cells[.standard], isBase: tier == .t16 && segment == .standard))
+    if let loss = t?.gate.loss, !loss.isEmpty, t?.gate.status != .pass { lines.append("Loss vs 16: " + loss.joined(separator: ", ")) }
+    return lines.joined(separator: "\n")
+}
