@@ -432,7 +432,7 @@ const VELLA_BENCHMARKS = {
       "multilingual": {
        "mean": 28.02,
        "macro_wer": 28.02,
-       "macro_cer": 25.16,
+       "macro_cer": 24.47,
        "coverage": 9,
        "by_language": {
         "pl": 24.54,
