@@ -281,12 +281,18 @@ import VellaUpdate
     static func renderFirstFrame(_ controller: ModelsController, to url: URL, check: URL) {
         let table = MenuTableHostingView(rootView: ModelTable(controller: controller))
         table.frame = NSRect(x: 0, y: 0, width: ModelTable.width, height: ModelTable.height(controller))
+        // On the menu's dark panel, as renderTable, but captured straight after the first layout pass.
+        let container = NSView(frame: table.frame)
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(calibratedRed: 0.13, green: 0.13, blue: 0.14, alpha: 1).cgColor
+        container.appearance = NSAppearance(named: .darkAqua)
+        container.addSubview(table)
         let window = NSWindow(contentRect: table.frame, styleMask: .borderless, backing: .buffered, defer: false)
-        window.appearance = NSAppearance(named: .darkAqua); window.backgroundColor = NSColor(calibratedRed: 0.13, green: 0.13, blue: 0.14, alpha: 1)
-        window.contentView = table
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = container
         table.layoutSubtreeIfNeeded()
-        if let rep = table.bitmapImageRepForCachingDisplay(in: table.bounds) {
-            table.cacheDisplay(in: table.bounds, to: rep)
+        if let rep = container.bitmapImageRepForCachingDisplay(in: container.bounds) {
+            container.cacheDisplay(in: container.bounds, to: rep)
             try? rep.representation(using: .png, properties: [:])?.write(to: url)
         }
         var controls: [NSRect] = []
