@@ -51,7 +51,7 @@ struct ExactFastSwitch: View {
     }
 
     var body: some View {
-        SwitchRepresentable(position: available ? position : .fast, active: available && enabled && (exactAvailable || position == .exact),
+        SwitchRepresentable(position: available ? position : .fast, active: available && enabled,
                             greyed: !available, exactUnavailable: available && !exactAvailable,
                             tooltip: Self.tooltip(available: available, enabled: enabled, exactAvailable: exactAvailable), onChange: onChange)
             .frame(width: Self.width, height: Self.height)
@@ -102,7 +102,7 @@ final class SwitchView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         // Locked while in use: the whole switch at reduced opacity (system colours keep their own alpha). Greyed (Fast =
         // Exact): a grey pill pinned up, so "always on" never reads as a live Fast.
-        NSGraphicsContext.current?.cgContext.setAlpha(greyed || exactUnavailable ? 0.55 : active ? 1 : 0.4)
+        NSGraphicsContext.current?.cgContext.setAlpha(greyed ? 0.55 : active ? 1 : 0.4)
         let track = self.track
         let path = NSBezierPath(roundedRect: track, xRadius: Self.trackWidth / 2, yRadius: Self.trackWidth / 2)
         (position == .fast && !greyed ? NSColor.controlAccentColor : NSColor.tertiaryLabelColor).setFill()
@@ -114,7 +114,7 @@ final class SwitchView: NSView {
         guard ExactFastSwitch.showsWords else { return }
         let lineHeight: CGFloat = 13
         for (word, which, y) in [("Fast", ExactFastSwitch.Position.fast, track.minY - 1), ("Exact", .exact, track.maxY - lineHeight)] {
-            let color: NSColor = which == position ? .labelColor : .tertiaryLabelColor
+            let color: NSColor = which == position ? .labelColor : which == .exact && exactUnavailable ? .quaternaryLabelColor : .tertiaryLabelColor
             NSAttributedString(string: word, attributes: [.font: Self.font, .foregroundColor: color])
                 .draw(at: NSPoint(x: track.maxX + 5, y: y))
         }
@@ -122,7 +122,7 @@ final class SwitchView: NSView {
 
     /// The whole view is the hit target: pill, knob and words.
     override func mouseDown(with event: NSEvent) {
-        guard active else { return }
+        guard active, !(exactUnavailable && position == .fast) else { return }
         flip()
         HostRefresh.after(self)
     }
@@ -139,7 +139,7 @@ final class SwitchView: NSView {
     override func accessibilityValue() -> Any? { position == .fast ? "Fast" : "Exact" }
     override func isAccessibilityEnabled() -> Bool { active }
     override func accessibilityPerformPress() -> Bool {
-        guard active else { return false }
+        guard active, !(exactUnavailable && position == .fast) else { return false }
         flip()
         return true
     }
