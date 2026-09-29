@@ -228,11 +228,11 @@ final class ModelsTests: XCTestCase {
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
         c.setMode(qwen, .exact)   // the default is Fast; start from Exact
         XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .standard), "bf16, as published\nReference for the deltas · M5 Max, 28 Sep")
-        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\n+1.5× speed · −25 % energy · same WER · M5 Max, 28 Sep")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard 16: +1.5× speed · −25 % energy · same WER · M5 Max, 28 Sep")
         c.setMode(qwen, .fast)
-        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\n+2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard 16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep")
         XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .optimized),
-                       "8-bit weights throughout (affine-8 g64)\n+1.9× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep\nLoss vs 16: English WER +0.17 pt")
+                       "8-bit weights throughout (affine-8 g64)\nvs Standard 16: +1.9× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep\nLoss vs 16: English WER +0.17 pt")
         XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .standard), "8-bit weights throughout (affine-8 g64)\nMeasure pending\nLoss vs 16: English WER +0.17 pt")
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         XCTAssertEqual(tierFlavour(parakeet, tier: .t16, cell: nil), "bf16, converted once from the published fp32")
@@ -241,8 +241,40 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(ExactFastSwitch.help, "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.")
         XCTAssertEqual(ExactFastSwitch.tooltip(available: true, enabled: true), ExactFastSwitch.help)
         XCTAssertEqual(ExactFastSwitch.tooltip(available: false, enabled: false),
-                       ExactFastSwitch.help + "\nFast measures the same as Exact for this model\nLocked while the model is in use; a change applies at the next load")
+                       ExactFastSwitch.help + "\nAlways on: Fast measures the same as Exact for this model\nLocked while the model is in use; a change applies at the next load")
         XCTAssertEqual(ExactFastSwitch.inUseHelp, TierControl.inUseHelp, "one interlock line in both shared controls")
+    }
+
+    /// The coupling rule (family): Exact offers only the precisions with an Optimized Exact recipe; Fast every offered
+    /// one. A flip to Exact with 8 shown moves the preview to 16 and the row says so; the next segment click clears it.
+    @MainActor func testExactRestrictsThePrecisionsAndMovesTo16() throws {
+        var fixture = decodeBenchmarks(Data(Self.tierFixture.utf8))
+        fixture.models["qwen3-asr-0.6b"]?.tiers[.t8]?.cells[.optimized_exact] = nil
+        let c = try controller(benchmarks: Self.tierFixture)
+        c.benchmarks = fixture
+        let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
+        XCTAssertEqual(c.precisions(qwen, .fast), [.t16, .t8])
+        XCTAssertEqual(c.precisions(qwen, .exact), [.t16])
+        c.select(qwen, tier: .t8)
+        XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t8, path: .optimized, mode: .fast), "a segment click is always Optimized")
+        XCTAssertNil(c.couplingNote(qwen))
+        c.setMode(qwen, .exact)
+        XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t16, path: .optimized, mode: .exact))
+        XCTAssertEqual(c.couplingNote(qwen), "Exact: 16 only, was 8")
+        XCTAssertEqual(c.precisions(qwen), [.t16], "the segments follow the switch")
+        c.setMode(qwen, .fast)
+        XCTAssertEqual(c.currentSelection(qwen).tier, .t16, "back to Fast keeps 16")
+        XCTAssertNil(c.couplingNote(qwen))
+        c.select(qwen, tier: .t8); c.setMode(qwen, .exact)
+        XCTAssertNotNil(c.couplingNote(qwen))
+        c.discardPreviews()
+        XCTAssertNil(c.couplingNote(qwen), "closing the menu ends the note with the preview")
+        // Shipped data: every offered precision has an Exact recipe, so Exact restricts nothing.
+        let shipped = try controller(benchmarks: String(contentsOf: ModelLibrary.resourceDirectory().appendingPathComponent("benchmarks.json"), encoding: .utf8))
+        for family in shipped.families(.dictation) + shipped.families(.streaming) {
+            XCTAssertTrue(shipped.hasOptimizedPath(family), family.id)
+            XCTAssertEqual(shipped.precisions(family, .exact), shipped.precisions(family, .fast), family.id)
+        }
     }
 
     /// A precision made on this Mac: selectable, `\u{2014}` until measured, Get fetches its source, Load hands the worker

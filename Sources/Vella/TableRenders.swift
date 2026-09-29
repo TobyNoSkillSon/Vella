@@ -64,6 +64,13 @@ import VellaUpdate
         var downloadError: String? = nil
         var downloading: (id: String, progress: Double)? = nil
         var benchmarks: BenchmarkFile? = nil
+        /// Switch flips after the previews (family id → position), as a click would make them.
+        var flips: [(String, OptimizedMode)] = []
+        /// Capabilities filter and its strip.
+        var filter: Set<Capability> = []
+        var filterOpen = false
+        /// The family whose action cell is drawn under the pointer.
+        var hover: String? = nil
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -92,26 +99,49 @@ import VellaUpdate
                                  "nemotron-3.5-streaming-0.6b": LoadedFamily(precision: "8b", engine: "optimized", optimizations: ["fused_layer": true],
                                                                              residency: "on_demand", selection: sel(.t8, .optimized, .fast))]
         states.append(loaded)
-        // Whisper large-v3 loaded on Standard 16; the row previews Optimized 8 Fast (its numbers, deltas vs Standard 16,
-        // and the green Reload). Whisper offers 16 and 8 on both rows.
-        var whisper = State(name: "whisper-16-and-8")
+        // Whisper large-v3 loaded at 16 Fast; the row previews 8 (its numbers, deltas vs Standard 16, and the green
+        // Reload). Whisper offers 16 and 8.
+        var whisper = State(name: "whisper-previews-8")
         whisper.installed = RenderFixture.downloaded + ["whisper-large-v3-asr-fp16"]
-        whisper.runtime.loaded = ["whisper-large-v3": LoadedFamily(precision: "FP16", engine: "mlx", engineReason: "Standard path selected",
-                                                                   residency: "manual", selection: sel(.t16, .standard, .fast))]
-        whisper.selections = ["whisper-large-v3": sel(.t8, .optimized, .fast), "whisper-large-v3-turbo": sel(.t8, .standard)]
+        whisper.runtime.loaded = ["whisper-large-v3": LoadedFamily(precision: "FP16", engine: "optimized", optimizations: ["decoder": true, "encoder": true],
+                                                                   residency: "manual", selection: sel(.t16, .optimized, .fast))]
+        whisper.selections = ["whisper-large-v3": sel(.t8, .optimized, .fast)]
         states.append(whisper)
+        // The coupling rule: Exact offers only the precisions with an Exact recipe. Vella's shipped data has one at every
+        // offered precision, so this state uses a copy of it with the Exact recipes at 8 and 4 removed (as in Vireo).
+        // Nemotron is loaded at 8 Fast and flipped to Exact: the preview moves to 16, says so, and offers Reload;
+        // Parakeet v3 Ultra previews 8 and is flipped to Exact the same way.
+        var coupling = State(name: "exact-coupling")
+        coupling.config = loaded.config
+        coupling.runtime.loaded = ["nemotron-3.5-streaming-0.6b": loaded.runtime.loaded["nemotron-3.5-streaming-0.6b"]!]
+        coupling.selections = ["parakeet-v3-ultra": sel(.t8, .optimized, .fast)]
+        coupling.flips = [("nemotron-3.5-streaming-0.6b", .exact), ("parakeet-v3-ultra", .exact)]
+        coupling.benchmarks = Self.exactAt16Only()
+        states.append(coupling)
+        // The Capabilities filter strip open, "Chinese, Japanese and Korean" ticked: the Parakeets and the cloud rows hide.
+        var filtered = State(name: "filter-active")
+        filtered.config = loaded.config
+        filtered.runtime.loaded = loaded.runtime.loaded
+        filtered.filter = [.cjk]; filtered.filterOpen = true
+        states.append(filtered)
+        // The pointer over Qwen3 ASR 1.7B's action cell (on disk): the Load button and the trash glyph.
+        var hover = State(name: "hover-action")
+        hover.config = loaded.config
+        hover.runtime.loaded = loaded.runtime.loaded
+        hover.hover = "qwen3-asr-1.7b"
+        states.append(hover)
         // In use (dictating): segments and switch disabled; a change applies at the next load.
         var inUse = State(name: "disabled-in-use")
         inUse.config = loaded.config
         inUse.runtime.loaded = loaded.runtime.loaded
         inUse.inUse = true
         states.append(inUse)
-        // Qwen 1.7B loaded at 16 Optimized; previewing Standard 16 (Reload). Qwen's switch is greyed (Exact = Fast).
-        var reload = State(name: "qwen-optimized-loaded-preview-standard-reload")
-        reload.runtime.loaded = ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized", optimizations: ["decoder": true, "encoder": true],
-                                                                residency: "manual", selection: sel(.t16, .optimized, .exact))]
-        reload.selections = ["qwen3-asr-1.7b": sel(.t16, .standard)]
-        states.append(reload)
+        // Qwen 1.7B loaded at 16 (its switch greyed and pinned up: Fast = Exact); Qwen 0.6B previews 8.
+        var qwen = State(name: "qwen-loaded-switch-always-on")
+        qwen.runtime.loaded = ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized", optimizations: ["decoder": true, "encoder": true],
+                                                              residency: "manual", selection: sel(.t16, .optimized, .exact))]
+        qwen.selections = ["qwen3-asr-0.6b": sel(.t8, .optimized, .fast)]
+        states.append(qwen)
         var fallback = State(name: "mlx-fallback")
         fallback.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "BF16", engine: "mlx",
             engineReason: "the optimized path returned non-finite values during a dictation; switched to the stock MLX path until reload",
@@ -140,26 +170,43 @@ import VellaUpdate
         Self.renderControls(to: directory.appendingPathComponent("controls.png")) { [self] in render(states, 0) }
     }
 
-    /// The shared tier rows and Exact/Fast switch (TierControl.swift, ExactFastSwitch.swift) in their states, one per line.
+    /// Shipped benchmarks with the Optimized Exact recipes at 8 and 4 removed: the coupling render's data.
+    static func exactAt16Only() -> BenchmarkFile {
+        var file = decodeBenchmarks(try? Data(contentsOf: ModelsController.benchmarksURL(resources: ModelLibrary.resourceDirectory())))
+        for (id, var model) in file.models {
+            for tier in [ModelTier.t8, .t4] { model.tiers[tier]?.cells[.optimized_exact] = nil }
+            file.models[id] = model
+        }
+        return file
+    }
+
+    /// The shared Precision segments, Path switch and action cell (TierControl.swift, ExactFastSwitch.swift,
+    /// RowAction.swift) in their states, one per line.
     static func renderControls(to url: URL, done: @escaping () -> Void) {
-        func line(_ title: String, _ optimized: [String], _ standard: [String], _ selected: TierControl.Cell?, enabled: Bool = true, hot: Bool = false,
-                  position: ExactFastSwitch.Position = .exact, available: Bool = true) -> some View {
-            HStack(spacing: 8) {
-                Text(title).font(.system(size: 10)).foregroundStyle(.secondary).frame(width: 190, alignment: .leading)
-                TierControl(optimized: optimized, standard: standard, selected: selected, enabled: enabled, hot: hot, help: { _ in "" }, onSelect: { _ in })
+        func line(_ title: String, _ tiers: [String], _ selected: String?, enabled: Bool = true, hot: Bool = false,
+                  position: ExactFastSwitch.Position = .exact, available: Bool = true, glyph: RowAction.Glyph = .onDisk,
+                  action: String = "Load", emphasized: Bool = false, hovered: Bool = false) -> some View {
+            HStack(spacing: 10) {
+                Text(title).font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 190, alignment: .leading)
+                TierControl(tiers: tiers, selected: selected, enabled: enabled, hot: hot, help: { _ in "" }, onSelect: { _ in })
                 ExactFastSwitch(position: position, available: available, enabled: enabled, onChange: { _ in })
-            }.padding(.horizontal, 6).frame(height: 38)
+                RowAction(glyph: glyph, title: action, emphasized: emphasized, enabled: enabled, deletable: glyph != .get, hot: hot, hovered: hovered,
+                          help: "", onPerform: {}, onDelete: {})
+            }.padding(.horizontal, 8).frame(height: 38)
+                .background(hot ? ModelTable.hotRow : .clear, in: RoundedRectangle(cornerRadius: 5))
         }
         let sheet = VStack(alignment: .leading, spacing: 4) {
-            line("Standard 16 · Exact", ["16"], ["16"], .init(.standard, "16"))
-            line("Optimized 16 · Fast", ["16"], ["16", "8"], .init(.optimized, "16"), position: .fast)
-            line("Optimized 8 · loaded", ["16", "8", "4"], ["16", "8", "4"], .init(.optimized, "8"), hot: true, position: .fast)
-            line("Fast same as Exact (greyed)", ["16", "8"], ["16", "8"], .init(.optimized, "16"), available: false)
-            line("In use (disabled)", ["16"], ["16", "8"], .init(.standard, "8"), enabled: false, position: .fast)
-            line("Optimized 8 only", ["8"], ["16", "8"], .init(.standard, "16"))
+            line("16 · Exact · on disk", ["16", "8", "4"], "16")
+            line("16 · Fast · not downloaded", ["16", "8"], "16", position: .fast, glyph: .get, action: "Get")
+            line("8 · Fast · loaded", ["16", "8", "4"], "8", hot: true, position: .fast, glyph: .loaded, action: "Unload")
+            line("Loaded, 4 previewed: Reload", ["16", "8", "4"], "4", hot: true, position: .fast, glyph: .loaded, action: "Reload", emphasized: true)
+            line("Fast = Exact (greyed, always on)", ["16", "8"], "16", available: false)
+            line("Exact offers 16 only", ["16"], "16")
+            line("In use (disabled)", ["16", "8"], "8", enabled: false, position: .fast)
+            line("Pointer over the action", ["16", "8"], "16", position: .fast, hovered: true)
         }.padding(8)
         let view = NSHostingView(rootView: sheet)
-        view.frame = NSRect(x: 0, y: 0, width: 360, height: 6 * 42 + 16)
+        view.frame = NSRect(x: 0, y: 0, width: 560, height: 8 * 42 + 16)
         let container = NSView(frame: view.frame)
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(calibratedRed: 0.13, green: 0.13, blue: 0.14, alpha: 1).cgColor
@@ -263,6 +310,10 @@ import VellaUpdate
         controller.runtime = state.runtime
         controller.previewConfig(state.config)
         controller.previewSelections(state.selections)
+        for (id, mode) in state.flips { if let f = controller.catalog.family(id) { controller.setMode(f, mode) } }
+        controller.capabilityFilter = state.filter
+        controller.filterOpen = state.filterOpen
+        controller.previewHover = state.hover
         controller.previewInUse = state.inUse
         controller.lastError = state.lastError
         controller.dictation.downloadError = state.downloadError
@@ -295,16 +346,25 @@ import VellaUpdate
             container.cacheDisplay(in: container.bounds, to: rep)
             try? rep.representation(using: .png, properties: [:])?.write(to: url)
         }
-        var controls: [NSRect] = []
-        func walk(_ v: NSView) { if v is NSSegmentedControl { controls.append(v.convert(v.bounds, to: table)) }; v.subviews.forEach(walk) }
+        var controls: [NSRect] = [], switches: [NSRect] = [], actions: [NSRect] = []
+        func walk(_ v: NSView) {
+            // A segmented control's frame carries its bezel's alignment insets; its drawn size is the alignment rect.
+            if v is NSSegmentedControl, let parent = v.superview { controls.append(parent.convert(v.alignmentRect(forFrame: v.frame), to: table)) }
+            if v is SwitchView { switches.append(v.convert(v.bounds, to: table)) }
+            if v is RowActionView { actions.append(v.convert(v.bounds, to: table)) }
+            v.subviews.forEach(walk)
+        }
         walk(table)
-        // Pair rows by their shared left edge region: two controls within one table row (same TierControl) are the
-        // ones whose vertical centres are less than a row pitch apart.
-        let sorted = controls.sorted { ($0.minY, $0.minX) < ($1.minY, $1.minX) }
+        // Every control of the first frame at its explicit size, none overlapping another.
+        let all = (controls + switches + actions).sorted { ($0.minY, $0.minX) < ($1.minY, $1.minX) }
         var overlaps = 0
-        for (i, a) in sorted.enumerated() { for b in sorted[(i + 1)...] where a.intersects(b) { overlaps += 1 } }
-        let lines = ["tier segment controls: \(controls.count)", "overlapping pairs on the first frame: \(overlaps)",
-                     "heights: \(Set(controls.map { Int($0.height) }).sorted())"] + sorted.map { "\($0)" }
+        for (i, a) in all.enumerated() { for b in all[(i + 1)...] where a.intersects(b) { overlaps += 1 } }
+        let lines = ["precision segment controls: \(controls.count), path switches: \(switches.count), action cells: \(actions.count)",
+                     "overlapping pairs on the first frame: \(overlaps)",
+                     "segment heights: \(Set(controls.map { Int($0.height) }).sorted()) (expected \(Int(TierControl.segmentHeight)))",
+                     "switch sizes: \(Set(switches.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(ExactFastSwitch.width))x\(Int(ExactFastSwitch.height)))",
+                     "action sizes: \(Set(actions.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(RowAction.width))x\(Int(RowAction.height)))"]
+            + all.map { "\($0)" }
         try? lines.joined(separator: "\n").write(to: check, atomically: true, encoding: .utf8)
     }
 

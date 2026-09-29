@@ -73,6 +73,14 @@ public func stockLine(_ r: PrecisionResult?) -> String? {
 public func werHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
     guard let r, r.wer != nil else { return notMeasuredHelp }
     return figure("English word error rate", on: suiteDescription(r.suite, suites: suites), better: "lower is better", r)
+        + (languageWERLine(r).map { "\n" + $0 } ?? "")
+}
+
+/// `Word error rate by language: French 16.1%, German 8.7%; mean 12.9%` when the multilingual suite was measured.
+public func languageWERLine(_ r: PrecisionResult?) -> String? {
+    guard let by = r?.multilingual?.by_language, !by.isEmpty else { return nil }
+    let parts = by.map { (languageDisplayName($0.key), $0.value) }.sorted { $0.0 < $1.0 }.map { "\($0.0) \(String(format: "%.1f%%", $0.1))" }
+    return "Word error rate by language: " + parts.joined(separator: ", ") + (r?.multilingual?.mean.map { String(format: "; mean %.1f%%", $0) } ?? "")
 }
 
 public func formatHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
@@ -100,21 +108,6 @@ public func memoryHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> S
     guard let r, r.memory_mb != nil else { return notMeasuredHelp }
     let suite = suites?[performanceSuite] != nil ? suiteDescription(performanceSuite, suites: suites) : nil
     return figure("Peak memory of Vella's model worker", on: suite, "loading included", better: "lower is better", r, stock: true)
-}
-
-/// The Languages cell: the languages the model transcribes, then (when measured) the word error rate per benchmark
-/// language at the selected precision and who measured it. Nil when the catalog lists no languages.
-public func languagesHelp(_ f: ModelFamily, _ r: PrecisionResult?) -> String? {
-    guard !f.languages.isEmpty else { return nil }
-    let names = f.languages.map(languageDisplayName)
-    var lines = [names.count == 1 ? names[0] : "\(names.count) languages: " + names.joined(separator: ", ")]
-    if let r, let by = r.multilingual?.by_language, !by.isEmpty {
-        let parts = by.map { (languageDisplayName($0.key), $0.value) }.sorted { $0.0 < $1.0 }.map { "\($0.0) \(String(format: "%.1f%%", $0.1))" }
-        let mean = r.multilingual?.mean.map { String(format: "; mean %.1f%%", $0) } ?? ""
-        lines.append("Word error rate by language: " + parts.joined(separator: ", ") + mean)
-        lines.append(measuredProvenance(r))
-    }
-    return lines.joined(separator: "\n")
 }
 
 /// The On disk cell. `derivedSource`: the precision it is made from on this Mac; `sizeKnown`: the cell shows a size
@@ -196,8 +189,9 @@ public func cellBasis(_ cell: BenchmarkCell?) -> String? {
     return parts.isEmpty ? nil : parts.joined(separator: ", ")
 }
 
-/// Line 2 of a tier cell's tooltip: the change against Standard 16 with its basis,
-/// `+2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep`. The Standard 16 cell itself is the reference.
+/// Line 2 of a tier cell's tooltip: the change against Standard 16 (stock MLX) with its basis,
+/// `vs Standard 16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep`. Standard is not a table position: this line
+/// is where its numbers show. The Standard 16 cell itself is the reference.
 public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: Bool) -> String {
     guard let cell, !cell.isPending else { return "Measure pending" }
     let basis = cellBasis(cell)
@@ -217,7 +211,7 @@ public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: 
         let d = x - y
         parts.append(abs(d) < 0.005 ? "same WER" : "WER " + (d < 0 ? "\u{2212}" : "+") + String(format: "%.2f", abs(d)))
     }
-    return (parts + [basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
+    return "vs Standard 16: " + (parts + [basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
 }
 
 /// A tier cell's tooltip: flavour; delta vs Standard 16 with its basis; for an offered tier that is worse than 16 on the

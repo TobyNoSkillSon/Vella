@@ -1,27 +1,31 @@
 import AppKit
 import SwiftUI
 
-// The Models table's Exact/Fast switch: a vertical two-position switch beside the tier rows, up = Fast, down = Exact.
+// The Models table's Path switch: a vertical two-position switch, up = Fast, down = Exact.
 // Shared verbatim by Verdict, Vella and Vireo (like TooltipCell.swift): AppKit and SwiftUI only, no app types; plain
 // values in, one callback out.
 //
-// - `available == false` greys it for a model where Fast measures the same as Exact (no inexact kernel qualified);
-//   the knob then sits at Exact and a click does nothing.
-// - `enabled == false` is the in-use interlock, with the same line as the tier rows (`TierControl.inUseHelp`).
-// - An NSView draws it and carries the tooltip, because SwiftUI `.help` never shows inside an NSMenu.
+// - The whole control is the hit target: a click anywhere on it (the pill, the knob or either word) flips it.
+// - `available == false` greys it for a model where Fast measures the same as Exact (no inexact kernel qualified):
+//   the knob is pinned up (Fast, always on) and a click does nothing.
+// - `enabled == false` is the in-use interlock, with the same line as the Precision segments (`TierControl.inUseHelp`).
+// - An NSView draws it and carries the tooltip, because SwiftUI `.help` never shows inside an NSMenu. Its size is
+//   explicit (`width` × `height`), never asked of the environment, so the first frame of a menu is right.
 
 struct ExactFastSwitch: View {
     enum Position: String { case exact, fast }
 
+    /// The column header.
+    static let title = "Path"
     /// The switch's tooltip (Toby, 29 Sep); state lines follow it on their own lines.
     static let help = "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise."
-    static let sameHelp = "Fast measures the same as Exact for this model"
+    static let sameHelp = "Always on: Fast measures the same as Exact for this model"
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
-    static let width: CGFloat = 44
-    static let height: CGFloat = TierControl.height   // beside the two tier rows, same height
+    static let width: CGFloat = 58
+    static let height: CGFloat = 32
 
     let position: Position
-    /// False: Fast measures identically to Exact for this model (greyed).
+    /// False: Fast measures identically to Exact for this model (greyed, pinned up).
     let available: Bool
     /// False: the model is in use.
     let enabled: Bool
@@ -33,7 +37,7 @@ struct ExactFastSwitch: View {
     }
 
     var body: some View {
-        SwitchRepresentable(position: available ? position : .exact, active: available && enabled, greyed: !available,
+        SwitchRepresentable(position: available ? position : .fast, active: available && enabled, greyed: !available,
                             tooltip: Self.tooltip(available: available, enabled: enabled), onChange: onChange)
             .frame(width: Self.width, height: Self.height)
     }
@@ -58,9 +62,9 @@ private struct SwitchRepresentable: NSViewRepresentable {
     }
 }
 
-/// Track on the left (knob up = Fast, down = Exact), the two words beside it; the current one reads in the primary
-/// colour. A click on the upper half chooses Fast, on the lower half Exact.
-private final class SwitchView: NSView {
+/// Pill on the left (knob up = Fast, down = Exact), the two words beside it; the current one reads in the primary
+/// colour. A click anywhere in the view flips the position.
+final class SwitchView: NSView {
     var position: ExactFastSwitch.Position = .exact
     var active = true
     var greyed = false
@@ -71,48 +75,53 @@ private final class SwitchView: NSView {
     override var acceptsFirstResponder: Bool { false }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    static let trackWidth: CGFloat = 11
-    static let font = NSFont.systemFont(ofSize: 8.5)
+    static let trackWidth: CGFloat = 14
+    static let font = NSFont.systemFont(ofSize: 11)
+
+    /// The pill's rectangle (the words sit to its right).
+    var track: NSRect { NSRect(x: 2, y: 1, width: Self.trackWidth, height: bounds.height - 2) }
 
     override func draw(_ dirtyRect: NSRect) {
-        // Disabled or greyed: the whole switch at reduced opacity (system colours keep their own alpha).
-        NSGraphicsContext.current?.cgContext.setAlpha(active ? 1 : 0.4)
-        let track = NSRect(x: 1, y: 1, width: Self.trackWidth, height: bounds.height - 2)
+        // Locked while in use: the whole switch at reduced opacity (system colours keep their own alpha). Greyed (Fast =
+        // Exact): a grey pill pinned up, so "always on" never reads as a live Fast.
+        NSGraphicsContext.current?.cgContext.setAlpha(greyed ? 0.55 : active ? 1 : 0.4)
+        let track = self.track
         let path = NSBezierPath(roundedRect: track, xRadius: Self.trackWidth / 2, yRadius: Self.trackWidth / 2)
-        (position == .fast && !greyed ? NSColor.controlAccentColor : NSColor.quaternaryLabelColor).setFill()
+        (position == .fast && !greyed ? NSColor.controlAccentColor : NSColor.tertiaryLabelColor).setFill()
         path.fill()
-        let knobSize = Self.trackWidth - 3
-        let knobY = position == .fast ? track.minY + 1.5 : track.maxY - 1.5 - knobSize
-        let knob = NSBezierPath(ovalIn: NSRect(x: track.minX + 1.5, y: knobY, width: knobSize, height: knobSize))
+        let knobSize = Self.trackWidth - 4
+        let knobY = position == .fast ? track.minY + 2 : track.maxY - 2 - knobSize
         NSColor.white.setFill()
-        knob.fill()
-        for (word, which, y) in [("Fast", ExactFastSwitch.Position.fast, track.minY), ("Exact", .exact, track.maxY - 11)] {
+        NSBezierPath(ovalIn: NSRect(x: track.minX + 2, y: knobY, width: knobSize, height: knobSize)).fill()
+        let lineHeight: CGFloat = 13
+        for (word, which, y) in [("Fast", ExactFastSwitch.Position.fast, track.minY - 1), ("Exact", .exact, track.maxY - lineHeight)] {
             let color: NSColor = which == position ? .labelColor : .tertiaryLabelColor
             NSAttributedString(string: word, attributes: [.font: Self.font, .foregroundColor: color])
-                .draw(at: NSPoint(x: track.maxX + 3, y: y))
+                .draw(at: NSPoint(x: track.maxX + 5, y: y))
         }
     }
 
+    /// The whole view is the hit target: pill, knob and words.
     override func mouseDown(with event: NSEvent) {
         guard active else { return }
-        let point = convert(event.locationInWindow, from: nil)
-        let chosen: ExactFastSwitch.Position = point.y < bounds.midY ? .fast : .exact
-        guard chosen != position else { return }
-        position = chosen; needsDisplay = true
-        onChange?(chosen)
+        flip()
         HostRefresh.after(self)
+    }
+    private func flip() {
+        position = position == .fast ? .exact : .fast
+        needsDisplay = true
+        onChange?(position)
     }
 
     // Accessibility: a two-state switch reading "Fast" or "Exact".
     override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .checkBox }
-    override func accessibilityLabel() -> String? { "Exact or Fast" }
+    override func accessibilityLabel() -> String? { "Path: Exact or Fast" }
     override func accessibilityValue() -> Any? { position == .fast ? "Fast" : "Exact" }
     override func isAccessibilityEnabled() -> Bool { active }
     override func accessibilityPerformPress() -> Bool {
         guard active else { return false }
-        position = position == .fast ? .exact : .fast; needsDisplay = true
-        onChange?(position)
+        flip()
         return true
     }
 }

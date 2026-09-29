@@ -29,7 +29,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         }
     }
     /// Closing the menu discards previews: a row returns to its loaded (or last loaded) precision.
-    func menuDidClose(_ menu: NSMenu) { controller.discardPreviews() }
+    func menuDidClose(_ menu: NSMenu) { controller.discardPreviews(); controller.filterOpen = false }
     func modelItem() -> NSMenuItem {
         if !controller.previewing { controller.reload() }
         let root = NSMenuItem(title: "Models…", action: nil, keyEquivalent: "")
@@ -42,6 +42,13 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         view.layer?.backgroundColor = NSColor.clear.cgColor
         view.layer?.isOpaque = false
         view.frame = NSRect(x: 0, y: 0, width: ModelTable.width, height: ModelTable.height(controller))
+        // The filter strip and filtered rows change the table's height while the menu is open: the item view takes the
+        // new height (NSMenu lays out its items again when an item view's frame changes), then redraws in tracking mode.
+        controller.onLayoutChange = { [weak view, controller] in
+            guard let view else { return }
+            view.setFrameSize(NSSize(width: ModelTable.width, height: ModelTable.height(controller)))
+            HostRefresh.after(view)
+        }
         item.view = view; menu.addItem(item); root.submenu = menu
         return root
     }
@@ -104,13 +111,31 @@ enum TableSortColumn: CaseIterable {
 }
 
 struct ModelTable: View {
-    static let width: CGFloat = 968
-    /// Every row fits without scrolling: heading, dividers and footer, 39 pt per row (two tier rows), 21 pt per section label.
-    static func height(rows: Int, sections: Int) -> CGFloat { 64 + CGFloat(rows) * rowPitch + CGFloat(sections) * 21 }
-    /// A row holds the two tier rows (TierControl.height) with a little air.
-    static let rowHeight: CGFloat = max(36, TierControl.height + 2)
-    static let rowPitch: CGFloat = rowHeight + 3
-    @MainActor static func height(_ c: ModelsController) -> CGFloat { height(rows: c.rowCount, sections: c.sectionCount) }
+    /// Column widths; `spacing` between columns, `rowPadding` inside a row on each side.
+    enum W {
+        static let model: CGFloat = 182, capabilities: CGFloat = 82, params: CGFloat = 52
+        static let precision: CGFloat = TierControl.width + 6, path: CGFloat = ExactFastSwitch.width
+        static let wer: CGFloat = 62, format: CGFloat = 62, speed: CGFloat = 78, energy: CGFloat = 64, memory: CGFloat = 72, disk: CGFloat = 72
+        static let action: CGFloat = RowAction.width
+        static let spacing: CGFloat = 6, rowPadding: CGFloat = 8
+        static let columns: [CGFloat] = [model, capabilities, params, precision, path, wer, format, speed, energy, memory, disk, action]
+        static let row: CGFloat = columns.reduce(0, +) + CGFloat(columns.count - 1) * spacing + 2 * rowPadding
+    }
+    static let width: CGFloat = W.row + 8
+    /// One line per model: a 13 pt value over a 10.5 pt delta (or the name over its engine label) in a 38 pt row.
+    static let rowHeight: CGFloat = 38
+    static let rowPitch: CGFloat = rowHeight + 2
+    static let headerHeight: CGFloat = 26, stripHeight: CGFloat = 30, sectionHeight: CGFloat = 24, footerHeight: CGFloat = 28
+    /// Every visible row fits without scrolling: paddings, heading, filter strip, dividers, section labels and footer.
+    static func height(rows: Int, sections: Int, strip: Bool = false) -> CGFloat {
+        12 + headerHeight + (strip ? stripHeight : 0) + 18 + CGFloat(sections) * sectionHeight + CGFloat(rows) * rowPitch + footerHeight
+    }
+    @MainActor static func height(_ c: ModelsController) -> CGFloat {
+        height(rows: c.rowCount, sections: c.sectionCount, strip: c.filterOpen && !c.filterableCapabilities.isEmpty)
+    }
+
+    static let valueFont = Font.system(size: 13).monospacedDigit()
+    static let deltaFont = Font.system(size: 10.5).monospacedDigit()
 
     @ObservedObject var controller: ModelsController
     var requestDelete: (ModelFamily) -> Void = { _ in }
@@ -120,13 +145,6 @@ struct ModelTable: View {
     @VellaState private var copyGeneration = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Column widths; spacing 6 between columns.
-    private enum W {
-        static let model: CGFloat = 152, languages: CGFloat = 64, params: CGFloat = 42
-        static let precision: CGFloat = TierControl.width + 4 + ExactFastSwitch.width
-        static let wer: CGFloat = 54, format: CGFloat = 54, speed: CGFloat = 64, energy: CGFloat = 58, memory: CGFloat = 64, disk: CGFloat = 64
-        static let button: CGFloat = 58, trash: CGFloat = 18
-    }
     /// Subtle green/red; lighter on the loaded (accent-filled) row so they stay legible.
     static func tone(_ t: DeltaTone, hot: Bool) -> Color {
         switch t {
@@ -137,16 +155,15 @@ struct ModelTable: View {
     }
     /// Loaded row: the selection blue at 60 %, so the row reads as loaded without competing with the numbers.
     static let hotRow = Color(nsColor: .selectedContentBackgroundColor).opacity(0.6)
-    /// Same green family as the deltas, deep enough for white text on the loaded row.
-    static let reloadGreen = Color(red: 0.20, green: 0.56, blue: 0.31)
+    static let hotText = Color(nsColor: .selectedMenuItemTextColor)
 
     private var runtime: TableRuntime? { controller.runtime }
 
     /// Rows of a section in a stable order: each column sorts by the model's best value across its precisions, so
-    /// changing a row's selected precision never moves it.
-    /// Cloud reference rows sort with the models (by their estimated WER).
+    /// changing a row's selected precision never moves it. Cloud reference rows sort with the models (by their
+    /// estimated WER). The capabilities filter hides rows without its capabilities.
     @MainActor static func rows(_ controller: ModelsController, _ mode: RecognitionMode, sort: TableSortColumn, ascending: Bool) -> [ModelTableRow] {
-        sortedRows(controller.families(mode), references: controller.references(mode), by: sort.metric, ascending: ascending, benchmarks: controller.benchmarks)
+        sortedRows(controller.visibleFamilies(mode), references: controller.visibleReferences(mode), by: sort.metric, ascending: ascending, benchmarks: controller.benchmarks)
     }
     private func rows(_ mode: RecognitionMode) -> [ModelTableRow] { Self.rows(controller, mode, sort: sortColumn, ascending: ascending) }
 
@@ -156,43 +173,36 @@ struct ModelTable: View {
     static let speedHeaderHelp = "Real-time factor (RTFx): audio seconds per processing second. Higher is faster."
     static let energyHeaderHelp = "Joules per minute of audio: whole-chip energy, net of idle. Lower is better."
     static let memoryHeaderHelp = "Peak memory of Vella's model worker with the model loaded. Lower is better."
-    static let tierHeaderHelp = "Precision kept: 16 is the checkpoint as published, 8 and 4 are made on this Mac from it. Standard runs stock MLX, as on any Apple-silicon Mac; Optimized adds Vella's kernels for this chip. A tier that breaks against 16 is not offered. A change applies at the next load."
     static let diskHeaderHelp = "Download size of the selected precision; for one made on this Mac, the size of the weights it is made from."
+    static let capabilitiesHeaderHelp = "What the model can do beyond English dictation; an empty slot means it cannot. Click to show only models with a capability."
+    static let filterLead = "Show only models with"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                heading("Model", .name, W.model, .leading)
-                plainHeading("Languages", W.languages, .trailing, help: "Languages the model transcribes.")
-                plainHeading("Params", W.params, .trailing, help: "Model size in parameters.")
-                plainHeading("Tier", W.precision, .leading, help: Self.tierHeaderHelp)
-                heading("WER", .wer, W.wer, .trailing, help: Self.werHeaderHelp)
-                heading("Format", .format, W.format, .trailing, help: Self.formatHeaderHelp)
-                heading("Speed", .speed, W.speed, .trailing, help: Self.speedHeaderHelp)
-                heading("J / min", .energy, W.energy, .trailing, help: Self.energyHeaderHelp)
-                heading("Memory", .memory, W.memory, .trailing, help: Self.memoryHeaderHelp)
-                heading("On disk", .disk, W.disk, .trailing, help: Self.diskHeaderHelp)
-                Text("").frame(width: W.button + W.trash + 6)
-            }.padding(.horizontal, 6)
-            Divider().opacity(0.35)
-            VStack(alignment: .leading, spacing: 3) {
-                ForEach([RecognitionMode.dictation, .streaming], id: \.self) { mode in
-                    let sectionRows = rows(mode)
-                    if !sectionRows.isEmpty {
-                        Text(mode.title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
-                            .padding(.leading, 6).frame(height: 18, alignment: .bottomLeading)
-                            .appKitTooltip(mode == .dictation ? "Transcribes when you finish speaking" : "Types text while you speak")
-                        ForEach(sectionRows) { item in
+        VStack(alignment: .leading, spacing: 0) {
+            header.frame(height: Self.headerHeight)
+            if controller.filterOpen && !controller.filterableCapabilities.isEmpty {
+                filterStrip.frame(height: Self.stripHeight)
+            }
+            Divider().opacity(0.35).padding(.vertical, 4)
+            ForEach([RecognitionMode.dictation, .streaming], id: \.self) { mode in
+                let sectionRows = rows(mode)
+                if sectionRows.contains(where: { if case .family = $0 { return true }; return false }) {
+                    Text(mode.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                        .padding(.leading, W.rowPadding).padding(.bottom, 4)
+                        .frame(height: Self.sectionHeight, alignment: .bottomLeading)
+                        .appKitTooltip(mode == .dictation ? "Transcribes when you finish speaking" : "Types text while you speak")
+                    ForEach(sectionRows) { item in
+                        Group {
                             switch item {
                             case .family(let family): row(family)
                             case .reference(let reference): referenceRow(reference)
                             }
-                        }
+                        }.padding(.bottom, Self.rowPitch - Self.rowHeight)
                     }
                 }
             }
-            Divider().opacity(0.35)
-            footer
+            Divider().opacity(0.35).padding(.vertical, 4)
+            footer.frame(height: Self.footerHeight)
         }.padding(.vertical, 6).padding(.leading, 6).padding(.trailing, 2)
             .frame(width: Self.width, height: Self.height(controller), alignment: .top)
             .background(Color.clear)
@@ -205,6 +215,81 @@ struct ModelTable: View {
                         .padding(.top, 3).transition(.opacity).allowsHitTesting(false)
                 }
             }
+    }
+
+    /// Column labels, each centred over its column (Model reads from the left).
+    private var header: some View {
+        HStack(spacing: W.spacing) {
+            heading("Model", .name, W.model, .leading)
+            capabilitiesHeading
+            plainHeading("Params", W.params, help: "Model size in parameters.")
+            plainHeading(TierControl.title, W.precision, help: TierControl.headerHelp)
+            plainHeading(ExactFastSwitch.title, W.path, help: ExactFastSwitch.help)
+            heading("WER", .wer, W.wer, .center, help: Self.werHeaderHelp)
+            heading("Format", .format, W.format, .center, help: Self.formatHeaderHelp)
+            heading("Speed", .speed, W.speed, .center, help: Self.speedHeaderHelp)
+            heading("J / min", .energy, W.energy, .center, help: Self.energyHeaderHelp)
+            heading("Memory", .memory, W.memory, .center, help: Self.memoryHeaderHelp)
+            heading("On disk", .disk, W.disk, .center, help: Self.diskHeaderHelp)
+            Color.clear.frame(width: W.action, height: 1)
+        }.padding(.horizontal, W.rowPadding)
+    }
+
+    /// The Capabilities heading opens and closes the filter strip; a dot beside it while a filter is active. Without a
+    /// capability that tells models apart it is a plain label.
+    @ViewBuilder private var capabilitiesHeading: some View {
+        if controller.filterableCapabilities.isEmpty {
+            plainHeading("Capabilities", W.capabilities, help: Self.capabilitiesHeaderHelp)
+        } else {
+            Button { controller.toggleFilterStrip() } label: {
+                Text("Capabilities")
+                    .overlay(alignment: .trailing) {
+                        Circle().fill(Color.accentColor).frame(width: 6, height: 6).offset(x: 9)
+                            .opacity(controller.capabilityFilter.isEmpty ? 0 : 1).allowsHitTesting(false)
+                    }
+                    .frame(width: W.capabilities, height: Self.headerHeight).contentShape(Rectangle())
+            }.buttonStyle(.plain).font(.system(size: 12, weight: .medium))
+                .foregroundStyle(controller.filterOpen || !controller.capabilityFilter.isEmpty ? .primary : .secondary)
+                .accessibilityLabel(controller.capabilityFilter.isEmpty ? "Capabilities" : "Capabilities, filter active")
+                .accessibilityHint(Self.capabilitiesHeaderHelp)
+        }
+    }
+
+    /// "Show only models with ☐ 文 Chinese, Japanese and Korean": inline under the header, because a view hosted in a
+    /// menu cannot open a pop-up or popover. A click toggles a checkbox; rows without that capability hide at once.
+    private var filterStrip: some View {
+        HStack(spacing: 14) {
+            Text(Self.filterLead).font(.system(size: 12)).foregroundStyle(.secondary)
+            ForEach(controller.filterableCapabilities, id: \.self) { capability in
+                let on = controller.capabilityFilter.contains(capability)
+                Button { controller.toggleFilter(capability) } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: on ? "checkmark.square.fill" : "square").font(.system(size: 13))
+                            .foregroundStyle(on ? Color.accentColor : .secondary)
+                        Image(systemName: Self.symbol(capability)).font(.system(size: 13))
+                        Text(capability.filterTitle).font(.system(size: 12))
+                    }.contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                    .accessibilityLabel(capability.filterTitle).accessibilityValue(on ? "on" : "off")
+            }
+            Spacer(minLength: 0)
+        }.padding(.horizontal, W.rowPadding)
+    }
+    /// A capability's symbol for the filter strip (a model's own slot may vary it, as the globe does).
+    static func symbol(_ c: Capability) -> String { c == .languages ? "globe" : "character.textbox.zh" }
+
+    /// The fixed icon slots: a filled slot shows its symbol with its own tooltip; an empty one keeps its place.
+    private func capabilities(_ family: ModelFamily) -> some View {
+        let slots = capabilitySlots(family)
+        return HStack(spacing: 6) {
+            ForEach(Capability.allCases, id: \.self) { c in
+                if let slot = slots[c] {
+                    Image(systemName: slot.symbol).font(.system(size: 14)).frame(width: 20, height: 22).appKitTooltip(slot.help)
+                } else {
+                    Color.clear.frame(width: 20, height: 22)
+                }
+            }
+        }.frame(width: W.capabilities)
     }
 
     @ViewBuilder private func row(_ family: ModelFamily) -> some View {
@@ -221,15 +306,19 @@ struct ModelTable: View {
         let library = controller.library(family.mode)
         // A confirmed download for this row (a precision made here downloads its source).
         let downloading = controller.downloadRoot(family, precision).flatMap { family.variants[$0] }.map { library.downloadingID == $0.id } ?? false
-        HStack(spacing: 6) {
-            HStack(spacing: 5) {
-                Image(systemName: hot ? "flame.fill" : "circle").font(.system(size: 10))
-                    .foregroundStyle(hot ? Color.orange : .secondary).frame(width: 12)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(family.name).font(.system(size: 11)).lineLimit(1)
-                    // Engine label beneath a loaded model. Both paths work, so both are green; the tooltip says which.
-                    if let loaded, loaded.engine != nil {
-                        Text(engineLabel(engine: loaded.engine, chip: runtime?.chip, selection: controller.loadedSelection(family).map { effectiveSelection($0, engine: loaded.engine) })).font(.system(size: 9, weight: .medium))
+        HStack(spacing: W.spacing) {
+            HStack(spacing: 6) {
+                Image(systemName: "flame.fill").font(.system(size: 11)).foregroundStyle(Color.orange).frame(width: 12).opacity(hot ? 1 : 0)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(family.name).font(.system(size: 13)).lineLimit(1)
+                    // A flip to Exact that moved the precision says so; else the engine beneath a loaded model.
+                    if let note = controller.couplingNote(family) {
+                        Text(note).font(.system(size: 10.5, weight: .medium)).lineLimit(1)
+                            .foregroundStyle(hot ? Self.hotText.opacity(0.8) : .secondary)
+                            .appKitTooltip("Exact offers only the precisions whose kernels give output identical to Standard")
+                    } else if let loaded, loaded.engine != nil {
+                        Text(engineLabel(engine: loaded.engine, chip: runtime?.chip, selection: shownEngineSelection(family, engine: loaded.engine)))
+                            .font(.system(size: 10.5, weight: .medium))
                             .foregroundStyle(Self.tone(.better, hot: hot)).lineLimit(1)
                             .appKitTooltip(engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
                                                       chip: runtime?.chip, precision: loaded.precision))
@@ -237,90 +326,88 @@ struct ModelTable: View {
                 }
             }.frame(width: W.model, alignment: .leading)
                 .appKitTooltip(modelHelp(family, loaded: loaded))
-            Text(formatLanguages(family.languages)).frame(width: W.languages, alignment: .trailing)
-                .appKitTooltip(languagesHelp(family, bench))
-            Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params, alignment: .trailing)
-            tierPicker(family, hot: hot)
-                .frame(width: W.precision, alignment: .leading)
+            capabilities(family)
+            Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params)
+            precisionControl(family, hot: hot).frame(width: W.precision)
+            pathSwitch(family).frame(width: W.path)
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
                 .appKitTooltip(werHelp(bench, suites: suites))
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
                 .appKitTooltip(formatHelp(bench, suites: suites))
-            HStack(spacing: 2) {
-                if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
-                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 8)).foregroundStyle(.orange).accessibilityLabel("very slow")
+            metric(formatSpeed(bench?.speed_x), compare ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, W.speed, hot: hot)
+                .overlay(alignment: .leading) {
+                    if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
+                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 9)).foregroundStyle(.orange).accessibilityLabel("very slow")
+                    }
                 }
-                metric(formatSpeed(bench?.speed_x), compare ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, nil, hot: hot)
-            }.frame(width: W.speed, alignment: .trailing)
                 .appKitTooltip(speedHelp(family.mode, bench, suites: suites))
             metric(formatEnergy(bench?.j_per_min), compare ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot)
                 .appKitTooltip(energyHelp(bench, suites: suites))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
                 .appKitTooltip(memoryHelp(bench, suites: suites))
-            Text(controller.disk(family, precision).map(formatBytes) ?? "—").frame(width: W.disk, alignment: .trailing)
-                .foregroundStyle(installed == nil ? (hot ? Color(nsColor: .selectedMenuItemTextColor).opacity(0.6) : Color.secondary) : (hot ? Color(nsColor: .selectedMenuItemTextColor) : Color.primary))
+            Text(controller.disk(family, precision).map(formatBytes) ?? "—").frame(width: W.disk)
+                .foregroundStyle(installed == nil ? (hot ? Self.hotText.opacity(0.6) : Color.secondary) : (hot ? Self.hotText : Color.primary))
                 .appKitTooltip(diskHelp(family, precision))
-            loadButton(title(action, loading: loading, downloading: downloading, library: library), reload: action == .reload && !loading && !downloading) {
-                controller.perform(family)
-            }.frame(width: W.button)
-                .disabled(loading || variant == nil || (action != .get && !controller.runtimeAvailable)
-                          || (action == .unload && controller.actions == nil) || (controller.anyBusy && !downloading))
-                .accessibilityHint(actionHelp(action, family: family, precision: precision, loaded: loaded?.precision))
-            Button { requestDelete(family) } label: { Image(systemName: "trash").frame(width: W.trash) }
-                .buttonStyle(.plain)
-                .opacity(controller.localPath(family, precision) == nil ? 0 : 1)
-                .disabled(controller.localPath(family, precision) == nil || loading)
-                .accessibilityHint("Moves the \(precisionFormatName(precision)) weights to the Trash, after you confirm")
-                .accessibilityLabel("Delete \(family.name) \(precisionFormatName(precision))")
-        }.font(.system(size: 11, design: .monospaced))
-            .padding(.horizontal, 6).frame(height: Self.rowHeight)
-            .background(hot ? Self.hotRow : .clear, in: RoundedRectangle(cornerRadius: 4))
+            rowAction(family, action: action, loading: loading, downloading: downloading, variant: variant, library: library, hot: hot, precision: precision, loaded: loaded)
+        }.font(Self.valueFont)
+            .padding(.horizontal, W.rowPadding).frame(height: Self.rowHeight)
+            .background(hot ? Self.hotRow : .clear, in: RoundedRectangle(cornerRadius: 5))
             .background {
                 if downloading, let value = library.progress {
                     GeometryReader { geometry in
-                        RoundedRectangle(cornerRadius: 4)
+                        RoundedRectangle(cornerRadius: 5)
                             .fill(Color(nsColor: .selectedContentBackgroundColor).opacity(0.35))
                             .frame(width: geometry.size.width * min(1, max(0, value)))
                             .animation(reduceMotion ? nil : .linear(duration: 0.25), value: value)
                     }.allowsHitTesting(false)
                 }
             }
-            .foregroundStyle(hot ? Color(nsColor: .selectedMenuItemTextColor) : Color.primary)
+            .foregroundStyle(hot ? Self.hotText : Color.primary)
             .contentShape(Rectangle())
+    }
+
+    /// The row's action cell (RowAction.swift): the state glyph, the button under the pointer, delete beside it.
+    private func rowAction(_ family: ModelFamily, action: LoadAction, loading: Bool, downloading: Bool, variant: CatalogVariant?,
+                           library: ModelLibrary, hot: Bool, precision: String, loaded: LoadedFamily?) -> some View {
+        let glyph: RowAction.Glyph = hot ? .loaded : controller.available(family, precision) ? .onDisk : .get
+        let enabled = !(loading || variant == nil || (action != .get && !controller.runtimeAvailable)
+                        || (action == .unload && controller.actions == nil) || (controller.anyBusy && !downloading))
+        let busy = downloading ? (library.progress.map { "\(Int($0 * 100))%" } ?? "…") : loading ? "…" : nil
+        return RowAction(glyph: glyph, title: Self.title(action), busyText: busy, emphasized: action == .reload, enabled: enabled,
+                         deletable: controller.localPath(family, precision) != nil && !loading, hot: hot,
+                         hovered: controller.previewHover == family.id,
+                         help: actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision, glyph: glyph),
+                         onPerform: { controller.perform(family) }, onDelete: { requestDelete(family) })
     }
 
     /// A cloud API for perspective, as a reference row: cloud glyph, greyed, no controls, `API` on disk.
     /// Its WER is an estimate (`~13%`); the tooltip says from where and that we did not measure it.
     @ViewBuilder private func referenceRow(_ r: ReferenceEntry) -> some View {
-        HStack(spacing: 6) {
-            HStack(spacing: 5) {
-                Image(systemName: "cloud").font(.system(size: 10)).frame(width: 12)
-                Text(r.name).font(.system(size: 11)).lineLimit(1)
+        HStack(spacing: W.spacing) {
+            HStack(spacing: 6) {
+                Image(systemName: "cloud").font(.system(size: 11)).frame(width: 12)
+                Text(r.name).font(.system(size: 13)).lineLimit(1)
             }.frame(width: W.model, alignment: .leading)
                 .appKitTooltip(referenceModelHelp(r))
-            Text("\u{2014}").frame(width: W.languages, alignment: .trailing)
-            Text("\u{2014}").frame(width: W.params, alignment: .trailing)
-            Text("").frame(width: W.precision, alignment: .leading)
+            Color.clear.frame(width: W.capabilities, height: 1)
+            Text("\u{2014}").frame(width: W.params)
+            Color.clear.frame(width: W.precision + W.spacing + W.path, height: 1)
             metric(formatEstimatedErrorRate(r.wer), nil, W.wer, hot: false)
                 .appKitTooltip(referenceWERTooltip(r))
-            metric(nil, nil, W.format, hot: false)
-                .appKitTooltip(referenceFormatHelp)
+            metric(nil, nil, W.format, hot: false).appKitTooltip(referenceFormatHelp)
             metric(nil, nil, W.speed, hot: false).appKitTooltip(referenceNotApplicableHelp)
             metric(nil, nil, W.energy, hot: false).appKitTooltip(referenceNotApplicableHelp)
             metric(nil, nil, W.memory, hot: false).appKitTooltip(referenceNotApplicableHelp)
-            Text("API").frame(width: W.disk, alignment: .trailing)
-                .appKitTooltip(referenceDiskHelp)
-            Text("").frame(width: W.button + W.trash + 6)
-        }.font(.system(size: 11, design: .monospaced))
-            .padding(.horizontal, 6).frame(height: Self.rowHeight)
+            Text("API").frame(width: W.disk).appKitTooltip(referenceDiskHelp)
+            Color.clear.frame(width: W.action, height: 1)
+        }.font(Self.valueFont)
+            .padding(.horizontal, W.rowPadding).frame(height: Self.rowHeight)
             .foregroundStyle(Color.secondary)
             .contentShape(Rectangle())
             .accessibilityElement(children: .combine)
     }
 
-    private func title(_ action: LoadAction, loading: Bool, downloading: Bool, library: ModelLibrary) -> String {
-        if downloading { return library.progress.map { "\(Int($0 * 100))%" } ?? "…" }
-        if loading { return "…" }
+    static func title(_ action: LoadAction) -> String {
         switch action {
         case .get: return "Get"
         case .load: return "Load"
@@ -329,13 +416,32 @@ struct ModelTable: View {
         }
     }
 
+    /// What runs, for the engine label: where Fast = Exact the switch is pinned up (always on), so the label says Fast
+    /// whichever position was recorded.
+    private func shownEngineSelection(_ family: ModelFamily, engine: String?) -> ModelSelection? {
+        guard var s = controller.loadedSelection(family).map({ effectiveSelection($0, engine: engine) }) else { return nil }
+        if !controller.switchAvailable(family) { s.mode = .fast }
+        return s
+    }
+
+    /// The action cell's tooltip: what the glyph means, then what a click does.
+    private func actionTooltip(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?, glyph: RowAction.Glyph) -> String {
+        let state: String
+        switch glyph {
+        case .loaded: state = "Loaded"
+        case .onDisk: state = "On disk, not loaded"
+        case .get: state = "Not downloaded"
+        }
+        return state + "\n" + actionHelp(action, family: family, precision: precision, loaded: loaded)
+    }
+
     /// What a download fetches for a precision: its own weights, or for a derived precision the weights it is made from.
     private func downloadText(_ family: ModelFamily, _ precision: String) -> String {
         guard let root = controller.downloadRoot(family, precision), let v = family.variants[root] else { return "Download" }
         let size = formatBytes(v.downloadBytes)
         return root == precision ? "Asks, then downloads \(size) from Hugging Face" : "Asks, then downloads the \(precisionFormatName(root)) weights (\(size)) it is made from"
     }
-    /// The row button's accessibility hint (a Button carries no hover text inside the menu).
+    /// What the row's action does (the action cell's tooltip, second line).
     private func actionHelp(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?) -> String {
         let mode = family.mode.title.lowercased()
         let derived = controller.derivedSource(family, precision) != nil
@@ -355,48 +461,40 @@ struct ModelTable: View {
                            derivedSource: controller.derivedSource(family, precision), sizeKnown: controller.disk(family, precision) != nil)
     }
 
-    /// Value on top, delta vs Standard 16 beneath it in small type.
+
+    /// Value on top, delta vs Standard 16 beneath it in small type; centred under the column's label.
     @ViewBuilder private func metric(_ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool) -> some View {
-        VStack(alignment: .trailing, spacing: 0) {
+        VStack(alignment: .center, spacing: 1) {
             Text(value ?? "—").lineLimit(1)
             if let delta {
-                Text(delta.text).font(.system(size: 9)).lineLimit(1).fixedSize()
+                Text(delta.text).font(Self.deltaFont).lineLimit(1).fixedSize()
                     .foregroundStyle(Self.tone(delta.tone, hot: hot))
             }
-        }.frame(width: width, alignment: .trailing)
+        }.frame(width: width)
     }
 
-    /// Reload (another precision is selected for the loaded model) is the green variant of the same button.
-    @ViewBuilder private func loadButton(_ title: String, reload: Bool, action: @escaping () -> Void) -> some View {
-        if reload {
-            Button(title, action: action).buttonStyle(ReloadButtonStyle()).controlSize(.small)
+    /// The Precision segments (TierControl.swift): the tiers the current switch position offers. Disabled while the
+    /// model is in use.
+    @ViewBuilder private func precisionControl(_ family: ModelFamily, hot: Bool) -> some View {
+        let offered = controller.precisions(family)
+        if offered.isEmpty {
+            Text("—").foregroundStyle(.secondary)
         } else {
-            Button(title, action: action).buttonStyle(.bordered).controlSize(.small)
+            TierControl(tiers: offered.map(\.rawValue), selected: controller.shownCell(family).map(\.tier.rawValue),
+                        enabled: !controller.inUse(family), hot: hot,
+                        help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0) ?? .t16, path: controller.hasOptimizedPath(family) ? .optimized : .standard) },
+                        onSelect: { if let tier = ModelTier(rawValue: $0) { controller.select(family, tier: tier) } })
         }
     }
 
-    /// `Optimized [16][8][4]` above `Standard [16][8][4]`, the Exact/Fast switch beside them (TierControl.swift,
-    /// ExactFastSwitch.swift). Present cells only; disabled while the model is in use.
-    @ViewBuilder private func tierPicker(_ family: ModelFamily, hot: Bool) -> some View {
-        let selection = controller.currentSelection(family)
-        let optimized = controller.tiers(family, .optimized).map(\.rawValue)
-        let standard = controller.tiers(family, .standard).map(\.rawValue)
-        let enabled = !controller.inUse(family)
-        if optimized.isEmpty && standard.isEmpty {
-            Text("—").foregroundStyle(.secondary)
+    /// The Path switch (ExactFastSwitch.swift): up Fast, down Exact; none for a model without an Optimized path.
+    @ViewBuilder private func pathSwitch(_ family: ModelFamily) -> some View {
+        if controller.hasOptimizedPath(family) {
+            ExactFastSwitch(position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
+                            available: controller.switchAvailable(family), enabled: !controller.inUse(family),
+                            onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
         } else {
-            HStack(spacing: 4) {
-                TierControl(optimized: optimized, standard: standard,
-                            selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
-                            enabled: enabled, hot: hot,
-                            help: { cell in controller.tierHelp(family, tier: ModelTier(rawValue: cell.tier) ?? .t16, path: cell.row == .standard ? .standard : .optimized) },
-                            onSelect: { cell in
-                                guard let tier = ModelTier(rawValue: cell.tier) else { return }
-                                controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized)
-                            })
-                ExactFastSwitch(position: selection.mode == .fast ? .fast : .exact, available: controller.switchAvailable(family), enabled: enabled,
-                                onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
-            }
+            Color.clear.frame(height: 1)
         }
     }
 
@@ -411,30 +509,31 @@ struct ModelTable: View {
         let loaded = controller.loaded(family)
         let enabled = !controller.inUse(family)
         var cells: [(String, String)] = [("Model", modelHelp(family, loaded: loaded))]
-        if let loaded, loaded.engine != nil {
+        if controller.couplingNote(family) == nil, let loaded, loaded.engine != nil {
             cells.append(("Engine", engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
                                                chip: runtime?.chip, precision: loaded.precision)))
         }
-        if let languages = languagesHelp(family, r) { cells.append(("Languages", languages)) }
-        for path in [EnginePath.optimized, .standard] {
-            for tier in controller.tiers(family, path) {
-                cells.append(("\(path == .optimized ? "Optimized" : "Standard") \(tier.rawValue)",
-                              TierControl.tooltip(controller.tierHelp(family, tier: tier, path: path), enabled: enabled)))
-            }
+        let slots = capabilitySlots(family)
+        for c in Capability.allCases { if let slot = slots[c] { cells.append(("Capability \(c.rawValue)", slot.help)) } }
+        let path: EnginePath = controller.hasOptimizedPath(family) ? .optimized : .standard
+        for tier in controller.precisions(family) {
+            cells.append(("Precision \(tier.rawValue)", TierControl.tooltip(controller.tierHelp(family, tier: tier, path: path), enabled: enabled)))
         }
-        cells.append(("Exact/Fast", ExactFastSwitch.tooltip(available: controller.switchAvailable(family), enabled: enabled)))
+        if path == .optimized { cells.append(("Path", ExactFastSwitch.tooltip(available: controller.switchAvailable(family), enabled: enabled))) }
+        let action = controller.action(family)
+        let glyph: RowAction.Glyph = loaded != nil ? .loaded : controller.available(family, precision) ? .onDisk : .get
         return cells + [("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
                         ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),
-                        ("Memory", memoryHelp(r, suites: suites)), ("On disk", diskHelp(family, precision))]
+                        ("Memory", memoryHelp(r, suites: suites)), ("On disk", diskHelp(family, precision)),
+                        ("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision, glyph: glyph))]
     }
 
-    /// A reference row's tooltips as (column, text); Languages, Params and Q have none (nothing is known).
+    /// A reference row's tooltips as (column, text); Capabilities, Params and the controls have none (nothing is known).
     func tooltips(_ r: ReferenceEntry) -> [(String, String)] {
         [("Model", referenceModelHelp(r)), ("WER", referenceWERTooltip(r)), ("Format", referenceFormatHelp),
          ("Speed", referenceNotApplicableHelp), ("J / min", referenceNotApplicableHelp), ("Memory", referenceNotApplicableHelp),
          ("On disk", referenceDiskHelp)]
     }
-
 
     /// This Mac's chip: the runtime's, else the CPU brand string.
     static let localChip: String? = {
@@ -498,41 +597,29 @@ struct ModelTable: View {
             .accessibilityHint("Copies installation instructions to the clipboard. Nothing is sent automatically.")
     }
 
-    private func plainHeading(_ text: String, _ width: CGFloat, _ alignment: Alignment, help: String) -> some View {
-        Text(text).frame(width: width, alignment: alignment).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary).appKitTooltip(help)
+
+    private func plainHeading(_ text: String, _ width: CGFloat, help: String) -> some View {
+        Text(text).frame(width: width).font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).appKitTooltip(help)
     }
 
-    /// Sortable heading; the active one is primary with a small arrow in an overlay, so the label never shifts. A Button
-    /// carries no hover text inside the menu (TooltipCell.swift), so `help` is its accessibility hint; each cell's
-    /// tooltip says what its figure is.
+    /// Sortable heading; the active one is primary with a small arrow in an overlay beside it, so the label never
+    /// shifts off its column's centre. A Button carries no hover text inside the menu (TooltipCell.swift), so `help` is
+    /// its accessibility hint; each cell's tooltip says what its figure is.
     private func heading(_ text: String, _ column: TableSortColumn, _ width: CGFloat, _ alignment: Alignment, help: String? = nil) -> some View {
         Button {
             if sortColumn == column { ascending.toggle() } else { sortColumn = column; ascending = true }
         } label: {
-            // The arrow sits beside the label in an overlay, so the label never shifts.
             Text(text)
-                .overlay(alignment: alignment == .leading ? .trailing : .leading) {
+                .overlay(alignment: .trailing) {
                     Image(systemName: ascending ? "arrow.up" : "arrow.down")
-                        .font(.system(size: 8, weight: .semibold)).frame(width: 9)
-                        .offset(x: alignment == .leading ? 11 : -11)
+                        .font(.system(size: 9, weight: .semibold)).frame(width: 10)
+                        .offset(x: 13)
                         .opacity(sortColumn == column ? 1 : 0)
                         .allowsHitTesting(false)
                 }
-                .frame(width: width, alignment: alignment)
-        }.buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundStyle(sortColumn == column ? .primary : .secondary)
+                .frame(width: width, height: Self.headerHeight, alignment: alignment)
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain).font(.system(size: 12, weight: .medium)).foregroundStyle(sortColumn == column ? .primary : .secondary)
             .accessibilityHint(column == .name ? "Sort by name." : (help.map { $0 + " " } ?? "") + "Sorts by each model's best value across its precisions.")
-    }
-}
-
-/// The pending-Reload button: the bordered small button's shape filled in the deltas' green family (deep enough for
-/// white text on the loaded row). Drawn directly, so it stays green in a menu's inactive window.
-struct ReloadButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var enabled
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .foregroundStyle(.white)
-            .padding(.horizontal, 7).frame(height: 16)
-            .background(ModelTable.reloadGreen.opacity(configuration.isPressed ? 0.75 : enabled ? 1 : 0.5),
-                        in: RoundedRectangle(cornerRadius: 4, style: .continuous))
     }
 }

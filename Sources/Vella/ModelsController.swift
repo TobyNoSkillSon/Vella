@@ -38,6 +38,17 @@ import VellaCore
     @Published private(set) var pendingSelections: [String: ModelSelection] = [:]
     /// Render harness: draw every row as in use (segments and switch disabled).
     var previewInUse = false
+    /// Render harness: the family whose action cell is drawn hovered.
+    var previewHover: String?
+    /// Capabilities filter: show only models with every capability in it (empty = every model). Kept while Vella runs.
+    @Published var capabilityFilter: Set<Capability> = []
+    /// The filter strip under the header is open (a click on the Capabilities header toggles it).
+    @Published var filterOpen = false
+    /// Family id → the precision a flip to Exact moved the preview away from (Exact offers fewer precisions); the
+    /// name's second line says so while the preview lasts.
+    @Published private(set) var couplingNotes: [String: ModelTier] = [:]
+    /// The table's height changed (filter strip, filtered rows): the menu resizes its item view.
+    var onLayoutChange: (() -> Void)?
     /// Family id → the precision whose confirmed download is running; it loads when the download finishes.
     @Published private(set) var pendingLoads: [String: String] = [:]
     /// config.json as last read: the modes' models and `lastLoaded`. Nil without one (isolated tests, renders).
@@ -142,8 +153,19 @@ import VellaCore
     }
     /// Cloud reference rows of a section (estimated WER only; no controls). Shown only beside local models.
     func references(_ mode: RecognitionMode) -> [ReferenceEntry] { families(mode).isEmpty ? [] : benchmarks.references(mode) }
-    var rowCount: Int { RecognitionMode.allCases.reduce(0) { $0 + families($1).count + references($1).count } }
-    var sectionCount: Int { [RecognitionMode.dictation, .streaming].filter { !families($0).isEmpty }.count }
+    /// Rows the table shows: the families with every filtered capability; cloud rows only without a filter (their
+    /// capabilities are not known).
+    func visibleFamilies(_ mode: RecognitionMode) -> [ModelFamily] { families(mode).filter { hasCapabilities($0, capabilityFilter) } }
+    func visibleReferences(_ mode: RecognitionMode) -> [ReferenceEntry] { capabilityFilter.isEmpty ? references(mode) : [] }
+    var rowCount: Int { RecognitionMode.allCases.reduce(0) { $0 + visibleFamilies($1).count + visibleReferences($1).count } }
+    var sectionCount: Int { [RecognitionMode.dictation, .streaming].filter { !visibleFamilies($0).isEmpty }.count }
+    /// The filter strip's checkboxes: capabilities some models have and others lack.
+    var filterableCapabilities: [Capability] { VellaCore.filterableCapabilities(RecognitionMode.allCases.flatMap { families($0) }) }
+    func toggleFilterStrip() { filterOpen.toggle(); onLayoutChange?() }
+    func toggleFilter(_ c: Capability) {
+        if capabilityFilter.contains(c) { capabilityFilter.remove(c) } else { capabilityFilter.insert(c) }
+        onLayoutChange?()
+    }
 
     func options(_ f: ModelFamily) -> [String] { precisionOptions(f) }
     /// The precision a derived one is made from, nil for a published precision.
@@ -203,7 +225,26 @@ import VellaCore
             return cellPresent(benchmark(f), tier: tier, segment: segment)
         }
     }
-    func isPresent(_ f: ModelFamily, _ s: ModelSelection) -> Bool { tiers(f, s.path).contains(s.tier) }
+    /// The Precision segments for a switch position (family coupling rule): Exact offers the tiers with an
+    /// Optimized Exact recipe (bit-identical to Standard), Fast those with an Optimized Fast one; where Fast = Exact
+    /// (greyed switch) either recipe counts. A model without any Optimized recipe offers its Standard tiers.
+    func precisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] {
+        guard hasOptimizedPath(f) else { return tiers(f, .standard) }
+        let keys: [SegmentKey] = !switchAvailable(f) ? [.optimized_exact, .optimized_fast] : mode == .exact ? [.optimized_exact] : [.optimized_fast]
+        return offeredTiers(f).filter { tier in keys.contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
+    }
+    /// The Precision segments as the row shows them (the current switch position).
+    func precisions(_ f: ModelFamily) -> [ModelTier] { precisions(f, currentSelection(f).mode) }
+    /// Every Vella model has an Optimized path; Standard is reached only through it (the tooltips' "vs Standard" line).
+    func hasOptimizedPath(_ f: ModelFamily) -> Bool {
+        offeredTiers(f).contains { tier in [SegmentKey.optimized_exact, .optimized_fast].contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
+    }
+    private func offeredTiers(_ f: ModelFamily) -> [ModelTier] {
+        ModelTier.allCases.filter { precisionLabel(f, tier: $0).map(options(f).contains) ?? false }
+    }
+    func isPresent(_ f: ModelFamily, _ s: ModelSelection) -> Bool {
+        s.path == .standard || !hasOptimizedPath(f) ? tiers(f, .standard).contains(s.tier) : precisions(f, s.mode).contains(s.tier)
+    }
     /// The Exact/Fast switch is live: some offered tier's Fast recipe runs an inexact component. Unmeasured families
     /// (no tiers in the file) keep it live.
     func switchAvailable(_ f: ModelFamily) -> Bool {
@@ -232,14 +273,17 @@ import VellaCore
         let candidate = lastLoaded(f).map { defaultSelection(recorded: stored, precision: $0, usedBefore: true) } ?? stored ?? .fallback
         return valid(f, candidate)
     }
-    /// `s` when its cell is present, else Standard at its tier, else Standard 16, else the first present cell.
+    /// `s` when its cell is present, else the Optimized cell at its tier (its switch position, then the other), else
+    /// Optimized 16, else the first present cell; Standard only for a model without an Optimized path.
     func valid(_ f: ModelFamily, _ s: ModelSelection) -> ModelSelection {
         if isPresent(f, s) { return s }
         for tier in [s.tier] + ModelTier.allCases {
+            for mode in [s.mode, s.mode == .fast ? .exact : .fast] {
+                let optimized = ModelSelection(tier: tier, path: .optimized, mode: mode)
+                if hasOptimizedPath(f), isPresent(f, optimized) { return optimized }
+            }
             let standard = ModelSelection(tier: tier, path: .standard, mode: s.mode)
             if isPresent(f, standard) { return standard }
-            let optimized = ModelSelection(tier: tier, path: .optimized, mode: s.mode)
-            if isPresent(f, optimized) { return optimized }
         }
         return s
     }
@@ -249,24 +293,41 @@ import VellaCore
     static let log = Logger(subsystem: "dev.vella.dictation", category: "models-table")
     func select(_ f: ModelFamily, tier: ModelTier, path: EnginePath) {
         Self.log.notice("segment click \(f.id, privacy: .public) \(tier.rawValue, privacy: .public) \(path == .standard ? "standard" : "optimized", privacy: .public)")
-        setPreview(f, ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode))
+        guard setPreview(f, ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode)) else { return }
+        couplingNotes[f.id] = nil
     }
-    /// A switch flip: the Optimized cell of the shown tier in that mode (from a Standard cell too: the switch is about
-    /// the Optimized row). Applies at the next load, like a segment click.
+    /// A Precision segment click: the Optimized cell at that tier (Standard only for a model without an Optimized path).
+    func select(_ f: ModelFamily, tier: ModelTier) { select(f, tier: tier, path: hasOptimizedPath(f) ? .optimized : .standard) }
+    /// A switch flip: the Optimized cell of the shown tier in that mode (from a Standard cell too). Exact offers only
+    /// the tiers with an Exact recipe: a tier without one moves to 16 (else the first Exact tier), and the row says
+    /// which tier it left. Applies at the next load, like a segment click.
     func setMode(_ f: ModelFamily, _ mode: OptimizedMode) {
         Self.log.notice("switch click \(f.id, privacy: .public) \(mode == .fast ? "fast" : "exact", privacy: .public)")
         let current = currentSelection(f)
         var next = ModelSelection(tier: current.tier, path: .optimized, mode: mode)
-        if !isPresent(f, next) { next.path = current.path }
-        setPreview(f, next)
+        var moved: ModelTier?
+        if !isPresent(f, next) {
+            let offered = precisions(f, mode)
+            if hasOptimizedPath(f), let tier = offered.contains(.t16) ? .t16 : offered.first { moved = current.tier; next.tier = tier }
+            else { next.path = current.path }
+        }
+        guard setPreview(f, next) else { return }
+        couplingNotes[f.id] = moved
     }
-    private func setPreview(_ f: ModelFamily, _ s: ModelSelection) {
+    /// The name's second line after a flip to Exact moved the precision: `Exact: 16 only, was 8`.
+    func couplingNote(_ f: ModelFamily) -> String? {
+        guard let from = couplingNotes[f.id] else { return nil }
+        let offered = precisions(f, .exact).map(\.rawValue)
+        return "Exact: " + (offered.count == 1 ? "\(offered[0]) only" : offered.joined(separator: "/")) + ", was \(from.rawValue)"
+    }
+    @discardableResult private func setPreview(_ f: ModelFamily, _ s: ModelSelection) -> Bool {
         guard !inUse(f) else {
             let loading = runtime?.loading ?? "-"
             Self.log.notice("click refused (in use): preview \(self.previewInUse, privacy: .public) loadingFamily \(self.isLoading(f), privacy: .public) runtimeLoading \(loading, privacy: .public) mayChange \(self.library(f.mode).mayChangeModel(), privacy: .public)")
-            return
+            return false
         }
         previews[f.id] = s == committedSelection(f) ? nil : s
+        return true
     }
     /// In use: recording, dictating, streaming or loading (segments and switch disabled; a change applies at the next
     /// load, and the no-change-during-recording safety still guards the commit).
@@ -353,9 +414,12 @@ import VellaCore
         previews[f.id] = { let s = ModelSelection(tier: tier, path: current.path, mode: current.mode); return s == committedSelection(f) ? nil : s }()
     }
     /// The menu closed: previews end without effect.
-    func discardPreviews() { if !previews.isEmpty { previews = [:] } }
+    func discardPreviews() {
+        if !previews.isEmpty { previews = [:] }
+        if !couplingNotes.isEmpty { couplingNotes = [:] }
+    }
     /// Render harness: previews without a click.
-    func previewSelections(_ values: [String: ModelSelection]) { previews = values }
+    func previewSelections(_ values: [String: ModelSelection], couplingNotes notes: [String: ModelTier] = [:]) { previews = values; couplingNotes = notes }
 
     /// The row button. Unload goes to the runtime; Get/Load/Reload of weights on disk load now; anything that needs a
     /// download first asks in the confirmation popup, then downloads and loads.
