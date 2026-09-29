@@ -164,7 +164,7 @@ Shortcut changes are disabled during capture and processing. **Reset to Default*
 
 ## Transcribe files: command line and API
 
-Vella transcribes audio files with the same models, offline. It reads anything macOS decodes (WAV, MP3, M4A/AAC, FLAC, CAF, AIFF), up to 3 hours per file, converts it to 16 kHz mono and cuts it into 5–25 s segments at pauses, like a dictation.
+Vella transcribes audio files with the same models, offline. It reads anything macOS decodes (WAV, MP3, M4A/AAC, FLAC, CAF, AIFF), up to 3 hours per file, converts it to 16 kHz mono and cuts it into segments of up to about 25 s at pauses, like a dictation (Whisper models get longer segments, at least 20 s where the audio allows; a short or silent ending is transcribed with the segment before it).
 
 ```sh
 vella transcribe talk.m4a                        # the transcript

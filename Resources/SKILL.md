@@ -9,7 +9,7 @@ Vella runs speech-recognition models on this Mac (Apple Silicon); nothing leaves
 
 ## When to use
 
-Fits when you have an audio file (or a video's audio track saved as audio) and need its words: plain text, OpenAI-style JSON, timed segments (5–25 s each, cut at pauses), or SRT/VTT subtitles.
+Fits when you have an audio file (or a video's audio track saved as audio) and need its words: plain text, OpenAI-style JSON, timed segments (up to about 25 s each, cut at pauses), or SRT/VTT subtitles.
 
 Use another tool to translate, to identify speakers or for word-level timestamps. Split files longer than 3 hours.
 

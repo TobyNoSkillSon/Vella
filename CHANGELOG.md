@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Short or silent endings no longer become separate requests.** A dictation or file whose last segment had under 2 s of new audio, or no audio above the silence level, sent that piece to the model on its own: Whisper answered such pieces with "Thank you." and similar phrases, and Parakeet dropped the opening sentences of a clip cut 0.1 s before its end. That piece is now transcribed together with the segment before it. Saved recordings are written and cut exactly as before.
+- **Whisper models get longer segments.** Whisper was trained on 30 s windows; it now cuts at a pause only after 20 s (other models: 5 s), so it sees whole sentences and makes fewer errors at cuts.
+
 ## 1.0.0 (2026-09-27)
 
 ### Added

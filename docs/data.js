@@ -48,6 +48,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": true,
       "reasons": []
@@ -83,6 +84,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": true,
       "reasons": []
@@ -148,6 +150,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -187,6 +190,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -242,6 +246,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": true,
       "reasons": []
@@ -316,6 +321,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -360,6 +366,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -602,6 +609,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": true,
       "reasons": []
@@ -666,6 +674,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -703,6 +712,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -756,6 +766,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": true,
       "reasons": []
@@ -829,6 +840,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -872,6 +884,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -935,6 +948,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": true,
       "reasons": []
@@ -976,6 +990,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": true,
       "reasons": []
@@ -1049,6 +1064,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -1100,6 +1116,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": true,
       "reasons": []
@@ -1173,6 +1190,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": true,
       "reasons": []
@@ -1213,6 +1231,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-28",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "optimized",
+     "note": "Segmentation fixed on 2026-09-29; accuracy re-measure pending",
      "gate": {
       "pass": false,
       "reasons": [
@@ -1255,7 +1274,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-26",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "mlx",
-     "note": "quick set only (benchmark-table model); energy not recorded: the worker crashed twice per run, so its restarts cannot be separated from background load; engine: No optimized path for this model yet."
+     "note": "quick set only (benchmark-table model); energy not recorded: the worker crashed twice per run, so its restarts cannot be separated from background load; engine: No optimized path for this model yet; Segmentation fixed on 2026-09-29; accuracy re-measure pending"
     }
    },
    "recommended": "FP32",
@@ -1283,7 +1302,7 @@ const VELLA_BENCHMARKS = {
      "date": "2026-09-26",
      "hardware": "Apple M5 Max, macOS 26.6",
      "engine": "mlx",
-     "note": "quick set only (benchmark-table model); engine: The optimized path failed its self-test against stock MLX on this Mac."
+     "note": "quick set only (benchmark-table model); engine: The optimized path failed its self-test against stock MLX on this Mac; Segmentation fixed on 2026-09-29; accuracy re-measure pending"
     }
    },
    "recommended": "FP32",
