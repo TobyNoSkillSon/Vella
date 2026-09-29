@@ -41,10 +41,60 @@ struct TranscriptionEstimate {
         try session.save()
         var completed = session.manifest.segments.filter { $0.text != nil }.reduce(0.0) { $0 + $1.seconds }
         var requests = 0
+        func recognize(_ file: URL, frames: Int, segment i: Int) async throws -> String {
+            var start = ProcessInfo.processInfo.systemUptime
+            var retried = false
+            var recognized = ""
+            while true {
+                do { recognized = try await request(file, session.manifest.config); break }
+                catch is WorkerExited where !retried {
+                    // One automatic retry of this segment on a fresh worker. Finished segments are already saved;
+                    // the caller's Finish-time destination and paste decision are untouched (this stays inside
+                    // the same transcription). A second failure falls through to the manual Retry.
+                    try Task.checkCancellation()
+                    retried = true; onRetry?(i + 1, session.manifest.segments.count)
+                    start = ProcessInfo.processInfo.systemUptime
+                }
+            }
+            let text = recognized.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            try Task.checkCancellation()
+            let elapsed = ProcessInfo.processInfo.systemUptime - start
+            // Exclude the first (potentially cold) request, and a retry (it reloads the model), from warm calibration.
+            if requests > 0, !retried, !text.isEmpty {
+                onObservation?(session.manifest.config.model, Double(frames) / 16_000, elapsed)
+            }
+            requests += 1
+            return text
+        }
+        // Cut points were decided while recording; the final segments may still be recognized as one unit.
+        let merge = try session.tailMerge(policy: .forModel(session.manifest.config.model))
         for i in session.manifest.segments.indices {
             try Task.checkCancellation()
             let segment = session.manifest.segments[i]
             if segment.text != nil { continue }
+            if let merge, i == merge.segments.lowerBound {
+                let unit = Array(session.manifest.segments[merge.segments])
+                let seconds = unit.reduce(0.0) { $0 + $1.seconds }
+                onChunk?(completed, seconds, i + 1, session.manifest.segments.count)
+                var audio = try session.samples(for: segment)
+                for later in unit.dropFirst() { audio += try session.samples(for: later).dropFirst(later.overlapFrames) }
+                var text = ""
+                for (k, range) in merge.requests.enumerated() {
+                    let piece = try await recognize(try session.wav(samples: audio[range]), frames: range.count, segment: i)
+                    text = k == 0 ? piece : RecordingSession.join(text, piece, overlaps: true)
+                }
+                try Task.checkCancellation()
+                for index in merge.segments {
+                    session.manifest.segments[index].text = index == i ? text : ""
+                    session.manifest.segments[index].textThroughIndex = nil
+                    session.manifest.segments[index].quietSlices = nil
+                }
+                // One save: the unit's texts land together, so it is recognized, and its text used, exactly once.
+                do { try session.save() }
+                catch { session.manifest.segments.replaceSubrange(merge.segments, with: unit); throw error }
+                completed += seconds
+                continue
+            }
             onChunk?(completed, segment.seconds, i + 1, session.manifest.segments.count)
             let text: String
             if segment.seconds <= 0 {
@@ -52,29 +102,7 @@ struct TranscriptionEstimate {
                 try session.verifyRedundantTail(at: i)
                 text = ""
             } else {
-                let file = try session.wav(for: segment)
-                var start = ProcessInfo.processInfo.systemUptime
-                var retried = false
-                var recognized = ""
-                while true {
-                    do { recognized = try await request(file, session.manifest.config); break }
-                    catch is WorkerExited where !retried {
-                        // One automatic retry of this segment on a fresh worker. Finished segments are already saved;
-                        // the caller's Finish-time destination and paste decision are untouched (this stays inside
-                        // the same transcription). A second failure falls through to the manual Retry.
-                        try Task.checkCancellation()
-                        retried = true; onRetry?(i + 1, session.manifest.segments.count)
-                        start = ProcessInfo.processInfo.systemUptime
-                    }
-                }
-                text = recognized.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-                try Task.checkCancellation()
-                let elapsed = ProcessInfo.processInfo.systemUptime - start
-                // Exclude the first (potentially cold) request, and a retry (it reloads the model), from warm calibration.
-                if requests > 0, !retried, !text.isEmpty {
-                    onObservation?(session.manifest.config.model, Double(segment.frames) / 16_000, elapsed)
-                }
-                requests += 1
+                text = try await recognize(try session.wav(for: segment), frames: segment.frames, segment: i)
             }
             try Task.checkCancellation()
             session.manifest.segments[i].text = text

@@ -70,25 +70,25 @@ final class DictationTailTests: XCTestCase {
         XCTAssertEqual(try restored.manifest.segments.map { try Data(contentsOf: restored.directory.appendingPathComponent($0.filename)) }, original)
     }
 
-    @MainActor func testFreshTinyTailIsNeverGroupedWithPredecessor() async throws {
+    /// A fresh 117 ms tail is never sent alone: one request holds the predecessor and the tail (audio decides, not text).
+    @MainActor func testFreshTinyTailIsRecognizedWithItsPredecessor() async throws {
         let session = try fixture()
         session.manifest.segments[0].text = nil
         try session.save()
+        let hashes = session.manifest.segments.map(\.sha256)
         var calls = 0
         let text = try await SessionTranscriber { url, _ in
             calls += 1
-            XCTAssertEqual(try AVAudioFile(forReading: url).length, calls == 1 ? 80000 : 1877)
-            if calls == 2 {
-                let disk = try RecordingSession(directory: session.directory)
-                XCTAssertEqual(disk.manifest.segments[0].text, "Fresh sentence.")
-                XCTAssertNil(disk.manifest.segments[1].text)
-            }
-            return calls == 1 ? "Fresh sentence." : "Yes."
+            XCTAssertEqual(try AVAudioFile(forReading: url).length, 81877)
+            return "Fresh sentence. Yes."
         }.run(session)
         XCTAssertEqual(text, "Fresh sentence. Yes.")
-        XCTAssertEqual(calls, 2)
-        XCTAssertEqual(session.manifest.segments.map(\.text), ["Fresh sentence.", "Yes."])
+        XCTAssertEqual(calls, 1)
+        XCTAssertEqual(session.manifest.segments.map(\.text), ["Fresh sentence. Yes.", ""])
         XCTAssertTrue(session.manifest.segments.allSatisfy { $0.textThroughIndex == nil })
+        let disk = try RecordingSession(directory: session.directory)
+        XCTAssertEqual(disk.manifest.segments.map(\.text), ["Fresh sentence. Yes.", ""])
+        XCTAssertEqual(disk.manifest.segments.map(\.sha256), hashes, "The journal keeps both segments as recorded")
     }
 
     @MainActor func testSuccessfulTailResponseNeedsNoAnchorAgreement() async throws {

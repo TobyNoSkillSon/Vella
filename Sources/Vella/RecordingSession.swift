@@ -204,24 +204,27 @@ final class RecordingSession {
         let next = trimOverlap(left, right, overlaps: overlaps)
         return left.isEmpty ? next : left + (next.isEmpty ? "" : " " + next)
     }
-    func wav(for segment: Segment) throws -> URL {
+    func wav(for segment: Segment) throws -> URL { try wav(samples: samples(for: segment)[...]) }
+    /// A segment's verified Float32 samples, overlap included, exactly as saved.
+    func samples(for segment: Segment) throws -> [Float] {
         let raw = try Data(contentsOf: directory.appendingPathComponent(segment.filename))
         try Self.validatePCMByteCount(raw.count)
         guard raw.count / 4 == segment.frames, raw.count < 16_000 * 4 * 31 else {
             throw VellaError.message("Saved audio segment has an unexpected size. Original audio is preserved.")
         }
         if let hash = segment.sha256, Self.digest(raw) != hash { throw VellaError.message("Audio changed before transcription. Saved files were retained.") }
+        guard segment.frames > 0 else { throw VellaError.message("Saved audio segment is empty. Original audio is retained.") }
+        return raw.withUnsafeBytes { bytes in (0..<segment.frames).map { bytes.loadUnaligned(fromByteOffset: $0 * 4, as: Float.self) } }
+    }
+    /// The request file for one recognition: saved samples of one segment, or of a merged final pair (`TailMerge`).
+    func wav(samples: ArraySlice<Float>) throws -> URL {
+        guard !samples.isEmpty else { throw VellaError.message("Saved audio segment is empty. Original audio is retained.") }
+        guard samples.count < 16_000 * 31 else { throw VellaError.message("Saved audio segment has an unexpected size. Original audio is preserved.") }
         // Keep lossless Float32 on disk, but send canonical signed PCM16. This
         // matches the calibration/backend input contract and avoids decoder-dependent
         // floating-WAV conversion. Transport quantization never changes saved audio.
-        guard segment.frames > 0 else { throw VellaError.message("Saved audio segment is empty. Original audio is retained.") }
-        var pcm: [Int16] = []; pcm.reserveCapacity(segment.frames)
-        raw.withUnsafeBytes { bytes in
-            for i in 0..<segment.frames {
-                let sample = bytes.loadUnaligned(fromByteOffset: i * 4, as: Float.self)
-                pcm.append(Int16(max(-32767, min(32767, (sample.isFinite ? sample : 0) * 32767))))
-            }
-        }
+        var pcm: [Int16] = []; pcm.reserveCapacity(samples.count)
+        for sample in samples { pcm.append(Int16(max(-32767, min(32767, (sample.isFinite ? sample : 0) * 32767)))) }
         let bytes = pcm.withUnsafeBytes { Data($0) }
         var data = Data()
         func ascii(_ s: String) { data.append(Data(s.utf8)) }
@@ -233,6 +236,58 @@ final class RecordingSession {
         let url = directory.appendingPathComponent("request.wav")
         try durableWrite(data, to: url); return url
     }
+    /// The final segments recognized as one unit: the journal keeps them exactly as recorded; only the requests differ.
+    /// `requests` are frame ranges over the unit's audio (the first segment's frames, overlap included, then each
+    /// later segment's new frames). The unit's text is stored on its first segment; the others get "".
+    struct TailMerge: Equatable {
+        let segments: ClosedRange<Int>
+        let requests: [Range<Int>]
+    }
+    /// The final segment is never recognized alone while it has less than `policy.minimumSeconds` of new audio or no
+    /// voiced 20 ms block (Whisper answers such tails with "Thank you."; a 0.1 s tail cut Parakeet's input at a length
+    /// where it drops sentences). It absorbs its predecessor, and again while the grown unit still qualifies, up to
+    /// maximum + mergeSlack seconds; a pair that would exceed that is re-split evenly with the forced-cut overlap
+    /// instead. Only still-pending segments take part (a saved text is never replaced). Audio decides, never text.
+    /// `pendingOnly: false` gives the unit a finished transcription used (for its timestamps).
+    func tailMerge(policy: SegmentedPCMWriter.Policy, pendingOnly: Bool = true) throws -> TailMerge? {
+        let s = manifest.segments
+        guard let last = s.indices.last, !pendingOnly || s[last].text == nil, s[last].frames > s[last].overlapFrames else { return nil }
+        let minimum = Int(policy.minimumSeconds * 16_000)
+        let limit = Int((policy.maximumSeconds + policy.mergeSlackSeconds) * 16_000)
+        let overlap = Int(policy.overlapSeconds * 16_000)
+        func voiced(_ segment: Segment) throws -> Bool {
+            Self.hasVoicedBlock(try samples(for: segment), from: segment.overlapFrames, threshold: policy.silenceRMS)
+        }
+        var first = last, newFrames = s[last].frames - s[last].overlapFrames
+        var isVoiced = try voiced(s[last])
+        var split: [Range<Int>]?
+        while first > 0, newFrames < minimum || !isVoiced {
+            let previous = s[first - 1]
+            guard !pendingOnly || previous.text == nil, previous.index + 1 == s[first].index, previous.frames > previous.overlapFrames else { break }
+            let total = previous.frames + newFrames
+            if total > limit {
+                let cut = (total + overlap) / 2
+                let halves = [0..<cut, (cut - overlap)..<total]
+                if halves.allSatisfy({ $0.count >= minimum && $0.count <= limit }) { first -= 1; split = halves }
+                break
+            }
+            first -= 1; newFrames += previous.frames - previous.overlapFrames
+            if !isVoiced { isVoiced = try voiced(previous) }
+        }
+        guard first < last else { return nil }
+        if let split { return TailMerge(segments: first...last, requests: split) }
+        return TailMerge(segments: first...last, requests: [0..<(s[first].overlapFrames + newFrames)])
+    }
+    /// Any 20 ms block (on the writer's grid, counted from `start`) above the writer's silence level.
+    static func hasVoicedBlock(_ samples: [Float], from start: Int, threshold: Double) -> Bool {
+        for begin in stride(from: start, to: samples.count, by: 320) {
+            let end = min(begin + 320, samples.count)
+            var sum = 0.0
+            for i in begin..<end { let value = samples[i].isFinite ? Double(samples[i]) : 0; sum += value * value }
+            if sqrt(sum / Double(end - begin)) > threshold { return true }
+        }
+        return false
+    }
     static func discover(root: URL) -> [URL] {
         ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [])
             .filter { FileManager.default.fileExists(atPath: $0.appendingPathComponent("session.json").path) }
@@ -243,13 +298,34 @@ final class RecordingSession {
 /// Bounded audio buffering (20 ms analysis frames + 0.5 s overlap).
 /// Only compact segment metadata grows with duration, not the audio in memory.
 final class SegmentedPCMWriter {
-    struct Policy {
+    /// Decides cut points only; audio is always written as recorded. Mirrored by lab/bench/appseg.py (same constants).
+    struct Policy: Equatable {
         var preferredSeconds = 5.0
         var maximumSeconds = 25.0
         var silenceSeconds = 0.4
         var silenceRMS = 0.003
         var overlapSeconds = 0.5
+        /// A final segment with less new audio than this (or with no voiced block) is recognized with its predecessor.
+        var minimumSeconds = 2.0
+        /// That merged request may exceed `maximumSeconds` by this much.
+        var mergeSlackSeconds = 2.0
         var reserveBytes: Int64 = 256 * 1024 * 1024
+        /// Whisper was trained on 30 s windows and hallucinates on short, cut-up input: cut at a pause only after 20 s.
+        static let whisper: Policy = { var policy = Policy(); policy.preferredSeconds = 20; return policy }()
+        static func forArchitecture(_ architecture: String?) -> Policy { architecture == "whisper" ? .whisper : Policy() }
+        /// The policy for the model folder a recording is made for: its config.json, or a derived precision's source.
+        static func forModel(_ path: String) -> Policy {
+            guard !path.isEmpty else { return Policy() }
+            func json(_ url: URL) -> [String: Any]? {
+                (try? Data(contentsOf: url)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            }
+            var folder = URL(fileURLWithPath: path)
+            if json(folder.appendingPathComponent("config.json")) == nil,
+               let source = json(folder.appendingPathComponent("vella-derived.json"))?["source"] as? String {
+                folder = URL(fileURLWithPath: source)
+            }
+            return forArchitecture(checkpointArchitecture(json(folder.appendingPathComponent("config.json"))))
+        }
     }
     let session: RecordingSession
     let policy: Policy
@@ -262,14 +338,16 @@ final class SegmentedPCMWriter {
     private var sinceSync = 0
     private(set) var totalFrames = 0
     private var stopped = false
-    init(session: RecordingSession, policy: Policy = Policy(), availableBytes: (() throws -> Int64)? = nil) throws {
+    init(session: RecordingSession, policy: Policy? = nil, availableBytes: (() throws -> Int64)? = nil) throws {
+        let policy = policy ?? Policy.forModel(session.manifest.config.model)
         self.session = session; self.policy = policy
         self.availableBytes = availableBytes ?? {
             let attrs = try FileManager.default.attributesOfFileSystem(forPath: session.directory.path)
             return (attrs[.systemFreeSize] as? NSNumber)?.int64Value ?? 0
         }
         guard policy.preferredSeconds > 0, policy.maximumSeconds >= policy.preferredSeconds,
-              policy.maximumSeconds <= 30, policy.overlapSeconds < policy.preferredSeconds else {
+              policy.maximumSeconds <= 30, policy.overlapSeconds < policy.preferredSeconds,
+              policy.minimumSeconds >= 0, policy.mergeSlackSeconds >= 0, policy.maximumSeconds + policy.mergeSlackSeconds <= 30 else {
             throw VellaError.message("Invalid recording segment policy.")
         }
         try checkSpace(); try open(overlap: [])

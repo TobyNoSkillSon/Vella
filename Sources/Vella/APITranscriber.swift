@@ -3,7 +3,8 @@ import Foundation
 import VellaCore
 
 /// Audio files for the API: any format AVFoundation decodes, resampled to 16 kHz mono Float32 and cut by the same
-/// `SegmentedPCMWriter` the microphone path uses (5–25 s segments at pauses, 0.5 s overlap on forced cuts).
+/// `SegmentedPCMWriter` the microphone path uses (cut at pauses after 5 s, 20 s for Whisper; 25 s maximum with a 0.5 s
+/// overlap on forced cuts; a short or silent final segment is recognized with its predecessor).
 enum APIAudio {
     static let unreadable = "Vella could not decode this audio file. Send WAV, MP3, M4A/AAC, FLAC, CAF or AIFF."
 
@@ -69,16 +70,20 @@ enum APIAudio {
 
     /// Timed pieces of a finished session: each segment's text with the overlap its predecessor already covered
     /// removed (the same trimming as the dictation transcript), placed at its unique audio. Empty pieces are dropped.
+    /// A final unit recognized as one request (`RecordingSession.tailMerge`) spans all of its segments' audio.
     static func segments(_ session: RecordingSession) -> (text: String, segments: [TranscriptSegment]) {
         var pieces: [TranscriptSegment] = [], tail = "", start = 0.0
-        for segment in session.manifest.segments {
+        let segments = session.manifest.segments
+        let unit = (try? session.tailMerge(policy: .forModel(session.manifest.config.model), pendingOnly: false))?.segments
+        for (i, segment) in segments.enumerated() {
             let next = RecordingSession.trimOverlap(tail, segment.text ?? "", overlaps: segment.overlapFrames > 0)
-            let end = start + segment.seconds
+            var end = start + segment.seconds
+            if let unit, i == unit.lowerBound { end = start + segments[unit].reduce(0.0) { $0 + $1.seconds } }
             if !next.isEmpty {
                 pieces.append(TranscriptSegment(id: pieces.count, start: start, end: end, text: next))
                 tail = String((tail + " " + next).suffix(2048))
             }
-            start = end
+            start += segment.seconds
         }
         return (pieces.map(\.text).joined(separator: " "), pieces)
     }

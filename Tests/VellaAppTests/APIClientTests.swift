@@ -46,7 +46,8 @@ final class APIClientTests: XCTestCase {
 
         let (tCode, text, tErr) = try await vella(api, ["transcribe", audio.path])
         XCTAssertEqual(tCode, 0, tErr)
-        XCTAssertEqual(text, "fake-a heard 6.40 s. fake-a heard 7.80 s. fake-a heard 5.00 s. fake-a heard 0.20 s.\n")
+        // The 0.2 s final segment is recognized with its predecessor (one 5.2 s request).
+        XCTAssertEqual(text, "fake-a heard 6.40 s. fake-a heard 7.80 s. fake-a heard 5.20 s.\n")
         XCTAssertTrue(FileManager.default.fileExists(atPath: audio.path), "the input file is left alone")
 
         let (sCode, srt, _) = try await vella(api, ["transcribe", audio.path, "--model", "fake-b", "--srt"])

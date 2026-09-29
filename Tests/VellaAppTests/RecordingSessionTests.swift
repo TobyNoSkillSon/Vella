@@ -215,7 +215,9 @@ final class RecordingSessionTests: XCTestCase {
         var resumed = 0
         let next = SessionTranscriber { _, _ in resumed += 1; return "Remaining segment \(resumed)." }
         let text = try await next.run(recovered)
-        XCTAssertEqual(resumed, recovered.manifest.segments.count - 1)
+        // The last segment has 0.2 s of new audio: it is recognized with its predecessor, in one request.
+        XCTAssertEqual(resumed, recovered.manifest.segments.count - 2)
+        XCTAssertEqual(recovered.manifest.segments.last?.text, "")
         XCTAssertTrue(text.hasPrefix("First segment."))
         XCTAssertEqual(try String(contentsOf: recovered.transcriptURL), text)
         XCTAssertTrue(FileManager.default.fileExists(atPath: recovered.directory.appendingPathComponent(recovered.manifest.segments[0].filename).path))
