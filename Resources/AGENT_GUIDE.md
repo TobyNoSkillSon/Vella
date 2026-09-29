@@ -22,7 +22,7 @@ Read this when a user wants a model Vella does not offer, another precision of o
   "offered": true}]}
 ```
 
-`tiers_offered` lists the tiers the app offers: a tier is left out only when it breaks on Vella's benchmark (lost clips, empty or invalid output, a word error rate 5 points or more above the 16-bit one, or any one language 10 points or more above it). Each tier runs on **Standard** (stock MLX) or **Optimized** (Vella's self-tested kernels), and Optimized is **Exact** (only kernels whose output equals Standard's) or **Fast** (adds kernels that passed the noise gate). The Models table offers the Optimized path only, as a **Precision** (16, 8, 4) and a **Path** switch (Fast or Exact; Exact lists only the tiers with an `optimized_exact` recipe); Standard's figures appear in its tooltips. The API reports what runs as `selection` and still accepts `standard`.
+`tiers_offered` lists the tiers the app offers: a tier is left out only when it breaks on Vella's benchmark (lost clips, empty or invalid output, a word error rate 5 points or more above the 16-bit one, or any one language 10 points or more above it). Each tier runs on **Standard** (stock MLX) or **Optimized** (Vella's self-tested kernels), and Optimized is **Exact** (only kernels whose output equals Standard's) or **Fast** (adds kernels that passed the noise gate). The Models table shows both paths as two **Precision** rows of 16, 8 and 4, Optimized above Standard, with a Fast/Exact switch beside the Optimized row (Exact lists only the tiers with an `optimized_exact` recipe); every present cell can be chosen and shows its own figures, with the difference from Standard 16 beneath. The API reports what runs as `selection` and still accepts `standard`.
 
 ## Adding a model
 

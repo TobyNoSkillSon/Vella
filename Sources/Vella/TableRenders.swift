@@ -124,6 +124,13 @@ import VellaUpdate
         filtered.runtime.loaded = loaded.runtime.loaded
         filtered.filter = [.cjk]; filtered.filterOpen = true
         states.append(filtered)
+        // Parakeet v3 loaded on Optimized 16 Fast, previewing its Standard 16 (the reference: no deltas, green Reload);
+        // Parakeet v3 Ultra previewing Standard 8 (its own numbers, deltas vs Standard 16).
+        var standard = State(name: "standard-previews")
+        standard.config = loaded.config
+        standard.runtime.loaded = loaded.runtime.loaded
+        standard.selections = ["parakeet-v3": sel(.t16, .standard, .fast), "parakeet-v3-ultra": sel(.t8, .standard, .fast)]
+        states.append(standard)
         // The pointer over Qwen3 ASR 1.7B's action cell (on disk): the Load button and the trash glyph.
         var hover = State(name: "hover-action")
         hover.config = loaded.config
@@ -180,33 +187,39 @@ import VellaUpdate
         return file
     }
 
-    /// The shared Precision segments, Path switch and action cell (TierControl.swift, ExactFastSwitch.swift,
+    /// The shared Precision rows, Exact/Fast switch and action button (TierControl.swift, ExactFastSwitch.swift,
     /// RowAction.swift) in their states, one per line.
     static func renderControls(to url: URL, done: @escaping () -> Void) {
-        func line(_ title: String, _ tiers: [String], _ selected: String?, enabled: Bool = true, hot: Bool = false,
-                  position: ExactFastSwitch.Position = .exact, available: Bool = true, glyph: RowAction.Glyph = .onDisk,
-                  action: String = "Load", emphasized: Bool = false, hovered: Bool = false) -> some View {
-            HStack(spacing: 10) {
+        typealias Cell = TierControl.Cell
+        func line(_ title: String, _ optimized: [String], _ standard: [String], _ selected: Cell?, enabled: Bool = true, hot: Bool = false,
+                  position: ExactFastSwitch.Position = .exact, available: Bool = true, action: String = "Load", emphasized: Bool = false,
+                  deletable: Bool = true, hovered: Bool = false, busy: String? = nil) -> some View {
+            HStack(alignment: .center, spacing: 10) {
                 Text(title).font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 190, alignment: .leading)
-                TierControl(tiers: tiers, selected: selected, enabled: enabled, hot: hot, help: { _ in "" }, onSelect: { _ in })
+                TierControl(optimized: optimized, standard: standard, selected: selected, enabled: enabled, hot: hot, help: { _ in "" }, onSelect: { _ in })
                 ExactFastSwitch(position: position, available: available, enabled: enabled, onChange: { _ in })
-                RowAction(glyph: glyph, title: action, emphasized: emphasized, enabled: enabled, deletable: glyph != .get, hot: hot, hovered: hovered,
+                    .offset(y: (TierControl.segmentHeight - ExactFastSwitch.height) / 2)
+                    .frame(width: ExactFastSwitch.width, height: TierControl.height, alignment: .top)
+                RowAction(title: action, busyText: busy, emphasized: emphasized, enabled: enabled, deletable: deletable, hot: hot, hovered: hovered,
                           help: "", onPerform: {}, onDelete: {})
-            }.padding(.horizontal, 8).frame(height: 38)
+            }.padding(.horizontal, 8).frame(height: ModelTable.rowHeight)
                 .background(hot ? ModelTable.hotRow : .clear, in: RoundedRectangle(cornerRadius: 5))
         }
+        let all = ["16", "8", "4"]
         let sheet = VStack(alignment: .leading, spacing: 4) {
-            line("16 · Exact · on disk", ["16", "8", "4"], "16")
-            line("16 · Fast · not downloaded", ["16", "8"], "16", position: .fast, glyph: .get, action: "Get")
-            line("8 · Fast · loaded", ["16", "8", "4"], "8", hot: true, position: .fast, glyph: .loaded, action: "Unload")
-            line("Loaded, 4 previewed: Reload", ["16", "8", "4"], "4", hot: true, position: .fast, glyph: .loaded, action: "Reload", emphasized: true)
-            line("Fast = Exact (greyed, always on)", ["16", "8"], "16", available: false)
-            line("Exact offers 16 only", ["16"], "16")
-            line("In use (disabled)", ["16", "8"], "8", enabled: false, position: .fast)
-            line("Pointer over the action", ["16", "8"], "16", position: .fast, hovered: true)
+            line("Optimized 16 · Exact · on disk", all, all, Cell(.optimized, "16"))
+            line("Standard 8 · not downloaded", ["16", "8"], ["16", "8"], Cell(.standard, "8"), position: .fast, action: "Get", deletable: false)
+            line("Optimized 8 · Fast · loaded", all, all, Cell(.optimized, "8"), hot: true, position: .fast, action: "Unload")
+            line("Loaded, Standard 4 previewed", all, all, Cell(.standard, "4"), hot: true, position: .fast, action: "Reload", emphasized: true)
+            line("Fast = Exact (greyed, always on)", ["16", "8"], ["16", "8"], Cell(.optimized, "16"), available: false)
+            line("Exact offers 16 only", ["16"], all, Cell(.optimized, "16"))
+            line("In use (disabled)", ["16", "8"], ["16", "8"], Cell(.optimized, "8"), enabled: false, position: .fast)
+            line("Pointer over the action", ["16", "8"], ["16", "8"], Cell(.optimized, "16"), position: .fast, hovered: true)
+            line("Downloading", ["16", "8"], ["16", "8"], Cell(.optimized, "8"), position: .fast, busy: "23%")
         }.padding(8)
         let view = NSHostingView(rootView: sheet)
-        view.frame = NSRect(x: 0, y: 0, width: 560, height: 8 * 42 + 16)
+        view.frame = NSRect(x: 0, y: 0, width: 190 + 30 + TierControl.width + ExactFastSwitch.width + RowAction.width + 16 + 16,
+                            height: 9 * (ModelTable.rowHeight + 4) + 16)
         let container = NSView(frame: view.frame)
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(calibratedRed: 0.13, green: 0.13, blue: 0.14, alpha: 1).cgColor
@@ -328,7 +341,7 @@ import VellaUpdate
     }
 
     /// The table as the menu first shows it: one layout pass, drawn at once, no run-loop turn and no click (the tier
-    /// rows once overlapped only in this frame). `check` lists every tier row pair's frames and whether they overlap.
+    /// rows once overlapped only in this frame). `check` counts overlaps, the gap between each model's two segment rows and the sizes.
     static func renderFirstFrame(_ controller: ModelsController, to url: URL, check: URL) {
         let table = MenuTableHostingView(rootView: ModelTable(controller: controller))
         table.frame = NSRect(x: 0, y: 0, width: ModelTable.width, height: ModelTable.height(controller))
@@ -359,8 +372,16 @@ import VellaUpdate
         let all = (controls + switches + actions).sorted { ($0.minY, $0.minX) < ($1.minY, $1.minX) }
         var overlaps = 0
         for (i, a) in all.enumerated() { for b in all[(i + 1)...] where a.intersects(b) { overlaps += 1 } }
-        let lines = ["precision segment controls: \(controls.count), path switches: \(switches.count), action cells: \(actions.count)",
+        // The Optimized and Standard rows of one model: segment controls in the same row band, one above the other.
+        var gaps: [Int] = []
+        for (i, a) in controls.enumerated() {
+            for b in controls[(i + 1)...] where a.minY != b.minY && abs(a.midY - b.midY) <= TierControl.segmentHeight + TierControl.rowSpacing + 1 {
+                gaps.append(Int((max(a.minY, b.minY) - min(a.maxY, b.maxY)).rounded()))
+            }
+        }
+        let lines = ["precision segment controls: \(controls.count), exact/fast switches: \(switches.count), action buttons: \(actions.count)",
                      "overlapping pairs on the first frame: \(overlaps)",
+                     "gaps between a model's Optimized and Standard rows: \(Set(gaps).sorted()) over \(gaps.count) models (expected \(Int(TierControl.rowSpacing)))",
                      "segment heights: \(Set(controls.map { Int($0.height) }).sorted()) (expected \(Int(TierControl.segmentHeight)))",
                      "switch sizes: \(Set(switches.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(ExactFastSwitch.width))x\(Int(ExactFastSwitch.height)))",
                      "action sizes: \(Set(actions.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(RowAction.width))x\(Int(RowAction.height)))"]

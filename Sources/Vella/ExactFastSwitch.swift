@@ -1,7 +1,8 @@
 import AppKit
 import SwiftUI
 
-// The Models table's Path switch: a vertical two-position switch, up = Fast, down = Exact.
+// The Models table's Exact/Fast switch: a vertical two-position switch, up = Fast, down = Exact, beside the Optimized
+// row of the Precision control (it applies to that row only; Standard has no recipe to choose).
 // Shared verbatim by Verdict, Vella and Vireo (like TooltipCell.swift): AppKit and SwiftUI only, no app types; plain
 // values in, one callback out.
 //
@@ -9,20 +10,27 @@ import SwiftUI
 // - `available == false` greys it for a model where Fast measures the same as Exact (no inexact kernel qualified):
 //   the knob is pinned up (Fast, always on) and a click does nothing.
 // - `enabled == false` is the in-use interlock, with the same line as the Precision segments (`TierControl.inUseHelp`).
+// - `showsWords`: the words "Fast" and "Exact" beside the pill, or the pill alone (its column header then names it).
 // - An NSView draws it and carries the tooltip, because SwiftUI `.help` never shows inside an NSMenu. Its size is
 //   explicit (`width` × `height`), never asked of the environment, so the first frame of a menu is right.
 
 struct ExactFastSwitch: View {
     enum Position: String { case exact, fast }
 
-    /// The column header.
-    static let title = "Path"
+    /// THE variant: the words "Fast"/"Exact" beside the pill (true) or the pill alone (false). The render harness
+    /// overrides it with VELLA_RENDER_SWITCH_WORDS=0/1 to draw both.
+    static let wordsByDefault = true
+    static let showsWords: Bool = ProcessInfo.processInfo.environment["VELLA_RENDER_SWITCH_WORDS"].map { $0 != "0" } ?? wordsByDefault
+    /// The column header: none beside the words (they name the positions), else the two positions, top first.
+    static var title: String { showsWords ? "" : "Fast/Exact" }
     /// The switch's tooltip (Toby, 29 Sep); state lines follow it on their own lines.
     static let help = "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise."
     static let sameHelp = "Always on: Fast measures the same as Exact for this model"
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
-    static let width: CGFloat = 58
-    static let height: CGFloat = 32
+    static let pillWidth: CGFloat = 18
+    static let width: CGFloat = showsWords ? 52 : pillWidth
+    /// About one segment row high (28 pt beside a 24 pt Optimized row), so it reads as that row's.
+    static let height: CGFloat = 28
 
     let position: Position
     /// False: Fast measures identically to Exact for this model (greyed, pinned up).
@@ -62,8 +70,8 @@ private struct SwitchRepresentable: NSViewRepresentable {
     }
 }
 
-/// Pill on the left (knob up = Fast, down = Exact), the two words beside it; the current one reads in the primary
-/// colour. A click anywhere in the view flips the position.
+/// Pill on the left (knob up = Fast, down = Exact), with `showsWords` the two words beside it; the current one reads in
+/// the primary colour. A click anywhere in the view flips the position.
 final class SwitchView: NSView {
     var position: ExactFastSwitch.Position = .exact
     var active = true
@@ -93,6 +101,7 @@ final class SwitchView: NSView {
         let knobY = position == .fast ? track.minY + 2 : track.maxY - 2 - knobSize
         NSColor.white.setFill()
         NSBezierPath(ovalIn: NSRect(x: track.minX + 2, y: knobY, width: knobSize, height: knobSize)).fill()
+        guard ExactFastSwitch.showsWords else { return }
         let lineHeight: CGFloat = 13
         for (word, which, y) in [("Fast", ExactFastSwitch.Position.fast, track.minY - 1), ("Exact", .exact, track.maxY - lineHeight)] {
             let color: NSColor = which == position ? .labelColor : .tertiaryLabelColor

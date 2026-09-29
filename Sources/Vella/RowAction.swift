@@ -1,42 +1,41 @@
 import AppKit
 import SwiftUI
 
-// The Models table's action cell: one quiet control at the row end.
+// The Models table's action cell: a normal small bordered button at the row end, always visible, one word (Get, Load,
+// Unload, Reload), fixed size, at the weight of the table's numbers; delete is a trash glyph beside it under the pointer.
 // Written to be shared verbatim like TierControl.swift: AppKit and SwiftUI only, no app types; plain values in,
 // callbacks out.
 //
-// - At rest it shows the row's state as a glyph, at the weight of the numbers: loaded ●, on disk ○, get ↓.
-// - Under the pointer it becomes the button (`title`: Load, Unload, Reload, Get) and, when the weights can be
-//   deleted, a trash glyph beside it. A pending change (`emphasized`, Reload) always shows as the green button.
-//   While busy (a download's percentage, a load's "…") it shows that text and takes no click.
-// - Hover inside an NSMenu: menus track the mouse in their own run-loop mode and their windows are never key, so
-//   SwiftUI's `.onHover` is not relied on. An NSTrackingArea with `.activeAlways` (active in any window, key or not)
-//   and `.inVisibleRect` delivers mouseEntered/mouseExited to this view during menu tracking; the view redraws itself
-//   at once (`display()`), not on SwiftUI's schedule.
-// - The whole cell is the hit target: a click on the trash glyph deletes, anywhere else performs the action.
+// - A pending change (`emphasized`, Reload) is the green button. While busy (a download's percentage, a load's "…")
+//   the button shows that text and takes no click.
+// - Hover inside an NSMenu (for the trash glyph only): menus track the mouse in their own run-loop mode and their
+//   windows are never key, so SwiftUI's `.onHover` is not relied on. An NSTrackingArea with `.activeAlways` (active in
+//   any window, key or not) and `.inVisibleRect` delivers mouseEntered/mouseExited to this view during menu tracking;
+//   the view redraws itself at once (`display()`), not on SwiftUI's schedule. Menus cannot host context menus.
+// - A click on the trash glyph deletes; anywhere else in the cell performs the action.
 // - Tooltips are AppKit tooltip rects (SwiftUI `.help` never shows in a menu): the action's text on the cell, the
 //   delete text on the trash glyph.
+// - The geometry is explicit (`width` × `height`, `buttonRect`, `trashRect`), so the first frame of a menu is right.
 
 struct RowAction: View {
-    enum Glyph { case loaded, onDisk, get }
-
-    static let width: CGFloat = 100
+    static let width: CGFloat = 96
     static let height: CGFloat = 28
+    /// The button: wide enough for "Unload" and "Reload"; a small control's height.
+    static let buttonWidth: CGFloat = 64, buttonHeight: CGFloat = 22
     /// Delete's tooltip.
     static let deleteHelp = "Delete these weights (asks first)"
 
-    let glyph: Glyph
-    /// The button's title: Load, Unload, Reload or Get.
+    /// The button's title: Get, Load, Unload or Reload.
     let title: String
-    /// A download's percentage or a load's "…": shown instead of glyph and button; no click.
+    /// A download's percentage or a load's "…": shown instead of the title; no click.
     var busyText: String? = nil
-    /// A pending change (Reload): always the green button.
+    /// A pending change (Reload): the green button.
     var emphasized = false
     let enabled: Bool
     let deletable: Bool
-    /// The row is the loaded one (accent-filled): glyphs use the selected-text colour.
+    /// The row is the loaded one (accent-filled): the button uses the selected-text colour.
     var hot = false
-    /// Render harness: draw the hovered state.
+    /// Render harness: draw the pointer over the cell (the trash glyph shows).
     var hovered = false
     let help: String
     let onPerform: () -> Void
@@ -62,15 +61,17 @@ final class RowActionView: NSView, NSViewToolTipOwner {
     private(set) var hovered = false
     /// Green of the deltas' family, deep enough for white text on the loaded row.
     static let green = NSColor(calibratedRed: 0.20, green: 0.56, blue: 0.31, alpha: 1)
-    static let titleFont = NSFont.systemFont(ofSize: 12, weight: .medium)
+    static let titleFont = NSFont.systemFont(ofSize: 12)
 
     override var isFlipped: Bool { true }
     override var isOpaque: Bool { false }
     override var acceptsFirstResponder: Bool { false }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    var buttonRect: NSRect { NSRect(x: 4, y: (bounds.height - 22) / 2, width: 68, height: 22) }
-    var trashRect: NSRect { NSRect(x: 76, y: (bounds.height - 22) / 2, width: 22, height: 22) }
+    var buttonRect: NSRect {
+        NSRect(x: 2, y: (bounds.height - RowAction.buttonHeight) / 2, width: RowAction.buttonWidth, height: RowAction.buttonHeight)
+    }
+    var trashRect: NSRect { NSRect(x: RowAction.buttonWidth + 8, y: (bounds.height - 22) / 2, width: 22, height: 22) }
     private var showsHover: Bool { hovered || forcedHover }
 
     // MARK: Hover (see the note above)
@@ -119,34 +120,25 @@ final class RowActionView: NSView, NSViewToolTipOwner {
         let text: NSColor = spec.hot ? .selectedMenuItemTextColor : .labelColor
         let quiet: NSColor = spec.hot ? NSColor.selectedMenuItemTextColor.withAlphaComponent(0.7) : .secondaryLabelColor
         let button = buttonRect
+        let shape = NSBezierPath(roundedRect: button.insetBy(dx: 0.5, dy: 0.5), xRadius: 5, yRadius: 5)
+        let context = NSGraphicsContext.current?.cgContext
         if let busy = spec.busyText {
-            drawCentred(busy, in: button, font: .monospacedDigitSystemFont(ofSize: 13, weight: .regular), color: quiet)
-            return
-        }
-        if spec.emphasized {
-            NSGraphicsContext.current?.cgContext.setAlpha(spec.enabled ? 1 : 0.5)
-            Self.green.setFill()
-            NSBezierPath(roundedRect: button, xRadius: 5, yRadius: 5).fill()
+            NSColor.white.withAlphaComponent(0.18).setStroke(); shape.lineWidth = 1; shape.stroke()
+            drawCentred(busy, in: button, font: .monospacedDigitSystemFont(ofSize: 12, weight: .regular), color: quiet)
+        } else if spec.emphasized {
+            context?.setAlpha(spec.enabled ? 1 : 0.5)
+            Self.green.setFill(); shape.fill()
             drawCentred(spec.title, in: button, font: Self.titleFont, color: .white)
-            NSGraphicsContext.current?.cgContext.setAlpha(1)
-        } else if showsHover {
-            NSGraphicsContext.current?.cgContext.setAlpha(spec.enabled ? 1 : 0.4)
-            let shape = NSBezierPath(roundedRect: button.insetBy(dx: 0.5, dy: 0.5), xRadius: 5, yRadius: 5)
-            NSColor.white.withAlphaComponent(spec.hot ? 0.22 : 0.12).setFill(); shape.fill()
-            NSColor.white.withAlphaComponent(0.22).setStroke(); shape.lineWidth = 1; shape.stroke()
-            drawCentred(spec.title, in: button, font: Self.titleFont, color: text)
-            NSGraphicsContext.current?.cgContext.setAlpha(1)
+            context?.setAlpha(1)
         } else {
-            let (name, color): (String, NSColor) = {
-                switch spec.glyph {
-                case .loaded: return ("circle.fill", text)
-                case .onDisk: return ("circle", quiet)
-                case .get: return ("arrow.down", quiet)
-                }
-            }()
-            drawSymbol(name, in: button, size: 12, color: color)
+            // A small bordered button: a faint fill and a hairline border, lighter on the loaded row.
+            context?.setAlpha(spec.enabled ? 1 : 0.4)
+            NSColor.white.withAlphaComponent(spec.hot ? 0.20 : 0.10).setFill(); shape.fill()
+            NSColor.white.withAlphaComponent(spec.hot ? 0.35 : 0.22).setStroke(); shape.lineWidth = 1; shape.stroke()
+            drawCentred(spec.title, in: button, font: Self.titleFont, color: text)
+            context?.setAlpha(1)
         }
-        if showsHover && spec.deletable { drawSymbol("trash", in: trashRect, size: 13, color: quiet) }
+        if showsHover && spec.deletable && spec.busyText == nil { drawSymbol("trash", in: trashRect, size: 13, color: quiet) }
     }
     private func drawCentred(_ string: String, in rect: NSRect, font: NSFont, color: NSColor) {
         let s = NSAttributedString(string: string, attributes: [.font: font, .foregroundColor: color])

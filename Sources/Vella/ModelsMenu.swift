@@ -95,7 +95,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
 }
 
 enum TableSortColumn: CaseIterable {
-    case name, wer, format, speed, energy, memory, disk
+    case name, wer, format, speed, energy, memory
     var metric: TableMetric? {
         switch self {
         case .name: return nil
@@ -104,7 +104,6 @@ enum TableSortColumn: CaseIterable {
         case .speed: return .speed
         case .energy: return .energy
         case .memory: return .memory
-        case .disk: return .disk
         }
     }
 }
@@ -113,24 +112,29 @@ struct ModelTable: View {
     /// Column widths; `spacing` between columns, `rowPadding` inside a row on each side.
     enum W {
         static let model: CGFloat = 182, capabilities: CGFloat = 82, params: CGFloat = 52
-        static let precision: CGFloat = TierControl.width + 6, path: CGFloat = ExactFastSwitch.width
-        static let wer: CGFloat = 62, format: CGFloat = 62, speed: CGFloat = 78, energy: CGFloat = 64, memory: CGFloat = 72, disk: CGFloat = 72
+        static let precision: CGFloat = TierControl.width + 4, path: CGFloat = max(ExactFastSwitch.width, ExactFastSwitch.showsWords ? 0 : 64)
+        static let wer: CGFloat = 62, format: CGFloat = 62, speed: CGFloat = 78, energy: CGFloat = 64, memory: CGFloat = 72
         static let action: CGFloat = RowAction.width
         static let spacing: CGFloat = 6, rowPadding: CGFloat = 8
-        static let columns: [CGFloat] = [model, capabilities, params, precision, path, wer, format, speed, energy, memory, disk, action]
+        static let columns: [CGFloat] = [model, capabilities, params, precision, path, wer, format, speed, energy, memory, action]
         static let row: CGFloat = columns.reduce(0, +) + CGFloat(columns.count - 1) * spacing + 2 * rowPadding
     }
     static let width: CGFloat = W.row + 8
-    /// One line per model: a 13 pt value over a 10.5 pt delta (or the name over its engine label) in a 38 pt row.
-    static let rowHeight: CGFloat = 38
-    static let rowPitch: CGFloat = rowHeight + 2
+    /// One line per model: the Optimized and Standard segment rows with air around them; beside them a 13 pt value
+    /// over a 10.5 pt delta (or the name over its engine label). A cloud row has no controls and keeps a 38 pt line.
+    static let rowHeight: CGFloat = TierControl.height + 6
+    static let referenceRowHeight: CGFloat = 38
+    static let rowGap: CGFloat = 2
     static let headerHeight: CGFloat = 26, stripHeight: CGFloat = 30, sectionHeight: CGFloat = 24, footerHeight: CGFloat = 28
     /// Every visible row fits without scrolling: paddings, heading, filter strip, dividers, section labels and footer.
-    static func height(rows: Int, sections: Int, strip: Bool = false) -> CGFloat {
-        12 + headerHeight + (strip ? stripHeight : 0) + 18 + CGFloat(sections) * sectionHeight + CGFloat(rows) * rowPitch + footerHeight
+    static func height(models: Int, references: Int, sections: Int, strip: Bool = false) -> CGFloat {
+        12 + headerHeight + (strip ? stripHeight : 0) + 18 + CGFloat(sections) * sectionHeight
+            + CGFloat(models) * (rowHeight + rowGap) + CGFloat(references) * (referenceRowHeight + rowGap) + footerHeight
     }
     @MainActor static func height(_ c: ModelsController) -> CGFloat {
-        height(rows: c.rowCount, sections: c.sectionCount, strip: c.filterOpen && !c.filterableCapabilities.isEmpty)
+        let references = RecognitionMode.allCases.reduce(0) { $0 + c.visibleReferences($1).count }
+        return height(models: c.rowCount - references, references: references, sections: c.sectionCount,
+                      strip: c.filterOpen && !c.filterableCapabilities.isEmpty)
     }
 
     static let valueFont = Font.system(size: 13).monospacedDigit()
@@ -167,12 +171,13 @@ struct ModelTable: View {
     private func rows(_ mode: RecognitionMode) -> [ModelTableRow] { Self.rows(controller, mode, sort: sortColumn, ascending: ascending) }
 
     /// Header tooltips, in plain words (Toby, 26 Sep evening).
-    static let werHeaderHelp = "Word error rate: the percentage of words wrong \u{2014} substituted, missed or added \u{2014} out of the words spoken. The industry-standard accuracy metric, as on the Hugging Face Open ASR Leaderboard. Lower is better. Our v2 benchmark is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards."
-    static let formatHeaderHelp = "Our own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. Lower is better."
-    static let speedHeaderHelp = "Real-time factor (RTFx): audio seconds per processing second. Higher is faster."
-    static let energyHeaderHelp = "Joules per minute of audio: whole-chip energy, net of idle. Lower is better."
+    static let werHeaderHelp = "Word error rate: the percentage of words wrong \u{2014} substituted, missed or added \u{2014} out of the words spoken. The industry-standard accuracy metric, as on the Hugging Face Open ASR Leaderboard. Lower is better. Our v2 benchmark is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. " + deltaHeaderLine
+    static let formatHeaderHelp = "Our own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. Lower is better. " + deltaHeaderLine
+    static let speedHeaderHelp = "Real-time factor (RTFx): audio seconds per processing second. Higher is faster. " + deltaHeaderLine
+    static let energyHeaderHelp = "Joules per minute of audio: whole-chip energy, net of idle. Lower is better. " + deltaHeaderLine
     static let memoryHeaderHelp = "Peak memory of Vella's model worker with the model loaded. Lower is better."
-    static let diskHeaderHelp = "Download size of the selected precision; for one made on this Mac, the size of the weights it is made from."
+    /// The deltas' base, stated once per figure's header.
+    static let deltaHeaderLine = "Difference vs Standard 16 below each figure."
     static let capabilitiesHeaderHelp = "What the model can do beyond English dictation; an empty slot means it cannot. Click to show only models with a capability."
     static let filterLead = "Show only models with"
 
@@ -196,7 +201,7 @@ struct ModelTable: View {
                             case .family(let family): row(family)
                             case .reference(let reference): referenceRow(reference)
                             }
-                        }.padding(.bottom, Self.rowPitch - Self.rowHeight)
+                        }.padding(.bottom, Self.rowGap)
                     }
                 }
             }
@@ -229,7 +234,6 @@ struct ModelTable: View {
             heading("Speed", .speed, W.speed, .center, help: Self.speedHeaderHelp)
             heading("J / min", .energy, W.energy, .center, help: Self.energyHeaderHelp)
             heading("Memory", .memory, W.memory, .center, help: Self.memoryHeaderHelp)
-            heading("On disk", .disk, W.disk, .center, help: Self.diskHeaderHelp)
             Color.clear.frame(width: W.action, height: 1)
         }.padding(.horizontal, W.rowPadding)
     }
@@ -297,7 +301,6 @@ struct ModelTable: View {
         let loading = controller.isLoading(family)
         let precision = controller.selected(family)
         let variant = family.variants[precision]
-        let installed = controller.installed(family, precision)
         let bench = controller.shownResult(family)
         let base = controller.baseResult(family)
         let compare = controller.showsDeltas(family)
@@ -328,7 +331,10 @@ struct ModelTable: View {
             capabilities(family)
             Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params)
             precisionControl(family, hot: hot).frame(width: W.precision)
-            pathSwitch(family).frame(width: W.path)
+            // Beside the Optimized row, the one it applies to: its centre on that row's centre.
+            pathSwitch(family)
+                .offset(y: (TierControl.segmentHeight - ExactFastSwitch.height) / 2)
+                .frame(width: W.path, height: TierControl.height, alignment: .top)
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
                 .appKitTooltip(werHelp(bench, suites: suites))
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
@@ -344,9 +350,6 @@ struct ModelTable: View {
                 .appKitTooltip(energyHelp(bench, suites: suites))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
                 .appKitTooltip(memoryHelp(bench, suites: suites))
-            Text(controller.disk(family, precision).map(formatBytes) ?? "—").frame(width: W.disk)
-                .foregroundStyle(installed == nil ? (hot ? Self.hotText.opacity(0.6) : Color.secondary) : (hot ? Self.hotText : Color.primary))
-                .appKitTooltip(diskHelp(family, precision))
             rowAction(family, action: action, loading: loading, downloading: downloading, variant: variant, library: library, hot: hot, precision: precision, loaded: loaded)
         }.font(Self.valueFont)
             .padding(.horizontal, W.rowPadding).frame(height: Self.rowHeight)
@@ -365,21 +368,20 @@ struct ModelTable: View {
             .contentShape(Rectangle())
     }
 
-    /// The row's action cell (RowAction.swift): the state glyph, the button under the pointer, delete beside it.
+    /// The row's action cell (RowAction.swift): the one-word button, delete beside it under the pointer.
     private func rowAction(_ family: ModelFamily, action: LoadAction, loading: Bool, downloading: Bool, variant: CatalogVariant?,
                            library: ModelLibrary, hot: Bool, precision: String, loaded: LoadedFamily?) -> some View {
-        let glyph: RowAction.Glyph = hot ? .loaded : controller.available(family, precision) ? .onDisk : .get
         let enabled = !(loading || variant == nil || (action != .get && !controller.runtimeAvailable)
                         || (action == .unload && controller.actions == nil) || (controller.anyBusy && !downloading))
         let busy = downloading ? (library.progress.map { "\(Int($0 * 100))%" } ?? "…") : loading ? "…" : nil
-        return RowAction(glyph: glyph, title: Self.title(action), busyText: busy, emphasized: action == .reload, enabled: enabled,
+        return RowAction(title: Self.title(action), busyText: busy, emphasized: action == .reload, enabled: enabled,
                          deletable: controller.localPath(family, precision) != nil && !loading, hot: hot,
                          hovered: controller.previewHover == family.id,
-                         help: actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision, glyph: glyph),
+                         help: actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision),
                          onPerform: { controller.perform(family) }, onDelete: { requestDelete(family) })
     }
 
-    /// A cloud API for perspective, as a reference row: cloud glyph, greyed, no controls, `API` on disk.
+    /// A cloud API for perspective, as a reference row: cloud glyph, greyed, no controls.
     /// Its WER is an estimate (`~13%`); the tooltip says from where and that we did not measure it.
     @ViewBuilder private func referenceRow(_ r: ReferenceEntry) -> some View {
         HStack(spacing: W.spacing) {
@@ -397,10 +399,9 @@ struct ModelTable: View {
             metric(nil, nil, W.speed, hot: false).appKitTooltip(referenceNotApplicableHelp)
             metric(nil, nil, W.energy, hot: false).appKitTooltip(referenceNotApplicableHelp)
             metric(nil, nil, W.memory, hot: false).appKitTooltip(referenceNotApplicableHelp)
-            Text("API").frame(width: W.disk).appKitTooltip(referenceDiskHelp)
             Color.clear.frame(width: W.action, height: 1)
         }.font(Self.valueFont)
-            .padding(.horizontal, W.rowPadding).frame(height: Self.rowHeight)
+            .padding(.horizontal, W.rowPadding).frame(height: Self.referenceRowHeight)
             .foregroundStyle(Color.secondary)
             .contentShape(Rectangle())
             .accessibilityElement(children: .combine)
@@ -423,14 +424,9 @@ struct ModelTable: View {
         return s
     }
 
-    /// The action cell's tooltip: what the glyph means, then what a click does.
-    private func actionTooltip(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?, glyph: RowAction.Glyph) -> String {
-        let state: String
-        switch glyph {
-        case .loaded: state = "Loaded"
-        case .onDisk: state = "On disk, not loaded"
-        case .get: state = "Not downloaded"
-        }
+    /// The action button's tooltip: the model's state (loaded, on disk, not downloaded), then what a click does.
+    private func actionTooltip(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?) -> String {
+        let state = controller.loaded(family) != nil ? "Loaded" : controller.available(family, precision) ? "On disk, not loaded" : "Not downloaded"
         return state + "\n" + actionHelp(action, family: family, precision: precision, loaded: loaded)
     }
 
@@ -454,11 +450,6 @@ struct ModelTable: View {
             return (controller.available(family, precision) ? "Unload the loaded precision and " + swap : downloadText(family, precision) + ", then " + swap) + make
         }
     }
-    /// Derived precisions are made tensor by tensor at load (DerivedModels.swift); only the source is stored.
-    private func diskHelp(_ family: ModelFamily, _ precision: String) -> String {
-        VellaCore.diskHelp(family, precision, installed: controller.installed(family, precision) != nil,
-                           derivedSource: controller.derivedSource(family, precision), sizeKnown: controller.disk(family, precision) != nil)
-    }
 
 
     /// Value on top, delta vs Standard 16 beneath it in small type; centred under the column's label.
@@ -472,21 +463,26 @@ struct ModelTable: View {
         }.frame(width: width)
     }
 
-    /// The Precision segments (TierControl.swift): the tiers the current switch position offers. Disabled while the
-    /// model is in use.
+    /// The Precision control (TierControl.swift): `Optimized` above `Standard`, each listing its present precisions;
+    /// the Optimized row follows the Exact/Fast switch. Disabled while the model is in use.
     @ViewBuilder private func precisionControl(_ family: ModelFamily, hot: Bool) -> some View {
-        let offered = controller.precisions(family)
-        if offered.isEmpty {
+        let optimized = controller.hasOptimizedPath(family) ? controller.precisions(family).map(\.rawValue) : []
+        let standard = controller.tiers(family, .standard).map(\.rawValue)
+        if optimized.isEmpty && standard.isEmpty {
             Text("—").foregroundStyle(.secondary)
         } else {
-            TierControl(tiers: offered.map(\.rawValue), selected: controller.shownCell(family).map(\.tier.rawValue),
+            TierControl(optimized: optimized, standard: standard,
+                        selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
                         enabled: !controller.inUse(family), hot: hot,
-                        help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0) ?? .t16, path: controller.hasOptimizedPath(family) ? .optimized : .standard) },
-                        onSelect: { if let tier = ModelTier(rawValue: $0) { controller.select(family, tier: tier) } })
+                        help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0.tier) ?? .t16, path: $0.row == .standard ? .standard : .optimized) },
+                        onSelect: { cell in
+                            if let tier = ModelTier(rawValue: cell.tier) { controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized) }
+                        })
         }
     }
 
-    /// The Path switch (ExactFastSwitch.swift): up Fast, down Exact; none for a model without an Optimized path.
+    /// The Exact/Fast switch (ExactFastSwitch.swift) beside the Optimized row: up Fast, down Exact; none for a model
+    /// without an Optimized path.
     @ViewBuilder private func pathSwitch(_ family: ModelFamily) -> some View {
         if controller.hasOptimizedPath(family) {
             ExactFastSwitch(position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
@@ -514,24 +510,27 @@ struct ModelTable: View {
         }
         let slots = capabilitySlots(family)
         for c in Capability.allCases { if let slot = slots[c] { cells.append(("Capability \(c.rawValue)", slot.help)) } }
-        let path: EnginePath = controller.hasOptimizedPath(family) ? .optimized : .standard
-        for tier in controller.precisions(family) {
-            cells.append(("Precision \(tier.rawValue)", TierControl.tooltip(controller.tierHelp(family, tier: tier, path: path), enabled: enabled)))
+        let optimized = controller.hasOptimizedPath(family)
+        if optimized {
+            for tier in controller.precisions(family) {
+                cells.append(("Precision Optimized \(tier.rawValue)", TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .optimized), enabled: enabled)))
+            }
         }
-        if path == .optimized { cells.append(("Path", ExactFastSwitch.tooltip(available: controller.switchAvailable(family), enabled: enabled))) }
+        for tier in controller.tiers(family, .standard) {
+            cells.append(("Precision Standard \(tier.rawValue)", TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .standard), enabled: enabled)))
+        }
+        if optimized { cells.append(("Exact/Fast", ExactFastSwitch.tooltip(available: controller.switchAvailable(family), enabled: enabled))) }
         let action = controller.action(family)
-        let glyph: RowAction.Glyph = loaded != nil ? .loaded : controller.available(family, precision) ? .onDisk : .get
         return cells + [("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
                         ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),
-                        ("Memory", memoryHelp(r, suites: suites)), ("On disk", diskHelp(family, precision)),
-                        ("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision, glyph: glyph))]
+                        ("Memory", memoryHelp(r, suites: suites)),
+                        ("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))]
     }
 
     /// A reference row's tooltips as (column, text); Capabilities, Params and the controls have none (nothing is known).
     func tooltips(_ r: ReferenceEntry) -> [(String, String)] {
         [("Model", referenceModelHelp(r)), ("WER", referenceWERTooltip(r)), ("Format", referenceFormatHelp),
-         ("Speed", referenceNotApplicableHelp), ("J / min", referenceNotApplicableHelp), ("Memory", referenceNotApplicableHelp),
-         ("On disk", referenceDiskHelp)]
+         ("Speed", referenceNotApplicableHelp), ("J / min", referenceNotApplicableHelp), ("Memory", referenceNotApplicableHelp)]
     }
 
     /// This Mac's chip: the runtime's, else the CPU brand string.

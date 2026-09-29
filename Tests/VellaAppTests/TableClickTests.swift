@@ -6,13 +6,14 @@ import SwiftUI
 
 @MainActor private final class ClickSpy: ModelRuntimeActions {
     var calls: [String] = []
-    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("load \(family.id) \(precision)") }
-    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("reload \(family.id) \(precision)") }
+    var selections: [ModelSelection] = []
+    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("load \(family.id) \(precision)"); selections.append(selection) }
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("reload \(family.id) \(precision)"); selections.append(selection) }
     func unload(family: ModelFamily) { calls.append("unload \(family.id)") }
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool { false }
 }
 
-/// Clicks on the Models table's Precision segments, Path switch and action cell reach the controller and change the
+/// Clicks on the Models table's two Precision rows, the Exact/Fast switch and the action button reach the controller and change the
 /// row, through real mouse events on the hosted table (as in the menu), not only through the controller's API
 /// (29 Sep: Toby's installed table ignored clicks).
 @MainActor final class TableClickTests: XCTestCase {
@@ -77,23 +78,80 @@ import SwiftUI
         spin()
     }
 
-    func testASegmentClickPreviewsThatPrecision() throws {
+    /// Each model's two segment controls, Optimized then Standard, in row order (every shipped model has both rows).
+    private func segmentRows(_ c: ModelsController, _ view: NSView) throws -> [String: (optimized: NSSegmentedControl, standard: NSSegmentedControl)] {
+        let controls = topDown(all(NSSegmentedControl.self, in: view))
+        let order = familiesInRowOrder(c)
+        XCTAssertEqual(controls.count, 2 * order.count, "two Precision rows per model: Optimized above Standard")
+        var rows: [String: (NSSegmentedControl, NSSegmentedControl)] = [:]
+        for (i, family) in order.enumerated() where 2 * i + 1 < controls.count { rows[family.id] = (controls[2 * i], controls[2 * i + 1]) }
+        return rows
+    }
+    /// A real click on segment `index` of a control.
+    private func click(_ window: NSWindow, segment index: Int, of control: NSSegmentedControl) {
+        let r = control.superview!.convert(control.alignmentRect(forFrame: control.frame), to: nil)
+        click(window, at: NSPoint(x: r.minX + (TierControl.cellWidth - 1) * (CGFloat(index) + 0.5), y: r.midY))
+    }
+
+    /// Both rows are directly clickable, and each cell shows its own numbers: Optimized 8, then Standard 16 (the
+    /// reference: its own figures, no deltas), then Optimized 16 again.
+    func testEveryCellOfBothRowsIsClickableAndShowsItsNumbers() throws {
         let c = try controller()
         let (window, view) = host(c)
-        let controls = all(NSSegmentedControl.self, in: view)
-        XCTAssertEqual(controls.count, familiesInRowOrder(c).count, "one Precision control per model row")
-        // Parakeet v3 Ultra: the one model offering 16, 8 and 4. Click its "8".
+        let rows = try segmentRows(c, view)
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        let (optimized, standard) = try XCTUnwrap(rows[ultra.id])
+        XCTAssertEqual(optimized.segmentCount, 3, "Ultra offers 16, 8 and 4 on Optimized")
+        XCTAssertEqual(standard.segmentCount, 3, "and on Standard")
         XCTAssertNil(c.previews[ultra.id])
-        let three = try XCTUnwrap(controls.first { $0.segmentCount == 3 })
-        let r = three.superview!.convert(three.alignmentRect(forFrame: three.frame), to: nil)
-        click(window, at: NSPoint(x: r.minX + r.width / 3 * 1.5, y: r.midY))
-        XCTAssertEqual(c.previews[ultra.id], ModelSelection(tier: .t8, path: .optimized, mode: .fast), "the click reached the controller: Optimized 8, Fast kept")
-        XCTAssertEqual(three.selectedSegment, 1, "the row re-rendered with 8 selected")
+        click(window, segment: 1, of: optimized)
+        XCTAssertEqual(c.previews[ultra.id], ModelSelection(tier: .t8, path: .optimized, mode: .fast), "Optimized 8, Fast kept")
+        XCTAssertEqual(optimized.selectedSegment, 1, "the row re-rendered with 8 selected")
+        XCTAssertEqual(standard.selectedSegment, -1, "one cell selected across both rows")
+        let optimized8 = try XCTUnwrap(c.shownResult(ultra)?.speed_x)
+        click(window, segment: 0, of: standard)
+        XCTAssertEqual(c.currentSelection(ultra), ModelSelection(tier: .t16, path: .standard, mode: .fast), "a Standard cell, the switch position kept")
+        XCTAssertEqual(standard.selectedSegment, 0)
+        XCTAssertEqual(optimized.selectedSegment, -1)
+        let standard16 = try XCTUnwrap(c.shownResult(ultra)?.speed_x)
+        XCTAssertNotEqual(standard16, optimized8, "Standard 16 shows its own numbers")
+        XCTAssertEqual(standard16, c.baseResult(ultra)?.speed_x)
+        XCTAssertFalse(c.showsDeltas(ultra), "Standard 16 is the deltas' base: none under its figures")
+        click(window, segment: 0, of: optimized)
+        XCTAssertEqual(c.currentSelection(ultra), ModelSelection(tier: .t16, path: .optimized, mode: .fast))
+        XCTAssertNotEqual(c.shownResult(ultra)?.speed_x, standard16, "back on Optimized: its numbers")
+        XCTAssertTrue(c.showsDeltas(ultra))
         XCTAssertEqual(c.action(ultra), .get)
     }
 
-    /// The whole switch is the hit target: a click on its word flips it, and so does a click on the pill.
+    /// The Optimized row follows the switch (Exact lists only the precisions with an exact recipe); the Standard row
+    /// keeps every precision Standard has.
+    func testThePrecisionRowsUnderEachSwitchPosition() throws {
+        let c = try controller()
+        c.benchmarks.models["whisper-large-v3-turbo"]?.tiers[.t8]?.cells[.optimized_exact] = nil
+        let (window, view) = host(c)
+        let turbo = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
+        let order = familiesInRowOrder(c)
+        let index = try XCTUnwrap(order.firstIndex { $0.id == turbo.id })
+        var (optimized, standard) = try XCTUnwrap(try segmentRows(c, view)[turbo.id])
+        XCTAssertEqual([optimized.segmentCount, standard.segmentCount], [2, 2], "Fast: 16 and 8 on both rows")
+        click(window, segment: 1, of: optimized)
+        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t8, path: .optimized, mode: .fast))
+        let s = topDown(all(SwitchView.self, in: view))[index]
+        let r = s.convert(s.bounds, to: nil)
+        click(window, at: NSPoint(x: r.midX, y: r.midY))
+        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t16, path: .optimized, mode: .exact), "Exact moved 8 to 16")
+        XCTAssertEqual(c.couplingNote(turbo), "Exact: 16 only, was 8")
+        (optimized, standard) = try XCTUnwrap(try segmentRows(c, view)[turbo.id])
+        XCTAssertEqual(optimized.segmentCount, 1, "Exact: the Optimized row offers 16 only")
+        XCTAssertEqual(standard.segmentCount, 2, "the Standard row is not restricted by the switch")
+        click(window, segment: 1, of: standard)
+        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t8, path: .standard, mode: .exact), "Standard 8 stays reachable under Exact")
+        XCTAssertNil(c.couplingNote(turbo), "a cell click ends the note")
+    }
+
+    /// The whole switch is the hit target: a click on its right part (the words, when shown), on the pill or anywhere
+    /// else flips it.
     func testAClickAnywhereOnTheSwitchFlipsIt() throws {
         let c = try controller()
         let (window, view) = host(c)
@@ -103,16 +161,20 @@ import SwiftUI
         let turboIndex = try XCTUnwrap(order.firstIndex { $0.id == "whisper-large-v3-turbo" })
         let turbo = order[turboIndex], s = switches[turboIndex]
         XCTAssertEqual(c.currentSelection(turbo).mode, .fast)
-        // On the word "Exact" (right of the pill, lower half).
+        // The lower right corner (the word "Exact" when the words show).
         let r = s.convert(s.bounds, to: nil)
-        click(window, at: NSPoint(x: r.minX + s.track.maxX + 16, y: r.minY + 6))
-        XCTAssertEqual(c.currentSelection(turbo).mode, .exact, "a click on the label flipped it")
+        click(window, at: NSPoint(x: r.maxX - 3, y: r.minY + 6))
+        XCTAssertEqual(c.currentSelection(turbo).mode, .exact, "a click on the lower right flipped it")
         XCTAssertEqual(s.position, .exact)
-        // On the pill's upper end, then on the word "Exact" again: each click flips, wherever it lands.
+        // On the pill's upper end, then the upper right corner: each click flips, wherever it lands.
         click(window, at: NSPoint(x: r.minX + s.track.midX, y: r.maxY - 4))
         XCTAssertEqual(c.currentSelection(turbo).mode, .fast, "a click on the pill flipped it back")
-        click(window, at: NSPoint(x: r.minX + s.track.maxX + 16, y: r.maxY - 6))
-        XCTAssertEqual(c.currentSelection(turbo).mode, .exact, "a click on the word Fast flips too: the whole area toggles")
+        click(window, at: NSPoint(x: r.maxX - 3, y: r.maxY - 6))
+        XCTAssertEqual(c.currentSelection(turbo).mode, .exact, "the upper right flips too: the whole area toggles")
+        // From a Standard cell, the switch moves the row to that precision's Optimized cell.
+        c.select(turbo, tier: .t8, path: .standard)
+        click(window, at: NSPoint(x: r.midX, y: r.midY))
+        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t8, path: .optimized, mode: .fast))
         // Greyed (Fast = Exact, Qwen): pinned up, a click does nothing.
         let qwenIndex = try XCTUnwrap(order.firstIndex { $0.id == "qwen3-asr-1.7b" })
         let qwen = order[qwenIndex], q = switches[qwenIndex]
@@ -124,8 +186,9 @@ import SwiftUI
         XCTAssertEqual(c.currentSelection(qwen), before)
     }
 
-    /// The action cell: a click performs the row's action; a click on the trash glyph asks to delete.
-    func testTheActionCellPerformsAndDeletes() throws {
+    /// The action button: always visible with one word; a click performs it; a Standard cell on a loaded model turns it
+    /// into the green Reload, which reloads on Standard; a click on the trash glyph asks to delete.
+    func testTheActionButtonPerformsReloadsAndDeletes() throws {
         let c = try controller()
         let spy = ClickSpy(); c.actions = spy
         c.dictation.installed["Qwen3-ASR-1.7B-bf16"] = InstalledModel(path: "/fixture/q16")
@@ -134,25 +197,39 @@ import SwiftUI
         let order = familiesInRowOrder(c)
         let actions = topDown(all(RowActionView.self, in: view))
         XCTAssertEqual(actions.count, order.count)
+        XCTAssertTrue(actions.allSatisfy { $0.frame.size == NSSize(width: RowAction.width, height: RowAction.height) }, "fixed size")
         let index = try XCTUnwrap(order.firstIndex { $0.id == "qwen3-asr-1.7b" })
-        let a = actions[index]
-        XCTAssertEqual(a.spec?.glyph, .onDisk)
+        let qwen = order[index], a = actions[index]
         XCTAssertEqual(a.spec?.title, "Load")
         XCTAssertTrue(a.spec?.deletable ?? false)
         let r = a.convert(a.bounds, to: nil)
         click(window, at: NSPoint(x: r.minX + a.buttonRect.midX, y: r.midY))
-        XCTAssertEqual(spy.calls, ["load qwen3-asr-1.7b BF16"], "a click on the cell performed Load")
+        XCTAssertEqual(spy.calls, ["load qwen3-asr-1.7b BF16"], "a click on the button performed Load")
         click(window, at: NSPoint(x: r.minX + a.trashRect.midX, y: r.midY))
         XCTAssertEqual(deleted, ["qwen3-asr-1.7b"], "a click on the trash glyph asked to delete")
         XCTAssertEqual(spy.calls.count, 1, "and did not also load")
-        // Not downloaded: nothing to delete, the glyph is Get.
+        // Loaded on Optimized 16: Unload; its Standard 16 cell previewed: the green Reload, which reloads on Standard.
+        c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized",
+                                                                          selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast))])
+        spin()
+        func button() -> RowActionView { topDown(all(RowActionView.self, in: view))[index] }
+        XCTAssertEqual(button().spec?.title, "Unload")
+        let standard = try XCTUnwrap(try segmentRows(c, view)[qwen.id]?.standard)
+        click(window, segment: 0, of: standard)
+        XCTAssertEqual(button().spec?.title, "Reload")
+        XCTAssertEqual(button().spec?.emphasized, true, "green")
+        let b = button().convert(button().bounds, to: nil)
+        click(window, at: NSPoint(x: b.minX + button().buttonRect.midX, y: b.midY))
+        XCTAssertEqual(spy.calls.last, "reload qwen3-asr-1.7b BF16")
+        XCTAssertEqual(spy.selections.last, ModelSelection(tier: .t16, path: .standard, mode: .fast), "Standard, as VELLA_RECIPE=standard")
+        // Not downloaded: Get, nothing to delete.
         let ultraIndex = try XCTUnwrap(order.firstIndex { $0.id == "parakeet-v3-ultra" })
-        XCTAssertEqual(actions[ultraIndex].spec?.glyph, .get)
+        XCTAssertEqual(actions[ultraIndex].spec?.title, "Get")
         XCTAssertFalse(actions[ultraIndex].spec?.deletable ?? true)
     }
 
     /// Hover inside a menu: the cell tracks the pointer with an `.activeAlways` tracking area (a menu's window is never
-    /// key), and entering it turns the glyph into the button. A test cannot move the real pointer, so the tracking
+    /// key), and entering it shows the trash glyph. A test cannot move the real pointer, so the tracking
     /// area's options are checked and its events are delivered as AppKit would.
     func testTheActionCellHoversWithAnAlwaysActiveTrackingArea() throws {
         let c = try controller()

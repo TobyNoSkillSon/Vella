@@ -225,7 +225,7 @@ import VellaCore
             return cellPresent(benchmark(f), tier: tier, segment: segment)
         }
     }
-    /// The Precision segments for a switch position (family coupling rule): Exact offers the tiers with an
+    /// The Optimized row's segments for a switch position (family coupling rule): Exact offers the tiers with an
     /// Optimized Exact recipe (bit-identical to Standard), Fast those with an Optimized Fast one; where Fast = Exact
     /// (greyed switch) either recipe counts. A model without any Optimized recipe offers its Standard tiers.
     func precisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] {
@@ -233,9 +233,9 @@ import VellaCore
         let keys: [SegmentKey] = !switchAvailable(f) ? [.optimized_exact, .optimized_fast] : mode == .exact ? [.optimized_exact] : [.optimized_fast]
         return offeredTiers(f).filter { tier in keys.contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
     }
-    /// The Precision segments as the row shows them (the current switch position).
+    /// The Optimized row's segments as the row shows them (the current switch position).
     func precisions(_ f: ModelFamily) -> [ModelTier] { precisions(f, currentSelection(f).mode) }
-    /// Every Vella model has an Optimized path; Standard is reached only through it (the tooltips' "vs Standard" line).
+    /// The model has an Optimized row (and so the Exact/Fast switch); every shipped Vella model does.
     func hasOptimizedPath(_ f: ModelFamily) -> Bool {
         offeredTiers(f).contains { tier in [SegmentKey.optimized_exact, .optimized_fast].contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
     }
@@ -296,7 +296,8 @@ import VellaCore
         guard setPreview(f, ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode)) else { return }
         couplingNotes[f.id] = nil
     }
-    /// A Precision segment click: the Optimized cell at that tier (Standard only for a model without an Optimized path).
+    /// A precision pick without a row (API, tests): the Optimized cell at that tier (Standard only for a model without
+    /// an Optimized path). The table's segments call `select(_:tier:path:)` with their row.
     func select(_ f: ModelFamily, tier: ModelTier) { select(f, tier: tier, path: hasOptimizedPath(f) ? .optimized : .standard) }
     /// A switch flip: the Optimized cell of the shown tier in that mode (from a Standard cell too). Exact offers only
     /// the tiers with an Exact recipe: a tier without one moves to 16 (else the first Exact tier), and the row says

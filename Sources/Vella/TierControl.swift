@@ -1,23 +1,34 @@
 import AppKit
 import SwiftUI
 
-// The Models table's Precision control: one row of segments, `16 8 4` (bits per weight).
+// The Models table's Precision control: two segment rows, `Optimized [16][8][4]` above `Standard [16][8][4]`.
 // Shared verbatim by Verdict, Vella and Vireo (like TooltipCell.swift): AppKit and SwiftUI only, no app types; plain
 // values in, one callback out.
 //
-// - Only the precisions the model offers on the current path are listed; an absent one is omitted, never greyed.
-//   Segments stay in fixed columns (16, 8, 4), so a model that lacks its leading precision starts one column in.
-// - Exactly one segment is selected. Clicking one reports it; what that means (preview, deltas, Reload) is the app's
-//   business. No segment is coloured as recommended.
-// - `enabled == false` is the in-use interlock (dictating, speaking, rendering, judging, loading): the segments are
+// - A row lists only the precisions it offers; an absent one is omitted, never greyed. Segments stay in fixed columns
+//   (16, 8, 4), so a row that lacks its leading precision starts one column in. A row with none shows no label either.
+// - Exactly one cell is selected across both rows. Clicking a cell reports it; what that means (preview, deltas,
+//   Reload) is the app's business. No cell is coloured as recommended.
+// - The row labels are in the body type of the table (13 pt, primary), not a caption.
+// - `enabled == false` is the in-use interlock (dictating, speaking, rendering, judging, loading): both rows are
 //   disabled and every segment's tooltip gains `inUseHelp`.
 // - Segment tooltips are NSSegmentedControl per-segment tooltips: they work inside an NSMenu, where SwiftUI `.help`
 //   never shows (TooltipCell.swift).
-// - The geometry is explicit (a regular segmented control, `segmentHeight` × `cellWidth` per segment): a hosted
+// - The geometry is explicit (two regular segmented controls, `segmentHeight` each, `rowSpacing` apart): a hosted
 //   NSControl can take the environment's control size until its first update, so nothing here asks the control for
-//   its size and the FIRST layout of a menu is already right.
+//   its size and the FIRST layout of a menu already has both rows apart.
 
 struct TierControl: View {
+    enum Row: String, CaseIterable {
+        case optimized, standard
+        var title: String { self == .optimized ? "Optimized" : "Standard" }
+    }
+    struct Cell: Hashable {
+        var row: Row
+        var tier: String
+        init(_ row: Row, _ tier: String) { self.row = row; self.tier = tier }
+    }
+
     /// The column header and its tooltip (Toby, 29 Sep).
     static let title = "Precision"
     static let headerHelp = "Bits per weight. 16 = as released; 8 and 4 compressed on your Mac \u{2014} smaller, faster, slightly less accurate."
@@ -27,39 +38,55 @@ struct TierControl: View {
     static let columns = ["16", "8", "4"]
     /// A regular NSSegmentedControl's height (24 pt on macOS 26).
     static let segmentHeight: CGFloat = 24
-    static let height: CGFloat = segmentHeight
+    /// Air between the Optimized and the Standard row.
+    static let rowSpacing: CGFloat = 6
+    /// Both rows: the control's own height, which the table row and the Exact/Fast switch beside it use.
+    static let height: CGFloat = 2 * segmentHeight + rowSpacing
     /// Width of one column (a bare two-digit label in a regular segment).
     static let cellWidth: CGFloat = 32
-    /// Width of the segments: each segment is `cellWidth - 2` wide plus a 1 pt divider, less the outer one.
+    /// The row label ("Optimized" in 13 pt) and the gap after it.
+    static let labelWidth: CGFloat = 68, labelGap: CGFloat = 6
+    static let labelFont = Font.system(size: 13)
+    /// Width of a row's segments: each segment is `cellWidth - 2` wide plus a 1 pt divider, less the outer one.
     static func segmentsWidth(_ count: Int) -> CGFloat { count == 0 ? 0 : CGFloat(count) * (cellWidth - 1) - 1 }
-    /// Three columns.
-    static let width: CGFloat = CGFloat(columns.count) * cellWidth
+    /// Label plus three columns.
+    static let width: CGFloat = labelWidth + labelGap + CGFloat(columns.count) * cellWidth
     static var font: NSFont { .systemFont(ofSize: 13, weight: .medium) }
 
-    /// Precisions offered (a subset of `columns`, in any order).
-    let tiers: [String]
-    let selected: String?
+    /// Precisions each row offers (a subset of `columns`, in any order).
+    let optimized: [String]
+    let standard: [String]
+    let selected: Cell?
     let enabled: Bool
     /// The model is loaded: the selected segment uses the accent colour.
     var hot = false
-    /// Tooltip per segment (the app's flavour and "vs standard" lines).
-    let help: (String) -> String
-    let onSelect: (String) -> Void
+    /// Tooltip per cell (the app's flavour and "vs Standard 16" lines).
+    let help: (Cell) -> String
+    let onSelect: (Cell) -> Void
 
     /// A segment's tooltip as shown: the app's text, plus the interlock line while in use.
     static func tooltip(_ text: String, enabled: Bool) -> String { enabled ? text : text + "\n" + inUseHelp }
 
     var body: some View {
-        let shown = Self.columns.filter(tiers.contains)
-        HStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: Self.rowSpacing) {
+            row(.optimized, optimized)
+            row(.standard, standard)
+        }.frame(width: Self.width, height: Self.height, alignment: .topLeading)
+            .fixedSize()
+    }
+
+    @ViewBuilder private func row(_ row: Row, _ offered: [String]) -> some View {
+        let shown = Self.columns.filter(offered.contains)
+        HStack(spacing: Self.labelGap) {
+            Text(shown.isEmpty ? "" : row.title).font(Self.labelFont).lineLimit(1).fixedSize()
+                .frame(width: Self.labelWidth, alignment: .leading)
             if let first = shown.first {
-                TierSegments(tiers: shown, selected: selected, enabled: enabled, hot: hot,
-                             help: { Self.tooltip(help($0), enabled: enabled) }, onSelect: onSelect)
+                TierSegments(tiers: shown, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot,
+                             help: { Self.tooltip(help(Cell(row, $0)), enabled: enabled) }, onSelect: { onSelect(Cell(row, $0)) })
                     .frame(width: Self.segmentsWidth(shown.count), height: Self.segmentHeight)
                     .padding(.leading, CGFloat(Self.columns.firstIndex(of: first) ?? 0) * Self.cellWidth)
             }
-        }.frame(width: Self.width, height: Self.height, alignment: .leading)
-            .fixedSize()
+        }.frame(width: Self.width, height: Self.segmentHeight, alignment: .leading)
     }
 }
 
@@ -80,7 +107,7 @@ enum HostRefresh {
     }
 }
 
-/// The segments: a regular NSSegmentedControl with per-segment tooltips.
+/// One row's segments: a regular NSSegmentedControl with per-segment tooltips.
 private struct TierSegments: NSViewRepresentable {
     let tiers: [String]
     let selected: String?

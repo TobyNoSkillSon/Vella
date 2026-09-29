@@ -79,14 +79,11 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertNotNil(l[0].range(of: #": (lower is better|higher is faster)"#, options: .regularExpression), "\(label): \(l[0])")
                 XCTAssertNotNil(l[1].range(of: Self.provenance, options: .regularExpression), "\(label): \(l[1])")
                 assertNoTrailingPeriod(text, label)
-            case "On disk":
-                XCTAssertTrue((1...2).contains(l.count), label)
-                assertNoTrailingPeriod(text, label)
             case let c where c.hasPrefix("Capability "):
                 XCTAssertEqual(l.count, 1, "\(label): one line per capability")
                 assertNoTrailingPeriod(text, label)
             case "Action":
-                XCTAssertEqual(l.count, 2, "\(label): the glyph's state, then what a click does")
+                XCTAssertEqual(l.count, 2, "\(label): the model's state, then what a click does")
                 XCTAssertTrue(["Loaded", "On disk, not loaded", "Not downloaded"].contains(l[0]), "\(label): \(l[0])")
                 XCTAssertNotNil(l.last?.range(of: "^(Asks, then downloads|Load it for|Free its memory|Unload the loaded precision)", options: .regularExpression), "\(label): \(l.last ?? "")")
             case let c where c.hasPrefix("Precision "):
@@ -100,7 +97,7 @@ final class TableTooltipTests: XCTestCase {
                     XCTAssertTrue(extra.hasPrefix("Loss vs 16: ") || extra == TierControl.inUseHelp, "\(label): \(extra)")
                 }
                 assertNoTrailingPeriod(text, label)
-            case "Path":
+            case "Exact/Fast":
                 XCTAssertEqual(l[0], ExactFastSwitch.help, label)
                 XCTAssertTrue(l.dropFirst().allSatisfy { $0 == ExactFastSwitch.sameHelp || $0 == ExactFastSwitch.inUseHelp }, label)
             case "Engine":
@@ -109,11 +106,12 @@ final class TableTooltipTests: XCTestCase {
                 XCTFail("\(label): unexpected column")
             }
         }
-        let precisionColumns = table.controller.precisions(family).map { "Precision \($0.rawValue)" }
+        let precisionColumns = table.controller.precisions(family).map { "Precision Optimized \($0.rawValue)" }
+            + table.controller.tiers(family, .standard).map { "Precision Standard \($0.rawValue)" }
         let capabilityColumns = Capability.allCases.filter { capabilitySlots(family)[$0] != nil }.map { "Capability \($0.rawValue)" }
         XCTAssertFalse(capabilityColumns.isEmpty, "every Vella model is multilingual")
-        let expected = ["Model"] + (loaded?.engine != nil ? ["Engine"] : []) + capabilityColumns + precisionColumns + ["Path"]
-            + ["WER", "Format", "Speed", "J / min", "Memory", "On disk", "Action"]
+        let expected = ["Model"] + (loaded?.engine != nil ? ["Engine"] : []) + capabilityColumns + precisionColumns + ["Exact/Fast"]
+            + ["WER", "Format", "Speed", "J / min", "Memory", "Action"]
         XCTAssertEqual(columns, expected, "\(family.id) \(state)")
     }
 
@@ -137,6 +135,13 @@ final class TableTooltipTests: XCTestCase {
                         checkRow(table, family, loaded: loaded, state: "\(tier.rawValue) \(mode)\(loaded.map { " loaded \($0.precision)" } ?? "")")
                         checked += 1
                     }
+                    for tier in c.tiers(family, .standard) {
+                        c.discardPreviews()
+                        c.setMode(family, mode)
+                        c.select(family, tier: tier, path: .standard)
+                        checkRow(table, family, loaded: loaded, state: "Standard \(tier.rawValue) \(mode)\(loaded.map { " loaded \($0.precision)" } ?? "")")
+                        checked += 1
+                    }
                 }
                 c.discardPreviews()
             }
@@ -144,7 +149,7 @@ final class TableTooltipTests: XCTestCase {
         XCTAssertGreaterThan(checked, 3 * 2 * families.count)
         for r in c.references(.dictation) + c.references(.streaming) {
             let cells = table.tooltips(r)
-            XCTAssertEqual(cells.map(\.0), ["Model", "WER", "Format", "Speed", "J / min", "Memory", "On disk"])
+            XCTAssertEqual(cells.map(\.0), ["Model", "WER", "Format", "Speed", "J / min", "Memory"])
             for (column, text) in cells {
                 assertClean(text, "\(r.id) [\(column)]")
                 assertNoTrailingPeriod(text, "\(r.id) [\(column)]")
@@ -152,7 +157,8 @@ final class TableTooltipTests: XCTestCase {
         }
     }
 
-    /// Every Precision segment's tooltip of the shipped table (both switch positions) and the Path switch's, pinned in
+    /// Every Precision segment's tooltip of the shipped table (Optimized in both switch positions, Standard) and the
+    /// Exact/Fast switch's, pinned in
     /// TierTooltips.txt beside this file. `VELLA_PIN_UPDATE=1 swift test --filter TableTooltipTests` rewrites it after
     /// a deliberate change (review the diff).
     @MainActor func testTierCellTooltipsArePinned() throws {
@@ -163,8 +169,9 @@ final class TableTooltipTests: XCTestCase {
             for mode in [OptimizedMode.exact, .fast] {
                 c.discardPreviews()
                 c.setMode(family, mode)
-                for (column, text) in table.tooltips(family) where column.hasPrefix("Precision ") || (mode == .exact && column == "Path") {
-                    blocks.append("[\(family.name) · \(column)\(column.hasPrefix("Precision ") ? " · \(mode == .exact ? "Exact" : "Fast")" : "")]\n\(text)\n")
+                for (column, text) in table.tooltips(family) where column.hasPrefix("Precision Optimized ")
+                    || (mode == .exact && (column.hasPrefix("Precision Standard ") || column == "Exact/Fast")) {
+                    blocks.append("[\(family.name) · \(column)\(column.hasPrefix("Precision Optimized ") ? " · \(mode == .exact ? "Exact" : "Fast")" : "")]\n\(text)\n")
                 }
             }
             c.discardPreviews()
@@ -257,13 +264,13 @@ final class TableTooltipTests: XCTestCase {
         XCTAssertEqual(tips["Speed"], "Speed in × real time on the v2 quick benchmark (22.5 min), timed after loading: higher is faster\n" + by)
         XCTAssertEqual(tips["J / min"], "Whole-chip joules per audio minute on the v2 quick benchmark (22.5 min), net of loaded idle power: lower is better\n" + by)
         XCTAssertEqual(tips["Memory"], "Peak memory of Vella's model worker on the v2 quick benchmark (22.5 min), loading included: lower is better\n" + by)
-        XCTAssertEqual(tips["On disk"], "Not downloaded\nDownloads \(formatBytes(ultra.variants["BF16"]!.downloadBytes)) from Hugging Face after you confirm")
+        XCTAssertNil(tips["On disk"], "no On disk column: the Get pop-up and the action's tooltip give the download size")
+        XCTAssertEqual(tips["Action"], "Not downloaded\nAsks, then downloads \(formatBytes(ultra.variants["BF16"]!.downloadBytes)) from Hugging Face; then loads it for dictation.")
         XCTAssertEqual(tips["Capability languages"], "25 European languages")
         XCTAssertNil(tips["Capability cjk"], "an empty slot has no tooltip")
         c.select(ultra, tier: .t4)
-        let derived = "Made on this Mac at load from the BF16 weights; nothing extra is stored"
-        XCTAssertEqual(table.tooltips(ultra).first { $0.0 == "On disk" }?.1,
-                       c.disk(ultra, "4b") == nil ? derived : derived + "\nThe size shown is those BF16 files")
+        XCTAssertEqual(table.tooltips(ultra).first { $0.0 == "Action" }?.1,
+                       "Not downloaded\nAsks, then downloads the BF16 (bfloat16) weights (\(formatBytes(ultra.variants["BF16"]!.downloadBytes))) it is made from; then loads it for dictation. The first load makes the 4-bit quantized weights on this Mac.")
         let nemotron = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
         XCTAssertEqual(speedHelp(nemotron.mode, c.result(nemotron, "8b"), suites: c.benchmarks.suites),
                        "Streaming replay speed in × real time on the v2 quick benchmark (22.5 min), not microphone-to-text latency: higher is faster\n" + by)
@@ -279,7 +286,7 @@ final class TableTooltipTests: XCTestCase {
         XCTAssertEqual(tips["WER"], "Estimated English word error rate on the v2 benchmark, range 11.3–13.3%: lower is better\n"
                        + "Estimate scaled from the Hugging Face Open ASR Leaderboard · 2026-09-26")
         XCTAssertEqual(tips["Speed"], referenceNotApplicableHelp)
-        XCTAssertEqual(tips["On disk"], "Cloud service: nothing to download\nVella never sends audio to it")
+        XCTAssertNil(tips["On disk"])
     }
 
     /// The table's source uses AppKit tooltips only: SwiftUI `.help` never shows inside NSMenu tracking.
