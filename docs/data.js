@@ -459,7 +459,8 @@ const VELLA_BENCHMARKS = {
       },
       "suite": "v2",
       "date": "2026-09-28",
-      "hardware": "Apple M5 Max, macOS 26.6"
+      "hardware": "Apple M5 Max, macOS 26.6",
+      "note": "Stock measured with different sharding (5-way vs 2-way; in streaming each clip depends on its neighbours); rerun pending."
      }
     },
     "8b": {

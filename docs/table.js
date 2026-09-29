@@ -49,7 +49,7 @@ function modelRows() {
      wer: st.wer ?? null, format: st.format ?? null, languages: sml.coverage ?? null, byLanguage: sml.by_language || null,
      speed: st.speed_x ?? null, energy: st.j_per_min ?? null, memory: st.memory_mb ?? null,
      disk: published ? variant.downloadBytes / 1e6 : r.disk_mb ?? null,
-     suite: st.suite || r.suite || null, date: st.date || null, engine: 'mlx', note: null, hardware: st.hardware || B.hardware,
+     suite: st.suite || r.suite || null, date: st.date || null, engine: 'mlx', note: st.note || null, hardware: st.hardware || B.hardware,
      url: null, published
     });
    }

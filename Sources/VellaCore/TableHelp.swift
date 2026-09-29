@@ -66,7 +66,8 @@ private func figure(_ what: String, on suite: String?, _ detail: String? = nil, 
 public func stockLine(_ r: PrecisionResult?) -> String? {
     guard let s = r?.stock else { return nil }
     let parts = [formatSpeed(s.speed_x), formatEnergy(s.j_per_min), formatMemory(s.memory_mb)].compactMap { $0 }
-    return parts.isEmpty ? nil : "Stock MLX on any Mac: " + parts.joined(separator: " \u{00b7} ")
+    guard !parts.isEmpty else { return nil }
+    return "Stock MLX on any Mac: " + parts.joined(separator: " \u{00b7} ") + (s.note == nil ? "" : " (remeasure pending)")
 }
 
 public func werHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {

@@ -283,8 +283,12 @@ public struct StockBaseline: Codable, Equatable {
     public var suite: String?
     public var date: String?
     public var hardware: String?
+    /// A caveat on how this baseline was measured (e.g. a pending rerun); shown briefly in the table, in full on the site.
+    public var note: String?
     public init(wer: Double? = nil, format: Double? = nil, multilingual: MultilingualResult? = nil, speed_x: Double? = nil, j_per_min: Double? = nil,
-                memory_mb: Double? = nil, latency_ms: LatencyResult? = nil, suite: String? = nil, date: String? = nil, hardware: String? = nil) {
+                memory_mb: Double? = nil, latency_ms: LatencyResult? = nil, suite: String? = nil, date: String? = nil, hardware: String? = nil,
+                note: String? = nil) {
+        self.note = note
         self.wer = wer; self.format = format; self.multilingual = multilingual; self.speed_x = speed_x; self.j_per_min = j_per_min
         self.memory_mb = memory_mb; self.latency_ms = latency_ms; self.suite = suite; self.date = date; self.hardware = hardware
     }
@@ -650,6 +654,21 @@ public func recommendationHelp(_ benchmark: FamilyBenchmark?, recommended: Strin
     var lines = ["Recommended: lowest energy per audio minute \(criterion)"]
     if recommended != native, let gate = chosen.gate, gate.pass, !gate.reasons.isEmpty {
         lines.append("\(precisionInProse(recommended)): \(gate.reasons.prefix(2).joined(separator: "; "))")
+    }
+    // A recommendation other than the native precision states its trade against it: what it costs in word
+    // errors and what it gains in speed, energy and memory, with the file's numbers.
+    if recommended != native, let base = benchmark.result(native), let cw = chosen.wer, let bw = base.wer {
+        var parts = [String(format: "%+.2f pt English word errors", cw - bw)]
+        if let d = speedDelta(chosen.speed_x, base: base.speed_x), let a = formatSpeed(chosen.speed_x), let b = formatSpeed(base.speed_x) {
+            parts.append(d.text == "same" ? "the same speed" : "\(d.text) (\(a) vs \(b) real time)")
+        }
+        if let d = energyDelta(chosen.j_per_min, base: base.j_per_min) {
+            parts.append(d.text == "same" ? "the same energy" : "\(d.text) energy")
+        }
+        if let d = memoryDelta(chosen.memory_mb, base: base.memory_mb), let a = formatMemory(chosen.memory_mb), let b = formatMemory(base.memory_mb) {
+            parts.append(d.text == "same" ? "the same memory" : "\(d.text) memory (\(a) vs \(b))")
+        }
+        lines.append("Against \(precisionInProse(native)): " + parts.joined(separator: ", "))
     }
     var text: String { lines.joined(separator: "\n") }
     guard let nativeWER = benchmark.result(native)?.wer else { return text }

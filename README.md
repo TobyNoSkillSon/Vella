@@ -71,11 +71,13 @@ Each recommended row has a **Stock MLX (any Mac)** baseline row under it: the sa
 | Whisper large-v3 turbo | Dictation | 8 | 17.21 | 7.70 | 9/9 | 78× | 64.5 | 1,925 MB | v2 |
 | Whisper large-v3 turbo | Dictation | 4 | 17.80 | 8.43 | 9/9 | 82× | 63.1 | 1,688 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | 16 (recommended) | 23.39 | 10.55 | 9/9 | 27× | 54.4 | 1,614 MB | v2 |
-| ↳ Stock MLX (any Mac) | Streaming | 16 | 23.15 | 10.47 | 9/9 | 7× | 189.3 | 2,081 MB | v2 |
+| ↳ Stock MLX (any Mac) ¹ | Streaming | 16 | 23.15 | 10.47 | 9/9 | 7× | 189.3 | 2,081 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | 8 | 23.47 | 10.58 | 9/9 | 27× | 40.1 | 1,088 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | 4 | 32.97 | 16.19 | 9/9 | 30× | 39.6 | 821 MB | v2 |
 | ElevenLabs Scribe v2 (cloud API) | Dictation | — | ~13.4 (estimated, 11.8–13.9) | — | — | — | — | — | estimated |
 | Microsoft Azure Speech (cloud API) | Dictation | — | ~12.9 (estimated, 11.3–13.3) | — | — | — | — | — | estimated |
+
+¹ Nemotron 3.5 Streaming: Stock measured with different sharding (5-way vs 2-way; in streaming each clip depends on its neighbours); rerun pending.
 
 Cloud API rows are **estimates, not measurements**: we sent no audio to them. Each is the provider's WER on the Hugging Face Open ASR Leaderboard times the median ratio between our v2 WER and the leaderboard WER of the models we measured on both (Parakeet v3, Qwen3 ASR 1.7B, Nemotron 3.5 Streaming); the range uses the lowest and highest ratio. Leaderboard: https://huggingface.co/spaces/hf-audio/open_asr_leaderboard. Sources, anchors and arithmetic are in `references` in [`Resources/benchmarks.json`](Resources/benchmarks.json).
 
