@@ -35,47 +35,64 @@ private let exactBytes: NumberFormatter = {
 /// `2,509,016,021 bytes`.
 public func formatExactBytes(_ bytes: Int64) -> String { (exactBytes.string(from: NSNumber(value: bytes)) ?? String(bytes)) + " bytes" }
 
-/// `Parakeet v3 · 32 (FP32)`: the table's bare width plus the exact format in prose.
+/// `Parakeet v3 · 16 (BF16)`: the table's bare width plus the exact format in prose.
 public func precisionTitle(_ family: ModelFamily, _ label: String) -> String {
     "\(family.name) \u{00b7} " + (precisionWidth(label).map { "\($0) (\(precisionInProse(label)))" } ?? precisionInProse(label))
 }
 
-/// The popup for downloading what `precision` of `family` needs: its own published weights, or for a precision made on
-/// this Mac the published weights it is made from. Nil when the catalog has no downloadable source.
+/// The format of a tier in prose for the popup: `BF16 (bfloat16)`, `8-bit (affine, group 64)`.
+func tierFormat(_ family: ModelFamily, _ label: String) -> String {
+    if let v = family.variants[label], let bits = v.bits { return "\(bits)-bit (affine, group \(v.groupSize ?? 64))" }
+    return precisionFormatName(label)
+}
+
+/// The popup for getting `precision` of `family` (Toby, 29 Sep 2026): what is downloaded (always the 16-bit checkpoint,
+/// or an fp32-only model's fp32 source), what is converted on this Mac and how long that takes, and what stays on disk.
+/// Nil when the precision is not offered (an absent tier is never offered) or nothing in the catalog is downloadable.
 /// `freeBytes`: free space on the models volume now (nil = unknown).
 public func downloadPrompt(family: ModelFamily, precision: String, followUp: DownloadFollowUp, freeBytes: Int64?) -> DownloadPrompt? {
-    guard let source = family.downloadSource(of: precision), !source.variant.repository.isEmpty else { return nil }
-    let derived = source.label != precision
-    let variant = source.variant
-    let revision = variant.revision.isEmpty ? "" : " at revision \(variant.revision.prefix(7))"
-    let title = derived
-        ? "Download \(precisionTitle(family, source.label)) to make \(precisionWidth(precision) ?? precision) (\(precisionInProse(precision)))?"
+    guard precisionOptions(family).contains(precision), let root = family.downloadSource(of: precision),
+          let acquisition = family.acquisition(of: precision), !acquisition.download.repository.isEmpty else { return nil }
+    let download = acquisition.download
+    let madeAtLoad = root.label != precision
+    let revision = download.revision.isEmpty ? "" : " at revision \(download.revision.prefix(7))"
+    let rootBytes = acquisition.convert == nil ? download.downloadBytes : (estimatedWeightBytes(family, root.label).map { Int64($0) } ?? download.downloadBytes)
+    let title = madeAtLoad
+        ? "Download \(precisionTitle(family, root.label)) to make \(precisionWidth(precision) ?? precision) (\(precisionInProse(precision)))?"
         : "Download \(precisionTitle(family, precision))?"
-    var what: String
-    if derived {
-        what = "\(family.name) at \(precisionFormatName(precision)) is made on this Mac from its \(precisionFormatName(source.label)) weights. "
-            + "This downloads those weights, published on Hugging Face as \(variant.repository)\(revision)."
+    var lines: [String] = []
+    if let dtype = acquisition.convert, let from = family.variants[root.label]?.derivedFrom {
+        lines.append("\(family.name) is published as \(precisionFormatName(from)) on Hugging Face: \(download.repository)\(revision). "
+            + "Vella converts it once to \(precisionFormatName(derivedCastLabels[dtype] ?? root.label)) and keeps only those weights.")
     } else {
-        what = "\(family.name) at \(precisionFormatName(precision))" + (precision == family.native ? ", the model's native precision" : "")
-            + ", published on Hugging Face as \(variant.repository)\(revision)."
+        lines.append("\(family.name) at \(precisionFormatName(root.label)), as published on Hugging Face: \(download.repository)\(revision).")
     }
-    if let processor = variant.processorSource {
-        what += " Tokenizer files come from \(processor.repository)."
+    if madeAtLoad {
+        lines.append("\(tierFormat(family, precision)) is made on this Mac from the \(precisionWidth(root.label) ?? root.label)-bit weights "
+            + "each time it loads; only a small recipe file is added.")
     }
-    var size = "Download: \(formatBytes(variant.downloadBytes)) (\(formatExactBytes(variant.downloadBytes))). Disk needed: \(formatBytes(variant.downloadBytes))"
+    var size = "Download: \(formatBytes(download.downloadBytes)) (\(formatExactBytes(download.downloadBytes)))."
+    var conversions: [String] = []
+    if acquisition.convert != nil { conversions.append("\(formatConversionSeconds(download.downloadBytes, rate: storedConversionBytesPerSecond)) once") }
+    if madeAtLoad { conversions.append("\(formatConversionSeconds(rootBytes, rate: loadQuantizationBytesPerSecond)) at each load") }
+    if !conversions.isEmpty { size += " Conversion: " + conversions.joined(separator: ", then ") + "." }
+    size += " Stored: \(formatBytes(rootBytes))"
+    // A stored conversion writes each converted file beside its source before swapping it in.
+    let needed = download.downloadBytes + (acquisition.convert == nil ? 0 : rootBytes)
+    if needed != rootBytes { size += "; disk needed while converting: \(formatBytes(needed))" }
     if let freeBytes { size += "; \(formatBytes(freeBytes)) free" }
     size += "."
-    if derived { size += " The \(precisionInProse(precision)) weights are made at load and add nothing on disk." }
-    if let freeBytes, freeBytes < variant.downloadBytes { size += " Not enough free disk space." }
+    if let freeBytes, freeBytes < needed { size += " Not enough free disk space." }
+    lines.append(size)
+    if let processor = download.processorSource { lines[0] += " Tokenizer files come from \(processor.repository)." }
     let mode = family.mode.title.lowercased()
-    let then: String
     switch followUp {
-    case .load: then = "When the download finishes, it loads for \(mode)."
-    case .reload(let loaded): then = "When the download finishes, it loads for \(mode) in place of the loaded \(precisionInProse(loaded))."
-    case .transcribe: then = "When the download finishes, it loads and transcribes the saved recording."
+    case .load: lines.append("When the download finishes, it loads for \(mode).")
+    case .reload(let loaded): lines.append("When the download finishes, it loads for \(mode) in place of the loaded \(precisionInProse(loaded)).")
+    case .transcribe: lines.append("When the download finishes, it loads and transcribes the saved recording.")
     }
-    return DownloadPrompt(title: title, body: [what, size, then].joined(separator: "\n\n"), variantID: variant.id,
-                          downloadBytes: variant.downloadBytes, family: family.id, precision: precision)
+    return DownloadPrompt(title: title, body: lines.joined(separator: "\n\n"), variantID: root.variant.id,
+                          downloadBytes: download.downloadBytes, family: family.id, precision: precision)
 }
 
 // MARK: Partial downloads

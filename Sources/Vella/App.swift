@@ -904,6 +904,7 @@ final class GlobalShortcut {
         // Menu and table ↔ runtime; then publish an empty worker status and load the launch set (manual loads only;
         // nothing on a fresh install).
         RuntimeBridge.shared.attach(delegate)
+        RuntimeBridge.shared.migrateRegistry()         // removed models leave the registry (their files stay)
         RuntimeBridge.shared.sweepPartialDownloads()   // stale .incomplete partials in Vella's Models folder
         DispatchQueue.main.async { Runtime.shared.start() }
         // The local HTTP API (loopback; port in worker-status.json) for the `vella` command and agents.

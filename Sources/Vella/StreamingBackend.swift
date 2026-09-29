@@ -107,7 +107,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
     /// child is retired and awaited, then a new child is launched under a fresh epoch and asked to `load`. A reply,
     /// status line or EOF from an earlier child carries an old epoch and is ignored.
     private func ensureLoaded(_ ref: ModelRef, residency: ResidencyClass, token: UUID) async throws {
-        if hotRef?.path == ref.path, loadingRef == nil, process?.isRunning == true { return }
+        if hotRef?.path == ref.path, hotRef?.recipe == ref.recipe, loadingRef == nil, process?.isRunning == true { return }
         let previous = process?.isRunning == true && loadingRef == nil ? hotRef : nil
         let previousResidency = previous.map { runtime.residencyForRequest($0) } ?? .onDemand
         try await waitForRetired()
@@ -151,6 +151,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         var env = ProcessInfo.processInfo.environment
         env["HF_HUB_OFFLINE"] = "1"
         env["TRANSFORMERS_OFFLINE"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
+        env[workerRecipeVariable] = ref.recipe
         child.environment = env; child.standardInput = stdin; child.standardOutput = stdout
         child.standardError = FileHandle.nullDevice
         frames = 0; committed = ""; partial = ""; buffer.removeAll(); receivedDone = false

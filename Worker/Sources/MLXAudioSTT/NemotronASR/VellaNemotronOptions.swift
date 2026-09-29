@@ -20,11 +20,12 @@ public enum VellaNemotronOptions {
             self.positionCache = positionCache; self.keyValueCache = keyValueCache; self.fusedLayer = fusedLayer
             self.melBatch = melBatch; self.bf16Linears = bf16Linears
         }
-        public init(environment: [String: String], forcedStock: Bool) {
+        /// `exactOnly` (the Optimized · Exact recipe): the fused layer and its BF16 Linears, the inexact components, stay off.
+        public init(environment: [String: String], forcedStock: Bool, exactOnly: Bool = false) {
             func on(_ name: String) -> Bool { !forcedStock && environment["VELLA_NEMO_" + name] != "0" }
             self.init(f32Weights: on("F32"), coalesce: on("COALESCE"), batchedDecode: on("BATCHED_DECODE"),
-                      positionCache: on("POSCACHE"), keyValueCache: on("KVCACHE"), fusedLayer: on("FUSED"),
-                      melBatch: on("MELBATCH"), bf16Linears: on("BF16LINEAR"))
+                      positionCache: on("POSCACHE"), keyValueCache: on("KVCACHE"), fusedLayer: on("FUSED") && !exactOnly,
+                      melBatch: on("MELBATCH"), bf16Linears: on("BF16LINEAR") && !exactOnly)
         }
         /// The fused layer runs only on the K/V-cache path, and only when its encoder could be built for this checkpoint.
         public func fusedActive(prepared: Bool = true) -> Bool { fusedLayer && keyValueCache && prepared }
@@ -38,7 +39,8 @@ public enum VellaNemotronOptions {
         /// At least one component would run: the fused layer alone (K/V cache off) runs nothing.
         public var anyEnabled: Bool { effective().values.contains(true) }
     }
-    public static let requested = Switches(environment: ProcessInfo.processInfo.environment, forcedStock: FastPathGate.forcedStock)
+    public static let requested = Switches(environment: ProcessInfo.processInfo.environment, forcedStock: FastPathGate.forcedStock,
+                                           exactOnly: FastPathGate.exactOnly)
     public static let f32Weights = requested.f32Weights
     public static let coalesce = requested.coalesce
     public static let batchedDecode = requested.batchedDecode

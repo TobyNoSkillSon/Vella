@@ -36,6 +36,7 @@ final class StreamingModelCache {
             "engine": native.map { $0.engine.0 } ?? NSNull(),
             "engine_reason": native.map { $0.engine.1 } ?? NSNull(),
             "optimizations": native?.engine.2 ?? [String: Bool](), "load_s": loadSeconds ?? NSNull(), "memory": memory,
+            "recipe": FastPathGate.recipe.rawValue,
         ]
         if !hooks.isEmpty { object["test_hooks"] = hooks }
         return object

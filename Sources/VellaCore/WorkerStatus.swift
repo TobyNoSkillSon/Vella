@@ -25,6 +25,9 @@ public struct WorkerModelStatus: Codable, Equatable {
     public var memory_mb: Double?
     /// The worker's optimized-path gate version (e.g. "native-kernels-8"), for `vella diagnose`.
     public var worker_version: String?
+    /// The requested selection the worker was launched with (tier × Standard/Optimized × Exact/Fast); `engine` says what
+    /// actually runs (a failed self-test or a runtime fallback leaves an Optimized selection on stock MLX).
+    public var selection: ModelSelection?
     public init() {}
 }
 

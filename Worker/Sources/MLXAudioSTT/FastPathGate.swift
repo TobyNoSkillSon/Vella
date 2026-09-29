@@ -53,14 +53,29 @@ public enum FastPathGate {
         _ = try? handle.seekToEnd()
         try? handle.write(contentsOf: Data((line + "\n").utf8))
     }
+    /// The user's selection, set by the app for every worker it launches (`VELLA_RECIPE`, lab/notes/models-table-ROUND.md):
+    /// `standard` = stock MLX (the VELLA_FORCE_STOCK path); `optimized_exact` = only the components whose output equals
+    /// stock's (every inexact component off: `FastPathCapable.fastPathTolerantComponents`, Whisper's checkpoint-dtype
+    /// encoder, Nemotron's fused layer); `optimized_fast` or unset = today's default (exact + gate-passing inexact).
+    /// The two-stage self-test and the runtime stock fallback apply to every recipe.
+    public enum Recipe: String { case standard, optimized_exact, optimized_fast }
+    public static var recipe: Recipe {
+        ProcessInfo.processInfo.environment["VELLA_RECIPE"].flatMap(Recipe.init(rawValue:)) ?? .optimized_fast
+    }
+    /// Optimized · Exact: inexact components stay off.
+    public static var exactOnly: Bool { recipe == .optimized_exact }
     /// `VELLA_FORCE_STOCK=1` (or the older `VELLA_PARAKEET_FORCE_STOCK`) forces stock MLX for diagnosis and as the
-    /// reference for fallback tests.
+    /// reference for fallback tests; the Standard recipe runs the same path.
     public static var forcedStock: Bool {
         let environment = ProcessInfo.processInfo.environment
         // The CPU device (lab smokes) never runs the custom Metal kernels.
-        return cpuDevice || ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK"].contains { key in
+        return cpuDevice || recipe == .standard || ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK"].contains { key in
             environment[key].map { !$0.isEmpty && $0 != "0" } ?? false
         }
+    }
+    /// Why the stock path runs when it is forced: the Standard selection, or a diagnosis switch.
+    public static var forcedStockReason: String {
+        recipe == .standard ? "Standard selected: stock MLX." : "Stock path forced for diagnosis (VELLA_FORCE_STOCK)."
     }
     /// Lab/test only: `VELLA_MLX_DEVICE=cpu` runs every MLX op on the CPU device (correctness smokes while the GPU is
     /// taken). Reported in the worker status `test_hooks`; forces stock (no custom Metal kernels).
@@ -106,6 +121,9 @@ public enum FastPathGate {
         }.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
     }
     /// Every release env hook that changes behaviour or adds instrumentation, for the worker status `test_hooks`.
+    /// The user's selection, set by the app for every worker (`recipe`): reported as the status's `recipe`, never in
+    /// `test_hooks` (it is not a diagnosis switch).
+    public static let selectionSwitches = ["VELLA_RECIPE"]
     public static let reportedSwitches = componentSwitches + ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR",
         "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
         "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_QWEN_ENC_BF16", "VELLA_WHISPER_PROFILE", "VELLA_WHISPER_ENC_F16", "VELLA_STREAM_PROFILE",
@@ -143,6 +161,8 @@ public enum FastPathGate {
         if !revision.isEmpty { digest.update(data: Data(":\(revision)".utf8)) }
         let components = componentConfiguration()
         if !components.isEmpty { digest.update(data: Data(":components=\(components)".utf8)) }
+        // Optimized · Exact runs other components (no inexact ones): its own verdict, never the Fast one's.
+        if exactOnly { digest.update(data: Data(":recipe=exact".utf8)) }
         return digest.finalize().map { String(format: "%02x", $0) }.joined()
     }
     public static var osBuild: String {
@@ -204,7 +224,7 @@ public enum FastPathGate {
     }
     /// `requiredFamily` nil: the optimized path uses no GPU-family-specific kernels (stock MLX ops only).
     public static func qualify(_ path: URL, revision: String, requiredFamily: String? = "apple9") -> Verdict {
-        if forcedStock { return .stock("Stock path forced for diagnosis (VELLA_FORCE_STOCK).") }
+        if forcedStock { return .stock(forcedStockReason) }
         guard let url = try? statusURL(path, revision: revision) else {
             return .stock("The optimized path could not be qualified for these model files.")
         }

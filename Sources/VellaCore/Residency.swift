@@ -31,15 +31,63 @@ public struct ModelRef: Codable, Hashable {
     public var memoryMB: Double?
     /// Every precision this family offers, any order; used to suggest a smaller one in a refusal.
     public var precisionOptions: [String]?
+    /// What the worker runs: tier × Standard/Optimized × Exact/Fast (Selection.swift). Nil (an older launch set, a
+    /// model outside the catalog): Optimized · Fast, the behaviour before the selection existed.
+    public var selection: ModelSelection?
     public init(id: String, precision: String = "", path: String, mode: RecognitionMode = .dictation, name: String? = nil,
-                diskBytes: Int64? = nil, memoryMB: Double? = nil, precisionOptions: [String]? = nil) {
+                diskBytes: Int64? = nil, memoryMB: Double? = nil, precisionOptions: [String]? = nil, selection: ModelSelection? = nil) {
         self.id = id; self.precision = precision; self.path = path; self.mode = mode; self.name = name
-        self.diskBytes = diskBytes; self.memoryMB = memoryMB; self.precisionOptions = precisionOptions
+        self.diskBytes = diskBytes; self.memoryMB = memoryMB; self.precisionOptions = precisionOptions; self.selection = selection
     }
+    /// The worker's `VELLA_RECIPE`: `standard`, `optimized_exact` or `optimized_fast`.
+    public var recipe: String { workerRecipe(selection) }
     public var displayName: String { name ?? id }
     /// "Parakeet v3 at 4b", or the name alone when the precision is unknown.
     public var displayWithPrecision: String { precision.isEmpty ? displayName : "\(displayName) at \(precisionInProse(precision))" }
 }
+
+/// The recipe a worker runs for a selection (`VELLA_RECIPE`): Standard = stock MLX (the VELLA_FORCE_STOCK path);
+/// Optimized · Exact = only the components whose output equals stock's; Optimized · Fast = those plus the inexact
+/// components that passed the gate. Nil selection = Optimized · Fast (the behaviour before selections existed).
+public func workerRecipe(_ selection: ModelSelection?) -> String { (selection?.segmentKey ?? .optimized_fast).rawValue }
+/// The selection a load runs when none is passed (an on-demand dictation, an API request, the first-dictation Get):
+/// the family's recorded selection (config.json `selections`) at the precision's tier; else, for a family used before
+/// selections existed (it has a `lastLoaded` entry or is a mode's model), Optimized · Fast, which is what it ran; else
+/// Standard (Exact), the default for a model never loaded.
+public func defaultSelection(recorded: ModelSelection?, precision: String, usedBefore: Bool) -> ModelSelection {
+    let tier = modelTier(ofPrecision: precision) ?? recorded?.tier ?? .t16
+    if var recorded { recorded.tier = tier; return recorded }
+    return usedBefore ? ModelSelection(tier: tier, path: .optimized, mode: .fast) : ModelSelection(tier: tier, path: .standard, mode: .exact)
+}
+/// `defaultSelection` from config.json (nil = none) and the launch set: what a load of `family` at `precision` from
+/// `path` runs when no selection is passed.
+public func recordedSelection(config: Configuration?, launchSet: [ModelRef], family: String, precision: String, path: String) -> ModelSelection {
+    let usedBefore = config.map { $0.lastLoaded[family] != nil || [$0.model, $0.streamingModel].contains(path) } ?? false
+        || launchSet.contains { $0.id == family }
+    return defaultSelection(recorded: config?.selections[family], precision: precision, usedBefore: usedBefore)
+}
+
+/// What actually runs: the requested selection, except that a worker on stock MLX (`engine` "mlx": Standard asked, the
+/// self-test failed, or a runtime fallback) runs Standard whatever was asked. `engine` nil = not loaded (the request).
+public func effectiveSelection(_ requested: ModelSelection, engine: String?) -> ModelSelection {
+    guard engine == "mlx", requested.path == .optimized else { return requested }
+    var running = requested; running.path = .standard; return running
+}
+/// `Standard`, `Optimized Exact`, `Optimized Fast`.
+public func recipeLabel(_ selection: ModelSelection) -> String {
+    switch selection.segmentKey {
+    case .standard: return "Standard"
+    case .optimized_exact: return "Optimized Exact"
+    case .optimized_fast: return "Optimized Fast"
+    }
+}
+/// The API's selection object: tier, path, mode and the recipe key.
+public func selectionObject(_ selection: ModelSelection) -> [String: Any] {
+    ["tier": selection.tier.rawValue, "path": selection.path.rawValue, "mode": selection.mode.rawValue, "recipe": selection.segmentKey.rawValue]
+}
+
+/// Environment variable the app sets for every worker it launches.
+public let workerRecipeVariable = "VELLA_RECIPE"
 
 /// Residency and memory settings, saved in config.json and applied to the running workers.
 public struct ResidencySettings: Codable, Equatable {

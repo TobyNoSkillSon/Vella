@@ -101,6 +101,9 @@ public struct Diagnosis: Equatable {
         public var run: Run?
         /// Why the model was not timed, or the request's error.
         public var notTimed: String?
+        /// The selection the worker was launched with (tier × Standard/Optimized × Exact/Fast); what runs is
+        /// `effectiveSelection(selection, engine:)`.
+        public var selection: ModelSelection?
         public init(id: String, name: String? = nil, mode: String? = nil, precision: String? = nil, engine: String? = nil,
                     engineReason: String? = nil, optimizations: [String: Bool] = [:], residency: String? = nil,
                     workerVersion: String? = nil, run: Run? = nil, notTimed: String? = nil) {
@@ -278,6 +281,10 @@ public enum Diagnose {
     static func modelLines(_ m: Diagnosis.Model, chip: String?) -> [String] {
         var head = "\(m.id): \(engineLabel(engine: m.engine, chip: chip))"
         if let p = m.precision, !p.isEmpty { head += " · \(p)" }
+        if let asked = m.selection {
+            let running = effectiveSelection(asked, engine: m.engine)
+            head += " · " + recipeLabel(running) + (running == asked ? "" : " (\(recipeLabel(asked)) asked)")
+        }
         if m.mode == "streaming" { head += " · streaming" }
         if let r = m.residency, !r.isEmpty { head += " · " + r.replacingOccurrences(of: "_", with: " ") }
         var out = [head]
@@ -361,6 +368,8 @@ public enum Diagnose {
             var o: [String: Any] = ["id": m.id, "name": v(m.name), "mode": v(m.mode), "precision": v(m.precision), "engine": v(m.engine),
                                     "label": engineLabel(engine: m.engine, chip: h.chip), "optimizations": m.optimizations,
                                     "residency": v(m.residency), "worker_version": v(m.workerVersion), "fallbacks": fallbacks(m),
+                                    "selection": v(m.selection.map { selectionObject(effectiveSelection($0, engine: m.engine)) }),
+                                    "requested_selection": v(m.selection.map(selectionObject)),
                                     "not_timed": v(m.notTimed.map(redact))]
             if let run = m.run {
                 let clips: [[String: Any]] = run.clips.map { c in

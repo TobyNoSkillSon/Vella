@@ -30,10 +30,10 @@ final class APIWiringTests: XCTestCase {
         let support = root.appendingPathComponent("support", isDirectory: true)
         let models = support.appendingPathComponent("Models", isDirectory: true)
         let outside = root.appendingPathComponent("outside", isDirectory: true)
-        func folder(_ base: URL, _ name: String) throws -> String {
+        func folder(_ base: URL, _ name: String, config: String = "{}") throws -> String {
             let url = base.appendingPathComponent(name, isDirectory: true)
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-            try Data("{}".utf8).write(to: url.appendingPathComponent("config.json"))
+            try Data(config.utf8).write(to: url.appendingPathComponent("config.json"))
             return url.path
         }
         let ultra = try folder(models, "parakeet-ultra-mlx-bf16"), v3 = try folder(models, "parakeet-tdt-0.6b-v3-mlx-4bit")
@@ -41,7 +41,8 @@ final class APIWiringTests: XCTestCase {
         let registry: [String: InstalledModel] = [
             "Qwen3-ASR-1.7B-bf16": InstalledModel(path: try folder(outside, "qwen3-asr-1.7b-bf16"), name: "Qwen3 ASR · 1.7B", quantization: "BF16"),
             "Voxtral-Mini-4B-Realtime-2602-4bit": InstalledModel(path: try folder(models, "Voxtral-Mini-4B-Realtime-2602-4bit"), revision: "fdebf7b2af834a1db4b8a3c99ab7480b333adf9e", name: "Voxtral Mini Realtime · 4B", quantization: "4-bit"),
-            "imported-whisper-large-v3-q8": InstalledModel(path: try folder(outside, "whisper-large-v3-q8"), name: "Whisper large-v3", quantization: "8-bit"),
+            "imported-whisper-large-v3-q8": InstalledModel(path: try folder(outside, "whisper-large-v3-q8", config: #"{"model_type": "whisper", "quantization": {"group_size": 64, "bits": 8}}"#),
+                                                           name: "Whisper large-v3", quantization: "8-bit"),
             "nemotron-3.5-asr-streaming-0.6b-8bit": InstalledModel(path: nemo8, revision: "7279359e4481b5e9e185a318bd618e429c6d86cd", name: "Nemotron 3.5 ASR · 0.6B", quantization: "8-bit"),
             "nemotron-3.5-asr-streaming-0.6b-bf16": InstalledModel(path: try folder(models, "nemotron-3.5-asr-streaming-0.6b-bf16"), revision: "e550040c0478027ed679b2b6b0d055502c103663", name: "Nemotron 3.5 ASR · 0.6B", quantization: "BF16"),
             "parakeet-tdt-0.6b-v3-mlx-4bit": InstalledModel(path: v3, revision: "65247a0a9e735426eba06056a9535f7e67dcbbb9", name: "Parakeet v3", quantization: "4-bit"),
@@ -78,6 +79,16 @@ final class APIWiringTests: XCTestCase {
         delegate.modelsMenu = delegate.makeModelsMenu(controller: controller)
         let bridge = RuntimeBridge(runtime: runtime)
         bridge.attach(delegate)
+        // Launch migration (29 Sep 2026): the removed Voxtral leaves the registry; the imported Whisper q8 (affine-8 g64)
+        // is Whisper large-v3's 8 tier.
+        bridge.migrateRegistry()
+        let registered = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: runtime.support.appendingPathComponent("models-installed.json")))
+        XCTAssertNil(registered["Voxtral-Mini-4B-Realtime-2602-4bit"])
+        XCTAssertNil(registered["imported-whisper-large-v3-q8"])
+        XCTAssertEqual(registered["whisper-large-v3-8bit"]?.path, root.appendingPathComponent("outside/whisper-large-v3-q8").path)
+        XCTAssertNotNil(registered["parakeet-tdt-0.6b-v3-mlx-4bit"], "an absent tier's files stay registered (not shown)")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: runtime.support.appendingPathComponent("Models/Voxtral-Mini-4B-Realtime-2602-4bit").path),
+                      "the registry migration never deletes files")
         runtime.start()
         let host = APIHost()
         defer { host.stop(); model.shutdown(); backend.shutdown(); stream.shutdown() }
@@ -90,17 +101,24 @@ final class APIWiringTests: XCTestCase {
             return ((response as! HTTPURLResponse).statusCode, try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]))
         }
 
-        // GET /v1/models: every dictation family with weights here; the loaded one loaded and current.
+        // GET /v1/models: every dictation family with weights of an offered tier here; the loaded one loaded and current.
+        // Parakeet v3's only files are 4-bit, an absent tier: not listed (and never replaced by another tier).
         let (code, list) = try await get("/v1/models")
         XCTAssertEqual(code, 200)
         let data = try XCTUnwrap(list["data"] as? [[String: Any]])
         let byID = Dictionary(uniqueKeysWithValues: data.map { ($0["id"] as! String, $0) })
-        XCTAssertEqual(Set(byID.keys), ["parakeet-v3-ultra", "parakeet-v3", "qwen3-asr-1.7b"], "\(data)")
+        XCTAssertEqual(Set(byID.keys), ["parakeet-v3-ultra", "whisper-large-v3", "qwen3-asr-1.7b"], "\(data)")
         XCTAssertEqual(byID["parakeet-v3-ultra"]?["precision"] as? String, "BF16")
         XCTAssertEqual(byID["parakeet-v3-ultra"]?["loaded"] as? Bool, true)
         XCTAssertEqual(byID["parakeet-v3-ultra"]?["current"] as? Bool, true)
-        XCTAssertEqual(byID["parakeet-v3"]?["precision"] as? String, "4b")
-        XCTAssertEqual(byID["parakeet-v3"]?["loaded"] as? Bool, false)
+        // A launch-set model from before selections existed ran Optimized Fast; the fake worker reports stock MLX, so
+        // what runs is Standard and the request is reported beside it.
+        XCTAssertEqual((byID["parakeet-v3-ultra"]?["selection"] as? [String: Any])?["recipe"] as? String, "standard")
+        XCTAssertEqual((byID["parakeet-v3-ultra"]?["requested_selection"] as? [String: Any])?["recipe"] as? String, "optimized_fast")
+        XCTAssertEqual(byID["whisper-large-v3"]?["precision"] as? String, "8b")
+        XCTAssertEqual(byID["whisper-large-v3"]?["loaded"] as? Bool, false)
+        XCTAssertEqual((byID["whisper-large-v3"]?["selection"] as? [String: Any])?["tier"] as? String, "8")
+        XCTAssertEqual((byID["whisper-large-v3"]?["selection"] as? [String: Any])?["recipe"] as? String, "standard", "never loaded: Standard")
         XCTAssertEqual(byID["qwen3-asr-1.7b"]?["precision"] as? String, "BF16")
         // Streaming families are never listed; the status names the current dictation model.
         let (_, status) = try await get("/status")
@@ -111,10 +129,13 @@ final class APIWiringTests: XCTestCase {
         for alias in ["whisper-1", "", "vella", "default", "current"] {
             XCTAssertEqual(try service.resolve(alias)?.path, ultra, alias)
         }
-        XCTAssertEqual(try service.resolve("Parakeet-V3")?.path, v3)
+        XCTAssertThrowsError(try service.resolve("Parakeet-V3")) { XCTAssertTrue("\($0)".contains("not downloaded"), "\($0)") }
+        _ = v3
+        let whisper = root.appendingPathComponent("outside/whisper-large-v3-q8").path
+        XCTAssertEqual(try service.resolve("Whisper-Large-V3")?.path, whisper)
         XCTAssertThrowsError(try service.resolve("nemotron-3.5-streaming-0.6b")) { XCTAssertTrue("\($0)".contains("Streaming model"), "\($0)") }
-        let (one, retrieved) = try await get("/v1/models/parakeet-v3")
-        XCTAssertEqual(one, 200); XCTAssertEqual(retrieved["precision"] as? String, "4b")
+        let (one, retrieved) = try await get("/v1/models/whisper-large-v3")
+        XCTAssertEqual(one, 200); XCTAssertEqual(retrieved["precision"] as? String, "8b")
 
         // POST /v1/audio/transcriptions: whisper-1 runs on the loaded Ultra; a named family loads on demand.
         let speech = resources.appendingPathComponent("Calibration/speech.wav")
@@ -134,10 +155,12 @@ final class APIWiringTests: XCTestCase {
         XCTAssertEqual(first, 200, text)
         XCTAssertTrue(text.contains("Fixture recognized speech."), text)
         XCTAssertEqual(Set(runtime.status.models.keys), ["parakeet-v3-ultra"], "whisper-1 used the loaded model")
-        let (second, other) = try await transcribe("parakeet-v3")
+        let (second, other) = try await transcribe("whisper-large-v3")
         XCTAssertEqual(second, 200, other)
-        XCTAssertEqual(runtime.loadedRef("parakeet-v3")?.path, v3)
-        XCTAssertEqual(runtime.loadedRef("parakeet-v3")?.precision, "4b")
+        XCTAssertEqual(runtime.loadedRef("whisper-large-v3")?.path, whisper)
+        XCTAssertEqual(runtime.loadedRef("whisper-large-v3")?.precision, "8b")
+        XCTAssertEqual(runtime.loadedRef("whisper-large-v3")?.selection, ModelSelection(tier: .t8, path: .standard, mode: .exact))
+        XCTAssertEqual(runtime.status.models["whisper-large-v3"]?.selection?.segmentKey, .standard)
         let (missing, reason) = try await transcribe("qwen3-asr-0.6b")
         XCTAssertEqual(missing, 404, reason)
         XCTAssertTrue(reason.contains("not downloaded"), reason)

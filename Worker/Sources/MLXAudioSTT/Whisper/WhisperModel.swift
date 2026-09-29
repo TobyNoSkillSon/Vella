@@ -36,7 +36,8 @@ public final class WhisperModel: Module, STTGenerationModel {
 
     /// Default on: the encoder component runs the model in the checkpoint dtype (see `WhisperEncoder.positionDType`).
     /// VELLA_WHISPER_ENC_F16=0 keeps the stock Float32 promotion, so the optimized path is decoder-only.
-    public static let halfEncoder = ProcessInfo.processInfo.environment["VELLA_WHISPER_ENC_F16"] != "0"
+    /// The checkpoint-dtype encoder is inexact against stock (which promotes to Float32): off under Optimized · Exact.
+    public static let halfEncoder = ProcessInfo.processInfo.environment["VELLA_WHISPER_ENC_F16"] != "0" && !FastPathGate.exactOnly
     public private(set) var fastDecode = false
     public private(set) var fastEncoder = false
     /// The fused decode step (`WhisperFusedDecoder`), built once when the decoder component is first enabled; used
@@ -710,8 +711,10 @@ public final class WhisperModel: Module, STTGenerationModel {
         return String(string.dropFirst(prefix.count))
     }
 
+    /// `derived`: a precision made at load (Vella) from this float checkpoint; `modelDirectory` is its source.
     public static func fromDirectory(
-        _ modelDirectory: URL
+        _ modelDirectory: URL,
+        derived: DerivedPrecision? = nil
     ) async throws -> WhisperModel {
         let configURL = modelDirectory.appendingPathComponent("config.json")
         let configData = try Data(contentsOf: configURL)
@@ -746,10 +749,22 @@ public final class WhisperModel: Module, STTGenerationModel {
             let shard = try MLX.loadArrays(url: url)
             weights.merge(shard) { _, new in new }
         }
-        let sanitized = sanitize(weights: weights, config: config)
-        if let quantization = try? JSONDecoder().decode(WhisperQuantizedModelConfig.self, from: configData).quantization {
+        var sanitized = sanitize(weights: weights, config: config)
+        weights.removeAll()
+        var quantization = try? JSONDecoder().decode(WhisperQuantizedModelConfig.self, from: configData).quantization
+        // A locally derived precision (Vella): quantize the float source tensor by tensor like mlx-whisper's published
+        // quants (every Linear and the token embedding; the positional embeddings stay float), then load it the same way.
+        if let derived {
+            guard quantization == nil, let bits = derived.bits, let groupSize = derived.groupSize else {
+                throw DerivedPrecision.Invalid.manifest("the source is already quantized")
+            }
+            derived.apply(to: &sanitized, targets: derived.quantizationTargets(model, exclude: { $0.contains("embed_positions") }))
+            quantization = WhisperQuantizationConfig(groupSize: groupSize, bits: bits)
+        }
+        if let quantization {
             try installCheckpointQuantization(model: model, weights: sanitized) { path, module in
                 guard module is Linear || path.hasSuffix("decoder.embed_tokens") else { return nil }
+                guard sanitized["\(path).scales"] != nil else { return nil }
                 return (quantization.groupSize, quantization.bits, .affine)
             }
         }

@@ -157,7 +157,7 @@ final class CalibrationTests: XCTestCase {
         let dir = try temporary(); defer { try? FileManager.default.removeItem(at: dir) }
         let store = try fakeStore(dir, script: "exit 3\n")
         let library = ModelLibrary(registryURL: dir.appendingPathComponent("registry.json"), calibration: store)
-        let active = library.activeModelPath, id = "Qwen3-ASR-1.7B-4bit"
+        let active = library.activeModelPath, id = "Qwen3-ASR-1.7B-bf16"
         let path = library.modelsDirectory.appendingPathComponent(id).path
         library.installed[id] = InstalledModel(path: path, revision: library.models.first(where: { $0.id == id })!.revision)
         try library.saveRegistry(updating: id)

@@ -2,39 +2,9 @@ import XCTest
 @testable import VellaCore
 
 final class DownloadPromptTests: XCTestCase {
-    private let parakeet = ModelFamily(id: "parakeet-v3", name: "Parakeet v3", mode: .dictation, languages: ["en"], params: "0.6B", license: "cc-by-4.0",
-        native: "FP32", variants: [
-            "FP32": CatalogVariant(id: "p-fp32", repository: "animaslabs/parakeet-tdt-0.6b-v3-mlx", revision: "b3f0e8a" + String(repeating: "0", count: 33),
-                                   downloadBytes: 2_509_016_021, architecture: "parakeet"),
-            "BF16": CatalogVariant(id: "p-bf16-local", architecture: "parakeet", derivedFrom: "FP32", dtype: "bfloat16"),
-            "4b": CatalogVariant(id: "p-4bit", repository: "animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit", revision: String(repeating: "c", count: 40),
-                                 downloadBytes: 637_004_647, architecture: "parakeet")])
+    // The Get pop-up's text for the shipped catalog: TierCatalogTests.testGetPopUpStatesDownloadConversionAndStoredSize.
 
-    /// Title and body name the model, precision and format, the published source or the source it is made from, the
-    /// exact size and disk needed, and what happens afterwards.
-    func testPromptSaysWhatWhereHowBigAndWhatNext() throws {
-        let fp32 = try XCTUnwrap(downloadPrompt(family: parakeet, precision: "FP32", followUp: .reload(from: "4b"), freeBytes: 812_000_000_000))
-        XCTAssertEqual(fp32.title, "Download Parakeet v3 · 32 (FP32)?")
-        XCTAssertEqual(fp32.variantID, "p-fp32")
-        XCTAssertEqual(fp32.body, """
-            Parakeet v3 at FP32 (float32), the model's native precision, published on Hugging Face as animaslabs/parakeet-tdt-0.6b-v3-mlx at revision b3f0e8a.
-
-            Download: 2.51 GB (2,509,016,021 bytes). Disk needed: 2.51 GB; 812 GB free.
-
-            When the download finishes, it loads for dictation in place of the loaded 4-bit.
-            """)
-        let bf16 = try XCTUnwrap(downloadPrompt(family: parakeet, precision: "BF16", followUp: .load, freeBytes: nil))
-        XCTAssertEqual(bf16.title, "Download Parakeet v3 · 32 (FP32) to make 16 (BF16)?")
-        XCTAssertEqual(bf16.variantID, "p-fp32", "a precision made here downloads its published source")
-        XCTAssertTrue(bf16.body.hasPrefix("Parakeet v3 at BF16 (bfloat16) is made on this Mac from its FP32 (float32) weights. This downloads those weights"), bf16.body)
-        XCTAssertTrue(bf16.body.contains("The BF16 weights are made at load and add nothing on disk."), bf16.body)
-        XCTAssertTrue(bf16.body.hasSuffix("When the download finishes, it loads for dictation."))
-        let first = try XCTUnwrap(downloadPrompt(family: parakeet, precision: "4b", followUp: .transcribe, freeBytes: 100))
-        XCTAssertEqual(first.title, "Download Parakeet v3 · 4 (4-bit)?")
-        XCTAssertTrue(first.body.contains("Not enough free disk space."), first.body)
-        XCTAssertTrue(first.body.hasSuffix("it loads and transcribes the saved recording."))
-        XCTAssertEqual(formatExactBytes(637_004_647), "637,004,647 bytes")
-    }
+    func testExactBytes() { XCTAssertEqual(formatExactBytes(637_004_647), "637,004,647 bytes") }
 
     // MARK: Partial downloads
 

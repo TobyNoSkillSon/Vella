@@ -17,7 +17,8 @@ import VellaCore
     /// precision of it is loaded (a saved recording retried with an older one); other families at their loaded
     /// precision, else the committed one.
     func models() -> [APIModel] {
-        let current = currentPath
+        let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
+        let current = config?.model ?? ""
         let currentIdentity = controller.identify(path: current, mode: .dictation)
         var result: [APIModel] = []
         for family in controller.families(.dictation) {
@@ -34,8 +35,13 @@ import VellaCore
                 }
             }
             guard let precision, let path else { continue }
+            let isLoaded = loaded?.path == path
+            let requested = (isLoaded ? loaded?.selection : nil)
+                ?? recordedSelection(config: config, launchSet: runtime.settings.launchSet, family: family.id, precision: precision, path: path)
+            let running = effectiveSelection(requested, engine: isLoaded ? runtime.status.models[family.id]?.engine : nil)
             result.append(APIModel(id: family.id, name: family.name, precision: precision, path: path, languages: family.languages,
-                                   loaded: loaded?.path == path, current: currentIdentity?.family.id == family.id))
+                                   loaded: isLoaded, current: currentIdentity?.family.id == family.id,
+                                   selection: running, requested: running == requested ? nil : requested))
         }
         // A current model outside the catalog (an imported folder) is still usable under its folder name.
         if currentIdentity == nil, !current.isEmpty, FileManager.default.fileExists(atPath: current) {

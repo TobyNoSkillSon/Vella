@@ -38,11 +38,11 @@ final class APIClientTests: XCTestCase {
         defer { api.close() }
         let (code, out, _) = try await vella(api, ["status"])
         XCTAssertEqual(code, 0)
-        XCTAssertEqual(out, "Vella test running (pid \(getpid())), no model loaded · dictation model FAKE-A (8b) · API http://127.0.0.1:\(api.port)/v1\n")
+        XCTAssertEqual(out, "Vella test running (pid \(getpid())), no model loaded · dictation model FAKE-A (8) · API http://127.0.0.1:\(api.port)/v1\n")
 
         let (mCode, models, _) = try await vella(api, ["models"])
         XCTAssertEqual(mCode, 0)
-        XCTAssertEqual(models, "fake-a  FAKE-A · 8b · current dictation model\nfake-b  FAKE-B · 8b\n")
+        XCTAssertEqual(models, "fake-a  FAKE-A · 8 · current dictation model\nfake-b  FAKE-B · 8\n")
 
         let (tCode, text, tErr) = try await vella(api, ["transcribe", audio.path])
         XCTAssertEqual(tCode, 0, tErr)
@@ -61,7 +61,7 @@ final class APIClientTests: XCTestCase {
 
         let (sAfter, statusLine, _) = try await vella(api, ["status"])
         XCTAssertEqual(sAfter, 0)
-        XCTAssertTrue(statusLine.contains("fake-a 8b, fake-b 8b loaded"), statusLine)
+        XCTAssertTrue(statusLine.contains("fake-a 8, fake-b 8 loaded"), statusLine)
 
         let (uCode, url, _) = try await vella(api, ["url"])
         XCTAssertEqual(uCode, 0); XCTAssertEqual(url, "http://127.0.0.1:\(api.port)/v1\n")

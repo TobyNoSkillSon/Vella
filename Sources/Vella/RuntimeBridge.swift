@@ -50,6 +50,17 @@ import VellaCore
         publish(runtime.status)
     }
 
+    /// Launch migration of the installed-model registry (ModelLibrary.migrateRegistry): earlier ids of a catalogued
+    /// format are re-keyed, removed models' entries dropped. Registry only; never files. Both libraries share it.
+    func migrateRegistry() {
+        guard let controller, !controller.previewing else { return }
+        let result = controller.dictation.migrateRegistry(catalog: controller.catalog)
+        if !result.rekeyed.isEmpty || !result.dropped.isEmpty {
+            controller.streaming.reload()
+            runtime.log("registry: re-keyed \(result.rekeyed.sorted { $0.key < $1.key }.map { "\($0.key) -> \($0.value)" }.joined(separator: ", ")); dropped \(result.dropped.joined(separator: ", "))")
+        }
+    }
+
     /// Launch clean-up: partial downloads left in Vella's Models folder by a quit, crash or earlier version. An
     /// unfinished download's folder goes whole only when the registry and config.json were read, so the kept set is
     /// complete; otherwise only stale partial files go and every folder stays.
@@ -77,10 +88,15 @@ import VellaCore
               family.variants[manifest.precision]?.isDerived == true else { return nil }
         return ref(family, manifest.precision, path: path)
     }
-    func ref(_ family: ModelFamily, _ precision: String, path: String) -> ModelRef {
+    /// `selection` nil: the family's recorded one (`defaultSelection`), so an on-demand load runs what the user chose.
+    func ref(_ family: ModelFamily, _ precision: String, path: String, selection: ModelSelection? = nil) -> ModelRef {
         ModelRef(id: family.id, precision: precision, path: path, mode: family.mode, name: family.name,
                  diskBytes: estimatedWeightBytes(family, precision).map { Int64($0) } ?? family.diskBytes(precision), memoryMB: admissionMemoryMB(family, precision),
-                 precisionOptions: precisionOptions(family))
+                 precisionOptions: precisionOptions(family), selection: selection ?? recordedSelection(family, precision, path: path))
+    }
+    func recordedSelection(_ family: ModelFamily, _ precision: String, path: String) -> ModelSelection {
+        let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
+        return VellaCore.recordedSelection(config: config, launchSet: runtime.settings.launchSet, family: family.id, precision: precision, path: path)
     }
     /// Memory admission plans with: the measured `memory_mb`, else (a precision made on this Mac, or any unmeasured
     /// one) vq-quant's estimate scaled from a measured precision. Nil only when nothing of the family is measured; then
@@ -96,7 +112,7 @@ import VellaCore
     /// The model becomes the mode's selection only once it loaded: a refused or failed Load/Reload keeps
     /// the previous selection, so the next dictation uses the model that still works.
     func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
-        let ref = ref(family, precision, path: path)
+        let ref = ref(family, precision, path: path, selection: selection)
         Task { await loadAndSelect(ref) }
     }
     func loadAndSelect(_ ref: ModelRef) async {
@@ -104,7 +120,7 @@ import VellaCore
         defer { runtime.userChanged(ref.id); runtime.endSelection() }
         do {
             try await runtime.load(ref)
-            select(ref.path, mode: ref.mode)
+            select(ref.path, mode: ref.mode, selection: ref.selection)
         } catch { controller?.lastError = error.localizedDescription }
     }
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
@@ -145,11 +161,11 @@ import VellaCore
     }
     /// A successful load makes the model its mode's model (what the next dictation or streaming session loads on
     /// demand) and records the family's precision, so the table and dictation never disagree.
-    private func select(_ path: String, mode: RecognitionMode) {
+    private func select(_ path: String, mode: RecognitionMode, selection: ModelSelection? = nil) {
         let url = runtime.configURL
         var config = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) } ?? Configuration(model: "")
         let identity = controller?.identify(path: path, mode: mode)
-        config.recordLoad(path: path, mode: mode, family: identity?.family.id, precision: identity?.precision)
+        config.recordLoad(path: path, mode: mode, family: identity?.family.id, precision: identity?.precision, selection: selection)
         try? JSONEncoder().encode(config).write(to: url, options: .atomic)
         controller?.library(mode).activeModelPath = path
         controller?.reloadConfig()
@@ -212,7 +228,7 @@ import VellaCore
         var loaded: [String: LoadedFamily] = [:]
         for (id, entry) in status.models {
             loaded[id] = LoadedFamily(precision: entry.precision ?? "", engine: entry.engine, engineReason: entry.engine_reason,
-                                      optimizations: entry.optimizations, residency: entry.residency)
+                                      optimizations: entry.optimizations, residency: entry.residency, selection: entry.selection)
         }
         controller.runtime = TableRuntime(loaded: loaded, loading: status.loading, chip: status.gpu?.chip, workerError: status.error,
                                           refusal: status.refused.map { TableRefusal(message: $0.message, at: $0.at) }, available: true)
@@ -227,10 +243,17 @@ import VellaCore
     func offer(_ mode: RecognitionMode) -> Model.ModelOffer? { controller?.firstOffer(mode) }
     /// After the offered download: the path to use, the derived directory when the recommended precision is made here.
     private func offeredPath(_ offer: Model.ModelOffer, sourcePath: String) throws -> String {
-        guard let controller, let (family, precision) = offered(offer.mode), family.isDerived(precision),
+        guard let controller, let (family, precision) = offered(offer.mode), family.isDerived(precision), family.variants[precision]?.isStored != true,
               family.downloadSource(of: precision)?.variant.id == offer.id else { return sourcePath }
         return try prepareDerivedModel(family: family, precision: precision, sourcePath: sourcePath,
                                        modelsDirectory: controller.library(offer.mode).modelsDirectory)
+    }
+    /// The first-dictation Get row's selection: the family's recorded one, else Standard at the offered tier (the
+    /// default for a model never loaded).
+    private func offerSelection(_ offer: Model.ModelOffer) -> ModelSelection? {
+        guard let (family, precision) = offered(offer.mode) else { return nil }
+        let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
+        return defaultSelection(recorded: config?.selections[family.id], precision: precision, usedBefore: false)
     }
     /// The download confirmation popup for the first-dictation Get row (tests answer it without a window).
     var presentDownload: (DownloadPrompt) -> Bool = { DownloadGate.presentAlert($0) }
@@ -260,7 +283,7 @@ import VellaCore
         let library = controller.library(offer.mode)
         if let local = library.installed[offer.id] {
             let path = try offeredPath(offer, sourcePath: local.path)
-            select(path, mode: offer.mode); return path
+            select(path, mode: offer.mode, selection: offerSelection(offer)); return path
         }
         guard let approval = approvals.removeValue(forKey: offer.id) else {
             throw VellaError.message("The download of \(offer.name) was not confirmed.")
@@ -277,7 +300,7 @@ import VellaCore
             throw VellaError.message(library.downloadError ?? "\(offer.name) did not download.")
         }
         let path = try offeredPath(offer, sourcePath: local.path)
-        select(path, mode: offer.mode)
+        select(path, mode: offer.mode, selection: offerSelection(offer))
         return path
     }
 }

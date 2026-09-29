@@ -9,7 +9,7 @@ final class ModelDeletionTests: XCTestCase {
     @MainActor private func fixture() throws -> (ModelLibrary, String, URL) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-delete-\(UUID())")
         roots.append(root)
-        let id = "Qwen3-ASR-1.7B-8bit"
+        let id = "Qwen3-ASR-1.7B-bf16"
         let folder = root.appendingPathComponent("Models/\(id)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Data("fixture weights".utf8).write(to: folder.appendingPathComponent("weights.safetensors"))

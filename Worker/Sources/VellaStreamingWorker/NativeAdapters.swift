@@ -39,7 +39,7 @@ final class NemotronNative: StreamingNative {
         model = try NemotronASRModel.fromDirectory(derived?.source ?? path, derived: derived)
         VellaNemotronNumerics.useReferencePositionTable(model!)
         if !VellaNemotronOptions.anyEnabled {
-            stockReason = FastPathGate.forcedStock ? "Stock path forced for diagnosis (VELLA_FORCE_STOCK)." : "Every streaming optimization is disabled by environment."
+            stockReason = FastPathGate.forcedStock ? FastPathGate.forcedStockReason : "Every streaming optimization is disabled by environment."
         } else if !gate {
             stockReason = "Self-test reference (stock MLX)."
         } else {

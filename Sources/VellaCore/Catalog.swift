@@ -26,6 +26,12 @@ public struct CatalogVariant: Codable, Equatable {
     public var groupSize: Int?
     /// Float cast of the source (`bfloat16` or `float16`).
     public var dtype: String?
+    /// A cast made ONCE at Get and stored as a real checkpoint (Parakeet v3: the FP32 download is converted to BF16 and
+    /// only the BF16 weights are kept). Nil/false: derived at each load from a manifest (DerivedModels.swift).
+    public var stored: Bool?
+    /// Earlier registry ids whose files are this variant in this exact format (an import from before the catalog had
+    /// it); the launch migration re-keys them to `id` (ModelLibrary.migrateRegistry).
+    public var legacyIDs: [String]?
     public init(id: String, repository: String, revision: String, downloadBytes: Int64, architecture: String, processorSource: ProcessorSource? = nil) {
         self.id = id; self.repository = repository; self.revision = revision; self.downloadBytes = downloadBytes
         self.architecture = architecture; self.processorSource = processorSource
@@ -36,7 +42,9 @@ public struct CatalogVariant: Codable, Equatable {
         self.derivedFrom = derivedFrom; self.bits = bits; self.groupSize = groupSize; self.dtype = dtype
     }
     public var isDerived: Bool { derivedFrom != nil }
-    enum CodingKeys: String, CodingKey { case id, repository, revision, downloadBytes, architecture, processorSource, derivedFrom, bits, groupSize, dtype }
+    /// Converted once at Get and kept as weights (see `stored`).
+    public var isStored: Bool { derivedFrom != nil && stored == true }
+    enum CodingKeys: String, CodingKey { case id, repository, revision, downloadBytes, architecture, processorSource, derivedFrom, bits, groupSize, dtype, stored, legacyIDs }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
@@ -45,6 +53,8 @@ public struct CatalogVariant: Codable, Equatable {
         bits = try c.decodeIfPresent(Int.self, forKey: .bits)
         groupSize = try c.decodeIfPresent(Int.self, forKey: .groupSize)
         dtype = try c.decodeIfPresent(String.self, forKey: .dtype)
+        stored = try c.decodeIfPresent(Bool.self, forKey: .stored)
+        legacyIDs = try c.decodeIfPresent([String].self, forKey: .legacyIDs)
         processorSource = try c.decodeIfPresent(ProcessorSource.self, forKey: .processorSource)
         if derivedFrom == nil {
             repository = try c.decode(String.self, forKey: .repository)
@@ -67,6 +77,7 @@ public struct CatalogVariant: Codable, Equatable {
         try c.encodeIfPresent(processorSource, forKey: .processorSource)
         try c.encodeIfPresent(derivedFrom, forKey: .derivedFrom); try c.encodeIfPresent(bits, forKey: .bits)
         try c.encodeIfPresent(groupSize, forKey: .groupSize); try c.encodeIfPresent(dtype, forKey: .dtype)
+        try c.encodeIfPresent(stored, forKey: .stored); try c.encodeIfPresent(legacyIDs, forKey: .legacyIDs)
     }
 }
 
@@ -76,6 +87,20 @@ public struct ProcessorSource: Codable, Equatable {
     public var revision: String
     public var files: [String]
     public init(repository: String, revision: String, files: [String]) { self.repository = repository; self.revision = revision; self.files = files }
+}
+
+/// What Get downloads for a family (models.json `download`): always the 16-bit checkpoint, or for an fp32-only model
+/// its fp32 source, converted at Get. `convert_to` are the tiers made on this Mac from it; `vendor_quant_repo` a vendor's
+/// quantization-aware 4-bit, downloaded as-is (none today).
+public struct CatalogDownload: Codable, Equatable {
+    public var repo: String
+    public var revision: String
+    public var bytes: Int64
+    public var convert_to: [String]
+    public var vendor_quant_repo: String?
+    public init(repo: String, revision: String, bytes: Int64, convert_to: [String], vendor_quant_repo: String? = nil) {
+        self.repo = repo; self.revision = revision; self.bytes = bytes; self.convert_to = convert_to; self.vendor_quant_repo = vendor_quant_repo
+    }
 }
 
 /// One row of the Models table: a model with its precisions.
@@ -102,15 +127,30 @@ public struct ModelFamily: Codable, Equatable, Identifiable {
     public var released: Int?
     public var licence: String?
     public var summary: String?
+    /// The checkpoint's own dtype (`bfloat16`, `float16`, `float32`); models.json `native_dtype`.
+    public var nativeDType: String?
+    /// Tiers the app offers ("16", "8", "4"): the tiers present in benchmarks.json (a tier is absent only when it breaks,
+    /// lab/notes/models-table-ROUND.md). Nil (older catalogs, fixtures): every catalogued precision down to 4 bits.
+    public var tiersOffered: [String]?
+    /// What Get downloads and which tiers are made locally from it.
+    public var download: CatalogDownload?
+    enum CodingKeys: String, CodingKey {
+        case id, name, mode, languages, params, license, native, variants, offered, notes, publisher, released, licence, summary
+        case nativeDType = "native_dtype", tiersOffered = "tiers_offered", download
+    }
     public init(id: String, name: String, mode: RecognitionMode, languages: [String], params: String, license: String, native: String,
                 variants: [String: CatalogVariant], offered: Bool = true, notes: String? = nil, publisher: String? = nil,
-                released: Int? = nil, licence: String? = nil, summary: String? = nil) {
+                released: Int? = nil, licence: String? = nil, summary: String? = nil, nativeDType: String? = nil,
+                tiersOffered: [String]? = nil, download: CatalogDownload? = nil) {
         self.id = id; self.name = name; self.mode = mode; self.languages = languages; self.params = params; self.license = license
         self.native = native; self.variants = variants; self.offered = offered; self.notes = notes
         self.publisher = publisher; self.released = released; self.licence = licence; self.summary = summary
+        self.nativeDType = nativeDType; self.tiersOffered = tiersOffered; self.download = download
     }
     /// The family's variant whose install id is `variantID`.
     public func precision(ofVariant variantID: String) -> String? { variants.first { $0.value.id == variantID }?.key }
+    /// The precision whose earlier registry id (`legacyIDs`) is `id`.
+    public func precision(ofLegacyID id: String) -> String? { variants.first { $0.value.legacyIDs?.contains(id) == true }?.key }
 }
 
 public struct ModelCatalog: Codable, Equatable {
@@ -160,7 +200,15 @@ private struct LegacyEntry: Decodable {
 public func catalogVariants(_ catalog: ModelCatalog) -> [ModelRecommendation] {
     catalog.families.flatMap { family in
         orderedPrecisions(Array(family.variants.keys)).compactMap { label -> ModelRecommendation? in
-            guard let v = family.variants[label], !v.isDerived else { return nil }
+            guard let v = family.variants[label] else { return nil }
+            // A stored conversion downloads its source's repository into its own folder, then converts it in place
+            // (ModelLibrary.download); the record carries the source's pin and size.
+            if v.isStored, let from = v.derivedFrom, let source = family.variants[from], !source.isDerived {
+                return ModelRecommendation(id: v.id, name: family.name, quantization: legacyQuantization(label), repository: source.repository,
+                                           revision: source.revision, downloadBytes: source.downloadBytes, architecture: v.architecture,
+                                           license: family.license, recommendation: family.notes ?? "", recommended: family.offered)
+            }
+            guard !v.isDerived else { return nil }
             return ModelRecommendation(id: v.id, name: family.name, quantization: legacyQuantization(label), repository: v.repository,
                                        revision: v.revision, downloadBytes: v.downloadBytes, architecture: v.architecture, license: family.license,
                                        recommendation: family.notes ?? "", recommended: family.offered)
@@ -237,10 +285,14 @@ public func precisionFormatName(_ label: String) -> String {
     }
 }
 
-/// Offered precisions for a family, highest first: every catalogued variant, never below 4 bits unless that is the
-/// model's native format (a natively ternary model is its own option, not a quantization).
+/// Offered precisions for a family, highest first. With `tiers_offered` (the shipped catalog): the precision label of
+/// each offered tier (16 = the 16-bit variant, 8 = `8b`, 4 = `4b`); FP32 is never a tier. Without it (older catalogs,
+/// fixtures): every catalogued variant, never below 4 bits unless that is the model's native format.
 public func precisionOptions(_ family: ModelFamily) -> [String] {
-    orderedPrecisions(family.variants.keys.filter { $0 == family.native || (labelBits($0) ?? 0) >= 4 })
+    if let tiers = family.tiersOffered {
+        return orderedPrecisions(tiers.compactMap { ModelTier(rawValue: $0).flatMap { precisionLabel(family, tier: $0) } })
+    }
+    return orderedPrecisions(family.variants.keys.filter { $0 == family.native || (labelBits($0) ?? 0) >= 4 })
 }
 
 // MARK: Measured numbers (benchmarks.json v1)

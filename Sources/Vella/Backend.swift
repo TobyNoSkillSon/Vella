@@ -395,6 +395,7 @@ import VellaCore
             model.load_s = entry.worker["load_s"] as? Double
             model.memory_mb = (entry.worker["memory"] as? [String: Any])?["footprint_mb"] as? Double
             model.worker_version = entry.worker["version"] as? String
+            model.selection = entry.ref.selection
             next.models[id] = model
         }
         next.loading = loading
@@ -457,7 +458,7 @@ struct WorkerExited: LocalizedError {
     /// This model's worker has these files loaded and can take a request now, without a load.
     func isReady(_ ref: ModelRef) -> Bool {
         guard let slot = slots[ref.id] else { return false }
-        return slot.loaded && !slot.retiring && slot.process.isRunning && slot.ref.path == ref.path
+        return slot.loaded && !slot.retiring && slot.process.isRunning && slot.ref.path == ref.path && slot.ref.recipe == ref.recipe
     }
     private var lastSlot: String?
     private(set) var lastMetrics: [String: Double] = [:]
@@ -587,7 +588,8 @@ struct WorkerExited: LocalizedError {
 
     private func ensureSlot(_ ref: ModelRef, residency: ResidencyClass, generation: UUID) async throws -> DictationSlot {
         if let slot = slots[ref.id], slot.process.isRunning, !slot.retiring {
-            if slot.ref.path == ref.path {
+            // Same files and recipe: nothing to do. Another Standard/Exact/Fast recipe is a reload (a new worker).
+            if slot.ref.path == ref.path, slot.ref.recipe == ref.recipe {
                 if !slot.loaded { try await awaitLoaded(slot, generation: generation) }
                 return slot
             }
@@ -634,6 +636,7 @@ struct WorkerExited: LocalizedError {
         child.executableURL = helper
         var env = ProcessInfo.processInfo.environment
         env["HF_HUB_OFFLINE"] = "1"; env["TRANSFORMERS_OFFLINE"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
+        env[workerRecipeVariable] = ref.recipe
         child.environment = env; child.standardInput = stdin; child.standardOutput = stdout
         // Third-party diagnostics can contain speech; never persist them.
         child.standardError = FileHandle.nullDevice

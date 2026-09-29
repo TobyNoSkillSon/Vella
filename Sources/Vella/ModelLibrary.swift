@@ -177,6 +177,43 @@ import VellaCore
         try writeRegistryData(encoder.encode(latest), registryURL)
         installed = latest
     }
+    /// Launch migration of the shared registry (registry only; files are never touched): an entry under an earlier id
+    /// that the catalog maps to a variant (`legacyIDs`) is re-keyed to that variant when its config.json has exactly
+    /// the variant's format; then every entry whose id the catalog no longer has is dropped (a removed model). Returns
+    /// the (re-keyed, dropped) ids. Nothing is written when the registry is unreadable or nothing changes.
+    @discardableResult
+    func migrateRegistry(catalog: ModelCatalog) -> (rekeyed: [String: String], dropped: [String]) {
+        guard let data = try? Data(contentsOf: registryURL),
+              var entries = try? JSONDecoder().decode([String: InstalledModel].self, from: data) else { return ([:], []) }
+        var rekeyed: [String: String] = [:]
+        for (id, entry) in entries.sorted(by: { $0.key < $1.key }) where catalog.locate(variant: id) == nil {
+            guard let family = catalog.families.first(where: { $0.precision(ofLegacyID: id) != nil }),
+                  let precision = family.precision(ofLegacyID: id), let variant = family.variants[precision],
+                  entries[variant.id] == nil, checkpointMatches(URL(fileURLWithPath: entry.path), family: family, precision: precision) else { continue }
+            entries[variant.id] = InstalledModel(path: entry.path, revision: entry.revision, name: family.name, quantization: legacyQuantization(precision))
+            entries[id] = nil
+            rekeyed[id] = variant.id
+        }
+        let dropped = entries.keys.filter { catalog.locate(variant: $0) == nil }.sorted()
+        for id in dropped { entries[id] = nil }
+        guard !rekeyed.isEmpty || !dropped.isEmpty else { return ([:], []) }
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let bytes = try? encoder.encode(entries), (try? writeRegistryData(bytes, registryURL)) != nil else { return ([:], []) }
+        reload()
+        return (rekeyed, dropped)
+    }
+    /// Whether the checkpoint at `folder` is this precision's exact format: architecture, and for 8b/4b affine
+    /// quantization at the catalog's bits and group size; for 16-bit, unquantized.
+    func checkpointMatches(_ folder: URL, family: ModelFamily, precision: String) -> Bool {
+        guard let variant = family.variants[precision],
+              let bytes = try? Data(contentsOf: folder.appendingPathComponent("config.json")),
+              let config = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
+              checkpointArchitecture(config) == variant.architecture else { return false }
+        let quant = (config["quantization"] ?? config["quantization_config"]) as? [String: Any]
+        guard let bits = variant.bits else { return quant == nil }
+        let mode = quant?["mode"] as? String
+        return quant?["bits"] as? Int == bits && quant?["group_size"] as? Int == (variant.groupSize ?? 64) && (mode == nil || mode == "affine")
+    }
     func deletionBlockReason(_ id: String) -> String? {
         if busy || calibration.isRunning || !mayChangeModel() { return "Finish dictation, downloading or calibration before deleting a model." }
         guard let path = modelFilePath(id) else { return "This model has no local files." }
@@ -310,6 +347,13 @@ import VellaCore
                 guard self.downloadToken == token, !Task.isCancelled,
                       selected.id == self.downloadingID, folder.standardizedFileURL == self.modelsDirectory.appendingPathComponent(selected.id).standardizedFileURL else { return }
                 try NativeModelDownload.validate(folder, expected: selected)
+                // A stored conversion (Parakeet v3: the FP32 download becomes BF16 once, only BF16 is kept).
+                if let (family, precision) = self.catalog?.locate(variant: selected.id), let variant = family.variants[precision], variant.isStored {
+                    self.message = "\(label) \u{00b7} Converting to \(precisionInProse(precision))\u{2026}"
+                    try await Self.convertStored(folder, family: family, precision: precision, repository: selected.repository, revision: selected.revision)
+                    guard self.downloadToken == token, !Task.isCancelled else { return }
+                    try NativeModelDownload.validate(folder, expected: selected)
+                }
                 let previous = self.installed[selected.id]
                 do {
                     self.installed[selected.id] = InstalledModel(path: folder.path, revision: selected.revision, name: selected.name, quantization: selected.quantization)
@@ -337,6 +381,14 @@ import VellaCore
             }
         }
         return true
+    }
+    /// The bundled catalog (families), for stored conversions and the registry migration; nil when unreadable.
+    var catalog: ModelCatalog? { (try? Data(contentsOf: resources.appendingPathComponent(catalogName))).flatMap { try? decodeCatalog($0) } }
+    /// Runs the fp32 → bf16 conversion off the main thread.
+    nonisolated static func convertStored(_ folder: URL, family: ModelFamily, precision: String, repository: String, revision: String) async throws {
+        try await Task.detached(priority: .userInitiated) {
+            _ = try convertFolderToBF16(folder, family: family.id, precision: precision, sourceRepository: repository, sourceRevision: revision)
+        }.value
     }
     private func finishDownload(_ installed: Bool) {
         let completion = downloadCompletion; downloadCompletion = nil

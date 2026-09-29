@@ -1935,14 +1935,15 @@ public class Qwen3ASRModel: Module {
 
 
 
-    public static func fromModelDirectory(_ modelDir: URL) async throws -> Qwen3ASRModel {
+    /// `derived`: a precision made at load (Vella) from this float checkpoint; `modelDir` is its source.
+    public static func fromModelDirectory(_ modelDir: URL, derived: DerivedPrecision? = nil) async throws -> Qwen3ASRModel {
         // Load config
         let configPath = modelDir.appendingPathComponent("config.json")
         let configData = try Data(contentsOf: configPath)
         let config = try JSONDecoder().decode(Qwen3ASRConfig.self, from: configData)
 
         // Get per-layer quantization
-        let perLayerQuantization = config.perLayerQuantization
+        var perLayerQuantization = config.perLayerQuantization
 
         // Create model
         let model = Qwen3ASRModel(config)
@@ -1990,7 +1991,15 @@ public class Qwen3ASRModel: Module {
 
         // Sanitize weights
         let skipLmHead = config.textConfig.tieWordEmbeddings
-        let sanitizedWeights = Qwen3ASRModel.sanitize(weights: weights, skipLmHead: skipLmHead)
+        var sanitizedWeights = Qwen3ASRModel.sanitize(weights: weights, skipLmHead: skipLmHead)
+        weights.removeAll()
+        // A locally derived precision (Vella): quantize the float text model tensor by tensor like the published quants
+        // (the audio tower stays float), then load it the same way.
+        if let derived {
+            guard perLayerQuantization == nil else { throw DerivedPrecision.Invalid.manifest("the source is already quantized") }
+            derived.apply(to: &sanitizedWeights, targets: derived.quantizationTargets(model, exclude: { $0.hasPrefix("audio_tower") }))
+            perLayerQuantization = derived.quantization
+        }
 
         // Quantize if needed
         if perLayerQuantization != nil {

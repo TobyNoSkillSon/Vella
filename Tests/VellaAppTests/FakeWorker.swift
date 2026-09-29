@@ -6,7 +6,7 @@ import VellaCore
 /// every change, transcription replies. The model folder name selects behaviour (`loadfail`, `slowload` 10 s,
 /// `delayload` 1 s, `slowexit`: ignores SIGTERM and exits 0.5 s after stdin EOF; `crashonce`/`crashalways`: the
 /// worker dies mid-transcription the first time / every time); `FAKE_FOOTPRINT_MB` sets the
-/// footprint it reports. Tests pair it with an isolated `Runtime` (temp support dir, memory file, minute seconds).
+/// footprint it reports; `FAKE_RECIPE_LOG` names a file each load appends its `VELLA_RECIPE` to. Tests pair it with an isolated `Runtime` (temp support dir, memory file, minute seconds).
 enum FakeWorker {
     static let script = #"""
 #!/usr/bin/env python3
@@ -26,7 +26,9 @@ for line in sys.stdin:
         if 'slowload' in name: time.sleep(10)
         if 'delayload' in name: time.sleep(1)
         if 'slowexit' in name: signal.signal(signal.SIGTERM, signal.SIG_IGN)
-        model=r['model']; push('load'); print(json.dumps({'id':r['id'],'loaded':True}),flush=True); continue
+        model=r['model']
+        if os.environ.get('FAKE_RECIPE_LOG'): open(os.environ['FAKE_RECIPE_LOG'],'a').write(os.environ.get('VELLA_RECIPE','-')+'\n')
+        push('load'); print(json.dumps({'id':r['id'],'loaded':True}),flush=True); continue
     if op in ('unload','status','trim'):
         if op=='unload': model=None
         push(op); print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue

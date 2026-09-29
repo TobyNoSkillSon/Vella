@@ -35,6 +35,21 @@
       "params": "0.6B",
       "license": "cc-by-4.0",
       "native": "BF16",
+      "native_dtype": "bfloat16",
+      "tiers_offered": [
+        "16",
+        "8",
+        "4"
+      ],
+      "download": {
+        "repo": "selcukkubur/parakeet-ultra-mlx",
+        "revision": "b554592c50b2a48471add2daa3d46fa9f00fef5e",
+        "bytes": 1254840214,
+        "convert_to": [
+          "8",
+          "4"
+        ]
+      },
       "variants": {
         "BF16": {
           "id": "parakeet-ultra-mlx-bf16",
@@ -99,6 +114,20 @@
       "params": "0.6B",
       "license": "cc-by-4.0",
       "native": "FP32",
+      "native_dtype": "float32",
+      "tiers_offered": [
+        "16"
+      ],
+      "download": {
+        "repo": "animaslabs/parakeet-tdt-0.6b-v3-mlx",
+        "revision": "b3f0e8a62787b5dd33ebf05be8a5db41661c5eb6",
+        "bytes": 2509016021,
+        "convert_to": [
+          "16",
+          "8",
+          "4"
+        ]
+      },
       "variants": {
         "FP32": {
           "id": "parakeet-tdt-0.6b-v3-mlx-fp32",
@@ -111,20 +140,21 @@
           "id": "parakeet-tdt-0.6b-v3-mlx-bf16-local",
           "derivedFrom": "FP32",
           "dtype": "bfloat16",
+          "stored": true,
           "architecture": "parakeet"
         },
         "8b": {
           "id": "parakeet-tdt-0.6b-v3-mlx-8bit",
-          "repository": "animaslabs/parakeet-tdt-0.6b-v3-mlx-8bit",
-          "revision": "18498133db8b4c8753bf98b3c5b6639b2a791be3",
-          "downloadBytes": 909120599,
+          "derivedFrom": "BF16",
+          "bits": 8,
+          "groupSize": 64,
           "architecture": "parakeet"
         },
         "4b": {
           "id": "parakeet-tdt-0.6b-v3-mlx-4bit",
-          "repository": "animaslabs/parakeet-tdt-0.6b-v3-mlx-4bit",
-          "revision": "65247a0a9e735426eba06056a9535f7e67dcbbb9",
-          "downloadBytes": 637004647,
+          "derivedFrom": "BF16",
+          "bits": 4,
+          "groupSize": 64,
           "architecture": "parakeet"
         }
       },
@@ -133,7 +163,7 @@
       "released": 2025,
       "licence": "CC BY 4.0",
       "summary": "The unmodified Parakeet v3 that Ultra is post-trained from: the same 25 European languages, no others",
-      "notes": "NVIDIA's Parakeet TDT 0.6B v3, released in August 2025: a FastConformer-TDT speech recognizer for 25 European languages. In Vella: dictation in those languages with the unmodified original that Parakeet v3 Ultra is post-trained from. MLX conversions by animaslabs."
+      "notes": "NVIDIA's Parakeet TDT 0.6B v3, released in August 2025: a FastConformer-TDT speech recognizer for 25 European languages. In Vella: dictation in those languages with the unmodified original that Parakeet v3 Ultra is post-trained from. MLX conversion by animaslabs, published as FP32; Vella converts it once to BF16 when you get it and keeps only the BF16 weights."
     },
     {
       "id": "qwen3-asr-1.7b",
@@ -174,6 +204,19 @@
       "params": "1.7B",
       "license": "apache-2.0",
       "native": "BF16",
+      "native_dtype": "bfloat16",
+      "tiers_offered": [
+        "16"
+      ],
+      "download": {
+        "repo": "mlx-community/Qwen3-ASR-1.7B-bf16",
+        "revision": "e1f6c266914abc5a46e8756e02580f834a6cf8a7",
+        "bytes": 4080708834,
+        "convert_to": [
+          "8",
+          "4"
+        ]
+      },
       "variants": {
         "BF16": {
           "id": "Qwen3-ASR-1.7B-bf16",
@@ -184,16 +227,16 @@
         },
         "8b": {
           "id": "Qwen3-ASR-1.7B-8bit",
-          "repository": "mlx-community/Qwen3-ASR-1.7B-8bit",
-          "revision": "a8379a2e2f9e313c9292cdf1af4055ab56d50d55",
-          "downloadBytes": 2467857511,
+          "derivedFrom": "BF16",
+          "bits": 8,
+          "groupSize": 64,
           "architecture": "qwen3_asr"
         },
         "4b": {
           "id": "Qwen3-ASR-1.7B-4bit",
-          "repository": "mlx-community/Qwen3-ASR-1.7B-4bit",
-          "revision": "78a389c776a5483b2d0d4ea5494e11012e0d6159",
-          "downloadBytes": 1607631587,
+          "derivedFrom": "BF16",
+          "bits": 4,
+          "groupSize": 64,
           "architecture": "qwen3_asr"
         }
       },
@@ -202,7 +245,7 @@
       "released": 2026,
       "licence": "Apache-2.0",
       "summary": "Dictation in 30 languages, including Chinese, Japanese and Korean, which Parakeet lacks; slower than Parakeet",
-      "notes": "Qwen3-ASR 1.7B from Alibaba's Qwen team, released in January 2026: speech recognition built on Qwen3-Omni for 30 languages and 22 Chinese dialects. In Vella: dictation in languages Parakeet lacks, such as Chinese, Japanese and Korean. MLX conversions by mlx-community."
+      "notes": "Qwen3-ASR 1.7B from Alibaba's Qwen team, released in January 2026: speech recognition built on Qwen3-Omni for 30 languages and 22 Chinese dialects. In Vella: dictation in languages Parakeet lacks, such as Chinese, Japanese and Korean. MLX conversion by mlx-community; lower precisions are made on this Mac from it."
     },
     {
       "id": "qwen3-asr-0.6b",
@@ -243,6 +286,20 @@
       "params": "0.6B",
       "license": "apache-2.0",
       "native": "BF16",
+      "native_dtype": "bfloat16",
+      "tiers_offered": [
+        "16",
+        "8"
+      ],
+      "download": {
+        "repo": "mlx-community/Qwen3-ASR-0.6B-bf16",
+        "revision": "eae2b51f96265328f1e7beced788adb0e4536f92",
+        "bytes": 1569436915,
+        "convert_to": [
+          "8",
+          "4"
+        ]
+      },
       "variants": {
         "BF16": {
           "id": "Qwen3-ASR-0.6B-bf16",
@@ -253,16 +310,16 @@
         },
         "8b": {
           "id": "Qwen3-ASR-0.6B-8bit",
-          "repository": "mlx-community/Qwen3-ASR-0.6B-8bit",
-          "revision": "89e96d92ba34aca20b3e29fb10cc284097d1219f",
-          "downloadBytes": 1010772242,
+          "derivedFrom": "BF16",
+          "bits": 8,
+          "groupSize": 64,
           "architecture": "qwen3_asr"
         },
         "4b": {
           "id": "Qwen3-ASR-0.6B-4bit",
-          "repository": "mlx-community/Qwen3-ASR-0.6B-4bit",
-          "revision": "313d850181767edf09f00a9c289becca70e58cd0",
-          "downloadBytes": 712779760,
+          "derivedFrom": "BF16",
+          "bits": 4,
+          "groupSize": 64,
           "architecture": "qwen3_asr"
         }
       },
@@ -271,7 +328,7 @@
       "released": 2026,
       "licence": "Apache-2.0",
       "summary": "The smaller Qwen3 ASR: the same 30 languages in less memory, a little less accurate than the 1.7B",
-      "notes": "The smaller Qwen3-ASR from Alibaba's Qwen team, released with the 1.7B in January 2026. In Vella: the same 30 languages in less memory, for Macs with less RAM. MLX conversions by mlx-community."
+      "notes": "The smaller Qwen3-ASR from Alibaba's Qwen team, released with the 1.7B in January 2026. In Vella: the same 30 languages in less memory, for Macs with less RAM. MLX conversion by mlx-community; lower precisions are made on this Mac from it."
     },
     {
       "id": "whisper-large-v3",
@@ -382,6 +439,20 @@
       "params": "1.55B",
       "license": "apache-2.0",
       "native": "FP16",
+      "native_dtype": "float16",
+      "tiers_offered": [
+        "16",
+        "8"
+      ],
+      "download": {
+        "repo": "mlx-community/whisper-large-v3-asr-fp16",
+        "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
+        "bytes": 3087748437,
+        "convert_to": [
+          "8",
+          "4"
+        ]
+      },
       "variants": {
         "FP16": {
           "id": "whisper-large-v3-asr-fp16",
@@ -392,30 +463,19 @@
         },
         "8b": {
           "id": "whisper-large-v3-8bit",
-          "repository": "mlx-community/whisper-large-v3-8bit",
-          "revision": "7fede54fd97b154a4f5e476646484fc023b1bcdf",
-          "downloadBytes": 1650091829,
+          "derivedFrom": "FP16",
+          "bits": 8,
+          "groupSize": 64,
           "architecture": "whisper",
-          "processorSource": {
-            "repository": "mlx-community/whisper-large-v3-asr-fp16",
-            "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
-            "files": [
-              "preprocessor_config.json",
-              "tokenizer.json",
-              "tokenizer_config.json",
-              "special_tokens_map.json",
-              "added_tokens.json",
-              "normalizer.json",
-              "vocab.json",
-              "merges.txt"
-            ]
-          }
+          "legacyIDs": [
+            "imported-whisper-large-v3-q8"
+          ]
         },
         "4b": {
           "id": "whisper-large-v3-asr-4bit",
-          "repository": "mlx-community/whisper-large-v3-asr-4bit",
-          "revision": "762b1efb49eb1d10b244236e896425deec3d6a95",
-          "downloadBytes": 882232654,
+          "derivedFrom": "FP16",
+          "bits": 4,
+          "groupSize": 64,
           "architecture": "whisper"
         }
       },
@@ -424,7 +484,7 @@
       "released": 2023,
       "licence": "Apache-2.0",
       "summary": "Dictation in about 100 languages, the most of any model here, from a family other than Parakeet and Qwen",
-      "notes": "OpenAI's Whisper large-v3, released in November 2023: an encoder-decoder transformer trained on 5 million hours of weakly and pseudo-labeled audio. In Vella: dictation in about 100 languages, from a model family other than Parakeet and Qwen. MLX conversions by mlx-community."
+      "notes": "OpenAI's Whisper large-v3, released in November 2023: an encoder-decoder transformer trained on 5 million hours of weakly and pseudo-labeled audio. In Vella: dictation in about 100 languages, from a model family other than Parakeet and Qwen. MLX conversion by mlx-community; lower precisions are made on this Mac from it."
     },
     {
       "id": "whisper-large-v3-turbo",
@@ -535,6 +595,20 @@
       "params": "0.8B",
       "license": "mit",
       "native": "FP16",
+      "native_dtype": "float16",
+      "tiers_offered": [
+        "16",
+        "8"
+      ],
+      "download": {
+        "repo": "mlx-community/whisper-large-v3-turbo-asr-fp16",
+        "revision": "624c19c9af5603fa73b83bce14d4aeea96156d18",
+        "bytes": 1618634653,
+        "convert_to": [
+          "8",
+          "4"
+        ]
+      },
       "variants": {
         "FP16": {
           "id": "whisper-large-v3-turbo-asr-fp16",
@@ -545,16 +619,16 @@
         },
         "8b": {
           "id": "whisper-large-v3-turbo-asr-8bit",
-          "repository": "mlx-community/whisper-large-v3-turbo-asr-8bit",
-          "revision": "f0fca477e0a885ef4a61088d6cbbc8fc25e53268",
-          "downloadBytes": 868346887,
+          "derivedFrom": "FP16",
+          "bits": 8,
+          "groupSize": 64,
           "architecture": "whisper"
         },
         "4b": {
           "id": "whisper-large-v3-turbo-asr-4bit",
-          "repository": "mlx-community/whisper-large-v3-turbo-asr-4bit",
-          "revision": "321a6ead9f6e0646bc8188a54d2a470e275c6b76",
-          "downloadBytes": 468150715,
+          "derivedFrom": "FP16",
+          "bits": 4,
+          "groupSize": 64,
           "architecture": "whisper"
         }
       },
@@ -563,7 +637,7 @@
       "released": 2024,
       "licence": "MIT",
       "summary": "Whisper large-v3 with 4 decoder layers instead of 32: the same languages, much faster, a little less accurate outside English",
-      "notes": "OpenAI's Whisper large-v3 turbo, released in 2024: large-v3 pruned from 32 decoder layers to 4, then fine-tuned. In Vella: much faster dictation in the same languages. MLX conversions by mlx-community."
+      "notes": "OpenAI's Whisper large-v3 turbo, released in 2024: large-v3 pruned from 32 decoder layers to 4, then fine-tuned. In Vella: much faster dictation in the same languages. MLX conversion by mlx-community; lower precisions are made on this Mac from it."
     },
     {
       "id": "nemotron-3.5-streaming-0.6b",
@@ -602,6 +676,20 @@
       "params": "0.6B",
       "license": "OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License",
       "native": "BF16",
+      "native_dtype": "bfloat16",
+      "tiers_offered": [
+        "16",
+        "8"
+      ],
+      "download": {
+        "repo": "mlx-community/nemotron-3.5-asr-streaming-0.6b",
+        "revision": "e550040c0478027ed679b2b6b0d055502c103663",
+        "bytes": 1276706069,
+        "convert_to": [
+          "8",
+          "4"
+        ]
+      },
       "variants": {
         "BF16": {
           "id": "nemotron-3.5-asr-streaming-0.6b-bf16",
@@ -612,9 +700,9 @@
         },
         "8b": {
           "id": "nemotron-3.5-asr-streaming-0.6b-8bit",
-          "repository": "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
-          "revision": "7279359e4481b5e9e185a318bd618e429c6d86cd",
-          "downloadBytes": 756246469,
+          "derivedFrom": "BF16",
+          "bits": 8,
+          "groupSize": 64,
           "architecture": "nemotron_asr"
         },
         "4b": {
@@ -630,7 +718,7 @@
       "released": 2026,
       "licence": "OpenMDW-1.1 (MLX conversion: NVIDIA Open Model License)",
       "summary": "Transcribes audio as it arrives, so Streaming mode types while you speak; not used for Dictation",
-      "notes": "NVIDIA's Nemotron 3.5 ASR Streaming 0.6B, released in 2026: a cache-aware FastConformer-RNNT model that transcribes audio as it arrives, for 40 language-locales. In Vella: Streaming mode, typing text while you speak. MLX conversions by mlx-community."
+      "notes": "NVIDIA's Nemotron 3.5 ASR Streaming 0.6B, released in 2026: a cache-aware FastConformer-RNNT model that transcribes audio as it arrives, for 40 language-locales. In Vella: Streaming mode, typing text while you speak. MLX conversion by mlx-community; lower precisions are made on this Mac from it."
     }
   ]
 }

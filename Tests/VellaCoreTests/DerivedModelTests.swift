@@ -18,27 +18,32 @@ final class DerivedModelTests: XCTestCase {
         let nemotron = try XCTUnwrap(catalog.family("nemotron-3.5-streaming-0.6b"))
         XCTAssertEqual(try ultra.derivation("8b"), DerivationRecipe(sourceLabel: "BF16", source: ultra.variants["BF16"]!, dtype: nil, bits: 8, groupSize: 64))
         XCTAssertEqual(try ultra.derivation("4b").bits, 4)
-        XCTAssertEqual(try v3.derivation("BF16"), DerivationRecipe(sourceLabel: "FP32", source: v3.variants["FP32"]!, dtype: "bfloat16", bits: nil, groupSize: nil))
+        // Parakeet v3's BF16 is a stored conversion (made once at Get): a root, not a derivation; 8 and 4 derive from it.
+        XCTAssertThrowsError(try v3.derivation("BF16"))
+        XCTAssertEqual(try v3.derivation("8b"), DerivationRecipe(sourceLabel: "BF16", source: v3.variants["BF16"]!, dtype: nil, bits: 8, groupSize: 64))
         XCTAssertEqual(try nemotron.derivation("4b").source.id, "nemotron-3.5-asr-streaming-0.6b-bf16")
-        // Get downloads the source; published precisions are their own source.
+        XCTAssertEqual(try nemotron.derivation("8b").source.id, "nemotron-3.5-asr-streaming-0.6b-bf16")
+        // Get fetches the root: the 16-bit download, or the stored BF16 (which downloads the FP32 repository).
         XCTAssertEqual(ultra.downloadSource(of: "4b")?.variant.id, "parakeet-ultra-mlx-bf16")
-        XCTAssertEqual(v3.downloadSource(of: "BF16")?.label, "FP32")
-        XCTAssertEqual(v3.downloadSource(of: "8b")?.variant.id, "parakeet-tdt-0.6b-v3-mlx-8bit")
-        XCTAssertTrue(ultra.isDerived("8b")); XCTAssertFalse(ultra.isDerived("BF16")); XCTAssertFalse(v3.isDerived("4b"))
-        // On disk = the source's files.
+        XCTAssertEqual(v3.downloadSource(of: "BF16")?.label, "BF16")
+        XCTAssertEqual(v3.downloadSource(of: "8b")?.variant.id, "parakeet-tdt-0.6b-v3-mlx-bf16-local")
+        XCTAssertEqual(v3.acquisition(of: "BF16")?.download.id, "parakeet-tdt-0.6b-v3-mlx-fp32")
+        XCTAssertTrue(ultra.isDerived("8b")); XCTAssertFalse(ultra.isDerived("BF16")); XCTAssertTrue(v3.isDerived("4b"))
+        // On disk: a derived precision is its root's files; the stored BF16 is half the FP32 download.
         XCTAssertEqual(ultra.diskBytes("4b"), 1254840214)
-        XCTAssertEqual(v3.diskBytes("BF16"), 2509016021)
+        XCTAssertEqual(v3.diskBytes("BF16"), 1254508010)
         // Derived variants are not downloads; every install id still resolves, new ones included.
         let downloads = Set(catalogVariants(catalog).map(\.id))
-        for id in ["parakeet-ultra-mlx-8bit-local", "parakeet-ultra-mlx-4bit-local", "parakeet-tdt-0.6b-v3-mlx-bf16-local", "nemotron-3.5-asr-streaming-0.6b-4bit-local"] {
+        XCTAssertTrue(downloads.contains("parakeet-tdt-0.6b-v3-mlx-bf16-local"), "the stored BF16 downloads its FP32 source")
+        for id in ["parakeet-ultra-mlx-8bit-local", "parakeet-ultra-mlx-4bit-local", "parakeet-tdt-0.6b-v3-mlx-8bit", "nemotron-3.5-asr-streaming-0.6b-4bit-local"] {
             XCTAssertFalse(downloads.contains(id), id)
             XCTAssertNotNil(catalog.locate(variant: id), id)
         }
         XCTAssertEqual(catalog.locate(variant: "parakeet-ultra-mlx-4bit-local")?.precision, "4b")
         for f in catalog.families { XCTAssertEqual(f.derivationProblems(), [], f.id) }
-        // Precision options include derived levels, never below 4 bits.
+        // Precision options follow tiers_offered (presence); fp32 is never a tier.
         XCTAssertEqual(precisionOptions(ultra), ["BF16", "8b", "4b"])
-        XCTAssertEqual(precisionOptions(v3), ["FP32", "BF16", "8b", "4b"])
+        XCTAssertEqual(precisionOptions(v3), ["BF16"])
     }
 
     func testDerivedVariantRoundTripsWithoutDownloadFields() throws {

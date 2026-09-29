@@ -67,14 +67,23 @@ import VellaCore
         object.removeValue(forKey: "api_token")
         object["dictation"] = dictationState()
         let available = models?.models() ?? []
-        object["dictation_model"] = available.first(where: \.current).map { ["id": $0.id, "name": $0.name, "precision": $0.precision] } ?? NSNull()
+        object["dictation_model"] = available.first(where: \.current).map { m -> [String: Any] in
+            var o: [String: Any] = ["id": m.id, "name": m.name, "precision": m.precision]
+            if let s = m.selection { o["selection"] = selectionObject(s) }
+            return o
+        } ?? NSNull()
         object["api_jobs"] = ["running": transcriber.running, "waiting": transcriber.waiting, "completed": transcriber.completed]
         return object
     }
 
+    /// `selection`: what the model runs (loaded) or would run (tier, Standard/Optimized, Exact/Fast); `requested_selection`
+    /// only when an Optimized selection runs on stock MLX (its self-test failed, or a runtime fallback).
     func modelObject(_ model: APIModel) -> [String: Any] {
-        ["id": model.id, "object": "model", "created": 0, "owned_by": "vella", "name": model.name, "precision": model.precision,
-         "languages": model.languages, "loaded": model.loaded, "current": model.current]
+        var o: [String: Any] = ["id": model.id, "object": "model", "created": 0, "owned_by": "vella", "name": model.name, "precision": model.precision,
+                                "languages": model.languages, "loaded": model.loaded, "current": model.current]
+        if let s = model.selection { o["selection"] = selectionObject(s) }
+        if let r = model.requested { o["requested_selection"] = selectionObject(r) }
+        return o
     }
 
     // MARK: Models

@@ -27,7 +27,8 @@ final class WorkerSwitchReportingTests: XCTestCase {
 
     func testEveryWorkerEnvironmentSwitchIsReported() throws {
         let gate = try source(Self.gate)
-        let reported = Set(try literals(of: "componentSwitches", in: gate) + literals(of: "reportedSwitches", in: gate))
+        let reported = Set(try literals(of: "componentSwitches", in: gate) + literals(of: "reportedSwitches", in: gate)
+                           + literals(of: "selectionSwitches", in: gate))
         let prefixes = try literals(of: "componentSwitchPrefixes", in: gate)
         XCTAssertTrue(reported.contains("VELLA_FORCE_STOCK"), "parsed \(reported.sorted())")
 

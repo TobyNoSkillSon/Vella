@@ -24,10 +24,12 @@ final class CatalogTests: XCTestCase {
             XCTAssertNotNil(catalog.locate(variant: id), id)
         }
         XCTAssertEqual(catalog.locate(variant: "parakeet-tdt-0.6b-v3-mlx-4bit")?.precision, "4b")
-        // The downloader's legacy quantization spelling: validate() parses bits from "4-bit".
-        XCTAssertEqual(variants.first { $0.id == "parakeet-tdt-0.6b-v3-mlx-4bit" }?.quantization, "4-bit")
+        // Only 16-bit checkpoints download (8 and 4 are made on this Mac); the downloader validates their exact format.
+        XCTAssertNil(variants.first { $0.id == "parakeet-tdt-0.6b-v3-mlx-4bit" })
         XCTAssertEqual(variants.first { $0.id == "Qwen3-ASR-1.7B-bf16" }?.quantization, "BF16")
-        XCTAssertNotNil(try processorSource(variant: "whisper-large-v3-8bit", catalogURL: resources.appendingPathComponent("models.json")))
+        XCTAssertEqual(variants.first { $0.id == "whisper-large-v3-asr-fp16" }?.quantization, "FP16")
+        XCTAssertNil(try processorSource(variant: "whisper-large-v3-8bit", catalogURL: resources.appendingPathComponent("models.json")),
+                     "a derived 8 uses its FP16 source's tokenizer files")
         for f in catalog.families {
             XCTAssertFalse(f.variants.isEmpty, f.id)
             XCTAssertTrue(f.variants.values.allSatisfy { $0.isDerived || $0.revision.count == 40 }, "pinned revisions: \(f.id)")

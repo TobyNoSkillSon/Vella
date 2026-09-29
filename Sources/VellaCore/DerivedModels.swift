@@ -1,13 +1,16 @@
 import Foundation
 
-// Locally derived precisions (Toby, 26 Sep 2026: every offered model gets every level from its native precision down to
-// 4 bits, made locally, no hosting). A derived variant names its source precision in the same family and a recipe:
-//   cast:     {"id": "…", "derivedFrom": "FP32", "dtype": "bfloat16", "architecture": "parakeet"}
-//   quantize: {"id": "…", "derivedFrom": "BF16", "bits": 8, "groupSize": 64, "architecture": "parakeet"}
-// Get downloads only the source (the root of the chain). Load hands the worker a small directory holding
-// `vella-derived.json` (source path + composed recipe); the worker derives the precision tensor by tensor at load.
-// The model path therefore differs per precision, so the worker's identity, fast-path gate key and residency stay
-// per precision.
+// Locally derived precisions (Toby, 29 Sep 2026: always download the 16-bit checkpoint, or the fp32 source of an
+// fp32-only model, converted to 16-bit at Get; 8 and 4 are made locally with mx.quantize g64; never quantize from a
+// quantized source). A derived variant names its source precision in the same family and a recipe:
+//   stored cast: {"id": "…", "derivedFrom": "FP32", "dtype": "bfloat16", "stored": true, "architecture": "parakeet"}
+//   quantize:    {"id": "…", "derivedFrom": "BF16", "bits": 8, "groupSize": 64, "architecture": "parakeet"}
+// A stored cast is made once at Get (StoredConversion.swift) and kept as a real checkpoint: it is the root that later
+// quantizations read. A quantization is one stored manifest per precision: Load hands the worker a small directory
+// holding `vella-derived.json` (source path + recipe) and the worker quantizes tensor by tensor at load. The model
+// path therefore differs per precision, so the worker's identity, fast-path gate key and residency stay per precision.
+// A checkpoint of the variant's exact format already registered under the variant's own id (an earlier download of
+// the published quantization) counts as installed and loads directly (`precisionLoadPath`).
 
 /// The composed recipe from the downloadable root to a derived precision: an optional float cast, then an optional
 /// affine quantization (always last; never twice).
@@ -40,28 +43,47 @@ public extension ModelFamily {
     /// True when the precision is derived locally rather than downloaded.
     func isDerived(_ label: String) -> Bool { variants[label]?.isDerived == true }
 
-    /// The downloadable variant a precision comes from (itself when downloaded). Get downloads this id; the derived
-    /// precision counts as downloaded exactly when this one is installed.
+    /// The variant Get fetches for a precision (itself when downloaded or stored): the root of its derivation. A stored
+    /// root downloads its own source repository and converts it (`catalogVariants`). The derived precision counts as
+    /// available when this one is installed.
     func downloadSource(of label: String) -> (label: String, variant: CatalogVariant)? {
-        (try? derivation(label)).map { ($0.sourceLabel, $0.source) } ?? variants[label].flatMap { $0.isDerived ? nil : (label, $0) }
+        (try? derivation(label)).map { ($0.sourceLabel, $0.source) } ?? variants[label].flatMap { !$0.isDerived || $0.isStored ? (label, $0) : nil }
     }
 
-    /// Bytes on disk for a precision: a derived precision stores nothing of its own, so it is its source's files.
-    func diskBytes(_ label: String) -> Int64? { downloadSource(of: label)?.variant.downloadBytes }
+    /// What Get actually transfers for a precision: the published repository, and for a stored conversion the cast it
+    /// applies once after the download (`convert` = target dtype). Nil when nothing in the catalog is downloadable.
+    func acquisition(of label: String) -> (root: String, download: CatalogVariant, convert: String?)? {
+        guard let root = downloadSource(of: label), let variant = variants[root.label] else { return nil }
+        if variant.isStored {
+            guard let from = variant.derivedFrom, let source = variants[from], !source.isDerived, let dtype = variant.dtype else { return nil }
+            return (root.label, source, dtype)
+        }
+        return (root.label, variant, nil)
+    }
 
-    /// Resolves and validates a derived precision's chain to its downloadable root.
+    /// Bytes on disk for a precision: a derived precision stores nothing of its own, so it is its source's files; a
+    /// stored conversion is its converted size.
+    func diskBytes(_ label: String) -> Int64? {
+        guard let root = downloadSource(of: label) else { return nil }
+        return root.variant.isStored ? estimatedWeightBytes(self, root.label).map { Int64($0) } : root.variant.downloadBytes
+    }
+
+    /// Resolves and validates a derived-at-load precision's chain to its root: the first variant with files of its own
+    /// (downloaded, or a stored conversion). A stored conversion is itself a root, not a derivation.
     func derivation(_ label: String) throws -> DerivationRecipe {
-        guard let start = variants[label], start.isDerived else { throw DerivationError.notDerived(label) }
+        guard let start = variants[label], start.isDerived, !start.isStored else { throw DerivationError.notDerived(label) }
         var steps: [(String, CatalogVariant)] = []
         var seen: Set<String> = []
         var current = label
-        while let v = variants[current], v.isDerived {
+        while let v = variants[current], v.isDerived, !v.isStored {
             guard seen.insert(current).inserted else { throw DerivationError.cycle(current) }
             steps.append((current, v))
             guard let from = v.derivedFrom, variants[from] != nil else { throw DerivationError.missingSource(current) }
             current = from
         }
         guard let root = variants[current] else { throw DerivationError.missingSource(label) }
+        // Never quantize from a quantized source: every chain starts at 16-bit float or wider.
+        guard (labelBits(current) ?? 0) >= 16 else { throw DerivationError.invalid("\(label): the source \(current) is quantized.") }
         var recipe = DerivationRecipe(sourceLabel: current, source: root)
         var bitsSoFar = labelBits(current) ?? 0
         // Apply from the root outwards.
@@ -91,7 +113,16 @@ public extension ModelFamily {
     /// Every problem with the family's derived variants (empty = valid). Used by catalog tests.
     func derivationProblems() -> [String] {
         variants.keys.sorted().compactMap { label in
-            guard isDerived(label) else { return nil }
+            guard let v = variants[label], v.isDerived else { return nil }
+            if v.isStored {
+                // A stored conversion: a float cast of a downloaded float source to a narrower float, labelled exactly.
+                guard let from = v.derivedFrom, let source = variants[from], !source.isDerived, !source.repository.isEmpty,
+                      let dtype = v.dtype, derivedCastLabels[dtype] == label, v.bits == nil, v.groupSize == nil,
+                      source.architecture == v.architecture, (labelBits(from) ?? 0) > (labelBits(label) ?? 0) else {
+                    return "\(id) \(label): a stored variant is a float cast of a downloaded float source."
+                }
+                return nil
+            }
             do { _ = try derivation(label); return nil } catch { return "\(id) \(label): \(error)" }
         }
     }
@@ -140,6 +171,27 @@ public func prepareDerivedModel(family: ModelFamily, precision: String, sourcePa
     return directory.path
 }
 
+/// Whether a precision can load without a download: a checkpoint registered under its own id (downloaded, stored
+/// conversion, or an earlier download of exactly this format), or for a precision made at load its root's files.
+/// `installedPath` maps a variant id to its registered folder. Never another tier's files.
+public func precisionAvailable(_ family: ModelFamily, _ precision: String, installedPath: (String) -> String?) -> Bool {
+    guard let variant = family.variants[precision] else { return false }
+    if installedPath(variant.id) != nil { return true }
+    guard variant.isDerived, !variant.isStored, let root = family.downloadSource(of: precision) else { return false }
+    return installedPath(root.variant.id) != nil
+}
+
+/// The folder to hand the worker for a precision, preparing its manifest when it is made at load; nil when a Get is
+/// needed first. Its own registered checkpoint wins (it loads as is); a derived-at-load precision reads its root.
+public func precisionLoadPath(_ family: ModelFamily, _ precision: String, installedPath: (String) -> String?,
+                              modelsDirectory: URL) throws -> String? {
+    guard let variant = family.variants[precision] else { return nil }
+    if let own = installedPath(variant.id) { return own }
+    guard variant.isDerived, !variant.isStored, let root = family.downloadSource(of: precision),
+          let source = installedPath(root.variant.id) else { return nil }
+    return try prepareDerivedModel(family: family, precision: precision, sourcePath: source, modelsDirectory: modelsDirectory)
+}
+
 /// Reads a derived model directory's manifest (nil when the directory is not a derived model).
 public func derivedModelManifest(at directory: URL) -> DerivedModelManifest? {
     (try? Data(contentsOf: directory.appendingPathComponent(DerivedModelManifest.fileName))).flatMap { try? JSONDecoder().decode(DerivedModelManifest.self, from: $0) }
@@ -180,8 +232,14 @@ public let quantizableWeightShare = 0.85
 public func estimatedWeightBytes(_ family: ModelFamily, _ label: String) -> Double? {
     guard let v = family.variants[label] else { return nil }
     if !v.isDerived { return Double(v.downloadBytes) }
-    guard let recipe = try? family.derivation(label), let rootBits = labelBits(recipe.sourceLabel) else { return nil }
-    let root = Double(recipe.source.downloadBytes)
+    if v.isStored {
+        // A stored cast: the source's float bytes scaled to the narrower float (every tensor is cast).
+        guard let from = v.derivedFrom, let source = family.variants[from], !source.isDerived,
+              let sourceBits = labelBits(from), let bits = labelBits(label), sourceBits > 0 else { return nil }
+        return Double(source.downloadBytes) * bits / sourceBits
+    }
+    guard let recipe = try? family.derivation(label), let rootBits = labelBits(recipe.sourceLabel),
+          let root = estimatedWeightBytes(family, recipe.sourceLabel) else { return nil }
     let floatBits = recipe.dtype.flatMap { derivedCastLabels[$0] }.flatMap(labelBits) ?? rootBits
     let floatBytes = root * floatBits / rootBits
     guard let bits = recipe.bits, let g = recipe.groupSize else { return floatBytes }

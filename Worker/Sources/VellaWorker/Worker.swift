@@ -203,8 +203,12 @@ final class Worker {
     /// Stock load, no fast path configured.
     func loadStock(_ path: URL, architecture: String) async throws -> any STTGenerationModel {
         if let derived = try DerivedPrecision.resolve(path) {
-            guard architecture == "parakeet" else { throw RequestError.invalid }
-            return try autoreleasepool { try ParakeetModel.fromDirectory(derived.source, preserveCheckpointDTypes: true, derived: derived) }
+            switch architecture {
+            case "parakeet": return try autoreleasepool { try ParakeetModel.fromDirectory(derived.source, preserveCheckpointDTypes: true, derived: derived) }
+            case "whisper": return try await WhisperModel.fromDirectory(derived.source, derived: derived)
+            case "qwen3_asr": return try await Qwen3ASRModel.fromModelDirectory(derived.source, derived: derived)
+            default: throw RequestError.invalid
+            }
         }
         switch architecture {
         case "parakeet": return try autoreleasepool { try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true) }
@@ -232,7 +236,8 @@ final class Worker {
             case .fast(let disabled):
                 // Two-stage gate: a tolerant component whose own self-test failed stays off; the rest is optimized.
                 disabledComponents = disabled
-                capable.fastPathDisabledComponents = Set(disabled.keys)
+                // Optimized · Exact: every inexact component stays off too (its own self-test verdict, FastPathGate.key).
+                capable.fastPathDisabledComponents = Set(disabled.keys).union(FastPathGate.exactOnly ? capable.fastPathTolerantComponents : [])
                 if capable.configureFastPath(enabled: true, component: "both") {
                     stockReason = nil; optimizations = capable.fastPathComponents
                 } else {
@@ -321,6 +326,7 @@ final class Worker {
             "engine": model == nil ? NSNull() : (stockReason == nil ? "optimized" : "mlx"),
             "engine_reason": model == nil ? NSNull() : (stockReason ?? NSNull()),
             "optimizations": optimizations, "load_s": loadSeconds ?? NSNull(), "memory": memory, "gpu": Self.gpu,
+            "recipe": FastPathGate.recipe.rawValue,
         ]
         if !hooks.isEmpty { object["test_hooks"] = hooks }
         // Per-component self-test result: components off because their own tolerance test failed, and why.

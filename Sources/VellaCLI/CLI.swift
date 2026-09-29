@@ -9,7 +9,7 @@ vella: transcribe audio files offline with the models loaded in Vella on this Ma
         FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
         `vella models`; without it the current dictation model is used. Dictation always goes first.
     vella status                 one line: running, dictation model, loaded models, API address
-    vella models [--json]        one line per model usable now: id, name, precision, loaded / current
+    vella models [--json]        one line per model usable now: id, name, tier, Standard / Optimized Exact / Fast, loaded / current
     vella url                    the OpenAI-compatible base URL (base_url for the openai SDKs)
     vella skill [--install DIR]  print the agent skill, or write DIR/transcribe/SKILL.md
     vella diagnose [--load] [--json]
@@ -124,18 +124,20 @@ struct VellaCLI {
 
     // MARK: Formatting
 
-    /// "Vella 1.0.0 running (pid 812), no model loaded · dictation model Parakeet v3 (8b) · API http://127.0.0.1:52314/v1"
+    /// "Vella 1.0.0 running (pid 812), no model loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:52314/v1"
     static func statusLine(_ s: [String: Any], port: Int) -> String {
         let version = (s["version"] as? String).map { " \($0)" } ?? ""
         let pid = (s["pid"] as? NSNumber)?.intValue ?? 0
         let loaded = (s["models"] as? [String: Any]) ?? [:]
         var parts = ["Vella\(version) running (pid \(pid)), " + (loaded.isEmpty ? "no model loaded" : loaded.keys.sorted().map { id in
-            let precision = ((loaded[id] as? [String: Any])?["precision"] as? String).map { " \($0)" } ?? ""
+            let precision = ((loaded[id] as? [String: Any])?["precision"] as? String).flatMap { $0.isEmpty ? nil : " " + (precisionWidth($0) ?? $0) } ?? ""
             return id + precision
         }.joined(separator: ", ") + " loaded")]
         if let loading = s["loading"] as? String { parts.append("loading \(loading)") }
         if let current = s["dictation_model"] as? [String: Any], let name = current["name"] as? String {
-            let precision = (current["precision"] as? String).flatMap { $0.isEmpty ? nil : " (\($0))" } ?? ""
+            let selection = selectionFrom(current["selection"])
+            let precision = selection.map { " (\($0.tier.rawValue), \(recipeLabel($0)))" }
+                ?? (current["precision"] as? String).flatMap { $0.isEmpty ? nil : " (\(precisionWidth($0) ?? $0))" } ?? ""
             parts.append("dictation model \(name)\(precision)")
         }
         if let state = s["dictation"] as? String, state != "idle" { parts.append(state) }
@@ -146,13 +148,27 @@ struct VellaCLI {
         parts.append("API http://127.0.0.1:\(port)/v1")
         return parts.joined(separator: " · ")
     }
-    /// "parakeet-v3  Parakeet v3 · 8b · loaded · current"
+    /// "parakeet-v3-ultra  Parakeet v3 Ultra · 16 · Optimized Fast · loaded · current dictation model"; an Optimized
+    /// selection running on stock MLX reads "Standard (Optimized Fast asked)".
     static func modelLine(_ m: [String: Any]) -> String {
         var parts = [m["name"] as? String ?? ""]
-        if let p = m["precision"] as? String, !p.isEmpty { parts.append(p) }
+        let selection = selectionFrom(m["selection"])
+        if let tier = selection?.tier.rawValue { parts.append(tier) }
+        else if let p = m["precision"] as? String, !p.isEmpty { parts.append(precisionWidth(p) ?? p) }
+        if let selection {
+            let asked = selectionFrom(m["requested_selection"]).map { " (\(recipeLabel($0)) asked)" } ?? ""
+            parts.append(recipeLabel(selection) + asked)
+        }
         if m["loaded"] as? Bool == true { parts.append("loaded") }
         if m["current"] as? Bool == true { parts.append("current dictation model") }
         return "\(m["id"] as? String ?? "?")  " + parts.joined(separator: " · ")
+    }
+
+    static func selectionFrom(_ value: Any?) -> ModelSelection? {
+        guard let o = value as? [String: Any], let tier = (o["tier"] as? String).flatMap(ModelTier.init(rawValue:)),
+              let path = (o["path"] as? String).flatMap(EnginePath.init(rawValue:)),
+              let mode = (o["mode"] as? String).flatMap(OptimizedMode.init(rawValue:)) else { return nil }
+        return ModelSelection(tier: tier, path: path, mode: mode)
     }
 
     // MARK: Skill

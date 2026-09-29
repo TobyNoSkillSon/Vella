@@ -74,6 +74,7 @@ struct DiagnoseCollector {
             var report = Diagnosis.Model(id: id, name: m?.name, mode: m?.mode?.rawValue, precision: m?.precision, engine: m?.engine,
                                          engineReason: m?.engine_reason, optimizations: m?.optimizations ?? [:], residency: m?.residency,
                                          workerVersion: m?.worker_version)
+            report.selection = m?.selection
             if m?.mode == .streaming {
                 report.notTimed = "streaming models are not served by the API"
             } else if let skip {
