@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where a stock replay may continue after the optimized streaming path failed mid-utterance.
-/// Foundation only, so a lab test compiles it standalone (lab/tests/review/replay_boundary_test.swift).
+/// Foundation only, so a lab test compiles it standalone (lab/bench/tests/suites/review/replay_boundary_test.swift).
 enum ReplayBoundary {
     /// `consumed`: the utterance's text the app has already taken (committed); `replayed`: the stock replay of the
     /// whole utterance. Returns the replay text the app has not seen yet, or nil when the replay does not start with

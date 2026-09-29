@@ -7,7 +7,7 @@ import MLXAudioSTT
 
 /// Developer-only (qualification builds): `VellaWorker describe-model --model <dir> --output <json>` loads a model the
 /// way the workers do (derived precisions included) and writes every parameter's name, dtype, shape and SHA-256 of its
-/// bytes, plus the MLX peak memory of the load. `--save <file.safetensors>` also writes the loaded parameters. Used by lab/tests/quant to compare derived and published quants.
+/// bytes, plus the MLX peak memory of the load. `--save <file.safetensors>` also writes the loaded parameters. Used by lab/bench/tests/suites/quant to compare derived and published quants.
 enum DescribeModel {
     static func run(_ arguments: [String]) async -> Int32 {
         guard arguments.count == 4 || (arguments.count == 6 && arguments[4] == "--save"), arguments[0] == "--model", arguments[2] == "--output",
