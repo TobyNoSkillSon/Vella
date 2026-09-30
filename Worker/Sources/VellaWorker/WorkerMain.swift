@@ -7,7 +7,7 @@ import SmallMGEMM
 import VellaWorkerSupport
 import VellaWire
 
-@main struct Main {
+struct DictationMain {
     static func main() async {
         let output = dup(STDOUT_FILENO)
         let sink = open("/dev/null", O_WRONLY)

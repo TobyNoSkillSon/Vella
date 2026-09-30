@@ -151,7 +151,7 @@ jobs:
             echo "Signed with Vella's own certificate \"Vella Release Signing\" (SHA-1 \`$VELLA_SIGNING_SHA1\`), the same in every release, so Microphone and Accessibility permissions carry over when you update."
           } >> "$NOTES"
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Vella $VERSION" --notes-file "$NOTES" \
-            "$OUT/Vella-$VERSION-arm64.zip" "$OUT/SHA256SUMS"
+            "$OUT/Vella-$VERSION-arm64.zip" "$OUT/Vella-$VERSION-arm64-symbols.zip" "$OUT/SHA256SUMS"
 
       - name: Remove the temporary keychain
         if: ${{ always() }}

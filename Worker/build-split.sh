@@ -9,6 +9,8 @@ DEVELOPER_DIR="$clt" "$clt/usr/bin/swift" build --package-path "$root" -c releas
 source="$root/.build/checkouts/mlx-swift"
 [[ $(git -C "$source" rev-parse HEAD) == 901941965d82e4a216d4d117231d847d194c563d ]]
 bin=$(DEVELOPER_DIR="$clt" "$clt/usr/bin/swift" build --package-path "$root" -c release --build-system native --show-bin-path)
+# Preserve the historical invocation path without shipping a second image.
+ln -sfn VellaWorker "$bin/VellaStreamingWorker"
 metal="$root/.build/split-metal"
 mkdir -p "$metal" && : > "$metal/compile.log"
 sdk=$(DEVELOPER_DIR="$xcode" xcrun --show-sdk-path)

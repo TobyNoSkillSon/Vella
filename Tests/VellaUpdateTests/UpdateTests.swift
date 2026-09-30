@@ -216,6 +216,19 @@ final class UpdateTrustTests: XCTestCase {
 
 /// VellaModelTool is retired: a release without it passes the bundle check (it still ships as a stub for 1.0.x).
 final class RetiredModelToolTests: XCTestCase {
+    func testRelativeStreamingAliasPassesBundleCheckButBrokenAliasFails() throws {
+        let root = try ReleaseFixture.temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let app = try ReleaseFixture.app(at: root.appendingPathComponent("Vella.app"), version: "9.9.9", sign: false)
+        let alias = app.appendingPathComponent("Contents/MacOS/VellaStreamingWorker")
+        try FileManager.default.removeItem(at: alias)
+        try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: "VellaWorker")
+        let version = try XCTUnwrap(SemanticVersion("9.9.9"))
+        XCTAssertNoThrow(try Updater.checkBundle(app, version: version))
+        try FileManager.default.removeItem(at: alias)
+        try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: "missing-worker")
+        XCTAssertThrowsError(try Updater.checkBundle(app, version: version))
+    }
+
     func testBundleWithoutTheModelToolPasses() throws {
         let root = try ReleaseFixture.temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
         let app = try ReleaseFixture.app(at: root.appendingPathComponent("Vella.app"), version: "9.9.9", sign: false)

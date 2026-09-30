@@ -4,7 +4,7 @@ import MLX
 import MLXAudioSTT
 import VellaWorkerSupport
 
-@main struct StreamingMain {
+struct StreamingMain {
     static func main() {
         let output = dup(STDOUT_FILENO)
         let sink = open("/dev/null", O_WRONLY)
