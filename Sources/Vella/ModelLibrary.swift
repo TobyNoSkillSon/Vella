@@ -80,16 +80,6 @@ import VellaCore
         guard !activeModelPath.isEmpty, let model = models.first(where: { installed[$0.id]?.path == activeModelPath }) else { return nil }
         return "\(model.name.replacingOccurrences(of: " ASR \u{B7}", with: "")) \(precisionInProse(precisionLabel(legacyQuantization: model.quantization)))"
     }
-    var displayedModels: [ModelRecommendation] {
-        var rows = models.filter { $0.recommended == true || modelFilePath($0.id) != nil }
-        if rows.isEmpty { return models } // Legacy catalogs without recommendation metadata.
-        // Keep a custom active model visible without switching or deleting it.
-        if !rows.contains(where: { installed[$0.id]?.path == activeModelPath }),
-           let active = models.first(where: { installed[$0.id]?.path == activeModelPath }) {
-            rows.append(active)
-        }
-        return rows
-    }
     var selected: ModelRecommendation? { models.first { $0.id == selectedID } }
     static let processor: String = {
         var size = 0
@@ -108,15 +98,6 @@ import VellaCore
             } else {
                 registryReadable = !FileManager.default.fileExists(atPath: registryURL.path)
             }
-            for (id, local) in installed where !models.contains(where: { $0.id == id }) {
-                if let bytes = try? Data(contentsOf: URL(fileURLWithPath: local.path).appendingPathComponent("config.json")),
-                   let cfg = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
-                   let architecture = checkpointArchitecture(cfg), supports(architecture) {
-                    let bits = (cfg["quantization"] as? [String: Any])?["bits"] as? Int
-                    models.append(ModelRecommendation(id: id, name: local.name ?? "Imported model", quantization: bits.map { "\($0)-bit" } ?? "Unquantized", repository: "", revision: "", downloadBytes: 0, architecture: architecture, license: "See imported model’s license", recommendation: "Local import · not a pinned Hub recommendation"))
-                }
-            }
-            // Treat configuration-selected models as imported until the user maps/downloads a recommendation.
             if registryURL == Self.registry, let config = try? Backend().configuration(requiresModel: false) {
                 activeModelPath = mode == .dictation ? config.model : config.streamingModel
             }

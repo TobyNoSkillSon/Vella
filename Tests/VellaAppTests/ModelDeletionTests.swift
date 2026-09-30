@@ -33,7 +33,6 @@ final class ModelDeletionTests: XCTestCase {
     }
     @MainActor func testDeleteKeepsOtherEntriesAndRevertsToInstall() throws {
         let (library, id, folder) = try fixture()
-        XCTAssertTrue(library.displayedModels.contains { $0.id == id }, "Installed nonrecommended models must remain manageable")
         var registry = library.installed
         registry["other"] = InstalledModel(path: "/external/untouched")
         try JSONEncoder().encode(registry).write(to: library.registryURL)
@@ -131,7 +130,6 @@ final class ModelDeletionTests: XCTestCase {
         try FileManager.default.removeItem(at: library.registryURL)
         library.installed = [:]; library.currentModelPath = { "" }; library.activeModelPath = ""
         XCTAssertEqual(library.modelFilePath(id), folder.path)
-        XCTAssertTrue(library.displayedModels.contains { $0.id == id })
         XCTAssertNil(library.deletionBlockReason(id))
         XCTAssertTrue(library.deleteModel(id, expectedPath: folder.path, expectedInstalled: false))
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))

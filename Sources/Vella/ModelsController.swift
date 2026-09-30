@@ -118,31 +118,26 @@ import VellaCore
         return config?.lastLoaded[f.id]
     }
 
-    /// One-time migration of the retired model-precision.json (a per-family choice kept apart from what was loaded,
-    /// the 1.0.0 bug): an entry becomes `lastLoaded` only for a family with no load record whose precision is on disk,
-    /// so it never overrides a loaded or configured model and never leads to a download. The file is then deleted.
-    /// Only when it sits beside config.json (the same support directory).
-    func migrateLegacySelections(from url: URL) {
-        guard !previewing, let configURL, FileManager.default.fileExists(atPath: url.path),
-              url.deletingLastPathComponent().standardizedFileURL == configURL.deletingLastPathComponent().standardizedFileURL else { return }
-        let stored = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: url))) ?? [:]
-        var config = (try? Data(contentsOf: configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
-        var changed = false
-        if var edited = config {
-            self.config = edited
-            for (id, value) in stored.sorted(by: { $0.key < $1.key }) {
-                guard let family = catalog.family(id), edited.lastLoaded[id] == nil, lastLoaded(family) == nil else { continue }
-                let precision = effectivePrecision(stored: value, native: family.native)
-                guard options(family).contains(precision), available(family, precision) else { continue }
-                edited.lastLoaded[id] = precision; changed = true
-            }
-            if changed {
-                do { try JSONEncoder().encode(edited).write(to: configURL, options: .atomic); config = edited }
-                catch { lastError = "Could not migrate the precision choices: \(error.localizedDescription)"; return }
-            }
+    /// Launch migration: a mode's model in config.json that is not a catalog precision on this Mac (a folder outside
+    /// the catalog, or one whose registry entry the registry migration dropped) is cleared, so that mode's next
+    /// session offers Get like a fresh install instead of loading a model Vella no longer supports. Files are never
+    /// touched. Needs a readable registry (otherwise nothing can be identified and nothing changes). Returns the
+    /// cleared paths.
+    @discardableResult
+    func clearSelectionsOutsideTheCatalog() -> [String] {
+        guard !previewing, let configURL, dictation.registryReadable,
+              let data = try? Data(contentsOf: configURL), var edited = try? JSONDecoder().decode(Configuration.self, from: data) else { return [] }
+        var cleared: [String] = []
+        for mode in RecognitionMode.allCases {
+            let path = mode == .dictation ? edited.model : edited.streamingModel
+            guard !path.isEmpty, identify(path: path, mode: mode) == nil else { continue }
+            edited.selectModel("", for: mode)
+            cleared.append(path)
         }
-        try? FileManager.default.removeItem(at: url)
-        self.config = config
+        guard !cleared.isEmpty else { return [] }
+        do { try JSONEncoder().encode(edited).write(to: configURL, options: .atomic) } catch { return [] }
+        reloadConfig()
+        return cleared
     }
 
     func library(_ mode: RecognitionMode) -> ModelLibrary { mode == .dictation ? dictation : streaming }

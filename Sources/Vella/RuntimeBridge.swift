@@ -33,12 +33,10 @@ import VellaCore
     func attach(controller: ModelsController, model: Model) {
         self.controller = controller; self.model = model
         controller.actions = self
-        // The table reads what was loaded from the runtime's config.json; the retired per-family precision file
-        // beside it is migrated once and deleted.
+        // The table reads what was loaded from the runtime's config.json.
         if !controller.previewing {
             controller.configURL = runtime.configURL
             controller.reloadConfig()
-            controller.migrateLegacySelections(from: runtime.configURL.deletingLastPathComponent().appendingPathComponent("model-precision.json"))
         }
         runtime.resolver = { [weak self] path, mode in self?.ref(path: path, mode: mode) }
         model.offerModel = { [weak self] mode in self?.offer(mode) }
@@ -52,12 +50,17 @@ import VellaCore
 
     /// Launch migration of the installed-model registry (ModelLibrary.migrateRegistry): earlier ids of a catalogued
     /// format are re-keyed, removed models' entries dropped. Registry only; never files. Both libraries share it.
+    /// Then a mode's model outside the catalog is cleared from config.json (ModelsController, files untouched).
     func migrateRegistry() {
         guard let controller, !controller.previewing else { return }
         let result = controller.dictation.migrateRegistry(catalog: controller.catalog)
         if !result.rekeyed.isEmpty || !result.dropped.isEmpty {
             controller.streaming.reload()
             runtime.log("registry: re-keyed \(result.rekeyed.sorted { $0.key < $1.key }.map { "\($0.key) -> \($0.value)" }.joined(separator: ", ")); dropped \(result.dropped.joined(separator: ", "))")
+        }
+        let cleared = controller.clearSelectionsOutsideTheCatalog()
+        if !cleared.isEmpty {
+            runtime.log("config: cleared models outside the catalog: \(cleared.map { URL(fileURLWithPath: $0).lastPathComponent }.joined(separator: ", "))")
         }
     }
 

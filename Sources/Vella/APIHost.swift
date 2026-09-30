@@ -38,11 +38,6 @@ import VellaCore
                                    loaded: isLoaded, current: currentIdentity?.family.id == family.id,
                                    selection: running, requested: running == requested ? nil : requested))
         }
-        // A current model outside the catalog (an imported folder) is still usable under its folder name.
-        if currentIdentity == nil, !current.isEmpty, FileManager.default.fileExists(atPath: current) {
-            let id = URL(fileURLWithPath: current).lastPathComponent
-            result.append(APIModel(id: id, name: id, precision: "", path: current, loaded: runtime.loadedRef(id) != nil, current: true))
-        }
         return result
     }
 

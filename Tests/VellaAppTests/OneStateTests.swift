@@ -96,26 +96,19 @@ final class OneStateTests: XCTestCase {
 
     // MARK: One state
 
-    /// Toby's repro: dictation loaded Parakeet v3 4-bit; the retired file said `parakeet-v3: native` (FP32, not on disk).
-    @MainActor func testLoadedPrecisionWinsAndTheLegacyChoiceIsMigratedAway() throws {
+    /// Toby's repro: dictation loaded Parakeet v3 4-bit while a stored choice said FP32 (not on disk): what is loaded wins.
+    @MainActor func testLoadedPrecisionWins() throws {
         let c = try shipped()
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
         c.dictation.installed["parakeet-tdt-0.6b-v3-mlx-4bit"] = InstalledModel(path: "/fixture/p4")
         c.dictation.installed["Qwen3-ASR-0.6B-bf16"] = InstalledModel(path: "/fixture/q06")
         c.streaming.installed["nemotron-3.5-asr-streaming-0.6b-8bit"] = InstalledModel(path: "/fixture/n8")
-        try JSONEncoder().encode(Configuration(model: "/fixture/p4", streamingModel: "/fixture/n8")).write(to: configURL)
-        let legacy = support.appendingPathComponent("model-precision.json")
-        try JSONEncoder().encode(["parakeet-v3": nativeSelection, "qwen3-asr-0.6b": "8b", "parakeet-v3-ultra": nativeSelection,
-                                  "qwen3-asr-1.7b": "4b", "nemotron-3.5-streaming-0.6b": nativeSelection]).write(to: legacy)
+        var saved = Configuration(model: "/fixture/p4", streamingModel: "/fixture/n8")
+        saved.lastLoaded = ["qwen3-asr-0.6b": "8b", "parakeet-v3": "FP32"]
+        try JSONEncoder().encode(saved).write(to: configURL)
+        c.reloadConfig()
         c.runtime = TableRuntime(loaded: ["parakeet-v3": LoadedFamily(precision: "4b", residency: "on_demand")])
-
-        c.migrateLegacySelections(from: legacy)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path), "read once, then deleted")
-        let config = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
-        XCTAssertEqual(config.lastLoaded, ["qwen3-asr-0.6b": "8b"],
-                       "kept only for a family without a load record whose precision is offered and on disk; FP32 (no tier), Ultra (absent) and Qwen 1.7B 4 (not offered) dropped")
-        XCTAssertEqual(config.model, "/fixture/p4", "the dictation model is untouched")
 
         // The loaded row shows what is loaded and offers Unload, not a Reload.
         XCTAssertEqual(c.selected(parakeet), "4b")
@@ -126,7 +119,7 @@ final class OneStateTests: XCTestCase {
         XCTAssertEqual(c.selected(parakeet), "4b")
         XCTAssertEqual(c.action(parakeet), .load)
         let qwen06 = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
-        XCTAssertEqual(c.selected(qwen06), "8b", "the migrated last-loaded precision")
+        XCTAssertEqual(c.selected(qwen06), "8b", "the last-loaded precision")
         XCTAssertEqual(c.currentSelection(qwen06), ModelSelection(tier: .t8, path: .optimized, mode: .fast), "used before selections existed: Optimized Fast")
         // Streaming the same way, with its own model: the stored BF16 never overrides streaming's 8-bit model.
         let nemotron = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
@@ -136,19 +129,6 @@ final class OneStateTests: XCTestCase {
         c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "4b")])
         XCTAssertEqual(c.selected(qwen), "4b")
         XCTAssertEqual(c.action(qwen), .unload)
-        // A second migration finds nothing.
-        c.migrateLegacySelections(from: legacy)
-        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).lastLoaded, ["qwen3-asr-0.6b": "8b"])
-    }
-
-    /// A legacy file in another directory than config.json is never migrated into it (or deleted).
-    @MainActor func testMigrationOnlyBesideItsConfig() throws {
-        let c = try shipped()
-        try JSONEncoder().encode(Configuration(model: "")).write(to: configURL)
-        let elsewhere = root.appendingPathComponent("model-precision.json")
-        try JSONEncoder().encode(["qwen3-asr-1.7b": "8b"]).write(to: elsewhere)
-        c.migrateLegacySelections(from: elsewhere)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: elsewhere.path))
     }
 
     /// A segment click is a preview: its numbers and the green Reload, nothing written; picking the loaded segment or

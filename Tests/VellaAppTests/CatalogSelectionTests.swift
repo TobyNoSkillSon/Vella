@@ -77,4 +77,39 @@ final class CatalogSelectionTests: XCTestCase {
                       "the migration never deletes files")
         XCTAssertEqual(try Data(contentsOf: configURL), before, "config.json is not the registry migration's")
     }
+
+    /// Launch migration (catalog-only ruling, D-5): a mode's model outside the catalog is cleared from config.json and
+    /// its files stay; catalog paths (a download, a stored conversion, a derived precision) are untouched.
+    @MainActor func testSelectionsOutsideTheCatalogAreClearedAtLaunch() throws {
+        let (c, p) = try controller()
+        for kept in [p.plain, p.stored, p.derived] {
+            var config = Configuration(model: kept)
+            config.lastLoaded = ["parakeet-v3-ultra": "8b"]
+            try JSONEncoder().encode(config).write(to: configURL)
+            let before = try Data(contentsOf: configURL)
+            XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+            XCTAssertEqual(try Data(contentsOf: configURL), before, kept)
+        }
+        var config = Configuration(model: p.outside, mode: .streaming, streamingModel: p.plain)
+        config.lastLoaded = ["parakeet-v3-ultra": "8b"]
+        try JSONEncoder().encode(config).write(to: configURL)
+        // The streaming model here is a dictation checkpoint: not a streaming catalog precision either.
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [p.outside, p.plain])
+        let after = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+        XCTAssertEqual(after.model, ""); XCTAssertEqual(after.streamingModel, "")
+        XCTAssertEqual(after.mode, .streaming); XCTAssertEqual(after.lastLoaded, ["parakeet-v3-ultra": "8b"])
+        XCTAssertEqual(c.config?.model, "", "the table rereads config.json")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: p.outside + "/model.safetensors"), "files are never touched")
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [], "nothing left to clear")
+    }
+
+    /// Without a readable registry nothing can be identified, so nothing is cleared.
+    @MainActor func testNothingIsClearedWithoutARegistry() throws {
+        let (c, p) = try controller()
+        try Data("not json".utf8).write(to: support.appendingPathComponent("models-installed.json"))
+        c.dictation.reload()
+        try JSONEncoder().encode(Configuration(model: p.plain)).write(to: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, p.plain)
+    }
 }
