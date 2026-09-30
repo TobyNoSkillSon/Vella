@@ -24,6 +24,8 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     private var task: URLSessionDataTask?
     private var session: URLSession?
     private var cancelled = false
+    /// Why the current transfer stopped writing (a full disk): reported instead of the cancellation it causes.
+    private var writeFailure: Error?
     private var lastReport = Date.distantPast
     private let progress: (String, Int64?, Int64?) -> Void
     private let catalogURL: URL
@@ -208,6 +210,7 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             lock.lock()
             transfer = (handle, continuation, file.size, offset, offset, false, report)
+            writeFailure = nil
             self.session = session
             let task = session.dataTask(with: request)
             self.task = task
@@ -245,17 +248,21 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
             if Date().timeIntervalSince(lastReport) >= 0.25 {
                 lastReport = Date(); notification = { state.report(state.received) }
             }
-        } catch { failed = true }
+        } catch { failed = true; writeFailure = error }
         lock.unlock()
         notification?()
         if failed { dataTask.cancel() }
     }
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        lock.lock(); let state = transfer; transfer = nil; self.task = nil; self.session = nil; lock.unlock()
+        lock.lock(); let state = transfer; transfer = nil; self.task = nil; self.session = nil
+        let failure = writeFailure; writeFailure = nil; lock.unlock()
         guard let state else { return }
         try? state.handle.close()
         if cancelled {
             state.continuation.resume(throwing: CancellationError())
+        } else if let failure {
+            // The write failed and cancelled the task: report the write, not "cancelled".
+            state.continuation.resume(throwing: Self.writeError(failure))
         } else if let error {
             state.continuation.resume(throwing: error)
         } else if !state.responseAccepted || state.received != state.expected {
@@ -263,6 +270,15 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         } else {
             state.continuation.resume()
         }
+    }
+    /// A failed write of downloaded bytes, in words the footer can show (a full disk says so).
+    static func writeError(_ error: Error) -> Error {
+        let ns = error as NSError
+        let full =
+            (ns.domain == NSCocoaErrorDomain && ns.code == NSFileWriteOutOfSpaceError)
+            || (ns.domain == NSPOSIXErrorDomain && ns.code == Int(ENOSPC))
+            || (ns.userInfo[NSUnderlyingErrorKey] as? NSError).map { $0.domain == NSPOSIXErrorDomain && $0.code == Int(ENOSPC) } == true
+        return full ? DownloadError.invalid("the disk is full. Free some space, then try again") : error
     }
     public static func validate(_ folder: URL, expected: ModelRecommendation) throws {
         let manager = FileManager.default

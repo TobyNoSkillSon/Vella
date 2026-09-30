@@ -5,6 +5,14 @@ import VellaWire
 
 /// The dictation worker exited while a request was in flight (crash, jetsam, kill). The request's audio is intact;
 /// `SessionTranscriber` retries that segment once on a fresh worker.
+extension Backend {
+    /// A model the worker could not load. For a catalog model that is almost always its files (a truncated or damaged
+    /// download): trying again cannot help, getting it again does.
+    nonisolated static func loadFailed(_ name: String) -> String {
+        "\(name) failed to load: its files may be damaged. Delete it in Models\u{2026} and Get it again."
+    }
+}
+
 struct WorkerExited: LocalizedError {
     var errorDescription: String? { "Vella's inference worker exited. Saved audio is retained." }
 }
@@ -247,7 +255,7 @@ struct WorkerExited: LocalizedError {
                 throw VellaError.message(
                     error["code"] as? String == "memory"
                         ? "\(ref.displayName) needs more available memory than macOS could give. Saved audio is retained; choose a smaller model."
-                        : "\(ref.displayName) failed to load. Saved audio is retained; try again or choose another model.")
+                        : Self.loadFailed(ref.displayName) + " Saved audio is retained.")
             }
         } catch {
             retire(slot)

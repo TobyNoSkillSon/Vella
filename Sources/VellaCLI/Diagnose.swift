@@ -70,6 +70,8 @@ struct DiagnoseCollector {
         if let chip = after.gpu?.chip, !chip.isEmpty { d.host.chip = chip }
         if let family = after.gpu?.family, !family.isEmpty { d.host.gpuFamily = family }
         d.switches = Array((after.test_hooks ?? [:]).keys).sorted()
+        // A --load that failed loaded nothing: its reason is the model's "not timed" line.
+        if let id = d.loadedForDiagnosis, after.models[id] == nil { d.loadedForDiagnosis = nil }
         let audio = Diagnose.clips.map { $0.seconds }.reduce(0, +)
         let ids = Set(after.models.keys).union(timed).sorted()
         d.models = ids.map { id -> Diagnosis.Model in

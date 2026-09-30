@@ -31,11 +31,28 @@ import VellaCore
                     path = controller.installed(family, first)?.path ?? "" // derived: prepared on use
                 }
             }
-            guard let precision, let path else { continue }
-            let isLoaded = loaded?.path == path
-            let requested =
-                (isLoaded ? loaded?.selection : nil)
-                ?? recordedSelection(config: config, family: family.id, precision: precision)
+            guard var precision, var path else { continue }
+            var isLoaded = loaded?.path == path
+            var requested: ModelSelection
+            if isLoaded, let selection = loaded?.selection {
+                requested = selection
+            } else {
+                // Not loaded (or loaded without a reported selection): the table's rule (`SelectionRules.runnable`),
+                // so a recorded precision no longer offered or a cell never measured is neither reported nor loaded.
+                let rules = controller.rules(family)
+                // The recorded precision (the mode's model, else `lastLoaded`), as the table reads it.
+                let record = isLoaded ? precision : controller.lastLoaded(family) ?? precision
+                requested = rules.runnable(recorded: config?.selections[family.id], precision: record, available: { [controller] in controller.available(family, $0) })
+                if !isLoaded, let valid = rules.precision(of: requested), valid != precision, controller.available(family, valid) {
+                    precision = valid
+                    path = controller.installed(family, valid)?.path ?? "" // derived: prepared on use
+                    if let loaded, loaded.precision == valid {
+                        path = loaded.path; isLoaded = true; requested = loaded.selection ?? requested
+                    }
+                } else if requested.tier != modelTier(ofPrecision: precision) {
+                    requested = recordedSelection(config: config, family: family.id, precision: precision)
+                }
+            }
             let running = effectiveSelection(requested, engine: isLoaded ? runtime.status.models[family.id]?.engine : nil)
             result.append(
                 APIModel(

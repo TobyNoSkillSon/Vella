@@ -66,6 +66,8 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         // App features a user may switch off (reported so a run without them never looks like the defaults).
         .init("VELLA_API", .app, app: true),
         .init("VELLA_UPDATE", .app, app: true),
+        // QA: the app without its status item, global shortcut or Accessibility prompt (AppDelegate.qaHeadless).
+        .init("VELLA_QA_HEADLESS", .test, app: true),
         // The `vella` command, the installer, renders and update tests.
         .init("VELLA_APP", .installer),
         .init("VELLA_NO_LAUNCH", .test),

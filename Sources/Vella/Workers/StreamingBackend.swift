@@ -210,7 +210,7 @@ import VellaWire
                 fail(VellaError.message("Invalid streaming response. Saved audio is retained.")); return
             }
             if let error = reply.error {
-                if let ref = loadingRef { loadingRef = nil; runtime.loadFailed(ref.id, message: "\(ref.displayName) failed to load.") }
+                if let ref = loadingRef { loadingRef = nil; runtime.loadFailed(ref.id, message: Backend.loadFailed(ref.displayName)) }
                 fail(VellaError.message(error)); return
             }
             confirmLoaded()

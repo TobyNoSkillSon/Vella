@@ -62,6 +62,18 @@ final class DiagnoseCLITests: XCTestCase {
         XCTAssertEqual(code, 1); XCTAssertEqual(out, ""); XCTAssertEqual(err, "error: unexpected argument extra\n")
     }
 
+    /// QA 30 Sep: a --load that fails must not report the model as loaded for the diagnosis, or as running on MLX.
+    @MainActor func testDiagnoseLoadThatFailsDoesNotClaimTheModelLoaded() async throws {
+        guard FileManager.default.isExecutableFile(atPath: APIClientTests.cli.path) else { throw XCTSkip("vella-cli not built") }
+        let api = try await APIFixture(models: ["fake-loadfail"])
+        defer { api.close() }
+        let (code, out, err) = try await vella(api.runtime.support, ["diagnose", "--load"])
+        XCTAssertEqual(code, 0, err)
+        XCTAssertFalse(out.contains("for this diagnosis (--load)"), out)
+        XCTAssertTrue(out.contains("fake-loadfail: not loaded\n"), out)
+        XCTAssertTrue(out.contains("  not timed: " + Backend.loadFailed("fake-loadfail")), "a failed load names damaged files: \(out)")
+    }
+
     @MainActor func testDiagnoseWhenVellaIsNotRunning() async throws {
         guard FileManager.default.isExecutableFile(atPath: APIClientTests.cli.path) else { throw XCTSkip("vella-cli not built") }
         let empty = FileManager.default.temporaryDirectory.appendingPathComponent("vella-diagnose-\(UUID())")

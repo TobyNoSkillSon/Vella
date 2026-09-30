@@ -154,9 +154,21 @@ import VellaCore
         alert.runModal()
     }
 
+    /// QA harness: `VELLA_QA_HEADLESS=1` with an isolated absolute `VELLA_SUPPORT_DIR` runs the runtime, the Models
+    /// controller and the API without a status item, a global shortcut, Accessibility prompts or focus observers, so a
+    /// candidate can run beside the user's installed Vella without taking its ⌃⌘N or its menu-bar slot.
+    static func qaHeadless(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+        environment["VELLA_QA_HEADLESS"] == "1" && environment["VELLA_SUPPORT_DIR"]?.hasPrefix("/") == true
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         NSApp.appearance = NSAppearance(named: .darkAqua)
+        if Self.qaHeadless() {
+            configureHUDPanel()
+            model.onChange = { [weak self] in self?.refresh() }
+            return
+        }
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         status.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Vella dictation")
         menu.delegate = self; menu.autoenablesItems = false

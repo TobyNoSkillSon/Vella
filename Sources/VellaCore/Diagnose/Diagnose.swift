@@ -276,7 +276,9 @@ public enum Diagnose {
     }
 
     static func modelLines(_ m: Diagnosis.Model, chip: String?) -> [String] {
-        var head = "\(m.id): \(engineLabel(engine: m.engine, chip: chip))"
+        // No engine and no precision: the model is not loaded (a --load that failed), not running on MLX.
+        let loaded = m.engine != nil || m.precision != nil
+        var head = "\(m.id): " + (loaded ? engineLabel(engine: m.engine, chip: chip) : "not loaded")
         if let p = m.precision, !p.isEmpty { head += " · \(p)" }
         if let asked = m.selection {
             let running = effectiveSelection(asked, engine: m.engine)

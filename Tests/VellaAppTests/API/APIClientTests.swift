@@ -66,12 +66,16 @@ final class APIClientTests: XCTestCase {
 
         let (uCode, url, _) = try await vella(api, ["url"])
         XCTAssertEqual(uCode, 0); XCTAssertEqual(url, "http://127.0.0.1:\(api.port)/v1\n")
+        let (hCode, help, _) = try await vella(api, ["--help"])
+        XCTAssertEqual(hCode, 0)
+        XCTAssertTrue(help.contains("vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]"), help)
 
         // Errors: one line on stderr, exit 1, no stdout.
         for (args, message) in [
             (["transcribe", audio.path, "--model", "nope"], "error: unknown model nope; see GET /v1/models\n"),
             (["transcribe", "/no/such.wav"], "error: no such file: /no/such.wav\n"),
-            (["transcribe", audio.path, "--srt", "--vtt"], "error: choose one of --json, --verbose-json, --srt, --vtt\n"),
+            (["transcribe", audio.path, "--srt", "--vtt"], "error: choose one of --text, --json, --verbose-json, --srt, --vtt\n"),
+            (["transcribe", NSTemporaryDirectory()], "error: \(NSTemporaryDirectory()) is a directory; give an audio file\n"),
             (["frobnicate"], "error: unknown command frobnicate; see vella --help\n")
         ] {
             let (eCode, eOut, eErr) = try await vella(api, args)
