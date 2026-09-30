@@ -29,7 +29,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         }
     }
     /// Closing the menu discards previews: a row returns to its loaded (or last loaded) precision.
-    func menuDidClose(_ menu: NSMenu) { controller.discardPreviews(); controller.filterOpen = false }
+    func menuDidClose(_ menu: NSMenu) { controller.discardPreviews() }
     func modelItem() -> NSMenuItem {
         if !controller.previewing { controller.reload() }
         let root = NSMenuItem(title: "Models…", action: nil, keyEquivalent: "")
@@ -40,14 +40,10 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.clear.cgColor
         view.layer?.isOpaque = false
+        // The item view, and so the menu window, is exactly the table's width: the table's content is that wide in every
+        // state (ModelTable.width, from its column constants; TableWidthTests), so no column is ever clipped.
         view.frame = NSRect(x: 0, y: 0, width: ModelTable.width, height: ModelTable.height(controller))
-        // The filter strip and filtered rows change the table's height while the menu is open: the item view takes the
-        // new height (NSMenu lays out its items again when an item view's frame changes), then redraws in tracking mode.
-        controller.onLayoutChange = { [weak view, controller] in
-            guard let view else { return }
-            view.setFrameSize(NSSize(width: ModelTable.width, height: ModelTable.height(controller)))
-            HostRefresh.after(view)
-        }
+        menu.minimumWidth = ModelTable.width
         item.view = view; menu.addItem(item); root.submenu = menu
         return root
     }

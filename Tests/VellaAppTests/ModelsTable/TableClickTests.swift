@@ -294,23 +294,6 @@ import SwiftUI
         XCTAssertEqual(a.toolTipText(at: NSPoint(x: a.buttonRect.midX, y: a.buttonRect.midY)).components(separatedBy: "\n").first, "Not downloaded")
     }
 
-    /// Capabilities (Toby, 30 Sep): one globe per model and a waveform for the streaming one; nothing tells the models
-    /// apart that the sections do not already, so the heading is a plain label and a click on it opens no filter.
-    func testTheCapabilitiesHeadingIsPlainWhenNothingIsFilterable() throws {
-        let c = try controller()
-        var resized = 0
-        c.onLayoutChange = { resized += 1 }
-        let (window, view) = host(c)
-        XCTAssertEqual(c.filterableCapabilities, [], "every model is multilingual; streaming is its own section")
-        let height = ModelTable.height(c)
-        // The heading's centre: leading padding, row padding, Model column, spacing, then half the Capabilities column.
-        let x = 6 + ModelTable.W.rowPadding + ModelTable.W.model + ModelTable.W.spacing + ModelTable.W.capabilities / 2
-        buttonClick(window, at: NSPoint(x: x, y: view.frame.height - 6 - ModelTable.headerHeight / 2))
-        XCTAssertFalse(c.filterOpen, "no filter strip to open")
-        XCTAssertEqual(resized, 0)
-        XCTAssertEqual(ModelTable.height(c), height)
-    }
-
     /// A tier the presence gate removed is greyed in place on both rows (never hidden): its tooltip says why in one
     /// line, and a real click on it selects nothing (Toby, 30 Sep).
     func testGateRemovedTiersAreGreyedInPlaceAndRefuseClicks() throws {
@@ -363,7 +346,7 @@ import SwiftUI
         XCTAssertEqual(c.currentSelection(ultra).path, .optimized, "'Not measured yet' still refuses")
         XCTAssertEqual(
             ModelTable.rows(c, .dictation, sort: .wer, ascending: true).map(\.id),
-            c.visibleFamilies(.dictation).map(\.id) + c.visibleReferences(.dictation).map { "reference:" + $0.id },
+            c.families(.dictation).map(\.id) + c.references(.dictation).map { "reference:" + $0.id },
             "no hidden figure shows through the order")
         // Cleared (as the measurement writer rewrites the file): the figures are back.
         c.benchmarks.figuresPending = false

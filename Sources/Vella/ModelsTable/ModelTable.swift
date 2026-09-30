@@ -5,32 +5,42 @@ import VellaCore
 struct ModelTable: View {
     /// Column widths; `spacing` between columns, `rowPadding` inside a row on each side.
     enum W {
-        static let model: CGFloat = 182, capabilities: CGFloat = 82, params: CGFloat = 52
+        static let model: CGFloat = 182, params: CGFloat = 52
         static let precision: CGFloat = TierControl.width + 4, path: CGFloat = max(ExactFastSwitch.width, ExactFastSwitch.showsWords ? 0 : 64)
         static let wer: CGFloat = 62, format: CGFloat = 62, speed: CGFloat = 78, energy: CGFloat = 64, memory: CGFloat = 72
         static let action: CGFloat = RowAction.width
         static let spacing: CGFloat = 6, rowPadding: CGFloat = 8
-        static let columns: [CGFloat] = [model, capabilities, params, precision, path, wer, format, speed, energy, memory, action]
+        static let columns: [CGFloat] = [model, params, precision, path, wer, format, speed, energy, memory, action]
         static let row: CGFloat = columns.reduce(0, +) + CGFloat(columns.count - 1) * spacing + 2 * rowPadding
     }
-    static let width: CGFloat = W.row + 8
+    /// The table's padding around the rows: 6 pt leading, `trailingPadding` after the last column (as before v3).
+    static let leadingPadding: CGFloat = 6, trailingPadding: CGFloat = 2
+    /// The table's width, from the columns above: the menu item view and so the menu window take exactly this width, and
+    /// the table's own content is exactly this wide in every state (TableWidthTests checks both, on the first layout
+    /// pass). Nothing in a row, the header or the footer may be wider than `W.row`.
+    static let width: CGFloat = leadingPadding + W.row + trailingPadding
+    /// Room right of the action cell (the row padding and the table padding), as the buttons had before v3: the action
+    /// button and its trash glyph stay at least this far inside the item view (TableWidthTests).
+    static let trailingMargin: CGFloat = W.rowPadding + trailingPadding
     /// One line per model: the Optimized and Standard segment rows with air around them, the Exact/Fast switch as tall as
     /// both; beside them a 13 pt value over a 10.5 pt delta (or the name over its engine label). A cloud row has no
     /// controls and keeps a 38 pt line.
     static let rowHeight: CGFloat = TierControl.height + 6
     static let referenceRowHeight: CGFloat = 38
     static let rowGap: CGFloat = 2
-    static let headerHeight: CGFloat = 26, stripHeight: CGFloat = 30, sectionHeight: CGFloat = 24, footerHeight: CGFloat = 28
-    /// Every visible row fits without scrolling: paddings, heading, filter strip, dividers, section labels and footer.
-    static func height(models: Int, references: Int, sections: Int, strip: Bool = false) -> CGFloat {
-        12 + headerHeight + (strip ? stripHeight : 0) + 18 + CGFloat(sections) * sectionHeight
+    static let headerHeight: CGFloat = 26, sectionHeight: CGFloat = 24, footerHeight: CGFloat = 28
+    /// The thick line between the Dictation and the Streaming group (Toby, 30 Sep): `groupRule` thick, with air above
+    /// and below; it carries the separation, the group words stay.
+    static let groupRule: CGFloat = 3, groupRuleAbove: CGFloat = 8, groupRuleBelow: CGFloat = 2
+    static let groupRuleHeight: CGFloat = groupRuleAbove + groupRule + groupRuleBelow
+    /// Every visible row fits without scrolling: paddings, heading, dividers, section labels, the group rule and footer.
+    static func height(models: Int, references: Int, sections: Int) -> CGFloat {
+        12 + headerHeight + 18 + CGFloat(sections) * sectionHeight + CGFloat(max(0, sections - 1)) * groupRuleHeight
             + CGFloat(models) * (rowHeight + rowGap) + CGFloat(references) * (referenceRowHeight + rowGap) + footerHeight
     }
     @MainActor static func height(_ c: ModelsController) -> CGFloat {
-        let references = RecognitionMode.allCases.reduce(0) { $0 + c.visibleReferences($1).count }
-        return height(
-            models: c.rowCount - references, references: references, sections: c.sectionCount,
-            strip: c.filterOpen && !c.filterableCapabilities.isEmpty)
+        let references = RecognitionMode.allCases.reduce(0) { $0 + c.references($1).count }
+        return height(models: c.rowCount - references, references: references, sections: c.sectionCount)
     }
 
     static let valueFont = Font.system(size: 13).monospacedDigit()
@@ -60,9 +70,13 @@ struct ModelTable: View {
 
     /// Rows of a section in a stable order: each column sorts by the model's best value across its precisions, so
     /// changing a row's selected precision never moves it. Cloud reference rows sort with the models (by their
-    /// estimated WER). The capabilities filter hides rows without its capabilities.
+    /// estimated WER).
     @MainActor static func rows(_ controller: ModelsController, _ mode: RecognitionMode, sort: TableSortColumn, ascending: Bool) -> [ModelTableRow] {
-        sortedRows(controller.visibleFamilies(mode), references: controller.visibleReferences(mode), by: sort.metric, ascending: ascending, benchmarks: controller.benchmarks)
+        sortedRows(controller.families(mode), references: controller.references(mode), by: sort.metric, ascending: ascending, benchmarks: controller.benchmarks)
+    }
+    /// The sections with a model, in order: Dictation, then Streaming.
+    @MainActor static func sections(_ controller: ModelsController) -> [RecognitionMode] {
+        [RecognitionMode.dictation, .streaming].filter { !controller.families($0).isEmpty }
     }
     private func rows(_ mode: RecognitionMode) -> [ModelTableRow] { Self.rows(controller, mode, sort: sortColumn, ascending: ascending) }
 
@@ -79,39 +93,40 @@ struct ModelTable: View {
     static let deltaHeaderLine = "Difference vs Standard bf16 (fp16 for Whisper) below each figure."
     /// The Memory column's heading (Toby, 30 Sep).
     static let memoryTitle = "Peak RAM"
-    static let capabilitiesHeaderHelp = "What the model can do beyond English dictation; an empty slot means it cannot. Click to show only models with a capability."
-    static let filterLead = "Show only models with"
 
+    /// The table is exactly as wide as its columns (`width`): header, rows and footer each take `W.row`, and nothing
+    /// widens the stack, so the item view, the menu window and the content agree in every state.
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header.frame(height: Self.headerHeight)
-            if controller.filterOpen && !controller.filterableCapabilities.isEmpty {
-                filterStrip.frame(height: Self.stripHeight)
-            }
+            header.frame(width: W.row, height: Self.headerHeight)
             Divider().opacity(0.35).padding(.vertical, 4)
-            ForEach([RecognitionMode.dictation, .streaming], id: \.self) { mode in
+            let sections = Self.sections(controller)
+            ForEach(sections, id: \.self) { mode in
                 let sectionRows = rows(mode)
-                if sectionRows.contains(where: {
-                    if case .family = $0 { return true }; return false
-                }) {
-                    Text(mode.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-                        .padding(.leading, W.rowPadding).padding(.bottom, 4)
-                        .frame(height: Self.sectionHeight, alignment: .bottomLeading)
-                        .appKitTooltip(mode == .dictation ? "Transcribes when you finish speaking" : "Types text while you speak")
-                    ForEach(sectionRows) { item in
-                        Group {
-                            switch item {
-                            case .family(let family): row(family)
-                            case .reference(let reference): referenceRow(reference)
-                            }
-                        }.padding(.bottom, Self.rowGap)
-                    }
+                if mode != sections.first {
+                    // One thick line between the groups, in the dividers' colour.
+                    Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: W.row, height: Self.groupRule)
+                        .padding(.top, Self.groupRuleAbove).padding(.bottom, Self.groupRuleBelow)
+                        .accessibilityHidden(true)
+                }
+                Text(mode.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    .padding(.leading, W.rowPadding).padding(.bottom, 4)
+                    .frame(height: Self.sectionHeight, alignment: .bottomLeading)
+                    .appKitTooltip(mode == .dictation ? "Transcribes when you finish speaking" : "Types text while you speak")
+                ForEach(sectionRows) { item in
+                    Group {
+                        switch item {
+                        case .family(let family): row(family)
+                        case .reference(let reference): referenceRow(reference)
+                        }
+                    }.padding(.bottom, Self.rowGap)
                 }
             }
             Divider().opacity(0.35).padding(.vertical, 4)
-            footer.frame(height: Self.footerHeight)
-        }.padding(.vertical, 6).padding(.leading, 6).padding(.trailing, 2)
-            .frame(width: Self.width, height: Self.height(controller), alignment: .top)
+            footer.frame(width: W.row, height: Self.footerHeight)
+        }.padding(.vertical, 6).padding(.leading, Self.leadingPadding).padding(.trailing, Self.trailingPadding)
+            .fixedSize(horizontal: true, vertical: false)
+            .frame(height: Self.height(controller), alignment: .top)
             .background(Color.clear)
             .foregroundStyle(.primary)
             .overlay(alignment: .top) {
@@ -128,7 +143,6 @@ struct ModelTable: View {
     private var header: some View {
         HStack(spacing: W.spacing) {
             heading("Model", .name, W.model, .leading)
-            capabilitiesHeading
             plainHeading("Params", W.params, help: "Model size in parameters.")
             plainHeading(TierControl.title, W.precision, help: TierControl.headerHelp)
             plainHeading(ExactFastSwitch.title, W.path, help: ExactFastSwitch.help)
@@ -139,64 +153,6 @@ struct ModelTable: View {
             heading(Self.memoryTitle, .memory, W.memory, .center, help: Self.memoryHeaderHelp)
             Color.clear.frame(width: W.action, height: 1)
         }.padding(.horizontal, W.rowPadding)
-    }
-
-    /// The Capabilities heading opens and closes the filter strip; a dot beside it while a filter is active. Without a
-    /// capability that tells models apart it is a plain label.
-    @ViewBuilder private var capabilitiesHeading: some View {
-        if controller.filterableCapabilities.isEmpty {
-            plainHeading("Capabilities", W.capabilities, help: Self.capabilitiesHeaderHelp)
-        } else {
-            Button {
-                controller.toggleFilterStrip()
-            } label: {
-                Text("Capabilities")
-                    .overlay(alignment: .trailing) {
-                        Circle().fill(Color.accentColor).frame(width: 6, height: 6).offset(x: 9)
-                            .opacity(controller.capabilityFilter.isEmpty ? 0 : 1).allowsHitTesting(false)
-                    }
-                    .frame(width: W.capabilities, height: Self.headerHeight).contentShape(Rectangle())
-            }.buttonStyle(.plain).font(.system(size: 12, weight: .medium))
-                .foregroundStyle(controller.filterOpen || !controller.capabilityFilter.isEmpty ? .primary : .secondary)
-                .accessibilityLabel(controller.capabilityFilter.isEmpty ? "Capabilities" : "Capabilities, filter active")
-                .accessibilityHint(Self.capabilitiesHeaderHelp)
-        }
-    }
-
-    /// "Show only models with ☐ <icon> <capability>": inline under the header, because a view hosted in a
-    /// menu cannot open a pop-up or popover. A click toggles a checkbox; rows without that capability hide at once.
-    private var filterStrip: some View {
-        HStack(spacing: 14) {
-            Text(Self.filterLead).font(.system(size: 12)).foregroundStyle(.secondary)
-            ForEach(controller.filterableCapabilities, id: \.self) { capability in
-                let on = controller.capabilityFilter.contains(capability)
-                Button {
-                    controller.toggleFilter(capability)
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: on ? "checkmark.square.fill" : "square").font(.system(size: 13))
-                            .foregroundStyle(on ? Color.accentColor : .secondary)
-                        Image(systemName: capability.symbol).font(.system(size: 13))
-                        Text(capability.filterTitle).font(.system(size: 12))
-                    }.contentShape(Rectangle())
-                }.buttonStyle(.plain)
-                    .accessibilityLabel(capability.filterTitle).accessibilityValue(on ? "on" : "off")
-            }
-            Spacer(minLength: 0)
-        }.padding(.horizontal, W.rowPadding)
-    }
-    /// The fixed icon slots: a filled slot shows its symbol with its own tooltip; an empty one keeps its place.
-    private func capabilities(_ family: ModelFamily) -> some View {
-        let slots = capabilitySlots(family)
-        return HStack(spacing: 6) {
-            ForEach(Capability.allCases, id: \.self) { c in
-                if let slot = slots[c] {
-                    Image(systemName: slot.symbol).font(.system(size: 14)).frame(width: 20, height: 22).appKitTooltip(slot.help)
-                } else {
-                    Color.clear.frame(width: 20, height: 22)
-                }
-            }
-        }.frame(width: W.capabilities)
     }
 
     @ViewBuilder private func row(_ family: ModelFamily) -> some View {
@@ -236,7 +192,6 @@ struct ModelTable: View {
                 }
             }.frame(width: W.model, alignment: .leading)
                 .appKitTooltip(modelHelp(family, loaded: loaded))
-            capabilities(family)
             Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params)
             precisionControl(family, hot: hot).frame(width: W.precision)
             // As tall as both segment rows and centred on the pair; it applies to the Optimized row (its knob's bolt).
@@ -301,7 +256,6 @@ struct ModelTable: View {
                 Text(r.name).font(.system(size: 13)).lineLimit(1)
             }.frame(width: W.model, alignment: .leading)
                 .appKitTooltip(referenceModelHelp(r))
-            Color.clear.frame(width: W.capabilities, height: 1)
             Text("\u{2014}").frame(width: W.params)
             Color.clear.frame(width: W.precision + W.spacing + W.path, height: 1)
             // The estimate is scaled from the local models' measured WER: pending with them.
@@ -451,8 +405,6 @@ struct ModelTable: View {
                         chip: runtime?.chip, precision: loaded.precision)
                 ))
         }
-        let slots = capabilitySlots(family)
-        for c in Capability.allCases { if let slot = slots[c] { cells.append(("Capability \(c.rawValue)", slot.help)) } }
         let optimized = controller.hasOptimizedPath(family)
         let off = unavailableCells(family)
         for row in TierControl.Row.allCases {
@@ -487,7 +439,7 @@ struct ModelTable: View {
         return cells + figures + [("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))]
     }
 
-    /// A reference row's tooltips as (column, text); Capabilities, Params and the controls have none (nothing is known).
+    /// A reference row's tooltips as (column, text); Params and the controls have none (nothing is known).
     func tooltips(_ r: ReferenceEntry) -> [(String, String)] {
         [
             ("Model", referenceModelHelp(r)), ("WER", controller.benchmarks.figuresPending ? figuresPendingHelp : referenceWERTooltip(r)),

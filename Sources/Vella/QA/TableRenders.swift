@@ -70,9 +70,6 @@ import VellaUpdate
         var benchmarks: BenchmarkFile?
         /// Switch flips after the previews (family id → position), as a click would make them.
         var flips: [(String, OptimizedMode)] = []
-        /// Capabilities filter and its strip.
-        var filter: Set<Capability> = []
-        var filterOpen = false
         /// The family whose action cell is drawn under the pointer.
         var hover: String?
         /// Override of benchmarks.json `figures_pending` (nil: as shipped).
@@ -83,6 +80,13 @@ import VellaUpdate
         NSApp.setActivationPolicy(.accessory)
         NSApp.appearance = NSAppearance(named: .darkAqua)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let states = Self.states()
+        writeEngineTooltips(states)
+        Self.renderControls(to: directory.appendingPathComponent("controls.png")) { [self] in render(states, 0) }
+    }
+
+    /// Every content state the renders show (TableWidthTests lays each out as the menu does).
+    static func states() -> [State] {
         let now = Date().timeIntervalSince1970
         let chip = RenderFixture.chip
         var states: [State] = []
@@ -197,8 +201,28 @@ import VellaUpdate
         otherChip.runtime.chip = chip == "M3 Pro" ? "M5 Max" : "M3 Pro"
         states.append(otherChip)
         states.append(State(name: "unmeasured-no-benchmarks", benchmarks: BenchmarkFile()))
-        writeEngineTooltips(states)
-        Self.renderControls(to: directory.appendingPathComponent("controls.png")) { [self] in render(states, 0) }
+        return states
+    }
+
+    /// A preview controller showing a state.
+    static func controller(_ state: State) -> ModelsController {
+        let controller = RenderFixture.controller(installed: state.installed)
+        if let b = state.benchmarks { controller.benchmarks = b }
+        if let pending = state.figuresPending { controller.benchmarks.figuresPending = pending }
+        controller.runtime = state.runtime
+        controller.previewConfig(state.config)
+        controller.previewSelections(state.selections)
+        for (id, mode) in state.flips { if let f = controller.catalog.family(id) { controller.setMode(f, mode) } }
+        controller.previewHover = state.hover
+        controller.previewInUse = state.inUse
+        controller.lastError = state.lastError
+        controller.dictation.downloadError = state.downloadError
+        if let d = state.downloading, let library = [controller.dictation, controller.streaming].first(where: { $0.models.contains { $0.id == d.id } }) {
+            library.downloadingID = d.id; library.busy = true; library.progress = d.progress
+            let total = library.models.first { $0.id == d.id }?.downloadBytes ?? 0
+            library.message = "Parakeet v3 Ultra 16 \u{00b7} Downloading from Hugging Face… \(formatBytes(Int64(Double(total) * d.progress))) of \(formatBytes(total))"
+        }
+        return controller
     }
 
     /// Shipped benchmarks with the Optimized Exact recipes at 8 and 4 removed and the Exact 16 cells measured (a copy of
@@ -374,24 +398,7 @@ import VellaUpdate
             return
         }
         let state = states[index]
-        let controller = RenderFixture.controller(installed: state.installed)
-        if let b = state.benchmarks { controller.benchmarks = b }
-        if let pending = state.figuresPending { controller.benchmarks.figuresPending = pending }
-        controller.runtime = state.runtime
-        controller.previewConfig(state.config)
-        controller.previewSelections(state.selections)
-        for (id, mode) in state.flips { if let f = controller.catalog.family(id) { controller.setMode(f, mode) } }
-        controller.capabilityFilter = state.filter
-        controller.filterOpen = state.filterOpen
-        controller.previewHover = state.hover
-        controller.previewInUse = state.inUse
-        controller.lastError = state.lastError
-        controller.dictation.downloadError = state.downloadError
-        if let d = state.downloading, let library = [controller.dictation, controller.streaming].first(where: { $0.models.contains { $0.id == d.id } }) {
-            library.downloadingID = d.id; library.busy = true; library.progress = d.progress
-            let total = library.models.first { $0.id == d.id }?.downloadBytes ?? 0
-            library.message = "Parakeet v3 Ultra 16 \u{00b7} Downloading from Hugging Face… \(formatBytes(Int64(Double(total) * d.progress))) of \(formatBytes(total))"
-        }
+        let controller = Self.controller(state)
         TableRenderDelegate.renderTable(controller, to: directory.appendingPathComponent("models-\(state.name).png")) { [self] in
             render(states, index + 1)
         }
@@ -416,12 +423,15 @@ import VellaUpdate
             container.cacheDisplay(in: container.bounds, to: rep)
             try? rep.representation(using: .png, properties: [:])?.write(to: url)
         }
-        var controls: [NSRect] = [], switches: [NSRect] = [], actions: [NSRect] = []
+        var controls: [NSRect] = [], switches: [NSRect] = [], actions: [NSRect] = [], rightEdge: CGFloat = 0
         func walk(_ v: NSView) {
             // A segmented control's frame carries its bezel's alignment insets; its drawn size is the alignment rect.
             if v is NSSegmentedControl, let parent = v.superview { controls.append(parent.convert(v.alignmentRect(forFrame: v.frame), to: table)) }
             if v is SwitchView { switches.append(v.convert(v.bounds, to: table)) }
-            if v is RowActionView { actions.append(v.convert(v.bounds, to: table)) }
+            if let a = v as? RowActionView {
+                actions.append(a.convert(a.bounds, to: table))
+                rightEdge = max(rightEdge, a.convert(a.buttonRect, to: table).maxX, a.convert(a.trashRect, to: table).maxX)
+            }
             v.subviews.forEach(walk)
         }
         walk(table)
@@ -443,7 +453,9 @@ import VellaUpdate
                 "gaps between a model's Optimized and Standard rows: \(Set(gaps).sorted()) over \(gaps.count) models (expected \(Int(TierControl.rowSpacing)))",
                 "segment heights: \(Set(controls.map { Int($0.height) }).sorted()) (expected \(Int(TierControl.segmentHeight)))",
                 "switch sizes: \(Set(switches.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(ExactFastSwitch.width))x\(Int(ExactFastSwitch.height)))",
-                "action sizes: \(Set(actions.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(RowAction.width))x\(Int(RowAction.height)))"
+                "action sizes: \(Set(actions.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(RowAction.width))x\(Int(RowAction.height)))",
+                "table width: \(Int(table.frame.width)), fitting \(Int(table.fittingSize.width)) (expected \(Int(ModelTable.width)))",
+                "right edge of the last button or trash glyph: \(Int(rightEdge)), margin \(Int(table.bounds.maxX - rightEdge)) (expected at least \(Int(ModelTable.trailingMargin)))"
             ]
             + all.map { "\($0)" }
         try? lines.joined(separator: "\n").write(to: check, atomically: true, encoding: .utf8)

@@ -41,15 +41,9 @@ import VellaWire
     var previewInUse = false
     /// Render harness: the family whose action cell is drawn hovered.
     var previewHover: String?
-    /// Capabilities filter: show only models with every capability in it (empty = every model). Kept while Vella runs.
-    @Published var capabilityFilter: Set<Capability> = []
-    /// The filter strip under the header is open (a click on the Capabilities header toggles it).
-    @Published var filterOpen = false
     /// Family id → the precision a flip to Exact moved the preview away from (Exact offers fewer precisions); the
     /// name's second line says so while the preview lasts.
     @Published private(set) var couplingNotes: [String: ModelTier] = [:]
-    /// The table's height changed (filter strip, filtered rows): the menu resizes its item view.
-    var onLayoutChange: (() -> Void)?
     /// Family id → the precision whose confirmed download is running; it loads when the download finishes.
     @Published private(set) var pendingLoads: [String: String] = [:]
     /// config.json as last read: the modes' models and `lastLoaded`. Nil without one (isolated tests, renders).
@@ -158,19 +152,9 @@ import VellaWire
     }
     /// Cloud reference rows of a section (estimated WER only; no controls). Shown only beside local models.
     func references(_ mode: RecognitionMode) -> [ReferenceEntry] { families(mode).isEmpty ? [] : benchmarks.references(mode) }
-    /// Rows the table shows: the families with every filtered capability; cloud rows only without a filter (their
-    /// capabilities are not known).
-    func visibleFamilies(_ mode: RecognitionMode) -> [ModelFamily] { families(mode).filter { hasCapabilities($0, capabilityFilter) } }
-    func visibleReferences(_ mode: RecognitionMode) -> [ReferenceEntry] { capabilityFilter.isEmpty ? references(mode) : [] }
-    var rowCount: Int { RecognitionMode.allCases.reduce(0) { $0 + visibleFamilies($1).count + visibleReferences($1).count } }
-    var sectionCount: Int { [RecognitionMode.dictation, .streaming].filter { !visibleFamilies($0).isEmpty }.count }
-    /// The filter strip's checkboxes: capabilities some models have and others lack.
-    var filterableCapabilities: [Capability] { VellaCore.filterableCapabilities(RecognitionMode.allCases.flatMap { families($0) }) }
-    func toggleFilterStrip() { filterOpen.toggle(); onLayoutChange?() }
-    func toggleFilter(_ c: Capability) {
-        if capabilityFilter.contains(c) { capabilityFilter.remove(c) } else { capabilityFilter.insert(c) }
-        onLayoutChange?()
-    }
+    /// Rows the table shows: every family and cloud row of both sections.
+    var rowCount: Int { RecognitionMode.allCases.reduce(0) { $0 + families($1).count + references($1).count } }
+    var sectionCount: Int { [RecognitionMode.dictation, .streaming].filter { !families($0).isEmpty }.count }
 
     func options(_ f: ModelFamily) -> [String] { precisionOptions(f) }
     /// The precision a derived one is made from, nil for a published precision.

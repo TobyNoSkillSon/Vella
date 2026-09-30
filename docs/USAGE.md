@@ -44,12 +44,11 @@ Hover an item for what it does.
 
 ## Models
 
-**Models…** opens one table with a Dictation section and a Streaming section. Each line is one model:
+**Models…** opens one table with a Dictation section and a Streaming section, divided by a thick line. Each line is one model:
 
 | Column | Meaning |
 |---|---|
-| Model | Name; under a loaded model, what runs (**Optimized Fast · <chip>**, **Optimized Exact · <chip>** or **Standard**). Tooltip: parameters, native precision, licence. |
-| Capabilities | Fixed icon slots, each with a one-line tooltip, only for capabilities that set models apart and that the catalog states: the globe (how many languages) and the waveform (streams while you speak). An empty slot means the model lacks it. When some capability applies to some models but not others outside their section, clicking the heading opens a "Show only models with …" filter under it; a dot beside the heading means a filter is on. |
+| Model | Name; under a loaded model, what runs (**Optimized Fast · <chip>**, **Optimized Exact · <chip>** or **Standard**). Tooltip: what it is for and its languages, parameters, native precision, licence. |
 | Params | Parameter count. |
 | Precision | Two rows of three equal cells, named by the format that runs: **Optimized** (a bolt: Vella's kernels for this chip, same weights) above **Standard** (the MLX logo: plain MLX, same weights, no custom kernels). `bf16` (`fp16` for Whisper) is the checkpoint as released (Parakeet v3's fp32 release is converted once to bf16); `int8` and `int4` are affine 8- and 4-bit (group 64) compressed on this Mac from it: smaller, faster, slightly less accurate. Every row shows all six cells; a cell that cannot run is greyed in place, never hidden, and its tooltip says why in one line (`Not offered: 1 clip empty or cut short where 16 had the words`, `Not measured yet`, `No Exact recipe at int8; Fast offers it`). Every other cell is clickable and shows its own figures. Each segment's tooltip gives the format and the difference from Standard bf16, e.g. `vs Standard bf16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep`, and for a precision that is worse than 16 its loss. |
 | (switch) | Beside both rows and as tall as the pair, a switch, up **Fast**, down **Exact**; a click anywhere on it flips it. It applies to the Optimized row only (its knob carries that row's bolt): **Exact** runs only kernels whose output is identical to Standard, **Fast** also chip-specific kernels within the model's own noise. Greyed and pinned up where Fast measures the same as Exact (always on). Exact offers only the precisions with an exact recipe: flipping to Exact on one without moves the row to 16, and the line under the name says so (`Exact: bf16 only, was int8`). |

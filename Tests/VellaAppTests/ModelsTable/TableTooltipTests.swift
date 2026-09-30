@@ -88,9 +88,6 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertNotNil(l[0].range(of: #": (lower is better|higher is faster)"#, options: .regularExpression), "\(label): \(l[0])")
                 XCTAssertNotNil(l[1].range(of: Self.provenance, options: .regularExpression), "\(label): \(l[1])")
                 assertNoTrailingPeriod(text, label)
-            case let c where c.hasPrefix("Capability "):
-                XCTAssertEqual(l.count, 1, "\(label): one line per capability")
-                assertNoTrailingPeriod(text, label)
             case "Action":
                 XCTAssertEqual(l.count, 2, "\(label): the model's state, then what a click does")
                 XCTAssertTrue(["Loaded", "On disk, not loaded", "Not downloaded"].contains(l[0]), "\(label): \(l[0])")
@@ -133,10 +130,8 @@ final class TableTooltipTests: XCTestCase {
         let precisionColumns = TierControl.Row.allCases.flatMap { row in
             ["Path \(row.title)"] + ModelTier.allCases.map { "Precision \(row.title) \(tierDTypeLabel(family, $0))" }
         }
-        let capabilityColumns = Capability.allCases.filter { capabilitySlots(family)[$0] != nil }.map { "Capability \($0.rawValue)" }
-        XCTAssertFalse(capabilityColumns.isEmpty, "every Vella model is multilingual")
         let expected =
-            ["Model"] + (loaded?.engine != nil && table.controller.couplingNote(family) == nil ? ["Engine"] : []) + capabilityColumns + precisionColumns + ["Exact/Fast"]
+            ["Model"] + (loaded?.engine != nil && table.controller.couplingNote(family) == nil ? ["Engine"] : []) + precisionColumns + ["Exact/Fast"]
             + ["WER", "Format", "Speed", "J / min", "Peak RAM", "Action"]
         XCTAssertEqual(columns, expected, "\(family.id) \(state)")
     }
@@ -265,7 +260,7 @@ final class TableTooltipTests: XCTestCase {
         "nemotron-3.5-streaming-0.6b": """
         Nemotron 3.5 Streaming
         NVIDIA, 2026 · OpenMDW-1.1 (MLX conversion: NVIDIA Open Model License)
-        Transcribes audio as it arrives, so Streaming mode types while you speak; not used for Dictation
+        Transcribes 28 languages as the audio arrives, so Streaming mode types while you speak; not used for Dictation
         0.6B parameters · native BF16
         """
     ]
@@ -277,6 +272,8 @@ final class TableTooltipTests: XCTestCase {
         XCTAssertEqual(Set(families.map(\.id)), Set(Self.modelNotes.keys))
         for family in families {
             XCTAssertEqual(table.tooltips(family).first { $0.0 == "Model" }?.1, Self.modelNotes[family.id], family.id)
+            // With the Capabilities column gone (Toby, 30 Sep), the languages live in the model's tooltip.
+            XCTAssertTrue(Self.modelNotes[family.id]?.contains("languages") == true, "\(family.id): its languages")
             XCTAssertNotNil(family.publisher, family.id); XCTAssertNotNil(family.released, family.id)
             XCTAssertNotNil(family.licence, family.id); XCTAssertNotNil(family.summary, family.id)
         }
@@ -313,8 +310,7 @@ final class TableTooltipTests: XCTestCase {
         XCTAssertEqual(tips["Peak RAM"], "Peak memory of Vella's model worker on the v2 quick benchmark (22.5 min), loading included: lower is better\n" + by)
         XCTAssertNil(tips["On disk"], "no On disk column: the Get pop-up and the action's tooltip give the download size")
         XCTAssertEqual(tips["Action"], "Not downloaded\nAsks, then downloads \(formatBytes(ultra.variants["BF16"]!.downloadBytes)) from Hugging Face; then loads it for dictation.")
-        XCTAssertEqual(tips["Capability languages"], "25 European languages")
-        XCTAssertNil(tips["Capability streaming"], "an empty slot has no tooltip")
+        XCTAssertFalse(tips.keys.contains { $0.hasPrefix("Capability") }, "no Capabilities column (Toby, 30 Sep)")
         c.select(ultra, tier: .t4)
         XCTAssertEqual(
             table.tooltips(ultra).first { $0.0 == "Action" }?.1,
@@ -349,6 +345,6 @@ final class TableTooltipTests: XCTestCase {
         let source = Repository.root.appendingPathComponent("Sources/Vella/ModelsTable/ModelTable.swift")
         let text = try String(contentsOf: source, encoding: .utf8)
         XCTAssertFalse(text.contains(".help("), "use .appKitTooltip on a framed non-interactive cell")
-        XCTAssertGreaterThanOrEqual(text.components(separatedBy: ".appKitTooltip(").count - 1, 20)
+        XCTAssertGreaterThanOrEqual(text.components(separatedBy: ".appKitTooltip(").count - 1, 19, "every cell with hover text (the Capabilities slots are gone)")
     }
 }

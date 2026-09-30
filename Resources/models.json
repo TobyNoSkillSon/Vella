@@ -717,7 +717,7 @@
       "publisher": "NVIDIA",
       "released": 2026,
       "licence": "OpenMDW-1.1 (MLX conversion: NVIDIA Open Model License)",
-      "summary": "Transcribes audio as it arrives, so Streaming mode types while you speak; not used for Dictation",
+      "summary": "Transcribes 28 languages as the audio arrives, so Streaming mode types while you speak; not used for Dictation",
       "notes": "NVIDIA's Nemotron 3.5 ASR Streaming 0.6B, released in 2026: a cache-aware FastConformer-RNNT model that transcribes audio as it arrives, for 40 language-locales. In Vella: Streaming mode, typing text while you speak. MLX conversion by mlx-community; lower precisions are made on this Mac from it."
     }
   ]

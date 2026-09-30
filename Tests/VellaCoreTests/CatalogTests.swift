@@ -495,7 +495,10 @@ final class CatalogTests: XCTestCase {
         // Table v2 with Toby's corrections (29 Sep, 21:xx): one line per model; Capabilities; Precision as two rows,
         // Optimized above Standard, every cell clickable; the Exact/Fast switch beside the Optimized row (up Fast, down
         // Exact, whole-area click, Exact coupled to 16); no On disk column; an always-visible one-word button.
-        XCTAssertTrue(docs[1].contains("| Capabilities | Fixed icon slots") && docs[1].contains("Show only models with"), "USAGE Capabilities column and filter")
+        // Table pass v4 (Toby, 30 Sep): no Capabilities column (the languages are in the model's tooltip); a thick line
+        // between the Dictation and Streaming groups.
+        XCTAssertFalse(all.contains("Capabilities") || all.contains("Show only models with"), "no Capabilities column or filter")
+        XCTAssertTrue(docs[1].contains("divided by a thick line") && docs[1].contains("its languages"), "USAGE group line and languages in the tooltip")
         // Table pass v3 (Toby, 30 Sep): six equal cells named by the dtype, icons for the rows, greyed never hidden, the
         // switch as tall as both rows, Peak RAM, one globe, figures pending until the final build is measured.
         XCTAssertTrue(
