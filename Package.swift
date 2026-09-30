@@ -15,5 +15,5 @@ let package = Package(name: "Vella", platforms: [.macOS("26.0")], products: [.ex
     .target(name: "VellaTestSupport", path: "Tests/Support"),
     .testTarget(name: "VellaCoreTests", dependencies: ["VellaCore", "VellaTestSupport"]),
     .testTarget(name: "VellaUpdateTests", dependencies: ["VellaUpdate", "VellaCore"]),
-    .testTarget(name: "VellaAppTests", dependencies: ["Vella", "VellaCore", "VellaCLI", "VellaUpdate", "VellaTestSupport"], exclude: ["TierTooltips.txt"])
+    .testTarget(name: "VellaAppTests", dependencies: ["Vella", "VellaCore", "VellaCLI", "VellaUpdate", "VellaTestSupport"], exclude: ["ModelsTable/TierTooltips.txt"])
 ])
