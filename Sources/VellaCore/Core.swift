@@ -6,7 +6,6 @@ public enum RecognitionMode: String, Codable, CaseIterable {
 }
 
 public struct Configuration: Codable {
-    public var executable: String
     /// Saved dictation selection, independent of the current mode.
     public var model: String
     public var mode: RecognitionMode
@@ -21,19 +20,19 @@ public struct Configuration: Codable {
     /// Catalog family id → the tier × path × Exact/Fast it was last loaded with (Selection.swift). Written only by a
     /// successful Load or Reload, like `lastLoaded`; a family without one shows Standard 16.
     public var selections: [String: ModelSelection] = [:]
-    public init(executable: String = "", model: String,
+    public init(model: String,
                 preferredMicrophone: String = "MacBook Pro Microphone", fallbackMicrophone: String = "MacBook Pro Microphone",
                 mode: RecognitionMode = .dictation, streamingModel: String = "") {
-        self.executable = executable; self.model = model
+        self.model = model
         self.mode = mode; self.streamingModel = streamingModel
         self.preferredMicrophone = preferredMicrophone; self.fallbackMicrophone = fallbackMicrophone
     }
+    /// Earlier versions also stored `executable` (the Python runtime of 0.8.x); it is ignored when read.
     private enum CodingKeys: String, CodingKey {
-        case executable, model, mode, streamingModel, preferredMicrophone, fallbackMicrophone, residency, lastLoaded, selections
+        case model, mode, streamingModel, preferredMicrophone, fallbackMicrophone, residency, lastLoaded, selections
     }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        executable = try values.decodeIfPresent(String.self, forKey: .executable) ?? ""
         model = try values.decodeIfPresent(String.self, forKey: .model) ?? ""
         mode = try values.decodeIfPresent(RecognitionMode.self, forKey: .mode) ?? .dictation
         streamingModel = try values.decodeIfPresent(String.self, forKey: .streamingModel) ?? ""

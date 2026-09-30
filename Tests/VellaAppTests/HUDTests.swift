@@ -12,7 +12,7 @@ final class HUDTests: XCTestCase {
         for (level, error, code) in cases {
             let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-failure-fixture-\(UUID())")
             defer { try? FileManager.default.removeItem(at: root) }
-            let session = try RecordingSession(root: root, config: Configuration(executable: "/unused", model: "/fixture"))
+            let session = try RecordingSession(root: root, config: Configuration(model: "/fixture"))
             let writer = try SegmentedPCMWriter(session: session)
             try [Float](repeating: level, count: 1600).withUnsafeBufferPointer { try writer.append($0) }
             try writer.finish(userStopped: true)
@@ -42,7 +42,7 @@ final class HUDTests: XCTestCase {
     @MainActor func testResolvedSilenceSettlesWithoutWarningOrClipboardMutation() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-silence-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
-        let session = try RecordingSession(root: root, config: Configuration(executable: "/unused", model: "/fixture"))
+        let session = try RecordingSession(root: root, config: Configuration(model: "/fixture"))
         let writer = try SegmentedPCMWriter(session: session)
         try [Float](repeating: 0, count: 1600).withUnsafeBufferPointer { try writer.append($0) }
         try writer.finish(userStopped: true)
@@ -69,7 +69,7 @@ final class HUDTests: XCTestCase {
     @MainActor func testBackendOriginatedCancellationSettlesWithoutPasting() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-cancel-fixture-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
-        let session = try RecordingSession(root: root, config: Configuration(executable: "/unused", model: "/fixture"))
+        let session = try RecordingSession(root: root, config: Configuration(model: "/fixture"))
         let writer = try SegmentedPCMWriter(session: session)
         try [Float](repeating: 0.1, count: 1600).withUnsafeBufferPointer { try writer.append($0) }
         try writer.finish(userStopped: true)

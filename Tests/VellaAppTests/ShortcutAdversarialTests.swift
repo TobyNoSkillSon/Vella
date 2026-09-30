@@ -28,7 +28,7 @@ final class ShortcutAdversarialTests: XCTestCase {
     @MainActor private func tempConfig(mode: RecognitionMode = .dictation) throws -> URL {
         let root = try tempRoot()
         let url = root.appendingPathComponent("config.json")
-        var settings = Configuration(executable: "/unused", model: "/synthetic")
+        var settings = Configuration(model: "/synthetic")
         settings.mode = mode
         try JSONEncoder().encode(settings).write(to: url, options: .atomic)
         return url
@@ -106,7 +106,7 @@ final class ShortcutAdversarialTests: XCTestCase {
     @MainActor func testUpgradeFrom088KeepsModeAndMic() throws {
         let root = try tempRoot()
         let url = root.appendingPathComponent("config.json")
-        var settings = Configuration(executable: "/unused", model: "/keep")
+        var settings = Configuration(model: "/keep")
         settings.mode = .streaming
         settings.preferredMicrophone = "Synthetic Mic"
         try JSONEncoder().encode(settings).write(to: url, options: .atomic)
@@ -119,9 +119,9 @@ final class ShortcutAdversarialTests: XCTestCase {
         // Analogue: empty model fails validation, so a future
         // "empty trigger (no key/modifiers/mouse)" must likewise be rejected
         // and fall back to ⌃⌘N rather than registering nothing.
-        let empty = Configuration(executable: "", model: "")
+        let empty = Configuration(model: "")
         XCTAssertThrowsError(try empty.validate())
-        let noModel = Configuration(executable: "/unused", model: "")
+        let noModel = Configuration(model: "")
         XCTAssertThrowsError(try noModel.validate())
     }
 

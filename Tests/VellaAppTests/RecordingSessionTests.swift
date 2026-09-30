@@ -34,7 +34,7 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertEqual(orphan.sha256, hash); XCTAssertTrue(orphan.finalized)
     }
 
-    let config = Configuration(executable: "/qa/unused", model: "/qa/model")
+    let config = Configuration(model: "/qa/model")
     func root() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("vella-session-tests-\(UUID())")
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)

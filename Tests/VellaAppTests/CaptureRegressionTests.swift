@@ -31,7 +31,7 @@ final class CaptureRegressionTests: XCTestCase {
         return data
     }
     func testNativeMonoFloatCaptureIsSampleExactAcrossVariableBuffers() throws {
-        let record = try RecordingSession(root: root(), config: Configuration(executable: "/unused", model: "/unused"))
+        let record = try RecordingSession(root: root(), config: Configuration(model: "/unused"))
         var streaming = Data()
         let sink = try CaptureSink(session: record, onPCM: { streaming.append($0) })
         let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false))
@@ -66,8 +66,7 @@ final class CaptureRegressionTests: XCTestCase {
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let installed = Backend.support.appendingPathComponent("Models/nemotron-3.5-asr-streaming-0.6b-8bit")
         let weights = FileManager.default.fileExists(atPath: installed.path) ? installed : cwd.appendingPathComponent(".build/qa/model-scout/Models/nemotron-3.5-asr-streaming-0.6b-8bit")
-        let runtime = try Backend().configuration(requiresModel: false).executable
-        let config = try Configuration(executable: runtime, model: "", mode: .streaming, streamingModel: weights.path).forRecording()
+        let config = try Configuration(model: "", mode: .streaming, streamingModel: weights.path).forRecording()
         let record = try RecordingSession(root: root(), config: config)
         let queue = StreamingPCMBuffer()
         let sink = try CaptureSink(session: record, onPCM: { queue.append($0) })
@@ -125,7 +124,7 @@ final class CaptureRegressionTests: XCTestCase {
         struct Manifest: Decodable { struct Clip: Decodable { let file: String }; let clips: [Clip] }
         let resources = try LabFixtures.require("Resources/Benchmarks/v1/english-formatted-20m-v1")
         let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: resources.appendingPathComponent("manifest.json")))
-        let record = try RecordingSession(root: root(), config: Configuration(executable: "/unused", model: "/unused"))
+        let record = try RecordingSession(root: root(), config: Configuration(model: "/unused"))
         let sink = try CaptureSink(session: record)
         var expected = Data()
         // Replay three short clips twice (32.61 seconds), crossing a real writer cut.
@@ -213,7 +212,7 @@ final class CaptureRegressionTests: XCTestCase {
     func testDrainFailureStillFinalizesPendingPCMAndPreservesFirstError() throws {
         enum Failure: Error { case drain, priorCapture }
         for priorFailure in [false, true] {
-            let record = try RecordingSession(root: root(), config: Configuration(executable: "/unused", model: "/unused"))
+            let record = try RecordingSession(root: root(), config: Configuration(model: "/unused"))
             let sink = try CaptureSink(session: record)
             let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false))
             let pcm = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 17))
@@ -231,7 +230,7 @@ final class CaptureRegressionTests: XCTestCase {
     }
     func testFinalizationFailureDoesNotReplaceDrainError() throws {
         enum Failure: Error { case drain }
-        let record = try RecordingSession(root: root(), config: Configuration(executable: "/unused", model: "/unused"))
+        let record = try RecordingSession(root: root(), config: Configuration(model: "/unused"))
         let sink = try CaptureSink(session: record)
         // Remove only this empty synthetic fixture, so journal finalization also fails.
         try FileManager.default.removeItem(at: record.directory)

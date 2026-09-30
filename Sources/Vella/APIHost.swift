@@ -32,7 +32,7 @@ import VellaCore
             guard let precision, let path else { continue }
             let isLoaded = loaded?.path == path
             let requested = (isLoaded ? loaded?.selection : nil)
-                ?? recordedSelection(config: config, launchSet: runtime.settings.launchSet, family: family.id, precision: precision, path: path)
+                ?? recordedSelection(config: config, family: family.id, precision: precision)
             let running = effectiveSelection(requested, engine: isLoaded ? runtime.status.models[family.id]?.engine : nil)
             result.append(APIModel(id: family.id, name: family.name, precision: precision, path: path, languages: family.languages,
                                    loaded: isLoaded, current: currentIdentity?.family.id == family.id,

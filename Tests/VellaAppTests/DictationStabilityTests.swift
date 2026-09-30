@@ -7,7 +7,7 @@ final class DictationStabilityTests: XCTestCase {
     private func fixture(_ audio: [[Float]], texts: [String?]? = nil) throws -> RecordingSession {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("stability-synthetic-\(UUID())")
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
-        let session = try RecordingSession(root: root, config: .init(executable: "/unused", model: "/synthetic"))
+        let session = try RecordingSession(root: root, config: .init(model: "/synthetic"))
         for (i, samples) in audio.enumerated() {
             let data = samples.withUnsafeBytes { Data($0) }
             let segment = RecordingSession.Segment(index: i, frames: samples.count,

@@ -92,11 +92,11 @@ import VellaCore
     func ref(_ family: ModelFamily, _ precision: String, path: String, selection: ModelSelection? = nil) -> ModelRef {
         ModelRef(id: family.id, precision: precision, path: path, mode: family.mode, name: family.name,
                  diskBytes: estimatedWeightBytes(family, precision).map { Int64($0) } ?? family.diskBytes(precision), memoryMB: admissionMemoryMB(family, precision),
-                 precisionOptions: precisionOptions(family), selection: selection ?? recordedSelection(family, precision, path: path))
+                 precisionOptions: precisionOptions(family), selection: selection ?? recordedSelection(family, precision))
     }
-    func recordedSelection(_ family: ModelFamily, _ precision: String, path: String) -> ModelSelection {
+    func recordedSelection(_ family: ModelFamily, _ precision: String) -> ModelSelection {
         let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
-        return VellaCore.recordedSelection(config: config, launchSet: runtime.settings.launchSet, family: family.id, precision: precision, path: path)
+        return VellaCore.recordedSelection(config: config, family: family.id, precision: precision)
     }
     /// Memory admission plans with: the measured `memory_mb`, else (a precision made on this Mac, or any unmeasured
     /// one) vq-quant's estimate scaled from a measured precision. Nil only when nothing of the family is measured; then
@@ -253,7 +253,7 @@ import VellaCore
     private func offerSelection(_ offer: Model.ModelOffer) -> ModelSelection? {
         guard let (family, precision) = offered(offer.mode) else { return nil }
         let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
-        return defaultSelection(recorded: config?.selections[family.id], precision: precision, usedBefore: false)
+        return defaultSelection(recorded: config?.selections[family.id], precision: precision)
     }
     /// The download confirmation popup for the first-dictation Get row (tests answer it without a window).
     var presentDownload: (DownloadPrompt) -> Bool = { DownloadGate.presentAlert($0) }

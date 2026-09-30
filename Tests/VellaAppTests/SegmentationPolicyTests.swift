@@ -31,7 +31,7 @@ final class SegmentationPolicyTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-seg-tests-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
-        let session = try RecordingSession(root: root, config: Configuration(executable: "/qa/unused", model: model))
+        let session = try RecordingSession(root: root, config: Configuration(model: model))
         let writer = try SegmentedPCMWriter(session: session)
         // Capture-sized pieces, like the microphone path.
         for start in stride(from: 0, to: samples.count, by: 4_096) {

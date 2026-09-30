@@ -21,7 +21,7 @@ final class FinishFocusTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("finish-focus-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let config = root.appendingPathComponent("config.json")
-        var settings = Configuration(executable: "/unused", model: "/synthetic")
+        var settings = Configuration(model: "/synthetic")
         settings.mode = mode
         try JSONEncoder().encode(settings).write(to: config)
         let board = NSPasteboard.withUniqueName()
@@ -128,7 +128,7 @@ final class FinishFocusTests: XCTestCase {
         model.finish()
         await fulfillment(of: [failed], timeout: 2)
         XCTAssertNil(model.currentTargetBlockReason, "Fixture still has a valid Finish snapshot before recovery")
-        let session = try RecordingSession(root: root, config: .init(executable: "/unused", model: "/synthetic"))
+        let session = try RecordingSession(root: root, config: .init(model: "/synthetic"))
         let samples = [Float](repeating: 0.1, count: 16000)
         let data = samples.withUnsafeBytes { Data($0) }
         let segment = RecordingSession.Segment(index: 0, frames: samples.count, peakRMS: 0.1,

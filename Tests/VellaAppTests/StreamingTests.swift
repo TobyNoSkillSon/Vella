@@ -11,7 +11,7 @@ final class StreamingTests: XCTestCase {
         return root
     }
     private func config() -> Configuration {
-        Configuration(executable: "/usr/bin/python3", model: "/fixture/dictation", mode: .streaming, streamingModel: "/fixture/stream")
+        Configuration(model: "/fixture/dictation", mode: .streaming, streamingModel: "/fixture/stream")
     }
     @MainActor private func worker(_ body: String = "", timeout: Double = 1, afterLoop: String = "") throws -> StreamingBackend {
         let script = try root().appendingPathComponent("worker.py")

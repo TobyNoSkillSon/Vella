@@ -6,7 +6,7 @@ final class CoreTests: XCTestCase {
     func testPreferred() { XCTAssertEqual(selectMicrophone([mac, shure], preferred: shure.name, fallback: mac.name), shure) }
     func testFallback() { XCTAssertEqual(selectMicrophone([mac], preferred: shure.name, fallback: mac.name), mac) }
     func testNoUnrelatedDevice() { XCTAssertNil(selectMicrophone([Microphone(id: 3, name: "iPhone Microphone")], preferred: shure.name, fallback: mac.name)) }
-    func testModelValidation() { XCTAssertThrowsError(try Configuration(executable: "python", model: "").validate()); XCTAssertNoThrow(try Configuration(executable: "python", model: "").validate(requiresModel: false)) }
+    func testModelValidation() { XCTAssertThrowsError(try Configuration(model: "").validate()); XCTAssertNoThrow(try Configuration(model: "").validate(requiresModel: false)) }
     func testMeterSilenceAndInvalidSamples() {
         XCTAssertEqual(visualLevel(rms: 0), 0)
         XCTAssertEqual(visualLevel(rms: .nan), 0)

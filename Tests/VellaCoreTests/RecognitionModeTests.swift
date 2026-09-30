@@ -5,10 +5,12 @@ final class RecognitionModeTests: XCTestCase {
     func testLegacyAndNewConfigurationsDoNotRequireRuntimePath() throws {
         let current = try JSONDecoder().decode(Configuration.self, from: Data(#"{"model":"/dictation"}"#.utf8))
         XCTAssertNoThrow(try current.validate())
-        XCTAssertEqual(current.executable, "")
         let old = try JSONDecoder().decode(Configuration.self, from: Data(#"{"executable":"/old/Runtimes/python","model":"/dictation"}"#.utf8))
         XCTAssertNoThrow(try old.validate())
-        XCTAssertEqual(old.executable, "/old/Runtimes/python")
+        XCTAssertEqual(old.model, "/dictation")
+        // The retired key is not written back.
+        let written = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(old)) as? [String: Any])
+        XCTAssertNil(written["executable"])
     }
     func testOldConfigurationDefaultsToDictation() throws {
         let config = try JSONDecoder().decode(Configuration.self, from: Data(#"{"executable":"/python","model":"/dictation"}"#.utf8))
@@ -19,7 +21,7 @@ final class RecognitionModeTests: XCTestCase {
         XCTAssertNoThrow(try config.validate())
     }
     func testSlotsStayIndependentAndSnapshotDoesNotMutateSavedSelection() throws {
-        var config = Configuration(executable: "/python", model: "/dictation", mode: .streaming, streamingModel: "/stream")
+        var config = Configuration(model: "/dictation", mode: .streaming, streamingModel: "/stream")
         config.selectModel("/new-dictation", for: .dictation)
         XCTAssertEqual(config.mode, .streaming)
         XCTAssertEqual(config.streamingModel, "/stream")
@@ -35,7 +37,7 @@ final class RecognitionModeTests: XCTestCase {
         XCTAssertEqual(decoded.model, "/new-dictation")
     }
     func testValidationNeverFallsBackToOtherMode() throws {
-        var config = Configuration(executable: "/python", model: "/dictation", mode: .streaming)
+        var config = Configuration(model: "/dictation", mode: .streaming)
         XCTAssertThrowsError(try config.validate())
         XCTAssertThrowsError(try config.forRecording())
         XCTAssertNoThrow(try config.validate(requiresModel: false))

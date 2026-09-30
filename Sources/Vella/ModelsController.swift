@@ -283,7 +283,7 @@ import VellaCore
         if let s = loadedSelection(f) { return s }
         // Same rule as the runtime's on-demand loads (VellaCore `defaultSelection`).
         let stored = config?.selections[f.id]
-        let candidate = lastLoaded(f).map { defaultSelection(recorded: stored, precision: $0, usedBefore: true) } ?? stored ?? .fallback
+        let candidate = lastLoaded(f).map { defaultSelection(recorded: stored, precision: $0) } ?? stored ?? .fallback
         return valid(f, candidate)
     }
     /// `s` when its cell is present, else the Optimized cell at its tier (its switch position, then the other), else

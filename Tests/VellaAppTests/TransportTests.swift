@@ -35,12 +35,11 @@ for line in sys.stdin:
  obj={'id':r['id'],'text':'Fixture recognized speech.','metrics':{'pid':os.getpid()}}
  if mode=='failure': obj={'id':r['id'],'error':{'code':'inference','message':'not persisted'}}
  if mode=='empty': obj['text']=''
- if mode=='legacyempty': obj={'id':r['id'],'error':{'code':'no_speech'}}
  if mode=='wrongid': obj['id']='wrong'
  print(json.dumps(obj),flush=True)
 """#.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
-        let record = try RecordingSession(root: root, config: Configuration(executable: "/unused", model: "/fixture/normal"))
+        let record = try RecordingSession(root: root, config: Configuration(model: "/fixture/normal"))
         let writer = try SegmentedPCMWriter(session: record)
         try [Float](repeating: 0.1, count: 1600).withUnsafeBufferPointer { try writer.append($0) }
         try writer.finish(userStopped: true)
@@ -63,8 +62,8 @@ for line in sys.stdin:
             XCTAssertNil(recovered.manifest.segments[0].text)
         }
     }
-    @MainActor func testEmptyAndLegacyEmptyIPCResponsesAreSuccessful() async throws {
-        for mode in ["empty", "legacyempty"] {
+    @MainActor func testEmptyIPCResponseIsSuccessful() async throws {
+        for mode in ["empty"] {
             let (script, record) = try fixture()
             record.manifest.config.model = "/fixture/\(mode)"
             let backend = Backend(helper: script, runtime: try runtime())

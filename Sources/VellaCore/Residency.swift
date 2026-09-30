@@ -51,21 +51,18 @@ public struct ModelRef: Codable, Hashable {
 /// components that passed the gate. Nil selection = Optimized · Fast (the behaviour before selections existed).
 public func workerRecipe(_ selection: ModelSelection?) -> String { (selection?.segmentKey ?? .optimized_fast).rawValue }
 /// The selection a load runs when none is passed (an on-demand dictation, an API request, the first-dictation Get):
-/// the family's recorded selection (config.json `selections`) at the precision's tier; else, for a family used before
-/// selections existed (it has a `lastLoaded` entry or is a mode's model), Optimized · Fast, which is what it ran; a
-/// model never loaded also gets Optimized · Fast (family ruling, 29 Sep: fresh installs and on-demand agent loads never
-/// land on Standard). `usedBefore` is kept for callers and documentation; both cases now give the same selection.
-public func defaultSelection(recorded: ModelSelection?, precision: String, usedBefore: Bool) -> ModelSelection {
+/// the family's recorded selection (config.json `selections`) at the precision's tier; else Optimized · Fast, both for
+/// a family used before selections existed (what it ran) and for a model never loaded (family ruling, 29 Sep: fresh
+/// installs and on-demand agent loads never land on Standard).
+public func defaultSelection(recorded: ModelSelection?, precision: String) -> ModelSelection {
     let tier = modelTier(ofPrecision: precision) ?? recorded?.tier ?? .t16
     if var recorded { recorded.tier = tier; return recorded }
     return ModelSelection(tier: tier, path: .optimized, mode: .fast)
 }
-/// `defaultSelection` from config.json (nil = none) and the launch set: what a load of `family` at `precision` from
-/// `path` runs when no selection is passed.
-public func recordedSelection(config: Configuration?, launchSet: [ModelRef], family: String, precision: String, path: String) -> ModelSelection {
-    let usedBefore = config.map { $0.lastLoaded[family] != nil || [$0.model, $0.streamingModel].contains(path) } ?? false
-        || launchSet.contains { $0.id == family }
-    return defaultSelection(recorded: config?.selections[family], precision: precision, usedBefore: usedBefore)
+/// `defaultSelection` from config.json (nil = none): what a load of `family` at `precision` runs when no selection is
+/// passed.
+public func recordedSelection(config: Configuration?, family: String, precision: String) -> ModelSelection {
+    defaultSelection(recorded: config?.selections[family], precision: precision)
 }
 
 /// What actually runs: the requested selection, except that a worker on stock MLX (`engine` "mlx": Standard asked, the

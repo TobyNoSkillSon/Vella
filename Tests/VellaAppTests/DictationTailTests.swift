@@ -7,7 +7,7 @@ final class DictationTailTests: XCTestCase {
     @MainActor func testExactStopOverlapIsVerifiedWithoutInferenceAndMismatchIsRetained() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("overlap-test-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
-        let session = try RecordingSession(root: root, config: .init(executable: "/unused", model: "/synthetic"))
+        let session = try RecordingSession(root: root, config: .init(model: "/synthetic"))
         var policy = SegmentedPCMWriter.Policy()
         policy.preferredSeconds = 1; policy.maximumSeconds = 2; policy.overlapSeconds = 0.1
         let writer = try SegmentedPCMWriter(session: session, policy: policy)
@@ -34,7 +34,7 @@ final class DictationTailTests: XCTestCase {
     private func fixture() throws -> RecordingSession {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("tail-test-\(UUID())")
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
-        let session = try RecordingSession(root: root, config: .init(executable: "/unused", model: "/synthetic"))
+        let session = try RecordingSession(root: root, config: .init(model: "/synthetic"))
         // A silence cut at five seconds followed by 117 ms of nonquiet audio.
         let writer = try SegmentedPCMWriter(session: session)
         let samples = [Float](repeating: 0.1, count: 73600) + [Float](repeating: 0, count: 6400)

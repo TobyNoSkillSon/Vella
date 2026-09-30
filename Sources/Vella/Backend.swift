@@ -534,7 +534,6 @@ struct WorkerExited: LocalizedError {
             let object = try await send(slot, ["audio": file.path, "model": slot.ref.path], timeout: requestTimeout)
             lastMetrics = (object["metrics"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? NSNumber)?.doubleValue }
             if let error = object["error"] as? [String: Any] {
-                if error["code"] as? String == "no_speech" { return "" } // Legacy worker: empty recognition is success.
                 retire(slot)
                 throw VellaError.message(error["code"] as? String == "memory"
                     ? "This model needs more available memory. Choose a smaller model; saved audio is retained."
@@ -658,8 +657,7 @@ struct WorkerExited: LocalizedError {
         do {
             try checkStartup(generation)
             let reply = try await send(slot, ["op": "load", "model": ref.path], timeout: requestTimeout)
-            // A legacy worker answers the load line like a transcription; "no_speech" is its success.
-            if let error = reply["error"] as? [String: Any], error["code"] as? String != "no_speech" {
+            if let error = reply["error"] as? [String: Any] {
                 throw VellaError.message(error["code"] as? String == "memory"
                     ? "\(ref.displayName) needs more available memory than macOS could give. Saved audio is retained; choose a smaller model."
                     : "\(ref.displayName) failed to load. Saved audio is retained; try again or choose another model.")

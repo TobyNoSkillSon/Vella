@@ -831,7 +831,7 @@ final class GlobalShortcut {
         if let index = CommandLine.arguments.firstIndex(of: "--session-crash-fixture"), CommandLine.arguments.count > index + 1 {
             do {
                 let root = URL(fileURLWithPath: CommandLine.arguments[index + 1])
-                let session = try RecordingSession(root: root, config: Configuration(executable: "/qa/unused", model: "/qa/unused"))
+                let session = try RecordingSession(root: root, config: Configuration(model: "/qa/unused"))
                 let writer = try SegmentedPCMWriter(session: session)
                 let samples = [Float](repeating: 0.1, count: 34_000)
                 try samples.withUnsafeBufferPointer { try writer.append($0) }

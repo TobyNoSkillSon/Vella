@@ -131,7 +131,7 @@ final class RuntimeRegressionTests: XCTestCase {
         return backend
     }
     private func streamConfig(_ path: String) throws -> Configuration {
-        try Configuration(executable: "/usr/bin/python3", model: "/fixture/dictation", mode: .streaming, streamingModel: path).forRecording()
+        try Configuration(model: "/fixture/dictation", mode: .streaming, streamingModel: path).forRecording()
     }
     private func path(_ name: String) -> String { root.appendingPathComponent("models/\(name)").path }
     private func alive(_ pid: Int32) -> Bool { kill(pid, 0) == 0 }
@@ -459,8 +459,8 @@ final class RuntimeRegressionTests: XCTestCase {
     @MainActor func testWorkerCrashRetryKeepsFinishDestinationAndPasteSemantics() async throws {
         for crashes in [1, 2] {
             let config = root.appendingPathComponent("finish-\(crashes).json")
-            try JSONEncoder().encode(Configuration(executable: "/unused", model: "/synthetic")).write(to: config)
-            let session = try recording("finish-\(crashes)", config: Configuration(executable: "/unused", model: "/synthetic"))
+            try JSONEncoder().encode(Configuration(model: "/synthetic")).write(to: config)
+            let session = try recording("finish-\(crashes)", config: Configuration(model: "/synthetic"))
             let focus = Focus()
             let board = NSPasteboard.withUniqueName(); defer { board.releaseGlobally() }
             var calls = 0
