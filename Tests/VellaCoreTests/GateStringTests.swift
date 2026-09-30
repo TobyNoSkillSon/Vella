@@ -28,12 +28,7 @@ final class GateStringTests: XCTestCase {
         #"gemvRevision = "gemv-1""#,
         #""whisper-3-f16-model""#,
         #""whisper-3""#,
-        #""qwen3-asr-3-f32-encoder""#,
-        #""qwen3-asr-2-bf16-encoder""#,
-        #""-p3""#,
-        #""-prefill-head""#,
-        #""-device-lengths""#,
-        #""-reference-lengths""#,
+        #""qwen3-asr-3-f32-encoder-p3""#,
         #"static let revision = "nemotron-stream-5""#,
         #""stub-1""#,
         #""\(gpuFamily):\(osBuild):\(version)""#,
@@ -65,7 +60,6 @@ final class GateStringTests: XCTestCase {
             }
         }
         XCTAssertEqual(try list("componentSwitches"), ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND", "VELLA_PARAKEET_NAX",
-                                                       "VELLA_QWEN_HOST_LENGTHS", "VELLA_QWEN_PREFILL_HEAD", "VELLA_QWEN_REFERENCE_LENGTHS",
                                                        "VELLA_TEST_TOLERANT_FAULT", "VELLA_WHISPER_FUSED"])
         XCTAssertEqual(try list("componentSwitchPrefixes"), ["VELLA_NEMO_"])
     }

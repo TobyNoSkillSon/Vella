@@ -154,3 +154,10 @@ extension WorkerTests {
         }
     }
 }
+
+extension WorkerTests {
+    /// The fast-path revisions under the default environment: the values every production gate key uses.
+    @Suite struct Revisions {
+        @Test func qwen() { #expect(Qwen3ASRModel.fastPathRevision == "qwen3-asr-3-f32-encoder-p3") }
+    }
+}

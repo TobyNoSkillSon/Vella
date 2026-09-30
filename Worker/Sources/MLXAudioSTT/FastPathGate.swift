@@ -18,7 +18,7 @@ public enum FastPathGate {
     /// Bumped to 8 with the component configuration in the key: a verdict persisted earlier may have
     /// been qualified under a diagnostic component override, so every model requalifies once.
     /// 9: two-stage gate with tolerance self-tests for inexact components (GATE-REVISION.md).
-    /// 10: Parakeet NAX GEMMs on by default; Qwen3-ASR's BF16 audio encoder off by default.
+    /// 10: Parakeet NAX GEMMs on by default; Qwen3-ASR's BF16 audio encoder off by default (removed since).
     public static let version = "native-kernels-10"
     /// Child exit status when the self-test could not start (not a verdict on the kernels).
     public static let inconclusive: Int32 = 3
@@ -110,7 +110,6 @@ public enum FastPathGate {
     /// The effective set is part of the gate key, so a verdict qualified under an override is never reused for
     /// production defaults, and the self-test child (which inherits them) tests exactly what the worker will run.
     public static let componentSwitches = ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND", "VELLA_PARAKEET_NAX",
-                                             "VELLA_QWEN_HOST_LENGTHS", "VELLA_QWEN_PREFILL_HEAD", "VELLA_QWEN_REFERENCE_LENGTHS",
                                              "VELLA_TEST_TOLERANT_FAULT",
                                              "VELLA_WHISPER_FUSED"]
     public static let componentSwitchPrefixes = ["VELLA_NEMO_"]
@@ -126,7 +125,7 @@ public enum FastPathGate {
     public static let selectionSwitches = ["VELLA_RECIPE"]
     public static let reportedSwitches = componentSwitches + ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR",
         "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
-        "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_QWEN_ENC_BF16", "VELLA_WHISPER_PROFILE", "VELLA_WHISPER_ENC_F16", "VELLA_STREAM_PROFILE",
+        "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_WHISPER_PROFILE", "VELLA_WHISPER_ENC_F16", "VELLA_STREAM_PROFILE",
         "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB",
         "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_TEST_ENCODER_NONFINITE", "VELLA_MLX_DEVICE",
         "VELLA_SELFTEST_RESULT", "VELLA_WHISPER_SEED"]

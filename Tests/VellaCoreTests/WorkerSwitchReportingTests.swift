@@ -39,7 +39,7 @@ final class WorkerSwitchReportingTests: XCTestCase {
         for file in files {
             read.formUnion(matches(#"environment\["(VELLA_[A-Z0-9_]+)"\]"#, in: try String(contentsOf: file, encoding: .utf8)))
         }
-        XCTAssertTrue(read.contains("VELLA_QWEN_ENC_BF16"), "parsed \(read.sorted())")
+        XCTAssertTrue(read.contains("VELLA_QWEN_PROFILE"), "parsed \(read.sorted())")
         let hidden = read.filter { name in !reported.contains(name) && !prefixes.contains { name.hasPrefix($0) } }
         XCTAssertEqual(hidden.sorted(), [], "worker switches missing from reportedSwitches")
     }
@@ -51,10 +51,6 @@ final class WorkerSwitchReportingTests: XCTestCase {
         let version = try XCTUnwrap(matches(#"static let version = "([a-z0-9-]+)""#, in: gate).first)
         let data = try Data(contentsOf: Self.root.appendingPathComponent("Resources/diagnose-reference.json"))
         XCTAssertEqual(DiagnoseReference.decode(data)?.gate_version, version)
-    }
-
-    func testQwenEncoderOverrideIsReportedByTheApp() {
-        XCTAssertEqual(activeTestHooks(["VELLA_QWEN_ENC_BF16": "0", "HOME": "/x"]), ["VELLA_QWEN_ENC_BF16": "0"])
     }
 
     func testWhisperEncoderOverrideIsReportedByTheApp() {
