@@ -17,11 +17,13 @@ import VellaUpdate
         try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let registry = root.appendingPathComponent("models-installed.json")
         let resources = ModelLibrary.resourceDirectory()
-        let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry, calibration: CalibrationStore(directory: root.appendingPathComponent("Calibrations"), resources: resources))
+        let dictation = ModelLibrary(
+            mode: .dictation, resources: resources, registryURL: registry,
+            calibration: CalibrationStore(directory: root.appendingPathComponent("Calibrations"), resources: resources))
         let streaming = ModelLibrary(mode: .streaming, resources: resources, registryURL: registry)
         let controller = ModelsController(dictation: dictation, streaming: streaming)
         controller.previewing = true
-        controller.actions = previewActions   // buttons render enabled, as with a running runtime; perform() is a no-op in preview
+        controller.actions = previewActions // buttons render enabled, as with a running runtime; perform() is a no-op in preview
         setInstalled(controller, installed)
         return controller
     }
@@ -31,8 +33,10 @@ import VellaUpdate
             for id in ids where library.models.contains(where: { $0.id == id }) { library.installed[id] = InstalledModel(path: "/render/\(id)") }
         }
     }
-    static let downloaded = ["parakeet-tdt-0.6b-v3-mlx-fp32", "Qwen3-ASR-1.7B-bf16", "Qwen3-ASR-0.6B-bf16",
-                             "nemotron-3.5-asr-streaming-0.6b-bf16", "nemotron-3.5-asr-streaming-0.6b-8bit"]
+    static let downloaded = [
+        "parakeet-tdt-0.6b-v3-mlx-fp32", "Qwen3-ASR-1.7B-bf16", "Qwen3-ASR-0.6B-bf16",
+        "nemotron-3.5-asr-streaming-0.6b-bf16", "nemotron-3.5-asr-streaming-0.6b-8bit"
+    ]
     static let optimized: [String: Bool] = ["encoder": true, "decoder": true]
     static let previewActions = PreviewActions()
 }
@@ -87,24 +91,33 @@ import VellaUpdate
         states.append(State(name: "downloaded-nothing-loaded"))
         // Nothing loaded: each row shows the cell it was last loaded with (config.json selections).
         var lastUsed = State(name: "unloaded-shows-last-used")
-        lastUsed.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-bf16-local", lastLoaded: ["qwen3-asr-0.6b": "8b", "parakeet-v3": "BF16"],
-                                      selections: ["qwen3-asr-0.6b": sel(.t8, .optimized, .fast), "parakeet-v3": sel(.t16, .optimized, .fast)])
+        lastUsed.config = Self.config(
+            dictation: "parakeet-tdt-0.6b-v3-mlx-bf16-local", lastLoaded: ["qwen3-asr-0.6b": "8b", "parakeet-v3": "BF16"],
+            selections: ["qwen3-asr-0.6b": sel(.t8, .optimized, .fast), "parakeet-v3": sel(.t16, .optimized, .fast)])
         states.append(lastUsed)
         // Loaded: Parakeet v3 on Optimized 16 Fast (hot, Unload), Nemotron on Optimized 8 Fast.
         var loaded = State(name: "loaded")
-        loaded.config = Self.config(dictation: "parakeet-tdt-0.6b-v3-mlx-bf16-local", streaming: "nemotron-3.5-asr-streaming-0.6b-8bit",
-                                    selections: ["parakeet-v3": sel(.t16, .optimized, .fast), "nemotron-3.5-streaming-0.6b": sel(.t8, .optimized, .fast)])
-        loaded.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "BF16", engine: "optimized", optimizations: fast.merging(["nax_gemm": true]) { $1 },
-                                                             residency: "manual", selection: sel(.t16, .optimized, .fast)),
-                                 "nemotron-3.5-streaming-0.6b": LoadedFamily(precision: "8b", engine: "optimized", optimizations: ["fused_layer": true],
-                                                                             residency: "on_demand", selection: sel(.t8, .optimized, .fast))]
+        loaded.config = Self.config(
+            dictation: "parakeet-tdt-0.6b-v3-mlx-bf16-local", streaming: "nemotron-3.5-asr-streaming-0.6b-8bit",
+            selections: ["parakeet-v3": sel(.t16, .optimized, .fast), "nemotron-3.5-streaming-0.6b": sel(.t8, .optimized, .fast)])
+        loaded.runtime.loaded = [
+            "parakeet-v3": LoadedFamily(
+                precision: "BF16", engine: "optimized", optimizations: fast.merging(["nax_gemm": true]) { $1 },
+                residency: "manual", selection: sel(.t16, .optimized, .fast)),
+            "nemotron-3.5-streaming-0.6b": LoadedFamily(
+                precision: "8b", engine: "optimized", optimizations: ["fused_layer": true],
+                residency: "on_demand", selection: sel(.t8, .optimized, .fast))
+        ]
         states.append(loaded)
         // Whisper large-v3 loaded at 16 Fast; the row previews 8 (its numbers, deltas vs Standard 16, and the green
         // Reload). Whisper offers 16 and 8.
         var whisper = State(name: "whisper-previews-8")
         whisper.installed = RenderFixture.downloaded + ["whisper-large-v3-asr-fp16"]
-        whisper.runtime.loaded = ["whisper-large-v3": LoadedFamily(precision: "FP16", engine: "optimized", optimizations: ["decoder": true, "encoder": true],
-                                                                   residency: "manual", selection: sel(.t16, .optimized, .fast))]
+        whisper.runtime.loaded = [
+            "whisper-large-v3": LoadedFamily(
+                precision: "FP16", engine: "optimized", optimizations: ["decoder": true, "encoder": true],
+                residency: "manual", selection: sel(.t16, .optimized, .fast))
+        ]
         whisper.selections = ["whisper-large-v3": sel(.t8, .optimized, .fast)]
         states.append(whisper)
         // The coupling rule: Exact offers only the precisions with an Exact recipe. Vella's shipped data has one at every
@@ -145,14 +158,20 @@ import VellaUpdate
         states.append(inUse)
         // Qwen 1.7B loaded at 16 (its switch greyed and pinned up: Fast = Exact); Qwen 0.6B previews 8.
         var qwen = State(name: "qwen-loaded-switch-always-on")
-        qwen.runtime.loaded = ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized", optimizations: ["decoder": true, "encoder": true],
-                                                              residency: "manual", selection: sel(.t16, .optimized, .exact))]
+        qwen.runtime.loaded = [
+            "qwen3-asr-1.7b": LoadedFamily(
+                precision: "BF16", engine: "optimized", optimizations: ["decoder": true, "encoder": true],
+                residency: "manual", selection: sel(.t16, .optimized, .exact))
+        ]
         qwen.selections = ["qwen3-asr-0.6b": sel(.t8, .optimized, .fast)]
         states.append(qwen)
         var fallback = State(name: "mlx-fallback")
-        fallback.runtime.loaded = ["parakeet-v3": LoadedFamily(precision: "BF16", engine: "mlx",
-            engineReason: "the optimized path returned non-finite values during a dictation; switched to the stock MLX path until reload",
-            optimizations: ["encoder": false, "decoder": false], residency: "manual", selection: sel(.t16, .optimized, .fast))]
+        fallback.runtime.loaded = [
+            "parakeet-v3": LoadedFamily(
+                precision: "BF16", engine: "mlx",
+                engineReason: "the optimized path returned non-finite values during a dictation; switched to the stock MLX path until reload",
+                optimizations: ["encoder": false, "decoder": false], residency: "manual", selection: sel(.t16, .optimized, .fast))
+        ]
         states.append(fallback)
         var loadingState = State(name: "footer-loading")
         loadingState.runtime.loading = "qwen3-asr-1.7b"
@@ -167,7 +186,8 @@ import VellaUpdate
         states.append(failed)
         var refusedLong = State(name: "footer-error-long")
         refusedLong.runtime.loaded = loaded.runtime.loaded
-        refusedLong.runtime.refusal = TableRefusal(message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 8, or allow swap in Vella → Memory.", at: now)
+        refusedLong.runtime.refusal = TableRefusal(
+            message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 8, or allow swap in Vella → Memory.", at: now)
         states.append(refusedLong)
         var otherChip = State(name: "other-chip-M3-Pro")
         otherChip.runtime.chip = chip == "M3 Pro" ? "M5 Max" : "M3 Pro"
@@ -191,17 +211,20 @@ import VellaUpdate
     /// RowAction.swift) in their states, one per line.
     static func renderControls(to url: URL, done: @escaping () -> Void) {
         typealias Cell = TierControl.Cell
-        func line(_ title: String, _ optimized: [String], _ standard: [String], _ selected: Cell?, enabled: Bool = true, hot: Bool = false,
-                  position: ExactFastSwitch.Position = .exact, available: Bool = true, action: String = "Load", emphasized: Bool = false,
-                  deletable: Bool = true, hovered: Bool = false, busy: String? = nil) -> some View {
+        func line(
+            _ title: String, _ optimized: [String], _ standard: [String], _ selected: Cell?, enabled: Bool = true, hot: Bool = false,
+            position: ExactFastSwitch.Position = .exact, available: Bool = true, action: String = "Load", emphasized: Bool = false,
+            deletable: Bool = true, hovered: Bool = false, busy: String? = nil
+        ) -> some View {
             HStack(alignment: .center, spacing: 10) {
                 Text(title).font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 190, alignment: .leading)
                 TierControl(optimized: optimized, standard: standard, selected: selected, enabled: enabled, hot: hot, help: { _ in "" }, onSelect: { _ in })
                 ExactFastSwitch(position: position, available: available, enabled: enabled, onChange: { _ in })
                     .offset(y: (TierControl.segmentHeight - ExactFastSwitch.height) / 2)
                     .frame(width: ExactFastSwitch.width, height: TierControl.height, alignment: .top)
-                RowAction(title: action, busyText: busy, emphasized: emphasized, enabled: enabled, deletable: deletable, hot: hot, hovered: hovered,
-                          help: "", onPerform: {}, onDelete: {})
+                RowAction(
+                    title: action, busyText: busy, emphasized: emphasized, enabled: enabled, deletable: deletable, hot: hot, hovered: hovered,
+                    help: "", onPerform: {}, onDelete: {})
             }.padding(.horizontal, 8).frame(height: ModelTable.rowHeight)
                 .background(hot ? ModelTable.hotRow : .clear, in: RoundedRectangle(cornerRadius: 5))
         }
@@ -218,8 +241,9 @@ import VellaUpdate
             line("Downloading", ["16", "8"], ["16", "8"], Cell(.optimized, "8"), position: .fast, busy: "23%")
         }.padding(8)
         let view = NSHostingView(rootView: sheet)
-        view.frame = NSRect(x: 0, y: 0, width: 190 + 30 + TierControl.width + ExactFastSwitch.width + RowAction.width + 16 + 16,
-                            height: 9 * (ModelTable.rowHeight + 4) + 16)
+        view.frame = NSRect(
+            x: 0, y: 0, width: 190 + 30 + TierControl.width + ExactFastSwitch.width + RowAction.width + 16 + 16,
+            height: 9 * (ModelTable.rowHeight + 4) + 16)
         let container = NSView(frame: view.frame)
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(calibratedRed: 0.13, green: 0.13, blue: 0.14, alpha: 1).cgColor
@@ -229,8 +253,10 @@ import VellaUpdate
     }
 
     /// A config.json whose modes' models are the render fixture's installed paths.
-    static func config(dictation: String? = nil, streaming: String? = nil, lastLoaded: [String: String] = [:],
-                       selections: [String: ModelSelection] = [:]) -> Configuration {
+    static func config(
+        dictation: String? = nil, streaming: String? = nil, lastLoaded: [String: String] = [:],
+        selections: [String: ModelSelection] = [:]
+    ) -> Configuration {
         var config = Configuration(model: dictation.map { "/render/\($0)" } ?? "")
         config.streamingModel = streaming.map { "/render/\($0)" } ?? ""
         config.lastLoaded = lastLoaded
@@ -250,7 +276,9 @@ import VellaUpdate
             prompts.append(("derived-ultra-8", p))
         }
         // The first-dictation Get row offers the first offered dictation model at 16.
-        if let f = catalog.offered(.dictation).first, let p = downloadPrompt(family: f, precision: precisionLabel(f, tier: .t16) ?? f.native, followUp: .transcribe, freeBytes: free) {
+        if let f = catalog.offered(.dictation).first,
+            let p = downloadPrompt(family: f, precision: precisionLabel(f, tier: .t16) ?? f.native, followUp: .transcribe, freeBytes: free)
+        {
             prompts.append(("first-dictation", p))
         }
         let text = prompts.map { "\($0.0)\n\($0.1.title)\n\n\($0.1.body)\n" }.joined(separator: "\n")
@@ -271,8 +299,10 @@ import VellaUpdate
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             guard let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { window.orderOut(nil); done(); return }
             view.cacheDisplay(in: view.bounds, to: rep)
-            if let out = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: rep.pixelsWide, pixelsHigh: rep.pixelsHigh, bitsPerSample: 8,
-                                          samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
+            if let out = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: rep.pixelsWide, pixelsHigh: rep.pixelsHigh, bitsPerSample: 8,
+                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+            {
                 out.size = rep.size
                 NSGraphicsContext.saveGraphicsState()
                 NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: out)
@@ -290,8 +320,9 @@ import VellaUpdate
         var text: [String] = []
         for state in states {
             for (id, m) in state.runtime.loaded.sorted(by: { $0.key < $1.key }) {
-                text.append("\(state.name) / \(id): \(engineLabel(engine: m.engine, chip: state.runtime.chip))\n"
-                            + engineHelp(engine: m.engine, reason: m.engineReason, optimizations: m.optimizations, chip: state.runtime.chip, precision: m.precision) + "\n")
+                text.append(
+                    "\(state.name) / \(id): \(engineLabel(engine: m.engine, chip: state.runtime.chip))\n"
+                        + engineHelp(engine: m.engine, reason: m.engineReason, optimizations: m.optimizations, chip: state.runtime.chip, precision: m.precision) + "\n")
             }
         }
         try? text.joined(separator: "\n").write(to: directory.appendingPathComponent("engine-tooltips.txt"), atomically: true, encoding: .utf8)
@@ -309,8 +340,9 @@ import VellaUpdate
                     + controller.references(mode).flatMap { r in table.tooltips(r).map { "[\(r.name) · \($0.0)]\n\($0.1)\n" } }
             }
             try? lines.joined(separator: "\n").write(to: directory.appendingPathComponent("table-tooltips.txt"), atomically: true, encoding: .utf8)
-            Self.renderFirstFrame(controller, to: directory.appendingPathComponent("models-first-frame.png"),
-                                  check: directory.appendingPathComponent("models-first-frame-check.txt"))
+            Self.renderFirstFrame(
+                controller, to: directory.appendingPathComponent("models-first-frame.png"),
+                check: directory.appendingPathComponent("models-first-frame-check.txt"))
             renderPrompts(controller) {
                 try? FileManager.default.removeItem(at: RenderFixture.root)
                 NSApp.terminate(nil)
@@ -379,12 +411,15 @@ import VellaUpdate
                 gaps.append(Int((max(a.minY, b.minY) - min(a.maxY, b.maxY)).rounded()))
             }
         }
-        let lines = ["precision segment controls: \(controls.count), exact/fast switches: \(switches.count), action buttons: \(actions.count)",
-                     "overlapping pairs on the first frame: \(overlaps)",
-                     "gaps between a model's Optimized and Standard rows: \(Set(gaps).sorted()) over \(gaps.count) models (expected \(Int(TierControl.rowSpacing)))",
-                     "segment heights: \(Set(controls.map { Int($0.height) }).sorted()) (expected \(Int(TierControl.segmentHeight)))",
-                     "switch sizes: \(Set(switches.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(ExactFastSwitch.width))x\(Int(ExactFastSwitch.height)))",
-                     "action sizes: \(Set(actions.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(RowAction.width))x\(Int(RowAction.height)))"]
+        let lines =
+            [
+                "precision segment controls: \(controls.count), exact/fast switches: \(switches.count), action buttons: \(actions.count)",
+                "overlapping pairs on the first frame: \(overlaps)",
+                "gaps between a model's Optimized and Standard rows: \(Set(gaps).sorted()) over \(gaps.count) models (expected \(Int(TierControl.rowSpacing)))",
+                "segment heights: \(Set(controls.map { Int($0.height) }).sorted()) (expected \(Int(TierControl.segmentHeight)))",
+                "switch sizes: \(Set(switches.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(ExactFastSwitch.width))x\(Int(ExactFastSwitch.height)))",
+                "action sizes: \(Set(actions.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(RowAction.width))x\(Int(RowAction.height)))"
+            ]
             + all.map { "\($0)" }
         try? lines.joined(separator: "\n").write(to: check, atomically: true, encoding: .utf8)
     }
@@ -407,16 +442,18 @@ import VellaUpdate
 @MainActor final class MenuRenderDelegate: NSObject, NSApplicationDelegate {
     let directory: URL
 
-    static let sampleRelease = ReleaseInfo(tag: "v1.0.1", version: SemanticVersion("1.0.1")!, name: "Vella 1.0.1", body: """
-        ## 1.0.1
+    static let sampleRelease = ReleaseInfo(
+        tag: "v1.0.1", version: SemanticVersion("1.0.1")!, name: "Vella 1.0.1",
+        body: """
+            ## 1.0.1
 
-        **Faster first load.** Models load in about half the time.
-        - Fixes the menu staying open after a paste.
+            **Faster first load.** Models load in about half the time.
+            - Fixes the menu staying open after a paste.
 
-        ## Verify
+            ## Verify
 
-            gh attestation verify Vella-1.0.1-arm64.zip --repo TobyNoSkillSon/Vella
-        """)
+                gh attestation verify Vella-1.0.1-arm64.zip --repo TobyNoSkillSon/Vella
+            """)
 
     /// `update-menu.png` (a newer release offered under Support) and `update-popup.png` (the confirmation).
     private func renderUpdate(done: @escaping () -> Void) {
@@ -433,11 +470,14 @@ import VellaUpdate
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [self] in
                 // Layer-backed controls draw only through their layers offscreen: render the layer tree over the
                 // dark alert colour.
-                if let view = window.contentView, let rep = NSBitmapImageRep(bitmapDataPlanes: nil,
+                if let view = window.contentView,
+                    let rep = NSBitmapImageRep(
+                        bitmapDataPlanes: nil,
                         pixelsWide: Int(view.bounds.width * window.backingScaleFactor), pixelsHigh: Int(view.bounds.height * window.backingScaleFactor),
-                        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
+                        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+                {
                     window.displayIfNeeded()
-                    rep.size = view.bounds.size          // points; set before the context so it draws at the backing scale
+                    rep.size = view.bounds.size // points; set before the context so it draws at the backing scale
                     guard let context = NSGraphicsContext(bitmapImageRep: rep) else { window.orderOut(nil); done(); return }
                     NSGraphicsContext.saveGraphicsState()
                     NSGraphicsContext.current = context
@@ -468,22 +508,27 @@ import VellaUpdate
         let model = DictationController(insertionPermission: permission, configurationURL: RenderFixture.root.appendingPathComponent("config.json"))
         app = AppDelegate(model: model)
         let controller = RenderFixture.controller(installed: RenderFixture.downloaded)
-        controller.runtime = TableRuntime(loaded: ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")],
-                                          chip: RenderFixture.chip)
+        controller.runtime = TableRuntime(
+            loaded: ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")],
+            chip: RenderFixture.chip)
         app.modelsMenu = ModelsMenu(controller: controller)
         let states = [
             State(prefix: "default-", settings: DefaultMenuSettings(availableMB: 86_900), fact: "1 model loaded · 1.3 GB in memory", lastText: "Rendered transcript"),
-            State(prefix: "tight-", settings: DefaultMenuSettings(availableMB: 900, lastEvicted: "Nemotron 3.5 Streaming"), fact: "1 model loaded · 1.3 GB in memory", lastText: ""),
+            State(
+                prefix: "tight-", settings: DefaultMenuSettings(availableMB: 900, lastEvicted: "Nemotron 3.5 Streaming"), fact: "1 model loaded · 1.3 GB in memory", lastText: ""),
             State(prefix: "custom-", settings: DefaultMenuSettings(manualIdleMinutes: 60, onDemandIdleMinutes: 5, allowSwap: true, availableMB: 42_100), fact: nil, lastText: ""),
-            State(prefix: "first-dictation-", settings: DefaultMenuSettings(availableMB: 86_900), fact: nil, lastText: "",
-                  pending: controller.firstOffer(.dictation).map { ($0.title, $0.help) }, worker: false),
+            State(
+                prefix: "first-dictation-", settings: DefaultMenuSettings(availableMB: 86_900), fact: nil, lastText: "",
+                pending: controller.firstOffer(.dictation).map { ($0.title, $0.help) }, worker: false)
         ]
         render(states, 0)
     }
 
     private func render(_ states: [State], _ index: Int) {
         guard index < states.count else {
-            renderUpdate { try? FileManager.default.removeItem(at: RenderFixture.root); NSApp.terminate(nil) }
+            renderUpdate {
+                try? FileManager.default.removeItem(at: RenderFixture.root); NSApp.terminate(nil)
+            }
             return
         }
         let state = states[index]

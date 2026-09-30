@@ -35,7 +35,11 @@ final class CalibrationTests: XCTestCase {
     @MainActor func testObservationComputesIdentityOnlyOnce() throws {
         let dir = try temporary(); defer { try? FileManager.default.removeItem(at: dir) }
         var scans = 0
-        let store = CalibrationStore(directory: dir, identity: { _ in scans += 1; return "identity" })
+        let store = CalibrationStore(
+            directory: dir,
+            identity: { _ in
+                scans += 1; return "identity"
+            })
         store.observe(modelPath: "/fake", audioSeconds: 10, processingSeconds: 1)
         scans = 0
         store.observe(modelPath: "/fake", audioSeconds: 10, processingSeconds: 1)
@@ -56,7 +60,9 @@ final class CalibrationTests: XCTestCase {
         let config = model.appendingPathComponent("config.json")
         try Data("{\"model_type\":\"whisper\"}".utf8).write(to: config)
         try Data("fake".utf8).write(to: model.appendingPathComponent("model.safetensors"))
-        guard let runtimePath = ProcessInfo.processInfo.environment["VELLA_CALIBRATION_TEST_WORKER"] else { throw XCTSkip("Set VELLA_CALIBRATION_TEST_WORKER for the read-only runtime identity check") }
+        guard let runtimePath = ProcessInfo.processInfo.environment["VELLA_CALIBRATION_TEST_WORKER"] else {
+            throw XCTSkip("Set VELLA_CALIBRATION_TEST_WORKER for the read-only runtime identity check")
+        }
         let runtime = URL(fileURLWithPath: runtimePath)
         guard FileManager.default.isExecutableFile(atPath: runtime.path) else { throw XCTSkip("Local runtime not installed") }
         let store = CalibrationStore(directory: dir.appendingPathComponent("results"), worker: { runtime })
@@ -90,8 +96,9 @@ final class CalibrationTests: XCTestCase {
         try ("#!/bin/sh\n" + script).write(to: worker, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: worker.path)
         // Inject a synthetic native helper; no Python/MLX/model load occurs.
-        return CalibrationStore(directory: dir.appendingPathComponent("results"), resources: dir,
-                                worker: { worker }, identity: { _ in "isolated-test" })
+        return CalibrationStore(
+            directory: dir.appendingPathComponent("results"), resources: dir,
+            worker: { worker }, identity: { _ in "isolated-test" })
     }
     private var success: String {
         """
@@ -103,7 +110,12 @@ final class CalibrationTests: XCTestCase {
         let dir = try temporary(); defer { try? FileManager.default.removeItem(at: dir) }
         let store = try fakeStore(dir, script: success)
         var completed = false, messages: [String] = []
-        XCTAssertTrue(store.calibrate(modelPath: "/fake", status: { messages.append($0) }, completion: { error in XCTAssertNil(error); completed = true }))
+        XCTAssertTrue(
+            store.calibrate(
+                modelPath: "/fake", status: { messages.append($0) },
+                completion: { error in
+                    XCTAssertNil(error); completed = true
+                }))
         XCTAssertNil(store.speed(modelPath: "/fake"))
         for _ in 0..<100 where !completed { try await Task.sleep(nanoseconds: 20_000_000) }
         XCTAssertTrue(completed)
@@ -115,7 +127,12 @@ final class CalibrationTests: XCTestCase {
         let dir = try temporary(); defer { try? FileManager.default.removeItem(at: dir) }
         let store = try fakeStore(dir, script: success + "\nexit 7\n")
         var completed = false
-        XCTAssertTrue(store.calibrate(modelPath: "/fake", status: { _ in }, completion: { error in XCTAssertNotNil(error); completed = true }))
+        XCTAssertTrue(
+            store.calibrate(
+                modelPath: "/fake", status: { _ in },
+                completion: { error in
+                    XCTAssertNotNil(error); completed = true
+                }))
         for _ in 0..<100 where !completed { try await Task.sleep(nanoseconds: 20_000_000) }
         XCTAssertTrue(completed); XCTAssertNil(store.speed(modelPath: "/fake"))
     }
@@ -123,7 +140,12 @@ final class CalibrationTests: XCTestCase {
         let dir = try temporary(); defer { try? FileManager.default.removeItem(at: dir) }
         let store = try fakeStore(dir, script: success.replacingOccurrences(of: "[2,4]", with: "[-2,4]"))
         var completed = false
-        XCTAssertTrue(store.calibrate(modelPath: "/fake", status: { _ in }, completion: { error in XCTAssertNotNil(error); completed = true }))
+        XCTAssertTrue(
+            store.calibrate(
+                modelPath: "/fake", status: { _ in },
+                completion: { error in
+                    XCTAssertNotNil(error); completed = true
+                }))
         for _ in 0..<100 where !completed { try await Task.sleep(nanoseconds: 20_000_000) }
         XCTAssertTrue(completed); XCTAssertNil(store.speed(modelPath: "/fake"))
     }
@@ -132,10 +154,16 @@ final class CalibrationTests: XCTestCase {
         try ("#!/bin/sh\n" + success).write(to: dir.appendingPathComponent("VellaWorker"), atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.appendingPathComponent("VellaWorker").path)
         var identity = "before"
-        let store = CalibrationStore(directory: dir.appendingPathComponent("results"), resources: dir,
-                                     worker: { dir.appendingPathComponent("VellaWorker") }, identity: { _ in identity })
+        let store = CalibrationStore(
+            directory: dir.appendingPathComponent("results"), resources: dir,
+            worker: { dir.appendingPathComponent("VellaWorker") }, identity: { _ in identity })
         var completed = false
-        XCTAssertTrue(store.calibrate(modelPath: "/fake", status: { _ in }, completion: { error in XCTAssertNotNil(error); completed = true }))
+        XCTAssertTrue(
+            store.calibrate(
+                modelPath: "/fake", status: { _ in },
+                completion: { error in
+                    XCTAssertNotNil(error); completed = true
+                }))
         identity = "after"
         for _ in 0..<100 where !completed { try await Task.sleep(nanoseconds: 20_000_000) }
         XCTAssertTrue(completed); XCTAssertNil(store.speed(modelPath: "/fake"))
@@ -145,9 +173,12 @@ final class CalibrationTests: XCTestCase {
             let dir = try temporary(); defer { try? FileManager.default.removeItem(at: dir) }
             let store = try fakeStore(dir, script: "trap '' TERM\nwhile :; do :; done\n")
             var completed = false
-            XCTAssertTrue(store.calibrate(modelPath: "/fake", timeout: cancel ? 10 : 0.05, status: { _ in }, completion: { error in
-                XCTAssertTrue(error?.contains(cancel ? "cancelled" : "timed out") == true); completed = true
-            }))
+            XCTAssertTrue(
+                store.calibrate(
+                    modelPath: "/fake", timeout: cancel ? 10 : 0.05, status: { _ in },
+                    completion: { error in
+                        XCTAssertTrue(error?.contains(cancel ? "cancelled" : "timed out") == true); completed = true
+                    }))
             if cancel { store.cancel() }
             for _ in 0..<150 where !completed { try await Task.sleep(nanoseconds: 20_000_000) }
             XCTAssertTrue(completed); XCTAssertFalse(store.isRunning); XCTAssertNil(store.speed(modelPath: "/fake"))
@@ -162,7 +193,12 @@ final class CalibrationTests: XCTestCase {
         library.installed[id] = InstalledModel(path: path, revision: library.models.first(where: { $0.id == id })!.revision)
         try library.saveRegistry(updating: id)
         var completed = false, failure: String?
-        XCTAssertTrue(store.calibrate(modelPath: path, status: { _ in }, completion: { error in failure = error; completed = true }))
+        XCTAssertTrue(
+            store.calibrate(
+                modelPath: path, status: { _ in },
+                completion: { error in
+                    failure = error; completed = true
+                }))
         for _ in 0..<100 where !completed { try await Task.sleep(nanoseconds: 20_000_000) }
         XCTAssertNotNil(library.installed[id]); XCTAssertFalse(store.isRunning)
         XCTAssertEqual(library.activeModelPath, active)

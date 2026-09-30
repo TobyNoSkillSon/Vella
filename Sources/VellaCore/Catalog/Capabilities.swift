@@ -39,12 +39,14 @@ public func capabilitySlots(_ f: ModelFamily) -> [Capability: CapabilitySlot] {
     let codes = Set(f.languages.map { $0.lowercased() })
     if codes.count > 1 {
         let european = codes.isSubset(of: europeanLanguageCodes)
-        slots[.languages] = CapabilitySlot(capability: .languages, symbol: european ? "globe.europe.africa" : "globe",
-                                           help: european ? "\(codes.count) European languages" : "\(codes.count) languages")
+        slots[.languages] = CapabilitySlot(
+            capability: .languages, symbol: european ? "globe.europe.africa" : "globe",
+            help: european ? "\(codes.count) European languages" : "\(codes.count) languages")
     }
     if codes.isSuperset(of: ["zh", "ja", "ko"]) {
-        slots[.cjk] = CapabilitySlot(capability: .cjk, symbol: "character.textbox.zh",
-                                     help: codes.contains("yue") ? "Chinese (with Cantonese), Japanese and Korean" : "Chinese, Japanese and Korean")
+        slots[.cjk] = CapabilitySlot(
+            capability: .cjk, symbol: "character.textbox.zh",
+            help: codes.contains("yue") ? "Chinese (with Cantonese), Japanese and Korean" : "Chinese, Japanese and Korean")
     }
     return slots
 }

@@ -26,8 +26,10 @@ final class APISegmentLoadTests: XCTestCase {
     }
     /// Starts a multi-segment file and holds it after its first segment until `between` has run. The backend's
     /// metrics are set only by a finished transcription (loads leave them empty), so they mark the first segment done.
-    @MainActor private func fileHeldBetweenSegments(_ f: TwoFamilyFixture, resolve: @escaping () -> APIModel,
-                                                    between: () async throws -> Void) async throws -> Task<APITranscript, Error> {
+    @MainActor private func fileHeldBetweenSegments(
+        _ f: TwoFamilyFixture, resolve: @escaping () -> APIModel,
+        between: () async throws -> Void
+    ) async throws -> Task<APITranscript, Error> {
         let transcriber = APITranscriber(backend: f.backend, root: root.appendingPathComponent("api-jobs"))
         transcriber.pollNanoseconds = 5_000_000
         let backend = f.backend
@@ -74,11 +76,13 @@ final class APISegmentLoadTests: XCTestCase {
         try await f.load(f.alpha, "4b")
         let alpha = try f.path(f.alpha, "4b")
         let slow = try slowModel()
-        let job = try await fileHeldBetweenSegments(f, resolve: { slow }, between: {
-            XCTAssertTrue(f.runtime.isLoaded(slow.id))
-            await f.runtime.unload(slow.id)
-            try await waitUntil { !f.runtime.isLoaded(slow.id) }
-        })
+        let job = try await fileHeldBetweenSegments(
+            f, resolve: { slow },
+            between: {
+                XCTAssertTrue(f.runtime.isLoaded(slow.id))
+                await f.runtime.unload(slow.id)
+                try await waitUntil { !f.runtime.isLoaded(slow.id) }
+            })
         try await assertDictationRunsDuringTheLoad(f, of: slow.id, dictationModel: alpha)
         let result = try await job.value
         XCTAssertEqual(result.model.path, slow.path)

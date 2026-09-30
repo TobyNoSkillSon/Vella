@@ -19,7 +19,8 @@ public func requestIdentifier(_ value: Any?) -> String? {
 
 public func localPath(_ value: Any?) throws -> URL {
     guard let path = value as? String, path.hasPrefix("/"), !path.contains("\0"),
-          let resolved = realpath(path, nil) else { throw RequestError.invalid }
+        let resolved = realpath(path, nil)
+    else { throw RequestError.invalid }
     defer { free(resolved) }
     return URL(fileURLWithPath: String(cString: resolved))
 }
@@ -34,15 +35,15 @@ public func decodeJSON(_ data: Data) throws -> Any {
         let byte = bytes[index]
         if quoted {
             normalized.append(byte)
-            if escaped { escaped = false }
-            else if byte == 92 { escaped = true }
-            else if byte == 34 { quoted = false }
+            if escaped { escaped = false } else if byte == 92 { escaped = true } else if byte == 34 { quoted = false }
             index += 1
         } else if byte == 34 {
             quoted = true; normalized.append(byte); index += 1
-        } else if let token = tokens.first(where: { index + $0.count <= bytes.count && Array(bytes[index..<index+$0.count]) == $0 }) {
+        } else if let token = tokens.first(where: { index + $0.count <= bytes.count && Array(bytes[index..<index + $0.count]) == $0 }) {
             normalized.append(49); index += token.count
-        } else { normalized.append(byte); index += 1 }
+        } else {
+            normalized.append(byte); index += 1
+        }
     }
     return try JSONSerialization.jsonObject(with: normalized, options: [.fragmentsAllowed])
 }
@@ -65,33 +66,35 @@ public struct Audio {
     public init(_ value: Any?) throws {
         let path = try localPath(value)
         let info = try path.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-        guard info.isRegularFile == true, let size = info.fileSize, (44...2*1024*1024).contains(size) else { throw RequestError.invalid }
+        guard info.isRegularFile == true, let size = info.fileSize, (44...2 * 1024 * 1024).contains(size) else { throw RequestError.invalid }
         let handle = try FileHandle(forReadingFrom: path); defer { try? handle.close() }
-        let d = [UInt8](try handle.read(upToCount: 2*1024*1024+1) ?? Data())
-        guard d.count <= 2*1024*1024, d.count >= 44 else { throw RequestError.invalid }
-        func u16(_ i: Int) -> Int { Int(d[i]) | Int(d[i+1]) << 8 }
-        func u32(_ i: Int) -> Int { u16(i) | u16(i+2) << 16 }
-        func tag(_ i: Int) -> String { String(bytes: d[i..<i+4], encoding: .ascii) ?? "" }
+        let d = [UInt8](try handle.read(upToCount: 2 * 1024 * 1024 + 1) ?? Data())
+        guard d.count <= 2 * 1024 * 1024, d.count >= 44 else { throw RequestError.invalid }
+        func u16(_ i: Int) -> Int { Int(d[i]) | Int(d[i + 1]) << 8 }
+        func u32(_ i: Int) -> Int { u16(i) | u16(i + 2) << 16 }
+        func tag(_ i: Int) -> String { String(bytes: d[i..<i + 4], encoding: .ascii) ?? "" }
         guard tag(0) == "RIFF", tag(8) == "WAVE" else { throw RequestError.invalid }
         var cursor = 12; var format = false; var pcm: [Float]?
-        let riffEnd = min(d.count, 8+u32(4))
-        while cursor+8 <= riffEnd {
-            let name = tag(cursor); let length = u32(cursor+4); cursor += 8
+        let riffEnd = min(d.count, 8 + u32(4))
+        while cursor + 8 <= riffEnd {
+            let name = tag(cursor); let length = u32(cursor + 4); cursor += 8
             if name == "fmt " {
-                guard length >= 16, cursor+length <= riffEnd else { throw RequestError.invalid }
+                guard length >= 16, cursor + length <= riffEnd else { throw RequestError.invalid }
                 let code = u16(cursor)
-                guard u16(cursor+2) == 1, u32(cursor+4) == 16000, u16(cursor+14) == 16 else { throw RequestError.invalid }
+                guard u16(cursor + 2) == 1, u32(cursor + 4) == 16000, u16(cursor + 14) == 16 else { throw RequestError.invalid }
                 if code == 0xfffe {
-                    guard length >= 40, Array(d[cursor+24..<cursor+40]) == [1,0,0,0,0,0,16,0,128,0,0,170,0,56,155,113] else { throw RequestError.invalid }
-                } else if code != 1 { throw RequestError.invalid }
+                    guard length >= 40, Array(d[cursor + 24..<cursor + 40]) == [1, 0, 0, 0, 0, 0, 16, 0, 128, 0, 0, 170, 0, 56, 155, 113] else { throw RequestError.invalid }
+                } else if code != 1 {
+                    throw RequestError.invalid
+                }
                 format = true
             } else if name == "data" {
-                let frames = length/2
-                guard format, frames > 0, frames <= 480000, cursor+frames*2 <= riffEnd else { throw RequestError.invalid }
-                pcm = stride(from: cursor, to: cursor+frames*2, by: 2).map { Float(Int16(bitPattern: UInt16(u16($0)))) / 32768 }
+                let frames = length / 2
+                guard format, frames > 0, frames <= 480000, cursor + frames * 2 <= riffEnd else { throw RequestError.invalid }
+                pcm = stride(from: cursor, to: cursor + frames * 2, by: 2).map { Float(Int16(bitPattern: UInt16(u16($0)))) / 32768 }
                 break
             }
-            cursor += length + length%2
+            cursor += length + length % 2
         }
         guard let pcm else { throw RequestError.invalid }; samples = pcm
     }

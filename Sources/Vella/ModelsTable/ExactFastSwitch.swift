@@ -49,10 +49,12 @@ struct ExactFastSwitch: View {
     }
 
     var body: some View {
-        SwitchRepresentable(position: available ? position : .fast, active: available && enabled,
-                            greyed: !available, exactUnavailable: available && !exactAvailable,
-                            tooltip: Self.tooltip(available: available, enabled: enabled, exactAvailable: exactAvailable), onChange: onChange)
-            .frame(width: Self.width, height: Self.height)
+        SwitchRepresentable(
+            position: available ? position : .fast, active: available && enabled,
+            greyed: !available, exactUnavailable: available && !exactAvailable,
+            tooltip: Self.tooltip(available: available, enabled: enabled, exactAvailable: exactAvailable), onChange: onChange
+        )
+        .frame(width: Self.width, height: Self.height)
     }
 }
 

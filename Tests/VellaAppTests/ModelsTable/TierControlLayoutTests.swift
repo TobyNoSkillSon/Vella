@@ -29,37 +29,41 @@ import SwiftUI
     }
 
     func testSegmentsHaveTheirExplicitSizeOnTheFirstLayoutPass() throws {
-        for menuItem in [false, true] { for size in [ControlSize.regular, .small, .mini, .large] {
-            for (optimized, standard) in [(["16", "8", "4"], ["16", "8", "4"]), (["16"], ["16", "8"]), (["16", "8"], ["16", "8"]), (["8", "4"], ["16"])] {
-                let host = firstPass(HStack(spacing: 6) {
-                    TierControl(optimized: optimized, standard: standard, selected: TierControl.Cell(.standard, standard[0]), enabled: true,
+        for menuItem in [false, true] {
+            for size in [ControlSize.regular, .small, .mini, .large] {
+                for (optimized, standard) in [(["16", "8", "4"], ["16", "8", "4"]), (["16"], ["16", "8"]), (["16", "8"], ["16", "8"]), (["8", "4"], ["16"])] {
+                    let host = firstPass(
+                        HStack(spacing: 6) {
+                            TierControl(
+                                optimized: optimized, standard: standard, selected: TierControl.Cell(.standard, standard[0]), enabled: true,
                                 help: { _ in "" }, onSelect: { _ in })
-                    ExactFastSwitch(position: .fast, available: true, enabled: true, onChange: { _ in })
-                    RowAction(title: "Load", enabled: true, deletable: true, help: "", onPerform: {}, onDelete: {})
-                }.controlSize(size), in: menuItem)
-                let label = "\(size) \(optimized) / \(standard)"
-                // Top to bottom: the host is flipped, so the smaller minY is the Optimized row.
-                let segments = all(NSSegmentedControl.self, in: host).map { drawn($0, in: host) }.sorted { $0.minY < $1.minY }
-                XCTAssertEqual(segments.count, 2, "two rows of segments: \(label)")
-                guard segments.count == 2 else { continue }
-                let (top, bottom) = (host.isFlipped ? segments[0] : segments[1], host.isFlipped ? segments[1] : segments[0])
-                for (r, tiers) in [(top, optimized), (bottom, standard)] {
-                    XCTAssertEqual(r.height, TierControl.segmentHeight, accuracy: 0.5, "\(label): \(r)")
-                    XCTAssertEqual(r.width, TierControl.segmentsWidth(tiers.count), accuracy: 0.5, "\(label): \(r)")
+                            ExactFastSwitch(position: .fast, available: true, enabled: true, onChange: { _ in })
+                            RowAction(title: "Load", enabled: true, deletable: true, help: "", onPerform: {}, onDelete: {})
+                        }.controlSize(size), in: menuItem)
+                    let label = "\(size) \(optimized) / \(standard)"
+                    // Top to bottom: the host is flipped, so the smaller minY is the Optimized row.
+                    let segments = all(NSSegmentedControl.self, in: host).map { drawn($0, in: host) }.sorted { $0.minY < $1.minY }
+                    XCTAssertEqual(segments.count, 2, "two rows of segments: \(label)")
+                    guard segments.count == 2 else { continue }
+                    let (top, bottom) = (host.isFlipped ? segments[0] : segments[1], host.isFlipped ? segments[1] : segments[0])
+                    for (r, tiers) in [(top, optimized), (bottom, standard)] {
+                        XCTAssertEqual(r.height, TierControl.segmentHeight, accuracy: 0.5, "\(label): \(r)")
+                        XCTAssertEqual(r.width, TierControl.segmentsWidth(tiers.count), accuracy: 0.5, "\(label): \(r)")
+                    }
+                    let gap = host.isFlipped ? bottom.minY - top.maxY : top.minY - bottom.maxY
+                    XCTAssertEqual(gap, TierControl.rowSpacing, accuracy: 0.5, "\(label): real air between Optimized and Standard")
+                    for control in all(NSSegmentedControl.self, in: host) {
+                        XCTAssertEqual(control.controlSize, .regular, "the environment's size does not reach the control")
+                    }
+                    let switchView = try XCTUnwrap(all(SwitchView.self, in: host).first)
+                    XCTAssertEqual(switchView.frame.size, NSSize(width: ExactFastSwitch.width, height: ExactFastSwitch.height))
+                    let action = try XCTUnwrap(all(RowActionView.self, in: host).first)
+                    XCTAssertEqual(action.frame.size, NSSize(width: RowAction.width, height: RowAction.height))
+                    let frames = segments + [switchView.convert(switchView.bounds, to: host), action.convert(action.bounds, to: host)]
+                    for (i, a) in frames.enumerated() { for b in frames[(i + 1)...] { XCTAssertFalse(a.intersects(b), "\(label): \(a) overlaps \(b)") } }
                 }
-                let gap = host.isFlipped ? bottom.minY - top.maxY : top.minY - bottom.maxY
-                XCTAssertEqual(gap, TierControl.rowSpacing, accuracy: 0.5, "\(label): real air between Optimized and Standard")
-                for control in all(NSSegmentedControl.self, in: host) {
-                    XCTAssertEqual(control.controlSize, .regular, "the environment's size does not reach the control")
-                }
-                let switchView = try XCTUnwrap(all(SwitchView.self, in: host).first)
-                XCTAssertEqual(switchView.frame.size, NSSize(width: ExactFastSwitch.width, height: ExactFastSwitch.height))
-                let action = try XCTUnwrap(all(RowActionView.self, in: host).first)
-                XCTAssertEqual(action.frame.size, NSSize(width: RowAction.width, height: RowAction.height))
-                let frames = segments + [switchView.convert(switchView.bounds, to: host), action.convert(action.bounds, to: host)]
-                for (i, a) in frames.enumerated() { for b in frames[(i + 1)...] { XCTAssertFalse(a.intersects(b), "\(label): \(a) overlaps \(b)") } }
             }
-        } }
+        }
     }
 
     func testTheControlReportsItsHeightAndTheConstantMatchesAppKit() {
@@ -75,8 +79,10 @@ import SwiftUI
         XCTAssertEqual(TierControl.headerHelp, "Bits per weight. 16 = as released; 8 and 4 compressed on your Mac \u{2014} smaller, faster, slightly less accurate.")
         XCTAssertEqual(TierControl.Row.allCases.map(\.title), ["Optimized", "Standard"], "Optimized above Standard")
         XCTAssertEqual(ExactFastSwitch.title, ExactFastSwitch.showsWords ? "" : "Fast/Exact")
-        for text in [TierControl.title, TierControl.headerHelp, TierControl.inUseHelp, ExactFastSwitch.title, ExactFastSwitch.help,
-                     ExactFastSwitch.sameHelp, ExactFastSwitch.inUseHelp, RowAction.deleteHelp] {
+        for text in [
+            TierControl.title, TierControl.headerHelp, TierControl.inUseHelp, ExactFastSwitch.title, ExactFastSwitch.help,
+            ExactFastSwitch.sameHelp, ExactFastSwitch.inUseHelp, RowAction.deleteHelp
+        ] {
             XCTAssertFalse(text.lowercased().contains("tier"), text)
         }
     }

@@ -25,7 +25,7 @@ final class Worker {
     private var disabledComponents: [String: String] = [:]
     private var gateURL: URL?
     #if VELLA_QUALIFICATION
-    var qualificationRetirement: [String: Any] = [:]
+        var qualificationRetirement: [String: Any] = [:]
     #endif
     // MLX 0.32.2's compile cache is thread_local, not process-global. Async
     // requests can migrate between Swift executor threads. Retain weak handles
@@ -48,11 +48,15 @@ final class Worker {
         mlx_detail_compile_cache(&cache)
         compilationCaches[threadID] = cache
     }
-    func cleanup() throws { try withError { Stream.gpu.synchronize(); Memory.clearCache() } }
+    func cleanup() throws {
+        try withError {
+            Stream.gpu.synchronize(); Memory.clearCache()
+        }
+    }
     func release() throws {
         #if VELLA_QUALIFICATION
-        let references = qualificationReferences(model)
-        let cacheThreads = Array(compilationCaches.keys)
+            let references = qualificationReferences(model)
+            let cacheThreads = Array(compilationCaches.keys)
         #endif
         model = nil; path = nil; architecture = nil; loadSeconds = nil; gateURL = nil
         stockReason = "No model loaded."; optimizations = [:]; disabledComponents = [:]
@@ -63,12 +67,14 @@ final class Worker {
         }
         try cleanup()
         #if VELLA_QUALIFICATION
-        var thread: UInt64 = 0; pthread_threadid_np(nil, &thread)
-        qualificationRetirement = ["activeBytes": Memory.activeMemory, "cacheBytes": Memory.cacheMemory, "thread": thread, "capturedCacheThreads": cacheThreads,
-            "retained": references.compactMap { name, reference -> [String: Any]? in
-                guard let object = reference.value else { return nil }
-                return ["name": name, "bytes": (object as? MLXArray)?.nbytes ?? 0]
-            }]
+            var thread: UInt64 = 0; pthread_threadid_np(nil, &thread)
+            qualificationRetirement = [
+                "activeBytes": Memory.activeMemory, "cacheBytes": Memory.cacheMemory, "thread": thread, "capturedCacheThreads": cacheThreads,
+                "retained": references.compactMap { name, reference -> [String: Any]? in
+                    guard let object = reference.value else { return nil }
+                    return ["name": name, "bytes": (object as? MLXArray)?.nbytes ?? 0]
+                }
+            ]
         #endif
     }
 
@@ -133,38 +139,38 @@ final class Worker {
     /// the optimized path is restored and the stock error returned.
     func infer(_ audio: Audio) throws -> String {
         guard let model else { throw RequestError.invalid }
-        return try autoreleasepool { try withError {
-            trackCompilationCache()
-            let input = (architecture.flatMap(Self.runtime)?.input ?? { $0 })(MLXArray(audio.samples))
-            let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30)
-            var output: STTOutput
-            if stockReason == nil, let capable = model as? any FastPathCapable {
-                do { output = try runOptimized(model, capable, input, parameters) }
-                catch {
-                    let cause = error is FastPathNonFinite ? "returned non-finite values" : "failed"
-                    _ = capable.configureFastPath(enabled: false, component: "both")
-                    Stream.gpu.synchronize()
-                    clearCompilationCaches()
-                    trackCompilationCache()
-                    do { output = try runStock(model, input, parameters) }
-                    catch {
-                        // fastPathDisabledComponents still holds the gate's verdict: restored without them.
-                        if !capable.configureFastPath(enabled: true, component: "both") {
-                            stockReason = "The optimized path could not be restored after a failed request."
+        return try autoreleasepool {
+            try withError {
+                trackCompilationCache()
+                let input = (architecture.flatMap(Self.runtime)?.input ?? { $0 })(MLXArray(audio.samples))
+                let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30)
+                var output: STTOutput
+                if stockReason == nil, let capable = model as? any FastPathCapable {
+                    do { output = try runOptimized(model, capable, input, parameters) } catch {
+                        let cause = error is FastPathNonFinite ? "returned non-finite values" : "failed"
+                        _ = capable.configureFastPath(enabled: false, component: "both")
+                        Stream.gpu.synchronize()
+                        clearCompilationCaches()
+                        trackCompilationCache()
+                        do { output = try runStock(model, input, parameters) } catch {
+                            // fastPathDisabledComponents still holds the gate's verdict: restored without them.
+                            if !capable.configureFastPath(enabled: true, component: "both") {
+                                stockReason = "The optimized path could not be restored after a failed request."
+                            }
+                            push?(status("fallback-failed"))
+                            throw error
                         }
-                        push?(status("fallback-failed"))
-                        throw error
+                        stockReason = "Runtime fallback: the optimized path \(cause) on a request; stock MLX until the model reloads."
+                        optimizations = optimizations.mapValues { _ in false }
+                        push?(status("fallback"))
                     }
-                    stockReason = "Runtime fallback: the optimized path \(cause) on a request; stock MLX until the model reloads."
-                    optimizations = optimizations.mapValues { _ in false }
-                    push?(status("fallback"))
+                } else {
+                    output = try runStock(model, input, parameters)
                 }
-            } else {
-                output = try runStock(model, input, parameters)
+                Stream.gpu.synchronize()
+                return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
             }
-            Stream.gpu.synchronize()
-            return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        } }
+        }
     }
     static let gpu: HelperStatus.GPU = {
         var size = 0
@@ -176,19 +182,22 @@ final class Worker {
         return HelperStatus.GPU(chip: chip, family: FastPathGate.gpuFamily)
     }()
     func status(_ event: String) -> [String: Any] {
-        var memory = HelperStatus.Memory(footprintMB: processMemory()["processFootprintBytes"].map { Double($0) / 1e6 },
-                                         mlxActiveMB: Double(Memory.activeMemory) / 1e6, mlxCacheMB: Double(Memory.cacheMemory) / 1e6)
+        var memory = HelperStatus.Memory(
+            footprintMB: processMemory()["processFootprintBytes"].map { Double($0) / 1e6 },
+            mlxActiveMB: Double(Memory.activeMemory) / 1e6, mlxCacheMB: Double(Memory.cacheMemory) / 1e6)
         if model is StubModel, let stub = ProcessInfo.processInfo.environment["VELLA_TEST_STUB_FOOTPRINT_MB"].flatMap(Double.init) {
             memory.footprintMB = stub
         }
-        return HelperStatus(worker: .dictation, pid: Int(getpid()), version: FastPathGate.version, event: event, model: path?.path,
-                            architecture: architecture?.rawValue, engine: model == nil ? nil : (stockReason == nil ? Engine.optimized : Engine.mlx).rawValue,
-                            engineReason: model == nil ? nil : stockReason, optimizations: optimizations, loadSeconds: loadSeconds,
-                            memory: memory, gpu: Self.gpu, recipe: FastPathGate.recipe.rawValue,
-                            // Every behaviour-changing or instrumenting env hook, component overrides included.
-                            testHooks: FastPathGate.reportedEnvironment(),
-                            // Per-component self-test result: components off because their own tolerance test failed, and why.
-                            disabledComponents: disabledComponents).jsonObject
+        return HelperStatus(
+            worker: .dictation, pid: Int(getpid()), version: FastPathGate.version, event: event, model: path?.path,
+            architecture: architecture?.rawValue, engine: model == nil ? nil : (stockReason == nil ? Engine.optimized : Engine.mlx).rawValue,
+            engineReason: model == nil ? nil : stockReason, optimizations: optimizations, loadSeconds: loadSeconds,
+            memory: memory, gpu: Self.gpu, recipe: FastPathGate.recipe.rawValue,
+            // Every behaviour-changing or instrumenting env hook, component overrides included.
+            testHooks: FastPathGate.reportedEnvironment(),
+            // Per-component self-test result: components off because their own tolerance test failed, and why.
+            disabledComponents: disabledComponents
+        ).jsonObject
     }
 
     private func loadIfNeeded(_ local: URL, architecture: Architecture, metrics: inout [String: Any]) async throws {
@@ -211,7 +220,10 @@ final class Worker {
         let text = String(describing: error).lowercased()
         let memory = ["out of memory", "memory allocation", "metal allocation", "insufficient memory"].contains { text.contains($0) }
         let code = error is RequestError ? "invalid" : memory ? "memory" : "inference"
-        return ["code": code, "message": code == "invalid" ? "Invalid local transcription request." : code == "memory" ? "Insufficient memory for transcription." : "Local transcription failed."]
+        return [
+            "code": code,
+            "message": code == "invalid" ? "Invalid local transcription request." : code == "memory" ? "Insufficient memory for transcription." : "Local transcription failed."
+        ]
     }
 
     func handle(_ value: Any?) async -> [String: Any] {
@@ -225,11 +237,11 @@ final class Worker {
         switch op as? String {
         case "load":
             guard keys == ["id", "op", "model"], let local = try? localPath(request["model"]),
-                  let architecture = try? (local == path ? self.architecture ?? admit(local) : admit(local)) else { break }
+                let architecture = try? (local == path ? self.architecture ?? admit(local) : admit(local))
+            else { break }
             var metrics: [String: Any] = [:]
             do {
-                if local == path { push?(status("load")) }
-                else { try await loadIfNeeded(local, architecture: architecture, metrics: &metrics) }
+                if local == path { push?(status("load")) } else { try await loadIfNeeded(local, architecture: architecture, metrics: &metrics) }
                 try cleanup()
                 return ["id": identifier, "loaded": true, "metrics": metrics]
             } catch {
@@ -269,18 +281,19 @@ final class Worker {
                 architecture = local != path ? try admit(local) : nil
             } catch { throw RequestError.invalid }
             let cold = local != path
-            metrics = ["audioSeconds": audio.seconds, "modelLoaded": cold, "loadSeconds": 0.0,
-                       "mlxPeakPhase": cold ? "load_and_first_request" : "warm_request", "allocatorCacheLimitBytes": cacheBytes]
+            metrics = [
+                "audioSeconds": audio.seconds, "modelLoaded": cold, "loadSeconds": 0.0,
+                "mlxPeakPhase": cold ? "load_and_first_request" : "warm_request", "allocatorCacheLimitBytes": cacheBytes
+            ]
             if cold, let architecture { try await loadIfNeeded(local, architecture: architecture, metrics: &metrics) } else { Memory.peakMemory = 0 }
             let t = ProcessInfo.processInfo.systemUptime
-            do { response["text"] = try infer(audio) }
-            catch {
+            do { response["text"] = try infer(audio) } catch {
                 // Both paths failed on this request: the model itself is intact (restored optimized path).
                 keepModel = stockReason == nil
                 throw error
             }
             Stream.gpu.synchronize()
-            metrics["inferenceSeconds"] = ProcessInfo.processInfo.systemUptime-t
+            metrics["inferenceSeconds"] = ProcessInfo.processInfo.systemUptime - t
             metrics["peakMLXBytes"] = Memory.peakMemory
         } catch {
             let failure = Self.failure(error)
@@ -293,8 +306,8 @@ final class Worker {
             return ["id": identifier, "error": ["code": "memory", "message": "Insufficient memory for transcription."]]
         }
         if response["text"] != nil {
-            metrics["cleanupSeconds"] = ProcessInfo.processInfo.systemUptime-t
-            metrics["requestSeconds"] = ProcessInfo.processInfo.systemUptime-start
+            metrics["cleanupSeconds"] = ProcessInfo.processInfo.systemUptime - t
+            metrics["requestSeconds"] = ProcessInfo.processInfo.systemUptime - start
             metrics["activeMLXBytes"] = Memory.activeMemory; metrics["cacheMLXBytes"] = Memory.cacheMemory
             for (key, value) in processMemory() { metrics[key] = value }
             response["metrics"] = metrics

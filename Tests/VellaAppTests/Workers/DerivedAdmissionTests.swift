@@ -10,17 +10,19 @@ final class DerivedAdmissionTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-derived-admission-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: root) }
         let bf16 = CatalogVariant(id: "alpha-bf16", repository: "o/a", revision: String(repeating: "b", count: 40), downloadBytes: 1_200_000_000, architecture: "parakeet")
-        let family = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
-                                 variants: ["BF16": bf16, "4b": CatalogVariant(id: "alpha-4bit-local", architecture: "parakeet", derivedFrom: "BF16", bits: 4, groupSize: 64)])
+        let family = ModelFamily(
+            id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
+            variants: ["BF16": bf16, "4b": CatalogVariant(id: "alpha-4bit-local", architecture: "parakeet", derivedFrom: "BF16", bits: 4, groupSize: 64)])
         let resources = root.appendingPathComponent("resources", isDirectory: true)
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: [family])).write(to: resources.appendingPathComponent("models.json"))
         let bench = root.appendingPathComponent("benchmarks.json")
         try Data(#"{"schema":1,"models":{"alpha":{"precisions":{"BF16":{"memory_mb":1500}}}}}"#.utf8).write(to: bench)
         let registry = root.appendingPathComponent("support/models-installed.json")
-        let controller = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
-                                          streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: bench)
+        let controller = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: bench)
         let source = controller.dictation.modelsDirectory.appendingPathComponent("alpha-bf16")
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))

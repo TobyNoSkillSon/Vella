@@ -9,14 +9,20 @@ final class StubReleaseServer: URLProtocol {
     nonisolated(unsafe) static var routes: [String: Data] = [:]
     nonisolated(unsafe) static var requests: [String] = []
     private static let lock = NSLock()
-    static func reset() { lock.withLock { routes = [:]; requests = [] } }
+    static func reset() {
+        lock.withLock {
+            routes = [:]; requests = []
+        }
+    }
     static func serve(_ url: String, _ body: Data) { lock.withLock { routes[url] = body } }
     static var requested: [String] { lock.withLock { requests } }
     override static func canInit(with request: URLRequest) -> Bool { true }
     override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let url = request.url!
-        let body = Self.lock.withLock { () -> Data? in Self.requests.append(url.absoluteString); return Self.routes[url.absoluteString] }
+        let body = Self.lock.withLock { () -> Data? in
+            Self.requests.append(url.absoluteString); return Self.routes[url.absoluteString]
+        }
         let response = HTTPURLResponse(url: url, statusCode: body == nil ? 404 : 200, httpVersion: "HTTP/1.1", headerFields: nil)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body ?? Data())
@@ -124,8 +130,10 @@ final class UpdateControllerTests: XCTestCase {
         let delegate = AppDelegate(model: model, updates: controller())
         delegate.runtimeLoading = { nil }
         XCTAssertNil(delegate.updateBlocker())
-        for (phase, reason) in [(DictationController.Phase.recording, "recording"), (.preparing, "preparing a dictation"), (.transcribing, "transcribing"),
-                                (.success, "pasting a transcript")] {
+        for (phase, reason) in [
+            (DictationController.Phase.recording, "recording"), (.preparing, "preparing a dictation"), (.transcribing, "transcribing"),
+            (.success, "pasting a transcript")
+        ] {
             model.phase = phase
             XCTAssertEqual(delegate.updateBlocker(), reason)
         }
@@ -146,8 +154,13 @@ final class UpdateControllerTests: XCTestCase {
         let staging = root.appendingPathComponent("release")
         try fixtureApp(staging.appendingPathComponent("Vella.app"), version: "1.0.1")
         let zip = staging.appendingPathComponent("Vella-1.0.1-arm64.zip")
-        XCTAssertEqual(run("/usr/bin/ditto", ["-c", "-k", "--norsrc", "--noextattr", "--noqtn", "--noacl", "--keepParent",
-                                              staging.appendingPathComponent("Vella.app").path, zip.path]), 0)
+        XCTAssertEqual(
+            run(
+                "/usr/bin/ditto",
+                [
+                    "-c", "-k", "--norsrc", "--noextattr", "--noqtn", "--noacl", "--keepParent",
+                    staging.appendingPathComponent("Vella.app").path, zip.path
+                ]), 0)
         let bytes = try Data(contentsOf: zip)
         let hash = try Updater.sha256(of: zip)
         StubReleaseServer.serve("\(Self.base)/Vella-1.0.1-arm64.zip", bytes)
@@ -157,7 +170,9 @@ final class UpdateControllerTests: XCTestCase {
         updates.runningApp = running
         updates.idlePollNanoseconds = 1_000_000
         var calls = 0
-        updates.blocker = { calls += 1; return (2...4).contains(calls) ? "recording" : nil }     // busy right after the download
+        updates.blocker = {
+            calls += 1; return (2...4).contains(calls) ? "recording" : nil
+        } // busy right after the download
         var phases: [UpdatePhase] = []
         updates.onChange = { phases.append(updates.machine.phase) }
         var handed: StagedUpdate?
@@ -182,8 +197,10 @@ final class UpdateControllerTests: XCTestCase {
         let metallib = contents.appendingPathComponent(Updater.metallib)
         try FileManager.default.createDirectory(at: metallib.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("fixture shader".utf8).write(to: metallib)
-        let info: [String: Any] = ["CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella", "CFBundlePackageType": "APPL",
-                                   "CFBundleShortVersionString": version, "CFBundleVersion": "1"]
+        let info: [String: Any] = [
+            "CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella", "CFBundlePackageType": "APPL",
+            "CFBundleShortVersionString": version, "CFBundleVersion": "1"
+        ]
         try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0).write(to: contents.appendingPathComponent("Info.plist"))
         let helpers = Updater.requiredExecutables.filter { $0 != "MacOS/Vella" }.map { contents.appendingPathComponent($0).path }
         XCTAssertEqual(run("/usr/bin/codesign", ["--force", "--sign", "-"] + helpers), 0)

@@ -32,15 +32,18 @@ enum FusedTolerance {
 
     static func judge(stock: [[String: Any]], fast: [[String: Any]], rms: Float) -> Verdict {
         let edits = wordEdits(words(committedText(stock)), words(committedText(fast)))
-        let shape = stock.count == fast.count && zip(stock, fast).allSatisfy { a, b in
-            var a = a, b = b
-            for key in ["committed", "partial"] { a[key] = nil; b[key] = nil }
-            return NSDictionary(dictionary: a).isEqual(to: b)
-        }
+        let shape =
+            stock.count == fast.count
+            && zip(stock, fast).allSatisfy { a, b in
+                var a = a, b = b
+                for key in ["committed", "partial"] { a[key] = nil; b[key] = nil }
+                return NSDictionary(dictionary: a).isEqual(to: b)
+            }
         let stockCommits = commits(stock), fastCommits = commits(fast)
         let shift = stockCommits.count == fastCommits.count ? zip(stockCommits, fastCommits).map { abs($0 - $1) }.max() ?? 0 : nil
         let partials = zip(stock, fast).filter { ($0["partial"] as? String ?? "") != ($1["partial"] as? String ?? "") }.count
-        let accepted = !committedText(stock).isEmpty && shape && edits <= maxWordEdits && (shift.map { $0 <= maxCommitShift } ?? false)
+        let accepted =
+            !committedText(stock).isEmpty && shape && edits <= maxWordEdits && (shift.map { $0 <= maxCommitShift } ?? false)
             && partials <= maxPartialDifferences && rms <= maxFusedDeviation
         return Verdict(accepted: accepted, shape: shape, wordEdits: edits, commitShift: shift, partialDifferences: partials)
     }

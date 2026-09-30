@@ -17,27 +17,27 @@ final class TransportTests: XCTestCase {
         roots.append(root); try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let script = root.appendingPathComponent("worker.py")
         try #"""
-#!/usr/bin/env python3
-import json,sys,time,os,signal
-for line in sys.stdin:
- r=json.loads(line)
- if r.get('op') in ('unload','status','trim'): print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
- mode=r['model'].split('/')[-1]
- if mode=='slow' and r.get('op')!='load': time.sleep(0.8)
- if mode in ('timeout','stubborn'):
-  if mode=='stubborn':
-   signal.signal(signal.SIGTERM,signal.SIG_IGN)
-   open(os.path.join(os.path.dirname(__file__),'stubborn-ready'),'w').close()
-  time.sleep(10)
- if mode=='exit': sys.exit(2)
- if mode=='malformed': print('{bad',flush=True); continue
- if mode=='oversize': print('x'*2100000,flush=True); continue
- obj={'id':r['id'],'text':'Fixture recognized speech.','metrics':{'pid':os.getpid()}}
- if mode=='failure': obj={'id':r['id'],'error':{'code':'inference','message':'not persisted'}}
- if mode=='empty': obj['text']=''
- if mode=='wrongid': obj['id']='wrong'
- print(json.dumps(obj),flush=True)
-"""#.write(to: script, atomically: true, encoding: .utf8)
+        #!/usr/bin/env python3
+        import json,sys,time,os,signal
+        for line in sys.stdin:
+         r=json.loads(line)
+         if r.get('op') in ('unload','status','trim'): print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
+         mode=r['model'].split('/')[-1]
+         if mode=='slow' and r.get('op')!='load': time.sleep(0.8)
+         if mode in ('timeout','stubborn'):
+          if mode=='stubborn':
+           signal.signal(signal.SIGTERM,signal.SIG_IGN)
+           open(os.path.join(os.path.dirname(__file__),'stubborn-ready'),'w').close()
+          time.sleep(10)
+         if mode=='exit': sys.exit(2)
+         if mode=='malformed': print('{bad',flush=True); continue
+         if mode=='oversize': print('x'*2100000,flush=True); continue
+         obj={'id':r['id'],'text':'Fixture recognized speech.','metrics':{'pid':os.getpid()}}
+         if mode=='failure': obj={'id':r['id'],'error':{'code':'inference','message':'not persisted'}}
+         if mode=='empty': obj['text']=''
+         if mode=='wrongid': obj['id']='wrong'
+         print(json.dumps(obj),flush=True)
+        """#.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
         let record = try RecordingSession(root: root, config: Configuration(model: "/fixture/normal"))
         let writer = try SegmentedPCMWriter(session: record)
@@ -55,8 +55,9 @@ for line in sys.stdin:
             record.manifest.config.model = "/fixture/\(mode)"
             let backend = Backend(helper: script, requestTimeout: 0.4, runtime: try runtime())
             defer { backend.stop() }
-            do { _ = try await SessionTranscriber { url, config in try await backend.transcribe(url, config: config) }.run(record); XCTFail(mode) }
-            catch { if mode == "timeout" { XCTAssertEqual((error as? URLError)?.code, .timedOut) } }
+            do { _ = try await SessionTranscriber { url, config in try await backend.transcribe(url, config: config) }.run(record); XCTFail(mode) } catch {
+                if mode == "timeout" { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
+            }
             let recovered = try RecordingSession(directory: record.directory)
             XCTAssertEqual(recovered.manifest.segments[0].frames, 1600)
             XCTAssertNil(recovered.manifest.segments[0].text)
@@ -125,7 +126,7 @@ for line in sys.stdin:
         }
         backend.handleMemoryPressure(critical: false) // warning: caches only, everything stays hot
         try await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertEqual(Set(backend.loadedModelIDs), ["normal", "other", ])
+        XCTAssertEqual(Set(backend.loadedModelIDs), ["normal", "other"])
         record.manifest.config.model = "/fixture/slow"
         let busy = Task { try await backend.transcribe(wav, config: record.manifest.config) }
         for _ in 0..<200 { if runtime.isLoaded("slow") { break }; try await Task.sleep(nanoseconds: 10_000_000) }
@@ -163,7 +164,7 @@ for line in sys.stdin:
         let task = Task { try await backend.transcribe(wav, config: record.manifest.config) }
         for _ in 0..<100 { if backend.processID != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         let pid = backend.processID
-        do { _ = try await backend.transcribe(wav, config: record.manifest.config); XCTFail() } catch { }
+        do { _ = try await backend.transcribe(wav, config: record.manifest.config); XCTFail() } catch {}
         XCTAssertEqual(backend.processID, pid)
         task.cancel(); _ = try? await task.value
     }
@@ -190,8 +191,7 @@ for line in sys.stdin:
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertNil(backend.processID)
         backend.stop() // Caller task itself is intentionally NOT cancelled.
-        do { _ = try await next.value; XCTFail("A stopped startup launched inference") }
-        catch { XCTAssertTrue(error is CancellationError) }
+        do { _ = try await next.value; XCTFail("A stopped startup launched inference") } catch { XCTAssertTrue(error is CancellationError) }
         XCTAssertNil(backend.processID)
         try await exited(pid)
     }
@@ -210,8 +210,7 @@ for line in sys.stdin:
             _ = try await backend.transcribe(wav, config: record.manifest.config)
             XCTAssertEqual(backend.processID, first)
             record.manifest.config.model = "/fixture/" + ["failure", "malformed", "exit", "wrongid"][cycle % 4]
-            do { _ = try await backend.transcribe(wav, config: record.manifest.config); XCTFail("Expected fixture failure") }
-            catch { }
+            do { _ = try await backend.transcribe(wav, config: record.manifest.config); XCTFail("Expected fixture failure") } catch {}
             try await backend.releaseAndWait()
             XCTAssertNotEqual(kill(first, 0), 0)
             XCTAssertNil(backend.processID)

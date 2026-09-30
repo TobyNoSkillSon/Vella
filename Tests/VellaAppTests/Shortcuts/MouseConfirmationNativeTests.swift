@@ -35,9 +35,11 @@ final class MouseConfirmationNativeTests: XCTestCase {
             let registrar = MouseConfirmationTests.MouseConfirmRegistrar()
             let monitor = MouseConfirmationTests.MouseConfirmMonitor()
             var starts = 0
-            let engine = ShortcutEngine(configuration: .default, sinks: .init(
-                start: { starts += 1 }, finish: { XCTFail("Confirmation must not finish capture") },
-                cancel: {}, isRecording: { false }, isBusy: { false }))
+            let engine = ShortcutEngine(
+                configuration: .default,
+                sinks: .init(
+                    start: { starts += 1 }, finish: { XCTFail("Confirmation must not finish capture") },
+                    cancel: {}, isRecording: { false }, isBusy: { false }))
             let manager = ShortcutManager(engine: engine, store: ShortcutStore(fileURL: nil), registrar: registrar)
             manager.confirmationAccessCheck = { true }
             manager.makeConfirmationMonitor = { monitor }
@@ -56,11 +58,13 @@ final class MouseConfirmationNativeTests: XCTestCase {
                 XCTAssertEqual(row.control.title, "Press side button 4 to confirm…")
                 XCTAssertEqual(row.view?.frame.width, originalWidth, "Reserve prompt width before tracking")
                 if let directory = ProcessInfo.processInfo.environment["VELLA_MOUSE_QA_IMAGES"],
-                   let view = row.view,
-                   let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    let view = row.view,
+                    let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
+                {
                     view.cacheDisplay(in: view.bounds, to: bitmap)
-                    try? bitmap.representation(using: .png, properties: [:])?.write(to:
-                        URL(fileURLWithPath: directory).appendingPathComponent("confirmation-row.png"))
+                    try? bitmap.representation(using: .png, properties: [:])?.write(
+                        to:
+                            URL(fileURLWithPath: directory).appendingPathComponent("confirmation-row.png"))
                 }
             }
             // performClick briefly runs AppKit's own tracking loop. Deliver the
@@ -79,11 +83,13 @@ final class MouseConfirmationNativeTests: XCTestCase {
                 XCTAssertTrue(row.control.title.contains("Button 5 detected"))
                 XCTAssertTrue(row.control.title.hasPrefix("Press side button 4 to confirm…"))
                 if let directory = ProcessInfo.processInfo.environment["VELLA_MOUSE_QA_IMAGES"],
-                   let view = row.view,
-                   let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    let view = row.view,
+                    let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
+                {
                     view.cacheDisplay(in: view.bounds, to: bitmap)
-                    try? bitmap.representation(using: .png, properties: [:])?.write(to:
-                        URL(fileURLWithPath: directory).appendingPathComponent("wrong-button-row.png"))
+                    try? bitmap.representation(using: .png, properties: [:])?.write(
+                        to:
+                            URL(fileURLWithPath: directory).appendingPathComponent("wrong-button-row.png"))
                 }
             }
             let press = trackingTimer(0.5) {
@@ -111,11 +117,13 @@ final class MouseConfirmationNativeTests: XCTestCase {
                     XCTAssertEqual(row.control.title, "Button not detected")
                 }
                 if let directory = ProcessInfo.processInfo.environment["VELLA_MOUSE_QA_IMAGES"],
-                   let view = row.view,
-                   let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    let view = row.view,
+                    let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
+                {
                     view.cacheDisplay(in: view.bounds, to: bitmap)
-                    try? bitmap.representation(using: .png, properties: [:])?.write(to:
-                        URL(fileURLWithPath: directory).appendingPathComponent(confirm ? "confirmed-row.png" : "timeout-row.png"))
+                    try? bitmap.representation(using: .png, properties: [:])?.write(
+                        to:
+                            URL(fileURLWithPath: directory).appendingPathComponent(confirm ? "confirmed-row.png" : "timeout-row.png"))
                 }
                 mouse.cancelTracking()
             }

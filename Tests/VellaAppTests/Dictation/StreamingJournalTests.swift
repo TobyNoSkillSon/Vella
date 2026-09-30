@@ -35,8 +35,10 @@ final class StreamingJournalTests: XCTestCase {
         XCTAssertThrowsError(try StreamingJournal.recover(directory: d))
     }
     func testCompleteCorruptionFailsClosed() throws {
-        for line in ["not json\n", "\n", "{}\n", "{\"committed\":\"x\",\"partial\":\"\",\"frames\":-1}\n",
-                     "{\"committed\":\"x\",\"partial\":\"\",\"frames\":1}\n"] {
+        for line in [
+            "not json\n", "\n", "{}\n", "{\"committed\":\"x\",\"partial\":\"\",\"frames\":-1}\n",
+            "{\"committed\":\"x\",\"partial\":\"\",\"frames\":1}\n"
+        ] {
             let d = try directory(), j = try StreamingJournal(directory: d)
             try j.append(committed: "valid", partial: "", frames: 2); j.close()
             try add(line, to: d)
@@ -96,8 +98,9 @@ final class StreamingJournalTests: XCTestCase {
             let word = "fixture\(index % 31)"
             expected.append(word); partial.append(word)
             let drain = partial.count == 200
-            try j.append(committed: drain ? partial.joined(separator: " ") : "",
-                         partial: drain ? "" : partial.joined(separator: " "), frames: (index + 1) * 8000)
+            try j.append(
+                committed: drain ? partial.joined(separator: " ") : "",
+                partial: drain ? "" : partial.joined(separator: " "), frames: (index + 1) * 8000)
             if drain { partial.removeAll(keepingCapacity: true) }
         }
         j.close()

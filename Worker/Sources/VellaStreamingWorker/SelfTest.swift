@@ -39,7 +39,8 @@ enum StreamingSelfTest {
             }
             // Fused layer (summation order differs from stock): the documented tolerance, reply timing included.
             let verdict = FusedTolerance.judge(stock: stock, fast: fast, rms: deviation.rms)
-            FastPathGate.debug("streaming self-test: \(stock.count) replies, fused deviation rms \(deviation.rms) max \(deviation.max), \(verdict.summary), text \(text.utf8.count) B")
+            FastPathGate.debug(
+                "streaming self-test: \(stock.count) replies, fused deviation rms \(deviation.rms) max \(deviation.max), \(verdict.summary), text \(text.utf8.count) B")
             return verdict.accepted ? 0 : FastPathGate.verdictFailed
         } catch {
             FastPathGate.debug("streaming self-test error: \(error)")
@@ -96,9 +97,13 @@ enum StreamingSelfTest {
             let body = offset + 8
             guard body + size <= data.count else { return nil }
             if id == "fmt " {
-                format = data.withUnsafeBytes { ($0.loadUnaligned(fromByteOffset: body + 2, as: UInt16.self),
-                                                 $0.loadUnaligned(fromByteOffset: body + 4, as: UInt32.self),
-                                                 $0.loadUnaligned(fromByteOffset: body + 14, as: UInt16.self)) }
+                format = data.withUnsafeBytes {
+                    (
+                        $0.loadUnaligned(fromByteOffset: body + 2, as: UInt16.self),
+                        $0.loadUnaligned(fromByteOffset: body + 4, as: UInt32.self),
+                        $0.loadUnaligned(fromByteOffset: body + 14, as: UInt16.self)
+                    )
+                }
             } else if id == "data" {
                 guard let format, format.channels == 1, format.rate == 16_000, format.bits == 16 else { return nil }
                 return data.withUnsafeBytes { raw in

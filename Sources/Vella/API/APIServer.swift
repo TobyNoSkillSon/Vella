@@ -141,12 +141,13 @@ final class APIServer: @unchecked Sendable {
                 reservation = Reservation { [weak self] in self?.queue.async { self?.budget.releaseUpload(Int64(length)) } }
             }
             let proceed = { [self] in
-                if let reservation { spool(connection, head, early, length, watchdog, reservation) }
-                else { readMemory(connection, head, early, length, watchdog) }
+                if let reservation { spool(connection, head, early, length, watchdog, reservation) } else { readMemory(connection, head, early, length, watchdog) }
             }
             if head.headers["expect"]?.lowercased() == "100-continue", early.count < length {
                 connection.send(content: Data("HTTP/1.1 100 Continue\r\n\r\n".utf8), completion: .contentProcessed { _ in proceed() })
-            } else { proceed() }
+            } else {
+                proceed()
+            }
         }
     }
 
@@ -175,8 +176,10 @@ final class APIServer: @unchecked Sendable {
             send(connection, .error(APIError(507, "Vella could not store the upload: \(error.localizedDescription)")))
         }
     }
-    private func receiveBody(_ connection: NWConnection, _ head: HTTPHead, _ handle: FileHandle, _ url: URL, _ received: Int, _ length: Int,
-                             _ watchdog: Watchdog, _ reservation: Reservation) {
+    private func receiveBody(
+        _ connection: NWConnection, _ head: HTTPHead, _ handle: FileHandle, _ url: URL, _ received: Int, _ length: Int,
+        _ watchdog: Watchdog, _ reservation: Reservation
+    ) {
         if received >= length {
             try? handle.close()
             watchdog.disarm()
@@ -192,8 +195,7 @@ final class APIServer: @unchecked Sendable {
             if let chunk {
                 total += chunk.count
                 if total > length { abandon(.error(APIError(400, "body longer than Content-Length"))); return }
-                do { try handle.write(contentsOf: chunk) }
-                catch { abandon(.error(APIError(507, "Vella could not store the upload"))); return }
+                do { try handle.write(contentsOf: chunk) } catch { abandon(.error(APIError(507, "Vella could not store the upload"))); return }
                 watchdog.arm(budget.limits.bodyIdleSeconds)
             }
             if total < length, error != nil || done { abandon(nil); return }
@@ -224,10 +226,12 @@ final class APIServer: @unchecked Sendable {
         }
     }
 
-    static let reasons = [200: "OK", 400: "Bad Request", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed",
-                          409: "Conflict", 411: "Length Required", 413: "Content Too Large", 415: "Unsupported Media Type",
-                          429: "Too Many Requests", 431: "Request Header Fields Too Large", 499: "Client Closed Request",
-                          500: "Internal Server Error", 503: "Service Unavailable", 507: "Insufficient Storage"]
+    static let reasons = [
+        200: "OK", 400: "Bad Request", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed",
+        409: "Conflict", 411: "Length Required", 413: "Content Too Large", 415: "Unsupported Media Type",
+        429: "Too Many Requests", 431: "Request Header Fields Too Large", 499: "Client Closed Request",
+        500: "Internal Server Error", 503: "Service Unavailable", 507: "Insufficient Storage"
+    ]
     private func send(_ connection: NWConnection, _ response: APIResponse) {
         let reason = Self.reasons[response.status] ?? "Error"
         let head = "HTTP/1.1 \(response.status) \(reason)\r\nContent-Type: \(response.contentType)\r\nContent-Length: \(response.body.count)\r\nConnection: close\r\n\r\n"

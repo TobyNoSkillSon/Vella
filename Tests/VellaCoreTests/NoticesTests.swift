@@ -16,8 +16,10 @@ final class NoticesTests: XCTestCase {
     func testNoticeNamesVellaAndTheAdaptedCode() throws {
         let notice = try text("NOTICE")
         XCTAssertTrue(notice.hasPrefix("Vella\n"), notice)
-        for credit in ["mlx-audio-swift", "01dec7c9bdce3088a6b6b7ab9f2e403458195efb", "Prince Canuma", "mlx-audio 0.5.1", "mlx-whisper",
-                       "LibriSpeech", "THIRD_PARTY_NOTICES.md", "bundles no model weights"] {
+        for credit in [
+            "mlx-audio-swift", "01dec7c9bdce3088a6b6b7ab9f2e403458195efb", "Prince Canuma", "mlx-audio 0.5.1", "mlx-whisper",
+            "LibriSpeech", "THIRD_PARTY_NOTICES.md", "bundles no model weights"
+        ] {
             XCTAssertTrue(notice.contains(credit), credit)
         }
         XCTAssertTrue(try text("LICENSE").contains("Apache License"))
@@ -35,15 +37,17 @@ final class NoticesTests: XCTestCase {
             XCTAssertTrue(notices.contains(revision), "\(identity) at the pinned revision \(revision)")
         }
         // MIT/BSD/zlib copyright lines must be reproduced, including code MLX vendors; the Runtime Library Exception kept.
-        for line in ["Copyright (c) 2023 ml-explore", "Copyright (c) 2024 ml-explore", "Copyright © 2023 Apple Inc.", "Niels Lohmann",
-                     "Victor Zverovich", "Max-Planck-Society", "Jakob Progsch", "NVIDIA Corporation", "YaoYuan",
-                     "Runtime Library Exception", "The SwiftCrypto Project",
-                     "Copyright © 2018 the V8 project authors.", "Copyright (c) 2015-2023 Norbert Juffa",
-                     "SPDX-FileCopyrightText: 2009 Florian Loitsch", "Copyright (c) 2009 Florian Loitsch",
-                     "SPDX-FileCopyrightText: 2008-2009 Björn Hoehrmann", "SPDX-FileCopyrightText: 2016-2021 Evan Nemerson",
-                     "SPDX-FileCopyrightText: 2018 The Abseil Authors",
-                     // Adapted into Worker/Sources.
-                     "Copyright (c) 2025 Prince Canuma", "Copyright (c) 2024 Prince Canuma"] {
+        for line in [
+            "Copyright (c) 2023 ml-explore", "Copyright (c) 2024 ml-explore", "Copyright © 2023 Apple Inc.", "Niels Lohmann",
+            "Victor Zverovich", "Max-Planck-Society", "Jakob Progsch", "NVIDIA Corporation", "YaoYuan",
+            "Runtime Library Exception", "The SwiftCrypto Project",
+            "Copyright © 2018 the V8 project authors.", "Copyright (c) 2015-2023 Norbert Juffa",
+            "SPDX-FileCopyrightText: 2009 Florian Loitsch", "Copyright (c) 2009 Florian Loitsch",
+            "SPDX-FileCopyrightText: 2008-2009 Björn Hoehrmann", "SPDX-FileCopyrightText: 2016-2021 Evan Nemerson",
+            "SPDX-FileCopyrightText: 2018 The Abseil Authors",
+            // Adapted into Worker/Sources.
+            "Copyright (c) 2025 Prince Canuma", "Copyright (c) 2024 Prince Canuma"
+        ] {
             XCTAssertTrue(notices.contains(line), line)
         }
     }
@@ -86,11 +90,13 @@ final class NoticesTests: XCTestCase {
             throw XCTSkip("no Worker/.build/checkouts (run swift package resolve --package-path Worker)")
         }
         let notices = normalized(try text("THIRD_PARTY_NOTICES.md"))
-        for file in ["mlx-swift/LICENSE", "mlx-swift/Source/Cmlx/mlx/LICENSE", "mlx-swift/Source/Cmlx/mlx-c/LICENSE",
-                     "mlx-swift/Source/Cmlx/fmt/LICENSE", "mlx-swift/Source/Cmlx/json/LICENSE.MIT", "mlx-swift/Source/Cmlx/metal-cpp/LICENSE.txt",
-                     "swift-numerics/LICENSE.txt", "mlx-swift-lm/LICENSE", "swift-transformers/LICENSE", "swift-jinja/LICENSE", "yyjson/LICENSE",
-                     "swift-collections/LICENSE.txt", "swift-crypto/NOTICE.txt", "swift-crypto/LICENSE.txt", "swift-asn1/NOTICE.txt",
-                     "swift-asn1/LICENSE.txt", "swift-syntax/LICENSE.txt"] {
+        for file in [
+            "mlx-swift/LICENSE", "mlx-swift/Source/Cmlx/mlx/LICENSE", "mlx-swift/Source/Cmlx/mlx-c/LICENSE",
+            "mlx-swift/Source/Cmlx/fmt/LICENSE", "mlx-swift/Source/Cmlx/json/LICENSE.MIT", "mlx-swift/Source/Cmlx/metal-cpp/LICENSE.txt",
+            "swift-numerics/LICENSE.txt", "mlx-swift-lm/LICENSE", "swift-transformers/LICENSE", "swift-jinja/LICENSE", "yyjson/LICENSE",
+            "swift-collections/LICENSE.txt", "swift-crypto/NOTICE.txt", "swift-crypto/LICENSE.txt", "swift-asn1/NOTICE.txt",
+            "swift-asn1/LICENSE.txt", "swift-syntax/LICENSE.txt"
+        ] {
             let licence = try String(contentsOf: checkouts.appendingPathComponent(file), encoding: .utf8)
             let body = normalized(licence).trimmingCharacters(in: .whitespacesAndNewlines)
             XCTAssertTrue(notices.contains(body), "\(file) is not reproduced verbatim; rerun scripts/third-party-notices.sh")

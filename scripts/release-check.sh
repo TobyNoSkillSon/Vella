@@ -8,7 +8,8 @@
 #                                       the designated requirement and every binary's authority, as release.yml does
 #
 # Steps: tracked files are source only; toolchains (Command Line Tools Swift 6.3.3, Metal Toolchain); the version has
-# a CHANGELOG section (the release notes); relative links in the public docs resolve; scripts/package-release.sh
+# a CHANGELOG section (the release notes); relative links in the public docs resolve; scripts/lint.sh (swift-format
+# layout and SwiftLint rules on first-party code); scripts/package-release.sh
 # (build, helper smoke tests, zip checks) into a temporary directory; SHA256SUMS verifies; xcrun swift test;
 # scripts/test-worker.sh (the Worker package's unit tests); the VellaWire package's tests.
 # One line per step; each step's full output is in the log directory printed at the start.
@@ -115,6 +116,7 @@ step "source only in git" source_only
 step "toolchains" toolchains
 step "changelog $VERSION" changelog
 step "doc links" doc_links
+step "lint (swift-format, SwiftLint)" scripts/lint.sh
 step "build and package" package
 step "SHA256SUMS" checksums
 if [[ $SIGNED == 1 ]]; then step "release signature" signature; fi

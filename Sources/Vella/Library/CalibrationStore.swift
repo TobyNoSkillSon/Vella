@@ -50,15 +50,19 @@ import Darwin
             }
             func encode(to encoder: Encoder) throws {
                 var c = encoder.singleValueContainer()
-                switch self { case .number(let n): try c.encode(n); case .bool(let b): try c.encode(b) }
+                switch self {
+                case .number(let n): try c.encode(n)
+                case .bool(let b): try c.encode(b)
+                }
             }
         }
         var valid: Bool {
             let times = [loadSeconds, firstRequestSeconds] + warmSeconds
             guard audioSeconds >= 3, audioSeconds <= 15, warmSeconds.count == 2,
-                  times.allSatisfy({ $0.isFinite && $0 > 0 && $0 <= 120 }),
-                  speed.isFinite, speed > 0, sampleSHA256 == CalibrationStore.sampleHash,
-                  !mlxVersion.isEmpty, !mlxAudioVersion.isEmpty else { return false }
+                times.allSatisfy({ $0.isFinite && $0 > 0 && $0 <= 120 }),
+                speed.isFinite, speed > 0, sampleSHA256 == CalibrationStore.sampleHash,
+                !mlxVersion.isEmpty, !mlxAudioVersion.isEmpty
+            else { return false }
             return abs(speed - audioSeconds / ((warmSeconds[0] + warmSeconds[1]) / 2)) < 0.00001
         }
     }
@@ -73,20 +77,25 @@ import Darwin
     private var stopReason: String?
     var isRunning: Bool { job != nil }
 
-    init(directory: URL? = nil, resources: URL? = nil, worker: (() -> URL?)? = nil,
-         identity: ((String) -> String?)? = nil, now: @escaping () -> Date = Date.init) {
+    init(
+        directory: URL? = nil, resources: URL? = nil, worker: (() -> URL?)? = nil,
+        identity: ((String) -> String?)? = nil, now: @escaping () -> Date = Date.init
+    ) {
         self.directory = directory ?? Backend.support.appendingPathComponent("Calibrations")
         self.resources = resources ?? ModelLibrary.resourceDirectory()
-        self.nativeWorker = worker ?? {
-            let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/VellaWorker")
-            if FileManager.default.isExecutableFile(atPath: bundled.path) { return bundled }
-            let sibling = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("VellaWorker")
-            return sibling.flatMap { FileManager.default.isExecutableFile(atPath: $0.path) ? $0 : nil }
-        }
+        self.nativeWorker =
+            worker ?? {
+                let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/VellaWorker")
+                if FileManager.default.isExecutableFile(atPath: bundled.path) { return bundled }
+                let sibling = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("VellaWorker")
+                return sibling.flatMap { FileManager.default.isExecutableFile(atPath: $0.path) ? $0 : nil }
+            }
         identityOverride = identity; self.now = now
     }
     private static func hash(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
-    private func file(for path: String, observed: Bool = false) -> URL { directory.appendingPathComponent(Self.hash(Data(URL(fileURLWithPath: path).standardizedFileURL.path.utf8)) + (observed ? ".observed.json" : ".json")) }
+    private func file(for path: String, observed: Bool = false) -> URL {
+        directory.appendingPathComponent(Self.hash(Data(URL(fileURLWithPath: path).standardizedFileURL.path.utf8)) + (observed ? ".observed.json" : ".json"))
+    }
 
     /// Stat identity avoids reading GB of weights on the main actor. Includes inode, size,
     /// nanosecond mtime/ctime and resolved path; JSON contents pin architecture/quantization.
@@ -94,7 +103,8 @@ import Darwin
         let resolved = url.resolvingSymlinksInPath()
         var info = stat()
         guard lstat(resolved.path, &info) == 0 else { throw CocoaError(.fileReadNoSuchFile) }
-        var value = "\(url.path)|\(resolved.path)|\(info.st_ino)|\(info.st_size)|\(info.st_mtimespec.tv_sec):\(info.st_mtimespec.tv_nsec)|\(info.st_ctimespec.tv_sec):\(info.st_ctimespec.tv_nsec)"
+        var value =
+            "\(url.path)|\(resolved.path)|\(info.st_ino)|\(info.st_size)|\(info.st_mtimespec.tv_sec):\(info.st_mtimespec.tv_nsec)|\(info.st_ctimespec.tv_sec):\(info.st_ctimespec.tv_nsec)"
         if contents, ["json", "py", "txt"].contains(url.pathExtension), info.st_size <= 1_000_000 {
             value += "|" + hash(try Data(contentsOf: resolved))
         }
@@ -106,10 +116,13 @@ import Darwin
             guard let worker = nativeWorker(), FileManager.default.isExecutableFile(atPath: worker.path) else { return nil }
             let model = URL(fileURLWithPath: modelPath).standardizedFileURL
             guard let config = try JSONSerialization.jsonObject(with: Data(contentsOf: model.appendingPathComponent("config.json"))) as? [String: Any],
-                  config["auto_map"] == nil else { return nil }
+                config["auto_map"] == nil
+            else { return nil }
             let architecture = checkpointArchitecture(config) ?? ""
             guard ModelRegistry.descriptor(architecture: architecture)?.calibratable == true else { return nil }
-            let files = try FileManager.default.contentsOfDirectory(at: model, includingPropertiesForKeys: nil).filter { !$0.lastPathComponent.hasPrefix(".") }.sorted { $0.path < $1.path }
+            let files = try FileManager.default.contentsOfDirectory(at: model, includingPropertiesForKeys: nil).filter { !$0.lastPathComponent.hasPrefix(".") }.sorted {
+                $0.path < $1.path
+            }
             guard files.contains(where: { $0.pathExtension == "safetensors" }), files.count < 1024 else { return nil }
             if let all = FileManager.default.enumerator(at: model, includingPropertiesForKeys: nil) {
                 for case let file as URL in all where file.pathExtension == "py" { return nil }
@@ -120,8 +133,13 @@ import Darwin
             let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
             guard service != 0 else { return nil }
             defer { IOObjectRelease(service) }
-            guard let uuid = IORegistryEntryCreateCFProperty(service, "IOPlatformUUID" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? String, !uuid.isEmpty else { return nil }
-            let deviceKey = Self.hash(Data([uuid, ModelLibrary.processor, String(ProcessInfo.processInfo.physicalMemory), ProcessInfo.processInfo.operatingSystemVersionString].joined(separator: "|").utf8))
+            guard let uuid = IORegistryEntryCreateCFProperty(service, "IOPlatformUUID" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? String, !uuid.isEmpty else {
+                return nil
+            }
+            let deviceKey = Self.hash(
+                Data(
+                    [uuid, ModelLibrary.processor, String(ProcessInfo.processInfo.physicalMemory), ProcessInfo.processInfo.operatingSystemVersionString].joined(separator: "|").utf8
+                ))
             let runtimeKey = Self.hash(Data((try Self.stamp(worker)).utf8))
             parts = ["vella-native-calibration-v2"]
             for name in ["Calibration/manifest.json", "Calibration/speech.wav", "Calibration/text.txt"] {
@@ -140,10 +158,12 @@ import Darwin
     private func speed(modelPath: String, identity: String) -> Double? {
         for observed in [true, false] {
             guard let data = try? Data(contentsOf: file(for: modelPath, observed: observed)), data.count < 32_768,
-                  let record = try? JSONDecoder().decode(Record.self, from: data), record.identity == identity,
-                  now().timeIntervalSince(record.measuredAt) >= 0, now().timeIntervalSince(record.measuredAt) < 30 * 86400,
-                  record.speed.isFinite, record.speed > 0,
-                  (observed && record.source == "observation") || (!observed && record.source == "sample-warm-v2" && record.measurement?.valid == true && record.measurement?.speed == record.speed) else { continue }
+                let record = try? JSONDecoder().decode(Record.self, from: data), record.identity == identity,
+                now().timeIntervalSince(record.measuredAt) >= 0, now().timeIntervalSince(record.measuredAt) < 30 * 86400,
+                record.speed.isFinite, record.speed > 0,
+                (observed && record.source == "observation")
+                    || (!observed && record.source == "sample-warm-v2" && record.measurement?.valid == true && record.measurement?.speed == record.speed)
+            else { continue }
             return record.speed
         }
         return nil
@@ -155,8 +175,9 @@ import Darwin
     /// Parent supplies completed inference timings only. No audio or text is retained.
     func observe(modelPath: String, audioSeconds: Double, processingSeconds: Double) {
         guard audioSeconds.isFinite, processingSeconds.isFinite, audioSeconds >= 1,
-              processingSeconds >= 0.01, audioSeconds <= 86400, processingSeconds <= 86400,
-              let identity = identity(modelPath: modelPath) else { return }
+            processingSeconds >= 0.01, audioSeconds <= 86400, processingSeconds <= 86400,
+            let identity = identity(modelPath: modelPath)
+        else { return }
         let measured = audioSeconds / processingSeconds
         // A bounded moving estimate; observations stay separate from catalog measurements.
         let blended = speed(modelPath: modelPath, identity: identity).map { $0 * 0.75 + measured * 0.25 } ?? measured
@@ -186,10 +207,13 @@ import Darwin
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { if process.isRunning { kill(process.processIdentifier, SIGKILL) } }
     }
     /// Separate subprocess; completion fires only after exit. Never changes selection.
-    @discardableResult func calibrate(modelPath: String, timeout: Double = 120,
-        status: @escaping (String) -> Void, completion: @escaping (String?) -> Void) -> Bool {
+    @discardableResult func calibrate(
+        modelPath: String, timeout: Double = 120,
+        status: @escaping (String) -> Void, completion: @escaping (String?) -> Void
+    ) -> Bool {
         guard timeout.isFinite, timeout > 0, !isRunning, speed(modelPath: modelPath) == nil,
-              let identity = identity(modelPath: modelPath), let worker = nativeWorker() else { return false }
+            let identity = identity(modelPath: modelPath), let worker = nativeWorker()
+        else { return false }
         let token = UUID(), child = Process(), pipe = Pipe()
         child.executableURL = worker
         child.arguments = ["calibrate", "--model", modelPath, "--sample", resources.appendingPathComponent("Calibration").path]
@@ -215,9 +239,12 @@ import Darwin
                     if object["event"] as? String == "progress", let message = object["message"] as? String {
                         await MainActor.run { status(message) }
                     } else if object["event"] as? String == "result", let value = object["result"],
-                              let bytes = try? JSONSerialization.data(withJSONObject: value) {
+                        let bytes = try? JSONSerialization.data(withJSONObject: value)
+                    {
                         result = try? JSONDecoder().decode(Measurement.self, from: bytes)
-                    } else if object["event"] as? String == "error" { failure = "Calibration failed. Installed weights are ready to use." }
+                    } else if object["event"] as? String == "error" {
+                        failure = "Calibration failed. Installed weights are ready to use."
+                    }
                 }
             }
             child.waitUntilExit()
@@ -229,9 +256,13 @@ import Darwin
                 var reason = owner.stopReason ?? error
                 if reason == nil {
                     if child.terminationStatus == 0, let outcome, outcome.valid, owner.identity(modelPath: modelPath) == identity {
-                        do { try owner.save(Record(identity: identity, measuredAt: owner.now(), speed: outcome.speed, source: "sample-warm-v2", measurement: outcome), path: modelPath) }
-                        catch { reason = "Installed. Calibration could not be saved." }
-                    } else { reason = "Calibration unavailable. Installed weights are ready to use." }
+                        do {
+                            try owner.save(
+                                Record(identity: identity, measuredAt: owner.now(), speed: outcome.speed, source: "sample-warm-v2", measurement: outcome), path: modelPath)
+                        } catch { reason = "Installed. Calibration could not be saved." }
+                    } else {
+                        reason = "Calibration unavailable. Installed weights are ready to use."
+                    }
                 }
                 completion(reason)
             }

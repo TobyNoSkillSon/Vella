@@ -94,11 +94,15 @@ public extension ModelFamily {
             }
             switch (v.dtype, v.bits) {
             case let (dtype?, nil):
-                guard derivedCastLabels[dtype] == stepLabel, v.groupSize == nil else { throw DerivationError.invalid("\(stepLabel): cast \(dtype) must be labelled \(derivedCastLabels[dtype] ?? "?").") }
+                guard derivedCastLabels[dtype] == stepLabel, v.groupSize == nil else {
+                    throw DerivationError.invalid("\(stepLabel): cast \(dtype) must be labelled \(derivedCastLabels[dtype] ?? "?").")
+                }
                 guard recipe.bits == nil else { throw DerivationError.invalid("\(stepLabel): cannot cast a quantized model.") }
                 recipe.dtype = dtype
             case let (nil, bits?):
-                guard derivedQuantizationBits.contains(bits), stepLabel == "\(bits)b" else { throw DerivationError.invalid("\(stepLabel): quantization must be 4 or 8 bits and labelled so.") }
+                guard derivedQuantizationBits.contains(bits), stepLabel == "\(bits)b" else {
+                    throw DerivationError.invalid("\(stepLabel): quantization must be 4 or 8 bits and labelled so.")
+                }
                 guard let g = v.groupSize, derivedGroupSizes.contains(g) else { throw DerivationError.invalid("\(stepLabel): group size must be 32, 64 or 128.") }
                 guard recipe.bits == nil else { throw DerivationError.invalid("\(stepLabel): cannot quantize twice.") }
                 recipe.bits = bits; recipe.groupSize = g
@@ -117,8 +121,9 @@ public extension ModelFamily {
             if v.isStored {
                 // A stored conversion: a float cast of a downloaded float source to a narrower float, labelled exactly.
                 guard let from = v.derivedFrom, let source = variants[from], !source.isDerived, !source.repository.isEmpty,
-                      let dtype = v.dtype, derivedCastLabels[dtype] == label, v.bits == nil, v.groupSize == nil,
-                      source.architecture == v.architecture, (labelBits(from) ?? 0) > (labelBits(label) ?? 0) else {
+                    let dtype = v.dtype, derivedCastLabels[dtype] == label, v.bits == nil, v.groupSize == nil,
+                    source.architecture == v.architecture, (labelBits(from) ?? 0) > (labelBits(label) ?? 0)
+                else {
                     return "\(id) \(label): a stored variant is a float cast of a downloaded float source."
                 }
                 return nil
@@ -156,8 +161,9 @@ public func prepareDerivedModel(family: ModelFamily, precision: String, sourcePa
     guard FileManager.default.fileExists(atPath: source.appendingPathComponent("config.json").path) else {
         throw DerivationError.invalid("The source model of \(family.name) \(precision) is not installed.")
     }
-    let manifest = DerivedModelManifest(schema: 1, family: family.id, precision: precision, source: source.path, sourceVariant: recipe.source.id,
-                                        sourcePrecision: recipe.sourceLabel, dtype: recipe.dtype, bits: recipe.bits, groupSize: recipe.groupSize)
+    let manifest = DerivedModelManifest(
+        schema: 1, family: family.id, precision: precision, source: source.path, sourceVariant: recipe.source.id,
+        sourcePrecision: recipe.sourceLabel, dtype: recipe.dtype, bits: recipe.bits, groupSize: recipe.groupSize)
     let directory = modelsDirectory.appendingPathComponent(variant.id, isDirectory: true).standardizedFileURL
     let fm = FileManager.default
     try fm.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -183,12 +189,15 @@ public func precisionAvailable(_ family: ModelFamily, _ precision: String, insta
 
 /// The folder to hand the worker for a precision, preparing its manifest when it is made at load; nil when a Get is
 /// needed first. Its own registered checkpoint wins (it loads as is); a derived-at-load precision reads its root.
-public func precisionLoadPath(_ family: ModelFamily, _ precision: String, installedPath: (String) -> String?,
-                              modelsDirectory: URL) throws -> String? {
+public func precisionLoadPath(
+    _ family: ModelFamily, _ precision: String, installedPath: (String) -> String?,
+    modelsDirectory: URL
+) throws -> String? {
     guard let variant = family.variants[precision] else { return nil }
     if let own = installedPath(variant.id) { return own }
     guard variant.isDerived, !variant.isStored, let root = family.downloadSource(of: precision),
-          let source = installedPath(root.variant.id) else { return nil }
+        let source = installedPath(root.variant.id)
+    else { return nil }
     return try prepareDerivedModel(family: family, precision: precision, sourcePath: source, modelsDirectory: modelsDirectory)
 }
 
@@ -206,9 +215,10 @@ public func removeDerivedModels(sourcePath: String, modelsDirectory: URL) -> [St
     guard let entries = try? fm.contentsOfDirectory(at: modelsDirectory, includingPropertiesForKeys: nil) else { return [] }
     return entries.compactMap { dir in
         guard let manifest = derivedModelManifest(at: dir), manifest.source == source,
-              let files = try? fm.contentsOfDirectory(atPath: dir.path),
-              files.allSatisfy({ $0 == DerivedModelManifest.fileName || $0 == ".DS_Store" }),
-              (try? fm.removeItem(at: dir)) != nil else { return nil }
+            let files = try? fm.contentsOfDirectory(atPath: dir.path),
+            files.allSatisfy({ $0 == DerivedModelManifest.fileName || $0 == ".DS_Store" }),
+            (try? fm.removeItem(at: dir)) != nil
+        else { return nil }
         return modelsDirectory.appendingPathComponent(dir.lastPathComponent).standardizedFileURL.path
     }
 }
@@ -235,11 +245,13 @@ public func estimatedWeightBytes(_ family: ModelFamily, _ label: String) -> Doub
     if v.isStored {
         // A stored cast: the source's float bytes scaled to the narrower float (every tensor is cast).
         guard let from = v.derivedFrom, let source = family.variants[from], !source.isDerived,
-              let sourceBits = labelBits(from), let bits = labelBits(label), sourceBits > 0 else { return nil }
+            let sourceBits = labelBits(from), let bits = labelBits(label), sourceBits > 0
+        else { return nil }
         return Double(source.downloadBytes) * bits / sourceBits
     }
     guard let recipe = try? family.derivation(label), let rootBits = labelBits(recipe.sourceLabel),
-          let root = estimatedWeightBytes(family, recipe.sourceLabel) else { return nil }
+        let root = estimatedWeightBytes(family, recipe.sourceLabel)
+    else { return nil }
     let floatBits = recipe.dtype.flatMap { derivedCastLabels[$0] }.flatMap(labelBits) ?? rootBits
     let floatBytes = root * floatBits / rootBits
     guard let bits = recipe.bits, let g = recipe.groupSize else { return floatBytes }
@@ -258,10 +270,14 @@ public func estimatedMemory(family: ModelFamily, precision: String, benchmarks: 
     }
     let root = family.downloadSource(of: precision)?.label
     let targetBits = labelBits(precision) ?? 0
-    guard let reference = measured.first(where: { $0.0 == root }) ?? measured.min(by: {
-        abs((labelBits($0.0) ?? 0) - targetBits) < abs((labelBits($1.0) ?? 0) - targetBits)
-    }), let referenceBytes = estimatedWeightBytes(family, reference.0), referenceBytes > 0 else { return nil }
+    guard
+        let reference = measured.first(where: { $0.0 == root })
+            ?? measured.min(by: {
+                abs((labelBits($0.0) ?? 0) - targetBits) < abs((labelBits($1.0) ?? 0) - targetBits)
+            }), let referenceBytes = estimatedWeightBytes(family, reference.0), referenceBytes > 0
+    else { return nil }
     let mb = reference.1 * target / referenceBytes
-    return MemoryEstimate(mb: mb, measured: false,
-                          note: String(format: "Estimated from the measured %@ memory (%.0f MB) scaled by weight size; %@ not measured.", reference.0, reference.1, precision))
+    return MemoryEstimate(
+        mb: mb, measured: false,
+        note: String(format: "Estimated from the measured %@ memory (%.0f MB) scaled by weight size; %@ not measured.", reference.0, reference.1, precision))
 }

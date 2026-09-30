@@ -41,12 +41,19 @@ extension WorkerTests {
                 ("py", #"{"model_type": "whisper"}"#, ["model.safetensors": "w", "sub/code.py": "x"]),
                 ("automap", #"{"model_type": "whisper", "auto_map": {"a": "b"}}"#, ["model.safetensors": "w"]),
                 ("tok-automap", #"{"model_type": "whisper"}"#, ["model.safetensors": "w", "tokenizer_config.json": #"{"auto_map": ["x"]}"#]),
-                ("noweights", #"{"model_type": "whisper"}"#, [:]),
+                ("noweights", #"{"model_type": "whisper"}"#, [:])
             ]
             // A ternary 2-bit Parakeet (not in the catalog) is refused like any 2-bit checkpoint.
             let nemo = #"{"target": "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel", "quantization": {"bits": 2, "group_size": 64}}"#
-            let ternary: [(String, String, [String: String])] = [("ternary", nemo, ["model.safetensors": "w",
-                "ternary.json": #"{"quant": {"mode": "ternary", "group_size": 64}}"#])]
+            let ternary: [(String, String, [String: String])] = [
+                (
+                    "ternary", nemo,
+                    [
+                        "model.safetensors": "w",
+                        "ternary.json": #"{"quant": {"mode": "ternary", "group_size": 64}}"#
+                    ]
+                )
+            ]
             for (name, config, files) in refused + ternary {
                 let url = try folder(s, name, config: config, files: files)
                 #expect(throws: (any Error).self, "\(name)") { try admitCheckpoint(url) }
@@ -142,8 +149,10 @@ extension WorkerTests {
             let longest = s.url.appendingPathComponent("max.wav")
             try Self.wav(frames: 480_000).write(to: longest)
             #expect(try Audio(longest.path).samples.count == 480_000)
-            for (name, data) in [("rate.wav", Self.wav(frames: 1600, rate: 44100)), ("bits.wav", Self.wav(frames: 1600, bits: 24)),
-                                 ("long.wav", Self.wav(frames: 480_001)), ("empty.wav", Self.wav(frames: 0)), ("tiny.wav", Data("RIFF".utf8))] {
+            for (name, data) in [
+                ("rate.wav", Self.wav(frames: 1600, rate: 44100)), ("bits.wav", Self.wav(frames: 1600, bits: 24)),
+                ("long.wav", Self.wav(frames: 480_001)), ("empty.wav", Self.wav(frames: 0)), ("tiny.wav", Data("RIFF".utf8))
+            ] {
                 let url = s.url.appendingPathComponent(name)
                 try data.write(to: url)
                 #expect(throws: (any Error).self, "\(name)") { try Audio(url.path) }

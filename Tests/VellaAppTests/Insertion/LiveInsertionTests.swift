@@ -19,10 +19,12 @@ final class LiveInsertionTests: XCTestCase {
     func testFocusCheckedEveryBatchAndLatched() async {
         var current = true
         var output = ""
-        let controller = LiveInsertion(targetIsCurrent: { current }, send: {
-            output += $0
-            current = false
-        })
+        let controller = LiveInsertion(
+            targetIsCurrent: { current },
+            send: {
+                output += $0
+                current = false
+            })
         controller.offer(committed: String(repeating: "a", count: 45), partial: "")
         await controller.finishStream()
         XCTAssertEqual(output.count, 20)
@@ -62,7 +64,8 @@ final class LiveInsertionTests: XCTestCase {
             XCTAssertNotEqual(marker, 0)
             var units = [UniChar](repeating: 0, count: 20)
             var count = 0
-            event.keyboardGetUnicodeString(maxStringLength: units.count,
+            event.keyboardGetUnicodeString(
+                maxStringLength: units.count,
                 actualStringLength: &count, unicodeString: &units)
             XCTAssertEqual(String(decoding: units.prefix(count), as: UTF16.self), "Hi 😀")
         }
@@ -108,10 +111,12 @@ final class LiveInsertionTests: XCTestCase {
         oversized.offer(committed: "", partial: String(repeating: "😀", count: 8192))
         XCTAssertNotNil(oversized.blockedReason)
         var attempts = 0
-        let uncertain = LiveInsertion(targetIsCurrent: { true }, send: { _ in
-            attempts += 1
-            throw LiveInsertion.DeliveryError.eventCreation
-        })
+        let uncertain = LiveInsertion(
+            targetIsCurrent: { true },
+            send: { _ in
+                attempts += 1
+                throw LiveInsertion.DeliveryError.eventCreation
+            })
         uncertain.offer(committed: "word", partial: "")
         uncertain.flush()
         uncertain.offer(committed: "more", partial: "")
@@ -165,7 +170,9 @@ final class LiveInsertionTests: XCTestCase {
         XCTAssertLessThanOrEqual(peakTail, LiveInsertion.maximumTailUTF8)
         XCTAssertEqual(c.tailUTF8Count, 0)
         XCTAssertEqual(c.pendingUTF8Count, 0)
-        print("24h-equivalent words=216000 offers=64800 sent_utf8=\(c.sentText.utf8.count) peak_pending_utf8=\(peakPending) peak_tail_utf8=\(peakTail) seconds=\(Date().timeIntervalSince(start))")
+        print(
+            "24h-equivalent words=216000 offers=64800 sent_utf8=\(c.sentText.utf8.count) peak_pending_utf8=\(peakPending) peak_tail_utf8=\(peakTail) seconds=\(Date().timeIntervalSince(start))"
+        )
     }
 
     @MainActor

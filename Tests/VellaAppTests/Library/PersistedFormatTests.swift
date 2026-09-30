@@ -46,12 +46,16 @@ final class PersistedFormatTests: XCTestCase {
         try fixture("verdict-inconclusive.json").write(to: dir.appendingPathComponent("b.json"))
         try Data("not a verdict".utf8).write(to: dir.appendingPathComponent("c.selftest-42"))
         let verdicts = DiagnoseCollector.gateVerdicts(in: dir)
-        XCTAssertEqual(verdicts, [
-            Diagnosis.GateVerdict(status: "fast", model: "parakeet-ultra-bf16", reason: "optimized without nax_gemm (word edits 3 > 1)",
-                                  workerVersion: "native-kernels-10", gpuFamily: "apple9", osBuild: "25G72"),
-            Diagnosis.GateVerdict(status: "inconclusive", model: "qwen3-asr-1.7b-4b", reason: "self-test could not complete",
-                                  workerVersion: "native-kernels-10", gpuFamily: "apple9", osBuild: "25G72"),
-        ])
+        XCTAssertEqual(
+            verdicts,
+            [
+                Diagnosis.GateVerdict(
+                    status: "fast", model: "parakeet-ultra-bf16", reason: "optimized without nax_gemm (word edits 3 > 1)",
+                    workerVersion: "native-kernels-10", gpuFamily: "apple9", osBuild: "25G72"),
+                Diagnosis.GateVerdict(
+                    status: "inconclusive", model: "qwen3-asr-1.7b-4b", reason: "self-test could not complete",
+                    workerVersion: "native-kernels-10", gpuFamily: "apple9", osBuild: "25G72")
+            ])
     }
 
     func testWorkerStatusOf10() throws {

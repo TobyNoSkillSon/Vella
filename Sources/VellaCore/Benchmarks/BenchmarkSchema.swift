@@ -42,9 +42,11 @@ public struct StockBaseline: Codable, Equatable {
     public var hardware: String?
     /// A caveat on how this baseline was measured (e.g. a pending rerun); shown briefly in the table, in full on the site.
     public var note: String?
-    public init(wer: Double? = nil, format: Double? = nil, multilingual: MultilingualResult? = nil, speed_x: Double? = nil, j_per_min: Double? = nil,
-                memory_mb: Double? = nil, latency_ms: LatencyResult? = nil, suite: String? = nil, date: String? = nil, hardware: String? = nil,
-                note: String? = nil) {
+    public init(
+        wer: Double? = nil, format: Double? = nil, multilingual: MultilingualResult? = nil, speed_x: Double? = nil, j_per_min: Double? = nil,
+        memory_mb: Double? = nil, latency_ms: LatencyResult? = nil, suite: String? = nil, date: String? = nil, hardware: String? = nil,
+        note: String? = nil
+    ) {
         self.note = note
         self.wer = wer; self.format = format; self.multilingual = multilingual; self.speed_x = speed_x; self.j_per_min = j_per_min
         self.memory_mb = memory_mb; self.latency_ms = latency_ms; self.suite = suite; self.date = date; self.hardware = hardware
@@ -97,10 +99,12 @@ public struct PrecisionResult: Codable, Equatable {
     public var latency_ms: LatencyResult?
     /// The stock-MLX baseline measured beside this precision (recommended precisions only).
     public var stock: StockBaseline?
-    public init(wer: Double? = nil, format: Double? = nil, multilingual: MultilingualResult? = nil, speed_x: Double? = nil, j_per_min: Double? = nil,
-                memory_mb: Double? = nil, disk_mb: Double? = nil, suite: String? = nil, audio_min: Double? = nil, date: String? = nil,
-                hardware: String? = nil, engine: String? = nil, note: String? = nil, gate: GateResult? = nil,
-                latency_ms: LatencyResult? = nil, stock: StockBaseline? = nil) {
+    public init(
+        wer: Double? = nil, format: Double? = nil, multilingual: MultilingualResult? = nil, speed_x: Double? = nil, j_per_min: Double? = nil,
+        memory_mb: Double? = nil, disk_mb: Double? = nil, suite: String? = nil, audio_min: Double? = nil, date: String? = nil,
+        hardware: String? = nil, engine: String? = nil, note: String? = nil, gate: GateResult? = nil,
+        latency_ms: LatencyResult? = nil, stock: StockBaseline? = nil
+    ) {
         self.wer = wer; self.format = format; self.multilingual = multilingual; self.speed_x = speed_x; self.j_per_min = j_per_min
         self.memory_mb = memory_mb; self.disk_mb = disk_mb; self.suite = suite; self.audio_min = audio_min; self.date = date
         self.hardware = hardware; self.engine = engine; self.note = note; self.gate = gate
@@ -135,8 +139,10 @@ public struct FamilyBenchmark: Codable, Equatable {
     public var tiers: [ModelTier: TierBenchmark] = [:]
     /// Codable covers the schema-1 fields; `decodeBenchmarks` reads the tiers.
     enum CodingKeys: String, CodingKey { case precisions, recommended, noise_pt, tolerance_pt }
-    public init(precisions: [String: PrecisionResult], recommended: String? = nil, noise_pt: Double? = nil, tolerance_pt: Double? = nil,
-                tiers: [ModelTier: TierBenchmark] = [:]) {
+    public init(
+        precisions: [String: PrecisionResult], recommended: String? = nil, noise_pt: Double? = nil, tolerance_pt: Double? = nil,
+        tiers: [ModelTier: TierBenchmark] = [:]
+    ) {
         self.precisions = precisions; self.recommended = recommended; self.noise_pt = noise_pt; self.tolerance_pt = tolerance_pt
         self.tiers = tiers
     }
@@ -169,8 +175,10 @@ public struct ReferenceEntry: Codable, Equatable, Identifiable {
     public var source: String?
     public var method: String?
     public var date: String?
-    public init(id: String, name: String, provider: String? = nil, mode: RecognitionMode = .dictation, wer: Double?, range: [Double]? = nil,
-                multilingual: MultilingualResult? = nil, source: String? = nil, method: String? = nil, date: String? = nil) {
+    public init(
+        id: String, name: String, provider: String? = nil, mode: RecognitionMode = .dictation, wer: Double?, range: [Double]? = nil,
+        multilingual: MultilingualResult? = nil, source: String? = nil, method: String? = nil, date: String? = nil
+    ) {
         self.id = id; self.name = name; self.provider = provider; self.mode = mode; self.reference = true; self.estimated = true
         self.wer = wer; self.range = range; self.multilingual = multilingual; self.source = source; self.method = method; self.date = date
     }
@@ -184,8 +192,10 @@ public struct BenchmarkFile: Codable, Equatable {
     public var models: [String: FamilyBenchmark]
     /// Cloud API reference rows, id → entry (estimated; see ReferenceEntry).
     public var references: [String: ReferenceEntry]
-    public init(schema: Int = 1, hardware: String? = nil, suites: [String: SuiteInfo]? = nil, models: [String: FamilyBenchmark] = [:],
-                references: [String: ReferenceEntry] = [:]) {
+    public init(
+        schema: Int = 1, hardware: String? = nil, suites: [String: SuiteInfo]? = nil, models: [String: FamilyBenchmark] = [:],
+        references: [String: ReferenceEntry] = [:]
+    ) {
         self.schema = schema; self.hardware = hardware; self.suites = suites; self.models = models; self.references = references
     }
     /// Reference rows of a mode, in id order (the table sorts them with the models).
@@ -206,27 +216,32 @@ public func decodeBenchmarks(_ data: Data?) -> BenchmarkFile {
             var tiers: [ModelTier: TierBenchmark] = [:]
             for (key, raw) in rawTiers { if let tier = ModelTier(rawValue: key), let t = decodeTier(raw) { tiers[tier] = t } }
             let entry = value as? [String: Any]
-            file.models[id] = FamilyBenchmark(tiers: tiers, noise_pt: (entry?["noise_pt"] as? NSNumber)?.doubleValue,
-                                              tolerance_pt: (entry?["tolerance_pt"] as? NSNumber)?.doubleValue)
+            file.models[id] = FamilyBenchmark(
+                tiers: tiers, noise_pt: (entry?["noise_pt"] as? NSNumber)?.doubleValue,
+                tolerance_pt: (entry?["tolerance_pt"] as? NSNumber)?.doubleValue)
             continue
         }
         guard let precisions = (value as? [String: Any])?["precisions"] as? [String: Any] else { continue }
         var results: [String: PrecisionResult] = [:]
         for (label, raw) in precisions {
             // isValidJSONObject first: a non-container value would raise an Objective-C exception, not a Swift error.
-            guard JSONSerialization.isValidJSONObject(raw), let bytes = try? JSONSerialization.data(withJSONObject: raw), let r = try? JSONDecoder().decode(PrecisionResult.self, from: bytes) else { continue }
+            guard JSONSerialization.isValidJSONObject(raw), let bytes = try? JSONSerialization.data(withJSONObject: raw),
+                let r = try? JSONDecoder().decode(PrecisionResult.self, from: bytes)
+            else { continue }
             results[label] = r
         }
         let entry = value as? [String: Any]
-        file.models[id] = FamilyBenchmark(precisions: results, recommended: entry?["recommended"] as? String,
-                                          noise_pt: (entry?["noise_pt"] as? NSNumber)?.doubleValue,
-                                          tolerance_pt: (entry?["tolerance_pt"] as? NSNumber)?.doubleValue)
+        file.models[id] = FamilyBenchmark(
+            precisions: results, recommended: entry?["recommended"] as? String,
+            noise_pt: (entry?["noise_pt"] as? NSNumber)?.doubleValue,
+            tolerance_pt: (entry?["tolerance_pt"] as? NSNumber)?.doubleValue)
     }
     // Only entries marked both reference and estimated are shown; anything else is ignored rather than passed off as measured.
     for (id, raw) in object["references"] as? [String: Any] ?? [:] {
         guard JSONSerialization.isValidJSONObject(raw), let bytes = try? JSONSerialization.data(withJSONObject: raw),
-              var entry = try? JSONDecoder().decode(ReferenceEntry.self, from: bytes),
-              entry.reference == true, entry.estimated == true else { continue }
+            var entry = try? JSONDecoder().decode(ReferenceEntry.self, from: bytes),
+            entry.reference == true, entry.estimated == true
+        else { continue }
         entry.id = id
         file.references[id] = entry
     }

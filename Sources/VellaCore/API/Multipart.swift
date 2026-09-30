@@ -32,9 +32,7 @@ public enum Multipart {
         let crlf = Data("\r\n".utf8), blank = Data("\r\n\r\n".utf8)
         // The first delimiter starts the body or follows a preamble line.
         var cursor: Int
-        if data.starts(with: delimiter) { cursor = base + delimiter.count }
-        else if let first = data.range(of: separator) { cursor = first.upperBound }
-        else { throw bad }
+        if data.starts(with: delimiter) { cursor = base + delimiter.count } else if let first = data.range(of: separator) { cursor = first.upperBound } else { throw bad }
         var parts: [MultipartPart] = []
         while true {
             guard cursor + 2 <= data.endIndex else { throw bad }
@@ -54,7 +52,9 @@ public enum Multipart {
                 if key == "content-disposition" {
                     let params = dispositionParameters(value)
                     name = params["name"]; filename = params["filename"]
-                } else if key == "content-type" { type = value }
+                } else if key == "content-type" {
+                    type = value
+                }
             }
             guard let name else { throw bad }
             parts.append(MultipartPart(name: name, filename: filename, contentType: type, range: (headEnd.upperBound - base)..<(next.lowerBound - base)))

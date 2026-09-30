@@ -135,10 +135,12 @@ public struct ModelFamily: Codable, Equatable, Identifiable {
         case id, name, mode, languages, params, license, native, variants, offered, notes, publisher, released, licence, summary
         case nativeDType = "native_dtype", tiersOffered = "tiers_offered", download
     }
-    public init(id: String, name: String, mode: RecognitionMode, languages: [String], params: String, license: String, native: String,
-                variants: [String: CatalogVariant], offered: Bool = true, notes: String? = nil, publisher: String? = nil,
-                released: Int? = nil, licence: String? = nil, summary: String? = nil, nativeDType: String? = nil,
-                tiersOffered: [String]? = nil, download: CatalogDownload? = nil) {
+    public init(
+        id: String, name: String, mode: RecognitionMode, languages: [String], params: String, license: String, native: String,
+        variants: [String: CatalogVariant], offered: Bool = true, notes: String? = nil, publisher: String? = nil,
+        released: Int? = nil, licence: String? = nil, summary: String? = nil, nativeDType: String? = nil,
+        tiersOffered: [String]? = nil, download: CatalogDownload? = nil
+    ) {
         self.id = id; self.name = name; self.mode = mode; self.languages = languages; self.params = params; self.license = license
         self.native = native; self.variants = variants; self.offered = offered; self.notes = notes
         self.publisher = publisher; self.released = released; self.licence = licence; self.summary = summary
@@ -183,14 +185,16 @@ public func catalogVariants(_ catalog: ModelCatalog) -> [ModelRecommendation] {
             // A stored conversion downloads its source's repository into its own folder, then converts it in place
             // (ModelLibrary.download); the record carries the source's pin and size.
             if v.isStored, let from = v.derivedFrom, let source = family.variants[from], !source.isDerived {
-                return ModelRecommendation(id: v.id, name: family.name, quantization: legacyQuantization(label), repository: source.repository,
-                                           revision: source.revision, downloadBytes: source.downloadBytes, architecture: v.architecture,
-                                           license: family.license, recommendation: family.notes ?? "", recommended: family.offered)
+                return ModelRecommendation(
+                    id: v.id, name: family.name, quantization: legacyQuantization(label), repository: source.repository,
+                    revision: source.revision, downloadBytes: source.downloadBytes, architecture: v.architecture,
+                    license: family.license, recommendation: family.notes ?? "", recommended: family.offered)
             }
             guard !v.isDerived else { return nil }
-            return ModelRecommendation(id: v.id, name: family.name, quantization: legacyQuantization(label), repository: v.repository,
-                                       revision: v.revision, downloadBytes: v.downloadBytes, architecture: v.architecture, license: family.license,
-                                       recommendation: family.notes ?? "", recommended: family.offered)
+            return ModelRecommendation(
+                id: v.id, name: family.name, quantization: legacyQuantization(label), repository: v.repository,
+                revision: v.revision, downloadBytes: v.downloadBytes, architecture: v.architecture, license: family.license,
+                recommendation: family.notes ?? "", recommended: family.offered)
         }
     }
 }

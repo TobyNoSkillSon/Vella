@@ -61,31 +61,51 @@ final class ShortcutPublicationStateTests: XCTestCase {
     private func pubEngine(behavior: ShortcutBehavior, box: PubBox, clock: PubClock, operationAware: Bool = false) -> ShortcutEngine {
         let cfg = ShortcutConfiguration(trigger: .keyChord(keyCode: 45, modifiers: ShortcutConfiguration.defaultModifiers), behavior: behavior)
         if operationAware {
-            return ShortcutEngine(configuration: cfg, sinks: .init(
-                start: { box.starts += 1; box.operation &+= 1; box.recording = true },
-                finish: { box.finishes += 1; box.operation &+= 1; box.recording = false; box.busy = false },
-                cancel: { box.cancels += 1; box.operation &+= 1; box.recording = false; box.busy = false },
-                isRecording: { box.recording }, isBusy: { box.busy },
-                currentOperation: { box.operation }), now: { clock.now })
+            return ShortcutEngine(
+                configuration: cfg,
+                sinks: .init(
+                    start: {
+                        box.starts += 1; box.operation &+= 1; box.recording = true
+                    },
+                    finish: {
+                        box.finishes += 1; box.operation &+= 1; box.recording = false; box.busy = false
+                    },
+                    cancel: {
+                        box.cancels += 1; box.operation &+= 1; box.recording = false; box.busy = false
+                    },
+                    isRecording: { box.recording }, isBusy: { box.busy },
+                    currentOperation: { box.operation }), now: { clock.now })
         } else {
-            return ShortcutEngine(configuration: cfg, sinks: .init(
-                start: { box.starts += 1 },
-                finish: { box.finishes += 1 },
-                cancel: { box.cancels += 1 },
-                isRecording: { box.recording }, isBusy: { box.busy }), now: { clock.now })
+            return ShortcutEngine(
+                configuration: cfg,
+                sinks: .init(
+                    start: { box.starts += 1 },
+                    finish: { box.finishes += 1 },
+                    cancel: { box.cancels += 1 },
+                    isRecording: { box.recording }, isBusy: { box.busy }), now: { clock.now })
         }
     }
 
     @MainActor
-    private func pubManager(behavior: ShortcutBehavior = .toggle, box: PubBox? = nil, clock: PubClock? = nil, storeURL: URL? = nil) -> (ShortcutManager, PubMockRegistrar, PubBox, PubClock) {
+    private func pubManager(behavior: ShortcutBehavior = .toggle, box: PubBox? = nil, clock: PubClock? = nil, storeURL: URL? = nil) -> (
+        ShortcutManager, PubMockRegistrar, PubBox, PubClock
+    ) {
         let b = box ?? PubBox()
         let c = clock ?? PubClock()
         let store = ShortcutStore(initial: .init(trigger: .keyChord(keyCode: 45, modifiers: ShortcutConfiguration.defaultModifiers), behavior: behavior), fileURL: storeURL)
-        let engine = ShortcutEngine(configuration: store.configuration, sinks: .init(
-            start: { b.starts += 1; b.recording = true },
-            finish: { b.finishes += 1; b.recording = false; b.busy = false },
-            cancel: { b.cancels += 1; b.recording = false; b.busy = false },
-            isRecording: { b.recording }, isBusy: { b.busy }), now: { c.now })
+        let engine = ShortcutEngine(
+            configuration: store.configuration,
+            sinks: .init(
+                start: {
+                    b.starts += 1; b.recording = true
+                },
+                finish: {
+                    b.finishes += 1; b.recording = false; b.busy = false
+                },
+                cancel: {
+                    b.cancels += 1; b.recording = false; b.busy = false
+                },
+                isRecording: { b.recording }, isBusy: { b.busy }), now: { c.now })
         let registrar = PubMockRegistrar()
         let manager = ShortcutManager(engine: engine, store: store, registrar: registrar)
         manager.permissionCheck = { true }
@@ -136,7 +156,7 @@ final class ShortcutPublicationStateTests: XCTestCase {
         // Apple key codes: F13..F20 = 105,107,113,106,64,79,80,90.
         let pairs: [(UInt32, String)] = [
             (105, "F13"), (107, "F14"), (113, "F15"), (106, "F16"),
-            (64, "F17"), (79, "F18"), (80, "F19"), (90, "F20"),
+            (64, "F17"), (79, "F18"), (80, "F19"), (90, "F20")
         ]
         for (code, name) in pairs {
             XCTAssertEqual(ShortcutLabels.keyName(keyCode: code), name, "keyCode \(code) labels \(name)")
@@ -336,7 +356,7 @@ final class ShortcutPublicationStateTests: XCTestCase {
             #"{"trigger":{"kind":"mouseButton","button":5},"behavior":"toggle"}"#,
             #"{"trigger":{"kind":"mouseButton","button":999999},"behavior":"toggle"}"#,
             #"{"trigger":{"kind":"mouseButton","button":2147483647},"behavior":"toggle"}"#,
-            #"{"trigger":{"kind":"mouseButton"},"behavior":"toggle"}"#,
+            #"{"trigger":{"kind":"mouseButton"},"behavior":"toggle"}"#
         ] {
             XCTAssertThrowsError(try decode(payload), "mouse payload must throw: \(payload)")
         }
@@ -344,7 +364,7 @@ final class ShortcutPublicationStateTests: XCTestCase {
         for payload in [
             #"{"trigger":{"kind":"modifierOnly"},"behavior":"toggle"}"#,
             #"{"trigger":{"kind":"modifierOnly","key":"control"},"behavior":"toggle"}"#,
-            #"{"trigger":{"kind":"modifierOnly","side":"left"},"behavior":"toggle"}"#,
+            #"{"trigger":{"kind":"modifierOnly","side":"left"},"behavior":"toggle"}"#
         ] {
             XCTAssertThrowsError(try decode(payload), "modifier payload must throw: \(payload)")
         }
@@ -362,7 +382,7 @@ final class ShortcutPublicationStateTests: XCTestCase {
             #"{"trigger":{"kind":"mouseButton"},"behavior":"toggle"}"#,
             #"{"trigger":{"kind":"modifierOnly"},"behavior":"toggle"}"#,
             #"{"trigger":{"kind":"modifierOnly","key":"control"},"behavior":"toggle"}"#,
-            #"{"trigger":{"kind":"modifierOnly","side":"left"},"behavior":"toggle"}"#,
+            #"{"trigger":{"kind":"modifierOnly","side":"left"},"behavior":"toggle"}"#
         ]
         for (i, payload) in payloads.enumerated() {
             let url = dir.appendingPathComponent("invalid-\(i).json")
@@ -569,11 +589,18 @@ final class ShortcutPublicationStateTests: XCTestCase {
     func testPub_Engine_GenerationBlocksForeignFinishStart() {
         let box = PubBox(operation: 5)
         let clock = PubClock(1000)
-        let engine = ShortcutEngine(configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .holdToTalk),
+        let engine = ShortcutEngine(
+            configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .holdToTalk),
             sinks: .init(
-                start: { box.starts += 1; box.operation &+= 1; box.recording = true },
-                finish: { box.finishes += 1; box.operation &+= 1; box.recording = false },
-                cancel: { box.cancels += 1; box.operation &+= 1; box.recording = false; box.busy = false },
+                start: {
+                    box.starts += 1; box.operation &+= 1; box.recording = true
+                },
+                finish: {
+                    box.finishes += 1; box.operation &+= 1; box.recording = false
+                },
+                cancel: {
+                    box.cancels += 1; box.operation &+= 1; box.recording = false; box.busy = false
+                },
                 isRecording: { box.recording }, isBusy: { box.busy },
                 currentOperation: { box.operation }), now: { clock.now })
         XCTAssertTrue(engine.press())
@@ -606,11 +633,18 @@ final class ShortcutPublicationStateTests: XCTestCase {
         // Generation changed (foreign Finish+Start) -> interruption must not cancel new capture.
         let genBox = PubBox(operation: 10)
         let genClock = PubClock(1000)
-        let genEngine = ShortcutEngine(configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .holdToTalk),
+        let genEngine = ShortcutEngine(
+            configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .holdToTalk),
             sinks: .init(
-                start: { genBox.starts += 1; genBox.operation &+= 1; genBox.recording = true },
-                finish: { genBox.finishes += 1; genBox.operation &+= 1; genBox.recording = false },
-                cancel: { genBox.cancels += 1; genBox.operation &+= 1; genBox.recording = false; genBox.busy = false },
+                start: {
+                    genBox.starts += 1; genBox.operation &+= 1; genBox.recording = true
+                },
+                finish: {
+                    genBox.finishes += 1; genBox.operation &+= 1; genBox.recording = false
+                },
+                cancel: {
+                    genBox.cancels += 1; genBox.operation &+= 1; genBox.recording = false; genBox.busy = false
+                },
                 isRecording: { genBox.recording }, isBusy: { genBox.busy },
                 currentOperation: { genBox.operation }), now: { genClock.now })
         XCTAssertTrue(genEngine.press())
@@ -675,50 +709,78 @@ final class ShortcutPublicationStateTests: XCTestCase {
     func testPub_Reducer_SoloArbitration() {
         // Solo down becomes pending only.
         var s = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &s, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk),
+            .pending)
         XCTAssertNotNil(s.pendingSince)
         // Non-sole down never fires.
         var ns = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &ns, event: .targetDown(key: .control, side: .left, time: 0, sole: false), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(
+                state: &ns, event: .targetDown(key: .control, side: .left, time: 0, sole: false), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
         XCTAssertNil(ns.pendingSince)
         // Wrong key/side never fires.
         var w = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &w, event: .targetDown(key: .control, side: .right, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(
+                state: &w, event: .targetDown(key: .control, side: .right, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
         // Duplicate down while pending keeps original, no second pending.
-        XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .targetDown(key: .control, side: .left, time: 0.05, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(
+                state: &s, event: .targetDown(key: .control, side: .left, time: 0.05, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
         XCTAssertEqual(s.pendingSince, 0)
         // Other key cancels pending (ordinary Cmd+C never fires).
         XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .otherKeyDown(time: 0.05), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .cancelled)
         XCTAssertNil(s.pendingSince)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .targetUp(key: .control, side: .left, time: 0.1), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &s, event: .targetUp(key: .control, side: .left, time: 0.1), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
         // Other modifier cancels.
         var m = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &m, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &m, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk),
+            .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &m, event: .otherModifierDown(time: 0.05), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .cancelled)
         // Hold timeout: toggle never presses, hold presses once.
         var t = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &t, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &t, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle),
+            .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &t, event: .holdTimeout(time: 0.4), targetKey: .command, targetSide: .left, behavior: .toggle), .none)
         XCTAssertNotNil(t.pendingSince, "toggle keeps pending through timeout")
-        XCTAssertEqual(ModifierSoloReducer.step(state: &t, event: .targetUp(key: .command, side: .left, time: 0.45), targetKey: .command, targetSide: .left, behavior: .toggle), .tapRelease)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &t, event: .targetUp(key: .command, side: .left, time: 0.45), targetKey: .command, targetSide: .left, behavior: .toggle), .tapRelease)
         var h = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &h, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &h, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk),
+            .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &h, event: .holdTimeout(time: 0.35), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .press)
         XCTAssertTrue(h.pressed)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &h, event: .holdTimeout(time: 0.5), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none, "second timeout no-op")
-        XCTAssertEqual(ModifierSoloReducer.step(state: &h, event: .targetUp(key: .control, side: .left, time: 0.6), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .holdRelease)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &h, event: .holdTimeout(time: 0.5), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none, "second timeout no-op")
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &h, event: .targetUp(key: .control, side: .left, time: 0.6), targetKey: .control, targetSide: .left, behavior: .holdToTalk),
+            .holdRelease)
         // Quick solo release without timeout yields tap.
         var q = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &q, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &q, event: .targetUp(key: .control, side: .left, time: 0.1), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .tapRelease)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &q, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk),
+            .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &q, event: .targetUp(key: .control, side: .left, time: 0.1), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .tapRelease
+        )
         // Wrong-side up ignored.
         var ws = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &ws, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &ws, event: .targetUp(key: .control, side: .right, time: 0.1), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(
+                state: &ws, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &ws, event: .targetUp(key: .control, side: .right, time: 0.1), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
         // Reset clears with cancelled only when had state.
         var r = SoloModifierState()
         XCTAssertEqual(ModifierSoloReducer.step(state: &r, event: .reset, targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &r, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &r, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk),
+            .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &r, event: .reset, targetKey: .control, targetSide: .left, behavior: .holdToTalk), .cancelled)
         XCTAssertNil(r.pendingSince)
         XCTAssertEqual(ModifierSoloReducer.holdDelay, 0.3, accuracy: 0.0001)
@@ -726,12 +788,17 @@ final class ShortcutPublicationStateTests: XCTestCase {
 
     func testPub_Reducer_OrdinaryChordNeverFires() {
         var s = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &s, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle),
+            .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .otherKeyDown(time: 0.05), targetKey: .command, targetSide: .left, behavior: .toggle), .cancelled)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .toggle), .none)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &s, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .toggle), .none)
         // Typing while pressed (hold already fired) is ignored, not cancelled.
         var h = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &h, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &h, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk),
+            .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &h, event: .holdTimeout(time: 0.35), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .press)
         XCTAssertEqual(ModifierSoloReducer.step(state: &h, event: .otherKeyDown(time: 0.4), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .none)
         XCTAssertTrue(h.pressed)
@@ -802,9 +869,11 @@ final class ShortcutPublicationStateTests: XCTestCase {
         let store = ShortcutStore(initial: .default, fileURL: dir)
         let box = PubBox()
         let clock = PubClock()
-        let engine = ShortcutEngine(configuration: store.configuration, sinks: .init(
-            start: { box.starts += 1 }, finish: { box.finishes += 1 }, cancel: { box.cancels += 1 },
-            isRecording: { box.recording }, isBusy: { box.busy }), now: { clock.now })
+        let engine = ShortcutEngine(
+            configuration: store.configuration,
+            sinks: .init(
+                start: { box.starts += 1 }, finish: { box.finishes += 1 }, cancel: { box.cancels += 1 },
+                isRecording: { box.recording }, isBusy: { box.busy }), now: { clock.now })
         let registrar = PubMockRegistrar()
         let manager = ShortcutManager(engine: engine, store: store, registrar: registrar)
         manager.permissionCheck = { true }
@@ -829,9 +898,11 @@ final class ShortcutPublicationStateTests: XCTestCase {
         XCTAssertTrue(seed.save(custom))
         // Fresh manager loads stored binding and registers it.
         let box = PubBox()
-        let engine = ShortcutEngine(configuration: .default, sinks: .init(
-            start: {}, finish: {}, cancel: {},
-            isRecording: { box.recording }, isBusy: { box.busy }))
+        let engine = ShortcutEngine(
+            configuration: .default,
+            sinks: .init(
+                start: {}, finish: {}, cancel: {},
+                isRecording: { box.recording }, isBusy: { box.busy }))
         let registrar = PubMockRegistrar()
         let manager = ShortcutManager(engine: engine, store: ShortcutStore(initial: .default, fileURL: url), registrar: registrar)
         manager.reloadFromStore()
@@ -848,11 +919,19 @@ final class ShortcutPublicationStateTests: XCTestCase {
         let box = PubBox()
         let clock = PubClock(1000)
         let store = ShortcutStore(initial: .init(trigger: .keyChord(keyCode: 45, modifiers: ShortcutConfiguration.defaultModifiers), behavior: .holdToTalk), fileURL: nil)
-        let engine = ShortcutEngine(configuration: store.configuration, sinks: .init(
-            start: { box.starts += 1; box.recording = true },
-            finish: { box.finishes += 1; box.recording = false; box.busy = false },
-            cancel: { box.cancels += 1; box.recording = false; box.busy = false },
-            isRecording: { box.recording }, isBusy: { box.busy }), now: { clock.now })
+        let engine = ShortcutEngine(
+            configuration: store.configuration,
+            sinks: .init(
+                start: {
+                    box.starts += 1; box.recording = true
+                },
+                finish: {
+                    box.finishes += 1; box.recording = false; box.busy = false
+                },
+                cancel: {
+                    box.cancels += 1; box.recording = false; box.busy = false
+                },
+                isRecording: { box.recording }, isBusy: { box.busy }), now: { clock.now })
         let registrar = PubMockRegistrar()
         let manager = ShortcutManager(engine: engine, store: store, registrar: registrar)
         manager.permissionCheck = { true }

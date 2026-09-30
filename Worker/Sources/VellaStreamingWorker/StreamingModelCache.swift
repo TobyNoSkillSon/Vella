@@ -24,12 +24,15 @@ final class StreamingModelCache {
     }
     func close() { native?.close(); native = nil; path = nil; loadSeconds = nil }
     func status(_ event: String) -> [String: Any] {
-        let memory = HelperStatus.Memory(footprintMB: processFootprintBytes().map { Double($0) / 1e6 },
-                                         mlxActiveMB: Double(Memory.activeMemory) / 1e6, mlxCacheMB: Double(Memory.cacheMemory) / 1e6)
-        return HelperStatus(worker: .streaming, pid: Int(getpid()), version: FastPathGate.version, event: event, model: path?.path,
-                            engine: native.map { $0.engine.0 }, engineReason: native.map { $0.engine.1 },
-                            optimizations: native?.engine.2 ?? [:], loadSeconds: loadSeconds, memory: memory,
-                            recipe: FastPathGate.recipe.rawValue, testHooks: FastPathGate.reportedEnvironment()).jsonObject
+        let memory = HelperStatus.Memory(
+            footprintMB: processFootprintBytes().map { Double($0) / 1e6 },
+            mlxActiveMB: Double(Memory.activeMemory) / 1e6, mlxCacheMB: Double(Memory.cacheMemory) / 1e6)
+        return HelperStatus(
+            worker: .streaming, pid: Int(getpid()), version: FastPathGate.version, event: event, model: path?.path,
+            engine: native.map { $0.engine.0 }, engineReason: native.map { $0.engine.1 },
+            optimizations: native?.engine.2 ?? [:], loadSeconds: loadSeconds, memory: memory,
+            recipe: FastPathGate.recipe.rawValue, testHooks: FastPathGate.reportedEnvironment()
+        ).jsonObject
     }
 }
 

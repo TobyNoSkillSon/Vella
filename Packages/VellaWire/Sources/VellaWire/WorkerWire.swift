@@ -48,9 +48,11 @@ public struct HelperStatus: Equatable, Sendable {
     /// Tolerant components the gate left off, with why (dictation; omitted when none).
     public var disabledComponents: [String: String]
 
-    public init(worker: Kind?, pid: Int?, version: String?, event: String?, model: String?, architecture: String? = nil,
-                engine: String?, engineReason: String?, optimizations: [String: Bool]?, loadSeconds: Double?, memory: Memory?,
-                gpu: GPU? = nil, recipe: String?, testHooks: [String: String] = [:], disabledComponents: [String: String] = [:]) {
+    public init(
+        worker: Kind?, pid: Int?, version: String?, event: String?, model: String?, architecture: String? = nil,
+        engine: String?, engineReason: String?, optimizations: [String: Bool]?, loadSeconds: Double?, memory: Memory?,
+        gpu: GPU? = nil, recipe: String?, testHooks: [String: String] = [:], disabledComponents: [String: String] = [:]
+    ) {
         self.worker = worker; self.pid = pid; self.version = version; self.event = event; self.model = model
         self.architecture = architecture; self.engine = engine; self.engineReason = engineReason; self.optimizations = optimizations
         self.loadSeconds = loadSeconds; self.memory = memory; self.gpu = gpu; self.recipe = recipe; self.testHooks = testHooks
@@ -60,17 +62,21 @@ public struct HelperStatus: Equatable, Sendable {
     /// Reads a pushed status object. Like the app always did, a field of an unexpected type counts as absent.
     public init(json object: [String: Any]) {
         let memory = object["memory"] as? [String: Any], gpu = object["gpu"] as? [String: Any]
-        self.init(worker: (object["worker"] as? String).flatMap(Kind.init(rawValue:)),
-                  pid: (object["pid"] as? NSNumber)?.intValue, version: object["version"] as? String,
-                  event: object["event"] as? String, model: object["model"] as? String,
-                  architecture: object["architecture"] as? String, engine: object["engine"] as? String,
-                  engineReason: object["engine_reason"] as? String, optimizations: object["optimizations"] as? [String: Bool],
-                  loadSeconds: object["load_s"] as? Double,
-                  memory: memory.map { Memory(footprintMB: $0["footprint_mb"] as? Double, mlxActiveMB: $0["mlx_active_mb"] as? Double,
-                                              mlxCacheMB: $0["mlx_cache_mb"] as? Double) },
-                  gpu: gpu.map { GPU(chip: $0["chip"] as? String, family: $0["family"] as? String) },
-                  recipe: object["recipe"] as? String, testHooks: object["test_hooks"] as? [String: String] ?? [:],
-                  disabledComponents: object["disabled_components"] as? [String: String] ?? [:])
+        self.init(
+            worker: (object["worker"] as? String).flatMap(Kind.init(rawValue:)),
+            pid: (object["pid"] as? NSNumber)?.intValue, version: object["version"] as? String,
+            event: object["event"] as? String, model: object["model"] as? String,
+            architecture: object["architecture"] as? String, engine: object["engine"] as? String,
+            engineReason: object["engine_reason"] as? String, optimizations: object["optimizations"] as? [String: Bool],
+            loadSeconds: object["load_s"] as? Double,
+            memory: memory.map {
+                Memory(
+                    footprintMB: $0["footprint_mb"] as? Double, mlxActiveMB: $0["mlx_active_mb"] as? Double,
+                    mlxCacheMB: $0["mlx_cache_mb"] as? Double)
+            },
+            gpu: gpu.map { GPU(chip: $0["chip"] as? String, family: $0["family"] as? String) },
+            recipe: object["recipe"] as? String, testHooks: object["test_hooks"] as? [String: String] ?? [:],
+            disabledComponents: object["disabled_components"] as? [String: String] ?? [:])
     }
 
     /// The object as the helpers write it. Absent model, engine, reason and load time are `null`; the dictation
@@ -87,7 +93,7 @@ public struct HelperStatus: Equatable, Sendable {
             "worker": orNull(worker?.rawValue), "pid": orNull(pid), "version": orNull(version), "event": orNull(event),
             "model": orNull(model), "engine": orNull(engine), "engine_reason": orNull(engineReason),
             "optimizations": optimizations ?? [String: Bool](), "load_s": orNull(loadSeconds), "memory": memoryObject,
-            "recipe": orNull(recipe),
+            "recipe": orNull(recipe)
         ]
         if worker == .dictation {
             object["architecture"] = orNull(architecture)

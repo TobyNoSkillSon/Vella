@@ -14,7 +14,9 @@ import VellaTestSupport
 @MainActor private final class ActionSpy: ModelRuntimeActions {
     var calls: [String] = []
     func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("load \(family.id) \(precision) \(path)") }
-    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("reload \(family.id) \(precision) \(path)") }
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
+        calls.append("reload \(family.id) \(precision) \(path)")
+    }
     func unload(family: ModelFamily) { calls.append("unload \(family.id)") }
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool { false }
 }
@@ -43,23 +45,32 @@ final class OneStateTests: XCTestCase {
         try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
         let registry = support.appendingPathComponent("models-installed.json")
         let resources = ModelLibrary.resourceDirectory()
-        return ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
-                                streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                benchmarksURL: resources.appendingPathComponent("benchmarks.json"), configURL: configURL)
+        return ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: resources.appendingPathComponent("benchmarks.json"), configURL: configURL)
     }
 
     /// Alpha: BF16 published (the source), 4b made on this Mac from it.
-    private let alpha = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
-        variants: ["BF16": CatalogVariant(id: "alpha-bf16", repository: "org/alpha-bf16", revision: String(repeating: "b", count: 40),
-                                          downloadBytes: 4_200, architecture: "parakeet"),
-                   "4b": CatalogVariant(id: "alpha-4bit-local", architecture: "parakeet", derivedFrom: "BF16", bits: 4, groupSize: 64)])
+    private let alpha = ModelFamily(
+        id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
+        variants: [
+            "BF16": CatalogVariant(
+                id: "alpha-bf16", repository: "org/alpha-bf16", revision: String(repeating: "b", count: 40),
+                downloadBytes: 4_200, architecture: "parakeet"),
+            "4b": CatalogVariant(id: "alpha-4bit-local", architecture: "parakeet", derivedFrom: "BF16", bits: 4, groupSize: 64)
+        ])
     private var alphaFiles: [String: Data] {
-        ["config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel"}"#.utf8),
-         "model.safetensors": Data(repeating: 7, count: 4096)]
+        [
+            "config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel"}"#.utf8),
+            "model.safetensors": Data(repeating: 7, count: 4096)
+        ]
     }
     /// An alpha-only catalog; `installed` puts the BF16 source on disk. The Hub is mocked; `served` records requests.
-    @MainActor private func alphaController(installed: Bool, served: @escaping (String) -> Void = { _ in },
-                                            fail: String? = nil) throws -> ModelsController {
+    @MainActor private func alphaController(
+        installed: Bool, served: @escaping (String) -> Void = { _ in },
+        fail: String? = nil
+    ) throws -> ModelsController {
         let resources = root.appendingPathComponent("resources", isDirectory: true)
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
@@ -82,8 +93,9 @@ final class OneStateTests: XCTestCase {
             guard let data = files[name] else { throw URLError(.fileDoesNotExist) }
             return (200, data)
         }
-        let controller = ModelsController(dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"), configURL: configURL)
+        let controller = ModelsController(
+            dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: root.appendingPathComponent("no-benchmarks.json"), configURL: configURL)
         if installed {
             let source = dictation.modelsDirectory.appendingPathComponent("alpha-bf16")
             try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
@@ -174,7 +186,7 @@ final class OneStateTests: XCTestCase {
         runtime.dictation = backend
         defer { backend.shutdown() }
         let model = DictationController(configurationURL: runtime.configURL); defer { model.shutdown() }
-        let bridge = RuntimeBridge(runtime: runtime)   // the table holds its actions weakly
+        let bridge = RuntimeBridge(runtime: runtime) // the table holds its actions weakly
         bridge.attach(controller: c, model: model)
         runtime.start(loadLaunchSet: false)
         func dictationModel() throws -> String { try backend.configuration().selectedModel }
@@ -197,7 +209,7 @@ final class OneStateTests: XCTestCase {
         XCTAssertEqual(c.selected(alpha), "4b")
         XCTAssertEqual(c.action(alpha), .unload)
 
-        c.perform(alpha)   // Unload
+        c.perform(alpha) // Unload
         try await waitUntil { runtime.status.models["alpha"] == nil }
         XCTAssertEqual(c.selected(alpha), "4b", "an unloaded row shows what dictation will load")
         XCTAssertEqual(c.action(alpha), .load)
@@ -215,7 +227,9 @@ final class OneStateTests: XCTestCase {
         let spy = ActionSpy(); c.actions = spy
         c.runtime = TableRuntime()
         var prompts: [DownloadPrompt] = []
-        c.confirmDownload = { prompt, answer in prompts.append(prompt); answer(DownloadGate.ask(prompt) { _ in false }) }
+        c.confirmDownload = { prompt, answer in
+            prompts.append(prompt); answer(DownloadGate.ask(prompt) { _ in false })
+        }
 
         // 1. Get (nothing on disk).
         XCTAssertEqual(c.action(alpha), .get)
@@ -263,7 +277,9 @@ final class OneStateTests: XCTestCase {
         let menus = ModelsMenu(controller: c)
         _ = menus.modelItem()
         var shown: [String] = []
-        menus.presentDownload = { shown.append($0.title); return false }
+        menus.presentDownload = {
+            shown.append($0.title); return false
+        }
         c.perform(alpha)
         try await waitUntil { !shown.isEmpty }
         XCTAssertEqual(shown, ["Download Alpha · 16 (BF16)?"])
@@ -283,7 +299,7 @@ final class OneStateTests: XCTestCase {
         c.perform(alpha)
         XCTAssertEqual(c.dictation.downloadingID, "alpha-bf16")
         XCTAssertEqual(c.pendingLoads["alpha"], "4b")
-        c.discardPreviews()   // the popup closed the menu
+        c.discardPreviews() // the popup closed the menu
         XCTAssertEqual(c.selected(alpha), "4b", "the row keeps showing the precision being downloaded")
         try await waitUntil { !spy.calls.isEmpty }
         let derived = c.dictation.modelsDirectory.appendingPathComponent("alpha-4bit-local").standardizedFileURL.path

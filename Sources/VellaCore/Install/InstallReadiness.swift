@@ -59,8 +59,10 @@ public enum InstallReadiness {
     /// The `ready` command's loop: poll the status until ready (exit 0, `ready: …`), degraded (exit 3, `degraded: …`;
     /// a failing launch-set model counts once it has failed for `settle` seconds, since the app retries a crashed
     /// worker 3 times within ~12 s) or the timeout (exit 1). Clock and sleep are injectable for tests.
-    public static func wait(read: () -> Data?, isInstalledApp: (Int32) -> Bool, timeout: Double, interval: Double, settle: Double,
-                            now: () -> Date = Date.init, sleep: (Double) -> Void = { Thread.sleep(forTimeInterval: $0) }) -> (status: Int32, line: String) {
+    public static func wait(
+        read: () -> Data?, isInstalledApp: (Int32) -> Bool, timeout: Double, interval: Double, settle: Double,
+        now: () -> Date = Date.init, sleep: (Double) -> Void = { Thread.sleep(forTimeInterval: $0) }
+    ) -> (status: Int32, line: String) {
         let deadline = now().addingTimeInterval(timeout)
         var state = State.waiting("not checked")
         var failingSince: Date?
@@ -84,8 +86,9 @@ public enum InstallReadiness {
     /// The model a running Vella is loading right now, if its status says so.
     public static func loadingModel(statusFile: URL, isAlive: (Int32) -> Bool = { kill($0, 0) == 0 }) -> String? {
         guard let data = try? Data(contentsOf: statusFile),
-              let status = try? JSONDecoder().decode(Status.self, from: data),
-              let pid = status.app_pid, isAlive(pid) else { return nil }
+            let status = try? JSONDecoder().decode(Status.self, from: data),
+            let pid = status.app_pid, isAlive(pid)
+        else { return nil }
         return status.loading
     }
 
@@ -94,8 +97,9 @@ public enum InstallReadiness {
         guard pid > 0, kill(pid, 0) == 0 else { return false }
         var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
         guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0,
-              let running = FileIdentity(URL(fileURLWithPath: String(cString: buffer))),
-              let expected = FileIdentity(app.appendingPathComponent("Contents/MacOS/Vella")) else { return false }
+            let running = FileIdentity(URL(fileURLWithPath: String(cString: buffer))),
+            let expected = FileIdentity(app.appendingPathComponent("Contents/MacOS/Vella"))
+        else { return false }
         return running == expected
     }
 }

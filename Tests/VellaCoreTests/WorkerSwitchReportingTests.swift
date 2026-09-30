@@ -35,8 +35,9 @@ final class WorkerSwitchReportingTests: XCTestCase {
         let hidden = read.filter { name in !reported.contains(name) && !prefixes.contains { name.hasPrefix($0) } }
         XCTAssertEqual(hidden.sorted(), [], "worker switches missing from the registry's reported ones")
         let known = Set(EnvironmentSwitch.all.map(\.name))
-        XCTAssertEqual(read.filter { name in !known.contains(name) && !prefixes.contains { name.hasPrefix($0) } }.sorted(), [],
-                       "worker switches missing from the registry")
+        XCTAssertEqual(
+            read.filter { name in !known.contains(name) && !prefixes.contains { name.hasPrefix($0) } }.sorted(), [],
+            "worker switches missing from the registry")
     }
 
     /// The registry reproduces the hand-kept lists it replaced, policy for policy (VELLA_API and VELLA_UPDATE are
@@ -44,23 +45,33 @@ final class WorkerSwitchReportingTests: XCTestCase {
     func testRegistryMembership() {
         XCTAssertEqual(EnvironmentSwitch.names(where: \.gateKey), ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_TEST_TOLERANT_FAULT"])
         XCTAssertEqual(EnvironmentSwitch.prefixes(where: \.gateKey), ["VELLA_NEMO_"])
-        XCTAssertEqual(Set(EnvironmentSwitch.names(where: \.workerReported)), [
-            "VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_TEST_TOLERANT_FAULT",
-            "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR", "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG",
-            "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP", "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE",
-            "VELLA_WHISPER_PROFILE", "VELLA_STREAM_PROFILE", "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT",
-            "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE",
-            "VELLA_TEST_ENCODER_NONFINITE", "VELLA_MLX_DEVICE", "VELLA_SELFTEST_RESULT", "VELLA_WHISPER_SEED"])
-        XCTAssertEqual(Set(EnvironmentSwitch.names(where: \.strippedFromSelfTestChild)), [
-            "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP", "VELLA_TEST_DECODER_NONFINITE",
-            "VELLA_TEST_ENCODER_NONFINITE", "VELLA_SELFTEST_RESULT"])
-        XCTAssertEqual(Set(runtimeTestHookNames), [
-            "VELLA_TEST_MEMORY_FILE", "VELLA_TEST_VM_STATS", "VELLA_TEST_MINUTE_SECONDS", "VELLA_SUPPORT_DIR",
-            "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
-            "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK",
-            "VELLA_API", "VELLA_UPDATE"])
-        XCTAssertEqual(activeTestHooks(["VELLA_API": "0", "VELLA_UPDATE": "0", "VELLA_RECIPE": "standard", "HOME": "/x"]),
-                       ["VELLA_API": "0", "VELLA_UPDATE": "0"])
+        XCTAssertEqual(
+            Set(EnvironmentSwitch.names(where: \.workerReported)),
+            [
+                "VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_TEST_TOLERANT_FAULT",
+                "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR", "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG",
+                "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP", "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE",
+                "VELLA_WHISPER_PROFILE", "VELLA_STREAM_PROFILE", "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT",
+                "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE",
+                "VELLA_TEST_ENCODER_NONFINITE", "VELLA_MLX_DEVICE", "VELLA_SELFTEST_RESULT", "VELLA_WHISPER_SEED"
+            ])
+        XCTAssertEqual(
+            Set(EnvironmentSwitch.names(where: \.strippedFromSelfTestChild)),
+            [
+                "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP", "VELLA_TEST_DECODER_NONFINITE",
+                "VELLA_TEST_ENCODER_NONFINITE", "VELLA_SELFTEST_RESULT"
+            ])
+        XCTAssertEqual(
+            Set(runtimeTestHookNames),
+            [
+                "VELLA_TEST_MEMORY_FILE", "VELLA_TEST_VM_STATS", "VELLA_TEST_MINUTE_SECONDS", "VELLA_SUPPORT_DIR",
+                "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
+                "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK",
+                "VELLA_API", "VELLA_UPDATE"
+            ])
+        XCTAssertEqual(
+            activeTestHooks(["VELLA_API": "0", "VELLA_UPDATE": "0", "VELLA_RECIPE": "standard", "HOME": "/x"]),
+            ["VELLA_API": "0", "VELLA_UPDATE": "0"])
         XCTAssertEqual(Set(EnvironmentSwitch.all.map(\.name)).count, EnvironmentSwitch.all.count, "one entry per name")
     }
 

@@ -14,10 +14,12 @@ final class DocsTests: XCTestCase {
     }
 
     func testCommunityFilesExist() {
-        for path in ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "CHANGELOG.md",
-                     ".github/ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/feature_request.yml",
-                     ".github/ISSUE_TEMPLATE/new_model.yml", ".github/ISSUE_TEMPLATE/config.yml",
-                     ".github/pull_request_template.md", ".github/FUNDING.yml", ".github/CODEOWNERS"] {
+        for path in [
+            "LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "CHANGELOG.md",
+            ".github/ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/feature_request.yml",
+            ".github/ISSUE_TEMPLATE/new_model.yml", ".github/ISSUE_TEMPLATE/config.yml",
+            ".github/pull_request_template.md", ".github/FUNDING.yml", ".github/CODEOWNERS"
+        ] {
             XCTAssertTrue(exists(path), path)
         }
         XCTAssertFalse(exists("BENCHMARKS.md"), "the benchmark table lives in the README and on the Pages site")
@@ -49,18 +51,22 @@ final class DocsTests: XCTestCase {
         XCTAssertTrue(pages.contains("VERSION=\"${VELLA_VERSION:-\(try version)}\""), "docs/install.sh installs the version in Info.plist")
         XCTAssertTrue(pages.hasSuffix("main \"$@\"\n"))
         let release = try text("scripts/install-release.sh"), prepared = try text("scripts/install-prepared.sh")
-        for step in ["https://github.com/TobyNoSkillSon/Vella/releases/download/v$VERSION", "ZIP=\"Vella-$VERSION-arm64.zip\"",
-                     "awk -v name=\"$ZIP\" '$2 == name { print $1 }' \"$TEMP/SHA256SUMS\"", "shasum -a 256 \"$TEMP/$ZIP\"",
-                     "$0 !~ /^Vella\\.app(\\/|$)/", "ditto -x -k \"$TEMP/$ZIP\" \"$TEMP/unpacked\"",
-                     "MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker Helpers/VellaInstallTool",
-                     "mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib", "Print :CFBundleShortVersionString",
-                     "codesign --verify --deep --strict \"$APP\"", "--proto '=https,file' --proto-redir '=https' --tlsv1.2"] {
+        for step in [
+            "https://github.com/TobyNoSkillSon/Vella/releases/download/v$VERSION", "ZIP=\"Vella-$VERSION-arm64.zip\"",
+            "awk -v name=\"$ZIP\" '$2 == name { print $1 }' \"$TEMP/SHA256SUMS\"", "shasum -a 256 \"$TEMP/$ZIP\"",
+            "$0 !~ /^Vella\\.app(\\/|$)/", "ditto -x -k \"$TEMP/$ZIP\" \"$TEMP/unpacked\"",
+            "MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker Helpers/VellaInstallTool",
+            "mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib", "Print :CFBundleShortVersionString",
+            "codesign --verify --deep --strict \"$APP\"", "--proto '=https,file' --proto-redir '=https' --tlsv1.2"
+        ] {
             XCTAssertTrue(release.contains(step), "scripts/install-release.sh: \(step)")
             XCTAssertTrue(pages.contains(step), "docs/install.sh: \(step)")
         }
-        for step in ["install --app \"$APP\" --destination \"$DEST\" --support \"$SUPPORT\" --keep-previous",
-                     "ready --app \"$DEST\" --support \"$SUPPORT\" --timeout \"${VELLA_READY_TIMEOUT:-1800}\"",
-                     "ln -sfn \"$DEST/Contents/Helpers/vella\" \"$BIN/vella\"", "VELLA_ACCEPT_DEGRADED"] {
+        for step in [
+            "install --app \"$APP\" --destination \"$DEST\" --support \"$SUPPORT\" --keep-previous",
+            "ready --app \"$DEST\" --support \"$SUPPORT\" --timeout \"${VELLA_READY_TIMEOUT:-1800}\"",
+            "ln -sfn \"$DEST/Contents/Helpers/vella\" \"$BIN/vella\"", "VELLA_ACCEPT_DEGRADED"
+        ] {
             XCTAssertTrue(prepared.contains(step), "scripts/install-prepared.sh: \(step)")
             XCTAssertTrue(pages.contains(step), "docs/install.sh: \(step)")
         }
@@ -70,7 +76,8 @@ final class DocsTests: XCTestCase {
     /// docs/data.js is Resources/benchmarks.json and Resources/models.json unchanged (scripts/pages-data.sh).
     func testPagesDataMatchesTheResources() throws {
         func trimmed(_ s: String) -> String { var s = s; while s.hasSuffix("\n") { s.removeLast() }; return s }
-        let expected = "// Written by scripts/pages-data.sh from Resources/benchmarks.json and Resources/models.json.\n"
+        let expected =
+            "// Written by scripts/pages-data.sh from Resources/benchmarks.json and Resources/models.json.\n"
             + "const VELLA_BENCHMARKS = \(trimmed(try text("Resources/benchmarks.json")));\n"
             + "const VELLA_MODELS = \(trimmed(try text("Resources/models.json")));\n"
         XCTAssertTrue(try text("docs/data.js") == expected, "docs/data.js is stale: run scripts/pages-data.sh")
@@ -96,11 +103,13 @@ final class DocsTests: XCTestCase {
 
     /// Public documents carry no local paths or internal notes.
     func testPublicDocumentsHaveNoInternalReferences() throws {
-        let documents = ["README.md", "AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md", "NOTICE",
-                         "THIRD_PARTY_NOTICES.md", "docs/USAGE.md", "docs/index.html", "docs/table.js", "docs/install.sh",
-                         ".github/pull_request_template.md", ".github/ISSUE_TEMPLATE/bug_report.yml",
-                         ".github/ISSUE_TEMPLATE/feature_request.yml", ".github/ISSUE_TEMPLATE/new_model.yml",
-                         "scripts/third-party-notices.sh", "scripts/pages-data.sh"]
+        let documents = [
+            "README.md", "AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md", "NOTICE",
+            "THIRD_PARTY_NOTICES.md", "docs/USAGE.md", "docs/index.html", "docs/table.js", "docs/install.sh",
+            ".github/pull_request_template.md", ".github/ISSUE_TEMPLATE/bug_report.yml",
+            ".github/ISSUE_TEMPLATE/feature_request.yml", ".github/ISSUE_TEMPLATE/new_model.yml",
+            "scripts/third-party-notices.sh", "scripts/pages-data.sh"
+        ]
         for path in documents {
             let body = try text(path)
             for needle in ["/Users/", "Vault/", "lab/notes"] {
@@ -121,7 +130,7 @@ final class DocsTests: XCTestCase {
             ["**Models…**", "**Keep Hot**", "**Memory**"],
             ["**Start Dictation**", "**Mode**", "**Microphone**", "**Shortcuts**", "**Copy Last Transcript**", "**Open Saved Recordings**"],
             ["**Copy Skill for Your Agent**", "**Open Vella Files**", "**Restart Worker**", "**Start Worker**", "**Launch at Login**"],
-            ["**Support the developer…**", "**Update to X…**", "**Quit Vella**"],
+            ["**Support the developer…**", "**Update to X…**", "**Quit Vella**"]
         ]
         for (block, titles) in zip(blocks, expected) {
             let positions = titles.map { block.range(of: $0)?.lowerBound }

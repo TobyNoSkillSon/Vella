@@ -95,8 +95,9 @@ public func speedHelp(_ mode: RecognitionMode, _ r: PrecisionResult?, suites: [S
     if mode == .streaming {
         return figure("Streaming replay speed in \u{00d7} real time", on: suite, "not microphone-to-text latency", better: "higher is faster", r, stock: true)
     }
-    return figure("Speed in \u{00d7} real time", on: suite, "timed after loading",
-                  better: "higher is faster" + (x < slowSpeedFloor ? "; under 20\u{00d7} is very slow for dictation" : ""), r, stock: true)
+    return figure(
+        "Speed in \u{00d7} real time", on: suite, "timed after loading",
+        better: "higher is faster" + (x < slowSpeedFloor ? "; under 20\u{00d7} is very slow for dictation" : ""), r, stock: true)
 }
 
 public func energyHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
@@ -117,8 +118,10 @@ public let referenceNotApplicableHelp = "Not applicable: a cloud API runs on the
 public let referenceFormatHelp = "Not estimated: no public case-and-punctuation figure to scale from"
 
 public func referenceModelHelp(_ r: ReferenceEntry) -> String {
-    [r.name, (r.provider.map { "\($0) \u{00b7} " } ?? "") + "Proprietary cloud API",
-     "Cloud speech-to-text shown for comparison only; Vella never sends audio to it"].joined(separator: "\n")
+    [
+        r.name, (r.provider.map { "\($0) \u{00b7} " } ?? "") + "Proprietary cloud API",
+        "Cloud speech-to-text shown for comparison only; Vella never sends audio to it"
+    ].joined(separator: "\n")
 }
 
 /// The board an estimate is scaled from, by name only: `source` up to its first comma or parenthesis
@@ -205,8 +208,11 @@ public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: 
 /// recommendation gate, the loss in numbers.
 public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe) -> String {
     let t = benchmark?.tiers[tier]
-    let cell = benchmarkCell(benchmark, ModelSelection(tier: tier, path: segment == .standard ? .standard : .optimized,
-                                                       mode: segment == .optimized_fast ? .fast : .exact))
+    let cell = benchmarkCell(
+        benchmark,
+        ModelSelection(
+            tier: tier, path: segment == .standard ? .standard : .optimized,
+            mode: segment == .optimized_fast ? .fast : .exact))
     var lines = [tierFlavour(family, tier: tier, cell: cell)]
     lines.append(tierDeltaLine(cell, base: benchmark?.tiers[.t16]?.cells[.standard], isBase: tier == .t16 && segment == .standard))
     if let loss = t?.gate.loss, !loss.isEmpty, t?.gate.status != .pass { lines.append("Loss vs 16: " + loss.joined(separator: ", ")) }

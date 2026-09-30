@@ -10,8 +10,11 @@ extension WorkerTests {
     @Suite struct Gate {
         static let host = FastPathGate.Host(gpuFamily: "apple9", osBuild: "25A123")
         /// Production defaults: no recipe, no component switch.
-        static let clean: [String: String?] = Dictionary(uniqueKeysWithValues: (["VELLA_RECIPE", "VELLA_NEMO_FUSED", "VELLA_FORCE_STOCK",
-            "VELLA_PARAKEET_FORCE_STOCK", "VELLA_MLX_DEVICE"] + FastPathGate.componentSwitches).map { ($0, nil) })
+        static let clean: [String: String?] = Dictionary(
+            uniqueKeysWithValues: ([
+                "VELLA_RECIPE", "VELLA_NEMO_FUSED", "VELLA_FORCE_STOCK",
+                "VELLA_PARAKEET_FORCE_STOCK", "VELLA_MLX_DEVICE"
+            ] + FastPathGate.componentSwitches).map { ($0, nil) })
 
         /// Two weight files and a config; `notes.txt` is not part of the key.
         func checkpoint(_ scratch: Scratch, _ name: String = "model") throws -> URL {
@@ -34,7 +37,8 @@ extension WorkerTests {
             #expect(try key() == "fe9f3f82e7f5f2708a3fa0869935f9e0fd9c2accb51fe2e1d31024bcb493a4e7")
             #expect(try key("") == "84e4b1b7e7c1ad90ad1acaee3a03fb4f958a2fd263b639c7e88d24664ec83e2d")
             #expect(try key("stub-1", ["VELLA_RECIPE": "optimized_exact"]) == "0ef51effbaa74631c7ba7bd2dab36fff6d6c90d277112d51b7a66cc350cb7c0e")
-            #expect(try key("stub-1", ["VELLA_PARAKEET_FAST": "decoder", "VELLA_NEMO_FUSED": "0"])
+            #expect(
+                try key("stub-1", ["VELLA_PARAKEET_FAST": "decoder", "VELLA_NEMO_FUSED": "0"])
                     == "0244ffad6697ac8cef3431d1d02035b5823b950d5209dcd24ed660a75b9f5cfd")
         }
 
@@ -42,10 +46,14 @@ extension WorkerTests {
             let scratch = try Scratch("vella-gate")
             let source = try checkpoint(scratch, "source")
             let cases = [
-                ("derived-4b", "{\"schema\": 1, \"precision\": \"4b\", \"bits\": 4, \"groupSize\": 64, \"source\": \"\(source.path)\"}",
-                 "parakeet-r2-dense-encoder", "b1a7d02aa888050618fa04c585ee3432b9660e760d10755833350d68c15591de"),
-                ("derived-bf16", "{\"schema\": 1, \"precision\": \"BF16\", \"dtype\": \"bfloat16\", \"source\": \"\(source.path)\"}",
-                 "stub-1", "561a2df7cf0f53bfa866a4d1fdd2e17b10ecbb5eea4a80b276aa689d6817d6fb"),
+                (
+                    "derived-4b", "{\"schema\": 1, \"precision\": \"4b\", \"bits\": 4, \"groupSize\": 64, \"source\": \"\(source.path)\"}",
+                    "parakeet-r2-dense-encoder", "b1a7d02aa888050618fa04c585ee3432b9660e760d10755833350d68c15591de"
+                ),
+                (
+                    "derived-bf16", "{\"schema\": 1, \"precision\": \"BF16\", \"dtype\": \"bfloat16\", \"source\": \"\(source.path)\"}",
+                    "stub-1", "561a2df7cf0f53bfa866a4d1fdd2e17b10ecbb5eea4a80b276aa689d6817d6fb"
+                )
             ]
             for (name, manifest, revision, expected) in cases {
                 let folder = try scratch.folder(name)
@@ -69,11 +77,14 @@ extension WorkerTests {
         }
 
         @Test func componentConfigurationAndReportedSwitches() {
-            let environment = ["VELLA_PARAKEET_FAST": "decoder", "VELLA_NEMO_FUSED": "0", "VELLA_PARAKEET_NAX": "", "VELLA_RECIPE": "optimized_exact",
-                               "VELLA_FORCE_STOCK": "1", "VELLA_QWEN_PROFILE": "1", "HOME": "/x"]
+            let environment = [
+                "VELLA_PARAKEET_FAST": "decoder", "VELLA_NEMO_FUSED": "0", "VELLA_PARAKEET_NAX": "", "VELLA_RECIPE": "optimized_exact",
+                "VELLA_FORCE_STOCK": "1", "VELLA_QWEN_PROFILE": "1", "HOME": "/x"
+            ]
             #expect(FastPathGate.componentConfiguration(environment) == "VELLA_NEMO_FUSED=0,VELLA_PARAKEET_FAST=decoder")
             #expect(FastPathGate.componentConfiguration(["HOME": "/x"]) == "")
-            #expect(FastPathGate.reportedEnvironment(environment)
+            #expect(
+                FastPathGate.reportedEnvironment(environment)
                     == ["VELLA_PARAKEET_FAST": "decoder", "VELLA_NEMO_FUSED": "0", "VELLA_FORCE_STOCK": "1", "VELLA_QWEN_PROFILE": "1"])
             #expect(FastPathGate.selectionSwitches == ["VELLA_RECIPE"])
             #expect(Set(FastPathGate.componentSwitches).isSubset(of: Set(FastPathGate.reportedSwitches)))
@@ -95,8 +106,9 @@ extension WorkerTests {
         @Test func verdictPersistence() throws {
             let scratch = try Scratch("vella-gate")
             let url = scratch.url.appendingPathComponent("FastPath/key.json")
-            FastPathGate.persist("fast", to: url, model: URL(fileURLWithPath: "/models/parakeet-ultra-bf16"),
-                                 reason: FastPathGate.partialReason(["nax_gemm": "word edits 3 > 1"]), disabled: ["nax_gemm": "word edits 3 > 1"])
+            FastPathGate.persist(
+                "fast", to: url, model: URL(fileURLWithPath: "/models/parakeet-ultra-bf16"),
+                reason: FastPathGate.partialReason(["nax_gemm": "word edits 3 > 1"]), disabled: ["nax_gemm": "word edits 3 > 1"])
             #expect(FastPathGate.status(url) == "fast")
             #expect(FastPathGate.disabledComponents(url) == ["nax_gemm": "word edits 3 > 1"])
             #expect(FastPathGate.inconclusiveCount(url) == 0)
@@ -135,8 +147,11 @@ extension WorkerTests {
         @Test func nemotronSwitchDependencies() {
             typealias S = VellaNemotronOptions.Switches
             let all = S(environment: [:], forcedStock: false)
-            #expect(all.effective() == ["f32_weights": true, "coalesce": true, "batched_decode": true, "position_cache": true, "kv_cache": true,
-                                        "fused_layer": true, "mel_batch": true, "bf16_linears": true])
+            #expect(
+                all.effective() == [
+                    "f32_weights": true, "coalesce": true, "batched_decode": true, "position_cache": true, "kv_cache": true,
+                    "fused_layer": true, "mel_batch": true, "bf16_linears": true
+                ])
             #expect(!S(environment: [:], forcedStock: true).anyEnabled)
             let exact = S(environment: [:], forcedStock: false, exactOnly: true).effective()
             #expect(exact["fused_layer"] == false); #expect(exact["bf16_linears"] == false); #expect(exact["kv_cache"] == true)
@@ -189,8 +204,10 @@ extension WorkerTests {
         @Test func onlyTDT() throws {
             let rnnt = "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel"
             try ParakeetVariantResolver.requireTDT(target: rnnt, hasTDTDurations: true)
-            for (target, tdt) in [(rnnt, false), ("nemo.collections.asr.models.hybrid_rnnt_ctc_bpe_models.EncDecHybridRNNTCTCBPEModel", true),
-                                  ("nemo.collections.asr.models.ctc_bpe_models.EncDecCTCModelBPE", false), ("", true)] {
+            for (target, tdt) in [
+                (rnnt, false), ("nemo.collections.asr.models.hybrid_rnnt_ctc_bpe_models.EncDecHybridRNNTCTCBPEModel", true),
+                ("nemo.collections.asr.models.ctc_bpe_models.EncDecCTCModelBPE", false), ("", true)
+            ] {
                 #expect(throws: (any Error).self) { try ParakeetVariantResolver.requireTDT(target: target, hasTDTDurations: tdt) }
             }
         }

@@ -78,9 +78,11 @@ public final class ShortcutEngine {
         public var isRecording: () -> Bool
         public var isBusy: () -> Bool
         public var currentOperation: () -> UInt64
-        public init(start: @escaping () -> Void, finish: @escaping () -> Void, cancel: @escaping () -> Void,
-                    isRecording: @escaping () -> Bool, isBusy: @escaping () -> Bool,
-                    currentOperation: @escaping () -> UInt64 = { 0 }) {
+        public init(
+            start: @escaping () -> Void, finish: @escaping () -> Void, cancel: @escaping () -> Void,
+            isRecording: @escaping () -> Bool, isBusy: @escaping () -> Bool,
+            currentOperation: @escaping () -> UInt64 = { 0 }
+        ) {
             self.start = start; self.finish = finish; self.cancel = cancel
             self.isRecording = isRecording; self.isBusy = isBusy
             self.currentOperation = currentOperation

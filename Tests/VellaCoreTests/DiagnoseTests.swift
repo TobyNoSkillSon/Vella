@@ -6,10 +6,19 @@ import VellaTestSupport
 final class DiagnoseFormatTests: XCTestCase {
     static let host = Diagnosis.Host(chip: "Apple M4 Pro", hardware: "Mac16,7", memoryGB: 48, macos: "15.5", osBuild: "24F74", gpuFamily: "apple9")
 
-    static let reference = DiagnoseReference(chip: "Apple M5 Max", gate_version: "native-kernels-8", method: "api", models: [
-        "parakeet-v3-ultra": ["BF16": [
-            "optimized": .init(transcripts: ["clip-a": "One two three.", "clip-b": "Four five six seven.", "clip-c": "Eight.",
-                                             "clip-d": "Nine ten.", "clip-e": "Eleven twelve."], speed_x: 512.3)]]])
+    static let reference = DiagnoseReference(
+        chip: "Apple M5 Max", gate_version: "native-kernels-8", method: "api",
+        models: [
+            "parakeet-v3-ultra": [
+                "BF16": [
+                    "optimized": .init(
+                        transcripts: [
+                            "clip-a": "One two three.", "clip-b": "Four five six seven.", "clip-c": "Eight.",
+                            "clip-d": "Nine ten.", "clip-e": "Eleven twelve."
+                        ], speed_x: 512.3)
+                ]
+            ]
+        ])
 
     func clips(_ texts: [String]) -> [Diagnosis.Clip] { zip(Diagnose.clips, texts).map { Diagnosis.Clip(name: $0.0.name, text: $0.1) } }
 
@@ -17,40 +26,49 @@ final class DiagnoseFormatTests: XCTestCase {
         let ref = Self.reference.run(model: "parakeet-v3-ultra", precision: "BF16", engine: "optimized")
         XCTAssertNotNil(ref)
         let got = Diagnose.compare(clips(["One two three.", "Four five sixty seven.", "Eight.", "Nine ten.", "eleven twelve"]), with: ref)
-        let run = Diagnosis.Run(clips: got, passSeconds: [0.060, 0.050, 0.070], audioSeconds: 22.855,
-                                reference: Diagnose.referenceLabel(Self.reference, engine: "optimized"), referenceSpeedX: 512.3)
-        let fast = Diagnosis.Model(id: "parakeet-v3-ultra", name: "Parakeet v3 Ultra", mode: "dictation", precision: "BF16", engine: "optimized",
-                                   optimizations: ["decoder": true, "encoder": true], residency: "manual", workerVersion: "native-kernels-8", run: run)
-        let slow = Diagnosis.Model(id: "qwen3-asr-1.7b", mode: "dictation", precision: "8b", engine: "mlx",
-                                   engineReason: "The optimized path failed its self-test against stock MLX on this Mac.",
-                                   optimizations: ["decoder": false], residency: "on_demand", notTimed: "Vella's API did not answer (timed out)")
-        let stream = Diagnosis.Model(id: "nemotron-3.5-streaming-0.6b", mode: "streaming", precision: "BF16", engine: "optimized",
-                                     optimizations: ["encoder": true, "decoder": false], residency: "manual",
-                                     notTimed: "streaming models are not served by the API")
-        let d = Diagnosis(cliVersion: "1.0.0 (35)", appVersion: "1.0.0 (35)", api: 1, host: Self.host, running: true, dictation: "idle",
-                          models: [fast, slow, stream],
-                          gate: [.init(status: "fast", model: "parakeet-ultra-mlx-bf16", workerVersion: "native-kernels-8"),
-                                 .init(status: "stock", model: "Qwen3-ASR-1.7B-8bit", reason: "self-test: optimized output differs from stock MLX", workerVersion: "native-kernels-8"),
-                                 .init(status: "stock", workerVersion: "native-kernels-7")],
-                          gateVersion: "native-kernels-8")
-        XCTAssertEqual(Diagnose.text(d), [
-            "vella diagnose",
-            "vella 1.0.0 (35) · app 1.0.0 (35) · API 1 · worker native-kernels-8",
-            "Mac: M4 Pro · Mac16,7 · 48 GB · macOS 15.5 (24F74) · GPU family apple9",
-            "parakeet-v3-ultra: Optimized · M4 Pro · BF16 · manual",
-            "  optimized: decoder, encoder",
-            "  fallbacks: none",
-            "  clips: 3/5 identical to the reference (M5 Max, optimized); clip-b 1 word off, clip-e 2 words off · 22.9 s of audio at 381× real time (M5 Max: 512×)",
-            "qwen3-asr-1.7b: MLX · 8b · on demand",
-            "  optimized: none",
-            "  fallbacks: The optimized path failed its self-test against stock MLX on this Mac.",
-            "  not timed: Vella's API did not answer (timed out)",
-            "nemotron-3.5-streaming-0.6b: Optimized · M4 Pro · BF16 · streaming · manual",
-            "  optimized: encoder",
-            "  fallbacks: stock: decoder",
-            "  not timed: streaming models are not served by the API",
-            "gate verdicts: 1 optimized, 1 stock (Qwen3-ASR-1.7B-8bit: self-test: optimized output differs from stock MLX) · 1 from an older worker version",
-        ])
+        let run = Diagnosis.Run(
+            clips: got, passSeconds: [0.060, 0.050, 0.070], audioSeconds: 22.855,
+            reference: Diagnose.referenceLabel(Self.reference, engine: "optimized"), referenceSpeedX: 512.3)
+        let fast = Diagnosis.Model(
+            id: "parakeet-v3-ultra", name: "Parakeet v3 Ultra", mode: "dictation", precision: "BF16", engine: "optimized",
+            optimizations: ["decoder": true, "encoder": true], residency: "manual", workerVersion: "native-kernels-8", run: run)
+        let slow = Diagnosis.Model(
+            id: "qwen3-asr-1.7b", mode: "dictation", precision: "8b", engine: "mlx",
+            engineReason: "The optimized path failed its self-test against stock MLX on this Mac.",
+            optimizations: ["decoder": false], residency: "on_demand", notTimed: "Vella's API did not answer (timed out)")
+        let stream = Diagnosis.Model(
+            id: "nemotron-3.5-streaming-0.6b", mode: "streaming", precision: "BF16", engine: "optimized",
+            optimizations: ["encoder": true, "decoder": false], residency: "manual",
+            notTimed: "streaming models are not served by the API")
+        let d = Diagnosis(
+            cliVersion: "1.0.0 (35)", appVersion: "1.0.0 (35)", api: 1, host: Self.host, running: true, dictation: "idle",
+            models: [fast, slow, stream],
+            gate: [
+                .init(status: "fast", model: "parakeet-ultra-mlx-bf16", workerVersion: "native-kernels-8"),
+                .init(status: "stock", model: "Qwen3-ASR-1.7B-8bit", reason: "self-test: optimized output differs from stock MLX", workerVersion: "native-kernels-8"),
+                .init(status: "stock", workerVersion: "native-kernels-7")
+            ],
+            gateVersion: "native-kernels-8")
+        XCTAssertEqual(
+            Diagnose.text(d),
+            [
+                "vella diagnose",
+                "vella 1.0.0 (35) · app 1.0.0 (35) · API 1 · worker native-kernels-8",
+                "Mac: M4 Pro · Mac16,7 · 48 GB · macOS 15.5 (24F74) · GPU family apple9",
+                "parakeet-v3-ultra: Optimized · M4 Pro · BF16 · manual",
+                "  optimized: decoder, encoder",
+                "  fallbacks: none",
+                "  clips: 3/5 identical to the reference (M5 Max, optimized); clip-b 1 word off, clip-e 2 words off · 22.9 s of audio at 381× real time (M5 Max: 512×)",
+                "qwen3-asr-1.7b: MLX · 8b · on demand",
+                "  optimized: none",
+                "  fallbacks: The optimized path failed its self-test against stock MLX on this Mac.",
+                "  not timed: Vella's API did not answer (timed out)",
+                "nemotron-3.5-streaming-0.6b: Optimized · M4 Pro · BF16 · streaming · manual",
+                "  optimized: encoder",
+                "  fallbacks: stock: decoder",
+                "  not timed: streaming models are not served by the API",
+                "gate verdicts: 1 optimized, 1 stock (Qwen3-ASR-1.7B-8bit: self-test: optimized output differs from stock MLX) · 1 from an older worker version"
+            ])
         XCTAssertEqual(Diagnose.title(d), "M4 Pro, macOS 15.5: parakeet-v3-ultra BF16 clips differ from the reference")
 
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Diagnose.jsonText(d, issueURL: "u").utf8)) as? [String: Any])
@@ -67,8 +85,11 @@ final class DiagnoseFormatTests: XCTestCase {
     }
 
     func testTitleForStockAndQuietReports() {
-        var d = Diagnosis(host: Self.host, running: true, models: [
-            Diagnosis.Model(id: "parakeet-v3", precision: "4b", engine: "mlx", engineReason: "The optimized kernels need Apple GPU family 9; this GPU reports apple8.")])
+        var d = Diagnosis(
+            host: Self.host, running: true,
+            models: [
+                Diagnosis.Model(id: "parakeet-v3", precision: "4b", engine: "mlx", engineReason: "The optimized kernels need Apple GPU family 9; this GPU reports apple8.")
+            ])
         XCTAssertEqual(Diagnose.title(d), "M4 Pro, macOS 15.5: parakeet-v3 on MLX: The optimized kernels need Apple GPU family 9; this GPU reports apple8.")
         d.models = []
         XCTAssertEqual(Diagnose.title(d), "M4 Pro, macOS 15.5: diagnose report")
@@ -78,10 +99,13 @@ final class DiagnoseFormatTests: XCTestCase {
 
     func testNotRunningNothingLoadedAndNoReference() {
         var d = Diagnosis(host: Self.host, running: false)
-        XCTAssertEqual(Diagnose.text(d), [
-            "vella diagnose", "vella dev", "Mac: M4 Pro · Mac16,7 · 48 GB · macOS 15.5 (24F74) · GPU family apple9",
-            "Vella is not running: start it from Applications and run `vella diagnose` again.",
-            "gate verdicts: none yet (a model's first load runs its self-test)"])
+        XCTAssertEqual(
+            Diagnose.text(d),
+            [
+                "vella diagnose", "vella dev", "Mac: M4 Pro · Mac16,7 · 48 GB · macOS 15.5 (24F74) · GPU family apple9",
+                "Vella is not running: start it from Applications and run `vella diagnose` again.",
+                "gate verdicts: none yet (a model's first load runs its self-test)"
+            ])
         d.running = true; d.dictationModel = "parakeet-v3-ultra"; d.referenceAvailable = false; d.dictation = "recording"
         d.switches = ["VELLA_FORCE_STOCK"]; d.refused = "Parakeet needs 1.3 GB; 0.4 GB is free."
         let text = Diagnose.text(d)
@@ -102,20 +126,28 @@ final class DiagnoseFormatTests: XCTestCase {
     }
 
     func testGateVerdictsWithoutALoadedModelCountTheNewestWorkerVersion() {
-        let d = Diagnosis(host: Self.host, running: false, gate: [
-            .init(status: "stock", workerVersion: "native-kernels-9"), .init(status: "fast", workerVersion: "native-kernels-10"),
-            .init(status: "fast", model: "m", workerVersion: "native-kernels-10")])
+        let d = Diagnosis(
+            host: Self.host, running: false,
+            gate: [
+                .init(status: "stock", workerVersion: "native-kernels-9"), .init(status: "fast", workerVersion: "native-kernels-10"),
+                .init(status: "fast", model: "m", workerVersion: "native-kernels-10")
+            ])
         XCTAssertEqual(Diagnose.text(d).last, "gate verdicts: 2 optimized · 1 from an older worker version")
     }
 
     /// Two-stage gate: a fast verdict with a reason is optimized without a tolerant component; it says which and why.
     func testPartialGateVerdictListsTheDisabledComponent() {
-        let d = Diagnosis(host: Self.host, running: false, gate: [
-            .init(status: "fast", model: "parakeet-v3-ultra-bf16", reason: "optimized without nax_gemm (word edits 2 > 1 over the clips)",
-                  workerVersion: "native-kernels-9"),
-            .init(status: "fast", model: "m", workerVersion: "native-kernels-9")])
-        XCTAssertEqual(Diagnose.text(d).last,
-                       "gate verdicts: 2 optimized (parakeet-v3-ultra-bf16: optimized without nax_gemm (word edits 2 > 1 over the clips))")
+        let d = Diagnosis(
+            host: Self.host, running: false,
+            gate: [
+                .init(
+                    status: "fast", model: "parakeet-v3-ultra-bf16", reason: "optimized without nax_gemm (word edits 2 > 1 over the clips)",
+                    workerVersion: "native-kernels-9"),
+                .init(status: "fast", model: "m", workerVersion: "native-kernels-9")
+            ])
+        XCTAssertEqual(
+            Diagnose.text(d).last,
+            "gate verdicts: 2 optimized (parakeet-v3-ultra-bf16: optimized without nax_gemm (word edits 2 > 1 over the clips))")
     }
 
     func testWordEdits() {
@@ -140,9 +172,10 @@ final class DiagnoseFormatTests: XCTestCase {
         XCTAssertEqual(Diagnose.safeModelName("parakeet-ultra-mlx-bf16"), "parakeet-ultra-mlx-bf16")
         XCTAssertNil(Diagnose.safeModelName("/Users/someone/x"))
         XCTAssertNil(Diagnose.safeModelName("a b"))
-        let d = Diagnosis(host: Self.host, running: true,
-                          models: [Diagnosis.Model(id: "m", engine: "mlx", engineReason: "failed at /Users/someone/Library/x")],
-                          gate: [.init(status: "stock", model: "/Users/someone/x", reason: "\(home)/y")], statusError: "\(home)/z missing")
+        let d = Diagnosis(
+            host: Self.host, running: true,
+            models: [Diagnosis.Model(id: "m", engine: "mlx", engineReason: "failed at /Users/someone/Library/x")],
+            gate: [.init(status: "stock", model: "/Users/someone/x", reason: "\(home)/y")], statusError: "\(home)/z missing")
         let text = Diagnose.text(d).joined(separator: "\n") + Diagnose.jsonText(d, issueURL: "") + Diagnose.issueURL(d)
         XCTAssertFalse(text.contains("/Users/"), text)
         XCTAssertFalse(text.contains(home), text)
@@ -150,10 +183,13 @@ final class DiagnoseFormatTests: XCTestCase {
 
     func testReferenceFileDecodes() throws {
         XCTAssertNil(DiagnoseReference.decode(Data(#"{"schema": 2, "models": {}}"#.utf8)))
-        let lab = try XCTUnwrap(DiagnoseReference.decode(Data(#"""
-        {"schema": 1, "chip": "Apple M5 Max", "method": "api", "extra": 1, "models": {"parakeet-v3": {"8b": {"mlx":
-          {"transcripts": {"clip-a": "x"}, "speed_x": 100.5, "pass_s": [0.2], "wall_ms": {"clip-a": 1}}}}}}
-        """#.utf8)))
+        let lab = try XCTUnwrap(
+            DiagnoseReference.decode(
+                Data(
+                    #"""
+                    {"schema": 1, "chip": "Apple M5 Max", "method": "api", "extra": 1, "models": {"parakeet-v3": {"8b": {"mlx":
+                      {"transcripts": {"clip-a": "x"}, "speed_x": 100.5, "pass_s": [0.2], "wall_ms": {"clip-a": 1}}}}}}
+                    """#.utf8)))
         XCTAssertEqual(lab.run(model: "parakeet-v3", precision: "8b", engine: "mlx")?.speed_x, 100.5)
         // The bundled file: schema 1, and every run carries all five clips.
         let url = Repository.root
@@ -178,8 +214,9 @@ final class IssueURLTests: XCTestCase {
 
     func testShortReportIsCarriedWhole() throws {
         let body = "vella diagnose\nMac: M3 · macOS 15.1\nparakeet-v3: MLX & more?=#"
-        let url = IssueURL.bugReport(repository: "https://github.com/o/r", title: "M3: parakeet-v3 on MLX",
-                                     fields: [("chip", "M3, Mac15,3"), ("macos", "15.1"), ("version", "")], diagnose: body, maxLength: 7000)
+        let url = IssueURL.bugReport(
+            repository: "https://github.com/o/r", title: "M3: parakeet-v3 on MLX",
+            fields: [("chip", "M3, Mac15,3"), ("macos", "15.1"), ("version", "")], diagnose: body, maxLength: 7000)
         XCTAssertTrue(url.hasPrefix("https://github.com/o/r/issues/new?template=bug_report.yml&title="), url)
         let q = try query(url)
         XCTAssertEqual(q["template"], "bug_report.yml")

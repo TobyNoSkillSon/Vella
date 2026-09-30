@@ -63,8 +63,9 @@ final class StreamingTests: XCTestCase {
         let backend = try worker("if q['op']=='audio': r['frames']+=1")
         defer { backend.shutdown() }
         try await backend.start(config: config().forRecording())
-        do { try await backend.feed(Data(repeating: 0, count: 4)); XCTFail("Accepted wrong acknowledgement") }
-        catch { XCTAssertTrue(error.localizedDescription.contains("acknowledgement")) }
+        do { try await backend.feed(Data(repeating: 0, count: 4)); XCTFail("Accepted wrong acknowledgement") } catch {
+            XCTAssertTrue(error.localizedDescription.contains("acknowledgement"))
+        }
         XCTAssertNil(backend.processID)
     }
     @MainActor func testRoamingSendsPendingWordsToNewFocusWithoutReplayingEarlierText() async throws {
@@ -121,16 +122,18 @@ final class StreamingTests: XCTestCase {
         let backend = try worker("if q['op']=='finish': r.update(committed='',error='Native runtime failed')")
         defer { backend.shutdown() }
         try await backend.start(config: config().forRecording())
-        do { _ = try await backend.finish(expectedFrames: 0); XCTFail("Runtime failure was accepted") }
-        catch { XCTAssertTrue(error.localizedDescription.contains("Native runtime failed")) }
+        do { _ = try await backend.finish(expectedFrames: 0); XCTFail("Runtime failure was accepted") } catch {
+            XCTAssertTrue(error.localizedDescription.contains("Native runtime failed"))
+        }
     }
     @MainActor func testLegacyIncompleteFlagIsStickyAndNeverReturnsCompleteText() async throws {
         let backend = try worker("if q['op']=='audio': r['incomplete']=True")
         defer { backend.shutdown() }
         try await backend.start(config: config().forRecording())
         try await backend.feed(Data(repeating: 0, count: 4))
-        do { _ = try await backend.finish(expectedFrames: 1); XCTFail("Incomplete text was accepted") }
-        catch { XCTAssertTrue(error.localizedDescription.contains("incomplete result")) }
+        do { _ = try await backend.finish(expectedFrames: 1); XCTFail("Incomplete text was accepted") } catch {
+            XCTAssertTrue(error.localizedDescription.contains("incomplete result"))
+        }
         XCTAssertEqual(backend.committed, "hello world", "Recognized words remain recoverable")
     }
     @MainActor func testTimeoutAndCancellationRetireChild() async throws {
@@ -138,15 +141,14 @@ final class StreamingTests: XCTestCase {
         defer { backend.shutdown() }
         try await backend.start(config: config().forRecording())
         let pid = try XCTUnwrap(backend.processID)
-        do { try await backend.feed(Data(repeating: 0, count: 4)); XCTFail("Missing deadline") }
-        catch { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
+        do { try await backend.feed(Data(repeating: 0, count: 4)); XCTFail("Missing deadline") } catch { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
         try await backend.releaseAndWait()
         XCTAssertNotEqual(kill(pid, 0), 0)
         try await backend.start(config: config().forRecording())
         let pending = Task { try await backend.feed(Data(repeating: 0, count: 4)) }
         try await Task.sleep(nanoseconds: 20_000_000)
         pending.cancel()
-        do { try await pending.value; XCTFail("Cancellation was ignored") } catch { }
+        do { try await pending.value; XCTFail("Cancellation was ignored") } catch {}
         try await backend.releaseAndWait(); XCTAssertNil(backend.processID)
     }
     @MainActor func testStoppedSuspendedStartupCannotResurrectWorker() async throws {
@@ -156,7 +158,7 @@ final class StreamingTests: XCTestCase {
         let starting = Task { try await backend.start(config: config().forRecording()) }
         try await Task.sleep(nanoseconds: 50_000_000)
         backend.stop()
-        do { try await starting.value; XCTFail("Stopped startup resurrected") } catch { }
+        do { try await starting.value; XCTFail("Stopped startup resurrected") } catch {}
         XCTAssertNil(backend.processID)
     }
     @MainActor func testModeSwitchPreservesBothSelectionsAndBlocksDuringCapture() throws {
@@ -197,7 +199,7 @@ final class StreamingTests: XCTestCase {
         try await Task.sleep(nanoseconds: 20_000_000)
         backend.stop()
         try await backend.start(config: config().forRecording())
-        do { _ = try await finishing.value; XCTFail("Stopped Finish succeeded") } catch { }
+        do { _ = try await finishing.value; XCTFail("Stopped Finish succeeded") } catch {}
         XCTAssertNotNil(backend.processID, "An old Finish must not retire the replacement")
         try await backend.feed(Data(repeating: 0, count: 4))
         XCTAssertEqual(backend.partial, "hello")

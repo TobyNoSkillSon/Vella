@@ -19,9 +19,11 @@ import VellaCore
         for family in controller.families(.dictation) {
             let loaded = runtime.loadedRef(family.id)
             var precision: String?, path: String?
-            if currentIdentity?.family.id == family.id { precision = currentIdentity?.precision; path = current }
-            else if let loaded { precision = loaded.precision; path = loaded.path }
-            else {
+            if currentIdentity?.family.id == family.id {
+                precision = currentIdentity?.precision; path = current
+            } else if let loaded {
+                precision = loaded.precision; path = loaded.path
+            } else {
                 let preferred = controller.committed(family)
                 let order = [preferred] + precisionOptions(family).filter { $0 != preferred }
                 if let first = order.first(where: { controller.available(family, $0) }) {
@@ -31,12 +33,15 @@ import VellaCore
             }
             guard let precision, let path else { continue }
             let isLoaded = loaded?.path == path
-            let requested = (isLoaded ? loaded?.selection : nil)
+            let requested =
+                (isLoaded ? loaded?.selection : nil)
                 ?? recordedSelection(config: config, family: family.id, precision: precision)
             let running = effectiveSelection(requested, engine: isLoaded ? runtime.status.models[family.id]?.engine : nil)
-            result.append(APIModel(id: family.id, name: family.name, precision: precision, path: path, languages: family.languages,
-                                   loaded: isLoaded, current: currentIdentity?.family.id == family.id,
-                                   selection: running, requested: running == requested ? nil : requested))
+            result.append(
+                APIModel(
+                    id: family.id, name: family.name, precision: precision, path: path, languages: family.languages,
+                    loaded: isLoaded, current: currentIdentity?.family.id == family.id,
+                    selection: running, requested: running == requested ? nil : requested))
         }
         return result
     }
@@ -50,13 +55,15 @@ import VellaCore
     func prepare(_ model: APIModel) throws -> APIModel {
         guard model.path.isEmpty else { return model }
         guard let family = controller.catalog.family(model.id), let variant = family.variants[model.precision],
-              variant.isDerived, let source = family.downloadSource(of: model.precision),
-              let local = controller.library(.dictation).installed[source.variant.id] else {
+            variant.isDerived, let source = family.downloadSource(of: model.precision),
+            let local = controller.library(.dictation).installed[source.variant.id]
+        else {
             throw APIError(500, "\(model.name) has no files at \(model.precision)")
         }
         var prepared = model
-        prepared.path = try prepareDerivedModel(family: family, precision: model.precision, sourcePath: local.path,
-                                                modelsDirectory: controller.library(.dictation).modelsDirectory)
+        prepared.path = try prepareDerivedModel(
+            family: family, precision: model.precision, sourcePath: local.path,
+            modelsDirectory: controller.library(.dictation).modelsDirectory)
         return prepared
     }
 }
@@ -78,8 +85,9 @@ import VellaCore
             guard let model else { return false }
             return model.phase == .recording || model.busy
         }
-        let service = APIService(transcriber: transcriber, models: ControllerModelSource(controller: controller, runtime: runtime),
-                                 scratch: root.appendingPathComponent("files", isDirectory: true))
+        let service = APIService(
+            transcriber: transcriber, models: ControllerModelSource(controller: controller, runtime: runtime),
+            scratch: root.appendingPathComponent("files", isDirectory: true))
         service.dictationState = { [weak model] in
             switch model?.phase {
             case .recording?: return "recording"

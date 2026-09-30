@@ -10,7 +10,7 @@ import VellaWire
 public enum ModelTier: String, Codable, CaseIterable, Comparable, Sendable {
     case t16 = "16", t8 = "8", t4 = "4"
     public var bits: Int { Int(rawValue)! }
-    public static func < (a: ModelTier, b: ModelTier) -> Bool { a.bits > b.bits }   // 16 first
+    public static func < (a: ModelTier, b: ModelTier) -> Bool { a.bits > b.bits } // 16 first
 }
 
 /// The segment row: Standard (stock MLX, any Apple-silicon Mac) or Optimized (per-layer recipe + our kernels).

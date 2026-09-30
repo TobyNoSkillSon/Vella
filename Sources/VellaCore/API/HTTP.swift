@@ -145,7 +145,9 @@ public enum APIRequestCheck {
         if let raw = head.headers["content-length"] {
             guard let value = Int(raw), value >= 0 else { return APIError(400, "invalid Content-Length") }
             length = value
-        } else { length = 0 }
+        } else {
+            length = 0
+        }
         if route == .transcriptions {
             guard head.headers["content-length"] != nil else { return APIError(411, "send Content-Length") }
             switch head.mediaType {

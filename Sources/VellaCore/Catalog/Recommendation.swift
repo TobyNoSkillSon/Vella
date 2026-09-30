@@ -50,7 +50,8 @@ public func recommendedPrecision(_ benchmark: FamilyBenchmark?, native: String, 
     let tolerance = recommendationTolerance(benchmark)
     let measured: [(label: String, result: PrecisionResult)] = benchmark.precisions.compactMap { label, r in
         guard r.wer != nil, options?.contains(label) ?? true,
-              passesGate(label, r, native: native, nativeWER: reference, tolerance: tolerance) else { return nil }
+            passesGate(label, r, native: native, nativeWER: reference, tolerance: tolerance)
+        else { return nil }
         return (label, r)
     }
     return measured.min(by: ranksBefore)?.label

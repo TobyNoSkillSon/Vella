@@ -13,7 +13,8 @@ final class RecordingSessionTests: XCTestCase {
         let hash = RecordingSession.digest(raw)
         // Reverse, sparse indices catch accidental positional lookup; all audio is synthetic.
         for index in stride(from: 1023, through: 1, by: -2) {
-            let segment = RecordingSession.Segment(index: index, frames: 1, peakRMS: 0.1,
+            let segment = RecordingSession.Segment(
+                index: index, frames: 1, peakRMS: 0.1,
                 finalized: true, text: "Fixture \(index)", sha256: hash)
             record.manifest.segments.append(segment)
             try raw.write(to: record.directory.appendingPathComponent(segment.filename))
@@ -65,7 +66,7 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertEqual(recovered, input.withUnsafeBytes { Data($0) }, "No lost, duplicated or reordered source samples")
         let quiet = try session(policy: policy, blocks: [[Float](repeating: 0, count: 50_000)])
         XCTAssertTrue(quiet.manifest.segments.allSatisfy { $0.overlapFrames == 0 })
-        XCTAssertEqual(quiet.seconds, 50_000.0/16_000, accuracy: 0.00001)
+        XCTAssertEqual(quiet.seconds, 50_000.0 / 16_000, accuracy: 0.00001)
     }
     func testExactCutDoesNotRecoverDuplicateTail() throws {
         var policy = SegmentedPCMWriter.Policy(); policy.preferredSeconds = 1; policy.maximumSeconds = 2; policy.overlapSeconds = 0.1
@@ -129,7 +130,8 @@ final class RecordingSessionTests: XCTestCase {
             for hashed in [false, true] {
                 let record = try RecordingSession(root: root(), config: config)
                 let raw = Data(repeating: 0, count: count)
-                let segment = RecordingSession.Segment(index: 0, frames: 32, finalized: true,
+                let segment = RecordingSession.Segment(
+                    index: 0, frames: 32, finalized: true,
                     sha256: hashed ? RecordingSession.digest(raw) : nil)
                 let audio = record.directory.appendingPathComponent(segment.filename)
                 try record.durableWrite(raw, to: audio)
@@ -137,7 +139,9 @@ final class RecordingSessionTests: XCTestCase {
                 try record.save()
                 let metadata = try Data(contentsOf: record.directory.appendingPathComponent("session.json"))
                 var requests = 0
-                let runner = SessionTranscriber { _, _ in requests += 1; return "Must not be accepted." }
+                let runner = SessionTranscriber { _, _ in
+                    requests += 1; return "Must not be accepted."
+                }
                 do {
                     let recovered = try await RecordingSession.recover(record.directory)
                     _ = try await runner.run(recovered)
@@ -158,7 +162,8 @@ final class RecordingSessionTests: XCTestCase {
                 }
                 XCTAssertEqual(requests, 0)
                 XCTAssertNil(record.manifest.segments[0].text)
-                let saved = try JSONDecoder().decode(RecordingSession.Manifest.self,
+                let saved = try JSONDecoder().decode(
+                    RecordingSession.Manifest.self,
                     from: Data(contentsOf: record.directory.appendingPathComponent("session.json")))
                 XCTAssertNil(saved.segments[0].text)
                 XCTAssertNotEqual(saved.state, "transcribed")
@@ -177,7 +182,7 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
     }
     func testAbruptProcessExitRecoversOpenSegment() throws {
-        try Integration.require()   // runs the app binary
+        try Integration.require() // runs the app binary
         let root = try root()
         let process = Process(); process.executableURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/Vella")
         process.arguments = ["--session-crash-fixture", root.path]
@@ -210,11 +215,13 @@ final class RecordingSessionTests: XCTestCase {
             if requests == 2 { throw URLError(.timedOut) }
             return "First segment."
         }
-        do { _ = try await first.run(record); XCTFail("Expected timeout") } catch { }
+        do { _ = try await first.run(record); XCTFail("Expected timeout") } catch {}
         let recovered = try RecordingSession(directory: record.directory)
         XCTAssertEqual(recovered.manifest.segments.filter { $0.text != nil }.count, 1)
         var resumed = 0
-        let next = SessionTranscriber { _, _ in resumed += 1; return "Remaining segment \(resumed)." }
+        let next = SessionTranscriber { _, _ in
+            resumed += 1; return "Remaining segment \(resumed)."
+        }
         let text = try await next.run(recovered)
         // The last segment has 0.2 s of new audio: it is recognized with its predecessor, in one request.
         XCTAssertEqual(resumed, recovered.manifest.segments.count - 2)
@@ -226,8 +233,10 @@ final class RecordingSessionTests: XCTestCase {
     @MainActor func testCancellationCheckpointAndNoWorkDuringRecording() async throws {
         let record = try session(blocks: [[Float](repeating: 0.1, count: 1600)])
         record.manifest.state = "recording"
-        let runner = SessionTranscriber { _, _ in XCTFail("Must not transcribe while recording"); return "bad" }
-        do { _ = try await runner.run(record); XCTFail() } catch { }
+        let runner = SessionTranscriber { _, _ in
+            XCTFail("Must not transcribe while recording"); return "bad"
+        }
+        do { _ = try await runner.run(record); XCTFail() } catch {}
         record.manifest.state = "ready"
         let cancellable = SessionTranscriber { _, _ in throw CancellationError() }
         do { _ = try await cancellable.run(record); XCTFail() } catch { XCTAssertTrue(error is CancellationError) }
@@ -258,8 +267,7 @@ final class RecordingSessionTests: XCTestCase {
             XCTAssertEqual(try AVAudioFile(forReading: url).length, 32_000)
             throw URLError(.timedOut)
         }
-        do { _ = try await runner.run(record); XCTFail() }
-        catch { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
+        do { _ = try await runner.run(record); XCTFail() } catch { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
         XCTAssertEqual(calls, 1)
         XCTAssertNil(record.manifest.segments[0].text)
         XCTAssertEqual(try RecordingSession(directory: record.directory).manifest.segments[0].sha256, hash)

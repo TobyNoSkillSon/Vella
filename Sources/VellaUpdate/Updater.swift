@@ -99,13 +99,13 @@ public final class UpdateClient: NSObject, URLSessionTaskDelegate, @unchecked Se
         let url = source.downloadBase(for: release).appendingPathComponent(name)
         try? FileManager.default.removeItem(at: destination)
         if url.isFileURL {
-            do { try FileManager.default.copyItem(at: url, to: destination) }
-            catch { throw UpdateError("Download of \(name) failed: no file at \(url.path)") }
+            do { try FileManager.default.copyItem(at: url, to: destination) } catch { throw UpdateError("Download of \(name) failed: no file at \(url.path)") }
             return
         }
         let (temporary, response): (URL, URLResponse)
-        do { (temporary, response) = try await session.download(for: URLRequest(url: url)) }
-        catch { throw UpdateError("Download of \(name) failed: \(error.localizedDescription)") }
+        do { (temporary, response) = try await session.download(for: URLRequest(url: url)) } catch {
+            throw UpdateError("Download of \(name) failed: \(error.localizedDescription)")
+        }
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             try? FileManager.default.removeItem(at: temporary)
             throw UpdateError("Download of \(name) failed (HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0))")
@@ -114,14 +114,17 @@ public final class UpdateClient: NSObject, URLSessionTaskDelegate, @unchecked Se
     }
 
     private func fetch(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        do { return try await session.data(for: request) }
-        catch { throw UpdateError("Could not reach \(request.url?.host ?? "the release server"): \(error.localizedDescription)") }
+        do { return try await session.data(for: request) } catch {
+            throw UpdateError("Could not reach \(request.url?.host ?? "the release server"): \(error.localizedDescription)")
+        }
     }
 
     // MARK: URLSessionTaskDelegate
 
-    public func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
-                           newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+    public func urlSession(
+        _ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void
+    ) {
         completionHandler(request.url?.scheme == "https" ? request : nil)
     }
 }
@@ -158,15 +161,16 @@ public struct IdentityCheck {
 
     public func check(downloaded: URL, running: URL) throws {
         let current: NativeInstaller.Signature
-        do { current = try signature(running) }
-        catch { throw UpdateError("This Vella's own signature does not verify, so the download cannot be matched to it; reinstall with scripts/install.sh") }
+        do { current = try signature(running) } catch {
+            throw UpdateError("This Vella's own signature does not verify, so the download cannot be matched to it; reinstall with scripts/install.sh")
+        }
         let replacement: NativeInstaller.Signature
-        do { replacement = try signature(downloaded) }
-        catch {
+        do { replacement = try signature(downloaded) } catch {
             let detail = (error as? LocalizedError)?.errorDescription ?? "\(error)"
             throw UpdateError("Code signature check failed: \(detail.split(separator: "\n").first.map(String.init) ?? detail)")
         }
-        let mismatch = UpdateError("The download is signed by a different identity than this Vella (\(Self.describe(replacement)), this app: \(Self.describe(current))); nothing installed")
+        let mismatch = UpdateError(
+            "The download is signed by a different identity than this Vella (\(Self.describe(replacement)), this app: \(Self.describe(current))); nothing installed")
         if current.kind == "adhoc" {
             guard replacement.kind == "adhoc" else { throw mismatch }
             do { try satisfies(downloaded, "identifier \"\(bundleIdentifier)\"") } catch { throw mismatch }
@@ -216,8 +220,10 @@ public enum Updater {
     /// Download the release zip and SHA256SUMS, check the SHA-256 and the archive's entries, unpack, check the bundle,
     /// its identifier and version, and verify its code signature against the running app (`runningApp`): the checks
     /// scripts/install-release.sh makes, plus the identity match. Leaves nothing behind on failure.
-    public static func prepare(_ release: ReleaseInfo, client: UpdateClient, runningApp: URL, identity: IdentityCheck = IdentityCheck(),
-                               log: (String) -> Void = { _ in }) async throws -> StagedUpdate {
+    public static func prepare(
+        _ release: ReleaseInfo, client: UpdateClient, runningApp: URL, identity: IdentityCheck = IdentityCheck(),
+        log: (String) -> Void = { _ in }
+    ) async throws -> StagedUpdate {
         let directory = try makeWorkDirectory()
         do {
             let zip = directory.appendingPathComponent(release.zipName), sums = directory.appendingPathComponent("SHA256SUMS")

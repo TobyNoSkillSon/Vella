@@ -10,7 +10,8 @@ final class DictationStabilityTests: XCTestCase {
         let session = try RecordingSession(root: root, config: .init(model: "/synthetic"))
         for (i, samples) in audio.enumerated() {
             let data = samples.withUnsafeBytes { Data($0) }
-            let segment = RecordingSession.Segment(index: i, frames: samples.count,
+            let segment = RecordingSession.Segment(
+                index: i, frames: samples.count,
                 peakRMS: RecordingSession.peakRMS(data, range: 0..<samples.count), finalized: true,
                 text: texts?[i], sha256: RecordingSession.digest(data))
             try session.durableWrite(data, to: session.directory.appendingPathComponent(segment.filename))
@@ -58,7 +59,9 @@ final class DictationStabilityTests: XCTestCase {
         XCTAssertEqual(calls, 4)
         let restored = try RecordingSession(directory: session.directory)
         XCTAssertEqual(restored.manifest.segments.map(\.text), normalized.map { Optional($0) })
-        let repeated = try await SessionTranscriber { _, _ in XCTFail("Cached empty text is resolved"); return "" }.run(restored)
+        let repeated = try await SessionTranscriber { _, _ in
+            XCTFail("Cached empty text is resolved"); return ""
+        }.run(restored)
         XCTAssertEqual(repeated, result)
     }
 
@@ -66,7 +69,9 @@ final class DictationStabilityTests: XCTestCase {
         for level in [Float](arrayLiteral: 0, 0.000001, 0.0004) {
             let session = try fixture([[Float](repeating: level, count: 1045)])
             var calls = 0
-            let result = try await SessionTranscriber { _, _ in calls += 1; return " \tQuiet\n  words. \r\n" }.run(session)
+            let result = try await SessionTranscriber { _, _ in
+                calls += 1; return " \tQuiet\n  words. \r\n"
+            }.run(session)
             XCTAssertEqual(calls, 1)
             XCTAssertEqual(result, "Quiet words.")
             XCTAssertEqual(session.manifest.segments[0].text, "Quiet words.")
@@ -83,10 +88,8 @@ final class DictationStabilityTests: XCTestCase {
                 if cancelled { throw CancellationError() }
                 throw VellaError.message("Synthetic transport failure")
             }
-            do { _ = try await transcriber.run(session); XCTFail("Must throw") }
-            catch {
-                if cancelled { XCTAssertTrue(error is CancellationError) }
-                else { XCTAssertTrue(error.localizedDescription.contains("Synthetic transport failure")) }
+            do { _ = try await transcriber.run(session); XCTFail("Must throw") } catch {
+                if cancelled { XCTAssertTrue(error is CancellationError) } else { XCTAssertTrue(error.localizedDescription.contains("Synthetic transport failure")) }
             }
             XCTAssertEqual(calls, 2)
             XCTAssertEqual(session.manifest.segments.map(\.text), ["Saved.", nil, nil])
@@ -103,7 +106,9 @@ final class DictationStabilityTests: XCTestCase {
                 .write(to: session.directory.appendingPathComponent(segment.filename))
             var calls = 0
             do {
-                _ = try await SessionTranscriber { _, _ in calls += 1; return "Invented" }.run(session)
+                _ = try await SessionTranscriber { _, _ in
+                    calls += 1; return "Invented"
+                }.run(session)
                 XCTFail("Invalid PCM must fail")
             } catch {}
             XCTAssertEqual(calls, 0)
@@ -155,9 +160,12 @@ final class DictationStabilityTests: XCTestCase {
     }
 
     @MainActor func testHistoricalGroupedCheckpointsArePreservedWithoutContextReplay() async throws {
-        let session = try fixture([[Float](repeating: 0.1, count: 32000),
-            [Float](repeating: 0.004, count: 32000), [Float](repeating: 0.1, count: 32000),
-            [Float](repeating: 0.04, count: 1600)], texts: ["Left.", nil, "Right. Yes.", ""])
+        let session = try fixture(
+            [
+                [Float](repeating: 0.1, count: 32000),
+                [Float](repeating: 0.004, count: 32000), [Float](repeating: 0.1, count: 32000),
+                [Float](repeating: 0.04, count: 1600)
+            ], texts: ["Left.", nil, "Right. Yes.", ""])
         session.manifest.segments[2].textThroughIndex = 3
         session.manifest.segments[3].quietSlices = 1
         try session.save()
@@ -174,7 +182,9 @@ final class DictationStabilityTests: XCTestCase {
         XCTAssertEqual(Array(restored.manifest.segments[2...3]), historical)
         let disk = try RecordingSession(directory: session.directory)
         XCTAssertEqual(Array(disk.manifest.segments[2...3]), historical)
-        let repeated = try await SessionTranscriber { _, _ in XCTFail("Historical checkpoints must not replay"); return "" }.run(disk)
+        let repeated = try await SessionTranscriber { _, _ in
+            XCTFail("Historical checkpoints must not replay"); return ""
+        }.run(disk)
         XCTAssertEqual(repeated, result)
     }
 }

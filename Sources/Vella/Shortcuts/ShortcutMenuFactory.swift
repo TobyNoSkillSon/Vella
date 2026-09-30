@@ -24,10 +24,12 @@ enum ShortcutMenuFactory {
         }
     }
 
-    static func shortcutsItem(manager: ShortcutManager, model: DictationController, target: AnyObject,
-                              selectBehavior: Selector, recordKeys: Selector, cancelCapture: Selector,
-                              selectModifier: Selector, selectMouse: Selector, resetDefault: Selector,
-                              openSettings: Selector) -> NSMenuItem {
+    static func shortcutsItem(
+        manager: ShortcutManager, model: DictationController, target: AnyObject,
+        selectBehavior: Selector, recordKeys: Selector, cancelCapture: Selector,
+        selectModifier: Selector, selectMouse: Selector, resetDefault: Selector,
+        openSettings: Selector
+    ) -> NSMenuItem {
         let root = NSMenuItem(title: "Shortcuts", action: nil, keyEquivalent: "")
         root.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
         let menu = NSMenu()
@@ -74,22 +76,26 @@ enum ShortcutMenuFactory {
         let modifierRoot = NSMenuItem(title: "Modifier-Only", action: nil, keyEquivalent: "")
         let modifierMenu = NSMenu()
         modifierMenu.autoenablesItems = false
-        let modifiers = [("Left ⌃", ModifierKey.control, ModifierSide.left),
-                         ("Right ⌃", ModifierKey.control, ModifierSide.right),
-                         ("Left ⌥", ModifierKey.option, ModifierSide.left),
-                         ("Right ⌥", ModifierKey.option, ModifierSide.right),
-                         ("Left ⌘", ModifierKey.command, ModifierSide.left),
-                         ("Right ⌘", ModifierKey.command, ModifierSide.right),
-                         ("Left ⇧", ModifierKey.shift, ModifierSide.left),
-                         ("Right ⇧", ModifierKey.shift, ModifierSide.right),
-                         ("Fn", ModifierKey.function, ModifierSide.left)]
+        let modifiers = [
+            ("Left ⌃", ModifierKey.control, ModifierSide.left),
+            ("Right ⌃", ModifierKey.control, ModifierSide.right),
+            ("Left ⌥", ModifierKey.option, ModifierSide.left),
+            ("Right ⌥", ModifierKey.option, ModifierSide.right),
+            ("Left ⌘", ModifierKey.command, ModifierSide.left),
+            ("Right ⌘", ModifierKey.command, ModifierSide.right),
+            ("Left ⇧", ModifierKey.shift, ModifierSide.left),
+            ("Right ⇧", ModifierKey.shift, ModifierSide.right),
+            ("Fn", ModifierKey.function, ModifierSide.left)
+        ]
         for (title, key, side) in modifiers {
             let entry = SettingsMenuItem(title: title, target: target, action: selectModifier)
             entry.target = target as? NSObject
             entry.representedObject = "\(key.rawValue):\(side.rawValue)"
             if case .modifierOnly(let k, let s) = manager.configuration.trigger, k == key, key == .function || s == side {
                 entry.state = .on
-            } else { entry.state = .off }
+            } else {
+                entry.state = .off
+            }
             entry.isEnabled = canEdit
             entry.synchronize()
             modifierMenu.addItem(entry)
@@ -108,7 +114,9 @@ enum ShortcutMenuFactory {
             entry.representedObject = String(button.rawValue)
             if case .mouseButton(let b) = manager.configuration.trigger, b == button {
                 entry.state = .on
-            } else { entry.state = .off }
+            } else {
+                entry.state = .off
+            }
             entry.isEnabled = canEdit
             entry.synchronize()
             // Inline bounded confirmation renders in the same row (no popup).

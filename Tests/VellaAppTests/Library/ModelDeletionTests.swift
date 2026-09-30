@@ -87,7 +87,9 @@ final class ModelDeletionTests: XCTestCase {
     @MainActor func testMissingFilesCanBeUnregisteredWithoutTouchingOtherFiles() throws {
         let (library, id, folder) = try fixture()
         try FileManager.default.removeItem(at: folder)
-        library.trashModel = { _ in XCTFail("Missing files should not be trashed"); return folder }
+        library.trashModel = { _ in
+            XCTFail("Missing files should not be trashed"); return folder
+        }
         XCTAssertTrue(library.deleteModel(id, expectedPath: folder.path))
         XCTAssertNil(library.installed[id])
     }
@@ -107,7 +109,9 @@ final class ModelDeletionTests: XCTestCase {
         for _ in 0..<100 { if confirmations > 0 { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertEqual(confirmations, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
-        menus.presentDeletionConfirmation = { _ in confirmations += 1; return .alertSecondButtonReturn }
+        menus.presentDeletionConfirmation = { _ in
+            confirmations += 1; return .alertSecondButtonReturn
+        }
         host.rootView.requestDelete(family)
         for _ in 0..<100 { if confirmations > 1 { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertEqual(confirmations, 2)
@@ -119,7 +123,9 @@ final class ModelDeletionTests: XCTestCase {
         let native = ModelLibrary(registryURL: library.registryURL).trashModel
         var trashed: URL?
         defer { if let trashed { try? FileManager.default.removeItem(at: trashed) } }
-        library.trashModel = { source in let target = try native(source); trashed = target; return target }
+        library.trashModel = { source in
+            let target = try native(source); trashed = target; return target
+        }
         XCTAssertTrue(library.deleteModel(id, expectedPath: folder.path))
         let destination = try XCTUnwrap(trashed)
         XCTAssertEqual(try Data(contentsOf: destination.appendingPathComponent("weights.safetensors")), Data("fixture weights".utf8))

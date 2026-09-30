@@ -39,9 +39,11 @@ import VellaUpdate
     static let lastCheckKey = "update.lastCheck"
     static let offerKey = "update.offer"
 
-    init(current: String? = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
-         defaults: UserDefaults = .standard,
-         enabled: Bool = Bundle.main.bundleIdentifier == "dev.vella.dictation" && ProcessInfo.processInfo.environment["VELLA_UPDATE"] != "0") {
+    init(
+        current: String? = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+        defaults: UserDefaults = .standard,
+        enabled: Bool = Bundle.main.bundleIdentifier == "dev.vella.dictation" && ProcessInfo.processInfo.environment["VELLA_UPDATE"] != "0"
+    ) {
         self.current = current.flatMap(SemanticVersion.init)
         self.defaults = defaults
         self.enabled = enabled && self.current != nil
@@ -82,20 +84,24 @@ import VellaUpdate
             if machine.handle(.checked(release)) { saveOffer(release) }
         } catch {
             machine.handle(.checkFailed((error as? UpdateError)?.message ?? error.localizedDescription))
-            defaults.set(now.addingTimeInterval(-23 * 3600), forKey: Self.lastCheckKey)   // offline, say: again in about an hour
+            defaults.set(now.addingTimeInterval(-23 * 3600), forKey: Self.lastCheckKey) // offline, say: again in about an hour
         }
     }
 
     /// A newer release found earlier stays offered across relaunches until this version catches up.
     private func restoreOffer() {
         guard let saved = defaults.dictionary(forKey: Self.offerKey), let tag = saved["tag"] as? String,
-              let version = SemanticVersion(tag), let current else { return }
+            let version = SemanticVersion(tag), let current
+        else { return }
         let release = ReleaseInfo(tag: tag, version: version, name: saved["name"] as? String ?? "", body: saved["body"] as? String ?? "")
         if let offer = release.offer(to: current) { machine.handle(.checked(offer)) } else { defaults.removeObject(forKey: Self.offerKey) }
     }
     private func saveOffer(_ release: ReleaseInfo?) {
-        if let release { defaults.set(["tag": release.tag, "name": release.name, "body": release.body], forKey: Self.offerKey) }
-        else { defaults.removeObject(forKey: Self.offerKey) }
+        if let release {
+            defaults.set(["tag": release.tag, "name": release.name, "body": release.body], forKey: Self.offerKey)
+        } else {
+            defaults.removeObject(forKey: Self.offerKey)
+        }
     }
 
     /// Render harness and tests.
@@ -131,7 +137,8 @@ import VellaUpdate
         let alert = NSAlert()
         alert.messageText = "Update to Vella \(release.version)?"
         let notes = release.shortNotes()
-        alert.informativeText = "You have \(current?.description ?? "an earlier version"). Settings, models and recordings are kept; Vella restarts."
+        alert.informativeText =
+            "You have \(current?.description ?? "an earlier version"). Settings, models and recordings are kept; Vella restarts."
             + (notes.isEmpty ? "" : "\n\n" + notes)
         alert.addButton(withTitle: "Update Now")
         alert.addButton(withTitle: "Later")
@@ -179,8 +186,9 @@ import VellaUpdate
         guard FileManager.default.isExecutableFile(atPath: tool.path) else {
             throw UpdateError("The installer tool is missing from Vella.app; reinstall with scripts/install.sh")
         }
-        let plan = InstallPlan(staged: staged, destination: runningApp.path, from: current?.description ?? "", waitForPID: getpid(),
-                               supportDirectory: support.path)
+        let plan = InstallPlan(
+            staged: staged, destination: runningApp.path, from: current?.description ?? "", waitForPID: getpid(),
+            supportDirectory: support.path)
         let planURL = URL(fileURLWithPath: staged.directory).appendingPathComponent("plan.json")
         try JSONEncoder().encode(plan).write(to: planURL, options: .atomic)
         let process = Process()

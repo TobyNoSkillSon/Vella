@@ -86,8 +86,12 @@ final class APIContractTests: XCTestCase {
     func errorShape(_ code: Int, _ data: Data, _ name: String, file: StaticString = #filePath, line: UInt = #line) throws {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any], String(decoding: data, as: UTF8.self), file: file, line: line)
         let error = object["error"] as? [String: Any] ?? [:]
-        record(name, ["status": code, "shape": Self.shape(object), "type": error["type"] ?? NSNull(), "code": error["code"] ?? NSNull(),
-                      "param": error["param"] ?? NSNull()])
+        record(
+            name,
+            [
+                "status": code, "shape": Self.shape(object), "type": error["type"] ?? NSNull(), "code": error["code"] ?? NSNull(),
+                "param": error["param"] ?? NSNull()
+            ])
     }
 
     @MainActor func testAPIContract() async throws {
@@ -120,13 +124,18 @@ final class APIContractTests: XCTestCase {
         let (badModel, _, badModelData) = try await api.post(fields: ["model": "nope"], file: audio)
         try errorShape(badModel, badModelData, "error 404 transcription model")
         // Refused from the head alone (Content-Length), before any body byte is read.
-        let (tooLarge, tooLargeData) = await Self.exchange(api.port, Data(
-            "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: application/json\r\nContent-Length: \(apiMaxJSONBytes + 1)\r\n\r\n".utf8))
+        let (tooLarge, tooLargeData) = await Self.exchange(
+            api.port,
+            Data(
+                "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: application/json\r\nContent-Length: \(apiMaxJSONBytes + 1)\r\n\r\n".utf8))
         try errorShape(tooLarge, tooLargeData, "error 413 json body")
 
         // 503: a listener that is out of connections refuses before reading anything.
-        let full = try APIServer(uploads: api.root.appendingPathComponent("full-uploads"), handler: api.service,
-                                 limits: { var l = APIUploadLimits(); l.maxConnections = 0; return l }())
+        let full = try APIServer(
+            uploads: api.root.appendingPathComponent("full-uploads"), handler: api.service,
+            limits: {
+                var l = APIUploadLimits(); l.maxConnections = 0; return l
+            }())
         let fullPort: Int = await withCheckedContinuation { continuation in full.start { continuation.resume(returning: $0 ?? 0) } }
         defer { full.stop() }
         let (busy, busyData) = await Self.exchange(fullPort, Data("GET /status HTTP/1.1\r\nHost: 127.0.0.1:\(fullPort)\r\n\r\n".utf8))

@@ -13,7 +13,8 @@ func admit(_ path: URL) throws -> Architecture {
     let architecture = try admitCheckpoint(derived.source)
     let source = try jsonObject(derived.source.appendingPathComponent("config.json"))
     guard [.parakeet, .whisper, .qwen3ASR].contains(architecture), !pythonTruthy(source["quantization"]),
-          !pythonTruthy(source["quantization_config"]) else { throw RequestError.invalid }
+        !pythonTruthy(source["quantization_config"])
+    else { throw RequestError.invalid }
     return architecture
 }
 func admitCheckpoint(_ path: URL) throws -> Architecture {
@@ -24,9 +25,9 @@ func admitCheckpoint(_ path: URL) throws -> Architecture {
     if architecture == nil, config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" { architecture = "parakeet" }
     let stub = StubModel.enabled && architecture == "stub" // Test hook, reported in status.
     guard let name = architecture, stub || ["parakeet", "qwen3_asr", "whisper"].contains(name),
-          let architecture = Architecture(rawValue: name) else { throw RequestError.invalid }
-    let rawQuant = pythonTruthy(config["quantization"]) ? config["quantization"] :
-        pythonTruthy(config["quantization_config"]) ? config["quantization_config"] : [:]
+        let architecture = Architecture(rawValue: name)
+    else { throw RequestError.invalid }
+    let rawQuant = pythonTruthy(config["quantization"]) ? config["quantization"] : pythonTruthy(config["quantization_config"]) ? config["quantization_config"] : [:]
     guard let quant = rawQuant as? [String: Any] else { throw RequestError.invalid }
     if let bits = quant["bits"], !(bits is NSNull) {
         guard let n = bits as? NSNumber else { throw RequestError.invalid }
@@ -42,6 +43,8 @@ func admitCheckpoint(_ path: URL) throws -> Architecture {
     }
     guard let entries = FileManager.default.enumerator(at: path, includingPropertiesForKeys: nil) else { throw RequestError.invalid }
     for case let file as URL in entries where file.pathExtension == "py" { throw RequestError.invalid }
-    guard try FileManager.default.contentsOfDirectory(at: path, includingPropertiesForKeys: nil).contains(where: { $0.pathExtension == "safetensors" }) else { throw RequestError.invalid }
+    guard try FileManager.default.contentsOfDirectory(at: path, includingPropertiesForKeys: nil).contains(where: { $0.pathExtension == "safetensors" }) else {
+        throw RequestError.invalid
+    }
     return architecture
 }

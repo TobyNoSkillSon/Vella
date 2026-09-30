@@ -81,8 +81,7 @@ import VellaWire
     /// first, keeping the first manual one); warning and critical: idle dictation workers drop their MLX caches.
     /// Pinned models are never unloaded: an in-flight dictation request, a load, or a live stream continues.
     func handleMemoryPressure(critical: Bool) {
-        if let dictation { dictation.handleMemoryPressure(critical: critical) }
-        else if critical { Task { await shed() } }
+        if let dictation { dictation.handleMemoryPressure(critical: critical) } else if critical { Task { await shed() } }
     }
 
     /// App launch: publish an empty status (no stale models), keep config.json's residency explicit, then load the
@@ -103,7 +102,7 @@ import VellaWire
             guard FileManager.default.fileExists(atPath: ref.path) else {
                 error = "\(ref.displayName) is in the launch set but its files are missing. Get it again or unload it."; writeStatus(); continue
             }
-            do { try await load(ref) } catch { /* recorded in status (refused / error) */ }
+            do { try await load(ref) } catch { /* recorded in status (refused / error) */  }
         }
     }
 
@@ -210,15 +209,17 @@ import VellaWire
             }
         }
         let names = together.map { entries[$0]?.ref.displayName ?? $0 }
-        var decision = planAdmission(ref, loaded: infos(), rawAvailableMB: probe.rawAvailableMB(loadedMB: loadedReclaimMB),
-                                     credit: credit, together: together, allowSwap: settings.allowSwap)
+        var decision = planAdmission(
+            ref, loaded: infos(), rawAvailableMB: probe.rawAvailableMB(loadedMB: loadedReclaimMB),
+            credit: credit, together: together, allowSwap: settings.allowSwap)
         if case .admit(let victims, let need, let free) = decision, !victims.isEmpty {
             for victim in victims {
                 await evict(victim, reason: "memory: made room for \(ref.displayWithPrecision) (needs ~\(gigabytes(need)) GB; ~\(gigabytes(free)) GB was free without swapping)")
             }
             // Re-check against the probe: estimates are not measurements.
-            decision = planAdmission(ref, loaded: infos(), rawAvailableMB: probe.rawAvailableMB(loadedMB: loadedReclaimMB),
-                                     credit: credit, together: together, allowSwap: settings.allowSwap)
+            decision = planAdmission(
+                ref, loaded: infos(), rawAvailableMB: probe.rawAvailableMB(loadedMB: loadedReclaimMB),
+                credit: credit, together: together, allowSwap: settings.allowSwap)
             if case .admit(let more, _, _) = decision, !more.isEmpty {
                 decision = .refuse(message: refusalMessage(ref, needMB: need, freeMB: free, loaded: infos().map(\.name), together: names), needMB: need, freeMB: free)
             }
@@ -237,8 +238,9 @@ import VellaWire
     func register(_ ref: ModelRef, residency: ResidencyClass, unload: @escaping @MainActor () async -> Void) {
         let now = Date().timeIntervalSince1970
         let previous = entries[ref.id]
-        entries[ref.id] = Entry(ref: ref, residency: previous?.residency == .manual ? .manual : residency, lastUsed: now,
-                                worker: pendingWorker.removeValue(forKey: ref.id) ?? previous?.worker, unload: unload, timer: previous?.timer)
+        entries[ref.id] = Entry(
+            ref: ref, residency: previous?.residency == .manual ? .manual : residency, lastUsed: now,
+            worker: pendingWorker.removeValue(forKey: ref.id) ?? previous?.worker, unload: unload, timer: previous?.timer)
         if !order.contains(ref.id) { order.append(ref.id) }
         if loading == ref.id { loading = nil }
         refused = nil; error = nil
@@ -352,7 +354,8 @@ import VellaWire
         guard var entry = entries[id] else { return }
         entry.timer?.cancel(); entry.timer = nil
         if (pinned[id] ?? 0) == 0,
-           let deadline = unloadDeadline(lastUsed: entry.lastUsed, residency: entry.residency, settings: settings, minuteSeconds: minuteSeconds) {
+            let deadline = unloadDeadline(lastUsed: entry.lastUsed, residency: entry.residency, settings: settings, minuteSeconds: minuteSeconds)
+        {
             let minutes = settings.idleMinutes(entry.residency), residency = entry.residency
             let work = DispatchWorkItem { [weak self] in
                 guard let self, let current = self.entries[id] else { return }
@@ -398,8 +401,9 @@ import VellaWire
         }
         next.loading = loading
         next.error = error
-        next.memory = MemoryStatus(available_mb: probe.availableMB(loadedMB: loadedReclaimMB), ram_mb: probe.totalMB,
-                                   workers_mb: entries.values.compactMap { $0.worker?.memory?.footprintMB }.reduce(0, +))
+        next.memory = MemoryStatus(
+            available_mb: probe.availableMB(loadedMB: loadedReclaimMB), ram_mb: probe.totalMB,
+            workers_mb: entries.values.compactMap { $0.worker?.memory?.footprintMB }.reduce(0, +))
         next.settings = StatusSettings(settings)
         next.launch_set = settings.launchSet.map(\.id)
         next.evictions = evictions

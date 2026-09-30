@@ -70,7 +70,8 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
             }
             let alert = NSAlert(); alert.alertStyle = .warning
             alert.messageText = wasInstalled ? "Delete \(name)?" : "Delete unfinished \(name) download?"
-            alert.informativeText = "Moves its downloaded weights to the Trash. If it is loaded it is unloaded first. You can download it again later. Recordings and transcripts are kept."
+            alert.informativeText =
+                "Moves its downloaded weights to the Trash. If it is loaded it is unloaded first. You can download it again later. Recordings and transcripts are kept."
             alert.addButton(withTitle: "Cancel")
             alert.addButton(withTitle: "Move to Trash")
             guard presentDeletionConfirmation(alert) == .alertSecondButtonReturn else { return }

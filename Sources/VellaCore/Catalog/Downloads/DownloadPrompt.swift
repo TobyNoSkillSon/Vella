@@ -52,24 +52,28 @@ func tierFormat(_ family: ModelFamily, _ label: String) -> String {
 /// `freeBytes`: free space on the models volume now (nil = unknown).
 public func downloadPrompt(family: ModelFamily, precision: String, followUp: DownloadFollowUp, freeBytes: Int64?) -> DownloadPrompt? {
     guard precisionOptions(family).contains(precision), let root = family.downloadSource(of: precision),
-          let acquisition = family.acquisition(of: precision), !acquisition.download.repository.isEmpty else { return nil }
+        let acquisition = family.acquisition(of: precision), !acquisition.download.repository.isEmpty
+    else { return nil }
     let download = acquisition.download
     let madeAtLoad = root.label != precision
     let revision = download.revision.isEmpty ? "" : " at revision \(download.revision.prefix(7))"
     let rootBytes = acquisition.convert == nil ? download.downloadBytes : (estimatedWeightBytes(family, root.label).map { Int64($0) } ?? download.downloadBytes)
-    let title = madeAtLoad
+    let title =
+        madeAtLoad
         ? "Download \(precisionTitle(family, root.label)) to make \(precisionWidth(precision) ?? precision) (\(precisionInProse(precision)))?"
         : "Download \(precisionTitle(family, precision))?"
     var lines: [String] = []
     if let dtype = acquisition.convert, let from = family.variants[root.label]?.derivedFrom {
-        lines.append("\(family.name) is published as \(precisionFormatName(from)) on Hugging Face: \(download.repository)\(revision). "
-            + "Vella converts it once to \(precisionFormatName(derivedCastLabels[dtype] ?? root.label)) and keeps only those weights.")
+        lines.append(
+            "\(family.name) is published as \(precisionFormatName(from)) on Hugging Face: \(download.repository)\(revision). "
+                + "Vella converts it once to \(precisionFormatName(derivedCastLabels[dtype] ?? root.label)) and keeps only those weights.")
     } else {
         lines.append("\(family.name) at \(precisionFormatName(root.label)), as published on Hugging Face: \(download.repository)\(revision).")
     }
     if madeAtLoad {
-        lines.append("\(tierFormat(family, precision)) is made on this Mac from the \(precisionWidth(root.label) ?? root.label)-bit weights "
-            + "each time it loads; only a small recipe file is added.")
+        lines.append(
+            "\(tierFormat(family, precision)) is made on this Mac from the \(precisionWidth(root.label) ?? root.label)-bit weights "
+                + "each time it loads; only a small recipe file is added.")
     }
     var size = "Download: \(formatBytes(download.downloadBytes)) (\(formatExactBytes(download.downloadBytes)))."
     var conversions: [String] = []
@@ -91,8 +95,9 @@ public func downloadPrompt(family: ModelFamily, precision: String, followUp: Dow
     case .reload(let loaded): lines.append("When the download finishes, it loads for \(mode) in place of the loaded \(precisionInProse(loaded)).")
     case .transcribe: lines.append("When the download finishes, it loads and transcribes the saved recording.")
     }
-    return DownloadPrompt(title: title, body: lines.joined(separator: "\n\n"), variantID: root.variant.id,
-                          downloadBytes: download.downloadBytes, family: family.id, precision: precision)
+    return DownloadPrompt(
+        title: title, body: lines.joined(separator: "\n\n"), variantID: root.variant.id,
+        downloadBytes: download.downloadBytes, family: family.id, precision: precision)
 }
 
 // MARK: Partial downloads
@@ -106,9 +111,9 @@ private func ownedFolder(_ name: String, modelsDirectory: URL) -> URL? {
     let root = modelsDirectory.standardizedFileURL
     let folder = root.appendingPathComponent(name)
     guard (try? root.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false,
-          let values = try? folder.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey]),
-          values.isSymbolicLink == false, values.isDirectory == true,
-          folder.resolvingSymlinksInPath().deletingLastPathComponent().standardizedFileURL.path == root.resolvingSymlinksInPath().standardizedFileURL.path
+        let values = try? folder.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey]),
+        values.isSymbolicLink == false, values.isDirectory == true,
+        folder.resolvingSymlinksInPath().deletingLastPathComponent().standardizedFileURL.path == root.resolvingSymlinksInPath().standardizedFileURL.path
     else { return nil }
     return folder
 }
@@ -130,8 +135,10 @@ public func removeUnfinishedDownload(id: String, modelsDirectory: URL, keep: Set
 /// folders it owns, so `keep` may be incomplete) no folder goes whole: only stale partials are removed. Returns the
 /// removed paths.
 @discardableResult
-public func sweepStalePartialDownloads(modelsDirectory: URL, keep: Set<String>, removeFolders: Bool = true,
-                                       olderThan: TimeInterval = 600, now: Date = Date()) -> [String] {
+public func sweepStalePartialDownloads(
+    modelsDirectory: URL, keep: Set<String>, removeFolders: Bool = true,
+    olderThan: TimeInterval = 600, now: Date = Date()
+) -> [String] {
     let manager = FileManager.default
     let kept = Set(keep.filter { !$0.isEmpty }.map(canonical))
     guard let names = try? manager.contentsOfDirectory(atPath: modelsDirectory.path) else { return [] }
@@ -140,13 +147,16 @@ public func sweepStalePartialDownloads(modelsDirectory: URL, keep: Set<String>, 
         guard let folder = ownedFolder(name, modelsDirectory: modelsDirectory) else { continue }
         let cache = folder.appendingPathComponent(".cache")
         guard (try? cache.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false,
-              let walker = manager.enumerator(at: cache, includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey, .contentModificationDateKey],
-                                              options: [], errorHandler: nil) else { continue }
+            let walker = manager.enumerator(
+                at: cache, includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey, .contentModificationDateKey],
+                options: [], errorHandler: nil)
+        else { continue }
         var partials: [URL] = []
         var fresh = false
         for case let file as URL in walker where file.lastPathComponent.hasSuffix(".incomplete") {
             guard let values = try? file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey, .contentModificationDateKey]),
-                  values.isSymbolicLink == false, values.isRegularFile == true else { continue }
+                values.isSymbolicLink == false, values.isRegularFile == true
+            else { continue }
             if let modified = values.contentModificationDate, now.timeIntervalSince(modified) < olderThan { fresh = true }
             partials.append(file)
         }

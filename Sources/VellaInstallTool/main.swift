@@ -11,11 +11,11 @@ import VellaUpdate
 //          update-result.json, which the relaunched app reports.
 @main struct VellaInstallTool {
     static let usage = """
-    Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> [--keep-previous]
-           VellaInstallTool ready --app <installed Vella.app> --support <Vella support> [--timeout seconds] [--interval seconds] [--settle seconds]
-           VellaInstallTool update --plan <plan.json>
+        Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> [--keep-previous]
+               VellaInstallTool ready --app <installed Vella.app> --support <Vella support> [--timeout seconds] [--interval seconds] [--settle seconds]
+               VellaInstallTool update --plan <plan.json>
 
-    """
+        """
     static func value(_ key: String, in args: [String]) -> String? {
         guard let index = args.firstIndex(of: key), args.indices.contains(index + 1) else { return nil }
         return args[index + 1]
@@ -27,7 +27,8 @@ import VellaUpdate
         switch args.first {
         case "install":
             guard let app = url("--app", in: args), let destination = url("--destination", in: args),
-                  let support = url("--support", in: args) else { fputs(usage, stderr); exit(2) }
+                let support = url("--support", in: args)
+            else { fputs(usage, stderr); exit(2) }
             let installer = NativeInstaller(preparedApp: app, destination: destination, support: support)
             installer.keepPrevious = args.contains("--keep-previous")
             if let id = value("--bundle-id", in: args) { installer.bundleIdentifier = id } // lab candidates only
@@ -47,14 +48,19 @@ import VellaUpdate
             let settle = value("--settle", in: args).flatMap(Double.init) ?? 60
             // Degraded (a configured-hot model not loaded) is never reported as ready: the caller keeps its
             // rollback copy.
-            let result = InstallReadiness.wait(read: { try? Data(contentsOf: file) }, isInstalledApp: { InstallReadiness.runs($0, app: app) },
-                                               timeout: timeout, interval: interval, settle: settle)
-            if result.status == InstallReadiness.readyExit || result.status == InstallReadiness.degradedExit { print(result.line) }
-            else { fputs("\(result.line). Status: \(file.path)\n", stderr) }
+            let result = InstallReadiness.wait(
+                read: { try? Data(contentsOf: file) }, isInstalledApp: { InstallReadiness.runs($0, app: app) },
+                timeout: timeout, interval: interval, settle: settle)
+            if result.status == InstallReadiness.readyExit || result.status == InstallReadiness.degradedExit {
+                print(result.line)
+            } else {
+                fputs("\(result.line). Status: \(file.path)\n", stderr)
+            }
             exit(result.status)
         case "update":
             guard let path = value("--plan", in: args), let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
-                  let plan = try? JSONDecoder().decode(InstallPlan.self, from: data) else { fputs(usage, stderr); exit(2) }
+                let plan = try? JSONDecoder().decode(InstallPlan.self, from: data)
+            else { fputs(usage, stderr); exit(2) }
             let support = URL(fileURLWithPath: plan.supportDirectory, isDirectory: true)
             let log: (String) -> Void = { UpdateInstaller.appendLog($0, support: support) }
             log("update \(plan.from) -> \(plan.staged.version) at \(plan.destination)")

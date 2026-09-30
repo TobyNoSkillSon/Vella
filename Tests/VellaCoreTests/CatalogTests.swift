@@ -5,10 +5,14 @@ import VellaWire
 
 final class CatalogTests: XCTestCase {
     private var resources: URL { Repository.root.appendingPathComponent("Resources") }
-    private func r(_ wer: Double?, j: Double? = nil, x: Double? = nil, format: Double? = nil) -> PrecisionResult { PrecisionResult(wer: wer, format: format, speed_x: x, j_per_min: j) }
+    private func r(_ wer: Double?, j: Double? = nil, x: Double? = nil, format: Double? = nil) -> PrecisionResult {
+        PrecisionResult(wer: wer, format: format, speed_x: x, j_per_min: j)
+    }
     private func family(native: String = "BF16", _ labels: [String]) -> ModelFamily {
-        ModelFamily(id: "f", name: "F", mode: .dictation, languages: ["en"], params: "1B", license: "mit", native: native,
-                    variants: Dictionary(uniqueKeysWithValues: labels.map { ($0, CatalogVariant(id: "f-\($0)", repository: "o/r", revision: "x", downloadBytes: 1, architecture: "parakeet")) }))
+        ModelFamily(
+            id: "f", name: "F", mode: .dictation, languages: ["en"], params: "1B", license: "mit", native: native,
+            variants: Dictionary(
+                uniqueKeysWithValues: labels.map { ($0, CatalogVariant(id: "f-\($0)", repository: "o/r", revision: "x", downloadBytes: 1, architecture: "parakeet")) }))
     }
 
     // MARK: Catalog
@@ -30,8 +34,9 @@ final class CatalogTests: XCTestCase {
         XCTAssertNil(variants.first { $0.id == "parakeet-tdt-0.6b-v3-mlx-4bit" })
         XCTAssertEqual(variants.first { $0.id == "Qwen3-ASR-1.7B-bf16" }?.quantization, "BF16")
         XCTAssertEqual(variants.first { $0.id == "whisper-large-v3-asr-fp16" }?.quantization, "FP16")
-        XCTAssertNil(try processorSource(variant: "whisper-large-v3-8bit", catalogURL: resources.appendingPathComponent("models.json")),
-                     "a derived 8 uses its FP16 source's tokenizer files")
+        XCTAssertNil(
+            try processorSource(variant: "whisper-large-v3-8bit", catalogURL: resources.appendingPathComponent("models.json")),
+            "a derived 8 uses its FP16 source's tokenizer files")
         for f in catalog.families {
             XCTAssertFalse(f.variants.isEmpty, f.id)
             XCTAssertTrue(f.variants.values.allSatisfy { $0.isDerived || $0.revision.count == 40 }, "pinned revisions: \(f.id)")
@@ -47,12 +52,20 @@ final class CatalogTests: XCTestCase {
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
         let offered = Dictionary(uniqueKeysWithValues: catalog.families.filter(\.offered).map { ($0.id, Set($0.variants.keys)) })
         // Every level from native down to 4 bits (Toby, 26 Sep 2026); gaps are derived locally (DerivedModels.swift).
-        XCTAssertEqual(offered, ["parakeet-v3": ["FP32", "BF16", "8b", "4b"], "parakeet-v3-ultra": ["BF16", "8b", "4b"],
-                                 "qwen3-asr-1.7b": ["BF16", "8b", "4b"], "qwen3-asr-0.6b": ["BF16", "8b", "4b"],
-                                 "whisper-large-v3": ["FP16", "8b", "4b"], "whisper-large-v3-turbo": ["FP16", "8b", "4b"],
-                                 "nemotron-3.5-streaming-0.6b": ["BF16", "8b", "4b"]])
-        XCTAssertEqual(catalog.offered(.dictation).map(\.id), ["parakeet-v3-ultra", "parakeet-v3", "qwen3-asr-1.7b", "qwen3-asr-0.6b",
-                                                              "whisper-large-v3", "whisper-large-v3-turbo"])
+        XCTAssertEqual(
+            offered,
+            [
+                "parakeet-v3": ["FP32", "BF16", "8b", "4b"], "parakeet-v3-ultra": ["BF16", "8b", "4b"],
+                "qwen3-asr-1.7b": ["BF16", "8b", "4b"], "qwen3-asr-0.6b": ["BF16", "8b", "4b"],
+                "whisper-large-v3": ["FP16", "8b", "4b"], "whisper-large-v3-turbo": ["FP16", "8b", "4b"],
+                "nemotron-3.5-streaming-0.6b": ["BF16", "8b", "4b"]
+            ])
+        XCTAssertEqual(
+            catalog.offered(.dictation).map(\.id),
+            [
+                "parakeet-v3-ultra", "parakeet-v3", "qwen3-asr-1.7b", "qwen3-asr-0.6b",
+                "whisper-large-v3", "whisper-large-v3-turbo"
+            ])
         XCTAssertEqual(catalog.offered(.streaming).map(\.id), ["nemotron-3.5-streaming-0.6b"])
         XCTAssertEqual(catalog.family("parakeet-v3")?.native, "FP32", "the Parakeet v3 checkpoint is FP32 on disk")
         XCTAssertEqual(catalog.family("whisper-large-v3-turbo")?.license, "mit", "turbo is MIT upstream, unlike large-v3")
@@ -70,14 +83,17 @@ final class CatalogTests: XCTestCase {
         }
         XCTAssertTrue(catalog.families.allSatisfy(\.offered))
         // Install ids of the kept models still resolve (installed copies stay usable and deletable).
-        for id in ["whisper-large-v3-asr-fp16", "whisper-large-v3-asr-4bit", "nemotron-3.5-asr-streaming-0.6b-bf16",
-                   "nemotron-3.5-asr-streaming-0.6b-8bit", "Qwen3-ASR-1.7B-4bit", "Qwen3-ASR-1.7B-8bit", "parakeet-tdt-0.6b-v3-mlx-4bit"] {
+        for id in [
+            "whisper-large-v3-asr-fp16", "whisper-large-v3-asr-4bit", "nemotron-3.5-asr-streaming-0.6b-bf16",
+            "nemotron-3.5-asr-streaming-0.6b-8bit", "Qwen3-ASR-1.7B-4bit", "Qwen3-ASR-1.7B-8bit", "parakeet-tdt-0.6b-v3-mlx-4bit"
+        ] {
             XCTAssertNotNil(catalog.locate(variant: id), id)
         }
     }
 
     func testOnlySchemaTwoCatalogsDecode() throws {
-        let flat = #"[{"id":"a-8","name":"A","quantization":"8-bit","repository":"o/a8","revision":"r","downloadBytes":2,"architecture":"parakeet","license":"l","recommendation":"x"}]"#
+        let flat =
+            #"[{"id":"a-8","name":"A","quantization":"8-bit","repository":"o/a8","revision":"r","downloadBytes":2,"architecture":"parakeet","license":"l","recommendation":"x"}]"#
         XCTAssertThrowsError(try decodeCatalog(Data(flat.utf8)), "the pre-v2 flat array is no longer read")
         XCTAssertThrowsError(try decodeCatalog(Data(#"{"schema": 1, "families": []}"#.utf8)))
         XCTAssertEqual(try decodeCatalog(Data(#"{"schema": 2, "families": []}"#.utf8)).families.count, 0)
@@ -120,7 +136,7 @@ final class CatalogTests: XCTestCase {
         let file = BenchmarkFile(models: [
             "a": FamilyBenchmark(precisions: ["BF16": r(5.0, j: 9, x: 100), "8b": r(5.2, j: 4, x: 300), "4b": r(7.0, j: 6, x: 200)]),
             "b": FamilyBenchmark(precisions: ["BF16": r(6.0, j: 5, x: 250), "8b": r(4.9, j: 3, x: 90)]),
-            "c": FamilyBenchmark(precisions: [:]),
+            "c": FamilyBenchmark(precisions: [:])
         ])
         XCTAssertEqual(tableSortKey(.wer, family: a, benchmark: file.models["a"]), 5.0)
         XCTAssertEqual(tableSortKey(.speed, family: a, benchmark: file.models["a"]), -300, "highest speed, negated")
@@ -180,13 +196,15 @@ final class CatalogTests: XCTestCase {
         let qwen = FamilyBenchmark(precisions: [
             "BF16": g(15.03, j: 75.47, pass: nil),
             "8b": g(15.07, j: 67.78, pass: false, ["multilingual mean +0.48 pt (limit 0.10)", "Turkish +2.55 pt (limit 2.0)"]),
-            "4b": g(15.37, j: 54.51, pass: false, ["English +0.34 pt (limit 0.10)"])])
+            "4b": g(15.37, j: 54.51, pass: false, ["English +0.34 pt (limit 0.10)"])
+        ])
         XCTAssertEqual(recommendedPrecision(qwen, native: "BF16"), "BF16")
         // A pass beyond the English tolerance (decided by the tools, e.g. on streaming speed) is taken, and said.
         let stream = FamilyBenchmark(precisions: [
             "BF16": g(23.42, j: 78.92, pass: false),
             "8b": g(23.47, j: 47.02, pass: true, ["passes on speed: 1.47x faster than BF16 with English within 0.10 pt; multilingual mean +0.60 pt"]),
-            "4b": g(32.97, j: 40.2, pass: false, [])])
+            "4b": g(32.97, j: 40.2, pass: false, [])
+        ])
         XCTAssertEqual(recommendedPrecision(stream, native: "BF16"), "8b", "native's own gate field is ignored")
         let wide = FamilyBenchmark(precisions: ["BF16": g(5, j: 3, pass: nil), "4b": g(9, j: 1, pass: true)])
         XCTAssertEqual(recommendedPrecision(wide, native: "BF16"), "4b")
@@ -242,8 +260,11 @@ final class CatalogTests: XCTestCase {
                     continue
                 }
                 var paths: [(String, BenchmarkCell?)] = [("Standard", t.cells[.standard])]
-                if t.cells[.optimized_fast]?.recipe.inexact.isEmpty ?? true { paths.append(("Optimized (Exact = Fast)", t.cells[.optimized_fast])) }
-                else { paths += [("Optimized · Exact", t.cells[.optimized_exact]), ("Optimized · Fast", t.cells[.optimized_fast])] }
+                if t.cells[.optimized_fast]?.recipe.inexact.isEmpty ?? true {
+                    paths.append(("Optimized (Exact = Fast)", t.cells[.optimized_fast]))
+                } else {
+                    paths += [("Optimized · Exact", t.cells[.optimized_exact]), ("Optimized · Fast", t.cells[.optimized_fast])]
+                }
                 XCTAssertEqual(mine.count, paths.count, "\(family.id) \(tier.rawValue)")
                 for (path, cell) in paths {
                     let c = try XCTUnwrap(cell)
@@ -269,7 +290,8 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(Set(file.models.keys), Set(catalog.families.map(\.id)), "a benchmark row for every catalog family, none for removed ones")
         let offered: [String: [ModelTier]] = [
             "parakeet-v3": [.t16], "parakeet-v3-ultra": [.t16, .t8, .t4], "qwen3-asr-1.7b": [.t16], "qwen3-asr-0.6b": [.t16, .t8],
-            "nemotron-3.5-streaming-0.6b": [.t16, .t8], "whisper-large-v3": [.t16, .t8], "whisper-large-v3-turbo": [.t16, .t8]]
+            "nemotron-3.5-streaming-0.6b": [.t16, .t8], "whisper-large-v3": [.t16, .t8], "whisper-large-v3-turbo": [.t16, .t8]
+        ]
         for (id, bench) in file.models {
             let family = try XCTUnwrap(catalog.family(id))
             XCTAssertEqual(ModelTier.allCases.filter { cellPresent(bench, tier: $0, segment: .standard) }, offered[id], id)
@@ -280,7 +302,8 @@ final class CatalogTests: XCTestCase {
                 XCTAssertEqual(Set(t.cells.keys), Set(Recipe.allCases), "\(id) \(tier.rawValue)")
                 if !t.presence.offered { XCTAssertFalse(t.presence.reasons.isEmpty, "\(id) \(tier.rawValue): absent says why") }
                 if t.gate.status == .fail && tier != .t16 {
-                    XCTAssertTrue(t.gate.reasons.contains { $0.contains("uniform affine-\(tier.rawValue) g64 recipe") }, "\(id) \(tier.rawValue): the verdict names the uniform recipe")
+                    XCTAssertTrue(
+                        t.gate.reasons.contains { $0.contains("uniform affine-\(tier.rawValue) g64 recipe") }, "\(id) \(tier.rawValue): the verdict names the uniform recipe")
                 }
                 for (key, cell) in t.cells where !cell.isPending {
                     XCTAssertNotNil(cell.measured?.hardware, "\(id) \(tier.rawValue) \(key)"); XCTAssertNotNil(cell.measured?.date, "\(id) \(tier.rawValue) \(key)")
@@ -300,8 +323,9 @@ final class CatalogTests: XCTestCase {
         }
         XCTAssertEqual(file.models["parakeet-v3"]?.tiers[.t16]?.cells[.optimized_fast]?.recipe.inexact, ["nax_gemm"])
         XCTAssertEqual(file.models["parakeet-v3"]?.tiers[.t16]?.cells[.standard]?.recipe.converted_from, "fp32")
-        XCTAssertEqual(file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_exact]?.result.speed_x,
-                       file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_fast]?.result.speed_x)
+        XCTAssertEqual(
+            file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_exact]?.result.speed_x,
+            file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_fast]?.result.speed_x)
     }
 
     // MARK: Selection and load action
@@ -372,10 +396,10 @@ final class CatalogTests: XCTestCase {
 
     func testBenchmarksDecodeToleratesMissingAndMalformedFields() {
         let json = #"""
-        {"schema":1,"hardware":"Apple M5 Max, macOS 26.6","models":{
-          "a":{"precisions":{"8b":{"wer":5.1,"j_per_min":"oops","hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-27"},"4b":"broken"},"recommended":"8b"},
-          "b":"broken"}}
-        """#
+            {"schema":1,"hardware":"Apple M5 Max, macOS 26.6","models":{
+              "a":{"precisions":{"8b":{"wer":5.1,"j_per_min":"oops","hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-27"},"4b":"broken"},"recommended":"8b"},
+              "b":"broken"}}
+            """#
         let file = decodeBenchmarks(Data(json.utf8))
         XCTAssertEqual(file.models["a"]?.result("8b")?.wer, 5.1)
         XCTAssertNil(file.models["a"]?.result("8b")?.j_per_min, "a malformed figure is not measured, not a failure")
@@ -403,13 +427,16 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(stock.hasPrefix("Stock MLX path")); XCTAssertFalse(stock.contains("Why"), "never invents a cause")
         let baseline = PrecisionResult(speed_x: 364.6, stock: StockBaseline(speed_x: 58.04, j_per_min: 95.2, memory_mb: 2412))
         XCTAssertEqual(stockLine(baseline), "Stock MLX on any Mac: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
-        XCTAssertEqual(stockLine(PrecisionResult(stock: StockBaseline(speed_x: 228.8, memory_mb: 1732))), "Stock MLX on any Mac: 229\u{00d7} \u{00b7} 1.73 GB", "an unmeasured figure is left out")
+        XCTAssertEqual(
+            stockLine(PrecisionResult(stock: StockBaseline(speed_x: 228.8, memory_mb: 1732))), "Stock MLX on any Mac: 229\u{00d7} \u{00b7} 1.73 GB",
+            "an unmeasured figure is left out")
         XCTAssertNil(stockLine(PrecisionResult(speed_x: 364.6))); XCTAssertNil(stockLine(nil))
         let loaded = engineHelp(engine: "optimized", reason: nil, optimizations: nil, chip: "M5 Max", precision: "BF16", stock: stockLine(baseline))
         XCTAssertEqual(loaded.components(separatedBy: "\n").last, "Stock MLX on any Mac: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
     }
     func testStockBaselineDecodes() throws {
-        let json = #"{"speed_x": 387.4, "latency_ms": {"p50": 13.9, "p95": 22.4, "n": 231, "kind": "segment"}, "stock": {"wer": 15.5, "speed_x": "fast", "j_per_min": 6.67, "memory_mb": 1732, "latency_ms": {"p50": 23.7, "p95": 45.4}, "suite": "v2"}}"#
+        let json =
+            #"{"speed_x": 387.4, "latency_ms": {"p50": 13.9, "p95": 22.4, "n": 231, "kind": "segment"}, "stock": {"wer": 15.5, "speed_x": "fast", "j_per_min": 6.67, "memory_mb": 1732, "latency_ms": {"p50": 23.7, "p95": 45.4}, "suite": "v2"}}"#
         let r = try JSONDecoder().decode(PrecisionResult.self, from: Data(json.utf8))
         XCTAssertEqual(r.latency_ms?.p95, 22.4); XCTAssertEqual(r.latency_ms?.kind, "segment")
         XCTAssertEqual(r.stock?.wer, 15.5); XCTAssertNil(r.stock?.speed_x, "a wrongly typed figure is not measured")
@@ -427,9 +454,13 @@ final class CatalogTests: XCTestCase {
 
     func testKeepHotMenuDefaultsAndChoices() {
         let entries = keepHotEntries(manualIdle: defaultManualIdleMinutes, onDemandIdle: defaultOnDemandIdleMinutes)
-        let checked = entries.compactMap { e -> SettingsAction? in if case .choice(_, true, let a, _) = e { return a }; return nil }
+        let checked = entries.compactMap { e -> SettingsAction? in
+            if case .choice(_, true, let a, _) = e { return a }; return nil
+        }
         XCTAssertEqual(checked, [.keepHot(.manual, minutes: 0), .keepHot(.onDemand, minutes: 15)], "manual Always, on demand 15 min")
-        let titles = entries.compactMap { e -> String? in if case .choice(let t, _, _, _) = e { return t }; return nil }
+        let titles = entries.compactMap { e -> String? in
+            if case .choice(let t, _, _, _) = e { return t }; return nil
+        }
         XCTAssertEqual(titles, ["5 min idle", "15 min idle", "30 min idle", "60 min idle", "Always", "5 min idle", "15 min idle", "30 min idle", "60 min idle", "Always"])
         XCTAssertEqual(entries.first, .header("Manually loaded", help: manualLoadHelp))
     }
@@ -448,8 +479,9 @@ final class CatalogTests: XCTestCase {
         let all = docs.joined(separator: "\n")
         XCTAssertEqual(defaultRecommendationTolerancePoints, 0.1)
         XCTAssertEqual(maximumRecommendationTolerancePoints, 0.2)
-        XCTAssertTrue(all.contains("Vella's quality gate") && all.contains("within 0.1 points of 16") && all.contains("up to 0.2 points"),
-                      "the quality gate and its English tolerance")
+        XCTAssertTrue(
+            all.contains("Vella's quality gate") && all.contains("within 0.1 points of 16") && all.contains("up to 0.2 points"),
+            "the quality gate and its English tolerance")
         XCTAssertTrue(docs[0].contains("breaks against 16") && docs[1].contains("breaks against 16"), "presence rule")
         XCTAssertTrue(docs[0].contains("No tier is recommended") && docs[1].contains("Nothing is marked as recommended"), "no recommended cell")
         XCTAssertFalse(all.contains("0.5 points"), "retired 0.5-point margin")
@@ -464,11 +496,15 @@ final class CatalogTests: XCTestCase {
         // Optimized above Standard, every cell clickable; the Exact/Fast switch beside the Optimized row (up Fast, down
         // Exact, whole-area click, Exact coupled to 16); no On disk column; an always-visible one-word button.
         XCTAssertTrue(docs[1].contains("| Capabilities | Fixed icon slots") && docs[1].contains("Show only models with"), "USAGE Capabilities column and filter")
-        XCTAssertTrue(docs[1].contains("| Precision | Two rows of segments `16 8 4`, bits per weight: **Optimized**") && docs[1].contains("above **Standard**")
-                      && docs[1].contains("| (switch) | Beside the Optimized row, a switch, up **Fast**, down **Exact**; a click anywhere on it flips it."), "USAGE Precision rows and switch")
-        XCTAssertTrue(docs[0].contains("every cell is clickable and shows its own figures") && docs[1].contains("every cell is clickable and shows its own figures"), "both rows clickable")
+        XCTAssertTrue(
+            docs[1].contains("| Precision | Two rows of segments `16 8 4`, bits per weight: **Optimized**") && docs[1].contains("above **Standard**")
+                && docs[1].contains("| (switch) | Beside the Optimized row, a switch, up **Fast**, down **Exact**; a click anywhere on it flips it."),
+            "USAGE Precision rows and switch")
+        XCTAssertTrue(
+            docs[0].contains("every cell is clickable and shows its own figures") && docs[1].contains("every cell is clickable and shows its own figures"), "both rows clickable")
         XCTAssertTrue(docs[1].contains("`Exact: 16 only, was 8`") && docs[0].contains("flipping to Exact can move the precision to 16"), "Exact coupling documented")
-        XCTAssertTrue(docs[1].contains("| (last) | The button: **Get**, **Load**, **Unload** or **Reload**") && docs[0].contains("The last column is the row's button"), "the action button")
+        XCTAssertTrue(
+            docs[1].contains("| (last) | The button: **Get**, **Load**, **Unload** or **Reload**") && docs[0].contains("The last column is the row's button"), "the action button")
         XCTAssertTrue(docs[0].contains("one line per model") && docs[2].contains("two **Precision** rows"), "one line per model, two Precision rows")
         for stale in ["● loaded, ○ on disk, ↓ not downloaded", "state glyph", "| On disk |", "**Path** switch", "**Path** is a switch"] {
             XCTAssertFalse(all.contains(stale), "retired table v2 wording: \(stale)")
@@ -477,9 +513,10 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(docs[1].contains("locked; a change applies at the next load") && docs[0].contains("locked; a change applies at the next load"), "in-use interlock")
         XCTAssertTrue(docs[1].contains("best value across its precisions"), "stable sort documented")
         // One state and download confirmation (Toby, 26 Sep 2026).
-        XCTAssertTrue(docs[1].contains("always shows the precision it is loaded at") && docs[1].contains("Closing the menu without Reload discards the preview")
-                      && docs[1].contains("else Optimized 16 · Fast"),
-                      "USAGE: loaded precision wins; previews are transient")
+        XCTAssertTrue(
+            docs[1].contains("always shows the precision it is loaded at") && docs[1].contains("Closing the menu without Reload discards the preview")
+                && docs[1].contains("else Optimized 16 · Fast"),
+            "USAGE: loaded precision wins; previews are transient")
         XCTAssertTrue(docs[1].contains("the one its next dictation (or streaming session) loads"), "USAGE: dictation uses what was last loaded")
         XCTAssertTrue(docs[1].contains("nothing downloads without **Download**") && docs[1].contains("**Cancel** is the default"), "USAGE: download popup")
         XCTAssertTrue(docs[1].contains("removes its partial files"), "USAGE: partial clean-up")
@@ -506,13 +543,13 @@ final class CatalogTests: XCTestCase {
 
     func testReferencesDecodeOnlyWhenMarkedEstimated() {
         let json = #"""
-        {"schema": 1, "models": {}, "references": {
-          "api-a": {"reference": true, "estimated": true, "name": "A", "mode": "dictation", "wer": 12.9, "range": [11.3, 13.3],
-                    "source": "S", "method": "M", "multilingual": {"by_language": {"de": 5.0}, "coverage": 1}},
-          "api-b": {"reference": true, "name": "B", "mode": "dictation", "wer": 1.0},
-          "api-c": {"reference": true, "estimated": true, "name": "C", "mode": "streaming", "wer": 20}
-        }}
-        """#
+            {"schema": 1, "models": {}, "references": {
+              "api-a": {"reference": true, "estimated": true, "name": "A", "mode": "dictation", "wer": 12.9, "range": [11.3, 13.3],
+                        "source": "S", "method": "M", "multilingual": {"by_language": {"de": 5.0}, "coverage": 1}},
+              "api-b": {"reference": true, "name": "B", "mode": "dictation", "wer": 1.0},
+              "api-c": {"reference": true, "estimated": true, "name": "C", "mode": "streaming", "wer": 20}
+            }}
+            """#
         let file = decodeBenchmarks(Data(json.utf8))
         XCTAssertEqual(Set(file.references.keys), ["api-a", "api-c"], "an entry not marked estimated is never shown as a figure")
         XCTAssertEqual(file.references["api-a"]?.id, "api-a")

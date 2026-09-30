@@ -23,7 +23,8 @@ import ApplicationServices
         }
         let app = AXUIElementCreateApplication(target.processIdentifier)
         AXUIElementSetMessagingTimeout(app, 0.5)
-        let manualResult = CommandLine.arguments.contains("--prime-browser-manual-accessibility")
+        let manualResult =
+            CommandLine.arguments.contains("--prime-browser-manual-accessibility")
             ? AXUIElementSetAttributeValue(app, "AXManualAccessibility" as CFString, kCFBooleanTrue) : nil
         func element(_ attribute: String) -> AXUIElement? {
             guard let value = PasteProbe.attribute(app, attribute), CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
@@ -36,7 +37,10 @@ import ApplicationServices
                 // Some native browser bridges omit web titles/labels. Only the
                 // exact disposable fixture values qualify, never arbitrary text.
                 if let value = PasteProbe.attribute(current, kAXValueAttribute) as? String,
-                   [marker + ":a", marker + ":b", marker + ":rich"].contains(value) { return true }
+                    [marker + ":a", marker + ":b", marker + ":rich"].contains(value)
+                {
+                    return true
+                }
                 for key in [kAXTitleAttribute, kAXDescriptionAttribute, kAXURLAttribute] {
                     if let value = PasteProbe.attribute(current, key), String(describing: value).contains(marker) { return true }
                 }
@@ -52,10 +56,12 @@ import ApplicationServices
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
         let field = element(kAXFocusedUIElementAttribute), window = element(kAXFocusedWindowAttribute)
-        var state: [String: Any] = ["trusted": true,
+        var state: [String: Any] = [
+            "trusted": true,
             "focusedRole": field.flatMap { PasteProbe.attribute($0, kAXRoleAttribute) as? String } ?? "unavailable",
             "windowRole": window.flatMap { PasteProbe.attribute($0, kAXRoleAttribute) as? String } ?? "unavailable",
-            "ownedPage": owned(field) || owned(window)]
+            "ownedPage": owned(field) || owned(window)
+        ]
         state["focusDescription"] = field.flatMap { PasteProbe.attribute($0, kAXRoleDescriptionAttribute) as? String } ?? "unavailable"
         state["focusIdentifier"] = field.flatMap { PasteProbe.attribute($0, kAXIdentifierAttribute) as? String } ?? "unavailable"
         state["windowMatchesTaskName"] = window.flatMap { PasteProbe.attribute($0, kAXTitleAttribute) as? String } == "Vella browser insertion QA"
@@ -93,8 +99,7 @@ import ApplicationServices
         var qaClipboardCount: Int?
         defer {
             if let qaClipboardCount, clipboard.changeCount == qaClipboardCount {
-                if let previous { DictationController.restoreClipboardText(previous, to: clipboard, changeCount: qaClipboardCount) }
-                else if wasEmpty { clipboard.clearContents() }
+                if let previous { DictationController.restoreClipboardText(previous, to: clipboard, changeCount: qaClipboardCount) } else if wasEmpty { clipboard.clearContents() }
             }
         }
         let model = DictationController()

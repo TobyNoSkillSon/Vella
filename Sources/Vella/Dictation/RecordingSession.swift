@@ -52,7 +52,8 @@ final class RecordingSession {
         for file in files where file.pathExtension == "pcm" {
             try Task.checkCancellation()
             guard let index = Int(file.deletingPathExtension().lastPathComponent), index >= 0,
-                  file.lastPathComponent == String(format: "%06d.pcm", index) else { continue }
+                file.lastPathComponent == String(format: "%06d.pcm", index)
+            else { continue }
             var segment = indexed[index] ?? Segment(index: index, peakRMS: 1)
             let bytes = (try file.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
             try Self.validatePCMByteCount(bytes)
@@ -87,7 +88,8 @@ final class RecordingSession {
         guard segment.frames == segment.overlapFrames else { return }
         let raw = try Data(contentsOf: directory.appendingPathComponent(segment.filename))
         guard raw.count == segment.frames * 4,
-              segment.sha256.map({ $0 == Self.digest(raw) }) ?? true else {
+            segment.sha256.map({ $0 == Self.digest(raw) }) ?? true
+        else {
             throw VellaError.message("Saved tail integrity check failed. Audio is retained.")
         }
         if raw.isEmpty { return }
@@ -95,8 +97,9 @@ final class RecordingSession {
         let previous = manifest.segments[i - 1]
         let left = try Data(contentsOf: directory.appendingPathComponent(previous.filename))
         guard previous.index + 1 == segment.index, left.count == previous.frames * 4,
-              previous.sha256.map({ $0 == Self.digest(left) }) ?? true,
-              left.count >= raw.count, left.suffix(raw.count) == raw else {
+            previous.sha256.map({ $0 == Self.digest(left) }) ?? true,
+            left.count >= raw.count, left.suffix(raw.count) == raw
+        else {
             throw VellaError.message("Saved overlap does not match its predecessor. Audio is retained.")
         }
     }
@@ -159,8 +162,7 @@ final class RecordingSession {
         guard manifest.segments.contains(where: { !($0.text ?? "").isEmpty }) else { return nil }
         var pieces = ["[Incomplete transcript — retry missing audio segments]"]
         for segment in manifest.segments {
-            if let text = segment.text { if !text.isEmpty { pieces.append(text) } }
-            else { pieces.append("[Pending transcription — segment \(segment.index + 1)]") }
+            if let text = segment.text { if !text.isEmpty { pieces.append(text) } } else { pieces.append("[Pending transcription — segment \(segment.index + 1)]") }
         }
         let text = pieces.joined(separator: "\n")
         try durableWrite(Data(text.utf8), to: directory.appendingPathComponent("partial-transcript.txt"))
@@ -173,8 +175,9 @@ final class RecordingSession {
     // These methods use immutable directory only: capture still owns the manifest.
     func saveStreamingPartial(_ text: String) throws {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        try durableWrite(Data(("[Incomplete streaming transcript — retry saved audio]\n" + text).utf8),
-                         to: directory.appendingPathComponent("partial-transcript.txt"))
+        try durableWrite(
+            Data(("[Incomplete streaming transcript — retry saved audio]\n" + text).utf8),
+            to: directory.appendingPathComponent("partial-transcript.txt"))
     }
     func preserveStreamingCheckpoint() throws {
         _ = try savePartialTranscript()
@@ -325,7 +328,8 @@ final class SegmentedPCMWriter {
             }
             var folder = URL(fileURLWithPath: path)
             if json(folder.appendingPathComponent("config.json")) == nil,
-               let source = json(folder.appendingPathComponent("vella-derived.json"))?["source"] as? String {
+                let source = json(folder.appendingPathComponent("vella-derived.json"))?["source"] as? String
+            {
                 folder = URL(fileURLWithPath: source)
             }
             return forArchitecture(checkpointArchitecture(json(folder.appendingPathComponent("config.json"))))
@@ -345,19 +349,23 @@ final class SegmentedPCMWriter {
     init(session: RecordingSession, policy: Policy? = nil, availableBytes: (() throws -> Int64)? = nil) throws {
         let policy = policy ?? Policy.forModel(session.manifest.config.model)
         self.session = session; self.policy = policy
-        self.availableBytes = availableBytes ?? {
-            let attrs = try FileManager.default.attributesOfFileSystem(forPath: session.directory.path)
-            return (attrs[.systemFreeSize] as? NSNumber)?.int64Value ?? 0
-        }
+        self.availableBytes =
+            availableBytes ?? {
+                let attrs = try FileManager.default.attributesOfFileSystem(forPath: session.directory.path)
+                return (attrs[.systemFreeSize] as? NSNumber)?.int64Value ?? 0
+            }
         guard policy.preferredSeconds > 0, policy.maximumSeconds >= policy.preferredSeconds,
-              policy.maximumSeconds <= 30, policy.overlapSeconds < policy.preferredSeconds,
-              policy.minimumSeconds >= 0, policy.mergeSlackSeconds >= 0, policy.maximumSeconds + policy.mergeSlackSeconds <= 30 else {
+            policy.maximumSeconds <= 30, policy.overlapSeconds < policy.preferredSeconds,
+            policy.minimumSeconds >= 0, policy.mergeSlackSeconds >= 0, policy.maximumSeconds + policy.mergeSlackSeconds <= 30
+        else {
             throw VellaError.message("Invalid recording segment policy.")
         }
         try checkSpace(); try open(overlap: [])
     }
     private func checkSpace() throws {
-        guard try availableBytes() > policy.reserveBytes else { throw VellaError.message("Disk space is low. Recording stopped; saved audio was kept. Free space before continuing.") }
+        guard try availableBytes() > policy.reserveBytes else {
+            throw VellaError.message("Disk space is low. Recording stopped; saved audio was kept. Free space before continuing.")
+        }
     }
     private func open(overlap: [Float]) throws {
         let index = (session.manifest.segments.last?.index ?? -1) + 1

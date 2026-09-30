@@ -13,7 +13,8 @@ import ApplicationServices
 
     static func prepare(_ target: NSRunningApplication?) {
         guard AXIsProcessTrusted(), let target, !target.isTerminated,
-              target.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+            target.processIdentifier != ProcessInfo.processInfo.processIdentifier
+        else { return }
         let pid = target.processIdentifier
         // Chromium debounces activation. Repeated requests can restart that delay.
         if let attempted = lastAttempt[pid], Date().timeIntervalSince(attempted) < 5 { return }
@@ -21,14 +22,19 @@ import ApplicationServices
         AXUIElementSetMessagingTimeout(app, 0.25)
         var names: CFArray?
         guard AXUIElementCopyAttributeNames(app, &names) == .success,
-              let advertised = names as? [String] else { return }
+            let advertised = names as? [String]
+        else { return }
         for name in ["AXEnhancedUserInterface", "AXManualAccessibility"] where advertised.contains(name) {
             var enabled: CFTypeRef?
             if AXUIElementCopyAttributeValue(app, name as CFString, &enabled) == .success,
-               enabled as? Bool == true { return }
+                enabled as? Bool == true
+            {
+                return
+            }
             var settable = DarwinBoolean(false)
             guard AXUIElementIsAttributeSettable(app, name as CFString, &settable) == .success,
-                  settable.boolValue else { continue }
+                settable.boolValue
+            else { continue }
             if lastAttempt.count > 128 { lastAttempt.removeAll() }
             lastAttempt[pid] = Date()
             _ = AXUIElementSetAttributeValue(app, name as CFString, kCFBooleanTrue)

@@ -10,8 +10,7 @@ public func asciiJSONLine(_ object: [String: Any], fragmentsAllowed: Bool) throw
     let json = try JSONSerialization.data(withJSONObject: object, options: options)
     var ascii = ""
     for unit in String(decoding: json, as: UTF8.self).utf16 {
-        if unit < 128 { ascii.append(Character(UnicodeScalar(unit)!)) }
-        else { ascii += String(format: "\\u%04x", unit) }
+        if unit < 128 { ascii.append(Character(UnicodeScalar(unit)!)) } else { ascii += String(format: "\\u%04x", unit) }
     }
     ascii += "\n"
     return Data(ascii.utf8)
@@ -34,8 +33,10 @@ public func writeAll(_ fd: Int32, _ data: Data) -> Bool {
 /// the peer never sends a newline. On the first byte beyond `limit`, `onOverlong` runs; then `drainOverlong` true
 /// reads on to the newline, discarding (the dictation helper answers "invalid" and continues, like Python's
 /// buffered readline(limit + 1)); false returns at once (the streaming helper refuses the request and exits).
-public func readProtocolLine(_ source: UnsafeMutablePointer<FILE>, limit: Int, drainOverlong: Bool,
-                             onOverlong: () -> Void = {}) -> Data? {
+public func readProtocolLine(
+    _ source: UnsafeMutablePointer<FILE>, limit: Int, drainOverlong: Bool,
+    onOverlong: () -> Void = {}
+) -> Data? {
     var data = Data(); var over = false
     while true {
         let c = fgetc(source)

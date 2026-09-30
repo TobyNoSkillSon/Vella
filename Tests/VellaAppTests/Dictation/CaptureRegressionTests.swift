@@ -14,9 +14,15 @@ final class CaptureRegressionTests: XCTestCase {
     private func sample(_ pcm: AVAudioPCMBuffer) throws -> CMSampleBuffer {
         var timing = CMSampleTimingInfo(duration: CMTime(value: 1, timescale: Int32(pcm.format.sampleRate)), presentationTimeStamp: .zero, decodeTimeStamp: .invalid)
         var value: CMSampleBuffer?
-        XCTAssertEqual(CMSampleBufferCreate(allocator: kCFAllocatorDefault, dataBuffer: nil, dataReady: false, makeDataReadyCallback: nil, refcon: nil, formatDescription: pcm.format.formatDescription, sampleCount: Int(pcm.frameLength), sampleTimingEntryCount: 1, sampleTimingArray: &timing, sampleSizeEntryCount: 0, sampleSizeArray: nil, sampleBufferOut: &value), noErr)
+        XCTAssertEqual(
+            CMSampleBufferCreate(
+                allocator: kCFAllocatorDefault, dataBuffer: nil, dataReady: false, makeDataReadyCallback: nil, refcon: nil, formatDescription: pcm.format.formatDescription,
+                sampleCount: Int(pcm.frameLength), sampleTimingEntryCount: 1, sampleTimingArray: &timing, sampleSizeEntryCount: 0, sampleSizeArray: nil, sampleBufferOut: &value),
+            noErr)
         let result = try XCTUnwrap(value)
-        XCTAssertEqual(CMSampleBufferSetDataBufferFromAudioBufferList(result, blockBufferAllocator: kCFAllocatorDefault, blockBufferMemoryAllocator: kCFAllocatorDefault, flags: 0, bufferList: pcm.audioBufferList), noErr)
+        XCTAssertEqual(
+            CMSampleBufferSetDataBufferFromAudioBufferList(
+                result, blockBufferAllocator: kCFAllocatorDefault, blockBufferMemoryAllocator: kCFAllocatorDefault, flags: 0, bufferList: pcm.audioBufferList), noErr)
         return result
     }
     private func bytes(_ pcm: AVAudioPCMBuffer) -> Data {
@@ -58,14 +64,16 @@ final class CaptureRegressionTests: XCTestCase {
         func checkIdle() throws {
             let path = Backend.support.appendingPathComponent("dictation-status.json")
             if let data = try? Data(contentsOf: path), let status = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let phase = status["phase"] as? String, ["recording", "preparing", "transcribing"].contains(phase) {
+                let phase = status["phase"] as? String, ["recording", "preparing", "transcribing"].contains(phase)
+            {
                 throw VellaError.message("Live dictation began; stopping test-owned inference.")
             }
         }
         try checkIdle()
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let installed = Backend.support.appendingPathComponent("Models/nemotron-3.5-asr-streaming-0.6b-8bit")
-        let weights = FileManager.default.fileExists(atPath: installed.path) ? installed : cwd.appendingPathComponent(".build/qa/model-scout/Models/nemotron-3.5-asr-streaming-0.6b-8bit")
+        let weights =
+            FileManager.default.fileExists(atPath: installed.path) ? installed : cwd.appendingPathComponent(".build/qa/model-scout/Models/nemotron-3.5-asr-streaming-0.6b-8bit")
         let config = try Configuration(model: "", mode: .streaming, streamingModel: weights.path).forRecording()
         let record = try RecordingSession(root: root(), config: config)
         let queue = StreamingPCMBuffer()
@@ -95,15 +103,13 @@ final class CaptureRegressionTests: XCTestCase {
             }
         }
         defer { producer.cancel() }
-        do { try await backend.start(config: config) }
-        catch {
+        do { try await backend.start(config: config) } catch {
             print("Streaming capture startup failed: \(error)")
             producer.cancel(); try? await producer.value; throw error
         }
         while !queue.isDrained {
             try checkIdle()
-            if let data = try queue.take() { try await backend.feed(data) }
-            else { try await Task.sleep(nanoseconds: 10_000_000) }
+            if let data = try queue.take() { try await backend.feed(data) } else { try await Task.sleep(nanoseconds: 10_000_000) }
         }
         try await producer.value
         XCTAssertNil(sink.error)
@@ -140,7 +146,8 @@ final class CaptureRegressionTests: XCTestCase {
                 guard pcm.frameLength > 0 else { break }
                 let value = try sample(pcm)
                 // Independently validate the same CMSampleBuffer fixture construction as the hour test.
-                let copied = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: AVAudioFormat(cmAudioFormatDescription: CMSampleBufferGetFormatDescription(value)!), frameCapacity: pcm.frameLength))
+                let copied = try XCTUnwrap(
+                    AVAudioPCMBuffer(pcmFormat: AVAudioFormat(cmAudioFormatDescription: CMSampleBufferGetFormatDescription(value)!), frameCapacity: pcm.frameLength))
                 copied.frameLength = pcm.frameLength
                 XCTAssertEqual(CMSampleBufferCopyPCMDataIntoAudioBufferList(value, at: 0, frameCount: Int32(pcm.frameLength), into: copied.mutableAudioBufferList), noErr)
                 XCTAssertEqual(bytes(copied), bytes(pcm), "Fixture must carry the original PCM bytes")
@@ -167,9 +174,13 @@ final class CaptureRegressionTests: XCTestCase {
         print("Request WAV decoded \(decodedBytes.count / 4) frames, declared \(wav.length), PCM \(first.frames)")
         let raw = try Data(contentsOf: record.directory.appendingPathComponent(first.filename))
         XCTAssertEqual(decodedBytes.count, raw.count)
-        let maximumError = raw.withUnsafeBytes { original in decodedBytes.withUnsafeBytes { decoded in
-            (0..<(raw.count / 4)).reduce(Float(0)) { max($0, abs(original.loadUnaligned(fromByteOffset: $1 * 4, as: Float.self) - decoded.loadUnaligned(fromByteOffset: $1 * 4, as: Float.self))) }
-        } }
+        let maximumError = raw.withUnsafeBytes { original in
+            decodedBytes.withUnsafeBytes { decoded in
+                (0..<(raw.count / 4)).reduce(Float(0)) {
+                    max($0, abs(original.loadUnaligned(fromByteOffset: $1 * 4, as: Float.self) - decoded.loadUnaligned(fromByteOffset: $1 * 4, as: Float.self)))
+                }
+            }
+        }
         XCTAssertLessThanOrEqual(maximumError, 2 / 32768, "Only bounded PCM16 transport quantization; the saved Float32 archive remains byte-exact")
         XCTAssertEqual(actual.count, expected.count)
         XCTAssertEqual(SHA256.hash(data: actual), SHA256.hash(data: expected))
@@ -190,8 +201,7 @@ final class CaptureRegressionTests: XCTestCase {
                         for i in 0..<count {
                             for channel in 0..<2 {
                                 let value = channel == 0 ? Float(0) : Float(sin(Double(offset + i) * 2 * .pi * 440 / rate) * 0.2)
-                                if interleaved { pcm.floatChannelData![0][i * 2 + channel] = value }
-                                else { pcm.floatChannelData![channel][i] = value }
+                                if interleaved { pcm.floatChannelData![0][i * 2 + channel] = value } else { pcm.floatChannelData![channel][i] = value }
                             }
                         }
                         sink.consume(try sample(pcm)); offset += count; partition += 1
@@ -220,7 +230,9 @@ final class CaptureRegressionTests: XCTestCase {
             sink.consume(try sample(pcm))
             if priorFailure { sink.error = Failure.priorCapture }
             var drained = false
-            sink.finishAfterDraining(userStopped: true) { drained = true; throw Failure.drain }
+            sink.finishAfterDraining(userStopped: true) {
+                drained = true; throw Failure.drain
+            }
             XCTAssertEqual(drained, !priorFailure)
             XCTAssertEqual(sink.error as? Failure, priorFailure ? .priorCapture : .drain)
             XCTAssertEqual(try saved(record), bytes(pcm), "Converted pending audio must survive a drain failure")

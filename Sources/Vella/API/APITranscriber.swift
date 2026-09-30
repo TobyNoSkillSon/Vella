@@ -26,12 +26,15 @@ enum APIAudio {
         let seconds = Double(audio.length) / format.sampleRate
         guard audio.length > 0 else { throw APIError(400, "The audio file contains no samples.", param: "file", code: "invalid_audio") }
         guard seconds <= maxSeconds else {
-            throw APIError(400, String(format: "The audio is %.0f min long; Vella transcribes up to %.0f min per request. Split it and send the parts.", seconds / 60, maxSeconds / 60), param: "file", code: "audio_too_long")
+            throw APIError(
+                400, String(format: "The audio is %.0f min long; Vella transcribes up to %.0f min per request. Split it and send the parts.", seconds / 60, maxSeconds / 60),
+                param: "file", code: "audio_too_long")
         }
         let output = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
         guard let converter = AVAudioConverter(from: format, to: output),
-              let input = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 32_768),
-              let converted = AVAudioPCMBuffer(pcmFormat: output, frameCapacity: 16_384) else {
+            let input = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 32_768),
+            let converted = AVAudioPCMBuffer(pcmFormat: output, frameCapacity: 16_384)
+        else {
             throw APIError(400, unreadable, param: "file", code: "invalid_audio")
         }
         converter.downmix = true
@@ -47,8 +50,7 @@ enum APIAudio {
                 let status = converter.convert(to: converted, error: &conversionError) { _, state in
                     // AVAudioFile.read throws (rather than returning 0 frames) at the end of the file.
                     if ended || audio.framePosition >= audio.length { ended = true; state.pointee = .endOfStream; return nil }
-                    do { try audio.read(into: input, frameCount: input.frameCapacity) }
-                    catch { readFailure = error; ended = true; state.pointee = .endOfStream; return nil }
+                    do { try audio.read(into: input, frameCount: input.frameCapacity) } catch { readFailure = error; ended = true; state.pointee = .endOfStream; return nil }
                     if input.frameLength == 0 { ended = true; state.pointee = .endOfStream; return nil }
                     state.pointee = .haveData
                     return input
@@ -181,8 +183,7 @@ struct APITranscript {
                 if backend.isReady(ref) { return }
                 guard loads < 3 else { throw APIError(500, "\(ref.displayName) did not stay loaded; try again.", code: "model_load_failed") }
                 loads += 1
-                do { try await backend.preload(ref, residency: .onDemand) }
-                catch let error as VellaError {
+                do { try await backend.preload(ref, residency: .onDemand) } catch let error as VellaError {
                     if let refused = runtime.status.refused, refused.model == ref.id, Date().timeIntervalSince1970 - refused.at < 5 {
                         throw APIError(507, refused.message, type: "server_error", code: "insufficient_memory")
                     }
@@ -198,8 +199,7 @@ struct APITranscript {
                 while true {
                     try await ready()
                     var segment = config; segment.model = model.path
-                    do { return try await self.backend.transcribe(url, config: segment, lane: .api) }
-                    catch is Backend.ModelNotReady {
+                    do { return try await self.backend.transcribe(url, config: segment, lane: .api) } catch is Backend.ModelNotReady {
                         // Unloaded between the check and the call: load it again, outside the lane.
                         attempts += 1
                         if attempts >= 3 { throw APIError(500, "\(model.name) did not stay loaded; try again.", code: "model_load_failed") }
@@ -207,8 +207,7 @@ struct APITranscript {
                 }
             }
         }
-        do { _ = try await runner.run(session) }
-        catch let error as VellaError { throw APIError(500, error.localizedDescription, code: "transcription_failed") }
+        do { _ = try await runner.run(session) } catch let error as VellaError { throw APIError(500, error.localizedDescription, code: "transcription_failed") }
         completed += 1
         let (text, segments) = APIAudio.segments(session)
         var used = model; used.loaded = true
@@ -228,8 +227,7 @@ struct APITranscript {
     private func retryingDictationStops<T>(_ body: () async throws -> T) async throws -> T {
         var attempts = 0
         while true {
-            do { return try await body() }
-            catch is CancellationError where !Task.isCancelled && attempts < 5 { attempts += 1 }
+            do { return try await body() } catch is CancellationError where !Task.isCancelled && attempts < 5 { attempts += 1 }
         }
     }
 }

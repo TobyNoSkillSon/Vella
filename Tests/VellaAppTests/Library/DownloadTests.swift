@@ -24,21 +24,28 @@ final class DownloadTests: XCTestCase {
     private func fixture() throws -> (URL, ModelRecommendation, URLSessionConfiguration) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-native-download-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let model = ModelRecommendation(id: "fixture", name: "Fixture", quantization: "4-bit", repository: "org/repo",
+        let model = ModelRecommendation(
+            id: "fixture", name: "Fixture", quantization: "4-bit", repository: "org/repo",
             revision: String(repeating: "a", count: 40), downloadBytes: 100, architecture: "parakeet", license: "test", recommendation: "test")
-        let family = ModelFamily(id: "fixture", name: model.name, mode: .dictation, languages: ["en"], params: "0.6B", license: model.license,
-                                 native: "4b", variants: ["4b": CatalogVariant(id: model.id, repository: model.repository, revision: model.revision,
-                                                                               downloadBytes: model.downloadBytes, architecture: model.architecture)],
-                                 notes: model.recommendation)
+        let family = ModelFamily(
+            id: "fixture", name: model.name, mode: .dictation, languages: ["en"], params: "0.6B", license: model.license,
+            native: "4b",
+            variants: [
+                "4b": CatalogVariant(
+                    id: model.id, repository: model.repository, revision: model.revision,
+                    downloadBytes: model.downloadBytes, architecture: model.architecture)
+            ],
+            notes: model.recommendation)
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: [family])).write(to: root.appendingPathComponent("models.json"))
         let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [HubStub.self]
         return (root, model, configuration)
     }
     private func configure(_ model: ModelRecommendation, files: [String: Data], wrongHash: Bool = false, codeFile: Bool = false) {
-        let siblings: [[String: Any]] = files.map { name, data in
-            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-            return ["rfilename": name, "size": data.count, "lfs": ["sha256": wrongHash && name == "model.safetensors" ? String(repeating: "f", count: 64) : hash]]
-        } + (codeFile ? [["rfilename": "evil.py", "size": 4, "blob_id": String(repeating: "a", count: 40)]] : [])
+        let siblings: [[String: Any]] =
+            files.map { name, data in
+                let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                return ["rfilename": name, "size": data.count, "lfs": ["sha256": wrongHash && name == "model.safetensors" ? String(repeating: "f", count: 64) : hash]]
+            } + (codeFile ? [["rfilename": "evil.py", "size": 4, "blob_id": String(repeating: "a", count: 40)]] : [])
         HubStub.handler = { request in
             if request.url!.path.contains("/api/models/") {
                 return (200, [:], try JSONSerialization.data(withJSONObject: ["sha": model.revision, "siblings": siblings]))
@@ -53,8 +60,10 @@ final class DownloadTests: XCTestCase {
         }
     }
     private var contents: [String: Data] {
-        ["config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel","quantization":{"bits":4}}"#.utf8),
-         "model.safetensors": Data(repeating: 42, count: 4096)]
+        [
+            "config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel","quantization":{"bits":4}}"#.utf8),
+            "model.safetensors": Data(repeating: 42, count: 4096)
+        ]
     }
     @MainActor func testNativeDownloadRegistersOnlyVerifiedFilesAndResumes() async throws {
         let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
@@ -64,7 +73,8 @@ final class DownloadTests: XCTestCase {
         library.selectedID = model.id
         let folder = library.modelsDirectory.appendingPathComponent(model.id)
         let metadata = folder.appendingPathComponent(".cache/huggingface/download/model.safetensors.metadata")
-        let hash = Data(Insecure.SHA1.hash(data: Data(metadata.lastPathComponent.utf8))).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
+        let hash = Data(Insecure.SHA1.hash(data: Data(metadata.lastPathComponent.utf8))).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(
+            of: "/", with: "_")
         let etag = SHA256.hash(data: contents["model.safetensors"]!).map { String(format: "%02x", $0) }.joined()
         let partial = metadata.deletingLastPathComponent().appendingPathComponent("\(hash).\(etag).incomplete")
         try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -163,7 +173,9 @@ final class DownloadTests: XCTestCase {
             let b = try Data(contentsOf: installed.appendingPathComponent(file), options: [.mappedIfSafe])
             XCTAssertEqual(SHA256.hash(data: a), SHA256.hash(data: b), file)
         }
-        let existing = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support/Vella/models-installed.json")))
+        let existing = try JSONDecoder().decode(
+            [String: InstalledModel].self,
+            from: Data(contentsOf: URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support/Vella/models-installed.json")))
         let record = try XCTUnwrap(existing[model.id])
         XCTAssertEqual(record.revision, model.revision); XCTAssertEqual(record.name, model.name); XCTAssertEqual(record.quantization, model.quantization)
         XCTAssertEqual(record.path, installed.path)

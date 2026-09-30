@@ -20,9 +20,11 @@ public struct Configuration: Codable {
     /// Catalog family id → the tier × path × Exact/Fast it was last loaded with (Selection.swift). Written only by a
     /// successful Load or Reload, like `lastLoaded`; a family without one shows Standard 16.
     public var selections: [String: ModelSelection] = [:]
-    public init(model: String,
-                preferredMicrophone: String = "MacBook Pro Microphone", fallbackMicrophone: String = "MacBook Pro Microphone",
-                mode: RecognitionMode = .dictation, streamingModel: String = "") {
+    public init(
+        model: String,
+        preferredMicrophone: String = "MacBook Pro Microphone", fallbackMicrophone: String = "MacBook Pro Microphone",
+        mode: RecognitionMode = .dictation, streamingModel: String = ""
+    ) {
         self.model = model
         self.mode = mode; self.streamingModel = streamingModel
         self.preferredMicrophone = preferredMicrophone; self.fallbackMicrophone = fallbackMicrophone

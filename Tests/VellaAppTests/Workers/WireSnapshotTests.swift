@@ -14,17 +14,23 @@ final class WireSnapshotTests: XCTestCase {
     static let root = Repository.root
     static let fixtures = root.appendingPathComponent("Tests/Fixtures/wire")
     static let id = "6f1c2a4e-8d3b-4c1a-9e7f-2b5d8c0a1e34"
-    static let volatile = ["pid", "load_s", "footprint_mb", "mlx_active_mb", "mlx_cache_mb", "loadSeconds", "loadPeakMLXBytes",
-                           "cleanupSeconds", "inferenceSeconds", "requestSeconds", "processFootprintBytes", "processPeakFootprintBytes",
-                           "processPeakRSSBytes", "processRSSBytes", "peakMLXBytes", "activeMLXBytes", "cacheMLXBytes"]
+    static let volatile = [
+        "pid", "load_s", "footprint_mb", "mlx_active_mb", "mlx_cache_mb", "loadSeconds", "loadPeakMLXBytes",
+        "cleanupSeconds", "inferenceSeconds", "requestSeconds", "processFootprintBytes", "processPeakFootprintBytes",
+        "processPeakRSSBytes", "processRSSBytes", "peakMLXBytes", "activeMLXBytes", "cacheMLXBytes"
+    ]
 
     func helpers() throws -> URL {
         try Integration.require()
         let environment = ProcessInfo.processInfo.environment
-        let candidates = [environment["VELLA_TEST_WIRE_HELPERS"].map { URL(fileURLWithPath: $0) },
-                          Self.root.appendingPathComponent("Worker/.build/arm64-apple-macosx/release")].compactMap { $0 }
-        for dir in candidates where ["VellaWorker", "VellaStreamingWorker"].allSatisfy({
-            FileManager.default.isExecutableFile(atPath: dir.appendingPathComponent($0).path) }) { return dir }
+        let candidates = [
+            environment["VELLA_TEST_WIRE_HELPERS"].map { URL(fileURLWithPath: $0) },
+            Self.root.appendingPathComponent("Worker/.build/arm64-apple-macosx/release")
+        ].compactMap { $0 }
+        for dir in candidates
+        where ["VellaWorker", "VellaStreamingWorker"].allSatisfy({
+            FileManager.default.isExecutableFile(atPath: dir.appendingPathComponent($0).path)
+        }) { return dir }
         throw XCTSkip("built helpers required: set VELLA_TEST_WIRE_HELPERS or run scripts/build.sh")
     }
 
@@ -109,7 +115,7 @@ final class WireSnapshotTests: XCTestCase {
             #"{"id":"\#(id)","op":"load","model":"\#(dir.path)/missing"}"#,
             #"{"id":"\#(id)","op":"status","extra":1}"#,
             #"{"id":"not-a-uuid","op":"status"}"#,
-            "not json",
+            "not json"
         ]
         let output = try exchange(bin.appendingPathComponent("VellaWorker"), lines, environment: environment)
         try check("dictation.txt", try normalized(output, replacing: ["/private" + dir.path: "$SCRATCH", dir.path: "$SCRATCH"]))
@@ -118,12 +124,14 @@ final class WireSnapshotTests: XCTestCase {
     func testDictationHelperFailures() throws {
         let bin = try helpers()
         let (dir, model, audio) = try scratch(); defer { try? FileManager.default.removeItem(at: dir) }
-        let environment = ["HOME": NSHomeDirectory(), "PATH": "/usr/bin:/bin", "VELLA_STUB_MODELS": "1",
-                           "VELLA_WORKER_DATA_DIR": dir.appendingPathComponent("data").path, "VELLA_TEST_LOAD_FAULT": "stub-model"]
+        let environment = [
+            "HOME": NSHomeDirectory(), "PATH": "/usr/bin:/bin", "VELLA_STUB_MODELS": "1",
+            "VELLA_WORKER_DATA_DIR": dir.appendingPathComponent("data").path, "VELLA_TEST_LOAD_FAULT": "stub-model"
+        ]
         let id = Self.id
         let lines = [
             #"{"id":"\#(id)","op":"load","model":"\#(model.path)"}"#,
-            #"{"id":"\#(id)","model":"\#(model.path)","audio":"\#(audio.path)"}"#,
+            #"{"id":"\#(id)","model":"\#(model.path)","audio":"\#(audio.path)"}"#
         ]
         let output = try exchange(bin.appendingPathComponent("VellaWorker"), lines, environment: environment)
         try check("dictation-load-failed.txt", try normalized(output, replacing: ["/private" + dir.path: "$SCRATCH", dir.path: "$SCRATCH"]))

@@ -16,11 +16,16 @@ import VellaCore
         app.setActivationPolicy(.accessory); app.appearance = NSAppearance(named: .darkAqua)
         let pid = ProcessInfo.processInfo.processIdentifier
         guard AXIsProcessTrusted() else { print("Live insertion QA requires LaunchServices-granted Vella Accessibility access."); return }
-        guard !NSWorkspace.shared.runningApplications.contains(where: {
-            $0.bundleIdentifier == "dev.vella.dictation" && $0.processIdentifier != pid
-        }) else { print("Live insertion QA requires no other running Vella instance."); return }
+        guard
+            !NSWorkspace.shared.runningApplications.contains(where: {
+                $0.bundleIdentifier == "dev.vella.dictation" && $0.processIdentifier != pid
+            })
+        else { print("Live insertion QA requires no other running Vella instance."); return }
         let directory = project.appendingPathComponent(".build/qa/live-insertion")
-        guard FileManager.default.fileExists(atPath: directory.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Package.swift").path) else { return }
+        guard
+            FileManager.default.fileExists(
+                atPath: directory.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Package.swift").path)
+        else { return }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let previous = NSWorkspace.shared.frontmostApplication
         let marker = "Vella disposable live-insertion fixture"
@@ -43,9 +48,8 @@ import VellaCore
         let insertion = LiveInsertion(targetIsCurrent: {
             // QA confines writes to its OWN two fixtures. Production roaming only
             // checks session lifetime and permission, not window/field identity.
-            NSWorkspace.shared.frontmostApplication?.processIdentifier == pid &&
-                ((window.isKeyWindow && window.firstResponder === editor) ||
-                 (secondWindow.isKeyWindow && secondWindow.firstResponder === second))
+            NSWorkspace.shared.frontmostApplication?.processIdentifier == pid
+                && ((window.isKeyWindow && window.firstResponder === editor) || (secondWindow.isKeyWindow && secondWindow.firstResponder === second))
         })
         Task {
             var report: [String: Any] = ["passed": false, "nativeTrust": AXIsProcessTrusted()]
@@ -99,7 +103,10 @@ import VellaCore
                         secondWindow.makeKeyAndOrderFront(nil); secondWindow.makeFirstResponder(second)
                         // Actual local mouse events, sent only to our fixture window.
                         for type: NSEvent.EventType in [.leftMouseDown, .leftMouseUp] {
-                            if let click = NSEvent.mouseEvent(with: type, location: NSPoint(x: 550, y: 142), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: secondWindow.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1) {
+                            if let click = NSEvent.mouseEvent(
+                                with: type, location: NSPoint(x: 550, y: 142), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                windowNumber: secondWindow.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)
+                            {
                                 app.postEvent(click, atStart: false)
                             }
                         }

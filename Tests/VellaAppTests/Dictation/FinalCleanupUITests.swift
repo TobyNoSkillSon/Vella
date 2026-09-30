@@ -32,7 +32,8 @@ private final class CleanupRegistrar: ShortcutRegistrar {
         let start = NSMenuItem(title: "Start Dictation", action: NSSelectorFromString("toggle"), keyEquivalent: "n")
         start.keyEquivalentModifierMask = [.control, .command]
         delegate.menu.addItem(start)
-        let root = ShortcutMenuFactory.shortcutsItem(manager: manager, model: model, target: delegate,
+        let root = ShortcutMenuFactory.shortcutsItem(
+            manager: manager, model: model, target: delegate,
             selectBehavior: NSSelectorFromString("selectShortcutBehavior:"), recordKeys: NSSelectorFromString("recordShortcutKeys"),
             cancelCapture: NSSelectorFromString("cancelShortcutCapture"), selectModifier: NSSelectorFromString("selectShortcutModifier:"),
             selectMouse: NSSelectorFromString("selectShortcutMouse:"), resetDefault: NSSelectorFromString("resetShortcutDefault"),
@@ -84,9 +85,16 @@ private final class CleanupRegistrar: ShortcutRegistrar {
             var time = 0.0, starts = 0, finishes = 0
             var recording = false
             let desired = ShortcutConfiguration(trigger: .modifierOnly(key: .option, side: .left), behavior: behavior)
-            let engine = ShortcutEngine(configuration: desired, sinks: .init(
-                start: { starts += 1; recording = true }, finish: { finishes += 1; recording = false }, cancel: {},
-                isRecording: { recording }, isBusy: { false }), now: { time })
+            let engine = ShortcutEngine(
+                configuration: desired,
+                sinks: .init(
+                    start: {
+                        starts += 1; recording = true
+                    },
+                    finish: {
+                        finishes += 1; recording = false
+                    }, cancel: {},
+                    isRecording: { recording }, isBusy: { false }), now: { time })
             let registrar = CleanupRegistrar(); registrar.rejectEventTap = true
             let store = ShortcutStore(initial: desired)
             let manager = ShortcutManager(engine: engine, store: store, registrar: registrar)
@@ -111,9 +119,11 @@ private final class CleanupRegistrar: ShortcutRegistrar {
 
     func testPermissionRecoveryAndRecordingAccessibilityCopy() {
         var prompts = 0
-        let permission = InsertionPermission(isTrusted: { false }, prompt: { prompts += 1 },
+        let permission = InsertionPermission(
+            isTrusted: { false }, prompt: { prompts += 1 },
             history: PermissionPromptHistory(read: { true }, write: {}))
-        let model = DictationController(insertionPermission: permission,
+        let model = DictationController(
+            insertionPermission: permission,
             configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).json"))
         XCTAssertFalse(model.ensureAutomaticInsertion())
         XCTAssertEqual(prompts, 0)

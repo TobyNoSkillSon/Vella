@@ -15,9 +15,13 @@ final class TierCatalogTests: XCTestCase {
         let c = try catalog()
         let tiers = Dictionary(uniqueKeysWithValues: c.families.map { ($0.id, $0.tiersOffered ?? []) })
         // Presence today (v-family correction, 29 Sep): a tier is absent only when it breaks.
-        XCTAssertEqual(tiers, ["parakeet-v3-ultra": ["16", "8", "4"], "parakeet-v3": ["16"], "qwen3-asr-1.7b": ["16"],
-                               "qwen3-asr-0.6b": ["16", "8"], "whisper-large-v3": ["16", "8"], "whisper-large-v3-turbo": ["16", "8"],
-                               "nemotron-3.5-streaming-0.6b": ["16", "8"]])
+        XCTAssertEqual(
+            tiers,
+            [
+                "parakeet-v3-ultra": ["16", "8", "4"], "parakeet-v3": ["16"], "qwen3-asr-1.7b": ["16"],
+                "qwen3-asr-0.6b": ["16", "8"], "whisper-large-v3": ["16", "8"], "whisper-large-v3-turbo": ["16", "8"],
+                "nemotron-3.5-streaming-0.6b": ["16", "8"]
+            ])
         XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("parakeet-v3"))), ["BF16"], "fp32 is never a tier")
         XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("parakeet-v3-ultra"))), ["BF16", "8b", "4b"])
         XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("whisper-large-v3"))), ["FP16", "8b"])
@@ -87,11 +91,15 @@ final class TierCatalogTests: XCTestCase {
 
     // MARK: Resolution to files (no silent fallback to another tier)
 
-    private let fixture = ModelFamily(id: "p", name: "P", mode: .dictation, languages: ["en"], params: "0.6B", license: "mit", native: "FP32", variants: [
-        "FP32": CatalogVariant(id: "p-fp32", repository: "o/p", revision: String(repeating: "a", count: 40), downloadBytes: 2_000_000_000, architecture: "parakeet"),
-        "BF16": { var v = CatalogVariant(id: "p-bf16", architecture: "parakeet", derivedFrom: "FP32", dtype: "bfloat16"); v.stored = true; return v }(),
-        "8b": CatalogVariant(id: "p-8bit", architecture: "parakeet", derivedFrom: "BF16", bits: 8, groupSize: 64),
-    ], tiersOffered: ["16", "8"])
+    private let fixture = ModelFamily(
+        id: "p", name: "P", mode: .dictation, languages: ["en"], params: "0.6B", license: "mit", native: "FP32",
+        variants: [
+            "FP32": CatalogVariant(id: "p-fp32", repository: "o/p", revision: String(repeating: "a", count: 40), downloadBytes: 2_000_000_000, architecture: "parakeet"),
+            "BF16": {
+                var v = CatalogVariant(id: "p-bf16", architecture: "parakeet", derivedFrom: "FP32", dtype: "bfloat16"); v.stored = true; return v
+            }(),
+            "8b": CatalogVariant(id: "p-8bit", architecture: "parakeet", derivedFrom: "BF16", bits: 8, groupSize: 64)
+        ], tiersOffered: ["16", "8"])
 
     func testStoredConversionIsARootAndFp32IsNotATier() throws {
         XCTAssertEqual(fixture.derivationProblems(), [])
@@ -131,10 +139,12 @@ final class TierCatalogTests: XCTestCase {
     }
 
     func testNeverQuantizeFromAQuantizedSource() {
-        let bad = ModelFamily(id: "q", name: "Q", mode: .dictation, languages: [], params: "", license: "", native: "8b", variants: [
-            "8b": CatalogVariant(id: "q8", repository: "o/q8", revision: String(repeating: "b", count: 40), downloadBytes: 1, architecture: "parakeet"),
-            "4b": CatalogVariant(id: "q4", architecture: "parakeet", derivedFrom: "8b", bits: 4, groupSize: 64),
-        ])
+        let bad = ModelFamily(
+            id: "q", name: "Q", mode: .dictation, languages: [], params: "", license: "", native: "8b",
+            variants: [
+                "8b": CatalogVariant(id: "q8", repository: "o/q8", revision: String(repeating: "b", count: 40), downloadBytes: 1, architecture: "parakeet"),
+                "4b": CatalogVariant(id: "q4", architecture: "parakeet", derivedFrom: "8b", bits: 4, groupSize: 64)
+            ])
         XCTAssertEqual(bad.derivationProblems().count, 1)
         XCTAssertThrowsError(try bad.derivation("4b"))
     }
@@ -147,7 +157,9 @@ final class TierCatalogTests: XCTestCase {
         let bf16 = try XCTUnwrap(downloadPrompt(family: v3, precision: "BF16", followUp: .load, freeBytes: 812_000_000_000))
         XCTAssertEqual(bf16.title, "Download Parakeet v3 · 16 (BF16)?")
         XCTAssertEqual(bf16.variantID, "parakeet-tdt-0.6b-v3-mlx-bf16-local")
-        XCTAssertEqual(bf16.body, """
+        XCTAssertEqual(
+            bf16.body,
+            """
             Parakeet v3 is published as FP32 (float32) on Hugging Face: animaslabs/parakeet-tdt-0.6b-v3-mlx at revision b3f0e8a. Vella converts it once to BF16 (bfloat16) and keeps only those weights.
 
             Download: 2.51 GB (2,509,016,021 bytes). Conversion: about 3 s once. Stored: 1.25 GB; disk needed while converting: 3.76 GB; 812 GB free.
@@ -158,7 +170,9 @@ final class TierCatalogTests: XCTestCase {
         let eight = try XCTUnwrap(downloadPrompt(family: ultra, precision: "8b", followUp: .reload(from: "BF16"), freeBytes: nil))
         XCTAssertEqual(eight.title, "Download Parakeet v3 Ultra · 16 (BF16) to make 8 (8-bit)?")
         XCTAssertEqual(eight.variantID, "parakeet-ultra-mlx-bf16")
-        XCTAssertEqual(eight.body, """
+        XCTAssertEqual(
+            eight.body,
+            """
             Parakeet v3 Ultra at BF16 (bfloat16), as published on Hugging Face: selcukkubur/parakeet-ultra-mlx at revision b554592.
 
             8-bit (affine, group 64) is made on this Mac from the 16-bit weights each time it loads; only a small recipe file is added.

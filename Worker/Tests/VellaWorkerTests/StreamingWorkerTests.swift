@@ -19,7 +19,8 @@ extension WorkerTests {
             #expect(readProtocolLine(file, limit: 10000, drainOverlong: false) == nil)
         }
         @Test func replyLinesAreASCIIWithoutFragments() throws {
-            #expect(String(decoding: try asciiJSONLine(["id": NSNull(), "error": "é/"], fragmentsAllowed: false), as: UTF8.self)
+            #expect(
+                String(decoding: try asciiJSONLine(["id": NSNull(), "error": "é/"], fragmentsAllowed: false), as: UTF8.self)
                     == #"{"error":"\u00e9/","id":null}"# + "\n")
         }
         @Test func identifiers() {

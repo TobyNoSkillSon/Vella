@@ -11,7 +11,10 @@ public struct ModelRecommendation: Codable, Identifiable {
     public var license: String
     public var recommendation: String
     public var recommended: Bool?
-    public init(id: String, name: String, quantization: String, repository: String, revision: String, downloadBytes: Int64, architecture: String, license: String, recommendation: String, recommended: Bool? = nil) {
+    public init(
+        id: String, name: String, quantization: String, repository: String, revision: String, downloadBytes: Int64, architecture: String, license: String, recommendation: String,
+        recommended: Bool? = nil
+    ) {
         self.id = id; self.name = name; self.quantization = quantization; self.repository = repository
         self.revision = revision; self.downloadBytes = downloadBytes; self.architecture = architecture
         self.license = license; self.recommendation = recommendation; self.recommended = recommended

@@ -35,7 +35,7 @@ final class GateStringTests: XCTestCase {
         #"":\(revision)""#,
         #"":components=\(components)""#,
         #"":recipe=exact""#,
-        #"manifestName = "vella-derived.json""#,
+        #"manifestName = "vella-derived.json""#
     ]
 
     func testGoldenGateStringsAppearExactlyOnce() throws {

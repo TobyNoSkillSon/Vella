@@ -26,17 +26,18 @@ struct CalibrationSample {
             SHA256.hash(data: try Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()
         }
         guard try digest(audio) == Self.audioSHA256,
-              manifest["sha256"] as? String == Self.audioSHA256,
-              try digest(folder.appendingPathComponent("text.txt")) == Self.textSHA256,
-              manifest["textSHA256"] as? String == Self.textSHA256 else {
+            manifest["sha256"] as? String == Self.audioSHA256,
+            try digest(folder.appendingPathComponent("text.txt")) == Self.textSHA256,
+            manifest["textSHA256"] as? String == Self.textSHA256
+        else {
             throw CalibrationFailure.message("Calibration sample identity mismatch")
         }
         let checked: Audio
-        do { checked = try Audio(audio.path) }
-        catch { throw CalibrationFailure.message("Unexpected calibration audio format") }
+        do { checked = try Audio(audio.path) } catch { throw CalibrationFailure.message("Unexpected calibration audio format") }
         seconds = checked.seconds
         guard (3...15).contains(seconds), let declared = manifest["audioSeconds"] as? Double,
-              abs(declared - seconds) <= 0.0001 else {
+            abs(declared - seconds) <= 0.0001
+        else {
             throw CalibrationFailure.message("Unexpected calibration duration")
         }
     }
@@ -61,7 +62,7 @@ enum CalibrationCommand {
                 guard ["--model", "--sample"].contains(key), options[key] == nil else {
                     throw CalibrationFailure.message("Invalid calibration arguments")
                 }
-                options[key] = arguments[index+1]
+                options[key] = arguments[index + 1]
             }
             guard let modelArgument = options["--model"], let sampleArgument = options["--sample"] else {
                 throw CalibrationFailure.message("Invalid calibration arguments")
@@ -74,7 +75,7 @@ enum CalibrationCommand {
             let loadStart = ProcessInfo.processInfo.systemUptime
             worker.model = try await withError { try await worker.load(path, architecture: architecture) }
             try withError { Stream.gpu.synchronize() }
-            let loadSeconds = ProcessInfo.processInfo.systemUptime-loadStart
+            let loadSeconds = ProcessInfo.processInfo.systemUptime - loadStart
             func measure() throws -> Double {
                 try withError { Stream.gpu.synchronize() }
                 let start = ProcessInfo.processInfo.systemUptime
@@ -82,7 +83,7 @@ enum CalibrationCommand {
                 guard text.unicodeScalars.count >= 10 else {
                     throw CalibrationFailure.message("Calibration produced no usable speech text")
                 }
-                let elapsed = ProcessInfo.processInfo.systemUptime-start
+                let elapsed = ProcessInfo.processInfo.systemUptime - start
                 guard elapsed.isFinite, elapsed > 0 else { throw CalibrationFailure.message("Invalid inference timing") }
                 return elapsed
             }
@@ -103,19 +104,22 @@ enum CalibrationCommand {
             if architecture == .qwen3ASR { parameters["max_tokens"] = 1024 }
             if [.parakeet, .qwen3ASR, .whisper].contains(architecture) { parameters["chunk_duration"] = 30.0 }
             parameters["stream"] = false
-            try emit("result", ["result": [
-                "audioSeconds": sample.seconds, "loadSeconds": loadSeconds,
-                "firstRequestSeconds": first, "warmSeconds": warm,
-                "speed": sample.seconds / ((warm[0]+warm[1])/2),
-                "sampleSHA256": CalibrationSample.audioSHA256,
-                "mlxVersion": mlxVersion, "mlxAudioVersion": "mlx-audio-swift@01dec7c9+vella-parity",
-                "parameters": parameters
-            ]])
+            try emit(
+                "result",
+                [
+                    "result": [
+                        "audioSeconds": sample.seconds, "loadSeconds": loadSeconds,
+                        "firstRequestSeconds": first, "warmSeconds": warm,
+                        "speed": sample.seconds / ((warm[0] + warm[1]) / 2),
+                        "sampleSHA256": CalibrationSample.audioSHA256,
+                        "mlxVersion": mlxVersion, "mlxAudioVersion": "mlx-audio-swift@01dec7c9+vella-parity",
+                        "parameters": parameters
+                    ]
+                ])
             return 0
         } catch {
             let message: String
-            if case CalibrationFailure.message(let value) = error { message = value }
-            else { message = "Local calibration failed." }
+            if case CalibrationFailure.message(let value) = error { message = value } else { message = "Local calibration failed." }
             try? emit("error", ["message": message])
             return 1
         }

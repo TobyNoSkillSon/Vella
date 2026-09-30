@@ -22,7 +22,8 @@ public enum ShortcutValidation {
     public static func validateKeyChord(keyCode: UInt32, modifiers: UInt32) -> String? {
         // Carbon silently ignores unknown/Fn-only bits, which would degrade a chord
         // into a bare printable hotkey hijacking typing. Accept Carbon bits only.
-        let allowed: UInt32 = ShortcutConfiguration.cmdFlag | ShortcutConfiguration.shiftFlag
+        let allowed: UInt32 =
+            ShortcutConfiguration.cmdFlag | ShortcutConfiguration.shiftFlag
             | ShortcutConfiguration.optionFlag | ShortcutConfiguration.controlFlag
         if modifiers == 0 {
             return "Add at least one modifier (⌃, ⌥, ⌘, or ⇧) to avoid accidental activation."

@@ -24,7 +24,10 @@ public enum UpdatePhase: Equatable, Sendable {
     }
     /// True while an update is being downloaded or installed.
     public var busy: Bool {
-        switch self { case .downloading, .waitingForIdle, .installing: return true; default: return false }
+        switch self {
+        case .downloading, .waitingForIdle, .installing: return true
+        default: return false
+        }
     }
     /// The menu item under "Support the developer…", or nil (no item) when there is nothing newer.
     public var menuTitle: String? {
@@ -63,7 +66,7 @@ public struct UpdateMachine: Equatable, Sendable {
         case (.idle, .checked(let release)), (.available, .checked(let release)):
             phase = release.map { .available($0) } ?? .idle
         case (_, .checkFailed):
-            break                           // silent: the next check tries again; what was known stays
+            break // silent: the next check tries again; what was known stays
         case (.available(let r), .confirmed):
             lastError = nil; phase = .downloading(r)
         case (.downloading(let r), .verified(let busy)):
@@ -71,7 +74,7 @@ public struct UpdateMachine: Equatable, Sendable {
         case (.waitingForIdle(let r), .becameIdle):
             phase = .installing(r)
         case (.available, .failed(let reason)):
-            lastError = reason              // refused before it started (busy): the offer stays
+            lastError = reason // refused before it started (busy): the offer stays
         case (.downloading(let r), .failed(let reason)), (.waitingForIdle(let r), .failed(let reason)), (.installing(let r), .failed(let reason)):
             lastError = reason; phase = .available(r)
         default:

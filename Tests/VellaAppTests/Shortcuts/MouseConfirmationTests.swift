@@ -22,7 +22,9 @@ final class MouseConfirmationTests: XCTestCase {
             registerCalls += 1
             if shouldFail { throw VellaError.message("Already reserved.") }
             registered = config
-            self.onPress = { [weak self] in self?.pressFires += 1; onPress() }
+            self.onPress = { [weak self] in
+                self?.pressFires += 1; onPress()
+            }
             self.onRelease = onRelease
         }
         func unregister() { unregisterCalls += 1; registered = nil }
@@ -77,11 +79,19 @@ final class MouseConfirmationTests: XCTestCase {
     ) -> (ShortcutManager, MouseConfirmRegistrar, MouseConfirmMonitor, MouseConfirmTimer, MouseConfirmState) {
         let state = MouseConfirmState(recording: recording, busy: busy)
         let store = ShortcutStore(initial: .default, fileURL: nil)
-        let engine = ShortcutEngine(configuration: store.configuration, sinks: .init(
-            start: { state.starts += 1; state.recording = true },
-            finish: { state.finishes += 1; state.recording = false; state.busy = false },
-            cancel: { state.cancels += 1; state.recording = false; state.busy = false },
-            isRecording: { state.recording }, isBusy: { state.busy }))
+        let engine = ShortcutEngine(
+            configuration: store.configuration,
+            sinks: .init(
+                start: {
+                    state.starts += 1; state.recording = true
+                },
+                finish: {
+                    state.finishes += 1; state.recording = false; state.busy = false
+                },
+                cancel: {
+                    state.cancels += 1; state.recording = false; state.busy = false
+                },
+                isRecording: { state.recording }, isBusy: { state.busy }))
         let registrar = MouseConfirmRegistrar()
         let manager = ShortcutManager(engine: engine, store: store, registrar: registrar)
         let monitor = MouseConfirmMonitor()
@@ -95,7 +105,8 @@ final class MouseConfirmationTests: XCTestCase {
 
     @MainActor private func mouseEvent(type: CGEventType, button: MouseButton) throws -> CGEvent {
         let cgType: CGEventType = type
-        let event = try XCTUnwrap(CGEvent(mouseEventSource: nil, mouseType: cgType == .otherMouseDown ? .otherMouseDown : .otherMouseUp, mouseCursorPosition: .zero, mouseButton: .center))
+        let event = try XCTUnwrap(
+            CGEvent(mouseEventSource: nil, mouseType: cgType == .otherMouseDown ? .otherMouseDown : .otherMouseUp, mouseCursorPosition: .zero, mouseButton: .center))
         event.setIntegerValueField(.mouseEventButtonNumber, value: Int64(button.rawValue))
         return event
     }
@@ -409,7 +420,10 @@ final class MouseConfirmationTests: XCTestCase {
         _ = NSApplication.shared
         let reserved = ShortcutManager.mouseConfirmationReservedWidth()
         let font = NSFont.menuFont(ofSize: 0)
-        let strings = [ShortcutManager.mouseConfirmationPrompt(for: .button3), ShortcutManager.mouseConfirmationTimeoutMessage, ShortcutManager.mouseConfirmationAccessDeniedMessage, ShortcutManager.mouseConfirmationUnavailableMessage, ShortcutManager.mouseConfirmationUnchangedMessage]
+        let strings = [
+            ShortcutManager.mouseConfirmationPrompt(for: .button3), ShortcutManager.mouseConfirmationTimeoutMessage, ShortcutManager.mouseConfirmationAccessDeniedMessage,
+            ShortcutManager.mouseConfirmationUnavailableMessage, ShortcutManager.mouseConfirmationUnchangedMessage
+        ]
         for s in strings {
             XCTAssertGreaterThanOrEqual(reserved, (s as NSString).size(withAttributes: [.font: font]).width + 52)
         }

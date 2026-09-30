@@ -8,35 +8,35 @@ import Foundation
 /// Tests pair it with an isolated `Runtime` (temp support dir, memory file, minute seconds; `Runtime.isolated`).
 public enum FakeWorker {
     public static let script = #"""
-#!/usr/bin/env python3
-import json,sys,os,time,signal
-model=None
-def push(event):
-    fp=float(os.environ.get('FAKE_FOOTPRINT_MB','1000'))
-    st={'worker':'dictation','pid':os.getpid(),'event':event,'model':model,'engine':'mlx' if model else None,
-        'engine_reason':'No optimized path for this model yet.' if model else None,'optimizations':{},
-        'load_s':0.01,'memory':{'footprint_mb':fp if model else 50.0},'gpu':{'chip':'Fake M','family':'apple9'}}
-    print(json.dumps({'status':st}),flush=True)
-for line in sys.stdin:
-    r=json.loads(line); op=r.get('op')
-    if op=='load':
-        name=r['model'].split('/')[-1]
-        if 'loadfail' in name: model=None; push('load-failed'); print(json.dumps({'id':r['id'],'error':{'code':'load','message':'x'}}),flush=True); continue
-        if 'slowload' in name: time.sleep(10)
-        if 'delayload' in name: time.sleep(1)
-        if 'slowexit' in name: signal.signal(signal.SIGTERM, signal.SIG_IGN)
-        model=r['model']
-        if os.environ.get('FAKE_RECIPE_LOG'): open(os.environ['FAKE_RECIPE_LOG'],'a').write(os.environ.get('VELLA_RECIPE','-')+'\n')
-        push('load'); print(json.dumps({'id':r['id'],'loaded':True}),flush=True); continue
-    if op in ('unload','status','trim'):
-        if op=='unload': model=None
-        push(op); print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
-    name=r['model'].split('/')[-1]; marker=os.path.join(r['model'],'.crashed')
-    if 'crashalways' in name: os._exit(3)
-    if 'crashonce' in name and not os.path.exists(marker): open(marker,'w').close(); os._exit(3)
-    print(json.dumps({'id':r['id'],'text':'Fixture recognized speech.','metrics':{'pid':os.getpid()}}),flush=True)
-if model and 'slowexit' in model: time.sleep(0.5)
-"""#
+        #!/usr/bin/env python3
+        import json,sys,os,time,signal
+        model=None
+        def push(event):
+            fp=float(os.environ.get('FAKE_FOOTPRINT_MB','1000'))
+            st={'worker':'dictation','pid':os.getpid(),'event':event,'model':model,'engine':'mlx' if model else None,
+                'engine_reason':'No optimized path for this model yet.' if model else None,'optimizations':{},
+                'load_s':0.01,'memory':{'footprint_mb':fp if model else 50.0},'gpu':{'chip':'Fake M','family':'apple9'}}
+            print(json.dumps({'status':st}),flush=True)
+        for line in sys.stdin:
+            r=json.loads(line); op=r.get('op')
+            if op=='load':
+                name=r['model'].split('/')[-1]
+                if 'loadfail' in name: model=None; push('load-failed'); print(json.dumps({'id':r['id'],'error':{'code':'load','message':'x'}}),flush=True); continue
+                if 'slowload' in name: time.sleep(10)
+                if 'delayload' in name: time.sleep(1)
+                if 'slowexit' in name: signal.signal(signal.SIGTERM, signal.SIG_IGN)
+                model=r['model']
+                if os.environ.get('FAKE_RECIPE_LOG'): open(os.environ['FAKE_RECIPE_LOG'],'a').write(os.environ.get('VELLA_RECIPE','-')+'\n')
+                push('load'); print(json.dumps({'id':r['id'],'loaded':True}),flush=True); continue
+            if op in ('unload','status','trim'):
+                if op=='unload': model=None
+                push(op); print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
+            name=r['model'].split('/')[-1]; marker=os.path.join(r['model'],'.crashed')
+            if 'crashalways' in name: os._exit(3)
+            if 'crashonce' in name and not os.path.exists(marker): open(marker,'w').close(); os._exit(3)
+            print(json.dumps({'id':r['id'],'text':'Fixture recognized speech.','metrics':{'pid':os.getpid()}}),flush=True)
+        if model and 'slowexit' in model: time.sleep(0.5)
+        """#
     public static func install(in root: URL) throws -> URL {
         let url = root.appendingPathComponent("fake-worker.py")
         try script.write(to: url, atomically: true, encoding: .utf8)

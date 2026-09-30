@@ -29,6 +29,7 @@ Every `VELLA_*` switch the Swift code reads is listed, with its owner and whethe
 xcrun swift test          # the app package
 scripts/test-worker.sh    # the Worker package: gate keys, admission, wire helpers (CPU only, Command Line Tools Swift)
 xcrun swift test --package-path Packages/VellaWire   # the vocabulary the app and the helpers share
+scripts/lint.sh           # swift-format (layout, .swift-format) and SwiftLint (rules, .swiftlint.yml); --fix reformats
 ```
 
 The tests never touch your installed app, its settings, recordings or models. Tests that need a recognition helper use a temporary support directory and either a fake worker (a short script that speaks the helper's stdio protocol; it needs the `python3` of the Command Line Tools) or a built helper with `VELLA_STUB_MODELS=1`. Stub models need no weights and do no GPU work: they return fixed text but report load state, engine labels, fallbacks, residency and memory through the real code.
@@ -43,7 +44,7 @@ scripts/release-check.sh --ci       # the CI test set only (unit tests, CI=true)
 scripts/release-check.sh --signed   # maintainer: sign with "Vella Release Signing" and check the signature as release.yml does
 ```
 
-It runs the steps of `.github/workflows/ci.yml` and `release.yml` locally: tracked files are source only; Command Line Tools Swift 6.3.3 and the Metal Toolchain are present; `CHANGELOG.md` has a section for the version in `Resources/Info.plist` (it becomes the release notes); relative links in the public docs resolve; `scripts/package-release.sh` builds, smoke-tests and zips the app into `.build/release-check/<time>/release/`; `SHA256SUMS` verifies; `xcrun swift test` passes. It prints one line per step and ends with the zip's path and SHA-256. It installs, uploads, tags and publishes nothing. Run it before a pull request that touches the build, the scripts or the docs, and before every tag.
+It runs the steps of `.github/workflows/ci.yml` and `release.yml` locally: tracked files are source only; Command Line Tools Swift 6.3.3 and the Metal Toolchain are present; `CHANGELOG.md` has a section for the version in `Resources/Info.plist` (it becomes the release notes); relative links in the public docs resolve; `scripts/lint.sh` is clean; `scripts/package-release.sh` builds, smoke-tests and zips the app into `.build/release-check/<time>/release/`; `SHA256SUMS` verifies; `xcrun swift test` passes. It prints one line per step and ends with the zip's path and SHA-256. It installs, uploads, tags and publishes nothing. Run it before a pull request that touches the build, the scripts or the docs, and before every tag.
 
 Real-model parity and benchmarks need downloaded weights and a quiet GPU. The maintainer runs them on the reference Mac (an M5 Max) before a change that affects numerics is merged.
 

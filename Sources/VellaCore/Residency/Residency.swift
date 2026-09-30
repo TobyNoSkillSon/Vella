@@ -35,8 +35,10 @@ public struct ModelRef: Codable, Hashable {
     /// What the worker runs: tier × Standard/Optimized × Exact/Fast (Selection.swift). Nil (an older launch set, a
     /// model outside the catalog): Optimized · Fast, the behaviour before the selection existed.
     public var selection: ModelSelection?
-    public init(id: String, precision: String = "", path: String, mode: RecognitionMode = .dictation, name: String? = nil,
-                diskBytes: Int64? = nil, memoryMB: Double? = nil, precisionOptions: [String]? = nil, selection: ModelSelection? = nil) {
+    public init(
+        id: String, precision: String = "", path: String, mode: RecognitionMode = .dictation, name: String? = nil,
+        diskBytes: Int64? = nil, memoryMB: Double? = nil, precisionOptions: [String]? = nil, selection: ModelSelection? = nil
+    ) {
         self.id = id; self.precision = precision; self.path = path; self.mode = mode; self.name = name
         self.diskBytes = diskBytes; self.memoryMB = memoryMB; self.precisionOptions = precisionOptions; self.selection = selection
     }
@@ -87,7 +89,6 @@ public func selectionObject(_ selection: ModelSelection) -> [String: Any] {
 
 /// Environment variable the app sets for every worker it launches.
 
-
 /// Residency and memory settings, saved in config.json and applied to the running workers.
 public struct ResidencySettings: Codable, Equatable {
     public var manualIdleMinutes: Int
@@ -95,8 +96,10 @@ public struct ResidencySettings: Codable, Equatable {
     public var allowSwap: Bool
     /// Manual loads only, in load order. Empty on a fresh install. Loaded again at launch.
     public var launchSet: [ModelRef]
-    public init(manualIdleMinutes: Int = KeepHot.manualDefault, onDemandIdleMinutes: Int = KeepHot.onDemandDefault,
-                allowSwap: Bool = false, launchSet: [ModelRef] = []) {
+    public init(
+        manualIdleMinutes: Int = KeepHot.manualDefault, onDemandIdleMinutes: Int = KeepHot.onDemandDefault,
+        allowSwap: Bool = false, launchSet: [ModelRef] = []
+    ) {
         self.manualIdleMinutes = manualIdleMinutes; self.onDemandIdleMinutes = onDemandIdleMinutes
         self.allowSwap = allowSwap; self.launchSet = launchSet
     }
@@ -180,8 +183,9 @@ public struct MemoryProbe {
     private func pagesMB(_ counters: [String: Any]?) -> Double {
         if let counters {
             func value(_ key: String) -> Double { (counters[key] as? NSNumber)?.doubleValue ?? 0 }
-            return Self.reclaimableMB(free: value("free_count"), speculative: value("speculative_count"),
-                                      external: value("external_page_count"), purgeable: value("purgeable_count"), pageSize: value("page_size"))
+            return Self.reclaimableMB(
+                free: value("free_count"), speculative: value("speculative_count"),
+                external: value("external_page_count"), purgeable: value("purgeable_count"), pageSize: value("page_size"))
         }
         var info = vm_statistics64_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.stride / MemoryLayout<integer_t>.stride)
@@ -189,9 +193,10 @@ public struct MemoryProbe {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count) }
         }
         guard result == KERN_SUCCESS else { return 0 }
-        return Self.reclaimableMB(free: Double(info.free_count), speculative: Double(info.speculative_count),
-                                  external: Double(info.external_page_count), purgeable: Double(info.purgeable_count),
-                                  pageSize: Double(Self.kernelPageSize))
+        return Self.reclaimableMB(
+            free: Double(info.free_count), speculative: Double(info.speculative_count),
+            external: Double(info.external_page_count), purgeable: Double(info.purgeable_count),
+            pageSize: Double(Self.kernelPageSize))
     }
     /// The kernel's VM page size (`vm_kernel_page_size`), which the page counts above are in.
     static let kernelPageSize: UInt64 = {
@@ -247,8 +252,10 @@ public enum AdmissionDecision: Equatable {
 /// enough by their estimates, nothing is unloaded and the load is refused with the numbers and only remedies that can
 /// work. `rawAvailableMB` may be negative (a deficit must be paid off first). `credit`: memory the caller frees before
 /// loading (the same family at another precision, on Reload); it is added before clamping. Allow swap admits all.
-public func planAdmission(_ ref: ModelRef, loaded: [LoadedModelInfo], rawAvailableMB: Double, credit: Double = 0,
-                          together: [String] = [], allowSwap: Bool) -> AdmissionDecision {
+public func planAdmission(
+    _ ref: ModelRef, loaded: [LoadedModelInfo], rawAvailableMB: Double, credit: Double = 0,
+    together: [String] = [], allowSwap: Bool
+) -> AdmissionDecision {
     let need = memoryEstimateMB(ref) + MemoryProbe.headroomMB
     let raw = rawAvailableMB + credit
     let free = max(0, raw)

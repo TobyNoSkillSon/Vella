@@ -28,14 +28,24 @@ final class RecordingShortcutRegistrar: ShortcutRegistrar {
 
 @MainActor
 final class ShortcutTests: XCTestCase {
-    private func managerWithEngine(behavior: ShortcutBehavior = .toggle, recording: Bool = false, busy: Bool = false, now: @escaping () -> TimeInterval = { 1000 }) -> (ShortcutManager, RecordingShortcutRegistrar, RecordingState) {
+    private func managerWithEngine(behavior: ShortcutBehavior = .toggle, recording: Bool = false, busy: Bool = false, now: @escaping () -> TimeInterval = { 1000 }) -> (
+        ShortcutManager, RecordingShortcutRegistrar, RecordingState
+    ) {
         let state = RecordingState(recording: recording, busy: busy)
         let store = ShortcutStore(initial: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: behavior), fileURL: nil)
-        let engine = ShortcutEngine(configuration: store.configuration, sinks: .init(
-            start: { state.starts += 1; state.recording = true },
-            finish: { state.finishes += 1; state.recording = false; state.busy = false },
-            cancel: { state.cancels += 1; state.recording = false; state.busy = false },
-            isRecording: { state.recording }, isBusy: { state.busy }), now: now)
+        let engine = ShortcutEngine(
+            configuration: store.configuration,
+            sinks: .init(
+                start: {
+                    state.starts += 1; state.recording = true
+                },
+                finish: {
+                    state.finishes += 1; state.recording = false; state.busy = false
+                },
+                cancel: {
+                    state.cancels += 1; state.recording = false; state.busy = false
+                },
+                isRecording: { state.recording }, isBusy: { state.busy }), now: now)
         let registrar = RecordingShortcutRegistrar()
         let manager = ShortcutManager(engine: engine, store: store, registrar: registrar)
         return (manager, registrar, state)
@@ -135,15 +145,18 @@ final class ShortcutTests: XCTestCase {
         defer { model.shutdown() }
         let store = ShortcutStore(initial: ShortcutConfiguration.default, fileURL: nil)
         let state = RecordingState(recording: false, busy: false)
-        let engine = ShortcutEngine(configuration: ShortcutConfiguration.default, sinks: .init(
-            start: {}, finish: {}, cancel: {},
-            isRecording: { state.recording }, isBusy: { state.busy }))
+        let engine = ShortcutEngine(
+            configuration: ShortcutConfiguration.default,
+            sinks: .init(
+                start: {}, finish: {}, cancel: {},
+                isRecording: { state.recording }, isBusy: { state.busy }))
         let manager = ShortcutManager(engine: engine, store: store, registrar: RecordingShortcutRegistrar())
         let delegate = AppDelegate(model: model, shortcutManager: manager)
         delegate.rebuildMenu()
         let titles = delegate.menu.items.map(\.title)
         guard let mic = titles.firstIndex(of: "Microphone"),
-              let shortcuts = titles.firstIndex(of: "Shortcuts") else {
+            let shortcuts = titles.firstIndex(of: "Shortcuts")
+        else {
             return XCTFail("Microphone/Shortcuts missing: \(titles)")
         }
         XCTAssertEqual(shortcuts, mic + 1, "Shortcuts must sit immediately below Microphone")
@@ -194,13 +207,23 @@ final class ShortcutTests: XCTestCase {
         var now: TimeInterval
         init(now: TimeInterval) { self.now = now }
     }
-    private func fullRouteTap(behavior: ShortcutBehavior, key: ModifierKey = .control, side: ModifierSide = .left, time: TimeBox, state: RecordingState) -> (ShortcutManager, EventTapShortcutRegistrar) {
+    private func fullRouteTap(behavior: ShortcutBehavior, key: ModifierKey = .control, side: ModifierSide = .left, time: TimeBox, state: RecordingState) -> (
+        ShortcutManager, EventTapShortcutRegistrar
+    ) {
         let config = ShortcutConfiguration(trigger: .modifierOnly(key: key, side: side), behavior: behavior)
-        let engine = ShortcutEngine(configuration: config, sinks: .init(
-            start: { state.starts += 1; state.recording = true },
-            finish: { state.finishes += 1; state.recording = false; state.busy = false },
-            cancel: { state.cancels += 1; state.recording = false; state.busy = false },
-            isRecording: { state.recording }, isBusy: { state.busy }), now: { time.now })
+        let engine = ShortcutEngine(
+            configuration: config,
+            sinks: .init(
+                start: {
+                    state.starts += 1; state.recording = true
+                },
+                finish: {
+                    state.finishes += 1; state.recording = false; state.busy = false
+                },
+                cancel: {
+                    state.cancels += 1; state.recording = false; state.busy = false
+                },
+                isRecording: { state.recording }, isBusy: { state.busy }), now: { time.now })
         let store = ShortcutStore(initial: config, fileURL: nil)
         let tap = EventTapShortcutRegistrar()
         tap.now = { time.now }
@@ -267,9 +290,11 @@ final class ShortcutTests: XCTestCase {
         defer { model.shutdown() }
         let store = ShortcutStore(initial: ShortcutConfiguration.default, fileURL: nil)
         let state = RecordingState(recording: false, busy: false)
-        let engine = ShortcutEngine(configuration: ShortcutConfiguration.default, sinks: .init(
-            start: {}, finish: {}, cancel: {},
-            isRecording: { state.recording }, isBusy: { state.busy }))
+        let engine = ShortcutEngine(
+            configuration: ShortcutConfiguration.default,
+            sinks: .init(
+                start: {}, finish: {}, cancel: {},
+                isRecording: { state.recording }, isBusy: { state.busy }))
         let manager = ShortcutManager(engine: engine, store: store, registrar: RecordingShortcutRegistrar())
         let delegate = AppDelegate(model: model, shortcutManager: manager)
         delegate.rebuildMenu()
@@ -401,9 +426,12 @@ final class ShortcutTests: XCTestCase {
     func testSoloCmdCSequenceNeverPresses() {
         // Reducer-level: ordinary Cmd+C never yields a solo press (no host input).
         var state = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &state, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &state, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle),
+            .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &state, event: .otherKeyDown(time: 0.05), targetKey: .command, targetSide: .left, behavior: .toggle), .cancelled)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &state, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .toggle), .none)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &state, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .toggle), .none)
         // Registrar helper stays crash-free without Accessibility (no press claimed).
         let tap = EventTapShortcutRegistrar()
         XCTAssertNil(tap.registered)

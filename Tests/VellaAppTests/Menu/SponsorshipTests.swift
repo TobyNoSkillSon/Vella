@@ -4,8 +4,9 @@ import AppKit
 
 final class SponsorshipTests: XCTestCase {
     @MainActor func testSupportImmediatelyPrecedesQuitAndOpensOnlySponsorsURL() async throws {
-        let model = DictationController(configurationURL: FileManager.default.temporaryDirectory
-            .appendingPathComponent("unused-vella-config-\(UUID()).json"))
+        let model = DictationController(
+            configurationURL: FileManager.default.temporaryDirectory
+                .appendingPathComponent("unused-vella-config-\(UUID()).json"))
         let delegate = AppDelegate(model: model)
         delegate.rebuildMenu()
         let items = delegate.menu.items

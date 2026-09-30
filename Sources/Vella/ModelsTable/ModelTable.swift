@@ -27,8 +27,9 @@ struct ModelTable: View {
     }
     @MainActor static func height(_ c: ModelsController) -> CGFloat {
         let references = RecognitionMode.allCases.reduce(0) { $0 + c.visibleReferences($1).count }
-        return height(models: c.rowCount - references, references: references, sections: c.sectionCount,
-                      strip: c.filterOpen && !c.filterableCapabilities.isEmpty)
+        return height(
+            models: c.rowCount - references, references: references, sections: c.sectionCount,
+            strip: c.filterOpen && !c.filterableCapabilities.isEmpty)
     }
 
     static let valueFont = Font.system(size: 13).monospacedDigit()
@@ -65,8 +66,11 @@ struct ModelTable: View {
     private func rows(_ mode: RecognitionMode) -> [ModelTableRow] { Self.rows(controller, mode, sort: sortColumn, ascending: ascending) }
 
     /// Header tooltips, in plain words (Toby, 26 Sep evening).
-    static let werHeaderHelp = "Word error rate: the percentage of words wrong \u{2014} substituted, missed or added \u{2014} out of the words spoken. The industry-standard accuracy metric, as on the Hugging Face Open ASR Leaderboard. Lower is better. Our v2 benchmark is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. " + deltaHeaderLine
-    static let formatHeaderHelp = "Our own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. Lower is better. " + deltaHeaderLine
+    static let werHeaderHelp =
+        "Word error rate: the percentage of words wrong \u{2014} substituted, missed or added \u{2014} out of the words spoken. The industry-standard accuracy metric, as on the Hugging Face Open ASR Leaderboard. Lower is better. Our v2 benchmark is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. "
+        + deltaHeaderLine
+    static let formatHeaderHelp =
+        "Our own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. Lower is better. " + deltaHeaderLine
     static let speedHeaderHelp = "Real-time factor (RTFx): audio seconds per processing second. Higher is faster. " + deltaHeaderLine
     static let energyHeaderHelp = "Joules per minute of audio: whole-chip energy, net of idle. Lower is better. " + deltaHeaderLine
     static let memoryHeaderHelp = "Peak memory of Vella's model worker with the model loaded. Lower is better."
@@ -84,7 +88,9 @@ struct ModelTable: View {
             Divider().opacity(0.35).padding(.vertical, 4)
             ForEach([RecognitionMode.dictation, .streaming], id: \.self) { mode in
                 let sectionRows = rows(mode)
-                if sectionRows.contains(where: { if case .family = $0 { return true }; return false }) {
+                if sectionRows.contains(where: {
+                    if case .family = $0 { return true }; return false
+                }) {
                     Text(mode.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
                         .padding(.leading, W.rowPadding).padding(.bottom, 4)
                         .frame(height: Self.sectionHeight, alignment: .bottomLeading)
@@ -138,7 +144,9 @@ struct ModelTable: View {
         if controller.filterableCapabilities.isEmpty {
             plainHeading("Capabilities", W.capabilities, help: Self.capabilitiesHeaderHelp)
         } else {
-            Button { controller.toggleFilterStrip() } label: {
+            Button {
+                controller.toggleFilterStrip()
+            } label: {
                 Text("Capabilities")
                     .overlay(alignment: .trailing) {
                         Circle().fill(Color.accentColor).frame(width: 6, height: 6).offset(x: 9)
@@ -159,7 +167,9 @@ struct ModelTable: View {
             Text(Self.filterLead).font(.system(size: 12)).foregroundStyle(.secondary)
             ForEach(controller.filterableCapabilities, id: \.self) { capability in
                 let on = controller.capabilityFilter.contains(capability)
-                Button { controller.toggleFilter(capability) } label: {
+                Button {
+                    controller.toggleFilter(capability)
+                } label: {
                     HStack(spacing: 5) {
                         Image(systemName: on ? "checkmark.square.fill" : "square").font(.system(size: 13))
                             .foregroundStyle(on ? Color.accentColor : .secondary)
@@ -216,8 +226,10 @@ struct ModelTable: View {
                         Text(engineLabel(engine: loaded.engine, chip: runtime?.chip, selection: shownEngineSelection(family, engine: loaded.engine)))
                             .font(.system(size: 10.5, weight: .medium))
                             .foregroundStyle(Self.tone(.better, hot: hot)).lineLimit(1)
-                            .appKitTooltip(engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
-                                                      chip: runtime?.chip, precision: loaded.precision))
+                            .appKitTooltip(
+                                engineHelp(
+                                    engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
+                                    chip: runtime?.chip, precision: loaded.precision))
                     }
                 }
             }.frame(width: W.model, alignment: .leading)
@@ -263,16 +275,20 @@ struct ModelTable: View {
     }
 
     /// The row's action cell (RowAction.swift): the one-word button, delete beside it under the pointer.
-    private func rowAction(_ family: ModelFamily, action: LoadAction, loading: Bool, downloading: Bool, variant: CatalogVariant?,
-                           library: ModelLibrary, hot: Bool, precision: String, loaded: LoadedFamily?) -> some View {
-        let enabled = !(loading || variant == nil || (action != .get && !controller.runtimeAvailable)
-                        || (action == .unload && controller.actions == nil) || (controller.anyBusy && !downloading))
+    private func rowAction(
+        _ family: ModelFamily, action: LoadAction, loading: Bool, downloading: Bool, variant: CatalogVariant?,
+        library: ModelLibrary, hot: Bool, precision: String, loaded: LoadedFamily?
+    ) -> some View {
+        let enabled =
+            !(loading || variant == nil || (action != .get && !controller.runtimeAvailable)
+            || (action == .unload && controller.actions == nil) || (controller.anyBusy && !downloading))
         let busy = downloading ? (library.progress.map { "\(Int($0 * 100))%" } ?? "…") : loading ? "…" : nil
-        return RowAction(title: Self.title(action), busyText: busy, emphasized: action == .reload, enabled: enabled,
-                         deletable: controller.localPath(family, precision) != nil && !loading, hot: hot,
-                         hovered: controller.previewHover == family.id,
-                         help: actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision),
-                         onPerform: { controller.perform(family) }, onDelete: { requestDelete(family) })
+        return RowAction(
+            title: Self.title(action), busyText: busy, emphasized: action == .reload, enabled: enabled,
+            deletable: controller.localPath(family, precision) != nil && !loading, hot: hot,
+            hovered: controller.previewHover == family.id,
+            help: actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision),
+            onPerform: { controller.perform(family) }, onDelete: { requestDelete(family) })
     }
 
     /// A cloud API for perspective, as a reference row: cloud glyph, greyed, no controls.
@@ -345,7 +361,6 @@ struct ModelTable: View {
         }
     }
 
-
     /// Value on top, delta vs Standard 16 beneath it in small type; centred under the column's label.
     @ViewBuilder private func metric(_ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool) -> some View {
         VStack(alignment: .center, spacing: 1) {
@@ -365,13 +380,14 @@ struct ModelTable: View {
         if optimized.isEmpty && standard.isEmpty {
             Text("—").foregroundStyle(.secondary)
         } else {
-            TierControl(optimized: optimized, standard: standard,
-                        selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
-                        enabled: !controller.inUse(family), unmeasured: unmeasuredCells(family, optimized: optimized, standard: standard), hot: hot,
-                        help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0.tier) ?? .t16, path: $0.row == .standard ? .standard : .optimized) },
-                        onSelect: { cell in
-                            if let tier = ModelTier(rawValue: cell.tier) { controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized) }
-                        })
+            TierControl(
+                optimized: optimized, standard: standard,
+                selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
+                enabled: !controller.inUse(family), unmeasured: unmeasuredCells(family, optimized: optimized, standard: standard), hot: hot,
+                help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0.tier) ?? .t16, path: $0.row == .standard ? .standard : .optimized) },
+                onSelect: { cell in
+                    if let tier = ModelTier(rawValue: cell.tier) { controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized) }
+                })
         }
     }
 
@@ -394,10 +410,11 @@ struct ModelTable: View {
     /// without an Optimized path.
     @ViewBuilder private func pathSwitch(_ family: ModelFamily) -> some View {
         if controller.hasOptimizedPath(family) {
-            ExactFastSwitch(position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
-                            available: controller.switchAvailable(family), enabled: !controller.inUse(family),
-                            exactAvailable: controller.exactAvailable(family),
-                            onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
+            ExactFastSwitch(
+                position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
+                available: controller.switchAvailable(family), enabled: !controller.inUse(family),
+                exactAvailable: controller.exactAvailable(family),
+                onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
         } else {
             Color.clear.frame(height: 1)
         }
@@ -415,8 +432,13 @@ struct ModelTable: View {
         let enabled = !controller.inUse(family)
         var cells: [(String, String)] = [("Model", modelHelp(family, loaded: loaded))]
         if controller.couplingNote(family) == nil, let loaded, loaded.engine != nil {
-            cells.append(("Engine", engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
-                                               chip: runtime?.chip, precision: loaded.precision)))
+            cells.append(
+                (
+                    "Engine",
+                    engineHelp(
+                        engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
+                        chip: runtime?.chip, precision: loaded.precision)
+                ))
         }
         let slots = capabilitySlots(family)
         for c in Capability.allCases { if let slot = slots[c] { cells.append(("Capability \(c.rawValue)", slot.help)) } }
@@ -425,28 +447,47 @@ struct ModelTable: View {
         let standardTiers = controller.tiers(family, .standard)
         let off = unmeasuredCells(family, optimized: optimizedTiers.map(\.rawValue), standard: standardTiers.map(\.rawValue))
         for tier in optimizedTiers {
-            cells.append(("Precision Optimized \(tier.rawValue)", off.contains(TierControl.Cell(.optimized, tier.rawValue)) ? TierControl.notMeasuredHelp
-                          : TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .optimized), enabled: enabled)))
+            cells.append(
+                (
+                    "Precision Optimized \(tier.rawValue)",
+                    off.contains(TierControl.Cell(.optimized, tier.rawValue))
+                        ? TierControl.notMeasuredHelp
+                        : TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .optimized), enabled: enabled)
+                ))
         }
         for tier in standardTiers {
-            cells.append(("Precision Standard \(tier.rawValue)", off.contains(TierControl.Cell(.standard, tier.rawValue)) ? TierControl.notMeasuredHelp
-                          : TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .standard), enabled: enabled)))
+            cells.append(
+                (
+                    "Precision Standard \(tier.rawValue)",
+                    off.contains(TierControl.Cell(.standard, tier.rawValue))
+                        ? TierControl.notMeasuredHelp
+                        : TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .standard), enabled: enabled)
+                ))
         }
         if optimized {
-            cells.append(("Exact/Fast", ExactFastSwitch.tooltip(available: controller.switchAvailable(family), enabled: enabled,
-                                                                exactAvailable: controller.exactAvailable(family))))
+            cells.append(
+                (
+                    "Exact/Fast",
+                    ExactFastSwitch.tooltip(
+                        available: controller.switchAvailable(family), enabled: enabled,
+                        exactAvailable: controller.exactAvailable(family))
+                ))
         }
         let action = controller.action(family)
-        return cells + [("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
-                        ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),
-                        ("Memory", memoryHelp(r, suites: suites)),
-                        ("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))]
+        return cells + [
+            ("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
+            ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),
+            ("Memory", memoryHelp(r, suites: suites)),
+            ("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))
+        ]
     }
 
     /// A reference row's tooltips as (column, text); Capabilities, Params and the controls have none (nothing is known).
     func tooltips(_ r: ReferenceEntry) -> [(String, String)] {
-        [("Model", referenceModelHelp(r)), ("WER", referenceWERTooltip(r)), ("Format", referenceFormatHelp),
-         ("Speed", referenceNotApplicableHelp), ("J / min", referenceNotApplicableHelp), ("Memory", referenceNotApplicableHelp)]
+        [
+            ("Model", referenceModelHelp(r)), ("WER", referenceWERTooltip(r)), ("Format", referenceFormatHelp),
+            ("Speed", referenceNotApplicableHelp), ("J / min", referenceNotApplicableHelp), ("Memory", referenceNotApplicableHelp)
+        ]
     }
 
     /// This Mac's chip: the runtime's, else the CPU brand string.
@@ -461,8 +502,12 @@ struct ModelTable: View {
             if let error = footerNotice(lastError: appError, workerError: runtime?.workerError, refusal: runtime?.refusal, now: Date().timeIntervalSince1970) {
                 let text = Text(error).font(.system(size: 10)).foregroundStyle(.red).lineLimit(1).appKitTooltip(error)
                 ViewThatFits(in: .horizontal) {
-                    HStack { text.fixedSize(); Spacer(minLength: 16); requestButton }
-                    HStack { text; Spacer(minLength: 0) }
+                    HStack {
+                        text.fixedSize(); Spacer(minLength: 16); requestButton
+                    }
+                    HStack {
+                        text; Spacer(minLength: 0)
+                    }
                 }
             } else if let busyLibrary {
                 HStack {
@@ -504,7 +549,6 @@ struct ModelTable: View {
         }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize()
             .accessibilityHint("Copies installation instructions to the clipboard. Nothing is sent automatically.")
     }
-
 
     private func plainHeading(_ text: String, _ width: CGFloat, help: String) -> some View {
         Text(text).frame(width: width).font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).appKitTooltip(help)

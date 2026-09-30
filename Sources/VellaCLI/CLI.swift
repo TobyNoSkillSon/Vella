@@ -2,24 +2,24 @@ import Foundation
 import VellaCore
 
 let usage = """
-vella: transcribe audio files offline with the models loaded in Vella on this Mac.
+    vella: transcribe audio files offline with the models loaded in Vella on this Mac.
 
-    vella transcribe FILE [--model ID] [--language CODE] [--json | --verbose-json | --srt | --vtt]
-        prints the transcript; --json/--verbose-json print OpenAI's JSON response, --srt/--vtt subtitles.
-        FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
-        `vella models`; without it the current dictation model is used. Dictation always goes first.
-    vella status                 one line: running, dictation model, loaded models, API address
-    vella models [--json]        one line per model usable now: id, name, tier, Standard / Optimized Exact / Fast, loaded / current
-    vella url                    the OpenAI-compatible base URL (base_url for the openai SDKs)
-    vella skill [--install DIR]  print the agent skill, or write DIR/transcribe/SKILL.md
-    vella diagnose [--load] [--json]
-        for bug reports: this Mac, versions, each loaded model's engine and fallbacks, the optimized-path gate
-        verdicts, and each loaded dictation model timed on five built-in clips, compared with reference transcripts;
-        ends with a prefilled GitHub issue link. --load loads the dictation model first. Never starts Vella.
+        vella transcribe FILE [--model ID] [--language CODE] [--json | --verbose-json | --srt | --vtt]
+            prints the transcript; --json/--verbose-json print OpenAI's JSON response, --srt/--vtt subtitles.
+            FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
+            `vella models`; without it the current dictation model is used. Dictation always goes first.
+        vella status                 one line: running, dictation model, loaded models, API address
+        vella models [--json]        one line per model usable now: id, name, tier, Standard / Optimized Exact / Fast, loaded / current
+        vella url                    the OpenAI-compatible base URL (base_url for the openai SDKs)
+        vella skill [--install DIR]  print the agent skill, or write DIR/transcribe/SKILL.md
+        vella diagnose [--load] [--json]
+            for bug reports: this Mac, versions, each loaded model's engine and fallbacks, the optimized-path gate
+            verdicts, and each loaded dictation model timed on five built-in clips, compared with reference transcripts;
+            ends with a prefilled GitHub issue link. --load loads the dictation model first. Never starts Vella.
 
-Talks to the Vella app over its local HTTP API (OpenAI-compatible /v1/audio/transcriptions, /v1/models, plus
-/status); starts the app if it is not running. Transcripts are printed, never pasted or saved.
-"""
+    Talks to the Vella app over its local HTTP API (OpenAI-compatible /v1/audio/transcriptions, /v1/models, plus
+    /status); starts the app if it is not running. Transcripts are printed, never pasted or saved.
+    """
 
 struct CLIError: Error { let message: String; init(_ message: String) { self.message = message } }
 
@@ -56,7 +56,9 @@ struct VellaCLI {
                     flags.insert(a); i += 1
                 } else if a.hasPrefix("--") {
                     throw CLIError("unknown option \(a); see vella --help")
-                } else { positional.append(a); i += 1 }
+                } else {
+                    positional.append(a); i += 1
+                }
             }
         }
     }
@@ -86,7 +88,9 @@ struct VellaCLI {
                 try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try Data(text.utf8).write(to: dest)
                 write("wrote \(dest.path)")
-            } else { write(text) }
+            } else {
+                write(text)
+            }
         case "diagnose":
             let args = try Arguments(rest, values: [], flags: ["--load", "--json"])
             if let extra = args.positional.first { throw CLIError("unexpected argument \(extra)") }
@@ -106,8 +110,10 @@ struct VellaCLI {
         let formats: [(String, String)] = [("--json", "json"), ("--verbose-json", "verbose_json"), ("--srt", "srt"), ("--vtt", "vtt"), ("--text", "text")]
         let chosen = formats.filter { args.flags.contains($0.0) }
         guard chosen.count <= 1 else { throw CLIError("choose one of --json, --verbose-json, --srt, --vtt") }
-        let url = URL(fileURLWithPath: (args.positional[0] as NSString).expandingTildeInPath,
-                      relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)).standardizedFileURL
+        let url = URL(
+            fileURLWithPath: (args.positional[0] as NSString).expandingTildeInPath,
+            relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        ).standardizedFileURL
         var isDirectory = ObjCBool(false)
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), !isDirectory.boolValue else {
             throw CLIError("no such file: \(args.positional[0])")
@@ -129,14 +135,20 @@ struct VellaCLI {
         let version = (s["version"] as? String).map { " \($0)" } ?? ""
         let pid = (s["pid"] as? NSNumber)?.intValue ?? 0
         let loaded = (s["models"] as? [String: Any]) ?? [:]
-        var parts = ["Vella\(version) running (pid \(pid)), " + (loaded.isEmpty ? "no model loaded" : loaded.keys.sorted().map { id in
-            let precision = ((loaded[id] as? [String: Any])?["precision"] as? String).flatMap { $0.isEmpty ? nil : " " + (precisionWidth($0) ?? $0) } ?? ""
-            return id + precision
-        }.joined(separator: ", ") + " loaded")]
+        var parts = [
+            "Vella\(version) running (pid \(pid)), "
+                + (loaded.isEmpty
+                    ? "no model loaded"
+                    : loaded.keys.sorted().map { id in
+                        let precision = ((loaded[id] as? [String: Any])?["precision"] as? String).flatMap { $0.isEmpty ? nil : " " + (precisionWidth($0) ?? $0) } ?? ""
+                        return id + precision
+                    }.joined(separator: ", ") + " loaded")
+        ]
         if let loading = s["loading"] as? String { parts.append("loading \(loading)") }
         if let current = s["dictation_model"] as? [String: Any], let name = current["name"] as? String {
             let selection = selectionFrom(current["selection"])
-            let precision = selection.map { " (\($0.tier.rawValue), \(recipeLabel($0)))" }
+            let precision =
+                selection.map { " (\($0.tier.rawValue), \(recipeLabel($0)))" }
                 ?? (current["precision"] as? String).flatMap { $0.isEmpty ? nil : " (\(precisionWidth($0) ?? $0))" } ?? ""
             parts.append("dictation model \(name)\(precision)")
         }
@@ -153,8 +165,7 @@ struct VellaCLI {
     static func modelLine(_ m: [String: Any]) -> String {
         var parts = [m["name"] as? String ?? ""]
         let selection = selectionFrom(m["selection"])
-        if let tier = selection?.tier.rawValue { parts.append(tier) }
-        else if let p = m["precision"] as? String, !p.isEmpty { parts.append(precisionWidth(p) ?? p) }
+        if let tier = selection?.tier.rawValue { parts.append(tier) } else if let p = m["precision"] as? String, !p.isEmpty { parts.append(precisionWidth(p) ?? p) }
         if let selection {
             let asked = selectionFrom(m["requested_selection"]).map { " (\(recipeLabel($0)) asked)" } ?? ""
             parts.append(recipeLabel(selection) + asked)
@@ -166,8 +177,9 @@ struct VellaCLI {
 
     static func selectionFrom(_ value: Any?) -> ModelSelection? {
         guard let o = value as? [String: Any], let tier = (o["tier"] as? String).flatMap(ModelTier.init(rawValue:)),
-              let path = (o["path"] as? String).flatMap(EnginePath.init(rawValue:)),
-              let mode = (o["mode"] as? String).flatMap(OptimizedMode.init(rawValue:)) else { return nil }
+            let path = (o["path"] as? String).flatMap(EnginePath.init(rawValue:)),
+            let mode = (o["mode"] as? String).flatMap(OptimizedMode.init(rawValue:))
+        else { return nil }
         return ModelSelection(tier: tier, path: path, mode: mode)
     }
 
@@ -175,8 +187,9 @@ struct VellaCLI {
 
     func skillText() -> String? {
         var candidates = client().appCandidates.map { $0.appendingPathComponent("Contents/Resources/SKILL.md") }
-        candidates.append(URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("Resources/SKILL.md"))   // Sources/VellaCLI/CLI.swift -> root
+        candidates.append(
+            URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+                .deletingLastPathComponent().appendingPathComponent("Resources/SKILL.md")) // Sources/VellaCLI/CLI.swift -> root
         for url in candidates { if let text = try? String(contentsOf: url, encoding: .utf8) { return text } }
         return nil
     }
@@ -232,8 +245,9 @@ struct VellaClient {
     /// The running app's status file (nil when its app is gone).
     func runningStatus() -> WorkerStatus? {
         guard let data = try? Data(contentsOf: supportDirectory.appendingPathComponent("worker-status.json")),
-              let status = try? JSONDecoder().decode(WorkerStatus.self, from: data),
-              let port = status.api_port, port > 0, let pid = status.app_pid, pid > 0, kill(pid, 0) == 0 else { return nil }
+            let status = try? JSONDecoder().decode(WorkerStatus.self, from: data),
+            let port = status.api_port, port > 0, let pid = status.app_pid, pid > 0, kill(pid, 0) == 0
+        else { return nil }
         return status
     }
     /// The API port when the app that wrote the status file is alive.
@@ -271,13 +285,15 @@ struct VellaClient {
         return (object, port)
     }
 
-    func request(_ method: String, _ path: String, json: [String: Any]? = nil, port known: Int? = nil,
-                 timeout: TimeInterval = 4 * 3600) async throws -> Data {
+    func request(
+        _ method: String, _ path: String, json: [String: Any]? = nil, port known: Int? = nil,
+        timeout: TimeInterval = 4 * 3600
+    ) async throws -> Data {
         let port: Int
         if let known { port = known } else { port = try await ensureRunning() }
         var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)\(path)")!)
         request.httpMethod = method
-        request.timeoutInterval = timeout   // default: a 3-hour file on a slow model
+        request.timeoutInterval = timeout // default: a 3-hour file on a slow model
         if let json {
             // A local path is only read for a client that can read Vella's status file (not a sandboxed app).
             if let token = runningStatus()?.api_token { request.setValue(token, forHTTPHeaderField: "X-Vella-Token") }
@@ -291,15 +307,15 @@ struct VellaClient {
         let session = URLSession(configuration: config)
         defer { session.finishTasksAndInvalidate() }
         let (data, response): (Data, URLResponse)
-        do { (data, response) = try await session.data(for: request) }
-        catch { throw CLIError("Vella's API did not answer (\(error.localizedDescription))") }
+        do { (data, response) = try await session.data(for: request) } catch { throw CLIError("Vella's API did not answer (\(error.localizedDescription))") }
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard code == 200 else {
             let message = (((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["error"] as? [String: Any])?["message"] as? String
             throw CLIError(message ?? "HTTP \(code)")
         }
         if path == "/status", let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-           let api = (object["api"] as? NSNumber)?.intValue, api > vellaAPIVersion {
+            let api = (object["api"] as? NSNumber)?.intValue, api > vellaAPIVersion
+        {
             throw CLIError("this vella command knows API \(vellaAPIVersion) but the app speaks API \(api); reinstall Vella")
         }
         return data

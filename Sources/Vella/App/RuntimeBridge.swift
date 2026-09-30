@@ -56,7 +56,9 @@ import VellaCore
         let result = controller.dictation.migrateRegistry(catalog: controller.catalog)
         if !result.rekeyed.isEmpty || !result.dropped.isEmpty {
             controller.streaming.reload()
-            runtime.log("registry: re-keyed \(result.rekeyed.sorted { $0.key < $1.key }.map { "\($0.key) -> \($0.value)" }.joined(separator: ", ")); dropped \(result.dropped.joined(separator: ", "))")
+            runtime.log(
+                "registry: re-keyed \(result.rekeyed.sorted { $0.key < $1.key }.map { "\($0.key) -> \($0.value)" }.joined(separator: ", ")); dropped \(result.dropped.joined(separator: ", "))"
+            )
         }
         let cleared = controller.clearSelectionsOutsideTheCatalog()
         if !cleared.isEmpty {
@@ -85,17 +87,22 @@ import VellaCore
         guard let controller else { return nil }
         let library = controller.library(mode)
         if let id = library.installed.first(where: { $0.value.path == path })?.key,
-           let (family, precision) = controller.catalog.locate(variant: id) { return ref(family, precision, path: path) }
+            let (family, precision) = controller.catalog.locate(variant: id)
+        {
+            return ref(family, precision, path: path)
+        }
         // A precision made on this Mac: its directory holds only the derivation manifest (never in the registry).
         guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = controller.catalog.family(manifest.family),
-              family.variants[manifest.precision]?.isDerived == true else { return nil }
+            family.variants[manifest.precision]?.isDerived == true
+        else { return nil }
         return ref(family, manifest.precision, path: path)
     }
     /// `selection` nil: the family's recorded one (`defaultSelection`), so an on-demand load runs what the user chose.
     func ref(_ family: ModelFamily, _ precision: String, path: String, selection: ModelSelection? = nil) -> ModelRef {
-        ModelRef(id: family.id, precision: precision, path: path, mode: family.mode, name: family.name,
-                 diskBytes: estimatedWeightBytes(family, precision).map { Int64($0) } ?? family.diskBytes(precision), memoryMB: admissionMemoryMB(family, precision),
-                 precisionOptions: precisionOptions(family), selection: selection ?? recordedSelection(family, precision))
+        ModelRef(
+            id: family.id, precision: precision, path: path, mode: family.mode, name: family.name,
+            diskBytes: estimatedWeightBytes(family, precision).map { Int64($0) } ?? family.diskBytes(precision), memoryMB: admissionMemoryMB(family, precision),
+            precisionOptions: precisionOptions(family), selection: selection ?? recordedSelection(family, precision))
     }
     func recordedSelection(_ family: ModelFamily, _ precision: String) -> ModelSelection {
         let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
@@ -151,7 +158,10 @@ import VellaCore
     func derivedPaths(source: String, mode: RecognitionMode) -> [String] {
         var candidates: [URL] = runtime.settings.launchSet.map { URL(fileURLWithPath: $0.path) }
         if let directory = controller?.library(mode).modelsDirectory,
-           let entries = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) { candidates += entries }
+            let entries = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        {
+            candidates += entries
+        }
         var seen: Set<String> = []
         return candidates.compactMap { url in
             let path = url.standardizedFileURL.path
@@ -209,7 +219,8 @@ import VellaCore
         Task {
             await runtime.loadLaunchSet()
             guard runtime.status.models.isEmpty, runtime.status.loading == nil,
-                  let config = try? model.backend.configuration(requiresModel: false) else { return }
+                let config = try? model.backend.configuration(requiresModel: false)
+            else { return }
             let mode = model.mode
             let path = mode == .dictation ? config.model : config.streamingModel
             guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
@@ -227,11 +238,13 @@ import VellaCore
         guard let controller, !controller.previewing else { return }
         var loaded: [String: LoadedFamily] = [:]
         for (id, entry) in status.models {
-            loaded[id] = LoadedFamily(precision: entry.precision ?? "", engine: entry.engine, engineReason: entry.engine_reason,
-                                      optimizations: entry.optimizations, residency: entry.residency, selection: entry.selection)
+            loaded[id] = LoadedFamily(
+                precision: entry.precision ?? "", engine: entry.engine, engineReason: entry.engine_reason,
+                optimizations: entry.optimizations, residency: entry.residency, selection: entry.selection)
         }
-        controller.runtime = TableRuntime(loaded: loaded, loading: status.loading, chip: status.gpu?.chip, workerError: status.error,
-                                          refusal: status.refused.map { TableRefusal(message: $0.message, at: $0.at) }, available: true)
+        controller.runtime = TableRuntime(
+            loaded: loaded, loading: status.loading, chip: status.gpu?.chip, workerError: status.error,
+            refusal: status.refused.map { TableRefusal(message: $0.message, at: $0.at) }, available: true)
     }
 
     // MARK: First dictation without a model
@@ -244,9 +257,11 @@ import VellaCore
     /// After the offered download: the path to use, the derived directory when the recommended precision is made here.
     private func offeredPath(_ offer: DictationController.ModelOffer, sourcePath: String) throws -> String {
         guard let controller, let (family, precision) = offered(offer.mode), family.isDerived(precision), family.variants[precision]?.isStored != true,
-              family.downloadSource(of: precision)?.variant.id == offer.id else { return sourcePath }
-        return try prepareDerivedModel(family: family, precision: precision, sourcePath: sourcePath,
-                                       modelsDirectory: controller.library(offer.mode).modelsDirectory)
+            family.downloadSource(of: precision)?.variant.id == offer.id
+        else { return sourcePath }
+        return try prepareDerivedModel(
+            family: family, precision: precision, sourcePath: sourcePath,
+            modelsDirectory: controller.library(offer.mode).modelsDirectory)
     }
     /// The first-dictation Get row's selection: the family's recorded one, else Optimized · Fast at the offered tier
     /// (the default for a model never loaded).
@@ -262,8 +277,9 @@ import VellaCore
     /// The popup for the offered download; nil when the catalog has none.
     func offerPrompt(_ offer: DictationController.ModelOffer) -> DownloadPrompt? {
         guard let controller, let (family, precision) = offered(offer.mode) else { return nil }
-        return downloadPrompt(family: family, precision: precision, followUp: .transcribe,
-                              freeBytes: freeDiskBytes(at: controller.library(offer.mode).modelsDirectory))
+        return downloadPrompt(
+            family: family, precision: precision, followUp: .transcribe,
+            freeBytes: freeDiskBytes(at: controller.library(offer.mode).modelsDirectory))
     }
     /// The Get row: asks first when the offer needs a download; on Download (or with the weights already on disk)
     /// fetches and transcribes the saved recording. Cancel keeps the recording and the row.
@@ -271,7 +287,8 @@ import VellaCore
         guard let model, let offer = model.pendingModelRequest, let controller else { return }
         if controller.library(offer.mode).installed[offer.id] == nil {
             guard let prompt = offerPrompt(offer), prompt.variantID == offer.id,
-                  let approval = DownloadGate.ask(prompt, present: presentDownload) else { return }
+                let approval = DownloadGate.ask(prompt, present: presentDownload)
+            else { return }
             approvals[offer.id] = approval
         }
         model.getRecommendedModel()

@@ -30,13 +30,17 @@ final class DerivedSelectionDeletionTests: XCTestCase {
         XCTAssertEqual(derivedModelManifest(at: URL(fileURLWithPath: selected))?.source, source)
         let pid = try XCTUnwrap(f.runtime.status.models["zeta"]?.pid)
         var trashed: [URL] = []
-        library.trashModel = { trashed.append($0); throw CocoaError(.fileWriteNoPermission) }
+        library.trashModel = {
+            trashed.append($0); throw CocoaError(.fileWriteNoPermission)
+        }
 
         XCTAssertNotNil(library.deletionBlockReason("zeta-bf16"))
         let menus = ModelsMenu(controller: f.controller)
         let host = try XCTUnwrap(menus.modelItem().submenu?.items.first?.view as? MenuTableHostingView)
         var alerts: [String] = []
-        menus.presentDeletionConfirmation = { alert in alerts.append(alert.messageText); return .alertSecondButtonReturn }
+        menus.presentDeletionConfirmation = { alert in
+            alerts.append(alert.messageText); return .alertSecondButtonReturn
+        }
         f.controller.preview(f.zeta, "BF16")
         host.rootView.requestDelete(f.zeta)
         try await waitUntil { !alerts.isEmpty }
@@ -58,7 +62,9 @@ final class DerivedSelectionDeletionTests: XCTestCase {
         let source = try f.path(f.zeta, "BF16")
         let selected = try f.config().model
         let trash = root.appendingPathComponent("trash")
-        library.trashModel = { item in try FileManager.default.moveItem(at: item, to: trash); return trash }
+        library.trashModel = { item in
+            try FileManager.default.moveItem(at: item, to: trash); return trash
+        }
         let removed = await f.bridge.delete(family: f.zeta, path: source) {
             guard library.deleteModel("zeta-bf16", expectedPath: source, expectedInstalled: true) else { return false }
             removeDerivedModels(sourcePath: source, modelsDirectory: library.modelsDirectory)
@@ -78,9 +84,12 @@ final class DerivedSelectionDeletionTests: XCTestCase {
     @MainActor func testStreamingSelectionOfADerivedModelProtectsItsSource() throws {
         let resources = root.appendingPathComponent("resources")
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
-        let nemo = ModelFamily(id: "nemo", name: "Nemo", mode: .streaming, languages: ["en"], params: "0.6B", license: "test", native: "BF16", variants: [
-            "BF16": CatalogVariant(id: "nemo-bf16", repository: "org/n", revision: String(repeating: "e", count: 40), downloadBytes: 1000, architecture: "nemotron_asr"),
-            "4b": CatalogVariant(id: "nemo-derived", architecture: "nemotron_asr", derivedFrom: "BF16", bits: 4, groupSize: 64)])
+        let nemo = ModelFamily(
+            id: "nemo", name: "Nemo", mode: .streaming, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
+            variants: [
+                "BF16": CatalogVariant(id: "nemo-bf16", repository: "org/n", revision: String(repeating: "e", count: 40), downloadBytes: 1000, architecture: "nemotron_asr"),
+                "4b": CatalogVariant(id: "nemo-derived", architecture: "nemotron_asr", derivedFrom: "BF16", bits: 4, groupSize: 64)
+            ])
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: [nemo])).write(to: resources.appendingPathComponent("models.json"))
         let registry = root.appendingPathComponent("support/models-installed.json")
         let library = ModelLibrary(mode: .streaming, resources: resources, registryURL: registry)

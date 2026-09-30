@@ -14,7 +14,8 @@ enum LabFixtures {
         if fm.fileExists(atPath: cwd.appendingPathComponent("lab/review/experiments/overlay").path) { return cwd.appendingPathComponent("lab") }
         // A linked worktree's .git is a file: "gitdir: <main>/.git/worktrees/<name>".
         if let text = try? String(contentsOf: cwd.appendingPathComponent(".git"), encoding: .utf8),
-           let line = text.split(separator: "\n").first(where: { $0.hasPrefix("gitdir: ") }) {
+            let line = text.split(separator: "\n").first(where: { $0.hasPrefix("gitdir: ") })
+        {
             var main = URL(fileURLWithPath: String(line.dropFirst("gitdir: ".count)))
             while main.lastPathComponent != ".git" && main.path != "/" { main.deleteLastPathComponent() }
             let lab = main.deletingLastPathComponent().appendingPathComponent("lab")
@@ -26,7 +27,8 @@ enum LabFixtures {
     /// A former repository path (e.g. `Resources/Benchmarks/v1/...`) inside `lab/review/experiments/overlay`, or skip.
     static func require(_ relativePath: String) throws -> URL {
         guard let lab, case let url = lab.appendingPathComponent("review/experiments/overlay").appendingPathComponent(relativePath),
-              FileManager.default.fileExists(atPath: url.path) else {
+            FileManager.default.fileExists(atPath: url.path)
+        else {
             throw XCTSkip("Lab fixture \(relativePath) is not available (lab/review/experiments/overlay).")
         }
         return url

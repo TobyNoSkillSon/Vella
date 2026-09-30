@@ -40,11 +40,13 @@ import VellaCore
     private var streamingJournal: StreamingJournal?
     private var liveInsertion: LiveInsertion?
     var captureIsFinalizing: Bool { finishingCapture }
-    init(insertionPermission: InsertionPermission? = nil, pasteboard: NSPasteboard = .general,
-         stopCapture: ((Recorder) async throws -> Void)? = nil,
-         transcriptionRequest: SessionTranscriber.Request? = nil, configurationURL: URL? = nil,
-         streamingBackend: StreamingBackend? = nil,
-         captureDestination: (() -> DestinationCheck)? = nil, backend: Backend? = nil) {
+    init(
+        insertionPermission: InsertionPermission? = nil, pasteboard: NSPasteboard = .general,
+        stopCapture: ((Recorder) async throws -> Void)? = nil,
+        transcriptionRequest: SessionTranscriber.Request? = nil, configurationURL: URL? = nil,
+        streamingBackend: StreamingBackend? = nil,
+        captureDestination: (() -> DestinationCheck)? = nil, backend: Backend? = nil
+    ) {
         self.backend = backend ?? Backend()
         self.captureDestination = captureDestination ?? { Self.captureNativeDestination(NSWorkspace.shared.frontmostApplication) }
         self.streamingBackend = streamingBackend ?? StreamingBackend()
@@ -111,7 +113,8 @@ import VellaCore
     }
     func selectMode(_ mode: RecognitionMode) throws {
         guard !busy, phase != .recording else { throw VellaError.message("Finish or stop recording before switching modes.") }
-        var config = FileManager.default.fileExists(atPath: configurationURL.path)
+        var config =
+            FileManager.default.fileExists(atPath: configurationURL.path)
             ? try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configurationURL))
             : Configuration(model: "")
         config.mode = mode
@@ -190,11 +193,14 @@ import VellaCore
         }
         if phase == .recording { recordingPower.begin() } else { recordingPower.end() }
         if phase != .recording { meterTimer?.invalidate(); meterTimer = nil; audioLevel = 0 }
-        let status: [String: Any] = ["phase": String(describing: phase),
+        let status: [String: Any] = [
+            "phase": String(describing: phase),
             "error": phase == .failed ? message : "", "microphone": microphone,
-            "checkedAt": ISO8601DateFormatter().string(from: Date())]
+            "checkedAt": ISO8601DateFormatter().string(from: Date())
+        ]
         if Bundle.main.bundleIdentifier == "dev.vella.dictation",
-           let data = try? JSONSerialization.data(withJSONObject: status, options: [.sortedKeys]) {
+            let data = try? JSONSerialization.data(withJSONObject: status, options: [.sortedKeys])
+        {
             try? data.write(to: Backend.support.appendingPathComponent("dictation-status.json"), options: .atomic)
         }
         onChange?()
@@ -254,8 +260,7 @@ import VellaCore
                 }
                 timer = tick
                 RunLoop.main.add(tick, forMode: .common)
-            } catch is CancellationError { }
-            catch { if self.operation == operation { update(.failed, error.localizedDescription) } }
+            } catch is CancellationError {} catch { if self.operation == operation { update(.failed, error.localizedDescription) } }
         }
     }
     func recordingTick(error: String?) {
@@ -335,8 +340,7 @@ import VellaCore
                 try await streamingBackend.start(config: config)
                 while !pcm.isDrained {
                     try Task.checkCancellation()
-                    if let data = try pcm.take() { try await streamingBackend.feed(data) }
-                    else { try await Task.sleep(nanoseconds: 20_000_000) }
+                    if let data = try pcm.take() { try await streamingBackend.feed(data) } else { try await Task.sleep(nanoseconds: 20_000_000) }
                 }
                 return try await streamingBackend.finish(expectedFrames: pcm.totalFrames)
             } catch {
@@ -363,7 +367,8 @@ import VellaCore
                 let text: String
                 if live {
                     guard let streamingTask, let pcm = streamingBuffer,
-                          pcm.totalFrames == session.manifest.segments.reduce(0, { $0 + $1.frames - $1.overlapFrames }) else {
+                        pcm.totalFrames == session.manifest.segments.reduce(0, { $0 + $1.frames - $1.overlapFrames })
+                    else {
                         throw VellaError.message("Streaming audio accounting failed. Saved audio is retained; automatic replay is disabled.")
                     }
                     text = try await streamingTask.value
@@ -414,7 +419,9 @@ import VellaCore
                     } else {
                         update(.success, "Streaming text sent as you spoke. Full transcript saved; no duplicate final paste and no Enter or Send.")
                     }
-                } else { insert(text) }
+                } else {
+                    insert(text)
+                }
                 onTranscriptionCompleted?()
             } catch {
                 guard self.operation == operation else { return }
@@ -422,9 +429,13 @@ import VellaCore
                 liveInsertion?.pause("Streaming did not finish successfully.")
                 streamingBackend.stop(); streamingBuffer?.abort(); streamingTask = nil
                 session.manifest.state = "interrupted"
-                if error is CancellationError { session.manifest.failureCode = "cancelled" }
-                else if (error as? URLError)?.code == .timedOut { session.manifest.failureCode = "timeout" }
-                else { session.manifest.failureCode = "local_failure" }
+                if error is CancellationError {
+                    session.manifest.failureCode = "cancelled"
+                } else if (error as? URLError)?.code == .timedOut {
+                    session.manifest.failureCode = "timeout"
+                } else {
+                    session.manifest.failureCode = "local_failure"
+                }
                 try? session.saveStreamingPartial(streamingBackend.text); try? session.save()
                 if let partial = try? session.savePartialTranscript() { lastText = partial; lastTranscriptIncomplete = true }
                 allowAutomaticInsertion = false
@@ -444,7 +455,8 @@ import VellaCore
                 let runner = SessionTranscriber(request: transcriptionRequest ?? { [backend] url, config in try await backend.transcribe(url, config: config) })
                 try Task.checkCancellation()
                 guard self.operation == operation else { return }
-                let speed = CalibrationStore.speed(modelPath: session.manifest.config.model)
+                let speed =
+                    CalibrationStore.speed(modelPath: session.manifest.config.model)
                     ?? referenceSpeed?(session.manifest.config.model)
                 let pendingAudio = session.manifest.segments.filter { $0.text == nil }.reduce(0.0) { $0 + $1.seconds }
                 let showEstimate = TranscriptionEstimate.shouldDisplay(pendingAudioSeconds: pendingAudio, speed: speed)
@@ -455,7 +467,8 @@ import VellaCore
                     let start = ProcessInfo.processInfo.systemUptime
                     let refresh = { [weak self] in
                         guard let self, self.operation == operation, self.phase == .transcribing else { return }
-                        let estimate = TranscriptionEstimate(totalSeconds: session.seconds, completedSeconds: completed,
+                        let estimate = TranscriptionEstimate(
+                            totalSeconds: session.seconds, completedSeconds: completed,
                             currentSeconds: current, currentElapsed: ProcessInfo.processInfo.systemUptime - start, speed: speed ?? 0)
                         let remaining = Int(ceil(estimate.remainingSeconds))
                         if let speed {
@@ -464,7 +477,8 @@ import VellaCore
                         } else {
                             self.processingProgress = "\(Int(estimate.fraction * 100))% · \(index)/\(count)"
                         }
-                        self.message = "Segment \(index)/\(count). Estimated, not measured completion. Model loading or a busy server can take longer. Audio and completed text are saved."
+                        self.message =
+                            "Segment \(index)/\(count). Estimated, not measured completion. Model loading or a busy server can take longer. Audio and completed text are saved."
                     }
                     refresh()
                     let timer = Timer(timeInterval: 0.2, repeats: true) { _ in Task { @MainActor in refresh() } }
@@ -507,9 +521,13 @@ import VellaCore
                 progressTimer?.invalidate(); progressTimer = nil
                 processingProgress = ""
                 session.manifest.state = "interrupted"
-                if error is CancellationError { session.manifest.failureCode = "cancelled" }
-                else if (error as? URLError)?.code == .timedOut { session.manifest.failureCode = "timeout" }
-                else { session.manifest.failureCode = "local_failure" }
+                if error is CancellationError {
+                    session.manifest.failureCode = "cancelled"
+                } else if (error as? URLError)?.code == .timedOut {
+                    session.manifest.failureCode = "timeout"
+                } else {
+                    session.manifest.failureCode = "local_failure"
+                }
                 try? session.save()
                 if let partial = try? session.savePartialTranscript() { lastText = partial; lastTranscriptIncomplete = true }
                 allowAutomaticInsertion = false
@@ -525,7 +543,8 @@ import VellaCore
     /// records the selection, which must still hold when the family is put back.
     private func temporaryPrecisionRestorePoint(for used: String) -> (residency: Backend.FamilyResidency, selected: String)? {
         guard !used.isEmpty, FileManager.default.fileExists(atPath: used), let selected = selectedModelPath(),
-              URL(fileURLWithPath: used).standardizedFileURL.path != URL(fileURLWithPath: selected).standardizedFileURL.path else { return nil }
+            URL(fileURLWithPath: used).standardizedFileURL.path != URL(fileURLWithPath: selected).standardizedFileURL.path
+        else { return nil }
         let runtime = backend.runtime
         let family = runtime.resolve(used, mode: .dictation).id
         guard runtime.resolve(selected, mode: .dictation).id == family else { return nil }
@@ -534,7 +553,8 @@ import VellaCore
     /// The dictation model config.json selects now; nil when none is selected or it is unreadable.
     private func selectedModelPath() -> String? {
         guard let data = try? Data(contentsOf: configurationURL),
-              let selected = (try? JSONDecoder().decode(Configuration.self, from: data))?.model, !selected.isEmpty else { return nil }
+            let selected = (try? JSONDecoder().decode(Configuration.self, from: data))?.model, !selected.isEmpty
+        else { return nil }
         return selected
     }
     func retry() {
@@ -555,8 +575,7 @@ import VellaCore
                 guard self.operation == operation else { return }
                 savedSession = recovered
                 runTranscription(recovered)
-            } catch is CancellationError { }
-            catch { if self.operation == operation { update(.failed, error.localizedDescription) } }
+            } catch is CancellationError {} catch { if self.operation == operation { update(.failed, error.localizedDescription) } }
         }
     }
     func cancel() {
@@ -576,9 +595,11 @@ import VellaCore
             savedSession.manifest.state = "interrupted"; try? savedSession.save()
             if let partial = try? savedSession.savePartialTranscript() { lastText = partial; lastTranscriptIncomplete = true }
         }
-        update(.idle, liveTextWasSent
-            ? "Stopped. Previously streamed text stays in the target; audio and checkpoints are saved."
-            : "Stopped. Audio and completed text remain in Saved Recordings; nothing was pasted.")
+        update(
+            .idle,
+            liveTextWasSent
+                ? "Stopped. Previously streamed text stays in the target; audio and checkpoints are saved."
+                : "Stopped. Audio and completed text remain in Saved Recordings; nothing was pasted.")
     }
     func deleteSavedRecording() throws {
         guard !busy, phase != .recording, let savedSession else { return }
@@ -591,7 +612,8 @@ import VellaCore
         let app = AXUIElementCreateApplication(target.processIdentifier)
         AXUIElementSetMessagingTimeout(app, 0.25) // A stalled target must not hang Finish.
         guard AXUIElementCopyAttributeValue(app, attribute, &value) == .success,
-              let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+            let value, CFGetTypeID(value) == AXUIElementGetTypeID()
+        else { return nil }
         return unsafeDowncast(value, to: AXUIElement.self) // the type ID was checked above
     }
     private static func captureNativeDestination(_ target: NSRunningApplication?) -> DestinationCheck {
@@ -616,7 +638,8 @@ import VellaCore
                 return "The text field selected at Finish wasn't available through accessibility. Paste with ⌘V."
             }
             guard let currentElement = focused(kAXFocusedUIElementAttribute as CFString, in: target),
-                  let currentWindow = focused(kAXFocusedWindowAttribute as CFString, in: target) else {
+                let currentWindow = focused(kAXFocusedWindowAttribute as CFString, in: target)
+            else {
                 return "The target application isn't exposing its focused text field."
             }
             guard CFEqual(window, currentWindow) else { return "The window selected at Finish is no longer focused." }
@@ -636,8 +659,9 @@ import VellaCore
         // AppKit offers no byte-count preflight; a text provider may transiently return
         // more than the limit, but oversized data is never decoded or retained.
         guard eligible, let items = pasteboard.pasteboardItems, items.count == 1,
-              items[0].types == [.string], let data = items[0].data(forType: .string),
-              data.count <= clipboardRestoreLimit else { return nil }
+            items[0].types == [.string], let data = items[0].data(forType: .string),
+            data.count <= clipboardRestoreLimit
+        else { return nil }
         return String(data: data, encoding: .utf8)
     }
     static func restoreClipboardText(_ text: String, to pasteboard: NSPasteboard, changeCount: Int) {
@@ -653,12 +677,13 @@ import VellaCore
         return destinationCheck()
     }
     private func prepareLiveInsertion() {
-        let insertion = LiveInsertion(targetIsCurrent: { [weak self] in
-            guard let self, self.phase == .recording || self.phase == .transcribing else { return false }
-            // Explicit roaming mode: the OS routes text to current keyboard focus.
-            // Delayed words may cross fields; the user controls speech/navigation.
-            return AXIsProcessTrusted()
-        }, send: LiveInsertion.nativeSend)
+        let insertion = LiveInsertion(
+            targetIsCurrent: { [weak self] in
+                guard let self, self.phase == .recording || self.phase == .transcribing else { return false }
+                // Explicit roaming mode: the OS routes text to current keyboard focus.
+                // Delayed words may cross fields; the user controls speech/navigation.
+                return AXIsProcessTrusted()
+            }, send: LiveInsertion.nativeSend)
         insertion.onBlocked = { [weak self] reason in
             guard let self, self.phase == .recording else { return }
             self.message = "Live insertion paused: \(reason) Microphone capture continues."

@@ -88,8 +88,10 @@ public struct TierBenchmark: Equatable {
     public var presence: TierPresence
     public var gate: SegmentGate
     public var cells: [Recipe: BenchmarkCell]
-    public init(precision: String, presence: TierPresence = TierPresence(offered: true), gate: SegmentGate = SegmentGate(status: .pass),
-                cells: [Recipe: BenchmarkCell]) {
+    public init(
+        precision: String, presence: TierPresence = TierPresence(offered: true), gate: SegmentGate = SegmentGate(status: .pass),
+        cells: [Recipe: BenchmarkCell]
+    ) {
         self.precision = precision; self.presence = presence; self.gate = gate; self.cells = cells
     }
     public func cell(_ key: Recipe) -> BenchmarkCell? { cells[key] }
@@ -134,12 +136,14 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
         let measured = decode(CellMeasured.self, c["measured"])
         result.suite = measured?.suite; result.audio_min = measured?.audio_min
         result.date = measured?.date; result.hardware = measured?.hardware
-        result.gate = nil   // the cell's gate has the schema-2 shape (below)
-        cells[key] = BenchmarkCell(result: result, recipe: decode(CellRecipe.self, c["recipe"]) ?? CellRecipe(layers: [:]),
-                                   measured: measured, gate: decode(SegmentGate.self, c["gate"]))
+        result.gate = nil // the cell's gate has the schema-2 shape (below)
+        cells[key] = BenchmarkCell(
+            result: result, recipe: decode(CellRecipe.self, c["recipe"]) ?? CellRecipe(layers: [:]),
+            measured: measured, gate: decode(SegmentGate.self, c["gate"]))
     }
-    return TierBenchmark(precision: precision, presence: decode(TierPresence.self, object["presence"]) ?? TierPresence(offered: true),
-                         gate: decode(SegmentGate.self, object["gate"]) ?? SegmentGate(status: .pass), cells: cells)
+    return TierBenchmark(
+        precision: precision, presence: decode(TierPresence.self, object["presence"]) ?? TierPresence(offered: true),
+        gate: decode(SegmentGate.self, object["gate"]) ?? SegmentGate(status: .pass), cells: cells)
 }
 
 /// The per-precision view older consumers read (recommendation, sort keys, API, diagnostics): each offered tier's
@@ -153,8 +157,9 @@ func legacyPrecisions(_ tiers: [ModelTier: TierBenchmark]) -> [String: Precision
         r.gate = GateResult(pass: tier.gate.status == .pass, reasons: tier.gate.reasons)
         if let s = tier.cells[.standard], !s.isPending {
             let x = s.result
-            r.stock = StockBaseline(wer: x.wer, format: x.format, multilingual: x.multilingual, speed_x: x.speed_x, j_per_min: x.j_per_min,
-                                    memory_mb: x.memory_mb, latency_ms: x.latency_ms, suite: x.suite, date: x.date, hardware: x.hardware)
+            r.stock = StockBaseline(
+                wer: x.wer, format: x.format, multilingual: x.multilingual, speed_x: x.speed_x, j_per_min: x.j_per_min,
+                memory_mb: x.memory_mb, latency_ms: x.latency_ms, suite: x.suite, date: x.date, hardware: x.hardware)
         }
         out[tier.precision] = r
     }

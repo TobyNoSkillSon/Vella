@@ -21,8 +21,9 @@ struct WaveformMotion: Equatable {
             return sample(entryAge: 2, finishAge: age - warningWiggleDuration, reduced: false)
         }
         let envelope = max(0, 1 - age / warningWiggleDuration)
-        return Self(offsetX: sin(age * 65) * 4 * envelope,
-                    offsetY: sin(age * 45) * 2 * envelope)
+        return Self(
+            offsetX: sin(age * 65) * 4 * envelope,
+            offsetY: sin(age * 45) * 2 * envelope)
     }
 
     static func sample(entryAge: Double, finishAge: Double?, reduced: Bool) -> Self {
@@ -31,16 +32,18 @@ struct WaveformMotion: Equatable {
             let t = max(0, age) * completionSpeed
             let contraction = min(1, max(0, (t - 0.09) / 0.38))
             let remaining = 1 - contraction
-            return Self(width: max(0.008, pow(remaining, 2.3)),
-                        height: (1 + sin(contraction * .pi) * 0.6) * pow(remaining, 0.6),
-                        opacity: t >= 0.5 ? 0 : min(1, remaining * 5),
-                        brightness: t < 0.09 ? sin(t / 0.09 * .pi) * 0.65 : 0.35 * remaining)
+            return Self(
+                width: max(0.008, pow(remaining, 2.3)),
+                height: (1 + sin(contraction * .pi) * 0.6) * pow(remaining, 0.6),
+                opacity: t >= 0.5 ? 0 : min(1, remaining * 5),
+                brightness: t < 0.09 ? sin(t / 0.09 * .pi) * 0.65 : 0.35 * remaining)
         }
         let t = max(0, entryAge) * entranceSpeed
         // Rise, detach, small overshoot, then damp into the resting position.
         let lift = t >= 1.2 ? 0 : t < 0.46 ? 47 * pow(1 - t / 0.46, 3) : -4 * exp(-(t - 0.46) * 8) * sin((t - 0.46) * 17)
-        return Self(offsetY: lift, width: 0.68 + 0.32 * min(1, t / 0.48),
-                    opacity: min(1, t / 0.10), attachment: max(0, 1 - t / 0.32))
+        return Self(
+            offsetY: lift, width: 0.68 + 0.32 * min(1, t / 0.48),
+            opacity: min(1, t / 0.10), attachment: max(0, 1 - t / 0.32))
     }
 }
 
@@ -67,7 +70,11 @@ struct WaveformField: View {
                 stem.addQuadCurve(to: CGPoint(x: cx + 8, y: cy + 2), control: CGPoint(x: cx, y: cy - 9))
                 stem.addQuadCurve(to: CGPoint(x: cx + 60 * motion.attachment, y: size.height), control: CGPoint(x: cx + 17, y: cy + 18))
                 stem.closeSubpath()
-                context.fill(stem, with: .linearGradient(Gradient(colors: [.white.opacity(0.25 * motion.attachment), .purple.opacity(0)]), startPoint: CGPoint(x: cx, y: cy), endPoint: CGPoint(x: cx, y: size.height)))
+                context.fill(
+                    stem,
+                    with: .linearGradient(
+                        Gradient(colors: [.white.opacity(0.25 * motion.attachment), .purple.opacity(0)]), startPoint: CGPoint(x: cx, y: cy),
+                        endPoint: CGPoint(x: cx, y: size.height)))
             }
             var paths: [Path] = []
             for layer in 0..<5 {
@@ -79,7 +86,7 @@ struct WaveformField: View {
                     let u = (Double(i) / 60 - 1) * Self.visibleDomain
                     let edge = min(1, max(0, (Self.visibleDomain - abs(u)) / 0.12))
                     let feather = edge * edge * (3 - 2 * edge)
-                    let taper = max(0, 1 - u*u) * feather
+                    let taper = max(0, 1 - u * u) * feather
                     let gaussian = exp(-pow((u - shift) / breadth, 2) * 1.5) * taper
                     let star = pow(max(0, 1 - abs(u - shift)), 3) * taper
                     let collapse = 1 - min(1, motion.width * 2)
@@ -116,7 +123,7 @@ struct WaveformField: View {
             }
             if motion.width < 0.16 {
                 let radius = max(0.6, motion.width * 12)
-                context.fill(Path(ellipseIn: CGRect(x: cx-radius, y: cy-radius, width: radius*2, height: radius*2)), with: .color(.white))
+                context.fill(Path(ellipseIn: CGRect(x: cx - radius, y: cy - radius, width: radius * 2, height: radius * 2)), with: .color(.white))
             }
         }
         .shadow(color: .black.opacity(highContrast ? 0.6 : 0.25), radius: 1.2, y: 0.5)
@@ -152,13 +159,16 @@ struct HUDView: View {
             let finishAge = previewFinishAge ?? finished.map { timeline.date.timeIntervalSince($0) }
             let warning = model.phase == .failed
             let warningAge = max(0, previewFinishAge ?? timeline.date.timeIntervalSince(model.failureStartedAt))
-            let motion = warning ? WaveformMotion.warning(age: warningAge, reduced: reduceMotion)
+            let motion =
+                warning
+                ? WaveformMotion.warning(age: warningAge, reduced: reduceMotion)
                 : WaveformMotion.sample(entryAge: entryAge, finishAge: model.phase == .success ? finishAge : nil, reduced: reduceMotion)
             ZStack {
                 if model.phase != .idle {
                     let level = model.phase == .recording ? model.audioLevel : model.phase == .success ? max(0.4, lastVoiceLevel) : 0.18 + (reduceMotion ? 0 : sin(time * 2) * 0.05)
-                    WaveformField(level: warning ? 0.8 : level, time: reduceMotion ? 0 : warning ? warningAge * 7 : time,
-                                  motion: motion, highContrast: reduceTransparency, warning: warning)
+                    WaveformField(
+                        level: warning ? 0.8 : level, time: reduceMotion ? 0 : warning ? warningAge * 7 : time,
+                        motion: motion, highContrast: reduceTransparency, warning: warning)
                 }
                 if model.phase == .transcribing && !model.processingProgress.isEmpty {
                     Text(model.processingProgress).font(.system(size: 11, weight: .medium, design: .monospaced))

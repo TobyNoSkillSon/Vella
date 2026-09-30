@@ -16,8 +16,10 @@ final class FinishFocusTests: XCTestCase {
             }
         }
     }
-    @MainActor private func fixture(mode: RecognitionMode = .dictation, focus: Focus,
-                                    stop: @escaping (Recorder) async throws -> Void) throws -> (DictationController, NSPasteboard, URL) {
+    @MainActor private func fixture(
+        mode: RecognitionMode = .dictation, focus: Focus,
+        stop: @escaping (Recorder) async throws -> Void
+    ) throws -> (DictationController, NSPasteboard, URL) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("finish-focus-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let config = root.appendingPathComponent("config.json")
@@ -26,8 +28,9 @@ final class FinishFocusTests: XCTestCase {
         try JSONEncoder().encode(settings).write(to: config)
         let board = NSPasteboard.withUniqueName()
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
-        let model = DictationController(pasteboard: board, stopCapture: stop, configurationURL: config,
-                          captureDestination: { focus.capture() })
+        let model = DictationController(
+            pasteboard: board, stopCapture: stop, configurationURL: config,
+            captureDestination: { focus.capture() })
         // Synthetic recording state only: no microphone, native focus, or key events.
         model.phase = .recording
         return (model, board, root)
@@ -131,7 +134,8 @@ final class FinishFocusTests: XCTestCase {
         let session = try RecordingSession(root: root, config: .init(model: "/synthetic"))
         let samples = [Float](repeating: 0.1, count: 16000)
         let data = samples.withUnsafeBytes { Data($0) }
-        let segment = RecordingSession.Segment(index: 0, frames: samples.count, peakRMS: 0.1,
+        let segment = RecordingSession.Segment(
+            index: 0, frames: samples.count, peakRMS: 0.1,
             finalized: true, text: "Saved synthetic transcript.", sha256: RecordingSession.digest(data))
         try session.durableWrite(data, to: session.directory.appendingPathComponent(segment.filename))
         session.manifest.segments = [segment]; session.manifest.state = "captured"; try session.save()

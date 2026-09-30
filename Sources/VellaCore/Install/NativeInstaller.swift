@@ -35,8 +35,9 @@ public final class NativeInstaller {
         var cursor = url.standardizedFileURL
         while cursor != boundary.standardizedFileURL {
             if let attributes = try? FileManager.default.attributesOfItem(atPath: cursor.path),
-               (attributes[.type] as? FileAttributeType) == .typeSymbolicLink ||
-                ((attributes[.type] as? FileAttributeType) == .typeRegular && (attributes[.referenceCount] as? Int ?? 1) > 1) {
+                (attributes[.type] as? FileAttributeType) == .typeSymbolicLink
+                    || ((attributes[.type] as? FileAttributeType) == .typeRegular && (attributes[.referenceCount] as? Int ?? 1) > 1)
+            {
                 throw NativeInstallError.message("Linked/shared destination preserved: \(cursor.path)")
             }
             let parent = cursor.deletingLastPathComponent()
@@ -47,7 +48,8 @@ public final class NativeInstaller {
         let path = support.appendingPathComponent("dictation-status.json")
         if FileManager.default.fileExists(atPath: path.path) {
             guard let state = try JSONSerialization.jsonObject(with: Data(contentsOf: path)) as? [String: Any],
-                  let phase = state["phase"] as? String else { throw NativeInstallError.message("Cannot verify Vella's recording state; installation left unchanged.") }
+                let phase = state["phase"] as? String
+            else { throw NativeInstallError.message("Cannot verify Vella's recording state; installation left unchanged.") }
             if ["preparing", "recording", "transcribing"].contains(phase) {
                 throw NativeInstallError.message("Finish dictation before installing; the existing app was not replaced.")
             }
@@ -70,19 +72,20 @@ public final class NativeInstaller {
         }
         let info = preparedApp.appendingPathComponent("Contents/Info.plist")
         guard preparedApp.lastPathComponent == "Vella.app",
-              let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: info), format: nil) as? [String: Any],
-              plist["CFBundleIdentifier"] as? String == bundleIdentifier,
-              FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/Vella").path),
-              FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/VellaWorker").path),
-              FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/VellaStreamingWorker").path),
-              (try preparedApp.appendingPathComponent("Contents/Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib").resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) > 0 else {
+            let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: info), format: nil) as? [String: Any],
+            plist["CFBundleIdentifier"] as? String == bundleIdentifier,
+            FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/Vella").path),
+            FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/VellaWorker").path),
+            FileManager.default.isExecutableFile(atPath: preparedApp.appendingPathComponent("Contents/MacOS/VellaStreamingWorker").path),
+            (try preparedApp.appendingPathComponent("Contents/Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib").resourceValues(forKeys: [.fileSizeKey]).fileSize
+                ?? 0) > 0
+        else {
             throw NativeInstallError.message("Prepared Vella bundle or native helper is incomplete.")
         }
         return try verify(preparedApp)
     }
     private static func atomic(_ bytes: Data?, to path: URL) throws {
-        if let bytes { try bytes.write(to: path, options: .atomic) }
-        else if FileManager.default.fileExists(atPath: path.path) { try FileManager.default.removeItem(at: path) }
+        if let bytes { try bytes.write(to: path, options: .atomic) } else if FileManager.default.fileExists(atPath: path.path) { try FileManager.default.removeItem(at: path) }
     }
     /// Existing settings only: drop the Python-era port. A fresh install writes no config (nothing predefined).
     private func saveConfig() throws {
@@ -98,11 +101,14 @@ public final class NativeInstaller {
         guard FileManager.default.fileExists(atPath: destination.path) else { return }
         let info = destination.appendingPathComponent("Contents/Info.plist")
         guard let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: info), format: nil) as? [String: Any],
-              plist["CFBundleIdentifier"] as? String == bundleIdentifier else {
+            plist["CFBundleIdentifier"] as? String == bundleIdentifier
+        else {
             throw NativeInstallError.message("Destination is not an existing Vella installation.")
         }
         let current = try verify(destination)
-        guard current == replacement else { throw NativeInstallError.message("The existing signing identity differs; installation left unchanged. An explicit signing migration is required.") }
+        guard current == replacement else {
+            throw NativeInstallError.message("The existing signing identity differs; installation left unchanged. An explicit signing migration is required.")
+        }
     }
     /// Installs the prepared app and launches it. Returns where the previous app was kept when
     /// `keepPrevious` is set (delete it after readiness; restore it by moving it back), else nil.
@@ -116,9 +122,11 @@ public final class NativeInstaller {
             boundary.deleteLastPathComponent()
         }
         guard destination.lastPathComponent == "Vella.app" else { throw NativeInstallError.message("Choose a destination named Vella.app") }
-        for path in [destination, support, support.appendingPathComponent("Models"), support.appendingPathComponent("Runtimes"),
-                     support.appendingPathComponent("config.json"), support.appendingPathComponent("models-installed.json"),
-                     support.appendingPathComponent(".installer.lock")] {
+        for path in [
+            destination, support, support.appendingPathComponent("Models"), support.appendingPathComponent("Runtimes"),
+            support.appendingPathComponent("config.json"), support.appendingPathComponent("models-installed.json"),
+            support.appendingPathComponent(".installer.lock")
+        ] {
             try Self.rejectLinkedPath(path, until: boundary)
         }
         try manager.createDirectory(at: support, withIntermediateDirectories: true)
@@ -156,8 +164,9 @@ public final class NativeInstaller {
         } catch {
             if movedNew { try? manager.moveItem(at: destination, to: replacementPath) }
             if movedOld {
-                do { try manager.moveItem(at: previousPath, to: destination) }
-                catch { preserveTransaction = true; throw NativeInstallError.message("Rollback failed. The previous app remains at \(previousPath.path); restore it before retrying.") }
+                do { try manager.moveItem(at: previousPath, to: destination) } catch {
+                    preserveTransaction = true; throw NativeInstallError.message("Rollback failed. The previous app remains at \(previousPath.path); restore it before retrying.")
+                }
             }
             try Self.atomic(oldConfig, to: configURL)
             if wasRunning && manager.fileExists(atPath: destination.path) { try? launch(destination) }
@@ -167,8 +176,7 @@ public final class NativeInstaller {
         if movedOld && keepPrevious {
             let stamp = ISO8601DateFormatter.string(from: now(), timeZone: .current, formatOptions: [.withYear, .withMonth, .withDay, .withTime])
             let target = destination.deletingLastPathComponent().appendingPathComponent(".Vella.app.previous.\(stamp).\(getpid())")
-            do { try manager.moveItem(at: previousPath, to: target); kept = target }
-            catch { preserveTransaction = true; kept = previousPath }
+            do { try manager.moveItem(at: previousPath, to: target); kept = target } catch { preserveTransaction = true; kept = previousPath }
         }
         // Installation is committed. A launch failure is reported, never rolled back.
         try launch(destination)
@@ -196,7 +204,8 @@ public final class NativeInstaller {
             guard let other else { return false }
             if other.standardizedFileURL == destination.standardizedFileURL { return true }
             guard let a = try? other.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier as? NSObject,
-                  let b = try? destination.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier as? NSObject else { return false }
+                let b = try? destination.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier as? NSObject
+            else { return false }
             return a.isEqual(b)
         }
         // Another installed copy in an Applications folder would leave two Vellas; build and

@@ -9,31 +9,31 @@ import VellaTestSupport
 /// `slow` model folders take 0.3 s per request, and every request is logged (start/end, model) for ordering checks.
 enum APIFakeWorker {
     static let script = #"""
-#!/usr/bin/env python3
-import json,sys,os,time
-model=None
-log=os.environ.get('FAKE_LOG')
-def push(event):
-    st={'worker':'dictation','pid':os.getpid(),'event':event,'model':model,'engine':'mlx','engine_reason':None,
-        'optimizations':{},'load_s':0.01,'memory':{'footprint_mb':1000.0 if model else 50.0},'gpu':{'chip':'Fake M','family':'apple9'}}
-    print(json.dumps({'status':st}),flush=True)
-def note(kind, name):
-    if log:
-        with open(log,'a') as f: f.write('%s %s %.4f\n'%(kind,name,time.time()))
-for line in sys.stdin:
-    r=json.loads(line); op=r.get('op')
-    if op=='load':
-        model=r['model']; push('load'); print(json.dumps({'id':r['id'],'loaded':True}),flush=True); continue
-    if op in ('unload','status','trim'):
-        if op=='unload': model=None
-        push(op); print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
-    name=r['model'].split('/')[-1]
-    note('start',name)
-    if 'slow' in name: time.sleep(0.3)
-    frames=(os.path.getsize(r['audio'])-44)//2
-    note('end',name)
-    print(json.dumps({'id':r['id'],'text':'%s heard %.2f s.'%(name,frames/16000.0),'metrics':{}}),flush=True)
-"""#
+        #!/usr/bin/env python3
+        import json,sys,os,time
+        model=None
+        log=os.environ.get('FAKE_LOG')
+        def push(event):
+            st={'worker':'dictation','pid':os.getpid(),'event':event,'model':model,'engine':'mlx','engine_reason':None,
+                'optimizations':{},'load_s':0.01,'memory':{'footprint_mb':1000.0 if model else 50.0},'gpu':{'chip':'Fake M','family':'apple9'}}
+            print(json.dumps({'status':st}),flush=True)
+        def note(kind, name):
+            if log:
+                with open(log,'a') as f: f.write('%s %s %.4f\n'%(kind,name,time.time()))
+        for line in sys.stdin:
+            r=json.loads(line); op=r.get('op')
+            if op=='load':
+                model=r['model']; push('load'); print(json.dumps({'id':r['id'],'loaded':True}),flush=True); continue
+            if op in ('unload','status','trim'):
+                if op=='unload': model=None
+                push(op); print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
+            name=r['model'].split('/')[-1]
+            note('start',name)
+            if 'slow' in name: time.sleep(0.3)
+            frames=(os.path.getsize(r['audio'])-44)//2
+            note('end',name)
+            print(json.dumps({'id':r['id'],'text':'%s heard %.2f s.'%(name,frames/16000.0),'metrics':{}}),flush=True)
+        """#
 }
 
 @MainActor final class StubModels: APIModelSource {
@@ -97,7 +97,9 @@ for line in sys.stdin:
         let runtime = self.runtime
         runtime.apiToken = "test-token"
         port = await withCheckedContinuation { continuation in
-            server.start { port in runtime.apiPort = port; continuation.resume(returning: port ?? 0) }
+            server.start { port in
+                runtime.apiPort = port; continuation.resume(returning: port ?? 0)
+            }
         }
     }
     func close() { server.stop(); backend.shutdown(); try? FileManager.default.removeItem(at: root) }
@@ -125,7 +127,9 @@ for line in sys.stdin:
         }
         for (k, v) in extra { body += Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(k)\"\r\n\r\n\(v)\r\n".utf8) }
         if let file {
-            body += Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(filename ?? file.lastPathComponent)\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8)
+            body += Data(
+                "--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(filename ?? file.lastPathComponent)\"\r\nContent-Type: application/octet-stream\r\n\r\n"
+                    .utf8)
             body += try Data(contentsOf: file) + Data("\r\n".utf8)
         }
         body += Data("--\(boundary)--\r\n".utf8)
@@ -163,8 +167,10 @@ for line in sys.stdin:
 /// silences, so the app's segmentation cuts at the pauses.
 func writeTestWAV(_ url: URL, bursts: [Double] = [6, 7, 4], gap: Double = 0.8, rate: Double = 44_100) throws {
     let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate, channels: 2, interleaved: false)!
-    let settings: [String: Any] = [AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: rate, AVNumberOfChannelsKey: 2,
-                                   AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false]
+    let settings: [String: Any] = [
+        AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: rate, AVNumberOfChannelsKey: 2,
+        AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false
+    ]
     let file = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
     for burst in bursts {
         for (seconds, loud) in [(burst, true), (gap, false)] {
@@ -228,8 +234,9 @@ final class APITests: XCTestCase {
         XCTAssertEqual((json["usage"] as? [String: Any])?["seconds"] as? Int, 20) // 17 s tone + 2.4 s gaps = 19.4 s
         XCTAssertEqual(api.runtime.status.models["fake-a"]?.residency, "on_demand", "an API request is an on-demand load")
 
-        let (vCode, _, vData) = try await api.post(fields: ["model": "fake-b", "response_format": "verbose_json", "language": "en"], file: audio,
-                                                    extra: [("timestamp_granularities[]", "segment")])
+        let (vCode, _, vData) = try await api.post(
+            fields: ["model": "fake-b", "response_format": "verbose_json", "language": "en"], file: audio,
+            extra: [("timestamp_granularities[]", "segment")])
         XCTAssertEqual(vCode, 200)
         let verbose = try XCTUnwrap(JSONSerialization.jsonObject(with: vData) as? [String: Any])
         let segments = try XCTUnwrap(verbose["segments"] as? [[String: Any]])
@@ -298,7 +305,7 @@ final class APITests: XCTestCase {
             (["model": "nope"], audio, 404, "model"),
             (["model": "stream-x"], audio, 404, "model"),
             (["stream": "true"], audio, 400, "stream"),
-            ([:], text, 400, "file"),
+            ([:], text, 400, "file")
         ]
         for (fields, file, expected, param) in cases {
             let (code, _, data) = try await api.post(fields: fields, file: file)
@@ -313,16 +320,25 @@ final class APITests: XCTestCase {
         // Broken framing and JSON bodies.
         let boundary = "b"
         let broken = "--b\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1"
-        let malformed = await APIFixture.raw(api.port, "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: multipart/form-data; boundary=\(boundary)\r\nContent-Length: \(broken.utf8.count)\r\n\r\n\(broken)")
+        let malformed = await APIFixture.raw(
+            api.port,
+            "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: multipart/form-data; boundary=\(boundary)\r\nContent-Length: \(broken.utf8.count)\r\n\r\n\(broken)"
+        )
         XCTAssertEqual(malformed, 400)
         for body in [#"{"path":"relative.wav"}"#, #"{"path":"/no/such/file.wav"}"#, "not json", #"{"path":"\#(audio.path)","response_format":"xml"}"#] {
-            let code = await APIFixture.raw(api.port, "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: application/json\r\nX-Vella-Token: test-token\r\nContent-Length: \(body.utf8.count)\r\n\r\n\(body)")
+            let code = await APIFixture.raw(
+                api.port,
+                "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: application/json\r\nX-Vella-Token: test-token\r\nContent-Length: \(body.utf8.count)\r\n\r\n\(body)"
+            )
             XCTAssertEqual(code, 400, body)
         }
         // A local path without the status file's token (a sandboxed app cannot read it) is refused.
         for token in ["", "X-Vella-Token: wrong\r\n"] {
             let body = #"{"path":"\#(audio.path)"}"#
-            let code = await APIFixture.raw(api.port, "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: application/json\r\n\(token)Content-Length: \(body.utf8.count)\r\n\r\n\(body)")
+            let code = await APIFixture.raw(
+                api.port,
+                "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(api.port)\r\nContent-Type: application/json\r\n\(token)Content-Length: \(body.utf8.count)\r\n\r\n\(body)"
+            )
             XCTAssertEqual(code, 403, token)
         }
         XCTAssertNil(api.backend.processID, "no worker started")
@@ -354,7 +370,7 @@ final class APITests: XCTestCase {
             ("GET /v1/audio/transcriptions HTTP/1.1\r\n\(host)\r\n\r\n", 405),
             ("GET /v1/secret HTTP/1.1\r\n\(host)\r\n\r\n", 404),
             ("GET /status HTTP/1.1\r\n\(host)\r\nOrigin: http://localhost\r\n\r\n", 403),
-            ("GARBAGE\r\n\r\n", 400),
+            ("GARBAGE\r\n\r\n", 400)
         ]
         for (request, expected) in cases {
             let code = await APIFixture.raw(p, request)
@@ -418,8 +434,11 @@ final class APITests: XCTestCase {
         let api = try await APIFixture(availableMB: 100_000)
         defer { api.close() }
         let current = api.models.list[0]
-        _ = try await api.backend.transcribe({ let u = api.root.appendingPathComponent("d.wav"); try Self.monoWAV(u, seconds: 1); return u }(),
-                                             config: Configuration(model: current.path))
+        _ = try await api.backend.transcribe(
+            {
+                let u = api.root.appendingPathComponent("d.wav"); try Self.monoWAV(u, seconds: 1); return u
+            }(),
+            config: Configuration(model: current.path))
         XCTAssertNotNil(api.runtime.status.models["fake-a"])
         try api.runtime.setAvailableMB(1_600) // room for one model only if fake-a were evicted
         let (code, _, data) = try await api.post(fields: ["model": "fake-b"], file: audio)

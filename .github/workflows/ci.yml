@@ -48,6 +48,11 @@ jobs:
             echo "::warning::Command Line Tools Swift is not 6.3.3; releases are built with 6.3.3 only"
           fi
 
+      - name: Lint (swift-format, SwiftLint)
+        run: |
+          command -v swiftlint >/dev/null || brew install swiftlint
+          scripts/lint.sh
+
       - name: Metal Toolchain
         run: |
           if ! xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q 'Status: installed'; then

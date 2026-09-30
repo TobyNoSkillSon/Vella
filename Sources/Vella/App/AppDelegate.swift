@@ -51,7 +51,9 @@ import VellaCore
     /// The model the runtime is loading right now, if any (updates wait for it).
     var runtimeLoading: () -> String? = { Runtime.shared.status.loading }
     /// Whether the runtime has a model loaded or loading (calibration never unloads one to run).
-    var modelsLoaded: () -> Bool = { let status = Runtime.shared.status; return !status.models.isEmpty || status.loading != nil }
+    var modelsLoaded: () -> Bool = {
+        let status = Runtime.shared.status; return !status.models.isEmpty || status.loading != nil
+    }
     /// Restart Worker: the runtime's restart; nil = stop the workers (the next dictation starts them again).
     var restartWorkers: (() -> Void)?
     /// Start Worker (shown instead of Restart Worker while no worker runs): the runtime's start; nil = nothing to start.
@@ -82,9 +84,10 @@ import VellaCore
         // Progress estimate before local calibration: the measured speed of the selected precision (benchmarks.json).
         model.referenceSpeed = { [weak menus] path in
             guard let controller = menus?.controller,
-                  let id = controller.dictation.installed.first(where: { $0.value.path == path })?.key,
-                  let (family, precision) = controller.catalog.locate(variant: id),
-                  let speed = controller.result(family, precision)?.speed_x, speed.isFinite, speed > 0 else { return nil }
+                let id = controller.dictation.installed.first(where: { $0.value.path == path })?.key,
+                let (family, precision) = controller.catalog.locate(variant: id),
+                let speed = controller.result(family, precision)?.speed_x, speed.isFinite, speed > 0
+            else { return nil }
             return speed
         }
         return menus
@@ -106,14 +109,17 @@ import VellaCore
         let previous = lastPermission
         lastPermission = granted
         // Diagnostic metadata only. Never record audio, transcript, or clipboard contents.
-        let state: [String: Any] = ["accessibilityGranted": granted,
+        let state: [String: Any] = [
+            "accessibilityGranted": granted,
             "pid": ProcessInfo.processInfo.processIdentifier,
             "bundlePath": Bundle.main.bundleURL.path,
             "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
             "menuItems": menu.items.filter { !$0.isSeparatorItem }.map(\.title),
-            "checkedAt": ISO8601DateFormatter().string(from: Date())]
+            "checkedAt": ISO8601DateFormatter().string(from: Date())
+        ]
         if Bundle.main.bundleIdentifier == "dev.vella.dictation",
-           let data = try? JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted, .sortedKeys]) {
+            let data = try? JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted, .sortedKeys])
+        {
             try? FileManager.default.createDirectory(at: Backend.support, withIntermediateDirectories: true)
             try? data.write(to: Backend.support.appendingPathComponent("permission-status.json"), options: .atomic)
         }
@@ -157,9 +163,10 @@ import VellaCore
         // Real NSMenu tracking handles click-away, Escape, and standard macOS keyboard navigation.
         status.menu = menu
         spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.activeSpaceChanged() }
-            }
+            forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.activeSpaceChanged() }
+        }
         configureHUDPanel()
         model.onChange = { [weak self] in self?.refresh() }
         rebuildMenu()
@@ -191,10 +198,11 @@ import VellaCore
         // Prepare accessibility on activation; Dictation chooses its field at Finish.
         AccessibilityFocus.prepare(NSWorkspace.shared.frontmostApplication)
         applicationFocusObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { notification in
-                let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-                Task { @MainActor in AccessibilityFocus.prepare(app) }
-            }
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { notification in
+            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            Task { @MainActor in AccessibilityFocus.prepare(app) }
+        }
         // Activation is owned by shortcutManager (Carbon press/release, no new permissions).
         DispatchQueue.main.async { [weak self] in
             self?.model.ensureAutomaticInsertion()
@@ -202,10 +210,12 @@ import VellaCore
         }
         if CommandLine.arguments.contains("--check-hud") {
             func report(_ phase: String) {
-                let state: [String: Any] = ["phase": phase, "window": self.panel.windowNumber,
+                let state: [String: Any] = [
+                    "phase": phase, "window": self.panel.windowNumber,
                     "visible": self.panel.isVisible, "y": self.panel.frame.minY,
                     "x": self.panel.frame.minX, "top": (NSScreen.screens.first?.frame.maxY ?? 0) - self.panel.frame.maxY,
-                    "width": self.panel.frame.width, "height": self.panel.frame.height]
+                    "width": self.panel.frame.width, "height": self.panel.frame.height
+                ]
                 if let data = try? JSONSerialization.data(withJSONObject: state) {
                     try? data.write(to: Backend.support.appendingPathComponent("hud-check.json"), options: .atomic)
                 }
@@ -269,9 +279,11 @@ import VellaCore
         header.target = self
         header.isEnabled = needsPermission || model.phase == .failed
         // Tooltip only when it adds something: the permission to grant, the error, or why a recording waits.
-        header.toolTip = menuHeaderToolTip(failed: model.phase == .failed, message: model.message, needsPermission: needsPermission,
-                                           idle: model.phase == .idle, pending: pending?.help)
-        header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.phase == .failed || needsPermission || pending != nil ? NSColor.systemOrange : NSColor.systemGreen])
+        header.toolTip = menuHeaderToolTip(
+            failed: model.phase == .failed, message: model.message, needsPermission: needsPermission,
+            idle: model.phase == .idle, pending: pending?.help)
+        header.attributedTitle = NSAttributedString(
+            string: summary, attributes: [.foregroundColor: model.phase == .failed || needsPermission || pending != nil ? NSColor.systemOrange : NSColor.systemGreen])
         menu.addItem(header)
         if let fact = factLine() {
             let line = NSMenuItem(title: fact, action: nil, keyEquivalent: ""); line.isEnabled = false
@@ -284,12 +296,15 @@ import VellaCore
         // Which models are in memory: the model, how long it stays hot, what happens when memory is short.
         menu.addItem(modelsMenu.modelItem())
         menu.addItem(settingsSubmenu("Keep Hot", "flame", keepHotEntries(manualIdle: menuSettings.manualIdleMinutes, onDemandIdle: menuSettings.onDemandIdleMinutes)))
-        menu.addItem(settingsSubmenu("Memory", "memorychip", memoryEntries(allowSwap: menuSettings.allowSwap, availableMB: menuSettings.availableMB, lastEvicted: menuSettings.lastEvicted)))
+        menu.addItem(
+            settingsSubmenu("Memory", "memorychip", memoryEntries(allowSwap: menuSettings.allowSwap, availableMB: menuSettings.availableMB, lastEvicted: menuSettings.lastEvicted)))
         menu.addItem(.separator())
         // The app section: dictate, how (mode, microphone, shortcut), and what it produced.
         let workingShortcut = shortcutManager.isUsingFallback ? (shortcutManager.activeConfiguration ?? .default) : shortcutManager.configuration
         let startKey = ShortcutManager.menuKeyEquivalent(for: workingShortcut)
-        item(model.phase == .recording ? "Finish \(model.mode.title)" : "Start \(model.mode.title)", "waveform", #selector(toggle), enabled: !model.busy, key: startKey.key, modifiers: startKey.modifiers)
+        item(
+            model.phase == .recording ? "Finish \(model.mode.title)" : "Start \(model.mode.title)", "waveform", #selector(toggle), enabled: !model.busy, key: startKey.key,
+            modifiers: startKey.modifiers)
         if model.phase == .recording || model.busy { item("Stop and Keep Audio", "pause.circle", #selector(cancel)) }
         if model.phase == .failed, model.savedSession != nil { item("Retry Saved Recording", "arrow.clockwise", #selector(retry)) }
         if model.savedSession != nil, !model.busy, model.phase != .recording {
@@ -322,11 +337,13 @@ import VellaCore
         fallback.isEnabled = false; devices.addItem(fallback)
         microphones.submenu = devices; menu.addItem(microphones)
         // Activation customization lives immediately below Microphone (compact native menu preserved).
-        menu.addItem(ShortcutMenuFactory.shortcutsItem(manager: shortcutManager, model: model, target: self,
-            selectBehavior: #selector(selectShortcutBehavior(_:)), recordKeys: #selector(recordShortcutKeys),
-            cancelCapture: #selector(cancelShortcutCapture), selectModifier: #selector(selectShortcutModifier(_:)),
-            selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
-            openSettings: #selector(accessibility)))
+        menu.addItem(
+            ShortcutMenuFactory.shortcutsItem(
+                manager: shortcutManager, model: model, target: self,
+                selectBehavior: #selector(selectShortcutBehavior(_:)), recordKeys: #selector(recordShortcutKeys),
+                cancelCapture: #selector(cancelShortcutCapture), selectModifier: #selector(selectShortcutModifier(_:)),
+                selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
+                openSettings: #selector(accessibility)))
         if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast)) }
         item("Open Saved Recordings", "folder", #selector(savedRecordings))
         menu.addItem(.separator())
@@ -334,8 +351,9 @@ import VellaCore
         item("Copy Skill for Your Agent", "doc.on.doc", #selector(copySkill), help: copySkillHelp)
         item("Open Vella Files", "folder", #selector(files))
         let running = workersRunning()
-        item(workerItemTitle(running: running), running ? "arrow.clockwise" : "play.circle", #selector(restartWorker),
-             enabled: model.phase != .recording && !model.busy)
+        item(
+            workerItemTitle(running: running), running ? "arrow.clockwise" : "play.circle", #selector(restartWorker),
+            enabled: model.phase != .recording && !model.busy)
         let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
         login.target = self; login.image = NSImage(systemSymbolName: "power.circle", accessibilityDescription: nil)
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -355,7 +373,9 @@ import VellaCore
     @objc private func toggle() {
         // Starting capture makes settings busy: cancel bounded confirmation first.
         shortcutManager.cancelMouseButtonConfirmation()
-        DispatchQueue.main.async { self.checkPermission(); self.model.toggle() }
+        DispatchQueue.main.async {
+            self.checkPermission(); self.model.toggle()
+        }
     }
     @objc private func cancel() {
         shortcutManager.cancelMouseButtonConfirmation()
@@ -377,8 +397,7 @@ import VellaCore
             alert.informativeText = "This permanently deletes its audio and saved transcript. Other recordings are untouched."
             alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Delete")
             if alert.runModal() == .alertSecondButtonReturn {
-                do { try self.model.deleteSavedRecording() }
-                catch { self.model.update(.failed, error.localizedDescription) }
+                do { try self.model.deleteSavedRecording() } catch { self.model.update(.failed, error.localizedDescription) }
             }
         }
     }
@@ -439,16 +458,17 @@ import VellaCore
             if let activeModel = modelsMenu.controller.activeLabel(mode) { summary += " \u{00b7} \(activeModel)" }
             if let header = menu.items.first {
                 header.title = summary
-                header.toolTip = menuHeaderToolTip(failed: false, message: model.message, needsPermission: !model.insertionPermission.granted,
-                                                   idle: true, pending: nil)
+                header.toolTip = menuHeaderToolTip(
+                    failed: false, message: model.message, needsPermission: !model.insertionPermission.granted,
+                    idle: true, pending: nil)
                 header.action = model.insertionPermission.granted ? nil : #selector(accessibility)
                 header.isEnabled = !model.insertionPermission.granted
-                header.attributedTitle = NSAttributedString(string: summary, attributes: [.foregroundColor: model.insertionPermission.granted ? NSColor.systemGreen : NSColor.systemOrange])
+                header.attributedTitle = NSAttributedString(
+                    string: summary, attributes: [.foregroundColor: model.insertionPermission.granted ? NSColor.systemGreen : NSColor.systemOrange])
             }
             menu.items.first { $0.action == #selector(toggle) }?.title = "Start \(mode.title)"
             // One table holds both modes; nothing to replace.
-        }
-        catch { model.update(.failed, error.localizedDescription) }
+        } catch { model.update(.failed, error.localizedDescription) }
     }
     @objc private func selectMicrophone(_ sender: NSMenuItem) {
         guard canChangeMode, let name = sender.representedObject as? String else { return }
@@ -495,19 +515,25 @@ import VellaCore
                     guard let raw = mod.representedObject as? String else { continue }
                     let parts = raw.split(separator: ":").map(String.init)
                     guard parts.count == 2, let k = ModifierKey(rawValue: parts[0]),
-                          let s = ModifierSide(rawValue: parts[1]) else { continue }
+                        let s = ModifierSide(rawValue: parts[1])
+                    else { continue }
                     if case .modifierOnly(let ck, let cs) = shortcutManager.configuration.trigger, ck == k, k == .function || cs == s {
                         mod.state = .on
-                    } else { mod.state = .off }
+                    } else {
+                        mod.state = .off
+                    }
                     (mod as? SettingsMenuItem)?.synchronize()
                 }
             } else if entry.title == "Mouse Button" {
                 for m in sub.items {
                     guard let raw = m.representedObject as? String, let v = Int(raw),
-                          let b = MouseButton(rawValue: v) else { continue }
+                        let b = MouseButton(rawValue: v)
+                    else { continue }
                     if case .mouseButton(let cb) = shortcutManager.configuration.trigger, cb == b {
                         m.state = .on
-                    } else { m.state = .off }
+                    } else {
+                        m.state = .off
+                    }
                     (m as? SettingsMenuItem)?.synchronize()
                     // Bounded confirmation renders inline in the same row (red).
                     // Same instance helper as factory; updates during tracking.
@@ -526,7 +552,8 @@ import VellaCore
     }
     @objc private func selectShortcutBehavior(_ sender: NSMenuItem) {
         guard canChangeShortcuts, let raw = sender.representedObject as? String,
-              let behavior = ShortcutBehavior(rawValue: raw) else { return }
+            let behavior = ShortcutBehavior(rawValue: raw)
+        else { return }
         guard shortcutManager.applyBehavior(behavior) else {
             if let shortcutsMenu = shortcutsMenu(containing: sender) { refreshShortcutsMenuInPlace(shortcutsMenu) }
             return
@@ -546,13 +573,15 @@ import VellaCore
         guard canChangeShortcuts, let raw = sender.representedObject as? String else { return }
         let parts = raw.split(separator: ":").map(String.init)
         guard parts.count == 2, let key = ModifierKey(rawValue: parts[0]),
-              let side = ModifierSide(rawValue: parts[1]) else { return }
+            let side = ModifierSide(rawValue: parts[1])
+        else { return }
         _ = shortcutManager.applyModifierOnly(key: key, side: side)
         if let shortcutsMenu = shortcutsMenu(containing: sender) { refreshShortcutsMenuInPlace(shortcutsMenu) }
     }
     @objc private func selectShortcutMouse(_ sender: NSMenuItem) {
         guard canChangeShortcuts, let raw = sender.representedObject as? String,
-              let int = Int(raw), let button = MouseButton(rawValue: int) else { return }
+            let int = Int(raw), let button = MouseButton(rawValue: int)
+        else { return }
         // Bounded confirmation: never applies immediately; same row prompts.
         _ = shortcutManager.beginMouseButtonConfirmation(button)
         if let shortcutsMenu = shortcutsMenu(containing: sender) { refreshShortcutsMenuInPlace(shortcutsMenu) }
@@ -606,7 +635,9 @@ import VellaCore
     }
     @objc private func quit() { NSApp.terminate(nil) }
     func configureHUDPanel() {
-        panel = HUDPanel(contentRect: NSRect(x: 0, y: 0, width: HUDView.panelSize.width, height: HUDView.panelSize.height), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel = HUDPanel(
+            contentRect: NSRect(x: 0, y: 0, width: HUDView.panelSize.width, height: HUDView.panelSize.height), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered,
+            defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.level = .floating
         panel.hasShadow = false; panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
@@ -642,8 +673,9 @@ import VellaCore
         if !panel.isVisible {
             let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
             if let rect = screen?.visibleFrame {
-                let destination = NSRect(x: rect.midX - HUDView.panelSize.width / 2, y: rect.minY + 8,
-                                         width: HUDView.panelSize.width, height: HUDView.panelSize.height)
+                let destination = NSRect(
+                    x: rect.midX - HUDView.panelSize.width / 2, y: rect.minY + 8,
+                    width: HUDView.panelSize.width, height: HUDView.panelSize.height)
                 panel.setFrame(destination, display: false)
                 panel.alphaValue = 1
                 panel.orderFrontRegardless()

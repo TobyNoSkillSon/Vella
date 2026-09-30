@@ -44,15 +44,17 @@ func readSafetensorsHeader(_ handle: FileHandle, fileSize: Int) throws -> Safete
     guard let lengthBytes = try handle.read(upToCount: 8), lengthBytes.count == 8 else { throw StoredConversionError.invalid("truncated header") }
     let length = lengthBytes.withUnsafeBytes { UInt64(littleEndian: $0.loadUnaligned(as: UInt64.self)) }
     guard length > 0, length < 100_000_000, 8 + Int(length) <= fileSize,
-          let json = try handle.read(upToCount: Int(length)), json.count == Int(length),
-          let object = try JSONSerialization.jsonObject(with: json) as? [String: Any] else { throw StoredConversionError.invalid("bad header") }
+        let json = try handle.read(upToCount: Int(length)), json.count == Int(length),
+        let object = try JSONSerialization.jsonObject(with: json) as? [String: Any]
+    else { throw StoredConversionError.invalid("bad header") }
     var tensors: [(String, String, [Int], Int, Int)] = []
     var metadata: [String: String]?
     for (name, value) in object {
         if name == "__metadata__" { metadata = value as? [String: String]; continue }
         guard let entry = value as? [String: Any], let dtype = entry["dtype"] as? String,
-              let shape = (entry["shape"] as? [NSNumber])?.map(\.intValue), let offsets = (entry["data_offsets"] as? [NSNumber])?.map(\.intValue),
-              offsets.count == 2, offsets[0] >= 0, offsets[1] >= offsets[0], 8 + Int(length) + offsets[1] <= fileSize else {
+            let shape = (entry["shape"] as? [NSNumber])?.map(\.intValue), let offsets = (entry["data_offsets"] as? [NSNumber])?.map(\.intValue),
+            offsets.count == 2, offsets[0] >= 0, offsets[1] >= offsets[0], 8 + Int(length) + offsets[1] <= fileSize
+        else {
             throw StoredConversionError.invalid("bad tensor entry \(name)")
         }
         tensors.append((name, dtype, shape, offsets[0], offsets[1]))
@@ -81,7 +83,7 @@ public func convertSafetensorsToBF16(_ input: URL, output: URL) throws -> (conve
     }
     if let metadata = header.metadata { entries["__metadata__"] = metadata }
     var json = try JSONSerialization.data(withJSONObject: entries, options: [.sortedKeys])
-    while json.count % 8 != 0 { json.append(0x20) }   // pad with spaces: the data starts 8-byte aligned
+    while json.count % 8 != 0 { json.append(0x20) } // pad with spaces: the data starts 8-byte aligned
     FileManager.default.createFile(atPath: output.path, contents: nil)
     let writer = try FileHandle(forWritingTo: output); defer { try? writer.close() }
     var length = UInt64(json.count).littleEndian
@@ -119,8 +121,10 @@ public func convertSafetensorsToBF16(_ input: URL, output: URL) throws -> (conve
 /// `model.safetensors.index.json`'s total size, and writes `vella-converted.json`. Idempotent: a folder that already
 /// holds the manifest is left alone. Returns the manifest.
 @discardableResult
-public func convertFolderToBF16(_ folder: URL, family: String, precision: String, sourceRepository: String,
-                                sourceRevision: String) throws -> StoredConversionManifest {
+public func convertFolderToBF16(
+    _ folder: URL, family: String, precision: String, sourceRepository: String,
+    sourceRevision: String
+) throws -> StoredConversionManifest {
     let fm = FileManager.default
     let manifestURL = folder.appendingPathComponent(StoredConversionManifest.fileName)
     if let data = try? Data(contentsOf: manifestURL), let done = try? JSONDecoder().decode(StoredConversionManifest.self, from: data) { return done }
@@ -140,14 +144,16 @@ public func convertFolderToBF16(_ folder: URL, family: String, precision: String
     }
     let index = folder.appendingPathComponent("model.safetensors.index.json")
     if var object = (try? Data(contentsOf: index)).flatMap({ try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }),
-       var metadata = object["metadata"] as? [String: Any], metadata["total_size"] != nil {
+        var metadata = object["metadata"] as? [String: Any], metadata["total_size"] != nil
+    {
         metadata["total_size"] = total
         object["metadata"] = metadata
         try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]).write(to: index, options: .atomic)
     }
-    let manifest = StoredConversionManifest(schema: 1, family: family, precision: precision, sourceRepository: sourceRepository,
-                                            sourceRevision: sourceRevision, from: "float32", to: "bfloat16",
-                                            rounding: "round to nearest even (as mx.astype)", tensors: tensors, bytes: total)
+    let manifest = StoredConversionManifest(
+        schema: 1, family: family, precision: precision, sourceRepository: sourceRepository,
+        sourceRevision: sourceRevision, from: "float32", to: "bfloat16",
+        rounding: "round to nearest even (as mx.astype)", tensors: tensors, bytes: total)
     let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     try encoder.encode(manifest).write(to: manifestURL, options: .atomic)
     return manifest

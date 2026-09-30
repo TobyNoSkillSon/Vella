@@ -18,8 +18,10 @@ final class DiagnoseCLITests: XCTestCase {
         let support = api.runtime.support
         let gate = support.appendingPathComponent("Worker/FastPath")
         try FileManager.default.createDirectory(at: gate, withIntermediateDirectories: true)
-        try JSONSerialization.data(withJSONObject: ["status": "stock", "workerVersion": "native-kernels-10", "model": "fake-b",
-                                                    "reason": "self-test timed out (45 s)"]).write(to: gate.appendingPathComponent("k1.json"))
+        try JSONSerialization.data(withJSONObject: [
+            "status": "stock", "workerVersion": "native-kernels-10", "model": "fake-b",
+            "reason": "self-test timed out (45 s)"
+        ]).write(to: gate.appendingPathComponent("k1.json"))
         try JSONSerialization.data(withJSONObject: ["status": "fast", "workerVersion": "native-kernels-10"]).write(to: gate.appendingPathComponent("k2.json"))
 
         var (code, out, err) = try await vella(support, ["diagnose"])
@@ -27,7 +29,8 @@ final class DiagnoseCLITests: XCTestCase {
         XCTAssertTrue(out.hasPrefix("vella diagnose\nvella dev · app test · API 1"), out)
         XCTAssertTrue(out.contains("no model loaded: nothing timed. `vella diagnose --load` loads the dictation model (fake-a) and times it."), out)
         XCTAssertTrue(out.contains("gate verdicts: 1 optimized, 1 stock (fake-b: self-test timed out (45 s))"), out)
-        XCTAssertTrue(out.contains("\nreport it (a prefilled GitHub bug report; add what you saw): https://github.com/TobyNoSkillSon/Vella/issues/new?template=bug_report.yml&title="), out)
+        XCTAssertTrue(
+            out.contains("\nreport it (a prefilled GitHub bug report; add what you saw): https://github.com/TobyNoSkillSon/Vella/issues/new?template=bug_report.yml&title="), out)
         XCTAssertEqual(api.runtime.status.models.count, 0, "diagnose loads nothing by default")
 
         (code, out, err) = try await vella(support, ["diagnose", "--load", "--json"])
@@ -51,7 +54,9 @@ final class DiagnoseCLITests: XCTestCase {
 
         (code, out, err) = try await vella(support, ["diagnose"])
         XCTAssertEqual(code, 0, err)
-        XCTAssertTrue(out.contains("fake-a: MLX · 8b · on demand\n  fallbacks: stock MLX (no reason reported)\n  clips: 5 transcribed, no reference for 8b on this path · 22.9 s of audio at "), out)
+        XCTAssertTrue(
+            out.contains(
+                "fake-a: MLX · 8b · on demand\n  fallbacks: stock MLX (no reason reported)\n  clips: 5 transcribed, no reference for 8b on this path · 22.9 s of audio at "), out)
 
         (code, out, err) = try await vella(support, ["diagnose", "extra"])
         XCTAssertEqual(code, 1); XCTAssertEqual(out, ""); XCTAssertEqual(err, "error: unexpected argument extra\n")

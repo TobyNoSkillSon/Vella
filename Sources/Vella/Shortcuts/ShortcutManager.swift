@@ -80,13 +80,14 @@ public final class ShortcutManager: ObservableObject {
             mouseConfirmationTimeoutMessage,
             mouseConfirmationAccessDeniedMessage,
             mouseConfirmationUnavailableMessage,
-            mouseConfirmationUnchangedMessage,
+            mouseConfirmationUnchangedMessage
         ]
         // Worst-case pending feedback suffixes (bounded labels only, no raw ints).
-        let feedbacks = [
-            "Middle button detected", "Button 4 detected", "Button 5 detected",
-            "Left click detected", "Right click detected", "Other button detected",
-        ] + (6...32).map { "Button \($0) detected" }
+        let feedbacks =
+            [
+                "Middle button detected", "Button 4 detected", "Button 5 detected",
+                "Left click detected", "Right click detected", "Other button detected"
+            ] + (6...32).map { "Button \($0) detected" }
         for button in [MouseButton.middle, .button3, .button4] {
             let base = mouseConfirmationPrompt(for: button)
             strings.append(base)
@@ -148,19 +149,25 @@ public final class ShortcutManager: ObservableObject {
         self.modelRef = model
         self.injectedRegistrar = nil
         self.activeRegistrar = nil
-        self.engine = ShortcutEngine(configuration: resolved.configuration, sinks: .init(
-            start: { [weak model, weak box] in
-                box?.handler?("start")
-                guard let m = model else { return }
-                _ = m.ensureAutomaticInsertion()
-                m.toggle()
-            },
-            finish: { [weak model, weak box] in box?.handler?("finish"); model?.finish() },
-            cancel: { [weak model, weak box] in box?.handler?("cancel"); model?.cancel() },
-            isRecording: { [weak model] in model?.phase == .recording },
-            isBusy: { [weak model] in model?.busy == true },
-            currentOperation: { [weak model] in model?.captureGeneration ?? 0 }
-        ))
+        self.engine = ShortcutEngine(
+            configuration: resolved.configuration,
+            sinks: .init(
+                start: { [weak model, weak box] in
+                    box?.handler?("start")
+                    guard let m = model else { return }
+                    _ = m.ensureAutomaticInsertion()
+                    m.toggle()
+                },
+                finish: { [weak model, weak box] in
+                    box?.handler?("finish"); model?.finish()
+                },
+                cancel: { [weak model, weak box] in
+                    box?.handler?("cancel"); model?.cancel()
+                },
+                isRecording: { [weak model] in model?.phase == .recording },
+                isBusy: { [weak model] in model?.busy == true },
+                currentOperation: { [weak model] in model?.captureGeneration ?? 0 }
+            ))
         // Delayed solo confirmation carries the physical down time into the engine.
         eventTap.confirmedPressHandler = { [weak self] down in self?.handlePress(downTime: down) }
         updateModelHints()
@@ -366,16 +373,19 @@ public final class ShortcutManager: ObservableObject {
         let monitor = makeConfirmationMonitor()
         confirmationMonitor = monitor
         do {
-            try monitor.start(button: button, handler: { [weak self] type, event in
-                guard let self else { return false }
-                // Hop to MainActor for state; capture synchronously in handler below.
-                // The tap callback runs on the main runloop; MainActor-isolated
-                // processing is dispatched via the manager queue below in commit path.
-                // For immediate consume decision we call the isolated reducer via assume.
-                return MainActor.assumeIsolated { self.processConfirmationTapEvent(type: type, event: event, expectedGeneration: gen) }
-            }, onFailure: { [weak self] in
-                Task { @MainActor in self?.handleConfirmationMonitorFailure(generation: gen) }
-            })
+            try monitor.start(
+                button: button,
+                handler: { [weak self] type, event in
+                    guard let self else { return false }
+                    // Hop to MainActor for state; capture synchronously in handler below.
+                    // The tap callback runs on the main runloop; MainActor-isolated
+                    // processing is dispatched via the manager queue below in commit path.
+                    // For immediate consume decision we call the isolated reducer via assume.
+                    return MainActor.assumeIsolated { self.processConfirmationTapEvent(type: type, event: event, expectedGeneration: gen) }
+                },
+                onFailure: { [weak self] in
+                    Task { @MainActor in self?.handleConfirmationMonitorFailure(generation: gen) }
+                })
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             stopConfirmationSilently(notify: false)
@@ -586,13 +596,15 @@ public final class ShortcutManager: ObservableObject {
         guard interruptionObservers.isEmpty else { return }
         let center = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.screensDidSleepNotification, NSWorkspace.sessionDidResignActiveNotification] as [NSNotification.Name] {
-            interruptionObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+            interruptionObservers.append(
+                center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    Task { @MainActor in self?.handleInterruption() }
+                })
+        }
+        interruptionObservers.append(
+            DistributedNotificationCenter.default().addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.handleInterruption() }
             })
-        }
-        interruptionObservers.append(DistributedNotificationCenter.default().addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.handleInterruption() }
-        })
     }
 
     // MARK: Native key recorder (transient panel owns the keyboard)

@@ -47,8 +47,11 @@ struct DiagnoseCollector {
         var passes: [String: [Double]] = [:]
         var skip: String?
         let clips = clipFiles(appBundle: app)
-        if d.dictation.map({ $0 != "idle" }) ?? false { skip = "a dictation was in progress; run `vella diagnose` again when it is done" }
-        else if clips == nil { skip = "the self-test clips are missing from this installation" }
+        if d.dictation.map({ $0 != "idle" }) ?? false {
+            skip = "a dictation was in progress; run `vella diagnose` again when it is done"
+        } else if clips == nil {
+            skip = "the self-test clips are missing from this installation"
+        }
         if skip == nil, let clips {
             for id in timed {
                 do {
@@ -71,9 +74,10 @@ struct DiagnoseCollector {
         let ids = Set(after.models.keys).union(timed).sorted()
         d.models = ids.map { id -> Diagnosis.Model in
             let m = after.models[id] ?? status.models[id]
-            var report = Diagnosis.Model(id: id, name: m?.name, mode: m?.mode?.rawValue, precision: m?.precision, engine: m?.engine,
-                                         engineReason: m?.engine_reason, optimizations: m?.optimizations ?? [:], residency: m?.residency,
-                                         workerVersion: m?.worker_version)
+            var report = Diagnosis.Model(
+                id: id, name: m?.name, mode: m?.mode?.rawValue, precision: m?.precision, engine: m?.engine,
+                engineReason: m?.engine_reason, optimizations: m?.optimizations ?? [:], residency: m?.residency,
+                workerVersion: m?.worker_version)
             report.selection = m?.selection
             if m?.mode == .streaming {
                 report.notTimed = "streaming models are not served by the API"
@@ -83,9 +87,10 @@ struct DiagnoseCollector {
                 switch result {
                 case .success(let clips):
                     let ref = bundled?.run(model: id, precision: m?.precision, engine: m?.engine)
-                    report.run = Diagnosis.Run(clips: Diagnose.compare(clips, with: ref), passSeconds: passes[id] ?? [], audioSeconds: audio,
-                                               reference: ref.flatMap { _ in bundled.map { Diagnose.referenceLabel($0, engine: m?.engine) } },
-                                               referenceSpeedX: bundled?.method == "api" ? ref?.speed_x : nil)
+                    report.run = Diagnosis.Run(
+                        clips: Diagnose.compare(clips, with: ref), passSeconds: passes[id] ?? [], audioSeconds: audio,
+                        reference: ref.flatMap { _ in bundled.map { Diagnose.referenceLabel($0, engine: m?.engine) } },
+                        referenceSpeedX: bundled?.method == "api" ? ref?.speed_x : nil)
                 case .failure(let error): report.notTimed = error.message
                 }
             } else {
@@ -117,9 +122,10 @@ struct DiagnoseCollector {
             var total = 0.0
             for clip in clips {
                 let start = clock.now
-                let data = try await client.request("POST", "/v1/audio/transcriptions",
-                                                    json: ["path": clip.url.path, "model": id, "response_format": "json"],
-                                                    port: port, timeout: clipTimeout)
+                let data = try await client.request(
+                    "POST", "/v1/audio/transcriptions",
+                    json: ["path": clip.url.path, "model": id, "response_format": "json"],
+                    port: port, timeout: clipTimeout)
                 total += seconds(clock.now - start)
                 if pass == 0 {
                     let text = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["text"] as? String ?? ""
@@ -143,9 +149,11 @@ struct DiagnoseCollector {
             .filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
         return files.compactMap { url in
             guard let data = try? Data(contentsOf: url), let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-                  let status = o["status"] as? String else { return nil }
-            return Diagnosis.GateVerdict(status: status, model: o["model"] as? String, reason: o["reason"] as? String,
-                                         workerVersion: o["workerVersion"] as? String, gpuFamily: o["gpuFamily"] as? String, osBuild: o["osBuild"] as? String)
+                let status = o["status"] as? String
+            else { return nil }
+            return Diagnosis.GateVerdict(
+                status: status, model: o["model"] as? String, reason: o["reason"] as? String,
+                workerVersion: o["workerVersion"] as? String, gpuFamily: o["gpuFamily"] as? String, osBuild: o["osBuild"] as? String)
         }
     }
 
@@ -198,7 +206,8 @@ struct DiagnoseCollector {
     /// "1.0.0 (34)" from an app's Info.plist.
     static func version(of app: URL?) -> String? {
         guard let app, let info = NSDictionary(contentsOf: app.appendingPathComponent("Contents/Info.plist")),
-              let short = info["CFBundleShortVersionString"] as? String else { return nil }
+            let short = info["CFBundleShortVersionString"] as? String
+        else { return nil }
         return (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
     }
 
@@ -213,7 +222,8 @@ struct DiagnoseCollector {
         let macos = "\(os.majorVersion).\(os.minorVersion)" + (os.patchVersion > 0 ? ".\(os.patchVersion)" : "")
         let device = MTLCreateSystemDefaultDevice()
         let family = device?.supportsFamily(.apple9) == true ? "apple9" : device?.supportsFamily(.apple8) == true ? "apple8" : "unsupported"
-        return Diagnosis.Host(chip: sysctlString("machdep.cpu.brand_string"), hardware: sysctlString("hw.model"), memoryGB: gb,
-                              macos: macos, osBuild: sysctlString("kern.osversion"), gpuFamily: family)
+        return Diagnosis.Host(
+            chip: sysctlString("machdep.cpu.brand_string"), hardware: sysctlString("hw.model"), memoryGB: gb,
+            macos: macos, osBuild: sysctlString("kern.osversion"), gpuFamily: family)
     }
 }

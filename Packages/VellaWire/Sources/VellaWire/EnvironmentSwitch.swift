@@ -18,8 +18,10 @@ public struct EnvironmentSwitch: Equatable, Sendable {
     /// Never passed to the gate's self-test child (instrumentation and runtime-fault hooks must not weaken it).
     public let strippedFromSelfTestChild: Bool
 
-    init(_ name: String, prefix: Bool = false, _ owner: Owner, gateKey: Bool = false, worker: Bool = false, app: Bool = false,
-         stripped: Bool = false) {
+    init(
+        _ name: String, prefix: Bool = false, _ owner: Owner, gateKey: Bool = false, worker: Bool = false, app: Bool = false,
+        stripped: Bool = false
+    ) {
         self.name = name; isPrefix = prefix; self.owner = owner; self.gateKey = gateKey
         workerReported = worker; appReported = app; strippedFromSelfTestChild = stripped
     }
@@ -71,7 +73,7 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         .init("VELLA_RENDER_CHIP", .test),
         .init("VELLA_UPDATE_API_URL", .test),
         .init("VELLA_RELEASE_BASE_URL", .test),
-        .init("VELLA_UPDATE_READY_SECONDS", .test),
+        .init("VELLA_UPDATE_READY_SECONDS", .test)
     ]
 
     /// Exact names with a policy, in registry order.

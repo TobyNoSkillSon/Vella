@@ -24,9 +24,11 @@ final class FinalCleanupNativeTrackingTests: XCTestCase {
         }
         _ = NSApplication.shared
         let model = DictationController(configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).json"))
-        let engine = ShortcutEngine(configuration: .default, sinks: .init(
-            start: { XCTFail("Fixture must not start recording") }, finish: { XCTFail("Fixture must not finish recording") },
-            cancel: {}, isRecording: { false }, isBusy: { false }))
+        let engine = ShortcutEngine(
+            configuration: .default,
+            sinks: .init(
+                start: { XCTFail("Fixture must not start recording") }, finish: { XCTFail("Fixture must not finish recording") },
+                cancel: {}, isRecording: { false }, isBusy: { false }))
         let registrar = CleanupTrackingRegistrar()
         let manager = ShortcutManager(engine: engine, store: ShortcutStore(), registrar: registrar)
         let suite = "VellaCleanupTracking.\(UUID())"
@@ -37,7 +39,8 @@ final class FinalCleanupNativeTrackingTests: XCTestCase {
         let start = NSMenuItem(title: "Start Dictation", action: NSSelectorFromString("toggle"), keyEquivalent: "n")
         start.keyEquivalentModifierMask = [.control, .command]
         delegate.menu.addItem(start)
-        let root = ShortcutMenuFactory.shortcutsItem(manager: manager, model: model, target: delegate,
+        let root = ShortcutMenuFactory.shortcutsItem(
+            manager: manager, model: model, target: delegate,
             selectBehavior: NSSelectorFromString("selectShortcutBehavior:"), recordKeys: NSSelectorFromString("recordShortcutKeys"),
             cancelCapture: NSSelectorFromString("cancelShortcutCapture"), selectModifier: NSSelectorFromString("selectShortcutModifier:"),
             selectMouse: NSSelectorFromString("selectShortcutMouse:"), resetDefault: NSSelectorFromString("resetShortcutDefault"),
@@ -62,7 +65,9 @@ final class FinalCleanupNativeTrackingTests: XCTestCase {
                 print("[cleanup-tracking] \(label): no hosting window")
                 XCTFail("Native popup must host the original control"); return nil
             }
-            print("[cleanup-tracking] \(label): visible=\(window.isVisible) height=\(window.frame.height) hidden(note/settings/error)=\(note.isHidden)/\(settings.isHidden)/\(error.isHidden)")
+            print(
+                "[cleanup-tracking] \(label): visible=\(window.isVisible) height=\(window.frame.height) hidden(note/settings/error)=\(note.isHidden)/\(settings.isHidden)/\(error.isHidden)"
+            )
             XCTAssertTrue(window.isVisible)
             XCTAssertTrue(root.submenu === menu)
             XCTAssertTrue(delegate.menu.items.first === start)

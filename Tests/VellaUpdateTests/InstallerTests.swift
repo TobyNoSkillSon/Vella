@@ -29,7 +29,9 @@ final class InstallerTests: XCTestCase {
         let staged = StagedUpdate(version: "1.0.1", directory: stagedDirectory.path, app: stagedDirectory.appendingPathComponent("Vella.app").path, sha256: "")
         let plan = InstallPlan(staged: staged, destination: destination.path, from: "1.0.0", waitForPID: 999_999, supportDirectory: support.path)
         let installer = UpdateInstaller(plan: plan, env: [:])
-        installer.configure = { $0.verify = { _ in .init("adhoc") }; $0.stop = { _ in false } }
+        installer.configure = {
+            $0.verify = { _ in .init("adhoc") }; $0.stop = { _ in false }
+        }
         installer.isAlive = { _ in false }
         installer.isInstalledApp = { pid, _ in pid == 4242 }
         installer.launch = { [unowned self] app in self.launched.append(Updater.bundleVersion(app) ?? "?") }
@@ -40,10 +42,14 @@ final class InstallerTests: XCTestCase {
         return installer
     }
 
-    func status(pid: Int32 = 4242, loading: String? = nil, models: [String] = [], launchSet: [String] = [], error: String? = nil,
-                refused: String? = nil) -> Data {
-        var object: [String: Any] = ["app_pid": pid, "models": Dictionary(uniqueKeysWithValues: models.map { ($0, ["precision": "4b"]) }),
-                                     "launch_set": launchSet]
+    func status(
+        pid: Int32 = 4242, loading: String? = nil, models: [String] = [], launchSet: [String] = [], error: String? = nil,
+        refused: String? = nil
+    ) -> Data {
+        var object: [String: Any] = [
+            "app_pid": pid, "models": Dictionary(uniqueKeysWithValues: models.map { ($0, ["precision": "4b"]) }),
+            "launch_set": launchSet
+        ]
         if let loading { object["loading"] = loading }
         if let error { object["error"] = error }
         if let refused { object["refused"] = ["model": refused, "message": "needs 3 GB, 1 GB free", "at": 0] }
@@ -80,8 +86,11 @@ final class InstallerTests: XCTestCase {
     }
 
     func testReadyAfterLoadingTheLaunchSet() throws {
-        try makeInstaller { t in t < 30 ? self.status(loading: "parakeet-v3", launchSet: ["parakeet-v3"])
-                                    : self.status(models: ["parakeet-v3"], launchSet: ["parakeet-v3"]) }.run()
+        try makeInstaller { t in
+            t < 30
+                ? self.status(loading: "parakeet-v3", launchSet: ["parakeet-v3"])
+                : self.status(models: ["parakeet-v3"], launchSet: ["parakeet-v3"])
+        }.run()
         XCTAssertEqual(installedVersion, "1.0.1"); XCTAssertEqual(leftovers, [])
         XCTAssertGreaterThanOrEqual(clock.timeIntervalSince1970, 30)
     }

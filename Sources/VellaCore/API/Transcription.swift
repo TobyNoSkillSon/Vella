@@ -16,8 +16,10 @@ public struct TranscriptionOptions: Equatable {
     public var format: TranscriptFormat
     public var temperature: Double?
     public var granularities: [String]
-    public init(model: String = "", language: String? = nil, prompt: String? = nil, format: TranscriptFormat = .json,
-                temperature: Double? = nil, granularities: [String] = []) {
+    public init(
+        model: String = "", language: String? = nil, prompt: String? = nil, format: TranscriptFormat = .json,
+        temperature: Double? = nil, granularities: [String] = []
+    ) {
         self.model = model; self.language = language; self.prompt = prompt; self.format = format
         self.temperature = temperature; self.granularities = granularities
     }
@@ -104,8 +106,10 @@ public struct TranscriptSegment: Equatable {
 
 public enum TranscriptFormatter {
     /// Body and Content-Type for a finished transcript in the requested format.
-    public static func render(_ format: TranscriptFormat, text: String, segments: [TranscriptSegment], duration: Double,
-                              language: String?) -> (contentType: String, body: Data) {
+    public static func render(
+        _ format: TranscriptFormat, text: String, segments: [TranscriptSegment], duration: Double,
+        language: String?
+    ) -> (contentType: String, body: Data) {
         let usage: [String: Any] = ["type": "duration", "seconds": Int(duration.rounded(.up))]
         switch format {
         case .json:
@@ -114,8 +118,13 @@ public enum TranscriptFormatter {
             let items: [[String: Any]] = segments.map {
                 ["id": $0.id, "seek": 0, "start": round3($0.start), "end": round3($0.end), "text": $0.text, "tokens": [Int](), "temperature": 0.0]
             }
-            return ("application/json", jsonData(["task": "transcribe", "language": language ?? "unknown", "duration": round3(duration),
-                                                  "text": text, "segments": items, "usage": usage]))
+            return (
+                "application/json",
+                jsonData([
+                    "task": "transcribe", "language": language ?? "unknown", "duration": round3(duration),
+                    "text": text, "segments": items, "usage": usage
+                ])
+            )
         case .text:
             return ("text/plain; charset=utf-8", Data((text + "\n").utf8))
         case .srt:

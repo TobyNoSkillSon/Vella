@@ -18,8 +18,10 @@ public struct InstallPlan: Codable, Equatable, Sendable {
     /// Lab candidates with another bundle id only (as `VellaInstallTool install --bundle-id`); the app never sets it.
     public var bundleIdentifier: String?
 
-    public init(staged: StagedUpdate, destination: String, from: String, waitForPID: Int32? = nil, supportDirectory: String,
-                bundleIdentifier: String? = nil) {
+    public init(
+        staged: StagedUpdate, destination: String, from: String, waitForPID: Int32? = nil, supportDirectory: String,
+        bundleIdentifier: String? = nil
+    ) {
         self.staged = staged; self.destination = destination; self.from = from
         self.waitForPID = waitForPID; self.supportDirectory = supportDirectory; self.bundleIdentifier = bundleIdentifier
     }
@@ -177,8 +179,7 @@ public final class UpdateInstaller {
         let failed = destination.deletingLastPathComponent().appendingPathComponent(".Vella.app.failed.\(getpid()).\(UUID().uuidString.prefix(8))")
         do {
             try fm.moveItem(at: destination, to: failed)
-            do { try fm.moveItem(at: previous, to: destination) }
-            catch { try? fm.moveItem(at: failed, to: destination); throw error }
+            do { try fm.moveItem(at: previous, to: destination) } catch { try? fm.moveItem(at: failed, to: destination); throw error }
         } catch {
             let message = failure + " and restoring \(plan.from) failed; the previous app is at \(previous.path)"
             fail(message)
@@ -187,7 +188,7 @@ public final class UpdateInstaller {
         }
         try? fm.removeItem(at: failed)
         let message = failure + "; Vella \(plan.from) was restored"
-        fail(message)                   // written first: the restored app reports it at launch
+        fail(message) // written first: the restored app reports it at launch
         launch(destination)
         throw UpdateError(message)
     }

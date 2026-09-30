@@ -22,7 +22,10 @@ final class StubModel: STTGenerationModel, FastPathCapable {
     /// by two (`edits`, over it) or is non-finite (`nonfinite`).
     static var tolerantFault: String? { ProcessInfo.processInfo.environment["VELLA_TEST_TOLERANT_FAULT"].flatMap { $0.isEmpty ? nil : $0 } }
     var disabled: Set<String> = []
-    var fastPathDisabledComponents: Set<String> { get { disabled } set { disabled = newValue } }
+    var fastPathDisabledComponents: Set<String> {
+        get { disabled }
+        set { disabled = newValue }
+    }
     var fastPathTolerantComponents: [String] { Self.tolerantFault == nil ? [] : ["stub_tolerant"] }
     private var tolerantActive: Bool { fast && Self.tolerantFault != nil && !disabled.contains("stub_tolerant") }
     var fastPathFinite: Bool { !(tolerantActive && Self.tolerantFault == "nonfinite") }

@@ -37,14 +37,17 @@ final class RuntimeRegressionTests: XCTestCase {
         // Catalog: one offered dictation family, one pinned 4b variant served by the mocked Hub.
         let resources = root.appendingPathComponent("resources", isDirectory: true)
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
-        let variant = CatalogVariant(id: "fixture-v3-4bit", repository: "org/fixture", revision: String(repeating: "a", count: 40),
-                                     downloadBytes: 4_200, architecture: "parakeet")
-        let family = ModelFamily(id: "fixture-v3", name: "Fixture v3", mode: .dictation, languages: ["en"], params: "0.6B",
-                                 license: "test", native: "4b", variants: ["4b": variant])
+        let variant = CatalogVariant(
+            id: "fixture-v3-4bit", repository: "org/fixture", revision: String(repeating: "a", count: 40),
+            downloadBytes: 4_200, architecture: "parakeet")
+        let family = ModelFamily(
+            id: "fixture-v3", name: "Fixture v3", mode: .dictation, languages: ["en"], params: "0.6B",
+            license: "test", native: "4b", variants: ["4b": variant])
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: [family])).write(to: resources.appendingPathComponent("models.json"))
         let files: [String: Data] = [
             "config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel","quantization":{"bits":4}}"#.utf8),
-            "model.safetensors": Data(repeating: 42, count: 4096)]
+            "model.safetensors": Data(repeating: 42, count: 4096)
+        ]
         var served: [String] = []
         MockHubProtocol.handler = { request in
             served.append(request.url!.lastPathComponent)
@@ -61,15 +64,20 @@ final class RuntimeRegressionTests: XCTestCase {
         let http = URLSessionConfiguration.ephemeral; http.protocolClasses = [MockHubProtocol.self]
         let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry)
         dictation.downloadConfiguration = http
-        let controller = ModelsController(dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
+        let controller = ModelsController(
+            dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
 
         let runtime = try Runtime.isolated(root)
         try JSONEncoder().encode(Configuration(model: "")).write(to: runtime.configURL)
         let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
         var requested: [String] = []
-        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { _, config in requested.append(config.model); return "words after get" },
-                          configurationURL: runtime.configURL)
+        let model = DictationController(
+            pasteboard: pasteboard,
+            transcriptionRequest: { _, config in
+                requested.append(config.model); return "words after get"
+            },
+            configurationURL: runtime.configURL)
         defer { model.shutdown() }
         // The real AppDelegate wiring: its `mayChangeModel` permission closure and the RuntimeBridge fetch.
         let delegate = AppDelegate(model: model)
@@ -85,7 +93,9 @@ final class RuntimeRegressionTests: XCTestCase {
 
         // The Get row asks first; Cancel downloads nothing and keeps the offer.
         var prompts: [DownloadPrompt] = []
-        bridge.presentDownload = { prompts.append($0); return false }
+        bridge.presentDownload = {
+            prompts.append($0); return false
+        }
         delegate.getPendingModel()
         XCTAssertEqual(prompts.map(\.variantID), [variant.id])
         XCTAssertTrue(prompts[0].body.contains("transcribes the saved recording"), prompts[0].body)
@@ -93,7 +103,9 @@ final class RuntimeRegressionTests: XCTestCase {
         XCTAssertTrue(served.isEmpty, "Cancel downloads nothing")
         XCTAssertNil(dictation.downloadingID)
         XCTAssertNotNil(model.pendingModelRequest)
-        bridge.presentDownload = { prompts.append($0); return true }
+        bridge.presentDownload = {
+            prompts.append($0); return true
+        }
         delegate.getPendingModel()
         XCTAssertEqual(prompts.count, 2)
         XCTAssertEqual(model.phase, .preparing, "the model is busy while it waits for the download")
@@ -169,14 +181,15 @@ final class RuntimeRegressionTests: XCTestCase {
         let pid = try XCTUnwrap(backend.processID)
         // Refused BF16 (raw 1,000 − 1,000 loaded + 1,000 credit = 1,000 < 1,512): nothing is unloaded.
         try runtime.setAvailableMB(1_000)
-        do { try await runtime.load(runtime.resolve(path("nemo@BF16"), mode: .streaming)); XCTFail("reload admitted") }
-        catch { XCTAssertTrue(error.localizedDescription.hasPrefix("nemo at BF16 needs"), error.localizedDescription) }
+        do { try await runtime.load(runtime.resolve(path("nemo@BF16"), mode: .streaming)); XCTFail("reload admitted") } catch {
+            XCTAssertTrue(error.localizedDescription.hasPrefix("nemo at BF16 needs"), error.localizedDescription)
+        }
         XCTAssertTrue(alive(pid), "the working worker survives a refusal")
         XCTAssertEqual(backend.processID, pid)
         XCTAssertEqual(runtime.status.models["nemo"]?.precision, "8b")
         // Admitted but the load fails: the previous precision comes back, still manual, launch set unchanged.
         try runtime.setAvailableMB(10_000)
-        do { try await runtime.load(runtime.resolve(path("nemo@BF16-loadfail"), mode: .streaming)); XCTFail("failed load accepted") } catch { }
+        do { try await runtime.load(runtime.resolve(path("nemo@BF16-loadfail"), mode: .streaming)); XCTFail("failed load accepted") } catch {}
         XCTAssertEqual(runtime.status.models["nemo"]?.precision, "8b")
         XCTAssertEqual(runtime.status.models["nemo"]?.residency, "manual")
         XCTAssertEqual(runtime.settings.launchSet.map(\.precision), ["8b"])
@@ -198,9 +211,10 @@ final class RuntimeRegressionTests: XCTestCase {
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: families)).write(to: resources.appendingPathComponent("models.json"))
         let registry = root.appendingPathComponent("support/models-installed.json")
-        let controller = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
-                                          streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
+        let controller = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
         for (id, path) in installed {
             try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
             controller.dictation.installed[id] = InstalledModel(path: path)
@@ -212,8 +226,9 @@ final class RuntimeRegressionTests: XCTestCase {
     }
 
     @MainActor func testFailedOrRefusedReloadKeepsTheWorkingModelSelected() async throws {
-        let family = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test",
-                                 native: "BF16", variants: ["8b": variant("alpha-8bit"), "4b": variant("alpha-4bit"), "BF16": variant("alpha-bf16")])
+        let family = ModelFamily(
+            id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test",
+            native: "BF16", variants: ["8b": variant("alpha-8bit"), "4b": variant("alpha-4bit"), "BF16": variant("alpha-bf16")])
         let p8 = path("alpha-8b"), p4 = path("alpha-4b-loadfail"), p16 = path("alpha-bf16")
         let controller = try controller([family], installed: ["alpha-8bit": p8, "alpha-4bit": p4, "alpha-bf16": p16])
         let runtime = try Runtime.isolated(root)
@@ -326,10 +341,12 @@ final class RuntimeRegressionTests: XCTestCase {
 
     @MainActor func testDeleteUnloadsFirstCleansTheLaunchSetAndKeepsIntentOnFailure() async throws {
         _ = NSApplication.shared
-        let alpha = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
-                                variants: ["8b": variant("alpha-slowexit-8bit"), "4b": variant("alpha-4bit")])
-        let beta = ModelFamily(id: "beta", name: "Beta", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "8b",
-                               variants: ["8b": variant("beta-8bit")])
+        let alpha = ModelFamily(
+            id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
+            variants: ["8b": variant("alpha-slowexit-8bit"), "4b": variant("alpha-4bit")])
+        let beta = ModelFamily(
+            id: "beta", name: "Beta", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "8b",
+            variants: ["8b": variant("beta-8bit")])
         let models = root.appendingPathComponent("support/Models")
         let a8 = models.appendingPathComponent("alpha-slowexit-8bit").path, b8 = models.appendingPathComponent("beta-8bit").path
         let controller = try controller([alpha, beta], installed: ["alpha-slowexit-8bit": a8, "beta-8bit": b8])
@@ -348,7 +365,9 @@ final class RuntimeRegressionTests: XCTestCase {
         let menus = ModelsMenu(controller: controller)
         let host = try XCTUnwrap(menus.modelItem().submenu?.items.first?.view as? MenuTableHostingView)
         var alerts: [String] = []
-        menus.presentDeletionConfirmation = { alert in alerts.append(alert.messageText); return .alertSecondButtonReturn }
+        menus.presentDeletionConfirmation = { alert in
+            alerts.append(alert.messageText); return .alertSecondButtonReturn
+        }
         func delete(_ family: ModelFamily) { host.rootView.requestDelete(family) }
 
         // Manual alpha 8b (launch set), then beta: beta is selected, alpha stays hot but unselected.
@@ -361,7 +380,9 @@ final class RuntimeRegressionTests: XCTestCase {
 
         // Deletion failure: the launch set keeps alpha and the unloaded manual model is loaded again.
         var trashedWhileAlive: [Bool] = []
-        library.trashModel = { _ in trashedWhileAlive.append(kill(alphaPID, 0) == 0); throw CocoaError(.fileWriteNoPermission) }
+        library.trashModel = { _ in
+            trashedWhileAlive.append(kill(alphaPID, 0) == 0); throw CocoaError(.fileWriteNoPermission)
+        }
         delete(alpha)
         try await waitUntil { alerts.contains("Model was not deleted") }
         XCTAssertEqual(trashedWhileAlive, [false], "the worker had exited (its slow exit awaited) before files were touched")
@@ -438,8 +459,7 @@ final class RuntimeRegressionTests: XCTestCase {
         retries = []
         let always = path("crashalways"); try FileManager.default.createDirectory(atPath: always, withIntermediateDirectories: true)
         let second = try recording("always", config: Configuration(model: always))
-        do { _ = try await runner.run(second); XCTFail("a repeated crash must not succeed") }
-        catch { XCTAssertTrue(error is WorkerExited, "\(error)") }
+        do { _ = try await runner.run(second); XCTFail("a repeated crash must not succeed") } catch { XCTAssertTrue(error is WorkerExited, "\(error)") }
         XCTAssertEqual(retries, [1], "exactly one automatic retry")
         XCTAssertNil(try RecordingSession(directory: second.directory).manifest.segments[0].text, "left for the manual Retry")
     }
@@ -464,13 +484,14 @@ final class RuntimeRegressionTests: XCTestCase {
             let focus = Focus()
             let board = NSPasteboard.withUniqueName(); defer { board.releaseGlobally() }
             var calls = 0
-            let model = DictationController(pasteboard: board, stopCapture: { $0.adoptForTesting(session) },
-                              transcriptionRequest: { _, _ in
-                                  calls += 1
-                                  if calls <= crashes { throw WorkerExited() }
-                                  focus.current = "C" // moved away: the Finish-time check must decide (no real paste in a test)
-                                  return "retried words"
-                              }, configurationURL: config, captureDestination: { focus.capture() })
+            let model = DictationController(
+                pasteboard: board, stopCapture: { $0.adoptForTesting(session) },
+                transcriptionRequest: { _, _ in
+                    calls += 1
+                    if calls <= crashes { throw WorkerExited() }
+                    focus.current = "C" // moved away: the Finish-time check must decide (no real paste in a test)
+                    return "retried words"
+                }, configurationURL: config, captureDestination: { focus.capture() })
             defer { model.cancel() }
             model.phase = .recording // synthetic capture: no microphone
             focus.current = "B"
@@ -498,14 +519,17 @@ final class RuntimeRegressionTests: XCTestCase {
         _ = NSApplication.shared
         let resources = root.appendingPathComponent("resources", isDirectory: true)
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
-        let variant = CatalogVariant(id: "fixture-v3-4bit", repository: "org/fixture", revision: String(repeating: "a", count: 40),
-                                     downloadBytes: 4_200, architecture: "parakeet")
-        let family = ModelFamily(id: "fixture-v3", name: "Fixture v3", mode: .dictation, languages: ["en"], params: "0.6B",
-                                 license: "test", native: "4b", variants: ["4b": variant])
+        let variant = CatalogVariant(
+            id: "fixture-v3-4bit", repository: "org/fixture", revision: String(repeating: "a", count: 40),
+            downloadBytes: 4_200, architecture: "parakeet")
+        let family = ModelFamily(
+            id: "fixture-v3", name: "Fixture v3", mode: .dictation, languages: ["en"], params: "0.6B",
+            license: "test", native: "4b", variants: ["4b": variant])
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: [family])).write(to: resources.appendingPathComponent("models.json"))
         let files: [String: Data] = [
             "config.json": Data(#"{"target":"nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel","quantization":{"bits":4}}"#.utf8),
-            "model.safetensors": Data(repeating: 7, count: 4096)]
+            "model.safetensors": Data(repeating: 7, count: 4096)
+        ]
         MockHubProtocol.handler = { request in
             if request.url!.path.contains("/api/models/") {
                 let siblings: [[String: Any]] = files.map { name, data in
@@ -528,8 +552,9 @@ final class RuntimeRegressionTests: XCTestCase {
         let calibration = CalibrationStore(directory: root.appendingPathComponent("calibrations"), resources: resources, worker: { nil })
         let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry, calibration: calibration)
         dictation.downloadConfiguration = http
-        let controller = ModelsController(dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
+        let controller = ModelsController(
+            dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
         let delegate = AppDelegate(model: model)
         delegate.modelsMenu = delegate.makeModelsMenu(controller: controller) // the real calibration hook
         RuntimeBridge(runtime: runtime).attach(delegate)
@@ -565,33 +590,33 @@ final class MockHubProtocol: URLProtocol {
 /// takes 0.5 s to load; `lateexit` ignores SIGTERM and, after stdin EOF, writes a late status line and a stray reply.
 enum FakeStreamingWorker {
     static let script = #"""
-#!/usr/bin/env python3
-import json,sys,os,base64,time,signal
-model=None; frames=0
-fp=float(os.environ.get('FAKE_FOOTPRINT_MB','1000'))
-def push(ev):
-    print(json.dumps({'status':{'worker':'streaming','pid':os.getpid(),'event':ev,'model':model,'engine':'mlx','memory':{'footprint_mb':fp}}}),flush=True)
-late=False
-for line in sys.stdin:
-    q=json.loads(line); op=q.get('op'); r={'id':q['id'],'frames':frames}
-    if op in ('load','start'):
-        name=q['model'].rstrip('/').split('/')[-1]
-        if 'loadfail' in name:
-            r['error']='The streaming model failed to load.'; print(json.dumps(r),flush=True); break
-        if 'lateexit' in name: late=True; signal.signal(signal.SIGTERM, signal.SIG_IGN)
-        if 'slowload' in name and op=='load': time.sleep(0.5)
-        if model!=q['model']: model=q['model']; push('load')
-        if op=='start': frames=0; r['frames']=0
-        else: r['loaded']=True
-    elif op=='audio':
-        frames+=len(base64.b64decode(q['pcm']))//4; r.update(frames=frames,partial='hello',committed='')
-    elif op=='finish':
-        r.update(frames=frames,done=True,committed='hello world',partial='')
-    print(json.dumps(r),flush=True)
-if late:
-    time.sleep(0.3); push('late')
-    print(json.dumps({'id':'00000000-0000-0000-0000-000000000000','frames':0,'error':'late'}),flush=True)
-"""#
+        #!/usr/bin/env python3
+        import json,sys,os,base64,time,signal
+        model=None; frames=0
+        fp=float(os.environ.get('FAKE_FOOTPRINT_MB','1000'))
+        def push(ev):
+            print(json.dumps({'status':{'worker':'streaming','pid':os.getpid(),'event':ev,'model':model,'engine':'mlx','memory':{'footprint_mb':fp}}}),flush=True)
+        late=False
+        for line in sys.stdin:
+            q=json.loads(line); op=q.get('op'); r={'id':q['id'],'frames':frames}
+            if op in ('load','start'):
+                name=q['model'].rstrip('/').split('/')[-1]
+                if 'loadfail' in name:
+                    r['error']='The streaming model failed to load.'; print(json.dumps(r),flush=True); break
+                if 'lateexit' in name: late=True; signal.signal(signal.SIGTERM, signal.SIG_IGN)
+                if 'slowload' in name and op=='load': time.sleep(0.5)
+                if model!=q['model']: model=q['model']; push('load')
+                if op=='start': frames=0; r['frames']=0
+                else: r['loaded']=True
+            elif op=='audio':
+                frames+=len(base64.b64decode(q['pcm']))//4; r.update(frames=frames,partial='hello',committed='')
+            elif op=='finish':
+                r.update(frames=frames,done=True,committed='hello world',partial='')
+            print(json.dumps(r),flush=True)
+        if late:
+            time.sleep(0.3); push('late')
+            print(json.dumps({'id':'00000000-0000-0000-0000-000000000000','frames':0,'error':'late'}),flush=True)
+        """#
     static func install(in root: URL) throws -> URL {
         let url = root.appendingPathComponent("fake-streaming-worker.py")
         try script.write(to: url, atomically: true, encoding: .utf8)

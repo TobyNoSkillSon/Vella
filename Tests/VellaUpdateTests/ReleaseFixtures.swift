@@ -10,7 +10,11 @@ final class FakeReleaseServer: URLProtocol {
     nonisolated(unsafe) static var requests: [String] = []
     private static let lock = NSLock()
 
-    static func reset() { lock.withLock { routes = [:]; requests = [] } }
+    static func reset() {
+        lock.withLock {
+            routes = [:]; requests = []
+        }
+    }
     static func serve(_ url: String, _ body: Data, status: Int = 200) { lock.withLock { routes[url] = (status, body) } }
     static var requested: [String] { lock.withLock { requests } }
 
@@ -44,8 +48,10 @@ enum ReleaseFixture {
     }
 
     @discardableResult
-    static func app(at app: URL, version: String, identifier: String = "dev.vella.dictation", signingIdentifier: String? = nil,
-                    sign: Bool = true) throws -> URL {
+    static func app(
+        at app: URL, version: String, identifier: String = "dev.vella.dictation", signingIdentifier: String? = nil,
+        sign: Bool = true
+    ) throws -> URL {
         let fm = FileManager.default
         let contents = app.appendingPathComponent("Contents")
         for file in Updater.requiredExecutables {
@@ -56,8 +62,10 @@ enum ReleaseFixture {
         let metallib = contents.appendingPathComponent(Updater.metallib)
         try fm.createDirectory(at: metallib.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("fixture shader".utf8).write(to: metallib)
-        let info: [String: Any] = ["CFBundleIdentifier": identifier, "CFBundleExecutable": "Vella", "CFBundleName": "Vella",
-                                   "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": "1"]
+        let info: [String: Any] = [
+            "CFBundleIdentifier": identifier, "CFBundleExecutable": "Vella", "CFBundleName": "Vella",
+            "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": "1"
+        ]
         try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0).write(to: contents.appendingPathComponent("Info.plist"))
         guard sign else { return app }
         let helpers = Updater.requiredExecutables.filter { $0 != "MacOS/Vella" }.map { contents.appendingPathComponent($0).path }
@@ -89,8 +97,10 @@ enum ReleaseFixture {
     }
 
     static func releaseJSON(_ tag: String, body: String = "Faster loads.") -> Data {
-        try! JSONSerialization.data(withJSONObject: ["tag_name": tag, "name": "Vella \(tag)", "draft": false, "prerelease": false, "body": body,
-                                                     "assets": [["name": "SHA256SUMS"], ["name": "Vella-\(tag.dropFirst())-arm64.zip"]]])
+        try! JSONSerialization.data(withJSONObject: [
+            "tag_name": tag, "name": "Vella \(tag)", "draft": false, "prerelease": false, "body": body,
+            "assets": [["name": "SHA256SUMS"], ["name": "Vella-\(tag.dropFirst())-arm64.zip"]]
+        ])
     }
 
     /// Serves release `version` (an app built by `build`) with a correct or custom SHA256SUMS.

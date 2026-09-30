@@ -10,7 +10,7 @@ final class APIClientTests: XCTestCase {
     override func setUpWithError() throws {
         audio = FileManager.default.temporaryDirectory.appendingPathComponent("vella-cli-\(UUID().uuidString).wav")
         try writeTestWAV(audio)
-        try Integration.require()   // runs the vella binary; last, because tearDown runs after a skip too
+        try Integration.require() // runs the vella binary; last, because tearDown runs after a skip too
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: audio) }
 
@@ -68,10 +68,12 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(uCode, 0); XCTAssertEqual(url, "http://127.0.0.1:\(api.port)/v1\n")
 
         // Errors: one line on stderr, exit 1, no stdout.
-        for (args, message) in [(["transcribe", audio.path, "--model", "nope"], "error: unknown model nope; see GET /v1/models\n"),
-                                (["transcribe", "/no/such.wav"], "error: no such file: /no/such.wav\n"),
-                                (["transcribe", audio.path, "--srt", "--vtt"], "error: choose one of --json, --verbose-json, --srt, --vtt\n"),
-                                (["frobnicate"], "error: unknown command frobnicate; see vella --help\n")] {
+        for (args, message) in [
+            (["transcribe", audio.path, "--model", "nope"], "error: unknown model nope; see GET /v1/models\n"),
+            (["transcribe", "/no/such.wav"], "error: no such file: /no/such.wav\n"),
+            (["transcribe", audio.path, "--srt", "--vtt"], "error: choose one of --json, --verbose-json, --srt, --vtt\n"),
+            (["frobnicate"], "error: unknown command frobnicate; see vella --help\n")
+        ] {
             let (eCode, eOut, eErr) = try await vella(api, args)
             XCTAssertEqual(eCode, 1, "\(args)"); XCTAssertEqual(eOut, ""); XCTAssertEqual(eErr, message)
         }
@@ -114,37 +116,38 @@ final class APIClientTests: XCTestCase {
         let api = try await APIFixture()
         defer { api.close() }
         let script = #"""
-import sys, openai
-from openai import OpenAI
-c = OpenAI(base_url=sys.argv[1], api_key="local", max_retries=0)
-path = sys.argv[2]
-ids = [m.id for m in c.models.list()]
-assert ids == ["fake-a", "fake-b"], ids
-assert c.models.retrieve("fake-b").id == "fake-b"
-with open(path, "rb") as f:
-    t = c.audio.transcriptions.create(model="whisper-1", file=f)
-assert t.text.startswith("fake-a heard"), t
-with open(path, "rb") as f:
-    v = c.audio.transcriptions.create(model="fake-b", file=f, response_format="verbose_json", timestamp_granularities=["segment"], language="en", temperature=0.0, prompt="Names: Vella.")
-assert v.segments and v.segments[0].start == 0 and abs(v.segments[-1].end - v.duration) < 1e-6, v
-with open(path, "rb") as f:
-    s = c.audio.transcriptions.create(model="whisper-1", file=f, response_format="srt")
-assert isinstance(s, str) and s.startswith("1\n00:00:00,000 --> "), s
-with open(path, "rb") as f:
-    x = c.audio.transcriptions.create(model="whisper-1", file=f, response_format="text")
-assert isinstance(x, str) and x.startswith("fake-a heard"), x
-try:
-    with open(path, "rb") as f:
-        c.audio.transcriptions.create(model="nope", file=f)
-    raise SystemExit("unknown model accepted")
-except openai.NotFoundError as e:
-    assert e.code == "model_not_found", e
-print("openai", openai.__version__, "ok:", len(ids), "models,", len(v.segments), "segments")
-"""#
+            import sys, openai
+            from openai import OpenAI
+            c = OpenAI(base_url=sys.argv[1], api_key="local", max_retries=0)
+            path = sys.argv[2]
+            ids = [m.id for m in c.models.list()]
+            assert ids == ["fake-a", "fake-b"], ids
+            assert c.models.retrieve("fake-b").id == "fake-b"
+            with open(path, "rb") as f:
+                t = c.audio.transcriptions.create(model="whisper-1", file=f)
+            assert t.text.startswith("fake-a heard"), t
+            with open(path, "rb") as f:
+                v = c.audio.transcriptions.create(model="fake-b", file=f, response_format="verbose_json", timestamp_granularities=["segment"], language="en", temperature=0.0, prompt="Names: Vella.")
+            assert v.segments and v.segments[0].start == 0 and abs(v.segments[-1].end - v.duration) < 1e-6, v
+            with open(path, "rb") as f:
+                s = c.audio.transcriptions.create(model="whisper-1", file=f, response_format="srt")
+            assert isinstance(s, str) and s.startswith("1\n00:00:00,000 --> "), s
+            with open(path, "rb") as f:
+                x = c.audio.transcriptions.create(model="whisper-1", file=f, response_format="text")
+            assert isinstance(x, str) and x.startswith("fake-a heard"), x
+            try:
+                with open(path, "rb") as f:
+                    c.audio.transcriptions.create(model="nope", file=f)
+                raise SystemExit("unknown model accepted")
+            except openai.NotFoundError as e:
+                assert e.code == "model_not_found", e
+            print("openai", openai.__version__, "ok:", len(ids), "models,", len(v.segments), "segments")
+            """#
         let file = api.root.appendingPathComponent("compat.py")
         try script.write(to: file, atomically: true, encoding: .utf8)
-        let (code, out, err) = try await Self.run(URL(fileURLWithPath: python), [file.path, api.base + "/v1", audio.path],
-                                                 environment: ["HOME": NSHomeDirectory(), "PATH": "/usr/bin:/bin", "NO_PROXY": "*"])
+        let (code, out, err) = try await Self.run(
+            URL(fileURLWithPath: python), [file.path, api.base + "/v1", audio.path],
+            environment: ["HOME": NSHomeDirectory(), "PATH": "/usr/bin:/bin", "NO_PROXY": "*"])
         XCTAssertEqual(code, 0, out + err)
         XCTAssertTrue(out.contains("ok: 2 models"), out)
         print(out.trimmingCharacters(in: .whitespacesAndNewlines))

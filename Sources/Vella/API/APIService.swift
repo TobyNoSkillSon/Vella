@@ -29,8 +29,10 @@ import VellaCore
     /// The per-launch secret a JSON `path` request must send as `X-Vella-Token` (from worker-status.json).
     var pathToken: String? { runtime.apiToken }
 
-    init(transcriber: APITranscriber, models: APIModelSource?, scratch: URL,
-         version: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev") {
+    init(
+        transcriber: APITranscriber, models: APIModelSource?, scratch: URL,
+        version: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
+    ) {
         self.transcriber = transcriber; self.models = models; self.scratch = scratch; self.version = version
     }
 
@@ -67,11 +69,12 @@ import VellaCore
         object.removeValue(forKey: "api_token")
         object["dictation"] = dictationState()
         let available = models?.models() ?? []
-        object["dictation_model"] = available.first(where: \.current).map { m -> [String: Any] in
-            var o: [String: Any] = ["id": m.id, "name": m.name, "precision": m.precision]
-            if let s = m.selection { o["selection"] = selectionObject(s) }
-            return o
-        } ?? NSNull()
+        object["dictation_model"] =
+            available.first(where: \.current).map { m -> [String: Any] in
+                var o: [String: Any] = ["id": m.id, "name": m.name, "precision": m.precision]
+                if let s = m.selection { o["selection"] = selectionObject(s) }
+                return o
+            } ?? NSNull()
         object["api_jobs"] = ["running": transcriber.running, "waiting": transcriber.waiting, "completed": transcriber.completed]
         return object
     }
@@ -79,8 +82,10 @@ import VellaCore
     /// `selection`: what the model runs (loaded) or would run (tier, Standard/Optimized, Exact/Fast); `requested_selection`
     /// only when an Optimized selection runs on stock MLX (its self-test failed, or a runtime fallback).
     func modelObject(_ model: APIModel) -> [String: Any] {
-        var o: [String: Any] = ["id": model.id, "object": "model", "created": 0, "owned_by": "vella", "name": model.name, "precision": model.precision,
-                                "languages": model.languages, "loaded": model.loaded, "current": model.current]
+        var o: [String: Any] = [
+            "id": model.id, "object": "model", "created": 0, "owned_by": "vella", "name": model.name, "precision": model.precision,
+            "languages": model.languages, "loaded": model.loaded, "current": model.current
+        ]
         if let s = model.selection { o["selection"] = selectionObject(s) }
         if let r = model.requested { o["requested_selection"] = selectionObject(r) }
         return o
@@ -113,7 +118,8 @@ import VellaCore
         switch request.body {
         case .memory(let data):
             guard let token = pathToken, request.head.headers["x-vella-token"] == token else {
-                throw APIError(403, "a JSON request that names a local file needs X-Vella-Token (api_token in worker-status.json); or upload the file as multipart/form-data", param: "path")
+                throw APIError(
+                    403, "a JSON request that names a local file needs X-Vella-Token (api_token in worker-status.json); or upload the file as multipart/form-data", param: "path")
             }
             let parsed = try TranscriptionOptions.validate(json: data)
             options = parsed.options
@@ -148,13 +154,13 @@ import VellaCore
             cleanup = url; audio = url
             // Written from the mapped body in slices: a 200 MB upload is never copied into memory.
             guard FileManager.default.createFile(atPath: url.path, contents: nil, attributes: [.posixPermissions: 0o600]),
-                  let handle = try? FileHandle(forWritingTo: url) else { throw APIError(507, "Vella could not store the upload") }
+                let handle = try? FileHandle(forWritingTo: url)
+            else { throw APIError(507, "Vella could not store the upload") }
             defer { try? handle.close() }
             var offset = file.range.lowerBound
             while offset < file.range.upperBound {
                 let end = min(offset + 8 << 20, file.range.upperBound)
-                do { try handle.write(contentsOf: data[(data.startIndex + offset)..<(data.startIndex + end)]) }
-                catch { throw APIError(507, "Vella could not store the upload") }
+                do { try handle.write(contentsOf: data[(data.startIndex + offset)..<(data.startIndex + end)]) } catch { throw APIError(507, "Vella could not store the upload") }
                 offset = end
             }
         case .none:
@@ -162,13 +168,16 @@ import VellaCore
         }
         // Resolved again when the request's turn comes and before each segment: the current model and the precision
         // the user committed may change while it waits.
-        let result = try await transcriber.transcribe(audio, resolve: { [weak self] in
-            guard let self else { throw CancellationError() }
-            let chosen = try self.model(for: options)
-            return try self.models?.prepare(chosen) ?? chosen
-        }, current: { [weak self] in (self?.models?.models() ?? []).first(where: \.current)?.id })
-        let rendered = TranscriptFormatter.render(options.format, text: result.text, segments: result.segments,
-                                                  duration: result.duration, language: options.language)
+        let result = try await transcriber.transcribe(
+            audio,
+            resolve: { [weak self] in
+                guard let self else { throw CancellationError() }
+                let chosen = try self.model(for: options)
+                return try self.models?.prepare(chosen) ?? chosen
+            }, current: { [weak self] in (self?.models?.models() ?? []).first(where: \.current)?.id })
+        let rendered = TranscriptFormatter.render(
+            options.format, text: result.text, segments: result.segments,
+            duration: result.duration, language: options.language)
         return APIResponse(status: 200, contentType: rendered.contentType, body: rendered.body)
     }
     private func model(for options: TranscriptionOptions) throws -> APIModel {
@@ -180,7 +189,8 @@ import VellaCore
     /// ".mp3" from "talk.MP3": a hint for AVFoundation's format detection; letters and digits only.
     static func fileExtension(_ filename: String?) -> String {
         guard let ext = filename.map({ URL(fileURLWithPath: $0).pathExtension.lowercased() }), (1...5).contains(ext.count),
-              ext.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) else { return "" }
+            ext.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) })
+        else { return "" }
         return "." + ext
     }
 }

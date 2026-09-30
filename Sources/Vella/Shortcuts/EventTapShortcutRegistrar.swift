@@ -44,10 +44,8 @@ public final class EventTapShortcutRegistrar: ShortcutRegistrar {
             throw VellaError.message("Modifier and mouse shortcuts need Accessibility access. Enable Vella under Accessibility, then try again. Key chords need no access.")
         }
         let mask: CGEventMask =
-            (CGEventMask(1) << CGEventType.flagsChanged.rawValue) |
-            (CGEventMask(1) << CGEventType.keyDown.rawValue) |
-            (CGEventMask(1) << CGEventType.otherMouseDown.rawValue) |
-            (CGEventMask(1) << CGEventType.otherMouseUp.rawValue)
+            (CGEventMask(1) << CGEventType.flagsChanged.rawValue) | (CGEventMask(1) << CGEventType.keyDown.rawValue) | (CGEventMask(1) << CGEventType.otherMouseDown.rawValue)
+            | (CGEventMask(1) << CGEventType.otherMouseUp.rawValue)
         // Transactional allocation: build the replacement BEFORE touching live
         // state, so failure keeps the old registration/handlers.
         let newTap: CFMachPort?
@@ -55,20 +53,24 @@ public final class EventTapShortcutRegistrar: ShortcutRegistrar {
             newTap = override(mask)
         } else {
             let context = Unmanaged.passUnretained(self).toOpaque()
-            newTap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask, callback: { _, type, event, data in
-                guard let data else { return Unmanaged.passUnretained(event) }
-                let registrar = Unmanaged<EventTapShortcutRegistrar>.fromOpaque(data).takeUnretainedValue()
-                // Consume ONLY the configured middle/side click (nil) so it never also
-                // navigates; every other event passes through untouched.
-                if registrar.processTapEvent(type: type, event: event) { return nil }
-                return Unmanaged.passUnretained(event)
-            }, userInfo: context)
+            newTap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask,
+                callback: { _, type, event, data in
+                    guard let data else { return Unmanaged.passUnretained(event) }
+                    let registrar = Unmanaged<EventTapShortcutRegistrar>.fromOpaque(data).takeUnretainedValue()
+                    // Consume ONLY the configured middle/side click (nil) so it never also
+                    // navigates; every other event passes through untouched.
+                    if registrar.processTapEvent(type: type, event: event) { return nil }
+                    return Unmanaged.passUnretained(event)
+                }, userInfo: context)
         }
         guard let newTap else {
-            throw VellaError.message("Could not observe input. If macOS asks for Input Monitoring, approve Vella there; otherwise enable Accessibility. Key chords work without this.")
+            throw VellaError.message(
+                "Could not observe input. If macOS asks for Input Monitoring, approve Vella there; otherwise enable Accessibility. Key chords work without this.")
         }
         guard let newSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, newTap, 0) else {
-            throw VellaError.message("Could not observe input. If macOS asks for Input Monitoring, approve Vella there; otherwise enable Accessibility. Key chords work without this.")
+            throw VellaError.message(
+                "Could not observe input. If macOS asks for Input Monitoring, approve Vella there; otherwise enable Accessibility. Key chords work without this.")
         }
         // Only now replace live state; invalidates queued callbacks.
         // unregisterTapOnly preserves interruption/confirmedPress handlers.
@@ -151,7 +153,7 @@ public final class EventTapShortcutRegistrar: ShortcutRegistrar {
                 if let confirmed, let down { confirmed(down) } else { press?() }
                 release?()
             }
-            // Hold short tap: ignore (too short to be a hold).
+        // Hold short tap: ignore (too short to be a hold).
         case .holdRelease:
             release?()
         case .pending:
@@ -169,14 +171,14 @@ public final class EventTapShortcutRegistrar: ShortcutRegistrar {
         let gen = generation
         let timer = Timer(timeInterval: ModifierSoloReducer.holdDelay, repeats: false) { [weak self] _ in
             guard let self, gen == self.generation, gen == self.holdTimerGeneration,
-                  case .modifierOnly(let key, let side) = self.registered?.trigger else { return }
+                case .modifierOnly(let key, let side) = self.registered?.trigger
+            else { return }
             let behavior = self.registered?.behavior ?? .toggle
             let down = self.soloState.pendingSince
             let out = ModifierSoloReducer.step(state: &self.soloState, event: .holdTimeout(time: self.now()), targetKey: key, targetSide: side, behavior: behavior)
             guard gen == self.generation else { return } // rebind/unregister wins
             if out == .press {
-                if let confirmed = self.confirmedPressHandler, let down { confirmed(down) }
-                else { self.onPress?() }
+                if let confirmed = self.confirmedPressHandler, let down { confirmed(down) } else { self.onPress?() }
             }
         }
         holdTimer = timer
@@ -229,7 +231,8 @@ public final class EventTapShortcutRegistrar: ShortcutRegistrar {
                 let t = now()
                 if contains {
                     var s = soloState
-                    let out = ModifierSoloReducer.step(state: &s, event: .targetDown(key: key, side: side, time: t, sole: sole), targetKey: key, targetSide: side, behavior: config.behavior)
+                    let out = ModifierSoloReducer.step(
+                        state: &s, event: .targetDown(key: key, side: side, time: t, sole: sole), targetKey: key, targetSide: side, behavior: config.behavior)
                     soloState = s
                     if out == .pending, config.behavior != .toggle { scheduleHoldTimer() }
                 } else {

@@ -15,9 +15,13 @@ final class RecipeRuntimeTests: XCTestCase {
     }
     override func tearDownWithError() throws { unsetenv("FAKE_RECIPE_LOG"); try? FileManager.default.removeItem(at: root) }
 
-    private let alpha = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
-        variants: ["BF16": CatalogVariant(id: "alpha-bf16", repository: "org/alpha-bf16", revision: String(repeating: "b", count: 40),
-                                          downloadBytes: 1_200_000_000, architecture: "parakeet")], tiersOffered: ["16"])
+    private let alpha = ModelFamily(
+        id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
+        variants: [
+            "BF16": CatalogVariant(
+                id: "alpha-bf16", repository: "org/alpha-bf16", revision: String(repeating: "b", count: 40),
+                downloadBytes: 1_200_000_000, architecture: "parakeet")
+        ], tiersOffered: ["16"])
 
     @MainActor func testSelectionTravelsToTheWorkerAndChangesReloadIt() async throws {
         _ = NSApplication.shared
@@ -27,9 +31,10 @@ final class RecipeRuntimeTests: XCTestCase {
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: [alpha])).write(to: resources.appendingPathComponent("models.json"))
         let registry = root.appendingPathComponent("support/models-installed.json")
-        let controller = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
-                                          streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
+        let controller = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
         let source = controller.dictation.modelsDirectory.appendingPathComponent("alpha-bf16")
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
@@ -90,8 +95,9 @@ final class RecipeRuntimeTests: XCTestCase {
         XCTAssertEqual(defaultSelection(recorded: nil, precision: "BF16"), .fallback, "never loaded: Optimized 16 · Fast")
         XCTAssertEqual(ModelSelection.fallback, ModelSelection(tier: .t16, path: .optimized, mode: .fast), "fresh installs never land on Standard")
         XCTAssertEqual(defaultSelection(recorded: nil, precision: "8b"), fast, "used before selections: what it ran")
-        XCTAssertEqual(defaultSelection(recorded: ModelSelection(tier: .t16, path: .optimized, mode: .exact), precision: "8b"),
-                       ModelSelection(tier: .t8, path: .optimized, mode: .exact), "the recorded path and switch at the loaded tier")
+        XCTAssertEqual(
+            defaultSelection(recorded: ModelSelection(tier: .t16, path: .optimized, mode: .exact), precision: "8b"),
+            ModelSelection(tier: .t8, path: .optimized, mode: .exact), "the recorded path and switch at the loaded tier")
         XCTAssertEqual(workerRecipe(nil), .optimized_fast)
         XCTAssertEqual(effectiveSelection(ModelSelection(tier: .t16, path: .optimized, mode: .fast), engine: "mlx").segmentKey, .standard)
         XCTAssertEqual(effectiveSelection(ModelSelection(tier: .t16, path: .optimized, mode: .fast), engine: "optimized").segmentKey, .optimized_fast)

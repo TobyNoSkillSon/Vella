@@ -26,9 +26,10 @@ final class PartialDownloadSweepTests: XCTestCase {
     /// A fresh controller and bridge over the fixture's files, as at launch.
     @MainActor private func sweepAtLaunch(_ f: TwoFamilyFixture) {
         let library = f.controller.dictation
-        let fresh = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: library.resources, registryURL: library.registryURL),
-                                     streaming: ModelLibrary(mode: .streaming, resources: library.resources, registryURL: library.registryURL),
-                                     configURL: f.runtime.configURL)
+        let fresh = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: library.resources, registryURL: library.registryURL),
+            streaming: ModelLibrary(mode: .streaming, resources: library.resources, registryURL: library.registryURL),
+            configURL: f.runtime.configURL)
         let bridge = RuntimeBridge(runtime: f.runtime)
         bridge.attach(controller: fresh, model: f.model)
         bridge.sweepPartialDownloads()

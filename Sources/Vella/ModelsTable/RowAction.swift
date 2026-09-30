@@ -97,7 +97,9 @@ final class RowActionView: NSView, NSViewToolTipOwner {
             spec.onDelete()
         } else if spec.enabled {
             spec.onPerform()
-        } else { return }
+        } else {
+            return
+        }
         HostRefresh.after(self)
     }
 
@@ -149,8 +151,9 @@ final class RowActionView: NSView, NSViewToolTipOwner {
         let config = NSImage.SymbolConfiguration(pointSize: size, weight: .regular).applying(.init(paletteColors: [color]))
         guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) else { return }
         let s = image.size
-        image.draw(in: NSRect(x: rect.midX - s.width / 2, y: rect.midY - s.height / 2, width: s.width, height: s.height),
-                   from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        image.draw(
+            in: NSRect(x: rect.midX - s.width / 2, y: rect.midY - s.height / 2, width: s.width, height: s.height),
+            from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
     }
 
     // Accessibility: a button named by its action.
@@ -166,6 +169,10 @@ final class RowActionView: NSView, NSViewToolTipOwner {
     /// Delete, for VoiceOver (the trash glyph shows only under the pointer).
     override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
         guard let spec, spec.deletable, spec.busyText == nil else { return nil }
-        return [NSAccessibilityCustomAction(name: RowAction.deleteHelp) { spec.onDelete(); return true }]
+        return [
+            NSAccessibilityCustomAction(name: RowAction.deleteHelp) {
+                spec.onDelete(); return true
+            }
+        ]
     }
 }

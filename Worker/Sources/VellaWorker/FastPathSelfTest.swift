@@ -12,8 +12,10 @@ extension FastPathGate {
     /// package build keeps it next to the executable.
     static func selfTestClip(_ name: String) -> URL? {
         let bundleName = "VellaWorker_VellaWorker.bundle"
-        let roots = [Bundle.main.resourceURL, Bundle.main.executableURL?.deletingLastPathComponent(),
-                     Bundle.main.executableURL?.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources")]
+        let roots = [
+            Bundle.main.resourceURL, Bundle.main.executableURL?.deletingLastPathComponent(),
+            Bundle.main.executableURL?.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources")
+        ]
         for root in roots.compactMap({ $0 }) {
             for folder in [root.appendingPathComponent(bundleName), root.appendingPathComponent(bundleName).appendingPathComponent("Contents/Resources")] {
                 let url = folder.appendingPathComponent("\(name).wav")
@@ -58,7 +60,9 @@ extension FastPathGate {
             guard model.configureFastPath(enabled: true, component: component) else { debug("unsupported fast modules \(component)"); return SelfTestOutcome(passed: false) }
             let fast = model.qualificationTokens(audio: samples)
             let finite = model.fastPathFinite
-            debug("\(name): fast \(fast.count); finite \(finite); equal \(stock == fast); first different \(Array(zip(stock, fast)).firstIndex(where: { $0.0 != $0.1 }).map(String.init) ?? "none")")
+            debug(
+                "\(name): fast \(fast.count); finite \(finite); equal \(stock == fast); first different \(Array(zip(stock, fast)).firstIndex(where: { $0.0 != $0.1 }).map(String.init) ?? "none")"
+            )
             _ = model.configureFastPath(enabled: false, component: component)
             guard stock == fast, !stock.isEmpty, finite else { return SelfTestOutcome(passed: false) }
             // Stage 2: each tolerant component on top of the exact path, within tolerance.
@@ -72,9 +76,11 @@ extension FastPathGate {
                 let words = FastPathGate.wordEdits(stockWords, model.qualificationWords(tokens))
                 edits[part, default: 0] += words
                 debug("\(name): \(part) \(tokens.count) tokens; finite \(partFinite); word edits \(words)")
-                if !partFinite { failed[part] = "\(name): non-finite or over its deviation bound" }
-                else if tokens.isEmpty { failed[part] = "\(name): empty output" }
-                else if edits[part, default: 0] > FastPathGate.maxTolerantWordEdits {
+                if !partFinite {
+                    failed[part] = "\(name): non-finite or over its deviation bound"
+                } else if tokens.isEmpty {
+                    failed[part] = "\(name): empty output"
+                } else if edits[part, default: 0] > FastPathGate.maxTolerantWordEdits {
                     failed[part] = "word edits \(edits[part, default: 0]) > \(FastPathGate.maxTolerantWordEdits) over the clips"
                 }
             }

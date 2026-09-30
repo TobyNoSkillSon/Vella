@@ -26,8 +26,9 @@ final class DownloadTests: XCTestCase {
     /// Runs `body`, expecting an UpdateError whose message contains `text`, and no work directory left behind.
     private func assertRefused(_ text: String, file: StaticString = #filePath, line: UInt = #line, _ body: () async throws -> Void) async {
         let before = ReleaseFixture.workDirectories()
-        do { try await body(); XCTFail("expected a refusal: \(text)", file: file, line: line) }
-        catch { XCTAssertTrue(error.localizedDescription.contains(text), "\(error.localizedDescription)", file: file, line: line) }
+        do { try await body(); XCTFail("expected a refusal: \(text)", file: file, line: line) } catch {
+            XCTAssertTrue(error.localizedDescription.contains(text), "\(error.localizedDescription)", file: file, line: line)
+        }
         XCTAssertEqual(ReleaseFixture.workDirectories().subtracting(before), [], "nothing left behind", file: file, line: line)
     }
 
@@ -43,8 +44,9 @@ final class DownloadTests: XCTestCase {
     func testCheckFailuresAreWords() async {
         for (status, text) in [(404, "No published release found"), (403, "rate limit"), (500, "HTTP 500")] {
             FakeReleaseServer.serve(ReleaseFixture.api, Data(), status: status)
-            do { _ = try await ReleaseFixture.client().latest(); XCTFail("\(status)") }
-            catch { XCTAssertTrue(error.localizedDescription.contains(text), error.localizedDescription) }
+            do { _ = try await ReleaseFixture.client().latest(); XCTFail("\(status)") } catch {
+                XCTAssertTrue(error.localizedDescription.contains(text), error.localizedDescription)
+            }
         }
     }
 
@@ -170,7 +172,7 @@ final class IdentityTests: XCTestCase {
         let app = try ReleaseFixture.app(at: root.appendingPathComponent("a/Vella.app"), version: "1.0.0")
         XCTAssertNoThrow(try IdentityCheck.codeSatisfies(app, #"identifier "dev.vella.dictation""#))
         XCTAssertThrowsError(try IdentityCheck.codeSatisfies(app, #"identifier "com.example.other""#))
-        XCTAssertThrowsError(try IdentityCheck.codeSatisfies(app, "anchor apple generic"))       // ad-hoc has no certificate
+        XCTAssertThrowsError(try IdentityCheck.codeSatisfies(app, "anchor apple generic")) // ad-hoc has no certificate
         XCTAssertEqual(try NativeInstaller.verifySignedBundle(app), .init("adhoc"))
     }
 
@@ -188,7 +190,9 @@ final class IdentityTests: XCTestCase {
             var identity = IdentityCheck()
             var asked: [String] = []
             identity.signature = { $0 == running ? .init(r) : .init(d) }
-            identity.satisfies = { _, requirement in asked.append(requirement); if !satisfied { throw UpdateError("no") } }
+            identity.satisfies = { _, requirement in
+                asked.append(requirement); if !satisfied { throw UpdateError("no") }
+            }
             try identity.check(downloaded: download, running: running)
             if r != "adhoc" { XCTAssertEqual(asked, [String(dr.dropFirst("designated => ".count))]) }
         }
@@ -216,14 +220,17 @@ final class IdentityTests: XCTestCase {
     }
 
     func testDescribesSelfSignedIdentities() {
-        XCTAssertEqual(IdentityCheck.describe(.init(#"designated => identifier "dev.vella.dictation" and certificate root = H"0a1b2c3d4e5f60718293a4b5c6d7e8f901234567""#)),
-                       "certificate 0a1b2c3d")
+        XCTAssertEqual(
+            IdentityCheck.describe(.init(#"designated => identifier "dev.vella.dictation" and certificate root = H"0a1b2c3d4e5f60718293a4b5c6d7e8f901234567""#)),
+            "certificate 0a1b2c3d")
         XCTAssertEqual(IdentityCheck.describe(.init("adhoc")), "ad-hoc")
     }
 
     func testUnverifiableRunningAppSaysSo() throws {
         var identity = IdentityCheck()
-        identity.signature = { url in if url.path.hasPrefix("/running") { throw NativeInstallError.message("broken") }; return .init("adhoc") }
+        identity.signature = { url in
+            if url.path.hasPrefix("/running") { throw NativeInstallError.message("broken") }; return .init("adhoc")
+        }
         XCTAssertThrowsError(try identity.check(downloaded: URL(fileURLWithPath: "/d/Vella.app"), running: URL(fileURLWithPath: "/running/Vella.app"))) {
             XCTAssertTrue($0.localizedDescription.contains("This Vella's own signature does not verify"))
         }

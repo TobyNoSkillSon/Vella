@@ -112,13 +112,15 @@ import VellaWire
         child.environment = WorkerProcess.environment(recipe: ref.recipe); child.standardInput = stdin; child.standardOutput = stdout
         child.standardError = FileHandle.nullDevice
         frames = 0; committed = ""; partial = ""; buffer.removeAll(); receivedDone = false
-        do { try child.run() }
-        catch { throw VellaError.message("Vella's native streaming helper could not start. Reinstall the app; saved audio is retained. (\(error.localizedDescription))") }
+        do { try child.run() } catch {
+            throw VellaError.message("Vella's native streaming helper could not start. Reinstall the app; saved audio is retained. (\(error.localizedDescription))")
+        }
         let generation = UUID()
         epoch = generation
         process = child; input = stdin.fileHandleForWriting
-        WorkerProcess.forward(stdout.fileHandleForReading, to: { [weak self] data in await self?.receive(data, generation: generation) },
-                              ended: { [weak self] in await self?.ended(generation: generation) })
+        WorkerProcess.forward(
+            stdout.fileHandleForReading, to: { [weak self] data in await self?.receive(data, generation: generation) },
+            ended: { [weak self] in await self?.ended(generation: generation) })
         loadingRef = ref; loadingResidency = residency
         runtime.beginLoading(ref.id)
     }
@@ -174,22 +176,23 @@ import VellaWire
     private func exchange(_ fields: [String: Any]) async throws -> Reply {
         guard pending == nil else { throw VellaError.message("A streaming request is already in progress.") }
         let id = UUID(), generation = epoch
-        return try await withTaskCancellationHandler(operation: {
-            try Task.checkCancellation()
-            return try await withCheckedThrowingContinuation { continuation in
-                pending = (id, continuation)
-                let work = DispatchWorkItem { [weak self] in
-                    guard self?.pending?.0 == id else { return }; self?.fail(URLError(.timedOut))
+        return try await withTaskCancellationHandler(
+            operation: {
+                try Task.checkCancellation()
+                return try await withCheckedThrowingContinuation { continuation in
+                    pending = (id, continuation)
+                    let work = DispatchWorkItem { [weak self] in
+                        guard self?.pending?.0 == id else { return }; self?.fail(URLError(.timedOut))
+                    }
+                    deadline = work; DispatchQueue.main.asyncAfter(deadline: .now() + timeout, execute: work)
+                    do {
+                        guard let input, process?.isRunning == true else { throw VellaError.message("Streaming worker disconnected. Saved audio is retained.") }
+                        var request = fields; request["id"] = id.uuidString
+                        var data = try JSONSerialization.data(withJSONObject: request); data.append(10)
+                        try input.write(contentsOf: data)
+                    } catch { fail(error) }
                 }
-                deadline = work; DispatchQueue.main.asyncAfter(deadline: .now() + timeout, execute: work)
-                do {
-                    guard let input, process?.isRunning == true else { throw VellaError.message("Streaming worker disconnected. Saved audio is retained.") }
-                    var request = fields; request["id"] = id.uuidString
-                    var data = try JSONSerialization.data(withJSONObject: request); data.append(10)
-                    try input.write(contentsOf: data)
-                } catch { fail(error) }
-            }
-        }, onCancel: { [weak self] in Task { @MainActor in if self?.epoch == generation { self?.stop() } } })
+            }, onCancel: { [weak self] in Task { @MainActor in if self?.epoch == generation { self?.stop() } } })
     }
     private func receive(_ data: Data, generation: UUID) {
         guard epoch == generation else { return }
@@ -198,7 +201,8 @@ import VellaWire
         while let newline = buffer.firstIndex(of: 10) {
             let line = Data(buffer.prefix(upTo: newline)); buffer.removeSubrange(...newline)
             if let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any], object["id"] == nil,
-               let status = object["status"] as? [String: Any] {
+                let status = object["status"] as? [String: Any]
+            {
                 if let id = (loadingRef ?? hotRef)?.id { runtime.update(id, worker: HelperStatus(json: status)) }
                 continue
             }
@@ -222,8 +226,7 @@ import VellaWire
             do {
                 if changed || newlyIncomplete { try onEvent?(next, newPartial, incomplete) }
                 if changed { try onUpdate?() }
-            }
-            catch { fail(error); return }
+            } catch { fail(error); return }
             resolve(.success(reply))
         }
     }

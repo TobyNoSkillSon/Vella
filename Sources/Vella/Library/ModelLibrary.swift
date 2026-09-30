@@ -118,12 +118,14 @@ import VellaCore
     @discardableResult
     func migrateRegistry(catalog: ModelCatalog) -> (rekeyed: [String: String], dropped: [String]) {
         guard let data = try? Data(contentsOf: registryURL),
-              var entries = try? JSONDecoder().decode([String: InstalledModel].self, from: data) else { return ([:], []) }
+            var entries = try? JSONDecoder().decode([String: InstalledModel].self, from: data)
+        else { return ([:], []) }
         var rekeyed: [String: String] = [:]
         for (id, entry) in entries.sorted(by: { $0.key < $1.key }) where catalog.locate(variant: id) == nil {
             guard let family = catalog.families.first(where: { $0.precision(ofLegacyID: id) != nil }),
-                  let precision = family.precision(ofLegacyID: id), let variant = family.variants[precision],
-                  entries[variant.id] == nil, checkpointMatches(URL(fileURLWithPath: entry.path), family: family, precision: precision) else { continue }
+                let precision = family.precision(ofLegacyID: id), let variant = family.variants[precision],
+                entries[variant.id] == nil, checkpointMatches(URL(fileURLWithPath: entry.path), family: family, precision: precision)
+            else { continue }
             entries[variant.id] = InstalledModel(path: entry.path, revision: entry.revision, name: family.name, quantization: legacyQuantization(precision))
             entries[id] = nil
             rekeyed[id] = variant.id
@@ -140,9 +142,10 @@ import VellaCore
     /// quantization at the catalog's bits and group size; for 16-bit, unquantized.
     func checkpointMatches(_ folder: URL, family: ModelFamily, precision: String) -> Bool {
         guard let variant = family.variants[precision],
-              let bytes = try? Data(contentsOf: folder.appendingPathComponent("config.json")),
-              let config = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
-              checkpointArchitecture(config) == variant.architecture else { return false }
+            let bytes = try? Data(contentsOf: folder.appendingPathComponent("config.json")),
+            let config = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
+            checkpointArchitecture(config) == variant.architecture
+        else { return false }
         let quant = (config["quantization"] ?? config["quantization_config"]) as? [String: Any]
         guard let bits = variant.bits else { return quant == nil }
         let mode = quant?["mode"] as? String
@@ -172,10 +175,11 @@ import VellaCore
         }
         let root = registryURL.deletingLastPathComponent().appendingPathComponent("Models").standardizedFileURL
         guard !id.isEmpty, id != ".", id != "..", !id.contains("/"),
-              folder == root.appendingPathComponent(id).standardizedFileURL,
-              (try? root.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false,
-              folder.resolvingSymlinksInPath().deletingLastPathComponent() == root.resolvingSymlinksInPath(),
-              (try? folder.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true else {
+            folder == root.appendingPathComponent(id).standardizedFileURL,
+            (try? root.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false,
+            folder.resolvingSymlinksInPath().deletingLastPathComponent() == root.resolvingSymlinksInPath(),
+            (try? folder.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true
+        else {
             return "External, shared or linked model files are protected. Only Vella's own model folders can be deleted here."
         }
         if installed.contains(where: { $0.key != id && URL(fileURLWithPath: $0.value.path).resolvingSymlinksInPath() == folder.resolvingSymlinksInPath() }) {
@@ -193,18 +197,20 @@ import VellaCore
                 guard !wasInstalled else { throw VellaError.message("The model registry changed. Reopen Models and try again.") }
                 installed = [:]
             }
-            guard (installed[id] != nil) == wasInstalled, modelFilePath(id) == expectedPath else { throw VellaError.message("The model changed since confirmation. Reopen Models and try again.") }
+            guard (installed[id] != nil) == wasInstalled, modelFilePath(id) == expectedPath else {
+                throw VellaError.message("The model changed since confirmation. Reopen Models and try again.")
+            }
             if let reason = deletionBlockReason(id) { throw VellaError.message(reason) }
             let old = installed
             let source = URL(fileURLWithPath: expectedPath)
             let trashed = FileManager.default.fileExists(atPath: source.path) ? try trashModel(source) : nil
             installed.removeValue(forKey: id)
-            do { if wasInstalled { try saveRegistry(updating: id) } }
-            catch {
+            do { if wasInstalled { try saveRegistry(updating: id) } } catch {
                 installed = old
                 if let trashed {
-                    do { try FileManager.default.moveItem(at: trashed, to: source) }
-                    catch { throw VellaError.message("Registry update failed. Model files remain recoverable at \(trashed.path). Restore them before using this model.") }
+                    do { try FileManager.default.moveItem(at: trashed, to: source) } catch {
+                        throw VellaError.message("Registry update failed. Model files remain recoverable at \(trashed.path). Restore them before using this model.")
+                    }
                 }
                 throw error
             }
@@ -238,8 +244,10 @@ import VellaCore
     /// relaxing the general "not while dictating" guard. Busy/calibration guards still apply.
     /// `calibrate: false` skips local calibration afterwards (the model loads right away instead).
     @discardableResult
-    func download(approval: DownloadApproval, pendingRecording: Bool = false, calibrate: Bool = true,
-                  completion: ((Bool) -> Void)? = nil) -> Bool {
+    func download(
+        approval: DownloadApproval, pendingRecording: Bool = false, calibrate: Bool = true,
+        completion: ((Bool) -> Void)? = nil
+    ) -> Bool {
         guard let selected, approval.variantID == selected.id else {
             downloadError = "This download was not confirmed."; return false
         }
@@ -255,8 +263,10 @@ import VellaCore
         busy = true; progress = nil; message = "\(label) \u{00b7} Starting…"
         downloadCompletion = completion
         let token = UUID(); downloadToken = token
-        let client = NativeModelDownload(baseURL: downloadBaseURL, configuration: downloadConfiguration,
-            catalogURL: resources.appendingPathComponent(catalogName)) { [weak self] text, done, total in
+        let client = NativeModelDownload(
+            baseURL: downloadBaseURL, configuration: downloadConfiguration,
+            catalogURL: resources.appendingPathComponent(catalogName)
+        ) { [weak self] text, done, total in
             Task { @MainActor [weak self] in
                 guard let self, self.downloadToken == token else { return }
                 var line = "\(label) \u{00b7} \(text)"
@@ -279,7 +289,8 @@ import VellaCore
                 guard let self else { return }
                 let folder = try await client.download(selected, modelsDirectory: self.modelsDirectory)
                 guard self.downloadToken == token, !Task.isCancelled,
-                      selected.id == self.downloadingID, folder.standardizedFileURL == self.modelsDirectory.appendingPathComponent(selected.id).standardizedFileURL else { return }
+                    selected.id == self.downloadingID, folder.standardizedFileURL == self.modelsDirectory.appendingPathComponent(selected.id).standardizedFileURL
+                else { return }
                 try NativeModelDownload.validate(folder, expected: selected)
                 // A stored conversion (Parakeet v3: the FP32 download becomes BF16 once, only BF16 is kept).
                 if let (family, precision) = self.catalog?.locate(variant: selected.id), let variant = family.variants[precision], variant.isStored {
@@ -300,7 +311,7 @@ import VellaCore
                 } catch { self.installed[selected.id] = previous; throw error }
             } catch {
                 guard let self else { return }
-                let current = self.downloadToken == token   // false: cancel() already reported and completed it
+                let current = self.downloadToken == token // false: cancel() already reported and completed it
                 if current {
                     self.downloadTimeout?.cancel(); self.downloadTimeout = nil
                     self.downloadingID = nil; self.busy = false; self.downloadToken = nil; self.downloadTask = nil; self.downloadClient = nil
@@ -308,7 +319,9 @@ import VellaCore
                 // A cancelled or failed download leaves no partial files (unless a newer download of it is running).
                 self.removePartialDownload(selected.id)
                 guard current else { return }
-                self.message = error is CancellationError ? "\(label) download cancelled; partial files removed."
+                self.message =
+                    error is CancellationError
+                    ? "\(label) download cancelled; partial files removed."
                     : "\(label) download failed: \(Self.reason(error)) Partial files removed."
                 self.downloadError = self.message
                 self.finishDownload(false)
@@ -367,10 +380,16 @@ import VellaCore
     }
     var agentRequest: String {
         let docs = resources.appendingPathComponent("AGENT_GUIDE.md").path
-        let candidates = [resources.deletingLastPathComponent(), resources.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()]
-        let checkout = candidates.first { FileManager.default.fileExists(atPath: $0.appendingPathComponent("Package.swift").path) && FileManager.default.fileExists(atPath: $0.appendingPathComponent("README.md").path) }
+        let candidates = [
+            resources.deletingLastPathComponent(), resources.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        ]
+        let checkout = candidates.first {
+            FileManager.default.fileExists(atPath: $0.appendingPathComponent("Package.swift").path)
+                && FileManager.default.fileExists(atPath: $0.appendingPathComponent("README.md").path)
+        }
         let source = checkout.map { " Source checkout: \($0.path); read its README.md." } ?? ""
-        return "Help me install another \(mode.title.lowercased()) transcription model in Vella. First read the local integration guide at \(docs).\(source) Follow its compatibility, download and setup instructions. Preserve my working model and permissions; ask before switching models. Model I want: [describe it here]."
+        return
+            "Help me install another \(mode.title.lowercased()) transcription model in Vella. First read the local integration guide at \(docs).\(source) Follow its compatibility, download and setup instructions. Preserve my working model and permissions; ask before switching models. Model I want: [describe it here]."
     }
     @discardableResult func copyAgentRequest(to pasteboard: NSPasteboard = .general) -> Bool {
         pasteboard.clearContents()
@@ -407,10 +426,12 @@ import VellaCore
                 try await prepareForCalibration?()
                 try Task.checkCancellation()
                 guard mayChangeModel() else { throw CancellationError() }
-                let started = calibration.calibrate(modelPath: path, status: { [weak self] in self?.message = $0 }, completion: { [weak self] error in
-                    self?.calibratingID = nil; self?.busy = false; self?.downloadError = error
-                    self?.message = error ?? "Installed and calibrated. Choose Use to select it for dictation."
-                })
+                let started = calibration.calibrate(
+                    modelPath: path, status: { [weak self] in self?.message = $0 },
+                    completion: { [weak self] error in
+                        self?.calibratingID = nil; self?.busy = false; self?.downloadError = error
+                        self?.message = error ?? "Installed and calibrated. Choose Use to select it for dictation."
+                    })
                 if !started { calibratingID = nil; busy = false }
             } catch {
                 calibratingID = nil; busy = false

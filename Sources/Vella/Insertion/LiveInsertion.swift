@@ -26,7 +26,8 @@ final class LiveInsertion {
         guard !stopped else { return }
         // Count bounded prefixes rather than traversing an arbitrarily large rejected input.
         guard committed.utf8.prefix(Self.maximumPendingUTF8 + 1).count <= Self.maximumPendingUTF8,
-              partial.utf8.prefix(Self.maximumTailUTF8).count < Self.maximumTailUTF8 else {
+            partial.utf8.prefix(Self.maximumTailUTF8).count < Self.maximumTailUTF8
+        else {
             pause("Streaming insertion input exceeded its bounded window."); return
         }
         let committed = Self.sanitize(committed).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -102,7 +103,8 @@ final class LiveInsertion {
         let boundaryProbe = lastPostedCharacter + suffix
         let boundary = boundaryProbe.utf16.index(boundaryProbe.utf16.startIndex, offsetBy: lastPostedCharacter.utf16.count)
         guard let index = String.Index(boundary, within: boundaryProbe),
-              index == boundaryProbe.endIndex || boundaryProbe.indices.contains(index) else {
+            index == boundaryProbe.endIndex || boundaryProbe.indices.contains(index)
+        else {
             pause("Streaming text extended an already sent grapheme."); return
         }
         queued = "" // uncertain sends are never put back in the queue
@@ -135,7 +137,8 @@ final class LiveInsertion {
         var previousWasSpace = false
         for scalar in text.unicodeScalars {
             let v = scalar.value
-            let safe = (v < 0x20 || (0x7F...0x9F).contains(v) || v == 0x2028 || v == 0x2029)
+            let safe =
+                (v < 0x20 || (0x7F...0x9F).contains(v) || v == 0x2028 || v == 0x2029)
                 ? Unicode.Scalar(0x20)! : scalar
             let isSpace = safe.value == 0x20
             if !isSpace || !previousWasSpace { result.append(safe) }
@@ -182,7 +185,8 @@ final class LiveInsertion {
     /// Event construction is separate so tests can verify provenance without posting.
     static func nativeEvents(for chunk: String) throws -> (CGEvent, CGEvent) {
         guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),
-              let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false) else {
+            let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)
+        else {
             throw DeliveryError.eventCreation
         }
         let units = Array(chunk.utf16)

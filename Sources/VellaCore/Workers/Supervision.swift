@@ -53,7 +53,8 @@ public enum StraySweep {
         let me = getpid()
         return allPIDs().compactMap { pid -> Match? in
             guard pid > 0, pid != me, !except.contains(pid), let path = executablePath(pid),
-                  let identity = FileIdentity(URL(fileURLWithPath: path)), targets.contains(identity) else { return nil }
+                let identity = FileIdentity(URL(fileURLWithPath: path)), targets.contains(identity)
+            else { return nil }
             let parent = parentPID(pid) ?? 0
             if orphansOnly && parent != 1 { return nil }
             return Match(pid: pid, parent: parent, path: path)
@@ -62,8 +63,10 @@ public enum StraySweep {
 
     /// SIGTERM each match, SIGKILL survivors after `grace`; logs one line per process. Returns the pids stopped.
     @discardableResult
-    public static func sweep(executables: [URL], except: Set<pid_t> = [], orphansOnly: Bool = true,
-                             grace: TimeInterval = 2, log: (String) -> Void = { _ in }) -> [pid_t] {
+    public static func sweep(
+        executables: [URL], except: Set<pid_t> = [], orphansOnly: Bool = true,
+        grace: TimeInterval = 2, log: (String) -> Void = { _ in }
+    ) -> [pid_t] {
         let found = matching(executables: executables, except: except, orphansOnly: orphansOnly)
         for process in found {
             log("Stopping stray helper pid \(process.pid) (parent \(process.parent)): \(process.path)")

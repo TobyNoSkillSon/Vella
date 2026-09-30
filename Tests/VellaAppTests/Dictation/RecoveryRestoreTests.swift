@@ -33,12 +33,14 @@ final class RecoveryRestoreTests: XCTestCase {
         let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
         var release: CheckedContinuation<Void, Never>?
         let backend = f.backend
-        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { url, config in
-            let text = try await backend.transcribe(url, config: config)
-            await withCheckedContinuation { release = $0 } // the segment has its text; the recovery has not resumed
-            if end == .failed { throw Failure() }
-            return text
-        }, configurationURL: f.runtime.configURL, streamingBackend: f.stream, backend: f.backend)
+        let model = DictationController(
+            pasteboard: pasteboard,
+            transcriptionRequest: { url, config in
+                let text = try await backend.transcribe(url, config: config)
+                await withCheckedContinuation { release = $0 } // the segment has its text; the recovery has not resumed
+                if end == .failed { throw Failure() }
+                return text
+            }, configurationURL: f.runtime.configURL, streamingBackend: f.stream, backend: f.backend)
         model.recover(saved.directory)
         let until = Date().addingTimeInterval(5)
         while release == nil, Date() < until { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -68,8 +70,10 @@ final class RecoveryRestoreTests: XCTestCase {
         while !condition() && Date() < until { try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertTrue(condition())
     }
-    @MainActor private func assertAlpha(_ f: TwoFamilyFixture, selected precision: String, loaded: String?, launch: [String],
-                                        _ context: String) throws {
+    @MainActor private func assertAlpha(
+        _ f: TwoFamilyFixture, selected precision: String, loaded: String?, launch: [String],
+        _ context: String
+    ) throws {
         XCTAssertEqual(try f.config().model, try f.path(f.alpha, precision), "selected, " + context)
         XCTAssertEqual(f.runtime.loadedRef("alpha")?.precision, loaded, "loaded, " + context)
         XCTAssertEqual(f.runtime.settings.launchSet.map(\.precision), launch, "launch set, " + context)

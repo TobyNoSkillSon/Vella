@@ -143,9 +143,9 @@ final class RuntimeTests: XCTestCase {
         // Cannot fit even after unloading everything: nothing is unloaded, the refusal names need, free, ways out.
         try runtime.setAvailableMB(2_500) // raw = 500; + 2,000 reclaimable = 2,500 ≥ 1,512 would fit…
         try runtime.setAvailableMB(1_400) // raw = −600; + 2,000 = 1,400 < 1,512: refuse
-        do { _ = try await backend.transcribe(try wav(), config: Configuration(model: try model("delta").path)); XCTFail("admitted") }
-        catch {
-            XCTAssertEqual(error.localizedDescription, "delta at 8-bit needs ~1.5 GB; ~0.0 GB free without swapping. Unload alpha or gamma, pick 4-bit, or allow swap in Vella → Memory.")
+        do { _ = try await backend.transcribe(try wav(), config: Configuration(model: try model("delta").path)); XCTFail("admitted") } catch {
+            XCTAssertEqual(
+                error.localizedDescription, "delta at 8-bit needs ~1.5 GB; ~0.0 GB free without swapping. Unload alpha or gamma, pick 4-bit, or allow swap in Vella → Memory.")
         }
         XCTAssertEqual(Set(try fileStatus(runtime).models.keys), ["alpha", "gamma"])
         XCTAssertEqual(try fileStatus(runtime).refused?.model, "delta")
@@ -169,7 +169,7 @@ final class RuntimeTests: XCTestCase {
         let backend = try pair(runtime); defer { backend.shutdown() }
         runtime.start()
         try await runtime.load(runtime.resolve(try model("alpha").path, mode: .dictation))
-        do { try await runtime.load(runtime.resolve(try model("alpha@loadfail").path, mode: .dictation)); XCTFail() } catch { }
+        do { try await runtime.load(runtime.resolve(try model("alpha@loadfail").path, mode: .dictation)); XCTFail() } catch {}
         XCTAssertEqual(try fileStatus(runtime).models["alpha"]?.precision, "8b")
         XCTAssertEqual(try fileStatus(runtime).models["alpha"]?.residency, "manual")
         XCTAssertEqual(try config(runtime).residency.launchSet.map(\.precision), ["8b"])
@@ -188,7 +188,9 @@ final class RuntimeTests: XCTestCase {
         for _ in 0..<3 {
             let next = try XCTUnwrap((try? fileStatus(runtime))?.models["alpha"]?.pid)
             kill(next, SIGKILL)
-            try await waitUntil(10) { let s = try? self.fileStatus(runtime); return s?.models["alpha"] != nil && s?.models["alpha"]?.pid != next || s?.error?.contains("Stopped restarting") == true }
+            try await waitUntil(10) {
+                let s = try? self.fileStatus(runtime); return s?.models["alpha"] != nil && s?.models["alpha"]?.pid != next || s?.error?.contains("Stopped restarting") == true
+            }
         }
         try await waitUntil(10) { (try? self.fileStatus(runtime))?.error?.contains("Stopped restarting alpha after 3 attempts") == true }
         XCTAssertNil(try fileStatus(runtime).models["alpha"])
@@ -204,8 +206,12 @@ final class RuntimeTests: XCTestCase {
         try JSONEncoder().encode(Configuration(model: "")).write(to: configURL)
         let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
         var requested: [String] = []
-        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { _, config in requested.append(config.model); return "hello from the new model" },
-                          configurationURL: configURL)
+        let model = DictationController(
+            pasteboard: pasteboard,
+            transcriptionRequest: { _, config in
+                requested.append(config.model); return "hello from the new model"
+            },
+            configurationURL: configURL)
         defer { model.shutdown() }
         let session = try RecordingSession(root: root.appendingPathComponent("rec2"), config: Configuration(model: ""))
         let writer = try SegmentedPCMWriter(session: session)
@@ -214,7 +220,9 @@ final class RuntimeTests: XCTestCase {
         let modelDir = try self.model("parakeet")
         model.offerModel = { mode in DictationController.ModelOffer(id: "parakeet-v3-4b", name: "Parakeet v3", downloadBytes: 1_300_000_000, mode: mode) }
         var fetched: [String] = []
-        model.fetchModel = { offer in fetched.append(offer.id); return modelDir.path }
+        model.fetchModel = { offer in
+            fetched.append(offer.id); return modelDir.path
+        }
         model.recover(session.directory)
         try await waitUntil { model.pendingModelRequest != nil }
         XCTAssertEqual(model.phase, .failed)

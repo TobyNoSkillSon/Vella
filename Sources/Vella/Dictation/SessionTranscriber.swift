@@ -5,7 +5,8 @@ struct TranscriptionEstimate {
     /// Decide once for the pending job; don't flicker off as its remaining time falls.
     static func shouldDisplay(pendingAudioSeconds: Double, speed: Double?) -> Bool {
         guard pendingAudioSeconds.isFinite, pendingAudioSeconds > 0,
-              let speed, speed.isFinite, speed > 0 else { return false }
+            let speed, speed.isFinite, speed > 0
+        else { return false }
         return pendingAudioSeconds / speed > 5
     }
     let totalSeconds: Double
@@ -46,8 +47,7 @@ struct TranscriptionEstimate {
             var retried = false
             var recognized = ""
             while true {
-                do { recognized = try await request(file, session.manifest.config); break }
-                catch is WorkerExited where !retried {
+                do { recognized = try await request(file, session.manifest.config); break } catch is WorkerExited where !retried {
                     // One automatic retry of this segment on a fresh worker. Finished segments are already saved;
                     // the caller's Finish-time destination and paste decision are untouched (this stays inside
                     // the same transcription). A second failure falls through to the manual Retry.
@@ -90,8 +90,7 @@ struct TranscriptionEstimate {
                     session.manifest.segments[index].quietSlices = nil
                 }
                 // One save: the unit's texts land together, so it is recognized, and its text used, exactly once.
-                do { try session.save() }
-                catch { session.manifest.segments.replaceSubrange(merge.segments, with: unit); throw error }
+                do { try session.save() } catch { session.manifest.segments.replaceSubrange(merge.segments, with: unit); throw error }
                 completed += seconds
                 continue
             }
@@ -108,8 +107,7 @@ struct TranscriptionEstimate {
             session.manifest.segments[i].text = text
             session.manifest.segments[i].textThroughIndex = nil
             session.manifest.segments[i].quietSlices = nil
-            do { try session.save() }
-            catch { session.manifest.segments[i] = segment; throw error }
+            do { try session.save() } catch { session.manifest.segments[i] = segment; throw error }
             completed += segment.seconds
         }
         try Task.checkCancellation()

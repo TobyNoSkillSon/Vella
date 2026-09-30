@@ -11,7 +11,8 @@ final class VellaWireTests: XCTestCase {
     }
 
     func testGateRecordRoundTripsTheGatesFile() throws {
-        let file = #"{"status":"fast","workerVersion":"native-kernels-10","gpuFamily":"apple9","osBuild":"25G72","date":"2026-09-29T20:14:03Z","model":"parakeet-ultra-bf16","reason":"optimized without nax_gemm (word edits 3 > 1)","disabled.nax_gemm":"word edits 3 > 1"}"#
+        let file =
+            #"{"status":"fast","workerVersion":"native-kernels-10","gpuFamily":"apple9","osBuild":"25G72","date":"2026-09-29T20:14:03Z","model":"parakeet-ultra-bf16","reason":"optimized without nax_gemm (word edits 3 > 1)","disabled.nax_gemm":"word edits 3 > 1"}"#
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(file.utf8)) as? [String: Any])
         let record = try XCTUnwrap(GateRecord(json: object))
         XCTAssertEqual(record.status, .fast)
@@ -34,7 +35,8 @@ final class VellaWireTests: XCTestCase {
     }
 
     func testHelperStatusReadsAndWritesTheSameObject() throws {
-        let line = #"{"status":{"architecture":"stub","disabled_components":{"nax_gemm":"word edits 3 > 1"},"engine":"optimized","engine_reason":null,"event":"load","gpu":{"chip":"Apple M5 Max","family":"apple9"},"load_s":0.025,"memory":{"footprint_mb":9.5,"mlx_active_mb":0,"mlx_cache_mb":0},"model":"/m/stub","optimizations":{"stub":true},"pid":4792,"recipe":"optimized_fast","test_hooks":{"VELLA_STUB_MODELS":"1"},"version":"native-kernels-10","worker":"dictation"}}"#
+        let line =
+            #"{"status":{"architecture":"stub","disabled_components":{"nax_gemm":"word edits 3 > 1"},"engine":"optimized","engine_reason":null,"event":"load","gpu":{"chip":"Apple M5 Max","family":"apple9"},"load_s":0.025,"memory":{"footprint_mb":9.5,"mlx_active_mb":0,"mlx_cache_mb":0},"model":"/m/stub","optimizations":{"stub":true},"pid":4792,"recipe":"optimized_fast","test_hooks":{"VELLA_STUB_MODELS":"1"},"version":"native-kernels-10","worker":"dictation"}}"#
         let object = try XCTUnwrap((JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])?["status"] as? [String: Any])
         let status = HelperStatus(json: object)
         XCTAssertEqual(status.worker, .dictation); XCTAssertEqual(status.pid, 4792); XCTAssertEqual(status.engine, "optimized")
@@ -42,10 +44,15 @@ final class VellaWireTests: XCTestCase {
         XCTAssertEqual(status.testHooks, ["VELLA_STUB_MODELS": "1"]); XCTAssertEqual(status.disabledComponents, ["nax_gemm": "word edits 3 > 1"])
         XCTAssertEqual(status.jsonObject as NSDictionary, object as NSDictionary)
         // A streaming line has no architecture or GPU; empty hooks are omitted.
-        let streaming = HelperStatus(worker: .streaming, pid: 1, version: "v", event: "unload", model: nil, engine: nil, engineReason: nil,
-                                     optimizations: [:], loadSeconds: nil, memory: .init(footprintMB: nil, mlxActiveMB: 0, mlxCacheMB: 0), recipe: "standard")
-        XCTAssertEqual(Set(streaming.jsonObject.keys), ["worker", "pid", "version", "event", "model", "engine", "engine_reason",
-                                                         "optimizations", "load_s", "memory", "recipe"])
+        let streaming = HelperStatus(
+            worker: .streaming, pid: 1, version: "v", event: "unload", model: nil, engine: nil, engineReason: nil,
+            optimizations: [:], loadSeconds: nil, memory: .init(footprintMB: nil, mlxActiveMB: 0, mlxCacheMB: 0), recipe: "standard")
+        XCTAssertEqual(
+            Set(streaming.jsonObject.keys),
+            [
+                "worker", "pid", "version", "event", "model", "engine", "engine_reason",
+                "optimizations", "load_s", "memory", "recipe"
+            ])
         XCTAssertEqual(HelperStatus(json: ["pid": "x", "engine": 3]).pid, nil, "a wrong type counts as absent")
     }
 

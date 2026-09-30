@@ -109,30 +109,35 @@ struct WorkerExited: LocalizedError {
         let call = UUID(); activeCall = call; activeLane = lane
         let generation = stopGeneration
         defer { if activeCall == call { activeCall = nil; activeLane = nil; activeSlot = nil } }
-        return try await withTaskCancellationHandler(operation: {
-            try Task.checkCancellation()
-            try await CalibrationStore.shared.cancelAndWait()
-            try checkStartup(generation)
-            let ref = runtime.resolve(config.model, mode: .dictation)
-            if lane == .api, !isReady(ref) { throw ModelNotReady() }
-            let slot = try await ensureSlot(ref, residency: runtime.residencyForRequest(ref), generation: generation)
-            try checkStartup(generation)
-            try Task.checkCancellation()
-            runtime.pin(ref.id); defer { runtime.unpin(ref.id) }
-            activeSlot = slot; lastSlot = ref.id
-            let object = try await send(slot, ["audio": file.path, "model": slot.ref.path], timeout: requestTimeout)
-            lastMetrics = (object["metrics"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? NSNumber)?.doubleValue }
-            if let error = object["error"] as? [String: Any] {
-                retire(slot)
-                throw VellaError.message(error["code"] as? String == "memory"
-                    ? "This model needs more available memory. Choose a smaller model; saved audio is retained."
-                    : "Local inference failed. Saved audio is retained; try again or choose another model.")
-            }
-            guard let text = object["text"] as? String else { failProtocol(slot); throw VellaError.message("Vella received an invalid worker response. Saved audio is retained.") }
-            return text.trimmingCharacters(in: .whitespacesAndNewlines)
-        }, onCancel: { [weak self] in
-            Task { @MainActor in if self?.activeCall == call { self?.stop() } }
-        })
+        return try await withTaskCancellationHandler(
+            operation: {
+                try Task.checkCancellation()
+                try await CalibrationStore.shared.cancelAndWait()
+                try checkStartup(generation)
+                let ref = runtime.resolve(config.model, mode: .dictation)
+                if lane == .api, !isReady(ref) { throw ModelNotReady() }
+                let slot = try await ensureSlot(ref, residency: runtime.residencyForRequest(ref), generation: generation)
+                try checkStartup(generation)
+                try Task.checkCancellation()
+                runtime.pin(ref.id); defer { runtime.unpin(ref.id) }
+                activeSlot = slot; lastSlot = ref.id
+                let object = try await send(slot, ["audio": file.path, "model": slot.ref.path], timeout: requestTimeout)
+                lastMetrics = (object["metrics"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? NSNumber)?.doubleValue }
+                if let error = object["error"] as? [String: Any] {
+                    retire(slot)
+                    throw VellaError.message(
+                        error["code"] as? String == "memory"
+                            ? "This model needs more available memory. Choose a smaller model; saved audio is retained."
+                            : "Local inference failed. Saved audio is retained; try again or choose another model.")
+                }
+                guard let text = object["text"] as? String else {
+                    failProtocol(slot); throw VellaError.message("Vella received an invalid worker response. Saved audio is retained.")
+                }
+                return text.trimmingCharacters(in: .whitespacesAndNewlines)
+            },
+            onCancel: { [weak self] in
+                Task { @MainActor in if self?.activeCall == call { self?.stop() } }
+            })
     }
 
     /// A family's residency at one moment: its loaded model and class, its launch-set entry, and the count of the
@@ -145,8 +150,9 @@ struct WorkerExited: LocalizedError {
         let userChanges: Int
     }
     func residency(of id: String) -> FamilyResidency {
-        FamilyResidency(id: id, loaded: runtime.loadedRef(id), residency: runtime.loadedResidency(id),
-                        launchEntry: runtime.settings.launchSet.first { $0.id == id }, userChanges: runtime.userChangeCount(id))
+        FamilyResidency(
+            id: id, loaded: runtime.loadedRef(id), residency: runtime.loadedResidency(id),
+            launchEntry: runtime.settings.launchSet.first { $0.id == id }, userChanges: runtime.userChangeCount(id))
     }
     /// After `used`, another precision of a family, served a request in place of what `before` recorded (one worker
     /// per family): reload the recorded precision if it was loaded, else unload `used`, and put the launch-set entry
@@ -225,20 +231,23 @@ struct WorkerExited: LocalizedError {
         child.environment = WorkerProcess.environment(recipe: ref.recipe); child.standardInput = stdin; child.standardOutput = stdout
         // Third-party diagnostics can contain speech; never persist them.
         child.standardError = FileHandle.nullDevice
-        do { try child.run() }
-        catch { throw VellaError.message("Vella's native dictation helper could not start. Reinstall the app; saved audio is retained. (\(error.localizedDescription))") }
+        do { try child.run() } catch {
+            throw VellaError.message("Vella's native dictation helper could not start. Reinstall the app; saved audio is retained. (\(error.localizedDescription))")
+        }
         let slot = DictationSlot(ref: ref, process: child, input: stdin.fileHandleForWriting)
         slots[ref.id] = slot; lastSlot = ref.id; ownership = "Vella private worker"
-        WorkerProcess.forward(stdout.fileHandleForReading, to: { [weak self] data in await self?.receive(data, slot: slot) },
-                              ended: { [weak self] in await self?.ended(slot) })
+        WorkerProcess.forward(
+            stdout.fileHandleForReading, to: { [weak self] data in await self?.receive(data, slot: slot) },
+            ended: { [weak self] in await self?.ended(slot) })
         runtime.beginLoading(ref.id)
         do {
             try checkStartup(generation)
             let reply = try await send(slot, ["op": "load", "model": ref.path], timeout: requestTimeout)
             if let error = reply["error"] as? [String: Any] {
-                throw VellaError.message(error["code"] as? String == "memory"
-                    ? "\(ref.displayName) needs more available memory than macOS could give. Saved audio is retained; choose a smaller model."
-                    : "\(ref.displayName) failed to load. Saved audio is retained; try again or choose another model.")
+                throw VellaError.message(
+                    error["code"] as? String == "memory"
+                        ? "\(ref.displayName) needs more available memory than macOS could give. Saved audio is retained; choose a smaller model."
+                        : "\(ref.displayName) failed to load. Saved audio is retained; try again or choose another model.")
             }
         } catch {
             retire(slot)

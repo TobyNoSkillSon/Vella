@@ -8,7 +8,8 @@ final class HUDTests: XCTestCase {
     @MainActor func testFailureCategoriesPersistAndSuccessfulRecoveryClearsThem() async throws {
         let cases: [(Float, Error, String)] = [
             (0.1, URLError(.timedOut), "timeout"),
-            (0.1, VellaError.message("Fixture failure"), "local_failure")]
+            (0.1, VellaError.message("Fixture failure"), "local_failure")
+        ]
         for (level, error, code) in cases {
             let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-failure-fixture-\(UUID())")
             defer { try? FileManager.default.removeItem(at: root) }
@@ -19,9 +20,11 @@ final class HUDTests: XCTestCase {
             let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
             let failed = expectation(description: code)
             var shouldFail = true
-            let model = DictationController(pasteboard: clipboard, transcriptionRequest: { _, _ in
-                if shouldFail { throw error }; return "Recovered fixture speech."
-            })
+            let model = DictationController(
+                pasteboard: clipboard,
+                transcriptionRequest: { _, _ in
+                    if shouldFail { throw error }; return "Recovered fixture speech."
+                })
             model.onChange = { if model.phase == .failed { failed.fulfill() } }
             model.recover(session.directory)
             await fulfillment(of: [failed], timeout: 2)
@@ -50,9 +53,11 @@ final class HUDTests: XCTestCase {
         clipboard.setString("Keep the clipboard", forType: .string)
         let count = clipboard.changeCount
         let settled = expectation(description: "Silence is a normal no-op")
-        let model = DictationController(pasteboard: clipboard, transcriptionRequest: { _, _ in
-            return ""
-        })
+        let model = DictationController(
+            pasteboard: clipboard,
+            transcriptionRequest: { _, _ in
+                return ""
+            })
         model.onChange = {
             XCTAssertNotEqual(model.phase, .failed)
             if model.phase == .idle && model.message.contains("No speech") { settled.fulfill() }
@@ -141,10 +146,12 @@ final class HUDTests: XCTestCase {
 
     func testWarningWigglesThenUsesTheExistingCollapse() {
         XCTAssertLessThan(HUDView.failureDwell, 0.7)
-        XCTAssertNotEqual(WaveformMotion.warning(age: 0.05, reduced: false),
-                          WaveformMotion.warning(age: 0.12, reduced: false))
-        XCTAssertEqual(WaveformMotion.warning(age: 0.50, reduced: false),
-                       WaveformMotion.sample(entryAge: 2, finishAge: 0.50 - WaveformMotion.warningWiggleDuration, reduced: false))
+        XCTAssertNotEqual(
+            WaveformMotion.warning(age: 0.05, reduced: false),
+            WaveformMotion.warning(age: 0.12, reduced: false))
+        XCTAssertEqual(
+            WaveformMotion.warning(age: 0.50, reduced: false),
+            WaveformMotion.sample(entryAge: 2, finishAge: 0.50 - WaveformMotion.warningWiggleDuration, reduced: false))
         XCTAssertEqual(WaveformMotion.warning(age: HUDView.failureDwell, reduced: false).opacity, 0)
         for age in [0.0, 0.1, 0.5] {
             XCTAssertEqual(WaveformMotion.warning(age: age, reduced: true), WaveformMotion())
@@ -157,19 +164,22 @@ final class HUDTests: XCTestCase {
         let model = DictationController(pasteboard: clipboard); model.phase = .failed
         var frames: [Data] = []
         for (name, age) in [("warning-a", 0.05), ("warning-b", 0.13), ("warning-collapse", 0.50), ("warning-gone", HUDView.failureDwell)] {
-            let renderer = ImageRenderer(content: HUDView(model: model, previewTime: 1,
-                previewEntryAge: 2, previewFinishAge: age))
+            let renderer = ImageRenderer(
+                content: HUDView(
+                    model: model, previewTime: 1,
+                    previewEntryAge: 2, previewFinishAge: age))
             renderer.scale = 2
             let image = try XCTUnwrap(renderer.cgImage)
             let bitmap = NSBitmapImageRep(cgImage: image)
             var colored = 0, visible = 0
-            for y in 0..<image.height { for x in 0..<image.width {
-                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB), color.alphaComponent > 0.1 else { continue }
-                visible += 1
-                if color.redComponent > color.blueComponent + 0.08 { colored += 1 }
-            } }
-            if name == "warning-gone" { XCTAssertEqual(visible, 0) }
-            else { XCTAssertGreaterThan(colored, 30) }
+            for y in 0..<image.height {
+                for x in 0..<image.width {
+                    guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB), color.alphaComponent > 0.1 else { continue }
+                    visible += 1
+                    if color.redComponent > color.blueComponent + 0.08 { colored += 1 }
+                }
+            }
+            if name == "warning-gone" { XCTAssertEqual(visible, 0) } else { XCTAssertGreaterThan(colored, 30) }
             frames.append(try XCTUnwrap(image.dataProvider?.data as Data?))
             if let output = ProcessInfo.processInfo.environment["VELLA_HUD_QA_DIR"] {
                 let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
@@ -186,11 +196,13 @@ final class HUDTests: XCTestCase {
         var drain: CheckedContinuation<Void, Error>?
         let started = expectation(description: "Capture drain started")
         let failed = expectation(description: "Missing fixture journal is reported without insertion")
-        let model = DictationController(pasteboard: clipboard, stopCapture: { _ in
-            try await withCheckedThrowingContinuation { continuation in
-                drain = continuation; started.fulfill()
-            }
-        })
+        let model = DictationController(
+            pasteboard: clipboard,
+            stopCapture: { _ in
+                try await withCheckedThrowingContinuation { continuation in
+                    drain = continuation; started.fulfill()
+                }
+            })
         model.update(.recording, "Fixture; no microphone")
         model.audioLevel = 0.7
         model.finish()
@@ -212,11 +224,13 @@ final class HUDTests: XCTestCase {
         var drain: CheckedContinuation<Void, Error>?
         let started = expectation(description: "Capture drain started")
         let settled = expectation(description: "Cancellation settles after drain")
-        let model = DictationController(pasteboard: clipboard, stopCapture: { _ in
-            try await withCheckedThrowingContinuation { continuation in
-                drain = continuation; started.fulfill()
-            }
-        })
+        let model = DictationController(
+            pasteboard: clipboard,
+            stopCapture: { _ in
+                try await withCheckedThrowingContinuation { continuation in
+                    drain = continuation; started.fulfill()
+                }
+            })
         model.update(.recording, "Fixture; no microphone"); model.finish()
         await fulfillment(of: [started], timeout: 2)
         model.cancel()
@@ -235,15 +249,19 @@ final class HUDTests: XCTestCase {
         var drain: CheckedContinuation<Void, Error>?
         let started = expectation(description: "Drain started")
         let finished = expectation(description: "Orderly shutdown after drain")
-        let model = DictationController(pasteboard: clipboard, stopCapture: { _ in
-            try await withCheckedThrowingContinuation { continuation in
-                drain = continuation; started.fulfill()
-            }
-        })
+        let model = DictationController(
+            pasteboard: clipboard,
+            stopCapture: { _ in
+                try await withCheckedThrowingContinuation { continuation in
+                    drain = continuation; started.fulfill()
+                }
+            })
         model.update(.recording, "Fixture; no microphone"); model.finish()
         await fulfillment(of: [started], timeout: 2)
         var shutdownReturned = false
-        Task { await model.shutdownAfterCaptureDrain(); shutdownReturned = true; finished.fulfill() }
+        Task {
+            await model.shutdownAfterCaptureDrain(); shutdownReturned = true; finished.fulfill()
+        }
         await Task.yield()
         XCTAssertFalse(shutdownReturned)
         XCTAssertTrue(model.captureIsFinalizing)
@@ -258,7 +276,10 @@ final class HUDTests: XCTestCase {
         let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
         var trusted = false, checks = 0
         let history = PermissionPromptHistory(read: { true }, write: {})
-        let permission = InsertionPermission(isTrusted: { checks += 1; return trusted }, prompt: {}, history: history)
+        let permission = InsertionPermission(
+            isTrusted: {
+                checks += 1; return trusted
+            }, prompt: {}, history: history)
         let delegate = AppDelegate(model: DictationController(insertionPermission: permission, pasteboard: clipboard))
         XCTAssertNil(delegate.permissionTimer, "No recurring timer before an explicit polling window")
         delegate.beginPermissionPolling(now: 100)
@@ -348,7 +369,8 @@ final class HUDTests: XCTestCase {
             ("listening", 0, 2, nil), ("low", 0.2, 2, nil),
             ("medium", 0.6, 2, nil), ("high", 1, 2, nil),
             ("finish", 0.6, 2, 0.045), ("collapse", 0.6, 2, 0.27),
-            ("point", 0.6, 2, 0.43), ("vanish", 0.6, 2, 0.5)]
+            ("point", 0.6, 2, 0.43), ("vanish", 0.6, 2, 0.5)
+        ]
         var images: [String: CGImage] = [:]
         for (name, level, entry, finish) in cases {
             let motion = WaveformMotion.sample(entryAge: entry / WaveformMotion.entranceSpeed, finishAge: finish.map { $0 / WaveformMotion.completionSpeed }, reduced: false)
@@ -376,8 +398,9 @@ final class HUDTests: XCTestCase {
         XCTAssertEqual(a.count, b.count)
         // CoreGraphics can round antialiased 8-bit edge channels by one LSB
         // across contexts. This tolerance permits rounding, not moving geometry.
-        XCTAssertLessThanOrEqual(zip(a,b).map { abs(Int($0)-Int($1)) }.max() ?? 0, 1,
-                                 "Silence must remain visually still")
+        XCTAssertLessThanOrEqual(
+            zip(a, b).map { abs(Int($0) - Int($1)) }.max() ?? 0, 1,
+            "Silence must remain visually still")
     }
 }
 

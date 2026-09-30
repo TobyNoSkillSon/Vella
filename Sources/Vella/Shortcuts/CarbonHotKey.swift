@@ -45,7 +45,8 @@ final class GlobalShortcut {
                 GetEventParameter(event, UInt32(kEventParamDirectObject), UInt32(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, ptr)
             }
             guard paramStatus == noErr, let expected = hotkey.currentID,
-                  received.signature == expected.signature, received.id == expected.id else {
+                received.signature == expected.signature, received.id == expected.id
+            else {
                 return OSStatus(eventNotHandledErr)
             }
             let generation = hotkey.callbackGeneration
@@ -56,8 +57,9 @@ final class GlobalShortcut {
             let action = kind == UInt32(kEventHotKeyPressed) ? (hotkey.onPress ?? hotkey.action) : hotkey.onRelease
             DispatchQueue.main.async { [weak hotkey] in
                 guard let hotkey, hotkey.callbackGeneration == generation,
-                      let current = hotkey.currentID,
-                      current.signature == expected.signature, current.id == expected.id else { return }
+                    let current = hotkey.currentID,
+                    current.signature == expected.signature, current.id == expected.id
+                else { return }
                 action?()
             }
             return noErr

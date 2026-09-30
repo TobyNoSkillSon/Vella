@@ -121,7 +121,9 @@ final class NativeInstallerTests: XCTestCase {
             if cause == "signature" {
                 try existingApp(app, marker: "old")
                 installer.verify = { path in .init(path == app ? "designated => other certificate" : "adhoc") }
-            } else { try Data("{invalid".utf8).write(to: support.appendingPathComponent("config.json")) }
+            } else {
+                try Data("{invalid".utf8).write(to: support.appendingPathComponent("config.json"))
+            }
             XCTAssertThrowsError(try installer.install())
             if cause == "config" { XCTAssertEqual(try String(contentsOf: support.appendingPathComponent("config.json")), "{invalid") }
             if cause == "signature" { XCTAssertEqual(try String(contentsOf: app.appendingPathComponent("old")), "old") }
@@ -140,36 +142,47 @@ final class InstallReadinessTests: XCTestCase {
     func testLaunchSetWaitsForItsModels() {
         let waiting = #"{"app_pid":42,"loading":null,"models":{},"launch_set":["parakeet-v3"]}"#
         XCTAssertEqual(state(waiting), .waiting("waiting for parakeet-v3 to load"))
-        XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"error":"Worker exited (code 1)."}"#),
-                       .failing("parakeet-v3 not loaded: Worker exited (code 1)."))
+        XCTAssertEqual(
+            state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"error":"Worker exited (code 1)."}"#),
+            .failing("parakeet-v3 not loaded: Worker exited (code 1)."))
         // A refused configured-hot model is settled but degraded, never ready.
-        XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"refused":{"model":"parakeet-v3","message":"needs ~2.1 GB; ~0.9 GB free"}}"#),
-                       .degraded("Vella running (pid 42), parakeet-v3 not loaded: needs ~2.1 GB; ~0.9 GB free"))
-        XCTAssertEqual(state(#"{"app_pid":42,"models":{},"launch_set":["a","b"],"refused":{"model":"a","message":"m"}}"#),
-                       .waiting("waiting for a, b to load"), "a refusal settles only its own model")
-        XCTAssertEqual(state(#"{"app_pid":42,"models":{"parakeet-v3":{"precision":"4b"}},"launch_set":["parakeet-v3"]}"#),
-                       .ready("Vella running (pid 42), model loaded: parakeet-v3 (4b)"))
+        XCTAssertEqual(
+            state(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"refused":{"model":"parakeet-v3","message":"needs ~2.1 GB; ~0.9 GB free"}}"#),
+            .degraded("Vella running (pid 42), parakeet-v3 not loaded: needs ~2.1 GB; ~0.9 GB free"))
+        XCTAssertEqual(
+            state(#"{"app_pid":42,"models":{},"launch_set":["a","b"],"refused":{"model":"a","message":"m"}}"#),
+            .waiting("waiting for a, b to load"), "a refusal settles only its own model")
+        XCTAssertEqual(
+            state(#"{"app_pid":42,"models":{"parakeet-v3":{"precision":"4b"}},"launch_set":["parakeet-v3"]}"#),
+            .ready("Vella running (pid 42), model loaded: parakeet-v3 (4b)"))
     }
     // The ready command never turns a broken launch set into `ready`.
     func testWaitReportsFailingLaunchSetAsDegradedAfterSettleNeverReady() {
         var clock = Date(timeIntervalSince1970: 0)
         let failing = Data(#"{"app_pid":42,"models":{},"launch_set":["parakeet-v3"],"error":"Worker exited (code 1)."}"#.utf8)
-        let result = InstallReadiness.wait(read: { failing }, isInstalledApp: { $0 == 42 }, timeout: 1800, interval: 5, settle: 60,
-                                           now: { clock }, sleep: { clock = clock.addingTimeInterval($0) })
+        let result = InstallReadiness.wait(
+            read: { failing }, isInstalledApp: { $0 == 42 }, timeout: 1800, interval: 5, settle: 60,
+            now: { clock }, sleep: { clock = clock.addingTimeInterval($0) })
         XCTAssertEqual(result.status, InstallReadiness.degradedExit)
         XCTAssertEqual(result.line, "degraded: Vella running, parakeet-v3 not loaded: Worker exited (code 1).")
         XCTAssertEqual(clock.timeIntervalSince1970, 60, "waits out the settle time for a restart first")
         let refused = Data(#"{"app_pid":42,"models":{},"launch_set":["a"],"refused":{"model":"a","message":"m"}}"#.utf8)
-        XCTAssertEqual(InstallReadiness.wait(read: { refused }, isInstalledApp: { $0 == 42 }, timeout: 10, interval: 5, settle: 60,
-                                             now: { clock }, sleep: { clock = clock.addingTimeInterval($0) }).status, InstallReadiness.degradedExit)
+        XCTAssertEqual(
+            InstallReadiness.wait(
+                read: { refused }, isInstalledApp: { $0 == 42 }, timeout: 10, interval: 5, settle: 60,
+                now: { clock }, sleep: { clock = clock.addingTimeInterval($0) }
+            ).status, InstallReadiness.degradedExit)
         let ok = Data(#"{"app_pid":42,"models":{"a":{"precision":"4b"}},"launch_set":["a"]}"#.utf8)
         XCTAssertEqual(InstallReadiness.wait(read: { ok }, isInstalledApp: { $0 == 42 }, timeout: 10, interval: 5, settle: 60).status, InstallReadiness.readyExit)
-        XCTAssertEqual(InstallReadiness.wait(read: { nil }, isInstalledApp: { _ in true }, timeout: 10, interval: 5, settle: 60,
-                                             now: { clock }, sleep: { clock = clock.addingTimeInterval($0) }).status, InstallReadiness.notReadyExit)
+        XCTAssertEqual(
+            InstallReadiness.wait(
+                read: { nil }, isInstalledApp: { _ in true }, timeout: 10, interval: 5, settle: 60,
+                now: { clock }, sleep: { clock = clock.addingTimeInterval($0) }
+            ).status, InstallReadiness.notReadyExit)
     }
     /// install-prepared.sh with a fake prepared app whose tool reports each readiness outcome.
     func testInstallScriptDeletesThePreviousAppOnlyWhenReady() throws {
-        try Integration.require()   // runs scripts/install-prepared.sh
+        try Integration.require() // runs scripts/install-prepared.sh
         let script = Repository.root
             .appendingPathComponent("scripts/install-prepared.sh")
         for (readyStatus, accept, expectedExit, keepsPrevious) in [(0, false, 0, false), (3, false, 1, true), (1, false, 1, true), (3, true, 0, true)] {
@@ -191,8 +204,10 @@ final class InstallReadinessTests: XCTestCase {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/bin/bash")
             process.arguments = [script.path, root.appendingPathComponent("Prepared.app").path]
-            var env = ["PATH": "/usr/bin:/bin", "HOME": root.path,
-                       "VELLA_DESTINATION_APP": root.appendingPathComponent("Vella.app").path, "VELLA_SUPPORT_DIR": root.appendingPathComponent("support").path]
+            var env = [
+                "PATH": "/usr/bin:/bin", "HOME": root.path,
+                "VELLA_DESTINATION_APP": root.appendingPathComponent("Vella.app").path, "VELLA_SUPPORT_DIR": root.appendingPathComponent("support").path
+            ]
             if accept { env["VELLA_ACCEPT_DEGRADED"] = "1" }
             process.environment = env
             process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
@@ -215,8 +230,9 @@ final class InstallReadinessTests: XCTestCase {
         let app = URL(fileURLWithPath: "/Users/x/Applications/Vella.app")
         XCTAssertEqual(NativeInstaller.launchArguments(app, support: nil), [app.path])
         XCTAssertEqual(NativeInstaller.launchArguments(app, support: NativeInstaller.defaultSupport), [app.path])
-        XCTAssertEqual(NativeInstaller.launchArguments(app, support: URL(fileURLWithPath: "/tmp/iso/Vella/")),
-                       ["--env", "VELLA_SUPPORT_DIR=/tmp/iso/Vella", app.path])
+        XCTAssertEqual(
+            NativeInstaller.launchArguments(app, support: URL(fileURLWithPath: "/tmp/iso/Vella/")),
+            ["--env", "VELLA_SUPPORT_DIR=/tmp/iso/Vella", app.path])
     }
     func testOnlyApplicationsFoldersCountAsOtherInstallations() {
         let home = FileManager.default.homeDirectoryForCurrentUser

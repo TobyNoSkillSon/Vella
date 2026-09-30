@@ -18,7 +18,9 @@ final class DictationTailTests: XCTestCase {
         session.manifest.segments[0].text = "Synthetic anchor."
         try session.save()
         XCTAssertEqual(try RecordingSession(directory: session.directory).manifest.segments.count, 1)
-        let transcriber = SessionTranscriber { _, _ in XCTFail("Duplicate needs no inference"); return "" }
+        let transcriber = SessionTranscriber { _, _ in
+            XCTFail("Duplicate needs no inference"); return ""
+        }
         let text = try await transcriber.run(session)
         XCTAssertEqual(text, "Synthetic anchor.")
         // A self-consistent hash does not establish duplication: compare actual PCM.
@@ -37,7 +39,8 @@ final class DictationTailTests: XCTestCase {
         let session = try RecordingSession(root: root, config: .init(model: "/synthetic"))
         // A silence cut at five seconds followed by 117 ms of nonquiet audio.
         let writer = try SegmentedPCMWriter(session: session)
-        let samples = [Float](repeating: 0.1, count: 73600) + [Float](repeating: 0, count: 6400)
+        let samples =
+            [Float](repeating: 0.1, count: 73600) + [Float](repeating: 0, count: 6400)
             + [Float](repeating: 0.0042, count: 1877)
         try samples.withUnsafeBufferPointer { try writer.append($0) }
         try writer.finish(userStopped: true)
@@ -95,7 +98,9 @@ final class DictationTailTests: XCTestCase {
         for response in ["", "A different sentence.", "A synthetic", "Now! Now!"] {
             let session = try fixture()
             var calls = 0
-            let text = try await SessionTranscriber { _, _ in calls += 1; return response }.run(session)
+            let text = try await SessionTranscriber { _, _ in
+                calls += 1; return response
+            }.run(session)
             XCTAssertEqual(calls, 1)
             XCTAssertEqual(session.manifest.segments[1].text, response)
             XCTAssertEqual(text, response.isEmpty ? "A synthetic sentence." : "A synthetic sentence. " + response)

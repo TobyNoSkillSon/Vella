@@ -57,8 +57,11 @@ final class NemotronNative: StreamingNative {
         guard !optimized, let model else { return }
         if VellaNemotronOptions.f32Weights {
             let switches = VellaNemotronOptions.requested
-            VellaNemotronNumerics.convertFloat32Weights(model, keep: { key in
-                switches.fusedActive() && VellaNemotronNumerics.fusedBF16Weight(key, bf16Linears: switches.bf16Linears) })
+            VellaNemotronNumerics.convertFloat32Weights(
+                model,
+                keep: { key in
+                    switches.fusedActive() && VellaNemotronNumerics.fusedBF16Weight(key, bf16Linears: switches.bf16Linears)
+                })
         }
         fusedPrepared = VellaNemotronOptions.requested.fusedActive() && VellaNemotronNumerics.prepareFusedEncoder(model)
         optimized = true
@@ -133,8 +136,10 @@ final class NemotronNative: StreamingNative {
             guard optimized, replayable, !strict else { throw error }
             // The bytes of this utterance the app has already taken (drained as committed text).
             let consumed = Array(produced.utf8.prefix(max(0, produced.utf8.count - text.utf8.count)))
-            disableOptimized(Self.faultFired ? "Test fault injected into the optimized streaming path; stock MLX until the model is reloaded."
-                             : "The optimized streaming path failed at runtime; stock MLX until the model is reloaded.")
+            disableOptimized(
+                Self.faultFired
+                    ? "Test fault injected into the optimized streaming path; stock MLX until the model is reloaded."
+                    : "The optimized streaming path failed at runtime; stock MLX until the model is reloaded.")
             deferred = false
             let entries = journal
             session = try VellaNemotronSession(model: model!, optimized: false)
@@ -152,7 +157,9 @@ final class NemotronNative: StreamingNative {
                 incompleteFlag = true
                 session = try VellaNemotronSession(model: model!, optimized: false)
                 journal.removeAll(); journalSamples = 0; produced = ""; text = ""
-                if gated, let url = try? FastPathGate.statusURL(path, revision: NemotronRuntime.gateRevision) { FastPathGate.persist("stock", to: url, model: path, reason: "runtime fallback: optimized streaming output could not be replayed safely") }
+                if gated, let url = try? FastPathGate.statusURL(path, revision: NemotronRuntime.gateRevision) {
+                    FastPathGate.persist("stock", to: url, model: path, reason: "runtime fallback: optimized streaming output could not be replayed safely")
+                }
             }
         }
     }

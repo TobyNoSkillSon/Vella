@@ -41,22 +41,34 @@ final class APIWiringTests: XCTestCase {
         let nemo8 = try folder(models, "nemotron-3.5-asr-streaming-0.6b-8bit")
         let registry: [String: InstalledModel] = [
             "Qwen3-ASR-1.7B-bf16": InstalledModel(path: try folder(outside, "qwen3-asr-1.7b-bf16"), name: "Qwen3 ASR · 1.7B", quantization: "BF16"),
-            "Voxtral-Mini-4B-Realtime-2602-4bit": InstalledModel(path: try folder(models, "Voxtral-Mini-4B-Realtime-2602-4bit"), revision: "fdebf7b2af834a1db4b8a3c99ab7480b333adf9e", name: "Voxtral Mini Realtime · 4B", quantization: "4-bit"),
-            "imported-whisper-large-v3-q8": InstalledModel(path: try folder(outside, "whisper-large-v3-q8", config: #"{"model_type": "whisper", "quantization": {"group_size": 64, "bits": 8}}"#),
-                                                           name: "Whisper large-v3", quantization: "8-bit"),
-            "nemotron-3.5-asr-streaming-0.6b-8bit": InstalledModel(path: nemo8, revision: "7279359e4481b5e9e185a318bd618e429c6d86cd", name: "Nemotron 3.5 ASR · 0.6B", quantization: "8-bit"),
-            "nemotron-3.5-asr-streaming-0.6b-bf16": InstalledModel(path: try folder(models, "nemotron-3.5-asr-streaming-0.6b-bf16"), revision: "e550040c0478027ed679b2b6b0d055502c103663", name: "Nemotron 3.5 ASR · 0.6B", quantization: "BF16"),
+            "Voxtral-Mini-4B-Realtime-2602-4bit": InstalledModel(
+                path: try folder(models, "Voxtral-Mini-4B-Realtime-2602-4bit"), revision: "fdebf7b2af834a1db4b8a3c99ab7480b333adf9e", name: "Voxtral Mini Realtime · 4B",
+                quantization: "4-bit"),
+            "imported-whisper-large-v3-q8": InstalledModel(
+                path: try folder(outside, "whisper-large-v3-q8", config: #"{"model_type": "whisper", "quantization": {"group_size": 64, "bits": 8}}"#),
+                name: "Whisper large-v3", quantization: "8-bit"),
+            "nemotron-3.5-asr-streaming-0.6b-8bit": InstalledModel(
+                path: nemo8, revision: "7279359e4481b5e9e185a318bd618e429c6d86cd", name: "Nemotron 3.5 ASR · 0.6B", quantization: "8-bit"),
+            "nemotron-3.5-asr-streaming-0.6b-bf16": InstalledModel(
+                path: try folder(models, "nemotron-3.5-asr-streaming-0.6b-bf16"), revision: "e550040c0478027ed679b2b6b0d055502c103663", name: "Nemotron 3.5 ASR · 0.6B",
+                quantization: "BF16"),
             "parakeet-tdt-0.6b-v3-mlx-4bit": InstalledModel(path: v3, revision: "65247a0a9e735426eba06056a9535f7e67dcbbb9", name: "Parakeet v3", quantization: "4-bit"),
-            "parakeet-ultra-mlx-bf16": InstalledModel(path: ultra, revision: "b554592c50b2a48471add2daa3d46fa9f00fef5e", name: "Parakeet v3 Ultra", quantization: "BF16"),
+            "parakeet-ultra-mlx-bf16": InstalledModel(path: ultra, revision: "b554592c50b2a48471add2daa3d46fa9f00fef5e", name: "Parakeet v3 Ultra", quantization: "BF16")
         ]
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(registry).write(to: support.appendingPathComponent("models-installed.json"))
         let config: [String: Any] = [
             "preferredMicrophone": "Shure MV7i", "fallbackMicrophone": "MacBook Pro Microphone", "lastLoaded": [String: String](),
             "executable": "/nonexistent/python", "mode": "dictation", "model": ultra, "streamingModel": nemo8,
-            "residency": ["manualIdleMinutes": 0, "onDemandIdleMinutes": 15, "allowSwap": false,
-                          "launchSet": [["precision": "BF16", "diskBytes": 1254840214, "path": ultra, "id": "parakeet-v3-ultra", "mode": "dictation",
-                                         "memoryMB": 1747, "precisionOptions": ["BF16", "8b", "4b"], "name": "Parakeet v3 Ultra"]]],
+            "residency": [
+                "manualIdleMinutes": 0, "onDemandIdleMinutes": 15, "allowSwap": false,
+                "launchSet": [
+                    [
+                        "precision": "BF16", "diskBytes": 1254840214, "path": ultra, "id": "parakeet-v3-ultra", "mode": "dictation",
+                        "memoryMB": 1747, "precisionOptions": ["BF16", "8b", "4b"], "name": "Parakeet v3 Ultra"
+                    ]
+                ]
+            ]
         ]
         try JSONSerialization.data(withJSONObject: config).write(to: support.appendingPathComponent("config.json"))
         return (ultra, v3)
@@ -69,9 +81,10 @@ final class APIWiringTests: XCTestCase {
         XCTAssertEqual(runtime.settings.launchSet.map(\.id), ["parakeet-v3-ultra"])
         let resources = repo.appendingPathComponent("Resources", isDirectory: true)
         let registry = runtime.support.appendingPathComponent("models-installed.json")
-        let controller = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
-                                          streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: resources.appendingPathComponent("benchmarks.json"))
+        let controller = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: resources.appendingPathComponent("benchmarks.json"))
         let backend = Backend(helper: try FakeWorker.install(in: root), requestTimeout: 10, runtime: runtime)
         let stream = StreamingBackend(helper: try FakeStreamingWorker.install(in: root), timeout: 5, runtime: runtime)
         let model = DictationController(configurationURL: runtime.configURL, streamingBackend: stream, backend: backend)
@@ -88,13 +101,14 @@ final class APIWiringTests: XCTestCase {
         XCTAssertNil(registered["imported-whisper-large-v3-q8"])
         XCTAssertEqual(registered["whisper-large-v3-8bit"]?.path, root.appendingPathComponent("outside/whisper-large-v3-q8").path)
         XCTAssertNotNil(registered["parakeet-tdt-0.6b-v3-mlx-4bit"], "an absent tier's files stay registered (not shown)")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: runtime.support.appendingPathComponent("Models/Voxtral-Mini-4B-Realtime-2602-4bit").path),
-                      "the registry migration never deletes files")
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: runtime.support.appendingPathComponent("Models/Voxtral-Mini-4B-Realtime-2602-4bit").path),
+            "the registry migration never deletes files")
         runtime.start()
         let host = APIHost()
         defer { host.stop(); model.shutdown(); backend.shutdown(); stream.shutdown() }
         try await waitUntil { runtime.status.models["parakeet-v3-ultra"] != nil }
-        delegate.startAPI(host)   // App.swift's launch call, on its own host
+        delegate.startAPI(host) // App.swift's launch call, on its own host
         try await waitUntil { runtime.apiPort != nil }
         let base = "http://127.0.0.1:\(try XCTUnwrap(runtime.apiPort))"
         func get(_ path: String) async throws -> (Int, [String: Any]) {

@@ -23,19 +23,24 @@ final class DerivedRuntimeTests: XCTestCase {
 
     /// Alpha: BF16 downloaded (the source), 4b made on this Mac from it. The derived id carries `slowexit` so the fake
     /// worker exits late, which exposes a delete that does not await the unload.
-    private let alpha = ModelFamily(id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
-        variants: ["BF16": CatalogVariant(id: "alpha-bf16", repository: "org/alpha-bf16", revision: String(repeating: "b", count: 40),
-                                          downloadBytes: 1_200_000_000, architecture: "parakeet"),
-                   "4b": CatalogVariant(id: "alpha-slowexit-4bit-local", architecture: "parakeet", derivedFrom: "BF16", bits: 4, groupSize: 64)])
+    private let alpha = ModelFamily(
+        id: "alpha", name: "Alpha", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "BF16",
+        variants: [
+            "BF16": CatalogVariant(
+                id: "alpha-bf16", repository: "org/alpha-bf16", revision: String(repeating: "b", count: 40),
+                downloadBytes: 1_200_000_000, architecture: "parakeet"),
+            "4b": CatalogVariant(id: "alpha-slowexit-4bit-local", architecture: "parakeet", derivedFrom: "BF16", bits: 4, groupSize: 64)
+        ])
 
     @MainActor private func controller() throws -> (ModelsController, source: String) {
         let resources = root.appendingPathComponent("resources", isDirectory: true)
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: [alpha])).write(to: resources.appendingPathComponent("models.json"))
         let registry = root.appendingPathComponent("support/models-installed.json")
-        let controller = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
-                                          streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                          benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
+        let controller = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: root.appendingPathComponent("no-benchmarks.json"))
         let source = controller.dictation.modelsDirectory.appendingPathComponent("alpha-bf16")
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
@@ -63,7 +68,9 @@ final class DerivedRuntimeTests: XCTestCase {
         let menus = ModelsMenu(controller: controller)
         let host = try XCTUnwrap(menus.modelItem().submenu?.items.first?.view as? MenuTableHostingView)
         var alerts: [String] = []
-        menus.presentDeletionConfirmation = { alert in alerts.append(alert.messageText); return .alertSecondButtonReturn }
+        menus.presentDeletionConfirmation = { alert in
+            alerts.append(alert.messageText); return .alertSecondButtonReturn
+        }
 
         // Load the derived 4b: the worker gets its own directory, which resolves back to alpha 4b.
         controller.preview(alpha, "4b")
@@ -89,7 +96,9 @@ final class DerivedRuntimeTests: XCTestCase {
         // Failure: the derived worker was unloaded first, then comes back (manual); launch set kept.
         let firstPID = try XCTUnwrap(runtime.status.models["alpha"]?.pid)
         var aliveAtFailure: [Bool] = []
-        library.trashModel = { _ in aliveAtFailure.append(kill(firstPID, 0) == 0); throw CocoaError(.fileWriteNoPermission) }
+        library.trashModel = { _ in
+            aliveAtFailure.append(kill(firstPID, 0) == 0); throw CocoaError(.fileWriteNoPermission)
+        }
         delete()
         try await waitUntil { alerts.contains("Model was not deleted") }
         XCTAssertEqual(aliveAtFailure, [false], "the derived worker had exited before the source was touched")

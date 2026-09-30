@@ -19,15 +19,15 @@ final class APICoreTests: XCTestCase {
         func refusal(_ line: String, _ headers: String) -> Int? { APIRequestCheck.refusal(head(line + "\r\n" + headers), port: port)?.status }
         let post = "POST /v1/audio/transcriptions HTTP/1.1"
         XCTAssertNil(refusal(post, ok))
-        XCTAssertNil(refusal(post, ok + "\r\nAuthorization: Bearer sk-anything"))           // SDK keys are accepted and ignored
+        XCTAssertNil(refusal(post, ok + "\r\nAuthorization: Bearer sk-anything")) // SDK keys are accepted and ignored
         XCTAssertNil(refusal(post, ok.replacingOccurrences(of: "127.0.0.1", with: "localhost")))
         XCTAssertEqual(refusal(post, ok + "\r\nOrigin: https://evil.example"), 403)
         XCTAssertEqual(refusal(post, ok + "\r\nOrigin: null"), 403)
         XCTAssertEqual(refusal(post, ok.replacingOccurrences(of: "127.0.0.1:5555", with: "evil.example:5555")), 403)
         XCTAssertEqual(refusal(post, ok.replacingOccurrences(of: "5555", with: "80")), 403)
-        XCTAssertEqual(refusal(post, "Content-Length: 1\r\nContent-Type: application/json"), 403)   // no Host
-        XCTAssertEqual(refusal(post, ok + "\r\nHost: 127.0.0.1:5555"), 403)                 // repeated Host
-        XCTAssertEqual(refusal(post, ok + "\r\nContent-Type: application/json"), 400)       // repeated Content-Type
+        XCTAssertEqual(refusal(post, "Content-Length: 1\r\nContent-Type: application/json"), 403) // no Host
+        XCTAssertEqual(refusal(post, ok + "\r\nHost: 127.0.0.1:5555"), 403) // repeated Host
+        XCTAssertEqual(refusal(post, ok + "\r\nContent-Type: application/json"), 400) // repeated Content-Type
         XCTAssertEqual(refusal(post, ok + "\r\nContent-Length: 10"), 400)
         XCTAssertEqual(refusal(post, "Host: 127.0.0.1:5555\r\nContent-Length: 3\r\nContent-Type: text/plain"), 415)
         XCTAssertEqual(refusal(post, "Host: 127.0.0.1:5555\r\nContent-Length: 3\r\nContent-Type: application/x-www-form-urlencoded"), 415)
@@ -70,8 +70,10 @@ final class APICoreTests: XCTestCase {
     }
 
     func testTranscriptionOptionsValidation() throws {
-        let o = try TranscriptionOptions.validate(["model": ["parakeet-v3"], "response_format": ["verbose_json"], "language": ["PL"],
-                                                   "temperature": ["0.2"], "timestamp_granularities[]": ["segment", "word"], "include[]": ["logprobs"]])
+        let o = try TranscriptionOptions.validate([
+            "model": ["parakeet-v3"], "response_format": ["verbose_json"], "language": ["PL"],
+            "temperature": ["0.2"], "timestamp_granularities[]": ["segment", "word"], "include[]": ["logprobs"]
+        ])
         XCTAssertEqual(o.model, "parakeet-v3"); XCTAssertEqual(o.format, .verbose_json); XCTAssertEqual(o.language, "pl")
         XCTAssertEqual(o.granularities, ["segment", "word"])
         XCTAssertEqual(try TranscriptionOptions.validate([:]), TranscriptionOptions())
@@ -94,8 +96,10 @@ final class APICoreTests: XCTestCase {
     }
 
     func testFormats() throws {
-        let segments = [TranscriptSegment(id: 0, start: 0, end: 5.25, text: "Hello there."),
-                        TranscriptSegment(id: 1, start: 5.25, end: 3725.5, text: "Second.")]
+        let segments = [
+            TranscriptSegment(id: 0, start: 0, end: 5.25, text: "Hello there."),
+            TranscriptSegment(id: 1, start: 5.25, end: 3725.5, text: "Second.")
+        ]
         let text = "Hello there. Second."
         let json = TranscriptFormatter.render(.json, text: text, segments: segments, duration: 3725.5, language: nil)
         XCTAssertEqual(json.contentType, "application/json")
@@ -105,10 +109,13 @@ final class APICoreTests: XCTestCase {
         let vtt = String(decoding: TranscriptFormatter.render(.vtt, text: text, segments: segments, duration: 3725.5, language: nil).body, as: UTF8.self)
         XCTAssertEqual(vtt, "WEBVTT\n\n00:00:00.000 --> 00:00:05.250\nHello there.\n\n00:00:05.250 --> 01:02:05.500\nSecond.\n")
         XCTAssertEqual(String(decoding: TranscriptFormatter.render(.text, text: text, segments: segments, duration: 1, language: nil).body, as: UTF8.self), text + "\n")
-        let verbose = try JSONSerialization.jsonObject(with: TranscriptFormatter.render(.verbose_json, text: text, segments: segments, duration: 3725.5, language: "en").body) as! [String: Any]
+        let verbose =
+            try JSONSerialization.jsonObject(with: TranscriptFormatter.render(.verbose_json, text: text, segments: segments, duration: 3725.5, language: "en").body)
+            as! [String: Any]
         XCTAssertEqual(verbose["language"] as? String, "en"); XCTAssertEqual(verbose["task"] as? String, "transcribe")
         XCTAssertEqual((verbose["segments"] as? [[String: Any]])?.last?["end"] as? Double, 3725.5)
-        XCTAssertEqual(APIError(404, "x", code: "model_not_found").json as NSDictionary,
-                       ["error": ["message": "x", "type": "invalid_request_error", "param": NSNull(), "code": "model_not_found"]] as NSDictionary)
+        XCTAssertEqual(
+            APIError(404, "x", code: "model_not_found").json as NSDictionary,
+            ["error": ["message": "x", "type": "invalid_request_error", "param": NSNull(), "code": "model_not_found"]] as NSDictionary)
     }
 }

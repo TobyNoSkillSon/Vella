@@ -70,8 +70,11 @@ import VellaWire
     init(dictation: ModelLibrary? = nil, streaming: ModelLibrary? = nil, benchmarksURL: URL? = nil, configURL: URL? = nil) {
         let dictation = dictation ?? ModelLibrary(mode: .dictation)
         self.dictation = dictation
-        self.streaming = streaming ?? (dictation.registryURL == ModelLibrary.registry ? ModelLibrary(mode: .streaming)
-            : ModelLibrary(mode: .streaming, resources: dictation.resources, registryURL: dictation.registryURL))
+        self.streaming =
+            streaming
+            ?? (dictation.registryURL == ModelLibrary.registry
+                ? ModelLibrary(mode: .streaming)
+                : ModelLibrary(mode: .streaming, resources: dictation.resources, registryURL: dictation.registryURL))
         self.configURL = configURL ?? (dictation.registryURL == ModelLibrary.registry ? Backend.configURL : nil)
         catalog = (try? decodeCatalog(Data(contentsOf: dictation.resources.appendingPathComponent("models.json")))) ?? ModelCatalog(families: [])
         benchmarks = decodeBenchmarks(try? Data(contentsOf: benchmarksURL ?? Self.benchmarksURL(resources: dictation.resources)))
@@ -106,9 +109,13 @@ import VellaWire
     func identify(path: String, mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
         guard !path.isEmpty else { return nil }
         if let id = library(mode).installed.first(where: { $0.value.path == path })?.key, let found = catalog.locate(variant: id),
-           found.family.mode == mode { return found }
+            found.family.mode == mode
+        {
+            return found
+        }
         guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = catalog.family(manifest.family),
-              family.mode == mode, family.variants[manifest.precision]?.isDerived == true else { return nil }
+            family.mode == mode, family.variants[manifest.precision]?.isDerived == true
+        else { return nil }
         return (family, manifest.precision)
     }
     /// The precision the family was last loaded at: the mode's model (what the next dictation loads) when it is this
@@ -127,7 +134,8 @@ import VellaWire
     @discardableResult
     func clearSelectionsOutsideTheCatalog() -> [String] {
         guard !previewing, let configURL, dictation.registryReadable,
-              let data = try? Data(contentsOf: configURL), var edited = try? JSONDecoder().decode(Configuration.self, from: data) else { return [] }
+            let data = try? Data(contentsOf: configURL), var edited = try? JSONDecoder().decode(Configuration.self, from: data)
+        else { return [] }
         var cleared: [String] = []
         for mode in RecognitionMode.allCases {
             let path = mode == .dictation ? edited.model : edited.streamingModel
@@ -188,7 +196,10 @@ import VellaWire
     func committed(_ f: ModelFamily) -> String {
         if let loaded = loaded(f)?.precision { return effectivePrecision(stored: loaded, native: f.native) }
         if let last = lastLoaded(f).map({ effectivePrecision(stored: $0, native: f.native) }), f.variants[last] != nil,
-           !options(f).contains(last) { return last }
+            !options(f).contains(last)
+        {
+            return last
+        }
         return label(f, committedSelection(f))
     }
     /// The precision the row shows: a running confirmed download's, else the preview, else the committed one.
@@ -323,8 +334,7 @@ import VellaWire
         if mode == .exact, switchAvailable(f), !exactAvailable(f) { Self.log.notice("switch refused (Exact not measured)"); return }
         if !isPresent(f, next) || !measured(f, next) {
             let offered = measuredPrecisions(f, mode).isEmpty ? precisions(f, mode) : measuredPrecisions(f, mode)
-            if hasOptimizedPath(f), let tier = offered.contains(.t16) ? .t16 : offered.first { moved = current.tier; next.tier = tier }
-            else { next.path = current.path }
+            if hasOptimizedPath(f), let tier = offered.contains(.t16) ? .t16 : offered.first { moved = current.tier; next.tier = tier } else { next.path = current.path }
         }
         guard setPreview(f, next) else { return }
         couplingNotes[f.id] = moved
@@ -338,7 +348,9 @@ import VellaWire
     @discardableResult private func setPreview(_ f: ModelFamily, _ s: ModelSelection) -> Bool {
         guard !inUse(f) else {
             let loading = runtime?.loading ?? "-"
-            Self.log.notice("click refused (in use): preview \(self.previewInUse, privacy: .public) loadingFamily \(self.isLoading(f), privacy: .public) runtimeLoading \(loading, privacy: .public) mayChange \(self.library(f.mode).mayChangeModel(), privacy: .public)")
+            Self.log.notice(
+                "click refused (in use): preview \(self.previewInUse, privacy: .public) loadingFamily \(self.isLoading(f), privacy: .public) runtimeLoading \(loading, privacy: .public) mayChange \(self.library(f.mode).mayChangeModel(), privacy: .public)"
+            )
             return false
         }
         previews[f.id] = s == committedSelection(f) ? nil : s
@@ -390,7 +402,8 @@ import VellaWire
         if let runtime { return runtime.loaded[f.id] }
         let lib = library(f.mode)
         guard !lib.activeModelPath.isEmpty,
-              let precision = f.variants.first(where: { lib.installed[$0.value.id]?.path == lib.activeModelPath })?.key else { return nil }
+            let precision = f.variants.first(where: { lib.installed[$0.value.id]?.path == lib.activeModelPath })?.key
+        else { return nil }
         return LoadedFamily(precision: precision)
     }
     /// The header's model label for a mode (`Parakeet v3 4-bit`): the model selected for the mode if known (a download
@@ -399,7 +412,8 @@ import VellaWire
         let lib = library(mode)
         if let (family, precision) = identify(path: lib.activeModelPath, mode: mode) { return "\(family.name) \(precisionInProse(precision))" }
         guard let (id, loaded) = runtime?.loaded.filter({ catalog.family($0.key)?.mode == mode }).sorted(by: { $0.key < $1.key }).first,
-              let family = catalog.family(id) else { return lib.activeModelLabel }
+            let family = catalog.family(id)
+        else { return lib.activeModelLabel }
         return "\(family.name) \(precisionInProse(loaded.precision))"
     }
     func isLoading(_ f: ModelFamily) -> Bool {
@@ -414,8 +428,10 @@ import VellaWire
         let precision = selected(f)
         guard let loadedNow = loadedSelection(f) else { return available(f, precision) ? .load : .get }
         let shown = currentSelection(f)
-        let same = previews[f.id] == nil || (shown.tier == loadedNow.tier && shown.segmentKey == loadedNow.segmentKey
-            && effectivePrecision(stored: loaded(f)?.precision ?? "", native: f.native) == precision)
+        let same =
+            previews[f.id] == nil
+            || (shown.tier == loadedNow.tier && shown.segmentKey == loadedNow.segmentKey
+                && effectivePrecision(stored: loaded(f)?.precision ?? "", native: f.native) == precision)
         return same ? .unload : .reload
     }
     /// Whether the row's button starts a download (after the confirmation popup).
@@ -426,7 +442,9 @@ import VellaWire
     func preview(_ f: ModelFamily, _ precision: String) {
         guard let tier = modelTier(ofPrecision: precision) else { return }
         let current = currentSelection(f)
-        previews[f.id] = { let s = ModelSelection(tier: tier, path: current.path, mode: current.mode); return s == committedSelection(f) ? nil : s }()
+        previews[f.id] = {
+            let s = ModelSelection(tier: tier, path: current.path, mode: current.mode); return s == committedSelection(f) ? nil : s
+        }()
     }
     /// The menu closed: previews end without effect.
     func discardPreviews() {
@@ -455,8 +473,11 @@ import VellaWire
     func requestDownload(_ f: ModelFamily, _ precision: String, sourceID: String) {
         let lib = library(f.mode)
         let loadedNow = loaded(f)?.precision
-        guard let prompt = downloadPrompt(family: f, precision: precision, followUp: loadedNow.map { .reload(from: $0) } ?? .load,
-                                          freeBytes: freeDiskBytes(at: lib.modelsDirectory)) else {
+        guard
+            let prompt = downloadPrompt(
+                family: f, precision: precision, followUp: loadedNow.map { .reload(from: $0) } ?? .load,
+                freeBytes: freeDiskBytes(at: lib.modelsDirectory))
+        else {
             lastError = "\(f.name) at \(precisionFormatName(precision)) has no download in the catalog."; return
         }
         guard let confirmDownload else { lastError = "Downloads need confirmation; reopen Models and try again."; return }

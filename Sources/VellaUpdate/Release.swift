@@ -11,8 +11,10 @@ public struct ReleaseInfo: Equatable, Sendable {
     public let prerelease: Bool
     public let assets: [String]
 
-    public init(tag: String, version: SemanticVersion, name: String = "", body: String = "", draft: Bool = false,
-                prerelease: Bool = false, assets: [String] = []) {
+    public init(
+        tag: String, version: SemanticVersion, name: String = "", body: String = "", draft: Bool = false,
+        prerelease: Bool = false, assets: [String] = []
+    ) {
         self.tag = tag; self.version = version; self.name = name; self.body = body
         self.draft = draft; self.prerelease = prerelease; self.assets = assets
     }
@@ -39,8 +41,9 @@ public struct ReleaseInfo: Equatable, Sendable {
         guard let tag = object["tag_name"] as? String else { throw ParseError.missing("tag_name") }
         guard let version = SemanticVersion(tag) else { throw ParseError.badTag(tag) }
         let assets = (object["assets"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
-        return ReleaseInfo(tag: tag, version: version, name: object["name"] as? String ?? "", body: object["body"] as? String ?? "",
-                           draft: object["draft"] as? Bool ?? false, prerelease: object["prerelease"] as? Bool ?? false, assets: assets)
+        return ReleaseInfo(
+            tag: tag, version: version, name: object["name"] as? String ?? "", body: object["body"] as? String ?? "",
+            draft: object["draft"] as? Bool ?? false, prerelease: object["prerelease"] as? Bool ?? false, assets: assets)
     }
 
     /// The update to offer to `current`: this release when it is published (not a draft or prerelease, and not a
@@ -97,7 +100,7 @@ public func expectedSHA256(sums: String, name: String) -> String? {
     for line in sums.split(whereSeparator: \.isNewline) {
         let fields = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
         guard fields.count == 2 else { continue }
-        var file = String(fields[1]); if file.hasPrefix("*") { file.removeFirst() }     // shasum's binary-mode marker
+        var file = String(fields[1]); if file.hasPrefix("*") { file.removeFirst() } // shasum's binary-mode marker
         if file == name { found.append(String(fields[0])) }
     }
     guard found.count == 1, let hash = found.first, hash.count == 64, hash.allSatisfy(\.isHexDigit) else { return nil }

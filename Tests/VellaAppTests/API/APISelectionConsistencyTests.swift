@@ -29,7 +29,8 @@ final class APISelectionConsistencyTests: XCTestCase {
     }
     /// A JSON request naming a local file, as `vella transcribe` sends it.
     @MainActor private func request(_ audio: URL, model: String) throws -> APIRequest {
-        let head = try XCTUnwrap(HTTPHead.parse(Data("POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nX-Vella-Token: test-token".utf8)))
+        let head = try XCTUnwrap(
+            HTTPHead.parse(Data("POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nX-Vella-Token: test-token".utf8)))
         let body = try JSONSerialization.data(withJSONObject: ["path": audio.path, "model": model])
         return APIRequest(head: head, body: .memory(body))
     }
@@ -65,8 +66,11 @@ final class APISelectionConsistencyTests: XCTestCase {
     @MainActor func testShieldFollowsTheCurrentModelSelectedWhileTheRequestWaits() async throws {
         let f = try TwoFamilyFixture(root); defer { f.close() }
         try await f.load(f.alpha, "4b")
-        let gamma = ModelFamily(id: "gamma", name: "Gamma", mode: .dictation, languages: ["en"], params: "1B", license: "test", native: "BF16", variants: [
-            "BF16": CatalogVariant(id: "gamma-bf16", repository: "org/g", revision: String(repeating: "d", count: 40), downloadBytes: 1000, architecture: "parakeet")])
+        let gamma = ModelFamily(
+            id: "gamma", name: "Gamma", mode: .dictation, languages: ["en"], params: "1B", license: "test", native: "BF16",
+            variants: [
+                "BF16": CatalogVariant(id: "gamma-bf16", repository: "org/g", revision: String(repeating: "d", count: 40), downloadBytes: 1000, architecture: "parakeet")
+            ])
         f.controller.catalog.families.append(gamma)
         let folder = root.appendingPathComponent("gamma-bf16")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -136,9 +140,11 @@ final class APISelectionConsistencyTests: XCTestCase {
         let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
         var used: [String] = []
         let backend = f.backend
-        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { url, config in
-            used.append(config.model); return try await backend.transcribe(url, config: config)
-        }, configurationURL: f.runtime.configURL, streamingBackend: f.stream, backend: f.backend)
+        let model = DictationController(
+            pasteboard: pasteboard,
+            transcriptionRequest: { url, config in
+                used.append(config.model); return try await backend.transcribe(url, config: config)
+            }, configurationURL: f.runtime.configURL, streamingBackend: f.stream, backend: f.backend)
         model.recover(session.directory)
         try await waitUntil { model.phase == .success }
         XCTAssertEqual(pasteboard.string(forType: .string), "Fixture recognized speech.")

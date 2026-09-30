@@ -25,14 +25,24 @@ final class ResidencyTests: XCTestCase {
     func testCannotFitUnloadsNothingAndNamesNeedFreeAndWaysOut() {
         let loaded = [info("qwen", .onDemand, used: 1), info("whisper", .manual, used: 2)]
         let decision = planAdmission(ref("parakeet", "BF16"), loaded: loaded, rawAvailableMB: -700, allowSwap: false)
-        XCTAssertEqual(decision, .refuse(message: "parakeet at BF16 needs ~1.5 GB; ~0.0 GB free without swapping. Unload qwen or whisper, pick 8-bit, or allow swap in Vella → Memory.", needMB: 1512, freeMB: 0))
-        XCTAssertEqual(planAdmission(ref("parakeet", "4b"), loaded: [], rawAvailableMB: 900, allowSwap: false),
-                       .refuse(message: "parakeet at 4-bit needs ~1.5 GB; ~0.9 GB free without swapping. Allow swap in Vella → Memory.", needMB: 1512, freeMB: 900))
+        XCTAssertEqual(
+            decision,
+            .refuse(
+                message: "parakeet at BF16 needs ~1.5 GB; ~0.0 GB free without swapping. Unload qwen or whisper, pick 8-bit, or allow swap in Vella → Memory.", needMB: 1512,
+                freeMB: 0))
+        XCTAssertEqual(
+            planAdmission(ref("parakeet", "4b"), loaded: [], rawAvailableMB: 900, allowSwap: false),
+            .refuse(message: "parakeet at 4-bit needs ~1.5 GB; ~0.9 GB free without swapping. Allow swap in Vella → Memory.", needMB: 1512, freeMB: 900))
     }
     func testMultiModelRefusalSuggestsOneAtATimeAndNeverUnloadingANeededModel() {
         let loaded = [info("streaming", .manual, used: 1), info("other", .onDemand, used: 2)]
-        guard case .refuse(let message, _, _) = planAdmission(ref("dictation"), loaded: loaded, rawAvailableMB: 0, together: ["streaming"], allowSwap: false) else { return XCTFail() }
-        XCTAssertEqual(message, "dictation at 8-bit needs ~1.5 GB; ~0.0 GB free without swapping. This needs streaming and dictation loaded together. Load one model at a time, unload other, pick 4-bit, or allow swap in Vella → Memory.")
+        guard case .refuse(let message, _, _) = planAdmission(ref("dictation"), loaded: loaded, rawAvailableMB: 0, together: ["streaming"], allowSwap: false) else {
+            return XCTFail()
+        }
+        XCTAssertEqual(
+            message,
+            "dictation at 8-bit needs ~1.5 GB; ~0.0 GB free without swapping. This needs streaming and dictation loaded together. Load one model at a time, unload other, pick 4-bit, or allow swap in Vella → Memory."
+        )
         XCTAssertFalse(message.contains("unload streaming"))
     }
     func testLowerPrecisionReloadUnderDeficitIsRefusedBeforeUnloading() {
@@ -43,8 +53,9 @@ final class ResidencyTests: XCTestCase {
         XCTAssertEqual(need, 1212); XCTAssertEqual(free, 100)
         XCTAssertTrue(message.hasPrefix("p at 4-bit needs ~1.2 GB; ~0.1 GB free"))
         // With enough credit the same reload is admitted without touching q.
-        XCTAssertEqual(planAdmission(ref("p", "4b", memory: 700), loaded: other, rawAvailableMB: 300, credit: 1000, allowSwap: false),
-                       .admit(evict: [], needMB: 1212, freeMB: 1300))
+        XCTAssertEqual(
+            planAdmission(ref("p", "4b", memory: 700), loaded: other, rawAvailableMB: 300, credit: 1000, allowSwap: false),
+            .admit(evict: [], needMB: 1212, freeMB: 1300))
     }
     func testAllowSwapAdmitsEverything() {
         XCTAssertEqual(planAdmission(ref("a"), loaded: [], rawAvailableMB: -5000, allowSwap: true), .admit(evict: [], needMB: 1512, freeMB: 0))
@@ -75,8 +86,10 @@ final class ResidencyTests: XCTestCase {
         XCTAssertEqual(probe.availableMB(loadedMB: 9000), 0)
         let stats = dir.appendingPathComponent("vm.json")
         // (1000 − 200 + 300 + 100) pages × 16,384 B = 19.66 MB; level 50 % of 32 GB = 16 GB; margin 3.2 GB.
-        try JSONSerialization.data(withJSONObject: ["free_count": 1000, "speculative_count": 200, "external_page_count": 300, "purgeable_count": 100,
-                                                    "page_size": 16384, "memorystatus_level": 50]).write(to: stats)
+        try JSONSerialization.data(withJSONObject: [
+            "free_count": 1000, "speculative_count": 200, "external_page_count": 300, "purgeable_count": 100,
+            "page_size": 16384, "memorystatus_level": 50
+        ]).write(to: stats)
         let vm = MemoryProbe(environment: ["VELLA_TEST_VM_STATS": stats.path], totalMB: 32000)
         XCTAssertEqual(vm.rawAvailableMB(loadedMB: 0), 1200 * 16384 / 1e6 - 3200, accuracy: 0.001)
         XCTAssertEqual(MemoryProbe(environment: [:], totalMB: 8000).marginMB, 1000)

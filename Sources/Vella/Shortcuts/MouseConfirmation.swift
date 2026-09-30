@@ -38,28 +38,30 @@ final class CGEventMouseConfirmationMonitor: MouseConfirmationMonitor {
         // plus wrong other-button and ordinary left/right downs for SAME-row feedback.
         // Left/right are never consumed. No key observation.
         let mask: CGEventMask =
-            (CGEventMask(1) << CGEventType.otherMouseDown.rawValue) |
-            (CGEventMask(1) << CGEventType.otherMouseUp.rawValue) |
-            (CGEventMask(1) << CGEventType.leftMouseDown.rawValue) |
-            (CGEventMask(1) << CGEventType.rightMouseDown.rawValue)
+            (CGEventMask(1) << CGEventType.otherMouseDown.rawValue) | (CGEventMask(1) << CGEventType.otherMouseUp.rawValue) | (CGEventMask(1) << CGEventType.leftMouseDown.rawValue)
+            | (CGEventMask(1) << CGEventType.rightMouseDown.rawValue)
         // tapBox owns the box for the monitor lifetime; context is unretained
         // (no manual retain/release). stop()/deinit clears it, so the pointer
         // never dangles and failures never pretend monitoring.
         let box = ConfirmationTapBox(handler: handler, onFailure: onFailure)
         tapBox = box
         let context = Unmanaged<ConfirmationTapBox>.passUnretained(box).toOpaque()
-        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask, callback: { _, type, event, data in
-            guard let data else { return Unmanaged.passUnretained(event) }
-            let box = Unmanaged<ConfirmationTapBox>.fromOpaque(data).takeUnretainedValue()
-            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                if let rawTap = box.liveTap { CGEvent.tapEnable(tap: rawTap, enable: true) }
-                let failure = box.onFailure
-                DispatchQueue.main.async { failure() }
-                return Unmanaged.passUnretained(event)
-            }
-            if box.handler(type, event) { return nil } // consumed: never navigates
-            return Unmanaged.passUnretained(event)
-        }, userInfo: context) else {
+        guard
+            let tap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask,
+                callback: { _, type, event, data in
+                    guard let data else { return Unmanaged.passUnretained(event) }
+                    let box = Unmanaged<ConfirmationTapBox>.fromOpaque(data).takeUnretainedValue()
+                    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                        if let rawTap = box.liveTap { CGEvent.tapEnable(tap: rawTap, enable: true) }
+                        let failure = box.onFailure
+                        DispatchQueue.main.async { failure() }
+                        return Unmanaged.passUnretained(event)
+                    }
+                    if box.handler(type, event) { return nil } // consumed: never navigates
+                    return Unmanaged.passUnretained(event)
+                }, userInfo: context)
+        else {
             tapBox = nil
             throw VellaError.message(ShortcutManager.mouseConfirmationUnavailableMessage)
         }

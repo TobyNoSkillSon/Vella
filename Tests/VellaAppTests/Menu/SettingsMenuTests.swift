@@ -61,8 +61,10 @@ final class SettingsMenuTests: XCTestCase {
         }
         let escape = trackingTimer(0.5) {
             stayedOpen = item.view?.window?.isVisible == true && target.calls == 1
-            if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                windowNumber: item.view?.window?.windowNumber ?? 0, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53) {
+            if let event = NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: item.view?.window?.windowNumber ?? 0, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53)
+            {
                 escapeSent = true; NSApplication.shared.postEvent(event, atStart: true)
             }
         }

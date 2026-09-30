@@ -24,24 +24,24 @@ final class StreamingRestoreCancellationTests: XCTestCase {
         }
         let script = root.appendingPathComponent("stream.py")
         try #"""
-#!/usr/bin/python3
-import sys,json,os,time,base64
-frames=0
-for line in sys.stdin:
-    q=json.loads(line)
-    if q['op'] in ('start','load'):
+        #!/usr/bin/python3
+        import sys,json,os,time,base64
         frames=0
-        if 'loadfail' in q['model']:
-            print(json.dumps({'id':q['id'],'frames':0,'error':'injected load failure'}),flush=True)
-            continue
-        print(json.dumps({'status':{'pid':os.getpid(),'engine':'mlx','memory':{'footprint_mb':1000}}}),flush=True)
-    if q['op']=='audio': frames += len(base64.b64decode(q['pcm']))//4
-    r={'id':q['id'],'frames':frames,'partial':'','committed':''}
-    if q['op']=='load': r['loaded']=True
-    if q['op']=='finish': r.update(done=True,committed='hello')
-    print(json.dumps(r),flush=True)
-time.sleep(.2)
-"""#.write(to: script, atomically: true, encoding: .utf8)
+        for line in sys.stdin:
+            q=json.loads(line)
+            if q['op'] in ('start','load'):
+                frames=0
+                if 'loadfail' in q['model']:
+                    print(json.dumps({'id':q['id'],'frames':0,'error':'injected load failure'}),flush=True)
+                    continue
+                print(json.dumps({'status':{'pid':os.getpid(),'engine':'mlx','memory':{'footprint_mb':1000}}}),flush=True)
+            if q['op']=='audio': frames += len(base64.b64decode(q['pcm']))//4
+            r={'id':q['id'],'frames':frames,'partial':'','committed':''}
+            if q['op']=='load': r['loaded']=True
+            if q['op']=='finish': r.update(done=True,committed='hello')
+            print(json.dumps(r),flush=True)
+        time.sleep(.2)
+        """#.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
         let backend = StreamingBackend(helper: script, timeout: 2, runtime: runtime)
         runtime.streaming = backend

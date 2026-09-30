@@ -29,7 +29,8 @@ public struct SemanticVersion: Comparable, CustomStringConvertible, Sendable {
         for part in parts {
             // No leading zeros (SemVer §2): `v01.0.0` is not a release tag.
             guard !part.isEmpty, part.allSatisfy({ $0.isASCII && $0.isNumber }), part.count <= 9, part.count == 1 || part.first != "0",
-                  let n = Int(part) else { return nil }
+                let n = Int(part)
+            else { return nil }
             numbers.append(n)
         }
         (major, minor, patch) = (numbers[0], numbers[1], numbers[2])
@@ -49,14 +50,14 @@ public struct SemanticVersion: Comparable, CustomStringConvertible, Sendable {
     public static func < (a: Self, b: Self) -> Bool {
         if (a.major, a.minor, a.patch) != (b.major, b.minor, b.patch) { return (a.major, a.minor, a.patch) < (b.major, b.minor, b.patch) }
         switch (a.prerelease.isEmpty, b.prerelease.isEmpty) {
-        case (true, true), (true, false): return false          // equal, or a release is newer than its prerelease
+        case (true, true), (true, false): return false // equal, or a release is newer than its prerelease
         case (false, true): return true
         case (false, false): break
         }
         for (x, y) in zip(a.prerelease, b.prerelease) where x != y {
             switch (Int(x), Int(y)) {
             case let (i?, j?): return i < j
-            case (_?, nil): return true                          // numeric identifiers sort before alphanumeric ones
+            case (_?, nil): return true // numeric identifiers sort before alphanumeric ones
             case (nil, _?): return false
             case (nil, nil): return x < y
             }

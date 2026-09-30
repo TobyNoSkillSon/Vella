@@ -75,8 +75,13 @@ final class MenuMock: NSView {
         for item in items {
             if item.isSectionHeader {
                 y -= 22
-                NSAttributedString(string: item.title, attributes: [.font: NSFont.systemFont(ofSize: 11, weight: .semibold),
-                    .foregroundColor: NSColor.white.withAlphaComponent(0.5)]).draw(at: NSPoint(x: 14, y: y + 4))
+                NSAttributedString(
+                    string: item.title,
+                    attributes: [
+                        .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
+                        .foregroundColor: NSColor.white.withAlphaComponent(0.5)
+                    ]
+                ).draw(at: NSPoint(x: 14, y: y + 4))
                 continue
             }
             if item.isSeparatorItem {
@@ -86,7 +91,10 @@ final class MenuMock: NSView {
             }
             y -= 26
             let color: NSColor = item.isEnabled ? .white : NSColor.white.withAlphaComponent(0.4)
-            let title = item.attributedTitle.map { NSAttributedString(string: $0.string, attributes: attrs(($0.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor) ?? color, 13)) }
+            let title =
+                item.attributedTitle.map {
+                    NSAttributedString(string: $0.string, attributes: attrs(($0.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor) ?? color, 13))
+                }
                 ?? NSAttributedString(string: item.title, attributes: attrs(color, 13))
             var x: CGFloat = 14
             if item.state == .on { NSAttributedString(string: "✓", attributes: attrs(color, 12)).draw(at: NSPoint(x: 8, y: y + 5)) }
@@ -99,7 +107,9 @@ final class MenuMock: NSView {
                 tinted.draw(in: r, from: .zero, operation: .sourceOver, fraction: 1)
                 NSGraphicsContext.restoreGraphicsState()
                 x += 22
-            } else if items.contains(where: { $0.image != nil }) { x += 22 }
+            } else if items.contains(where: { $0.image != nil }) {
+                x += 22
+            }
             title.draw(at: NSPoint(x: x, y: y + 5))
             if item.submenu != nil { NSAttributedString(string: "›", attributes: attrs(color, 15)).draw(at: NSPoint(x: bounds.width - 22, y: y + 4)) }
             let key = Self.keyEquivalentText(item)
@@ -117,8 +127,10 @@ final class TooltipSheet: NSView {
     static let pad: CGFloat = 14, gap: CGFloat = 12
     init(pairs: [(String, String)], width: CGFloat) {
         blocks = pairs.map { title, tip in
-            (NSAttributedString(string: title, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: NSColor.white.withAlphaComponent(0.55)]),
-             NSAttributedString(string: tip, attributes: [.font: NSFont.toolTipsFont(ofSize: 0), .foregroundColor: NSColor.white]))
+            (
+                NSAttributedString(string: title, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: NSColor.white.withAlphaComponent(0.55)]),
+                NSAttributedString(string: tip, attributes: [.font: NSFont.toolTipsFont(ofSize: 0), .foregroundColor: NSColor.white])
+            )
         }
         let inner = width - 2 * Self.pad - 16
         let height = blocks.reduce(Self.pad) { sum, block in

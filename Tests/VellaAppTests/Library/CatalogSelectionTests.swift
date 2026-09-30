@@ -39,15 +39,16 @@ final class CatalogSelectionTests: XCTestCase {
             "Qwen3-ASR-0.6B-4bit": InstalledModel(path: plain, name: "Qwen3 ASR 0.6B", quantization: "4-bit"),
             "parakeet-tdt-0.6b-v3-mlx-bf16-local": InstalledModel(path: stored, name: "Parakeet v3", quantization: "BF16"),
             "parakeet-ultra-mlx-bf16": InstalledModel(path: ultra, name: "Parakeet v3 Ultra", quantization: "BF16"),
-            "imported-whisper-small": InstalledModel(path: imported, name: "Whisper small", quantization: "FP16"),
+            "imported-whisper-small": InstalledModel(path: imported, name: "Whisper small", quantization: "FP16")
         ]
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(registry).write(to: support.appendingPathComponent("models-installed.json"))
         let resources = ModelLibrary.resourceDirectory()
         let registryURL = support.appendingPathComponent("models-installed.json")
-        let c = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registryURL),
-                                 streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registryURL),
-                                 benchmarksURL: resources.appendingPathComponent("benchmarks.json"), configURL: configURL)
+        let c = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registryURL),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registryURL),
+            benchmarksURL: resources.appendingPathComponent("benchmarks.json"), configURL: configURL)
         let family = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
         let derived = try prepareDerivedModel(family: family, precision: "8b", sourcePath: ultra, modelsDirectory: models)
         return (c, Paths(plain: plain, stored: stored, derived: derived, outside: outside, ultra: ultra))
@@ -73,8 +74,9 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(result.rekeyed, [:])
         let registered = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: support.appendingPathComponent("models-installed.json")))
         XCTAssertEqual(Set(registered.keys), ["Qwen3-ASR-0.6B-4bit", "parakeet-tdt-0.6b-v3-mlx-bf16-local", "parakeet-ultra-mlx-bf16"])
-        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("outside/whisper-small/model.safetensors").path),
-                      "the migration never deletes files")
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: root.appendingPathComponent("outside/whisper-small/model.safetensors").path),
+            "the migration never deletes files")
         XCTAssertEqual(try Data(contentsOf: configURL), before, "config.json is not the registry migration's")
     }
 

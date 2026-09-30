@@ -57,8 +57,11 @@ final class SegmentationPolicyTests: XCTestCase {
             // end (a forced cut or a re-split starts 0.5 s early; the ramp's period is longer than the search window).
             func matches(_ i: Int) -> Bool {
                 guard i + samples.count <= reference.count else { return false }
-                return reference.withUnsafeBufferPointer { r in samples.withUnsafeBufferPointer { q in
-                    memcmp(r.baseAddress! + i, q.baseAddress!, q.count * 2) == 0 } }
+                return reference.withUnsafeBufferPointer { r in
+                    samples.withUnsafeBufferPointer { q in
+                        memcmp(r.baseAddress! + i, q.baseAddress!, q.count * 2) == 0
+                    }
+                }
             }
             let from = starts.isEmpty ? 0 : max(0, starts.last! + lengths.last! - 16_000)
             starts.append((from..<reference.count).first(where: matches) ?? -1); lengths.append(samples.count)
@@ -105,8 +108,10 @@ final class SegmentationPolicyTests: XCTestCase {
     }
 
     @MainActor func testShortTailIsMergedAndTheJournalIsUnchanged() async throws {
-        for (pieces, journal) in [([Piece.speech(6), .pause(0.5), .speech(1)], [102_400, 17_600]),   // 1.1 s tail
-                                  ([.speech(13.5), .pause(0.8), .speech(0.1)], [222_400, 8_000])] { // Parakeet F2 shape: 0.5 s tail
+        for (pieces, journal) in [
+            ([Piece.speech(6), .pause(0.5), .speech(1)], [102_400, 17_600]), // 1.1 s tail
+            ([.speech(13.5), .pause(0.8), .speech(0.1)], [222_400, 8_000])
+        ] { // Parakeet F2 shape: 0.5 s tail
             let input = signal(pieces)
             let session = try record(input)
             XCTAssertEqual(session.manifest.segments.map(\.frames), journal)
@@ -172,8 +177,8 @@ final class SegmentationPolicyTests: XCTestCase {
     @MainActor func testLongRecordingMergesOnlyItsFinalUnitAndLosesNoAudio() async throws {
         var pieces: [Piece] = []
         for _ in 0..<20 { pieces += [.speech(9), .pause(0.7)] }
-        pieces += [.speech(40.3)]              // a forced cut at 25 s, then 15.6 s more speech after the 0.5 s overlap
-        pieces += [.pause(0.5), .speech(0.6)]  // a pause cut, then a 0.7 s final segment
+        pieces += [.speech(40.3)] // a forced cut at 25 s, then 15.6 s more speech after the 0.5 s overlap
+        pieces += [.pause(0.5), .speech(0.6)] // a pause cut, then a 0.7 s final segment
         let input = signal(pieces)
         let session = try record(input)
         let journal = session.manifest.segments
@@ -202,12 +207,16 @@ final class SegmentationPolicyTests: XCTestCase {
         XCTAssertEqual(recovered.manifest.segments.map(\.text), [nil, nil])
         XCTAssertNil(try recovered.savePartialTranscript(), "Nothing recognized yet: no partial transcript")
         var calls = 0
-        let text = try await SessionTranscriber { _, _ in calls += 1; return "Once only." }.run(recovered)
+        let text = try await SessionTranscriber { _, _ in
+            calls += 1; return "Once only."
+        }.run(recovered)
         XCTAssertEqual(calls, 1)
         XCTAssertEqual(text, "Once only.")
         XCTAssertEqual(try String(contentsOf: recovered.transcriptURL, encoding: .utf8), "Once only.")
         // Running again changes nothing and sends nothing.
-        let again = try await SessionTranscriber { _, _ in XCTFail("Nothing is pending"); return "" }.run(recovered)
+        let again = try await SessionTranscriber { _, _ in
+            XCTFail("Nothing is pending"); return ""
+        }.run(recovered)
         XCTAssertEqual(again, "Once only.")
     }
 

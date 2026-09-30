@@ -68,8 +68,10 @@ final class ShortcutCoreTests: XCTestCase {
     // MARK: Engine
     private func engineWithFlags(behavior: ShortcutBehavior, now: @escaping () -> TimeInterval = { 1000 }) -> (ShortcutEngine, RecordingBox) {
         let box = RecordingBox()
-        let engine = ShortcutEngine(configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: behavior),
-            sinks: .init(start: { box.starts += 1 }, finish: { box.finishes += 1 }, cancel: { box.cancels += 1 },
+        let engine = ShortcutEngine(
+            configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: behavior),
+            sinks: .init(
+                start: { box.starts += 1 }, finish: { box.finishes += 1 }, cancel: { box.cancels += 1 },
                 isRecording: { box.recording }, isBusy: { box.busy }), now: now)
         return (engine, box)
     }
@@ -181,10 +183,18 @@ final class ShortcutCoreTests: XCTestCase {
     func testOperationOwnershipBlocksForeignFinishStart() {
         var generation: UInt64 = 5
         let box = RecordingBox()
-        let engine = ShortcutEngine(configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .holdToTalk),
-            sinks: .init(start: { box.starts += 1; generation &+= 1; box.recording = true },
-                finish: { box.finishes += 1; generation &+= 1; box.recording = false },
-                cancel: { box.cancels += 1; generation &+= 1; box.recording = false; box.busy = false },
+        let engine = ShortcutEngine(
+            configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .holdToTalk),
+            sinks: .init(
+                start: {
+                    box.starts += 1; generation &+= 1; box.recording = true
+                },
+                finish: {
+                    box.finishes += 1; generation &+= 1; box.recording = false
+                },
+                cancel: {
+                    box.cancels += 1; generation &+= 1; box.recording = false; box.busy = false
+                },
                 isRecording: { box.recording }, isBusy: { box.busy },
                 currentOperation: { generation }), now: { 1000 })
         XCTAssertTrue(engine.press())
@@ -199,8 +209,10 @@ final class ShortcutCoreTests: XCTestCase {
     func testTapWhilePreparingRetainsToggle() {
         var t = 1000.0
         let box = RecordingBox()
-        let engine = ShortcutEngine(configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .tapOrHold),
-            sinks: .init(start: { box.starts += 1 }, finish: { box.finishes += 1 }, cancel: { box.cancels += 1 },
+        let engine = ShortcutEngine(
+            configuration: .init(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .tapOrHold),
+            sinks: .init(
+                start: { box.starts += 1 }, finish: { box.finishes += 1 }, cancel: { box.cancels += 1 },
                 isRecording: { box.recording }, isBusy: { box.busy }), now: { t })
         XCTAssertTrue(engine.press())
         box.busy = true // still preparing at quick release
@@ -217,23 +229,36 @@ final class ShortcutCoreTests: XCTestCase {
     func testSoloReducerOrdinaryChordNeverFires() {
         var state = SoloModifierState()
         // Left Cmd down sole for a Cmd+C chord, then C keyDown cancels.
-        XCTAssertEqual(ModifierSoloReducer.step(state: &state, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &state, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle),
+            .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &state, event: .otherKeyDown(time: 0.05), targetKey: .command, targetSide: .left, behavior: .toggle), .cancelled)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &state, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .toggle), .none)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &state, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .toggle), .none)
     }
     func testSoloReducerSidesAndHold() {
         var state = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &state, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(
+                state: &state, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
         // Right side does not satisfy Left target.
         XCTAssertEqual(ModifierSoloReducer.step(state: &state, event: .otherModifierDown(time: 0.05), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .cancelled)
         var solo = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &solo, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(
+                state: &solo, event: .targetDown(key: .control, side: .left, time: 0, sole: true), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &solo, event: .holdTimeout(time: 0.35), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .press)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &solo, event: .targetUp(key: .control, side: .left, time: 0.5), targetKey: .control, targetSide: .left, behavior: .holdToTalk), .holdRelease)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &solo, event: .targetUp(key: .control, side: .left, time: 0.5), targetKey: .control, targetSide: .left, behavior: .holdToTalk),
+            .holdRelease)
         // Toggle never fires press on hold timeout; tap release yields tap.
         var toggle = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &toggle, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(
+                state: &toggle, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle), .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &toggle, event: .holdTimeout(time: 0.4), targetKey: .command, targetSide: .left, behavior: .toggle), .none)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &toggle, event: .targetUp(key: .command, side: .left, time: 0.45), targetKey: .command, targetSide: .left, behavior: .toggle), .tapRelease)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &toggle, event: .targetUp(key: .command, side: .left, time: 0.45), targetKey: .command, targetSide: .left, behavior: .toggle),
+            .tapRelease)
     }
 }

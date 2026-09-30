@@ -24,15 +24,18 @@ import ApplicationServices
         defer {
             if let qaClipboardCount, clipboard.changeCount == qaClipboardCount {
                 clipboard.clearContents()
-                clipboard.writeObjects(originalClipboard.map { values in
-                    let item = NSPasteboardItem(); for (type, data) in values { item.setData(data, forType: type) }; return item
-                })
+                clipboard.writeObjects(
+                    originalClipboard.map { values in
+                        let item = NSPasteboardItem(); for (type, data) in values { item.setData(data, forType: type) }; return item
+                    })
             }
             original?.activate(options: []); NSApp.terminate(nil)
         }
         let output = Backend.support.appendingPathComponent("paste-check.json")
         func report(_ message: String) {
-            if let data = try? JSONSerialization.data(withJSONObject: ["result": message, "checkedAt": ISO8601DateFormatter().string(from: Date())]) { try? data.write(to: output, options: .atomic) }
+            if let data = try? JSONSerialization.data(withJSONObject: ["result": message, "checkedAt": ISO8601DateFormatter().string(from: Date())]) {
+                try? data.write(to: output, options: .atomic)
+            }
         }
         guard AXIsProcessTrusted() else { report("blocked: no existing Accessibility grant"); return }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("Vella-Paste-Check-\(UUID().uuidString).txt")
@@ -44,10 +47,12 @@ import ApplicationServices
             let app = AXUIElementCreateApplication(target.processIdentifier)
             func ownsFocus(_ expected: URL) -> Bool {
                 guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier,
-                      let raw = attribute(app, kAXFocusedWindowAttribute), CFGetTypeID(raw) == AXUIElementGetTypeID() else { return false }
+                    let raw = attribute(app, kAXFocusedWindowAttribute), CFGetTypeID(raw) == AXUIElementGetTypeID()
+                else { return false }
                 let window = unsafeBitCast(raw, to: AXUIElement.self)
                 guard let document = attribute(window, kAXDocumentAttribute) as? String,
-                      let documentURL = URL(string: document) else { return false }
+                    let documentURL = URL(string: document)
+                else { return false }
                 return documentURL.standardizedFileURL == expected.standardizedFileURL
             }
             for _ in 0..<20 { if ownsFocus(url) { break }; try await Task.sleep(nanoseconds: 200_000_000) }
@@ -68,14 +73,18 @@ import ApplicationServices
             let model = DictationController()
             model.checkPaste(to: target)
             try await Task.sleep(nanoseconds: 1_000_000_000)
-            guard ownsFocus(url), let raw = attribute(app, kAXFocusedUIElementAttribute), CFGetTypeID(raw) == AXUIElementGetTypeID() else { report("failed: focus changed during paste"); return }
+            guard ownsFocus(url), let raw = attribute(app, kAXFocusedUIElementAttribute), CFGetTypeID(raw) == AXUIElementGetTypeID() else {
+                report("failed: focus changed during paste"); return
+            }
             let field = unsafeBitCast(raw, to: AXUIElement.self)
             let accepted = (attribute(field, kAXValueAttribute) as? String)?.contains("Vella paste verification.") == true
             guard accepted, model.insertionWasAutomatic else { report("failed: target did not accept the test paste"); return }
             // Save and close only the verified test document. No Return/Send events.
             key(1) // Command-S
             try await Task.sleep(nanoseconds: 500_000_000)
-            guard ownsFocus(url), let firstRaw = attribute(app, kAXFocusedWindowAttribute), CFGetTypeID(firstRaw) == AXUIElementGetTypeID() else { report("blocked: first document lost focus"); return }
+            guard ownsFocus(url), let firstRaw = attribute(app, kAXFocusedWindowAttribute), CFGetTypeID(firstRaw) == AXUIElementGetTypeID() else {
+                report("blocked: first document lost focus"); return
+            }
             let firstWindow = unsafeBitCast(firstRaw, to: AXUIElement.self)
             model.preparePasteCheck(to: target)
             let otherURL = FileManager.default.temporaryDirectory.appendingPathComponent("Vella-Other-Window-Check-\(UUID()).txt")
@@ -86,10 +95,13 @@ import ApplicationServices
             model.finishPasteCheck()
             qaClipboardCount = clipboard.changeCount
             try await Task.sleep(nanoseconds: 300_000_000)
-            guard ownsFocus(otherURL), let otherRaw = attribute(app, kAXFocusedUIElementAttribute), CFGetTypeID(otherRaw) == AXUIElementGetTypeID() else { report("blocked: second field unavailable"); return }
+            guard ownsFocus(otherURL), let otherRaw = attribute(app, kAXFocusedUIElementAttribute), CFGetTypeID(otherRaw) == AXUIElementGetTypeID() else {
+                report("blocked: second field unavailable"); return
+            }
             let otherField = unsafeBitCast(otherRaw, to: AXUIElement.self)
             guard !model.insertionWasAutomatic, (attribute(otherField, kAXValueAttribute) as? String)?.isEmpty == true,
-                  clipboard.string(forType: .string) == "Vella paste verification." else { report("failed: different-window insertion guard"); return }
+                clipboard.string(forType: .string) == "Vella paste verification."
+            else { report("failed: different-window insertion guard"); return }
             key(13) // Close only the verified empty second document.
             try await Task.sleep(nanoseconds: 300_000_000)
             AXUIElementPerformAction(firstWindow, kAXRaiseAction as CFString)

@@ -49,18 +49,24 @@ import VellaWorkerSupport
                         }
                     } else if op == "unload", Set(request.keys) == ["id", "op"] {
                         cache.close(); watchdog.write(["status": cache.status("unload")]); reply["unloaded"] = true
-                    } else { reply["error"] = "Invalid local streaming request." }
+                    } else {
+                        reply["error"] = "Invalid local streaming request."
+                    }
                     watchdog.disarm(); watchdog.write(reply)
                     if reply["error"] != nil { return false }
                     return true
                 }
                 let before = cache.path, engineBefore = cache.native?.engine.0
                 let reply: [String: Any]
-                do { reply = try withError { session.reply(value) } }
-                catch { session.done = true; reply = ["id": identifier as Any? ?? NSNull(), "error": "Local streaming transcription failed."] }
+                do { reply = try withError { session.reply(value) } } catch {
+                    session.done = true; reply = ["id": identifier as Any? ?? NSNull(), "error": "Local streaming transcription failed."]
+                }
                 watchdog.disarm()
-                if cache.path != before { watchdog.write(["status": cache.status(cache.path == nil ? "unload" : "load")]) }
-                else if cache.native?.engine.0 != engineBefore { watchdog.write(["status": cache.status("fallback")]) }
+                if cache.path != before {
+                    watchdog.write(["status": cache.status(cache.path == nil ? "unload" : "load")])
+                } else if cache.native?.engine.0 != engineBefore {
+                    watchdog.write(["status": cache.status("fallback")])
+                }
                 watchdog.write(reply)
                 if session.done {
                     // A clean finish keeps the model hot for the next session; any failure ends the process.

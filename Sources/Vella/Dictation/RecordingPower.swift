@@ -5,7 +5,8 @@ final class RecordingPower {
     private var assertion: IOPMAssertionID = 0
     func begin() {
         guard assertion == 0 else { return }
-        _ = IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
+        _ = IOPMAssertionCreateWithName(
+            kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
             IOPMAssertionLevel(kIOPMAssertionLevelOn), "Vella is recording until you stop dictation" as CFString, &assertion)
     }
     func end() { if assertion != 0 { IOPMAssertionRelease(assertion); assertion = 0 } }

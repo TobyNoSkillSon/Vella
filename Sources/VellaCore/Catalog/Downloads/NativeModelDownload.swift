@@ -19,7 +19,8 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     private let baseURL: URL
     private let configuration: URLSessionConfiguration
     private let lock = NSLock()
-    private var transfer: (handle: FileHandle, continuation: CheckedContinuation<Void, Error>, expected: Int64, offset: Int64, received: Int64, responseAccepted: Bool, report: (Int64) -> Void)?
+    private var transfer:
+        (handle: FileHandle, continuation: CheckedContinuation<Void, Error>, expected: Int64, offset: Int64, received: Int64, responseAccepted: Bool, report: (Int64) -> Void)?
     private var task: URLSessionDataTask?
     private var session: URLSession?
     private var cancelled = false
@@ -27,8 +28,10 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     private let progress: (String, Int64?, Int64?) -> Void
     private let catalogURL: URL
 
-    public init(baseURL: URL = URL(string: "https://huggingface.co")!, configuration: URLSessionConfiguration = .default, catalogURL: URL,
-         progress: @escaping (String, Int64?, Int64?) -> Void) {
+    public init(
+        baseURL: URL = URL(string: "https://huggingface.co")!, configuration: URLSessionConfiguration = .default, catalogURL: URL,
+        progress: @escaping (String, Int64?, Int64?) -> Void
+    ) {
         self.baseURL = baseURL; self.configuration = configuration; self.catalogURL = catalogURL; self.progress = progress
     }
     public func cancel() {
@@ -41,14 +44,18 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         try Task.checkCancellation()
     }
     private func url(_ segments: [String], query: String? = nil) throws -> URL {
-        guard let value = URL(string: segments.map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#%"))) ?? "" }.joined(separator: "/"), relativeTo: baseURL)?.absoluteURL,
-              value.host == baseURL.host else { throw DownloadError.invalid("Invalid pinned Hub URL") }
+        guard
+            let value = URL(
+                string: segments.map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#%"))) ?? "" }.joined(
+                    separator: "/"), relativeTo: baseURL)?.absoluteURL,
+            value.host == baseURL.host
+        else { throw DownloadError.invalid("Invalid pinned Hub URL") }
         return query.flatMap { URL(string: value.absoluteString + "?" + $0) } ?? value
     }
     private static func safe(_ name: String) -> Bool {
         let components = name.split(separator: "/", omittingEmptySubsequences: false)
-        return !components.isEmpty && components.allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains("\\") } &&
-            !name.hasPrefix(".") && !name.contains("/.cache/") && !name.contains("\0")
+        return !components.isEmpty && components.allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains("\\") } && !name.hasPrefix(".") && !name.contains("/.cache/")
+            && !name.contains("\0")
     }
     private static func allowed(_ name: String, processor: Set<String>?) -> Bool {
         if name.hasSuffix(".py") { return false }
@@ -58,8 +65,9 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     }
     private func metadata(repository: String, revision: String, processor: Set<String>?) async throws -> [SourceFile] {
         guard repository.split(separator: "/").count == 2,
-              repository.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "-_/ .".contains($0)) }),
-              revision.count == 40, revision.allSatisfy({ $0.isHexDigit }) else { throw DownloadError.invalid("Invalid pinned repository or revision") }
+            repository.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "-_/ .".contains($0)) }),
+            revision.count == 40, revision.allSatisfy({ $0.isHexDigit })
+        else { throw DownloadError.invalid("Invalid pinned repository or revision") }
         let endpoint = try url(["api", "models"] + repository.split(separator: "/").map(String.init) + ["revision", revision], query: "blobs=true")
         var request = URLRequest(url: endpoint); request.timeoutInterval = 20
         let metadataSession = URLSession(configuration: configuration)
@@ -67,9 +75,10 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         let (data, response) = try await metadataSession.data(for: request)
         try checkCancellation()
         guard let http = response as? HTTPURLResponse, http.statusCode == 200,
-              let document = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              document["sha"] as? String == revision,
-              let siblings = document["siblings"] as? [[String: Any]] else { throw DownloadError.invalid("Hub did not return the pinned revision metadata") }
+            let document = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            document["sha"] as? String == revision,
+            let siblings = document["siblings"] as? [[String: Any]]
+        else { throw DownloadError.invalid("Hub did not return the pinned revision metadata") }
         var result: [SourceFile] = []
         for sibling in siblings {
             guard let name = sibling["rfilename"] as? String, Self.allowed(name, processor: processor) else { continue }
@@ -77,7 +86,8 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
             let lfs = sibling["lfs"] as? [String: Any]
             guard let number = sibling["size"] as? NSNumber, number.int64Value >= 0 else { throw DownloadError.invalid("Hub did not supply a file size") }
             guard let etag = (lfs?["sha256"] as? String) ?? (sibling["blobId"] as? String),
-                  [40, 64].contains(etag.count), etag.allSatisfy({ $0.isHexDigit }) else { throw DownloadError.invalid("Hub did not supply a content identity") }
+                [40, 64].contains(etag.count), etag.allSatisfy({ $0.isHexDigit })
+            else { throw DownloadError.invalid("Hub did not supply a content identity") }
             result.append(SourceFile(repository: repository, revision: revision, name: name, size: number.int64Value, etag: etag))
         }
         return result
@@ -111,15 +121,17 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     private func paths(_ file: SourceFile, destination: URL) -> (final: URL, partial: URL, metadata: URL) {
         let final = destination.appendingPathComponent(file.name)
         let meta = destination.appendingPathComponent(".cache/huggingface/download").appendingPathComponent(file.name + ".metadata")
-        let hash = Data(Insecure.SHA1.hash(data: Data(meta.lastPathComponent.utf8))).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
+        let hash = Data(Insecure.SHA1.hash(data: Data(meta.lastPathComponent.utf8))).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(
+            of: "/", with: "_")
         return (final, meta.deletingLastPathComponent().appendingPathComponent("\(hash).\(file.etag).incomplete"), meta)
     }
     private func unlinked(_ url: URL, root: URL) throws {
         var cursor = url
         while cursor.path.hasPrefix(root.path + "/") || cursor == root {
             if let attributes = try? FileManager.default.attributesOfItem(atPath: cursor.path) {
-                if (attributes[.type] as? FileAttributeType) == .typeSymbolicLink ||
-                    ((attributes[.type] as? FileAttributeType) == .typeRegular && (attributes[.referenceCount] as? Int ?? 1) > 1) {
+                if (attributes[.type] as? FileAttributeType) == .typeSymbolicLink
+                    || ((attributes[.type] as? FileAttributeType) == .typeRegular && (attributes[.referenceCount] as? Int ?? 1) > 1)
+                {
                     throw DownloadError.invalid("Linked/shared model asset preserved: \(cursor.path)")
                 }
             }
@@ -151,9 +163,9 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
             try FileManager.default.createDirectory(at: location.metadata.deletingLastPathComponent(), withIntermediateDirectories: true)
             try FileManager.default.createDirectory(at: location.final.deletingLastPathComponent(), withIntermediateDirectories: true)
             let existing = (try? location.metadata.readText())?.components(separatedBy: .newlines) ?? []
-            if existing.count >= 2 && existing[1] == file.etag &&
-                Self.size(location.final) == file.size,
-                try Self.digest(location.final, size: file.size, etag: file.etag) {
+            if existing.count >= 2 && existing[1] == file.etag && Self.size(location.final) == file.size,
+                try Self.digest(location.final, size: file.size, etag: file.etag)
+            {
                 completed += file.size; progress("Downloading from Hugging Face…", min(completed, Int64(Double(total) * 0.99)), total)
                 continue
             }
@@ -207,10 +219,13 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         try checkCancellation()
         report(file.size)
     }
-    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+    public func urlSession(
+        _ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
         lock.lock(); defer { lock.unlock() }
         guard var state = transfer, let http = response as? HTTPURLResponse,
-              http.statusCode == 200 || http.statusCode == 206 else { completionHandler(.cancel); return }
+            http.statusCode == 200 || http.statusCode == 206
+        else { completionHandler(.cancel); return }
         if http.statusCode == 206 {
             guard state.offset > 0, http.value(forHTTPHeaderField: "Content-Range")?.hasPrefix("bytes \(state.offset)-") == true else { completionHandler(.cancel); return }
             do { try state.handle.seekToEnd() } catch { completionHandler(.cancel); return }
@@ -230,8 +245,7 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
             if Date().timeIntervalSince(lastReport) >= 0.25 {
                 lastReport = Date(); notification = { state.report(state.received) }
             }
-        }
-        catch { failed = true }
+        } catch { failed = true }
         lock.unlock()
         notification?()
         if failed { dataTask.cancel() }
@@ -240,11 +254,15 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         lock.lock(); let state = transfer; transfer = nil; self.task = nil; self.session = nil; lock.unlock()
         guard let state else { return }
         try? state.handle.close()
-        if cancelled { state.continuation.resume(throwing: CancellationError()) }
-        else if let error { state.continuation.resume(throwing: error) }
-        else if !state.responseAccepted || state.received != state.expected {
+        if cancelled {
+            state.continuation.resume(throwing: CancellationError())
+        } else if let error {
+            state.continuation.resume(throwing: error)
+        } else if !state.responseAccepted || state.received != state.expected {
             state.continuation.resume(throwing: DownloadError.invalid("Downloaded file size mismatch or invalid range response (\(state.received)/\(state.expected))"))
-        } else { state.continuation.resume() }
+        } else {
+            state.continuation.resume()
+        }
     }
     public static func validate(_ folder: URL, expected: ModelRecommendation) throws {
         let manager = FileManager.default
@@ -266,8 +284,12 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         let quant = (config?["quantization"] ?? config?["quantization_config"]) as? [String: Any]
         let bits = quant?["bits"] as? Int
         let expectedBits = Int(expected.quantization.split(separator: "-").first ?? "")
-        guard expectedBits == nil ? bits == nil : bits == expectedBits else { throw DownloadError.invalid(expectedBits == nil ? "Expected unquantized weights" : "Quantization does not match recommendation") }
-        guard try manager.contentsOfDirectory(atPath: folder.path).contains(where: { $0.hasSuffix(".safetensors") }) else { throw DownloadError.invalid("Model weights are missing") }
+        guard expectedBits == nil ? bits == nil : bits == expectedBits else {
+            throw DownloadError.invalid(expectedBits == nil ? "Expected unquantized weights" : "Quantization does not match recommendation")
+        }
+        guard try manager.contentsOfDirectory(atPath: folder.path).contains(where: { $0.hasSuffix(".safetensors") }) else {
+            throw DownloadError.invalid("Model weights are missing")
+        }
     }
 }
 

@@ -37,9 +37,10 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
         guard !failed else { return }
         do {
             guard let description = CMSampleBufferGetFormatDescription(sampleBuffer),
-                  let stream = CMAudioFormatDescriptionGetStreamBasicDescription(description),
-                  stream.pointee.mSampleRate.isFinite, stream.pointee.mSampleRate > 0,
-                  stream.pointee.mChannelsPerFrame > 0, stream.pointee.mFormatID == kAudioFormatLinearPCM else {
+                let stream = CMAudioFormatDescriptionGetStreamBasicDescription(description),
+                stream.pointee.mSampleRate.isFinite, stream.pointee.mSampleRate > 0,
+                stream.pointee.mChannelsPerFrame > 0, stream.pointee.mFormatID == kAudioFormatLinearPCM
+            else {
                 throw VellaError.message("Microphone supplied an invalid or unsupported audio format.")
             }
             let format = AVAudioFormat(cmAudioFormatDescription: description)
@@ -61,7 +62,9 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
             // invoking its input block. Pump output until inputRanDry; never discard
             // this callback's source merely because the converter hasn't asked yet.
             let outputCapacity: AVAudioFrameCount = 4096
-            guard let converted = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: outputCapacity) else { throw VellaError.message("Could not allocate converted microphone audio.") }
+            guard let converted = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: outputCapacity) else {
+                throw VellaError.message("Could not allocate converted microphone audio.")
+            }
             var offset = 0
             let expectedOutput = ceil(Double(count) * 16_000 / format.sampleRate)
             guard expectedOutput.isFinite, expectedOutput <= Double(Int32.max) else { throw VellaError.message("Microphone audio buffer exceeds the conversion safety limit.") }
@@ -75,7 +78,8 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
                     guard offset < count else { inputStatus.pointee = .noDataNow; return nil }
                     let frames = min(Int(requested), min(4096, count - offset))
                     guard frames > 0,
-                          let packet = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)) else {
+                        let packet = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames))
+                    else {
                         inputError = VellaError.message("Could not allocate microphone conversion input.")
                         inputStatus.pointee = .noDataNow; return nil
                     }
@@ -85,7 +89,8 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
                     let bytesPerFrame = Int(format.streamDescription.pointee.mBytesPerFrame)
                     for index in from.indices {
                         guard let sourceBytes = from[index].mData, let targetBytes = to[index].mData,
-                              (offset + frames) * bytesPerFrame <= Int(from[index].mDataByteSize) else {
+                            (offset + frames) * bytesPerFrame <= Int(from[index].mDataByteSize)
+                        else {
                             inputError = VellaError.message("Microphone conversion input has an invalid PCM layout.")
                             inputStatus.pointee = .noDataNow; return nil
                         }
@@ -112,15 +117,18 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
         guard converted.frameLength > 0 else { return }
         if let segmented, let samples = converted.floatChannelData?[0] {
             try segmented.append(UnsafeBufferPointer(start: samples, count: Int(converted.frameLength)))
-        } else if let file { try file.write(from: converted) }
-        else { throw VellaError.message("Audio recording is already closed.") }
+        } else if let file {
+            try file.write(from: converted)
+        } else {
+            throw VellaError.message("Audio recording is already closed.")
+        }
         // Notify only after the journal accepted these frames, on this same queue.
         if let onPCM, let samples = converted.floatChannelData?[0] {
             onPCM(Data(bytes: samples, count: Int(converted.frameLength) * 4))
         }
         var sum = 0.0
         if let samples = converted.floatChannelData?[0] {
-            for i in 0..<Int(converted.frameLength) { let x = Double(samples[i]); sum += x*x }
+            for i in 0..<Int(converted.frameLength) { let x = Double(samples[i]); sum += x * x }
         }
         let rms = sqrt(sum / Double(converted.frameLength))
         let measured = visualLevel(rms: rms)
@@ -132,7 +140,9 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
         for _ in 0..<16 {
             guard let output = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: 1024) else { throw VellaError.message("Could not finish audio conversion.") }
             var error: NSError?
-            let status = converter.convert(to: output, error: &error) { _, state in state.pointee = .endOfStream; return nil }
+            let status = converter.convert(to: output, error: &error) { _, state in
+                state.pointee = .endOfStream; return nil
+            }
             if let error { throw error }
             guard status != .error else { throw VellaError.message("Could not finish audio conversion.") }
             try append(output)
@@ -150,8 +160,7 @@ final class CaptureSink: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate 
         if failure == nil {
             do { try drain() } catch { failure = error }
         }
-        do { try segmented?.finish(userStopped: userStopped && failure == nil) }
-        catch { if failure == nil { failure = error } }
+        do { try segmented?.finish(userStopped: userStopped && failure == nil) } catch { if failure == nil { failure = error } }
         lock.lock(); error = failure; lock.unlock()
         converter = nil; converterInput = nil; file = nil
     }
@@ -179,8 +188,8 @@ private struct CaptureDrain: @unchecked Sendable {
     private(set) var url: URL?
     private(set) var recordingSession: RecordingSession?
     #if DEBUG
-    /// Tests: a synthetic finished recording, as if captured (no microphone).
-    func adoptForTesting(_ session: RecordingSession) { recordingSession = session }
+        /// Tests: a synthetic finished recording, as if captured (no microphone).
+        func adoptForTesting(_ session: RecordingSession) { recordingSession = session }
     #endif
     func level() -> Double {
         guard let sink else { return 0 }
@@ -197,10 +206,12 @@ private struct CaptureDrain: @unchecked Sendable {
     func writeDiagnostics() {
         guard let sink else { return }
         sink.lock.lock()
-        let state: [String: Any] = ["device": captureDevice, "frames": sink.frames,
+        let state: [String: Any] = [
+            "device": captureDevice, "frames": sink.frames,
             "seconds": Double(sink.frames) / 16_000, "level": sink.level, "peakLevel": sink.peakLevel, "peakRMS": sink.peakRMS,
             "error": sink.error?.localizedDescription ?? "", "engineRunning": session?.isRunning ?? false,
-            "captureBackend": "AVCaptureSession", "checkedAt": ISO8601DateFormatter().string(from: Date())]
+            "captureBackend": "AVCaptureSession", "checkedAt": ISO8601DateFormatter().string(from: Date())
+        ]
         sink.lock.unlock()
         if let data = try? JSONSerialization.data(withJSONObject: state, options: [.sortedKeys]) {
             try? data.write(to: Backend.support.appendingPathComponent("capture-status.json"), options: .atomic)
@@ -220,7 +231,8 @@ private struct CaptureDrain: @unchecked Sendable {
             var name: Unmanaged<CFString>?
             var nameSize = UInt32(MemoryLayout.size(ofValue: name))
             guard AudioObjectGetPropertyData(id, &nameAddress, 0, nil, &nameSize, &name) == noErr,
-                  let name else { return nil }
+                let name
+            else { return nil }
             return Microphone(id: id, name: name.takeUnretainedValue() as String)
         }
     }
@@ -234,19 +246,23 @@ private struct CaptureDrain: @unchecked Sendable {
         var uid: Unmanaged<CFString>?
         var size = UInt32(MemoryLayout.size(ofValue: uid))
         guard AudioObjectGetPropertyData(chosen.id, &address, 0, nil, &size, &uid) == noErr,
-              let uid, let device = AVCaptureDevice.devices(for: .audio).first(where: { $0.uniqueID == uid.takeUnretainedValue() as String }) else {
+            let uid, let device = AVCaptureDevice.devices(for: .audio).first(where: { $0.uniqueID == uid.takeUnretainedValue() as String })
+        else {
             throw VellaError.message("Could not open \(chosen.name) for audio capture.")
         }
         let session = AVCaptureSession()
         let input = try AVCaptureDeviceInput(device: device)
         let output = AVCaptureAudioDataOutput()
         guard let native = CMAudioFormatDescriptionGetStreamBasicDescription(device.activeFormat.formatDescription),
-              native.pointee.mSampleRate.isFinite, native.pointee.mSampleRate > 0, native.pointee.mChannelsPerFrame > 0 else {
+            native.pointee.mSampleRate.isFinite, native.pointee.mSampleRate > 0, native.pointee.mChannelsPerFrame > 0
+        else {
             throw VellaError.message("The microphone did not provide a valid sample rate and channel count.")
         }
-        output.audioSettings = [AVFormatIDKey: kAudioFormatLinearPCM,
+        output.audioSettings = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
             AVSampleRateKey: native.pointee.mSampleRate, AVNumberOfChannelsKey: Int(native.pointee.mChannelsPerFrame),
-            AVLinearPCMBitDepthKey: 32, AVLinearPCMIsFloatKey: true, AVLinearPCMIsNonInterleaved: false]
+            AVLinearPCMBitDepthKey: 32, AVLinearPCMIsFloatKey: true, AVLinearPCMIsNonInterleaved: false
+        ]
         let recording = try RecordingSession(root: recordingsRoot ?? RecordingSession.root, config: config)
         recordingSession = recording
         let sink = try CaptureSink(session: recording, onPCM: onPCM)

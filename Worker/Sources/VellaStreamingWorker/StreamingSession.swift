@@ -40,8 +40,9 @@ extension String {
 }
 func streamingPCM(_ value: Any?) throws -> [Float] {
     guard let string = value as? String, string.utf8.count <= 8536,
-          let bytes = Data(base64Encoded: string), !bytes.isEmpty,
-          bytes.count <= 6400, bytes.count % 4 == 0 else { throw StreamingFailure.invalid }
+        let bytes = Data(base64Encoded: string), !bytes.isEmpty,
+        bytes.count <= 6400, bytes.count % 4 == 0
+    else { throw StreamingFailure.invalid }
     var samples: [Float] = []; samples.reserveCapacity(bytes.count / 4)
     for offset in stride(from: 0, to: bytes.count, by: 4) {
         let bits = bytes.withUnsafeBytes { UInt32(littleEndian: $0.loadUnaligned(fromByteOffset: offset, as: UInt32.self)) }
@@ -60,8 +61,9 @@ func streamingModelPath(_ value: Any?) throws -> URL {
         let file = url.appendingPathComponent(name).resolvingSymlinksInPath()
         let attrs = try FileManager.default.attributesOfItem(atPath: file.path)
         guard attrs[.type] as? FileAttributeType == .typeRegular,
-              let size = attrs[.size] as? NSNumber, size.intValue <= 1048576,
-              let data = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any], data["auto_map"] == nil else { throw StreamingFailure.invalid }
+            let size = attrs[.size] as? NSNumber, size.intValue <= 1048576,
+            let data = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any], data["auto_map"] == nil
+        else { throw StreamingFailure.invalid }
         return data
     }
     do {
@@ -74,7 +76,8 @@ func streamingModelPath(_ value: Any?) throws -> URL {
         }
         let config = try configuration("config.json")
         guard let type = config["model_type"] as? String, type == "nemotron_asr",
-              try FileManager.default.contentsOfDirectory(atPath: url.path).contains(where: { $0.hasSuffix(".safetensors") }) else { throw StreamingFailure.invalid }
+            try FileManager.default.contentsOfDirectory(atPath: url.path).contains(where: { $0.hasSuffix(".safetensors") })
+        else { throw StreamingFailure.invalid }
         if FileManager.default.fileExists(atPath: url.appendingPathComponent("tokenizer_config.json").path) { _ = try configuration("tokenizer_config.json") }
         return url
     } catch { throw StreamingFailure.invalid }
@@ -111,7 +114,9 @@ final class StreamingSession {
             active = true
             for block in preroll { try native.push(block, final: false) }
             preroll.removeAll(keepingCapacity: true)
-        } else { try native.push(samples, final: false) }
+        } else {
+            try native.push(samples, final: false)
+        }
         silent = quiet ? silent + 1 : 0
         if silent >= 40 { return try endpoint() }
         return try native.drain()
@@ -138,7 +143,9 @@ final class StreamingSession {
         } else if op == "finish" {
             if !pending.isEmpty { committed.append(try block(pending)); pending.removeAll() }
             committed.append(try endpoint()); done = true
-        } else { throw StreamingFailure.invalid }
+        } else {
+            throw StreamingFailure.invalid
+        }
         // A coalescing adapter defers the 20-ms blocks to one push per request.
         // Text is append-only, so draining after the flush cuts at the same place
         // (the first 2048 bytes are unchanged) and lands in the same reply.
@@ -153,8 +160,7 @@ final class StreamingSession {
         return reply
     }
     func reply(_ value: Any?) -> [String: Any] {
-        do { return try handle(value) }
-        catch {
+        do { return try handle(value) } catch {
             done = true
             let identifier: Any = requestIdentifier((value as? [String: Any])?["id"]) as Any? ?? NSNull()
             return ["id": identifier, "error": (error as? StreamingFailure) == .invalid ? "Invalid local streaming request." : "Local streaming transcription failed."]

@@ -62,10 +62,16 @@ public enum ModelTableRow: Identifiable, Equatable {
     case family(ModelFamily)
     case reference(ReferenceEntry)
     public var id: String {
-        switch self { case .family(let f): return f.id; case .reference(let r): return "reference:" + r.id }
+        switch self {
+        case .family(let f): return f.id
+        case .reference(let r): return "reference:" + r.id
+        }
     }
     public var name: String {
-        switch self { case .family(let f): return f.name; case .reference(let r): return r.name }
+        switch self {
+        case .family(let f): return f.name
+        case .reference(let r): return r.name
+        }
     }
 }
 
@@ -74,8 +80,10 @@ public func referenceSortKey(_ metric: TableMetric, _ reference: ReferenceEntry)
 
 /// Families and reference rows of one section sorted together, by the same rule as `sortedFamilies`: best value first
 /// when ascending, rows without a value last in either direction, ties in input order (families first).
-public func sortedRows(_ families: [ModelFamily], references: [ReferenceEntry], by metric: TableMetric?, ascending: Bool,
-                       benchmarks: BenchmarkFile) -> [ModelTableRow] {
+public func sortedRows(
+    _ families: [ModelFamily], references: [ReferenceEntry], by metric: TableMetric?, ascending: Bool,
+    benchmarks: BenchmarkFile
+) -> [ModelTableRow] {
     let rows = families.map(ModelTableRow.family) + references.map(ModelTableRow.reference)
     guard let metric else { return rows.sorted { ascending ? $0.name < $1.name : $0.name > $1.name } }
     let keyed = rows.enumerated().map { index, row -> (Int, ModelTableRow, Double?) in
@@ -206,7 +214,7 @@ public func engineHelp(engine: String?, reason: String?, optimizations: [String:
         lines.append("Stock MLX path: the same model without Vella's optimizations; slower." + why)
     }
     lines.append("Precision: \(precisionInProse(precision))")
-    if let baseline { lines.append(baseline) }   // stockLine(_:) of the loaded precision
+    if let baseline { lines.append(baseline) } // stockLine(_:) of the loaded precision
     return lines.joined(separator: "\n")
 }
 
@@ -231,7 +239,8 @@ public func measurementChip(_ file: BenchmarkFile) -> String? {
     for model in file.models.values {
         for result in model.precisions.values {
             guard let hardware = result.hardware, let chip = displayChip(hardware.split(separator: ",").first.map(String.init)),
-                  chipGeneration(chip) != nil else { continue }
+                chipGeneration(chip) != nil
+            else { continue }
             counts[chip, default: 0] += 1
         }
     }
@@ -241,9 +250,12 @@ public func measurementChip(_ file: BenchmarkFile) -> String? {
 /// The footer note when this Mac is not in the measurement chip's generation (M5 Pro and M5 Max count as the same).
 public func hardwareNote(thisChip: String?, measuredOn: String?) -> (text: String, help: String)? {
     guard let this = displayChip(thisChip), let measured = displayChip(measuredOn),
-          let a = chipGeneration(this), let b = chipGeneration(measured), a != b else { return nil }
-    return ("Benchmarks measured on \(measured)",
-            "Speed, energy and memory were measured on \(measured); they differ on this Mac (\(this)). Error rates are the same.")
+        let a = chipGeneration(this), let b = chipGeneration(measured), a != b
+    else { return nil }
+    return (
+        "Benchmarks measured on \(measured)",
+        "Speed, energy and memory were measured on \(measured); they differ on this Mac (\(this)). Error rates are the same."
+    )
 }
 
 // MARK: Runtime state the table shows
@@ -258,8 +270,10 @@ public struct LoadedFamily: Equatable {
     /// What the worker runs (its status `recipe`); nil = not reported (an older worker): the table reads engine
     /// `optimized` as Optimized · Fast and anything else as Standard (`runningSelection`).
     public var selection: ModelSelection?
-    public init(precision: String, engine: String? = nil, engineReason: String? = nil, optimizations: [String: Bool]? = nil, residency: String? = nil,
-                selection: ModelSelection? = nil) {
+    public init(
+        precision: String, engine: String? = nil, engineReason: String? = nil, optimizations: [String: Bool]? = nil, residency: String? = nil,
+        selection: ModelSelection? = nil
+    ) {
         self.precision = precision; self.engine = engine; self.engineReason = engineReason; self.optimizations = optimizations; self.residency = residency
         self.selection = selection
     }
@@ -288,8 +302,10 @@ public struct TableRuntime: Equatable {
     public var refusal: TableRefusal?
     /// False while the runtime cannot take load requests (buttons disable).
     public var available: Bool
-    public init(loaded: [String: LoadedFamily] = [:], loading: String? = nil, chip: String? = nil, workerError: String? = nil,
-                refusal: TableRefusal? = nil, available: Bool = true) {
+    public init(
+        loaded: [String: LoadedFamily] = [:], loading: String? = nil, chip: String? = nil, workerError: String? = nil,
+        refusal: TableRefusal? = nil, available: Bool = true
+    ) {
         self.loaded = loaded; self.loading = loading; self.chip = chip; self.workerError = workerError; self.refusal = refusal; self.available = available
     }
 }

@@ -89,11 +89,13 @@ struct TierControl: View {
                 .frame(width: Self.labelWidth, alignment: .leading)
             if let first = shown.first {
                 let off = Set(shown.filter { unmeasured.contains(Cell(row, $0)) })
-                TierSegments(tiers: shown, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot, unmeasured: off,
-                             help: { off.contains($0) ? Self.notMeasuredHelp : Self.tooltip(help(Cell(row, $0)), enabled: enabled) },
-                             onSelect: { tier in if !off.contains(tier) { onSelect(Cell(row, tier)) } })
-                    .frame(width: Self.segmentsWidth(shown.count), height: Self.segmentHeight)
-                    .padding(.leading, CGFloat(Self.columns.firstIndex(of: first) ?? 0) * Self.cellWidth)
+                TierSegments(
+                    tiers: shown, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot, unmeasured: off,
+                    help: { off.contains($0) ? Self.notMeasuredHelp : Self.tooltip(help(Cell(row, $0)), enabled: enabled) },
+                    onSelect: { tier in if !off.contains(tier) { onSelect(Cell(row, tier)) } }
+                )
+                .frame(width: Self.segmentsWidth(shown.count), height: Self.segmentHeight)
+                .padding(.leading, CGFloat(Self.columns.firstIndex(of: first) ?? 0) * Self.cellWidth)
             }
         }.frame(width: Self.width, height: Self.segmentHeight, alignment: .leading)
     }
@@ -181,7 +183,7 @@ private struct TierSegments: NSViewRepresentable {
 
     private func update(_ control: NSSegmentedControl) {
         if control.segmentCount != tiers.count { control.segmentCount = tiers.count }
-        control.controlSize = .regular   // SwiftUI may push its environment size onto hosted controls
+        control.controlSize = .regular // SwiftUI may push its environment size onto hosted controls
         control.font = TierControl.font
         for (i, tier) in tiers.enumerated() {
             control.setLabel(tier, forSegment: i)

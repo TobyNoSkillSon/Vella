@@ -20,8 +20,7 @@ final class StreamingJournal {
         let path = directory.appendingPathComponent(Self.filename).path
         fd = Darwin.open(path, O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard fd >= 0 else { throw Failure.system(errno) }
-        do { try Self.syncDirectory(directory) }
-        catch { close(); throw error }
+        do { try Self.syncDirectory(directory) } catch { close(); throw error }
     }
     deinit { close() }
     func close() {
@@ -33,7 +32,8 @@ final class StreamingJournal {
         // Bound even the encoder allocation; escaping can expand a valid input, so
         // check the encoded record too. No truncation of recognized text is allowed.
         guard committed.utf8.count < Self.maximumLineBytes,
-              partial.utf8.count < Self.maximumLineBytes else { throw Failure.oversizedEvent }
+            partial.utf8.count < Self.maximumLineBytes
+        else { throw Failure.oversizedEvent }
         var bytes = try JSONEncoder().encode(Event(committed: committed, partial: partial, frames: frames))
         guard bytes.count < Self.maximumLineBytes else { throw Failure.oversizedEvent }
         bytes.append(10)
@@ -72,8 +72,7 @@ final class StreamingJournal {
                 if byte == 10 {
                     guard !oversized else { throw Failure.oversizedEvent }
                     let event: Event
-                    do { event = try JSONDecoder().decode(Event.self, from: line) }
-                    catch { throw Failure.invalidEvent }
+                    do { event = try JSONDecoder().decode(Event.self, from: line) } catch { throw Failure.invalidEvent }
                     guard event.frames >= 0, event.frames >= previousFrames else { throw Failure.invalidEvent }
                     previousFrames = event.frames
                     let committed = event.committed.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -81,8 +80,7 @@ final class StreamingJournal {
                     partial = event.partial.trimmingCharacters(in: .whitespacesAndNewlines)
                     line.removeAll(keepingCapacity: true)
                 } else if !oversized {
-                    if line.count >= maximumLineBytes - 1 { oversized = true; line.removeAll(keepingCapacity: true) }
-                    else { line.append(byte) }
+                    if line.count >= maximumLineBytes - 1 { oversized = true; line.removeAll(keepingCapacity: true) } else { line.append(byte) }
                 }
             }
         }

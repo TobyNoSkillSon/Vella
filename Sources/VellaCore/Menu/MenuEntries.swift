@@ -29,10 +29,12 @@ public let manualLoadHelp = "Models you loaded yourself with Load in Models…; 
 public let onDemandLoadHelp = "Models a dictation needed, so Vella loaded them; they do not load again when Vella starts."
 public let keepHotAlwaysHelp = "Never unloaded for being idle; only Unload, or Memory making room for another model, unloads them."
 public let fitInFreeMemoryTitle = "Fit in free memory"
-public let fitInFreeMemoryHelp = "Checks free memory before loading: a model loads only if it fits in memory that is free at that moment; otherwise idle models are unloaded (least recently used, on-demand first) or the load is refused with the reason. Best effort: memory use can change after the check."
+public let fitInFreeMemoryHelp =
+    "Checks free memory before loading: a model loads only if it fits in memory that is free at that moment; otherwise idle models are unloaded (least recently used, on-demand first) or the load is refused with the reason. Best effort: memory use can change after the check."
 public let allowSwapTitle = "Allow swap (slower)"
 public let allowSwapHelp = "Loads even when memory is short; macOS moves data to disk and everything, including other apps, can slow down."
-public let copySkillHelp = "Copies Vella's skill for a coding agent to the clipboard: when Vella is worth using for audio files, and how to call the vella command, its OpenAI-compatible API or Python. Paste it into your agent's skills."
+public let copySkillHelp =
+    "Copies Vella's skill for a coding agent to the clipboard: when Vella is worth using for audio files, and how to call the vella command, its OpenAI-compatible API or Python. Paste it into your agent's skills."
 public let accessibilityHeaderHelp = "Vella needs Accessibility access to type into other apps. Click to open System Settings."
 
 /// The worker item: Restart Worker while a worker runs, Start Worker when none does (the family menu, 28 Sep 2026).
@@ -50,8 +52,11 @@ public func menuHeaderToolTip(failed: Bool, message: String, needsPermission: Bo
 /// Keep Hot: manually loaded (Load in Models…, the launch set) and loaded on demand (a dictation needed it).
 public func keepHotEntries(manualIdle: Int, onDemandIdle: Int) -> [SettingsEntry] {
     func choices(_ kind: KeepHotClass, _ current: Int) -> [SettingsEntry] {
-        keepHotChoices.map { .choice(title: $0.title, checked: current == $0.minutes, action: .keepHot(kind, minutes: $0.minutes),
-                                     help: $0.minutes == 0 ? keepHotAlwaysHelp : nil) }
+        keepHotChoices.map {
+            .choice(
+                title: $0.title, checked: current == $0.minutes, action: .keepHot(kind, minutes: $0.minutes),
+                help: $0.minutes == 0 ? keepHotAlwaysHelp : nil)
+        }
     }
     var entries: [SettingsEntry] = [.header("Manually loaded", help: manualLoadHelp)]
     entries += choices(.manual, manualIdle)
@@ -65,7 +70,7 @@ public func keepHotEntries(manualIdle: Int, onDemandIdle: Int) -> [SettingsEntry
 public func memoryEntries(allowSwap: Bool, availableMB: Double?, lastEvicted: String?) -> [SettingsEntry] {
     var entries: [SettingsEntry] = [
         .choice(title: fitInFreeMemoryTitle, checked: !allowSwap, action: .memory(allowSwap: false), help: fitInFreeMemoryHelp),
-        .choice(title: allowSwapTitle, checked: allowSwap, action: .memory(allowSwap: true), help: allowSwapHelp),
+        .choice(title: allowSwapTitle, checked: allowSwap, action: .memory(allowSwap: true), help: allowSwapHelp)
     ]
     var captions: [String] = []
     if let mb = availableMB { captions.append(String(format: "~%.1f GB free now", Swift.max(0, mb) / 1000)) }

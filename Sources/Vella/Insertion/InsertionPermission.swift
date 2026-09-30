@@ -10,10 +10,11 @@ import ApplicationServices
     func markShown() { write() }
     static func persistent() -> PermissionPromptHistory {
         let key = "accessibilitySetupPresented"
-        return PermissionPromptHistory(read: {
-            // Earlier Vella versions already requested setup but did not persist a flag.
-            UserDefaults.standard.bool(forKey: key) || FileManager.default.fileExists(atPath: Backend.support.appendingPathComponent("permission-status.json").path)
-        }, write: { UserDefaults.standard.set(true, forKey: key) })
+        return PermissionPromptHistory(
+            read: {
+                // Earlier Vella versions already requested setup but did not persist a flag.
+                UserDefaults.standard.bool(forKey: key) || FileManager.default.fileExists(atPath: Backend.support.appendingPathComponent("permission-status.json").path)
+            }, write: { UserDefaults.standard.set(true, forKey: key) })
     }
 }
 
@@ -22,14 +23,17 @@ import ApplicationServices
     private let isTrusted: () -> Bool
     private let prompt: () -> Void
     private let history: PermissionPromptHistory
-    init(isTrusted: @escaping () -> Bool = { AXIsProcessTrusted() }, prompt: (() -> Void)? = nil,
-         history: PermissionPromptHistory? = nil) {
+    init(
+        isTrusted: @escaping () -> Bool = { AXIsProcessTrusted() }, prompt: (() -> Void)? = nil,
+        history: PermissionPromptHistory? = nil
+    ) {
         self.isTrusted = isTrusted
         self.history = history ?? PermissionPromptHistory.persistent()
-        self.prompt = prompt ?? {
-            let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-            _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
-        }
+        self.prompt =
+            prompt ?? {
+                let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+                _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+            }
     }
     var granted: Bool { isTrusted() }
     @discardableResult func ensure() -> Bool {

@@ -36,16 +36,17 @@ final class ModelsTests: XCTestCase {
             benchmarksURL = root.appendingPathComponent("benchmarks.json")
             try Data(benchmarks.utf8).write(to: benchmarksURL)
         }
-        return ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
-                                streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                benchmarksURL: benchmarksURL)
+        return ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: benchmarksURL)
     }
     private let qwenFixture = #"""
-    {"schema":1,"models":{"qwen3-asr-1.7b":{"precisions":{
-      "BF16":{"wer":1.41,"speed_x":30.5,"j_per_min":6.0,"hardware":"Apple M5 Max","date":"2026-09-27"},
-      "8b":{"wer":1.57,"speed_x":44.5,"j_per_min":4.0,"hardware":"Apple M5 Max","date":"2026-09-27"},
-      "4b":{"wer":1.51,"speed_x":59.5,"j_per_min":3.0,"hardware":"Apple M5 Max","date":"2026-09-27"}}}}}
-    """#
+        {"schema":1,"models":{"qwen3-asr-1.7b":{"precisions":{
+          "BF16":{"wer":1.41,"speed_x":30.5,"j_per_min":6.0,"hardware":"Apple M5 Max","date":"2026-09-27"},
+          "8b":{"wer":1.57,"speed_x":44.5,"j_per_min":4.0,"hardware":"Apple M5 Max","date":"2026-09-27"},
+          "4b":{"wer":1.51,"speed_x":59.5,"j_per_min":3.0,"hardware":"Apple M5 Max","date":"2026-09-27"}}}}}
+        """#
 
     @MainActor func testModelsOpensOneTableWithBothModesAndNoNestedMenus() throws {
         _ = NSApplication.shared
@@ -64,24 +65,24 @@ final class ModelsTests: XCTestCase {
 
     /// A schema-2 fixture for Qwen3 ASR 0.6B: 16 on both rows, 8 on both rows (worse than 16), 4 absent (breaks).
     static let tierFixture = #"""
-    {"schema":2,"models":{"qwen3-asr-0.6b":{"tiers":{
-     "16":{"precision":"BF16","presence":{"offered":true,"reasons":[]},"gate":{"status":"pass","reasons":[],"loss":[]},
-       "standard":{"wer":16.0,"speed_x":40.0,"j_per_min":40.0,"memory_mb":2000,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
-                   "recipe":{"layers":{"all":"bf16"},"kernels":[],"inexact":[],"gate_revision":"stock"},"gate":{"status":"pass","reasons":[]}},
-       "optimized_exact":{"wer":16.0,"speed_x":60.0,"j_per_min":30.0,"memory_mb":2100,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
-                   "recipe":{"layers":{"all":"bf16"},"kernels":["decoder"],"inexact":[]},"gate":{"status":"pass","reasons":[]}},
-       "optimized_fast":{"wer":16.05,"speed_x":80.0,"j_per_min":26.0,"memory_mb":2100,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
-                   "recipe":{"layers":{"all":"bf16"},"kernels":["decoder","nax_gemm"],"inexact":["nax_gemm"]},"gate":{"status":"pass","reasons":[]}}},
-     "8":{"precision":"8b","presence":{"offered":true,"reasons":[]},"gate":{"status":"fail","reasons":["English WER +0.17 pt vs 16 (limit 0.10)"],"loss":["English WER +0.17 pt"]},
-       "standard":{"measured":null,"recipe":{"layers":{"all":"affine-8 g64"},"kernels":[],"inexact":[],"gate_revision":"stock"},"note":"measure pending"},
-       "optimized_exact":{"wer":16.17,"speed_x":76.0,"j_per_min":33.0,"memory_mb":1900,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
-                   "recipe":{"layers":{"all":"affine-8 g64"},"kernels":["decoder"],"inexact":[]}},
-       "optimized_fast":{"wer":16.17,"speed_x":76.0,"j_per_min":33.0,"memory_mb":1900,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
-                   "recipe":{"layers":{"all":"affine-8 g64"},"kernels":["decoder"],"inexact":[]}}},
-     "4":{"precision":"4b","presence":{"offered":false,"reasons":["multilingual mean +6.22 pt vs 16 (absent from +5.0)"]},"gate":{"status":"fail","reasons":[]},
-       "standard":{"recipe":{"layers":{"all":"affine-4 g64"}}},"optimized_exact":{"recipe":{"layers":{"all":"affine-4 g64"}}},"optimized_fast":{"recipe":{"layers":{"all":"affine-4 g64"}}}}
-    }}}}
-    """#
+        {"schema":2,"models":{"qwen3-asr-0.6b":{"tiers":{
+         "16":{"precision":"BF16","presence":{"offered":true,"reasons":[]},"gate":{"status":"pass","reasons":[],"loss":[]},
+           "standard":{"wer":16.0,"speed_x":40.0,"j_per_min":40.0,"memory_mb":2000,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                       "recipe":{"layers":{"all":"bf16"},"kernels":[],"inexact":[],"gate_revision":"stock"},"gate":{"status":"pass","reasons":[]}},
+           "optimized_exact":{"wer":16.0,"speed_x":60.0,"j_per_min":30.0,"memory_mb":2100,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                       "recipe":{"layers":{"all":"bf16"},"kernels":["decoder"],"inexact":[]},"gate":{"status":"pass","reasons":[]}},
+           "optimized_fast":{"wer":16.05,"speed_x":80.0,"j_per_min":26.0,"memory_mb":2100,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                       "recipe":{"layers":{"all":"bf16"},"kernels":["decoder","nax_gemm"],"inexact":["nax_gemm"]},"gate":{"status":"pass","reasons":[]}}},
+         "8":{"precision":"8b","presence":{"offered":true,"reasons":[]},"gate":{"status":"fail","reasons":["English WER +0.17 pt vs 16 (limit 0.10)"],"loss":["English WER +0.17 pt"]},
+           "standard":{"measured":null,"recipe":{"layers":{"all":"affine-8 g64"},"kernels":[],"inexact":[],"gate_revision":"stock"},"note":"measure pending"},
+           "optimized_exact":{"wer":16.17,"speed_x":76.0,"j_per_min":33.0,"memory_mb":1900,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                       "recipe":{"layers":{"all":"affine-8 g64"},"kernels":["decoder"],"inexact":[]}},
+           "optimized_fast":{"wer":16.17,"speed_x":76.0,"j_per_min":33.0,"memory_mb":1900,"measured":{"hardware":"Apple M5 Max, macOS 26.6","date":"2026-09-28","suite":"v2"},
+                       "recipe":{"layers":{"all":"affine-8 g64"},"kernels":["decoder"],"inexact":[]}}},
+         "4":{"precision":"4b","presence":{"offered":false,"reasons":["multilingual mean +6.22 pt vs 16 (absent from +5.0)"]},"gate":{"status":"fail","reasons":[]},
+           "standard":{"recipe":{"layers":{"all":"affine-4 g64"}}},"optimized_exact":{"recipe":{"layers":{"all":"affine-4 g64"}}},"optimized_fast":{"recipe":{"layers":{"all":"affine-4 g64"}}}}
+        }}}}
+        """#
 
     /// No recommended cell: an unloaded, never-loaded row shows Optimized 16 · Fast; deltas are against Standard 16; a click or a
     /// switch flip is a preview that a new controller does not remember.
@@ -196,8 +197,9 @@ final class ModelsTests: XCTestCase {
                     for family in c.families(mode) {
                         for precision in c.options(family) {
                             c.preview(family, precision)
-                            XCTAssertEqual(ModelTable.rows(c, mode, sort: column, ascending: ascending).map(\.id), before,
-                                           "\(column) \(ascending): selecting \(family.id) \(precision) moved a row")
+                            XCTAssertEqual(
+                                ModelTable.rows(c, mode, sort: column, ascending: ascending).map(\.id), before,
+                                "\(column) \(ascending): selecting \(family.id) \(precision) moved a row")
                         }
                     }
                 }
@@ -208,9 +210,9 @@ final class ModelsTests: XCTestCase {
     /// Cloud reference rows: Dictation only, counted in the table height, sorted with the models by estimated WER.
     @MainActor func testCloudReferenceRowsInDictation() throws {
         let fixture = #"""
-        {"schema":1,"models":{"qwen3-asr-1.7b":{"precisions":{"BF16":{"wer":15.06},"8b":{"wer":15.16}}}},
-         "references":{"api":{"reference":true,"estimated":true,"name":"Cloud","mode":"dictation","wer":12.9,"range":[11.3,13.3],"source":"S"}}}
-        """#
+            {"schema":1,"models":{"qwen3-asr-1.7b":{"precisions":{"BF16":{"wer":15.06},"8b":{"wer":15.16}}}},
+             "references":{"api":{"reference":true,"estimated":true,"name":"Cloud","mode":"dictation","wer":12.9,"range":[11.3,13.3],"source":"S"}}}
+            """#
         let c = try controller(benchmarks: fixture)
         XCTAssertEqual(c.references(.dictation).map(\.id), ["api"])
         XCTAssertTrue(c.references(.streaming).isEmpty)
@@ -233,13 +235,14 @@ final class ModelsTests: XCTestCase {
     @MainActor func testTierCellTooltips() throws {
         let c = try controller(benchmarks: Self.tierFixture)
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
-        c.setMode(qwen, .exact)   // the default is Fast; start from Exact
+        c.setMode(qwen, .exact) // the default is Fast; start from Exact
         XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .standard), "bf16, as published\nReference for the deltas · M5 Max, 28 Sep")
         XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard 16: +1.5× speed · −25 % energy · same WER · M5 Max, 28 Sep")
         c.setMode(qwen, .fast)
         XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard 16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep")
-        XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .optimized),
-                       "8-bit weights throughout (affine-8 g64)\nvs Standard 16: +1.9× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep\nLoss vs 16: English WER +0.17 pt")
+        XCTAssertEqual(
+            c.tierHelp(qwen, tier: .t8, path: .optimized),
+            "8-bit weights throughout (affine-8 g64)\nvs Standard 16: +1.9× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep\nLoss vs 16: English WER +0.17 pt")
         XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .standard), "8-bit weights throughout (affine-8 g64)\nMeasure pending\nLoss vs 16: English WER +0.17 pt")
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         XCTAssertEqual(tierFlavour(parakeet, tier: .t16, cell: nil), "bf16, converted once from the published fp32")
@@ -247,8 +250,9 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(tierFlavour(qwen, tier: .t8, cell: per), "8-bit decoder, 16-bit encoder (affine-8 g64)")
         XCTAssertEqual(ExactFastSwitch.help, "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.")
         XCTAssertEqual(ExactFastSwitch.tooltip(available: true, enabled: true), ExactFastSwitch.help)
-        XCTAssertEqual(ExactFastSwitch.tooltip(available: false, enabled: false),
-                       ExactFastSwitch.help + "\nAlways on: Fast measures the same as Exact for this model\nLocked while the model is in use; a change applies at the next load")
+        XCTAssertEqual(
+            ExactFastSwitch.tooltip(available: false, enabled: false),
+            ExactFastSwitch.help + "\nAlways on: Fast measures the same as Exact for this model\nLocked while the model is in use; a change applies at the next load")
         XCTAssertEqual(ExactFastSwitch.inUseHelp, TierControl.inUseHelp, "one interlock line in both shared controls")
     }
 
@@ -287,7 +291,7 @@ final class ModelsTests: XCTestCase {
     /// A precision made on this Mac: selectable, `\u{2014}` until measured, Get fetches its source, Load hands the worker
     /// the derived directory (never the source path, which is the source precision's identity).
     @MainActor func testDerivedPrecisionDisplayGetAndLoad() throws {
-        let c = try controller(benchmarks: qwenFixture)   // no Ultra figures: its derived precisions are unmeasured
+        let c = try controller(benchmarks: qwenFixture) // no Ultra figures: its derived precisions are unmeasured
         let spy = RuntimeSpy(); c.actions = spy
         c.runtime = TableRuntime()
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
@@ -319,7 +323,8 @@ final class ModelsTests: XCTestCase {
         c.preview(ultra, "8b")
         XCTAssertEqual(c.action(ultra), .reload)
         c.perform(ultra)
-        XCTAssertEqual(spy.calls.last, "reload parakeet-v3-ultra 8b \(c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-8bit-local").standardizedFileURL.path)")
+        XCTAssertEqual(
+            spy.calls.last, "reload parakeet-v3-ultra 8b \(c.dictation.modelsDirectory.appendingPathComponent("parakeet-ultra-mlx-8bit-local").standardizedFileURL.path)")
         // No trash for a derived precision: it holds no weights of its own.
         XCTAssertNil(c.localPath(ultra, "8b"))
     }
@@ -351,12 +356,14 @@ final class ModelsTests: XCTestCase {
         for item in delegate.menu.items { if item.isSeparatorItem { blocks.append([]) } else { blocks[blocks.count - 1].append(item.title) } }
         XCTAssertEqual(blocks.count, 5)
         XCTAssertEqual(Array(blocks[0].dropFirst()), ["1 model loaded · 1.3 GB in memory"], "header (text varies), then the fact line")
-        XCTAssertEqual(Array(blocks.dropFirst()), [
-            ["Models…", "Keep Hot", "Memory"],
-            ["Start Dictation", "Mode", "Microphone", "Shortcuts", "Copy Last Transcript", "Open Saved Recordings"],
-            ["Copy Skill for Your Agent", "Open Vella Files", "Restart Worker", "Launch at Login"],
-            ["Support the developer…", "Quit Vella"],
-        ])
+        XCTAssertEqual(
+            Array(blocks.dropFirst()),
+            [
+                ["Models…", "Keep Hot", "Memory"],
+                ["Start Dictation", "Mode", "Microphone", "Shortcuts", "Copy Last Transcript", "Open Saved Recordings"],
+                ["Copy Skill for Your Agent", "Open Vella Files", "Restart Worker", "Launch at Login"],
+                ["Support the developer…", "Quit Vella"]
+            ])
         XCTAssertFalse(delegate.menu.items.contains { $0.title.contains("Diagnostics") }, "no Copy Diagnostics (the vella diagnose command stays)")
         // Tooltips only where the title cannot carry the meaning (Toby, 29 Sep 20:50): here only Copy Skill for Your Agent.
         var tipped: [String: String] = [:]
@@ -374,14 +381,18 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(tipped["Keep Hot → Always"], keepHotAlwaysHelp)
         XCTAssertEqual(tipped["Memory → Fit in free memory"], fitInFreeMemoryHelp)
         XCTAssertEqual(tipped["Memory → Allow swap (slower)"], allowSwapHelp)
-        let survivors: Set<String> = ["Copy Skill for Your Agent", "Keep Hot → Manually loaded", "Keep Hot → Loaded on demand", "Keep Hot → Always",
-                                      "Memory → Fit in free memory", "Memory → Allow swap (slower)"]
+        let survivors: Set<String> = [
+            "Copy Skill for Your Agent", "Keep Hot → Manually loaded", "Keep Hot → Loaded on demand", "Keep Hot → Always",
+            "Memory → Fit in free memory", "Memory → Allow swap (slower)"
+        ]
         // The header (first item) has one only while it reports an error or permission (menuHeaderToolTip, below).
         let header = delegate.menu.items[0]
         XCTAssertEqual(header.toolTip, menuHeaderToolTip(failed: false, message: "", needsPermission: !model.insertionPermission.granted, idle: true, pending: nil))
         XCTAssertEqual(Set(tipped.keys.filter { !$0.hasPrefix("Models…") && $0 != header.title }), survivors, "every other item says what it does in its title")
-        for title in ["Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Last Transcript", "Open Saved Recordings",
-                      "Open Vella Files", "Restart Worker", "Launch at Login", "Support the developer…", "Quit Vella", "Start Dictation"] {
+        for title in [
+            "Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Last Transcript", "Open Saved Recordings",
+            "Open Vella Files", "Restart Worker", "Launch at Login", "Support the developer…", "Quit Vella", "Start Dictation"
+        ] {
             let item = try XCTUnwrap(delegate.menu.item(withTitle: title), title)
             XCTAssertNil(item.toolTip, title)
         }
@@ -393,8 +404,9 @@ final class ModelsTests: XCTestCase {
         // A kept recording waiting for a model: its Get row says what follows the download (the title cannot).
         delegate.pendingModelRow = { ("Get Parakeet v3 Ultra (1.3 GB)", "Asks before downloading Parakeet v3 Ultra, then transcribes the saved recording and copies the text.") }
         delegate.rebuildMenu()
-        XCTAssertEqual(delegate.menu.item(withTitle: "Get Parakeet v3 Ultra (1.3 GB)")?.toolTip,
-                       "Asks before downloading Parakeet v3 Ultra, then transcribes the saved recording and copies the text.")
+        XCTAssertEqual(
+            delegate.menu.item(withTitle: "Get Parakeet v3 Ultra (1.3 GB)")?.toolTip,
+            "Asks before downloading Parakeet v3 Ultra, then transcribes the saved recording and copies the text.")
         delegate.pendingModelRow = { nil }
         delegate.rebuildMenu()
         // Surviving texts carry no stale model names, retired UI terms or internal names.

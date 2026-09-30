@@ -15,9 +15,11 @@ final class LongRecordingTests: XCTestCase {
                 .map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: "'")) }.filter { !$0.isEmpty }
         }
         var ids: [String: Int] = [:]
-        func encode(_ words: [String]) -> [Int] { words.map { word in
-            if let value = ids[word] { return value }; let value = ids.count; ids[word] = value; return value
-        } }
+        func encode(_ words: [String]) -> [Int] {
+            words.map { word in
+                if let value = ids[word] { return value }; let value = ids.count; ids[word] = value; return value
+            }
+        }
         let ref = encode(tokens(reference)), hyp = encode(tokens(hypothesis))
         var previous = Array(0...hyp.count), current = [Int](repeating: 0, count: hyp.count + 1)
         for (i, word) in ref.enumerated() {
@@ -40,9 +42,14 @@ final class LongRecordingTests: XCTestCase {
     static func sample(_ pcm: AVAudioPCMBuffer) throws -> CMSampleBuffer {
         var timing = CMSampleTimingInfo(duration: CMTime(value: 1, timescale: CMTimeScale(pcm.format.sampleRate)), presentationTimeStamp: .zero, decodeTimeStamp: .invalid)
         var sample: CMSampleBuffer?
-        let status = CMSampleBufferCreate(allocator: kCFAllocatorDefault, dataBuffer: nil, dataReady: false, makeDataReadyCallback: nil, refcon: nil, formatDescription: pcm.format.formatDescription, sampleCount: Int(pcm.frameLength), sampleTimingEntryCount: 1, sampleTimingArray: &timing, sampleSizeEntryCount: 0, sampleSizeArray: nil, sampleBufferOut: &sample)
+        let status = CMSampleBufferCreate(
+            allocator: kCFAllocatorDefault, dataBuffer: nil, dataReady: false, makeDataReadyCallback: nil, refcon: nil, formatDescription: pcm.format.formatDescription,
+            sampleCount: Int(pcm.frameLength), sampleTimingEntryCount: 1, sampleTimingArray: &timing, sampleSizeEntryCount: 0, sampleSizeArray: nil, sampleBufferOut: &sample)
         guard status == noErr, let sample else { throw VellaError.message("QA sample creation failed") }
-        guard CMSampleBufferSetDataBufferFromAudioBufferList(sample, blockBufferAllocator: kCFAllocatorDefault, blockBufferMemoryAllocator: kCFAllocatorDefault, flags: 0, bufferList: pcm.audioBufferList) == noErr else { throw VellaError.message("QA sample data failed") }
+        guard
+            CMSampleBufferSetDataBufferFromAudioBufferList(
+                sample, blockBufferAllocator: kCFAllocatorDefault, blockBufferMemoryAllocator: kCFAllocatorDefault, flags: 0, bufferList: pcm.audioBufferList) == noErr
+        else { throw VellaError.message("QA sample data failed") }
         return sample
     }
     @MainActor func testHourOfCorpusThroughCaptureAndRealBackend() async throws {
@@ -52,7 +59,9 @@ final class LongRecordingTests: XCTestCase {
         let selectedClips: [Suite.Clip]
         if let speaker = ProcessInfo.processInfo.environment["VELLA_LONG_SPEAKER"].flatMap(Int.init) {
             selectedClips = suite.clips.filter { $0.speaker == speaker }
-        } else { selectedClips = suite.clips }
+        } else {
+            selectedClips = suite.clips
+        }
         XCTAssertFalse(selectedClips.isEmpty)
         guard !selectedClips.isEmpty else { return }
         let helper = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"].map { URL(fileURLWithPath: $0) }
@@ -109,8 +118,7 @@ final class LongRecordingTests: XCTestCase {
                 let text = try await backend.transcribe(url, config: config)
                 memorySamples.append(backend.lastMetrics)
                 return text
-            }
-            catch {
+            } catch {
                 try Data(contentsOf: url).write(to: root.deletingLastPathComponent().appendingPathComponent("hour-failed-segment.wav"))
                 print("Failed real request \(requests); capture completed in \(replaySeconds) seconds; sample hash verified")
                 throw error
@@ -126,19 +134,24 @@ final class LongRecordingTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: recovered.transcriptURL), text)
         let (wordErrors, referenceWords) = Self.lexicalErrors(references.joined(separator: " "), text)
         let wer = Double(wordErrors) / Double(max(1, referenceWords))
-        let report: [String: Any] = ["audioSeconds": recovered.seconds, "sourceClips": clips, "segments": recovered.manifest.segments.count,
+        let report: [String: Any] = [
+            "audioSeconds": recovered.seconds, "sourceClips": clips, "segments": recovered.manifest.segments.count,
             "requests": requests, "workerMetrics": memorySamples, "sourceSHA256": sourceDigest, "savedSHA256": savedDigest, "replaySeconds": replaySeconds,
             "processingSeconds": processing, "model": URL(fileURLWithPath: config.model).lastPathComponent,
             "wordErrors": wordErrors, "referenceWords": referenceWords, "lexicalWER": wer,
-            "transcript": text, "reference": references.joined(separator: " "), "kind": "accelerated corpus replay, not an hour of physical microphone use"]
-        try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]).write(to: root.deletingLastPathComponent().appendingPathComponent("hour-session-results.json"), options: .atomic)
+            "transcript": text, "reference": references.joined(separator: " "), "kind": "accelerated corpus replay, not an hour of physical microphone use"
+        ]
+        try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]).write(
+            to: root.deletingLastPathComponent().appendingPathComponent("hour-session-results.json"), options: .atomic)
         let maximumWER = Double(ProcessInfo.processInfo.environment["VELLA_MAX_LONG_WER"] ?? "0.05") ?? 0.05
         XCTAssertLessThanOrEqual(wer, maximumWER, "Retention/completion is not an accuracy pass. Inspect missing words and compare the same clips directly.")
         print("Long-replay lexical WER: \(wordErrors)/\(referenceWords) = \(wer)")
         print("Hour replay: \(Int(recovered.seconds)) audio seconds; \(requests) real requests; sample hashes match; \(Int(processing)) seconds transcription.")
     }
     @MainActor func testRealWorkerReplacementExitsPredecessor() async throws {
-        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"], ProcessInfo.processInfo.environment["VELLA_REAL_SWITCH_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker replacement check") }
+        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"], ProcessInfo.processInfo.environment["VELLA_REAL_SWITCH_CHECK"] == "1" else {
+            throw XCTSkip("Opt-in real worker replacement check")
+        }
         try Self.checkUserIdle()
         let backend = Backend(helper: URL(fileURLWithPath: path))
         defer { backend.shutdown() }
@@ -154,7 +167,8 @@ final class LongRecordingTests: XCTestCase {
             try Self.checkUserIdle()
             config.model = path
             let text = try await backend.transcribe(audio, config: config)
-            let reference = path == replacement
+            let reference =
+                path == replacement
                 ? (ProcessInfo.processInfo.environment["VELLA_TEST_SWITCH_EXPECTED_TEXT"] ?? "Saturday, august fifteenth. The sea unbroken all round. No land in sight,")
                 : "Saturday, august fifteenth. The sea unbroken all round. No land in sight,"
             XCTAssertEqual(text, reference, "Model switch must retain the public clip's reference-path transcript")
@@ -167,7 +181,9 @@ final class LongRecordingTests: XCTestCase {
         }
     }
     @MainActor func testRealWorkerUnloadsAfterSixtySecondsIdle() async throws {
-        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"], ProcessInfo.processInfo.environment["VELLA_REAL_IDLE_CHECK"] == "1" else { throw XCTSkip("Opt-in real worker idle-memory check") }
+        guard let path = ProcessInfo.processInfo.environment["VELLA_TEST_DICTATION_HELPER"], ProcessInfo.processInfo.environment["VELLA_REAL_IDLE_CHECK"] == "1" else {
+            throw XCTSkip("Opt-in real worker idle-memory check")
+        }
         try Self.checkUserIdle()
         let backend = Backend(helper: URL(fileURLWithPath: path))
         defer { backend.shutdown() }
@@ -193,17 +209,21 @@ final class LongRecordingTests: XCTestCase {
         let store = CalibrationStore(directory: directory, worker: { URL(fileURLWithPath: path) })
         if store.speed(modelPath: model) != nil { return }
         let done = expectation(description: "calibration completion")
-        XCTAssertTrue(store.calibrate(modelPath: model, status: { _ in }, completion: { error in
-            XCTAssertNil(error); done.fulfill()
-        }))
+        XCTAssertTrue(
+            store.calibrate(
+                modelPath: model, status: { _ in },
+                completion: { error in
+                    XCTAssertNil(error); done.fulfill()
+                }))
         await fulfillment(of: [done], timeout: 130)
         XCTAssertNotNil(store.speed(modelPath: model))
     }
     private static func checkUserIdle() throws {
         let status = Backend.support.appendingPathComponent("dictation-status.json")
         guard let data = try? Data(contentsOf: status),
-              let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              state["phase"] as? String == "idle" else {
+            let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            state["phase"] as? String == "idle"
+        else {
             throw XCTSkip("User Vella is not idle; no test-owned inference started")
         }
     }

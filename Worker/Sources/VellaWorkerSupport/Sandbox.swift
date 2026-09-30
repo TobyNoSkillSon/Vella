@@ -5,7 +5,8 @@ import Darwin
 /// is fail-closed (false), never permission to run an unsandboxed helper. Call before any model or MLX work.
 public func installOfflineSandbox() -> Bool {
     guard let handle = dlopen(nil, RTLD_NOW), let symbol = dlsym(handle, "sandbox_init"),
-          let freeSymbol = dlsym(handle, "sandbox_free_error") else { return false }
+        let freeSymbol = dlsym(handle, "sandbox_free_error")
+    else { return false }
     defer { dlclose(handle) }
     typealias Initialize = @convention(c) (UnsafePointer<CChar>, UInt64, UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> Int32
     typealias Release = @convention(c) (UnsafeMutablePointer<CChar>) -> Void

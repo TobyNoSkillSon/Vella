@@ -17,7 +17,7 @@ final class VersionTests: XCTestCase {
 
     func testOrdersNumerically() {
         XCTAssertLessThan(v("0.3.0"), v("0.3.1"))
-        XCTAssertLessThan(v("0.3.9"), v("0.3.10"))          // not string order
+        XCTAssertLessThan(v("0.3.9"), v("0.3.10")) // not string order
         XCTAssertLessThan(v("0.9.0"), v("0.10.0"))
         XCTAssertLessThan(v("0.3.99"), v("1.0.0"))
         XCTAssertFalse(v("0.3.1") < v("0.3.1"))
@@ -30,17 +30,17 @@ final class VersionTests: XCTestCase {
         // SemVer 2.0 §11 example chain.
         let chain = ["1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2", "1.0.0-beta.11", "1.0.0-rc.1", "1.0.0"]
         for (a, b) in zip(chain, chain.dropFirst()) { XCTAssertLessThan(v(a), v(b), "\(a) < \(b)") }
-        XCTAssertEqual(v("1.0.0+build.1"), v("1.0.0+build.2"))   // build metadata is ignored
+        XCTAssertEqual(v("1.0.0+build.1"), v("1.0.0+build.2")) // build metadata is ignored
     }
 }
 
 final class ReleaseTests: XCTestCase {
     let latest = #"""
-    {"url":"https://api.github.com/repos/TobyNoSkillSon/Vella/releases/1","tag_name":"v0.3.1","name":"Vella 0.3.1",
-     "draft":false,"prerelease":false,"created_at":"2026-09-30T10:00:00Z",
-     "body":"## 0.3.1\n\n**Faster loads.** Models load in `half` the time; see [the notes](https://example.com).\n- Fixes a *crash* at quit.\n\n### Verify\n\n    gh attestation verify …",
-     "assets":[{"name":"SHA256SUMS","browser_download_url":"https://x/SHA256SUMS"},{"name":"Vella-0.3.1-arm64.zip"}]}
-    """#
+        {"url":"https://api.github.com/repos/TobyNoSkillSon/Vella/releases/1","tag_name":"v0.3.1","name":"Vella 0.3.1",
+         "draft":false,"prerelease":false,"created_at":"2026-09-30T10:00:00Z",
+         "body":"## 0.3.1\n\n**Faster loads.** Models load in `half` the time; see [the notes](https://example.com).\n- Fixes a *crash* at quit.\n\n### Verify\n\n    gh attestation verify …",
+         "assets":[{"name":"SHA256SUMS","browser_download_url":"https://x/SHA256SUMS"},{"name":"Vella-0.3.1-arm64.zip"}]}
+        """#
 
     func testParsesGitHubRelease() throws {
         let r = try ReleaseInfo.parse(Data(latest.utf8))
@@ -75,7 +75,7 @@ final class ReleaseTests: XCTestCase {
         XCTAssertNil(release("v0.2.0").offer(to: current))
         XCTAssertNil(release("v0.4.0", draft: true).offer(to: current))
         XCTAssertNil(release("v0.4.0", pre: true).offer(to: current))
-        XCTAssertNil(release("v0.4.0-rc.1").offer(to: current))         // a prerelease version even when not flagged
+        XCTAssertNil(release("v0.4.0-rc.1").offer(to: current)) // a prerelease version even when not flagged
         XCTAssertEqual(release("v0.3.0").offer(to: SemanticVersion("0.3.0-ci1")!)?.tag, "v0.3.0")
     }
 }
@@ -87,9 +87,9 @@ final class ChecksumTests: XCTestCase {
         XCTAssertEqual(expectedSHA256(sums: "\(digest)  Vella-0.3.1-arm64.zip\n", name: "Vella-0.3.1-arm64.zip"), digest)
         XCTAssertEqual(expectedSHA256(sums: "\(digest.uppercased()) *Vella-0.3.1-arm64.zip", name: "Vella-0.3.1-arm64.zip"), digest)
         XCTAssertEqual(expectedSHA256(sums: "\(String(repeating: "0", count: 64))  other.zip\n\(digest)  Vella-0.3.1-arm64.zip", name: "Vella-0.3.1-arm64.zip"), digest)
-        XCTAssertNil(expectedSHA256(sums: "\(digest)  other.zip", name: "Vella-0.3.1-arm64.zip"))                // missing
-        XCTAssertNil(expectedSHA256(sums: "\(digest)  a.zip\n\(digest)  a.zip", name: "a.zip"))                         // ambiguous
-        XCTAssertNil(expectedSHA256(sums: "abc  a.zip", name: "a.zip"))                                              // not a SHA-256
+        XCTAssertNil(expectedSHA256(sums: "\(digest)  other.zip", name: "Vella-0.3.1-arm64.zip")) // missing
+        XCTAssertNil(expectedSHA256(sums: "\(digest)  a.zip\n\(digest)  a.zip", name: "a.zip")) // ambiguous
+        XCTAssertNil(expectedSHA256(sums: "abc  a.zip", name: "a.zip")) // not a SHA-256
         XCTAssertNil(expectedSHA256(sums: "\(String(repeating: "zz", count: 32))  a.zip", name: "a.zip"))
         XCTAssertNil(expectedSHA256(sums: "", name: "a.zip"))
     }
@@ -97,7 +97,7 @@ final class ChecksumTests: XCTestCase {
     func testFileHash() throws {
         let dir = try Updater.makeWorkDirectory(); defer { try? FileManager.default.removeItem(at: dir) }
         let file = dir.appendingPathComponent("f")
-        let bytes = Data((0..<3_000_000).map { UInt8($0 % 251) })     // spans several read blocks
+        let bytes = Data((0..<3_000_000).map { UInt8($0 % 251) }) // spans several read blocks
         try bytes.write(to: file)
         let expected = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
         XCTAssertEqual(try Updater.sha256(of: file), expected)
@@ -154,18 +154,18 @@ final class StateMachineTests: XCTestCase {
             var m = UpdateMachine(phase: start)
             XCTAssertTrue(m.handle(.failed("SHA-256 mismatch")))
             XCTAssertEqual(m.phase, .available(r)); XCTAssertEqual(m.lastError, "SHA-256 mismatch")
-            XCTAssertTrue(m.handle(.confirmed)); XCTAssertNil(m.lastError)                 // retry clears it
+            XCTAssertTrue(m.handle(.confirmed)); XCTAssertNil(m.lastError) // retry clears it
         }
     }
 
     func testChecks() {
         var m = UpdateMachine()
         m.handle(.checked(nil)); XCTAssertEqual(m.phase, .idle)
-        m.handle(.checked(r)); m.handle(.checked(s)); XCTAssertEqual(m.phase, .available(s))    // a newer release replaces the offer
-        m.handle(.checkFailed("offline")); XCTAssertEqual(m.phase, .available(s))               // a failed check keeps it
-        m.handle(.checked(nil)); XCTAssertEqual(m.phase, .idle)                                  // e.g. updated elsewhere
+        m.handle(.checked(r)); m.handle(.checked(s)); XCTAssertEqual(m.phase, .available(s)) // a newer release replaces the offer
+        m.handle(.checkFailed("offline")); XCTAssertEqual(m.phase, .available(s)) // a failed check keeps it
+        m.handle(.checked(nil)); XCTAssertEqual(m.phase, .idle) // e.g. updated elsewhere
         var busy = UpdateMachine(phase: .downloading(r))
-        XCTAssertFalse(busy.handle(.checked(s))); XCTAssertEqual(busy.phase, .downloading(r))  // never interrupts an update
+        XCTAssertFalse(busy.handle(.checked(s))); XCTAssertEqual(busy.phase, .downloading(r)) // never interrupts an update
     }
 
     func testRefusalKeepsTheOffer() {
@@ -190,7 +190,7 @@ final class StateMachineTests: XCTestCase {
         XCTAssertTrue(updateCheckDue(last: nil, now: now))
         XCTAssertFalse(updateCheckDue(last: now.addingTimeInterval(-23 * 3600), now: now))
         XCTAssertTrue(updateCheckDue(last: now.addingTimeInterval(-24 * 3600), now: now))
-        XCTAssertTrue(updateCheckDue(last: now.addingTimeInterval(3600), now: now))      // clock went back
+        XCTAssertTrue(updateCheckDue(last: now.addingTimeInterval(3600), now: now)) // clock went back
     }
 
     func testResultRoundTrip() throws {
@@ -198,7 +198,7 @@ final class StateMachineTests: XCTestCase {
         let result = UpdateResult(ok: false, from: "0.3.0", to: "0.3.1", message: "SHA-256 mismatch", at: 1)
         try JSONEncoder().encode(result).write(to: UpdateResult.url(support: dir))
         XCTAssertEqual(UpdateResult.take(support: dir), result)
-        XCTAssertNil(UpdateResult.take(support: dir))                                    // read once
+        XCTAssertNil(UpdateResult.take(support: dir)) // read once
     }
 }
 
@@ -224,4 +224,3 @@ final class RetiredModelToolTests: XCTestCase {
         XCTAssertFalse(Updater.requiredExecutables.contains("MacOS/VellaModelTool"))
     }
 }
-

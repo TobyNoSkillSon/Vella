@@ -131,7 +131,10 @@ final class APIUploadLimitTests: XCTestCase {
     @MainActor func testCompleteUploadStillReachesTheHandlerAndReleasesItsReservation() async throws {
         let (server, port, handler) = try await server(APIUploadLimits()); defer { server.stop() }
         let body = "--x\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--x--\r\n"
-        let fd = try open(port, "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nContent-Type: multipart/form-data; boundary=x\r\nContent-Length: \(body.utf8.count)\r\n\r\n" + body)
+        let fd = try open(
+            port,
+            "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nContent-Type: multipart/form-data; boundary=x\r\nContent-Length: \(body.utf8.count)\r\n\r\n"
+                + body)
         try await waitUntil { self.status(fd) == 200 }
         XCTAssertEqual(handler.handled, 1)
         try await waitUntil { self.uploadFiles == 0 && server.usage().uploads == 0 && server.usage().bytes == 0 }

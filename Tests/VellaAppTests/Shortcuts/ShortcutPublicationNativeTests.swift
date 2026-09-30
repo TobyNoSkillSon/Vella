@@ -71,11 +71,19 @@ final class ShortcutPublicationNativeTests: XCTestCase {
         state.recording = recording
         state.busy = busy
         let store = ShortcutStore(initial: .default, fileURL: nil)
-        let engine = ShortcutEngine(configuration: store.configuration, sinks: .init(
-            start: { state.starts += 1; state.recording = true },
-            finish: { state.finishes += 1; state.recording = false; state.busy = false },
-            cancel: { state.cancels += 1; state.recording = false; state.busy = false },
-            isRecording: { state.recording }, isBusy: { state.busy }))
+        let engine = ShortcutEngine(
+            configuration: store.configuration,
+            sinks: .init(
+                start: {
+                    state.starts += 1; state.recording = true
+                },
+                finish: {
+                    state.finishes += 1; state.recording = false; state.busy = false
+                },
+                cancel: {
+                    state.cancels += 1; state.recording = false; state.busy = false
+                },
+                isRecording: { state.recording }, isBusy: { state.busy }))
         let registrar = PubNativeRegistrar()
         let manager = ShortcutManager(engine: engine, store: store, registrar: registrar)
         let monitor = PubNativeMonitor()
@@ -88,7 +96,8 @@ final class ShortcutPublicationNativeTests: XCTestCase {
 
     @MainActor private func confirmEvent(type: CGEventType, buttonNumber: Int64) throws -> CGEvent {
         let cgMouse: CGEventType = (type == .otherMouseUp) ? .otherMouseUp : .otherMouseDown
-        let event = try XCTUnwrap(CGEvent(mouseEventSource: nil, mouseType: cgMouse == .otherMouseDown ? .otherMouseDown : .otherMouseUp, mouseCursorPosition: .zero, mouseButton: .center))
+        let event = try XCTUnwrap(
+            CGEvent(mouseEventSource: nil, mouseType: cgMouse == .otherMouseDown ? .otherMouseDown : .otherMouseUp, mouseCursorPosition: .zero, mouseButton: .center))
         event.type = type
         event.setIntegerValueField(.mouseEventButtonNumber, value: buttonNumber)
         return event
@@ -129,7 +138,8 @@ final class ShortcutPublicationNativeTests: XCTestCase {
         let key = try XCTUnwrap(CGEvent(keyboardEventSource: nil, virtualKey: 8, keyDown: true))
         XCTAssertFalse(manager.processConfirmationTapEvent(type: .keyDown, event: key))
         XCTAssertFalse(manager.processConfirmationTapEvent(type: .flagsChanged, event: key))
-        XCTAssertFalse(manager.processConfirmationTapEvent(type: .otherMouseUp, event: try confirmEvent(type: .otherMouseUp, buttonNumber: 2)), "Unmatched up without down passes through")
+        XCTAssertFalse(
+            manager.processConfirmationTapEvent(type: .otherMouseUp, event: try confirmEvent(type: .otherMouseUp, buttonNumber: 2)), "Unmatched up without down passes through")
         XCTAssertTrue(manager.isConfirmingMouseButton)
         XCTAssertEqual(registrar.registerCalls, 0)
         XCTAssertEqual(manager.configuration, .default)
@@ -280,9 +290,11 @@ final class ShortcutPublicationNativeTests: XCTestCase {
         defer { model.shutdown() }
         let state = PubState()
         let store = ShortcutStore(initial: .default, fileURL: nil)
-        let engine = ShortcutEngine(configuration: store.configuration, sinks: .init(
-            start: { state.starts += 1 }, finish: {}, cancel: {},
-            isRecording: { state.recording }, isBusy: { state.busy }))
+        let engine = ShortcutEngine(
+            configuration: store.configuration,
+            sinks: .init(
+                start: { state.starts += 1 }, finish: {}, cancel: {},
+                isRecording: { state.recording }, isBusy: { state.busy }))
         let manager = ShortcutManager(engine: engine, store: store, registrar: PubNativeRegistrar())
         manager.makeConfirmationMonitor = { PubNativeMonitor() }
         manager.makeConfirmationTimer = { PubNativeTimer() }
@@ -351,11 +363,19 @@ final class ShortcutPublicationNativeTests: XCTestCase {
         let state = PubState()
         let config = ShortcutConfiguration(trigger: .mouseButton(button: .middle), behavior: .holdToTalk)
         let store = ShortcutStore(initial: config, fileURL: nil)
-        let engine = ShortcutEngine(configuration: config, sinks: .init(
-            start: { state.starts += 1; state.recording = true },
-            finish: { state.finishes += 1; state.recording = false; state.busy = false },
-            cancel: { state.cancels += 1; state.recording = false; state.busy = false },
-            isRecording: { state.recording }, isBusy: { state.busy }))
+        let engine = ShortcutEngine(
+            configuration: config,
+            sinks: .init(
+                start: {
+                    state.starts += 1; state.recording = true
+                },
+                finish: {
+                    state.finishes += 1; state.recording = false; state.busy = false
+                },
+                cancel: {
+                    state.cancels += 1; state.recording = false; state.busy = false
+                },
+                isRecording: { state.recording }, isBusy: { state.busy }))
         let tap = EventTapShortcutRegistrar()
         defer { tap.unregister() }
         let manager = ShortcutManager(engine: engine, store: store, registrar: tap)
@@ -412,11 +432,19 @@ final class ShortcutPublicationNativeTests: XCTestCase {
         let state = PubState()
         let config = ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 4352), behavior: .tapOrHold)
         let store = ShortcutStore(initial: config, fileURL: nil)
-        let engine = ShortcutEngine(configuration: config, sinks: .init(
-            start: { state.starts += 1; state.recording = true },
-            finish: { state.finishes += 1; state.recording = false; state.busy = false },
-            cancel: { state.cancels += 1; state.recording = false; state.busy = false },
-            isRecording: { state.recording }, isBusy: { state.busy }), now: { time.now })
+        let engine = ShortcutEngine(
+            configuration: config,
+            sinks: .init(
+                start: {
+                    state.starts += 1; state.recording = true
+                },
+                finish: {
+                    state.finishes += 1; state.recording = false; state.busy = false
+                },
+                cancel: {
+                    state.cancels += 1; state.recording = false; state.busy = false
+                },
+                isRecording: { state.recording }, isBusy: { state.busy }), now: { time.now })
         let manager = ShortcutManager(engine: engine, store: store, registrar: PubNativeRegistrar())
         manager.permissionCheck = { true }
         manager.handlePress()
@@ -440,11 +468,17 @@ final class ShortcutPublicationNativeTests: XCTestCase {
         let state = PubState()
         let config = ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 4352), behavior: .tapOrHold)
         let store = ShortcutStore(initial: config, fileURL: nil)
-        let engine = ShortcutEngine(configuration: config, sinks: .init(
-            start: { state.starts += 1 },
-            finish: { state.finishes += 1; state.recording = false; state.busy = false },
-            cancel: { state.cancels += 1; state.recording = false; state.busy = false },
-            isRecording: { state.recording }, isBusy: { state.busy }), now: { time.now })
+        let engine = ShortcutEngine(
+            configuration: config,
+            sinks: .init(
+                start: { state.starts += 1 },
+                finish: {
+                    state.finishes += 1; state.recording = false; state.busy = false
+                },
+                cancel: {
+                    state.cancels += 1; state.recording = false; state.busy = false
+                },
+                isRecording: { state.recording }, isBusy: { state.busy }), now: { time.now })
         let manager = ShortcutManager(engine: engine, store: store, registrar: PubNativeRegistrar())
         manager.permissionCheck = { true }
         manager.handlePress()

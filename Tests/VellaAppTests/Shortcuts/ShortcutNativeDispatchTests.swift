@@ -11,8 +11,9 @@ final class ShortcutNativeDispatchTests: XCTestCase {
         let tap = EventTapShortcutRegistrar()
         defer { tap.unregister() }
         var starts = 0, interruptions = 0
-        tap.primeForTesting(.init(trigger: .mouseButton(button: .middle), behavior: .toggle),
-                            onPress: { starts += 1 }, onRelease: {})
+        tap.primeForTesting(
+            .init(trigger: .mouseButton(button: .middle), behavior: .toggle),
+            onPress: { starts += 1 }, onRelease: {})
         tap.interruptionHandler = { interruptions += 1 }
         let event = try XCTUnwrap(CGEvent(source: nil))
         event.type = .otherMouseDown
@@ -44,8 +45,9 @@ final class ShortcutNativeDispatchTests: XCTestCase {
                 func flags(_ side: ModifierSide, _ mask: Int32) throws {
                     let event = try XCTUnwrap(CGEvent(source: nil))
                     event.type = .flagsChanged
-                    event.setIntegerValueField(.keyboardEventKeycode,
-                                               value: Int64(EventTapShortcutRegistrar.modifierCode(key: key, side: side)))
+                    event.setIntegerValueField(
+                        .keyboardEventKeycode,
+                        value: Int64(EventTapShortcutRegistrar.modifierCode(key: key, side: side)))
                     event.flags = CGEventFlags(rawValue: aggregate.rawValue | UInt64(mask))
                     XCTAssertFalse(tap.processTapEvent(type: .flagsChanged, event: event))
                 }
@@ -68,9 +70,11 @@ final class ShortcutNativeDispatchTests: XCTestCase {
 
     @MainActor func testPermissionLossDoesNotDisableFinishingAnActiveRecording() {
         var finishes = 0
-        let engine = ShortcutEngine(configuration: .default, sinks: .init(
-            start: { XCTFail("Must not start") }, finish: { finishes += 1 }, cancel: {},
-            isRecording: { true }, isBusy: { false }))
+        let engine = ShortcutEngine(
+            configuration: .default,
+            sinks: .init(
+                start: { XCTFail("Must not start") }, finish: { finishes += 1 }, cancel: {},
+                isRecording: { true }, isBusy: { false }))
         let manager = ShortcutManager(engine: engine, store: ShortcutStore(), registrar: NativeMenuFixtureRegistrar())
         manager.permissionCheck = { false }
         manager.handlePress()
@@ -79,14 +83,18 @@ final class ShortcutNativeDispatchTests: XCTestCase {
 
     @MainActor private func dispatch(_ id: EventHotKeyID?, kind: UInt32 = UInt32(kEventHotKeyPressed)) throws {
         var event: EventRef?
-        XCTAssertEqual(CreateEvent(nil, OSType(kEventClassKeyboard), kind, 0,
-                                   EventAttributes(kEventAttributeNone), &event), noErr)
+        XCTAssertEqual(
+            CreateEvent(
+                nil, OSType(kEventClassKeyboard), kind, 0,
+                EventAttributes(kEventAttributeNone), &event), noErr)
         let created = try XCTUnwrap(event)
         defer { ReleaseEvent(created) }
         if var id {
-            XCTAssertEqual(SetEventParameter(created, EventParamName(kEventParamDirectObject),
-                                            EventParamType(typeEventHotKeyID), MemoryLayout<EventHotKeyID>.size,
-                                            &id), noErr)
+            XCTAssertEqual(
+                SetEventParameter(
+                    created, EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID), MemoryLayout<EventHotKeyID>.size,
+                    &id), noErr)
         }
         _ = SendEventToEventTarget(created, GetApplicationEventTarget())
     }
@@ -96,9 +104,10 @@ final class ShortcutNativeDispatchTests: XCTestCase {
         let shortcut = GlobalShortcut()
         defer { shortcut.unregister() }
         var first = 0, replacement = 0, releases = 0
-        try shortcut.registerChord(keyCode: UInt32(kVK_F17),
-                                   modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey),
-                                   onPress: { first += 1 }, onRelease: { releases += 1 })
+        try shortcut.registerChord(
+            keyCode: UInt32(kVK_F17),
+            modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey),
+            onPress: { first += 1 }, onRelease: { releases += 1 })
         let id = try XCTUnwrap(shortcut.registeredHotKeyID)
         try dispatch(id)
         try dispatch(id, kind: UInt32(kEventHotKeyReleased))
@@ -126,11 +135,14 @@ final class ShortcutNativeDispatchTests: XCTestCase {
         _ = NSApplication.shared
         let registrar = CarbonShortcutRegistrar()
         defer { registrar.unregister() }
-        let trigger = ShortcutTrigger.keyChord(keyCode: UInt32(kVK_F18),
-                                              modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey))
+        let trigger = ShortcutTrigger.keyChord(
+            keyCode: UInt32(kVK_F18),
+            modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey))
         try registrar.register(.init(trigger: trigger, behavior: .toggle), onPress: {}, onRelease: {})
-        XCTAssertNoThrow(try registrar.register(.init(trigger: trigger, behavior: .holdToTalk),
-                                                onPress: {}, onRelease: {}))
+        XCTAssertNoThrow(
+            try registrar.register(
+                .init(trigger: trigger, behavior: .holdToTalk),
+                onPress: {}, onRelease: {}))
         XCTAssertEqual(registrar.registered?.behavior, .holdToTalk)
     }
 
@@ -140,8 +152,10 @@ final class ShortcutNativeDispatchTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
         defer { model.shutdown() }
-        let engine = ShortcutEngine(configuration: .default, sinks: .init(
-            start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false }))
+        let engine = ShortcutEngine(
+            configuration: .default,
+            sinks: .init(
+                start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false }))
         let manager = ShortcutManager(engine: engine, store: ShortcutStore(), registrar: NativeMenuFixtureRegistrar())
         let delegate = AppDelegate(model: model, shortcutManager: manager)
         delegate.rebuildMenu()
@@ -163,18 +177,23 @@ final class ShortcutNativeDispatchTests: XCTestCase {
         let shortcut = GlobalShortcut()
         defer { shortcut.unregister() }
         var activations = 0
-        try shortcut.registerChord(keyCode: UInt32(kVK_F20),
-                                   modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey),
-                                   onPress: { activations += 1 }, onRelease: {})
+        try shortcut.registerChord(
+            keyCode: UInt32(kVK_F20),
+            modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey),
+            onPress: { activations += 1 }, onRelease: {})
         var event: EventRef?
-        XCTAssertEqual(CreateEvent(nil, OSType(kEventClassKeyboard), UInt32(kEventHotKeyPressed),
-                                   0, EventAttributes(kEventAttributeNone), &event), noErr)
+        XCTAssertEqual(
+            CreateEvent(
+                nil, OSType(kEventClassKeyboard), UInt32(kEventHotKeyPressed),
+                0, EventAttributes(kEventAttributeNone), &event), noErr)
         let created = try XCTUnwrap(event)
         defer { ReleaseEvent(created) }
         var foreignID = EventHotKeyID(signature: 0x51545453, id: 0x7ffffffe)
-        XCTAssertEqual(SetEventParameter(created, EventParamName(kEventParamDirectObject),
-                                        EventParamType(typeEventHotKeyID), MemoryLayout<EventHotKeyID>.size,
-                                        &foreignID), noErr)
+        XCTAssertEqual(
+            SetEventParameter(
+                created, EventParamName(kEventParamDirectObject),
+                EventParamType(typeEventHotKeyID), MemoryLayout<EventHotKeyID>.size,
+                &foreignID), noErr)
         _ = SendEventToEventTarget(created, GetApplicationEventTarget())
         RunLoop.current.run(until: Date().addingTimeInterval(0.04))
         XCTAssertEqual(activations, 0, "Only this registration's hotkey ID may activate Vella")
@@ -185,22 +204,31 @@ final class ShortcutNativeDispatchTests: XCTestCase {
         let first = GlobalShortcut(), second = GlobalShortcut()
         defer { first.unregister(); second.unregister() }
         let modifiers = UInt32(controlKey | optionKey | cmdKey | shiftKey)
-        try first.registerChord(keyCode: UInt32(kVK_F19), modifiers: modifiers,
-                                onPress: {}, onRelease: {})
-        XCTAssertThrowsError(try second.registerChord(keyCode: UInt32(kVK_F19), modifiers: modifiers,
-                                                       onPress: {}, onRelease: {}))
+        try first.registerChord(
+            keyCode: UInt32(kVK_F19), modifiers: modifiers,
+            onPress: {}, onRelease: {})
+        XCTAssertThrowsError(
+            try second.registerChord(
+                keyCode: UInt32(kVK_F19), modifiers: modifiers,
+                onPress: {}, onRelease: {}))
         // The first reservation must still be held after the failed second registration.
-        XCTAssertThrowsError(try second.registerChord(keyCode: UInt32(kVK_F19), modifiers: modifiers,
-                                                       onPress: {}, onRelease: {}))
+        XCTAssertThrowsError(
+            try second.registerChord(
+                keyCode: UInt32(kVK_F19), modifiers: modifiers,
+                onPress: {}, onRelease: {}))
         first.unregister()
-        XCTAssertNoThrow(try second.registerChord(keyCode: UInt32(kVK_F19), modifiers: modifiers,
-                                                  onPress: {}, onRelease: {}))
+        XCTAssertNoThrow(
+            try second.registerChord(
+                keyCode: UInt32(kVK_F19), modifiers: modifiers,
+                onPress: {}, onRelease: {}))
     }
 }
 
 private final class NativeMenuFixtureRegistrar: ShortcutRegistrar {
     var registered: ShortcutConfiguration?
-    func register(_ config: ShortcutConfiguration, onPress: @escaping () -> Void,
-                  onRelease: @escaping () -> Void) throws { registered = config }
+    func register(
+        _ config: ShortcutConfiguration, onPress: @escaping () -> Void,
+        onRelease: @escaping () -> Void
+    ) throws { registered = config }
     func unregister() { registered = nil }
 }

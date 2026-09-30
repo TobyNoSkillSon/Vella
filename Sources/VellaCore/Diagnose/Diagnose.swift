@@ -26,8 +26,10 @@ public struct DiagnoseReference: Codable, Equatable {
     /// "api" (measured as `vella diagnose` measures) or "worker" (the speed is indicative only).
     public var method: String?
     public var models: [String: [String: [String: Run]]]
-    public init(schema: Int = 1, date: String? = nil, hardware: String? = nil, chip: String? = nil, gpu_family: String? = nil,
-                app_version: String? = nil, gate_version: String? = nil, method: String? = nil, models: [String: [String: [String: Run]]] = [:]) {
+    public init(
+        schema: Int = 1, date: String? = nil, hardware: String? = nil, chip: String? = nil, gpu_family: String? = nil,
+        app_version: String? = nil, gate_version: String? = nil, method: String? = nil, models: [String: [String: [String: Run]]] = [:]
+    ) {
         self.schema = schema; self.date = date; self.hardware = hardware; self.chip = chip; self.gpu_family = gpu_family
         self.app_version = app_version; self.gate_version = gate_version; self.method = method; self.models = models
     }
@@ -105,9 +107,11 @@ public struct Diagnosis: Equatable {
         /// The selection the worker was launched with (tier × Standard/Optimized × Exact/Fast); what runs is
         /// `effectiveSelection(selection, engine:)`.
         public var selection: ModelSelection?
-        public init(id: String, name: String? = nil, mode: String? = nil, precision: String? = nil, engine: String? = nil,
-                    engineReason: String? = nil, optimizations: [String: Bool] = [:], residency: String? = nil,
-                    workerVersion: String? = nil, run: Run? = nil, notTimed: String? = nil) {
+        public init(
+            id: String, name: String? = nil, mode: String? = nil, precision: String? = nil, engine: String? = nil,
+            engineReason: String? = nil, optimizations: [String: Bool] = [:], residency: String? = nil,
+            workerVersion: String? = nil, run: Run? = nil, notTimed: String? = nil
+        ) {
             self.id = id; self.name = name; self.mode = mode; self.precision = precision; self.engine = engine
             self.engineReason = engineReason; self.optimizations = optimizations; self.residency = residency
             self.workerVersion = workerVersion; self.run = run; self.notTimed = notTimed
@@ -151,10 +155,12 @@ public struct Diagnosis: Equatable {
     public var loadedForDiagnosis: String?
     /// False when the bundled reference file was missing or unreadable.
     public var referenceAvailable: Bool
-    public init(cliVersion: String? = nil, appVersion: String? = nil, api: Int? = nil, host: Host, running: Bool, dictation: String? = nil,
-                dictationModel: String? = nil, models: [Model] = [], gate: [GateVerdict] = [], gateVersion: String? = nil,
-                statusError: String? = nil, refused: String? = nil, switches: [String] = [], loadedForDiagnosis: String? = nil,
-                referenceAvailable: Bool = true) {
+    public init(
+        cliVersion: String? = nil, appVersion: String? = nil, api: Int? = nil, host: Host, running: Bool, dictation: String? = nil,
+        dictationModel: String? = nil, models: [Model] = [], gate: [GateVerdict] = [], gateVersion: String? = nil,
+        statusError: String? = nil, refused: String? = nil, switches: [String] = [], loadedForDiagnosis: String? = nil,
+        referenceAvailable: Bool = true
+    ) {
         self.cliVersion = cliVersion; self.appVersion = appVersion; self.api = api; self.host = host; self.running = running
         self.dictation = dictation; self.dictationModel = dictationModel; self.models = models; self.gate = gate
         self.gateVersion = gateVersion; self.statusError = statusError; self.refused = refused; self.switches = switches
@@ -168,7 +174,7 @@ public enum Diagnose {
     public static let maxURLLength = 7000
     /// The worker's self-test clips (public LibriSpeech, CC BY 4.0), in run order, with their length in seconds.
     public static let clips: [(name: String, seconds: Double)] = [
-        ("clip-a", 3.38), ("clip-b", 8.205), ("clip-c", 2.69), ("clip-d", 3.505), ("clip-e", 5.075),
+        ("clip-a", 3.38), ("clip-b", 8.205), ("clip-c", 2.69), ("clip-d", 3.505), ("clip-e", 5.075)
     ]
     /// Timed passes after the warm-up pass.
     public static let timedPasses = 3
@@ -206,8 +212,7 @@ public enum Diagnose {
     /// Every reason a loaded model is not fully on the optimized path; empty when none.
     public static func fallbacks(_ m: Diagnosis.Model) -> [String] {
         var out: [String] = []
-        if let reason = m.engineReason.map(redact), !reason.isEmpty { out.append(reason) }
-        else if m.engine == "mlx" { out.append("stock MLX (no reason reported)") }
+        if let reason = m.engineReason.map(redact), !reason.isEmpty { out.append(reason) } else if m.engine == "mlx" { out.append("stock MLX (no reason reported)") }
         let stock = m.optimizations.filter { !$0.value }.keys.sorted()
         if m.engine == "optimized", !stock.isEmpty { out.append("stock: " + stock.joined(separator: ", ")) }
         return out
@@ -227,7 +232,8 @@ public enum Diagnose {
     /// A model folder name as the gate recorded it; nil when it does not look like one (never a path).
     public static func safeModelName(_ name: String?) -> String? {
         guard let name, !name.isEmpty, name.count <= 120,
-              name.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "._-".contains($0)) }) else { return nil }
+            name.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "._-".contains($0)) })
+        else { return nil }
         return name
     }
 
@@ -243,9 +249,11 @@ public enum Diagnose {
         if d.running { versions += " · app \(d.appVersion ?? "?") · API \(d.api.map(String.init) ?? "?")" }
         if let g = d.gateVersion { versions += " · worker \(g)" }
         let h = d.host
-        let mac = [displayChip(h.chip) ?? "unknown chip", h.hardware, h.memoryGB.map { "\($0) GB" },
-                   "macOS \(h.macos ?? "?")" + (h.osBuild.map { " (\($0))" } ?? ""), "GPU family \(h.gpuFamily ?? "?")"]
-            .compactMap { $0 }.joined(separator: " · ")
+        let mac = [
+            displayChip(h.chip) ?? "unknown chip", h.hardware, h.memoryGB.map { "\($0) GB" },
+            "macOS \(h.macos ?? "?")" + (h.osBuild.map { " (\($0))" } ?? ""), "GPU family \(h.gpuFamily ?? "?")"
+        ]
+        .compactMap { $0 }.joined(separator: " · ")
         var out = ["vella diagnose", versions, "Mac: " + mac]
         if !d.running {
             out.append("Vella is not running: start it from Applications and run `vella diagnose` again.")
@@ -254,8 +262,9 @@ public enum Diagnose {
             if let state = d.dictation, state != "idle" { out.append("dictation: \(state)") }
             for m in d.models { out += modelLines(m, chip: h.chip) }
             if d.models.isEmpty {
-                out.append("no model loaded: nothing timed. `vella diagnose --load` loads the dictation model"
-                           + (d.dictationModel.map { " (\($0))" } ?? "") + " and times it.")
+                out.append(
+                    "no model loaded: nothing timed. `vella diagnose --load` loads the dictation model"
+                        + (d.dictationModel.map { " (\($0))" } ?? "") + " and times it.")
             }
             if !d.referenceAvailable { out.append("reference transcripts: not found in this installation") }
         }
@@ -350,35 +359,46 @@ public enum Diagnose {
         func v(_ x: Any?) -> Any { x ?? NSNull() }
         func r2(_ x: Double?) -> Any { x.map { ($0 * 100).rounded() / 100 } ?? NSNull() }
         let h = d.host
-        let host: [String: Any] = ["chip": v(h.chip), "hardware": v(h.hardware), "memory_gb": v(h.memoryGB), "macos": v(h.macos),
-                                   "os_build": v(h.osBuild), "gpu_family": v(h.gpuFamily)]
+        let host: [String: Any] = [
+            "chip": v(h.chip), "hardware": v(h.hardware), "memory_gb": v(h.memoryGB), "macos": v(h.macos),
+            "os_build": v(h.osBuild), "gpu_family": v(h.gpuFamily)
+        ]
         let models: [[String: Any]] = d.models.map { m in
-            var o: [String: Any] = ["id": m.id, "name": v(m.name), "mode": v(m.mode), "precision": v(m.precision), "engine": v(m.engine),
-                                    "label": engineLabel(engine: m.engine, chip: h.chip), "optimizations": m.optimizations,
-                                    "residency": v(m.residency), "worker_version": v(m.workerVersion), "fallbacks": fallbacks(m),
-                                    "selection": v(m.selection.map { selectionObject(effectiveSelection($0, engine: m.engine)) }),
-                                    "requested_selection": v(m.selection.map(selectionObject)),
-                                    "not_timed": v(m.notTimed.map(redact))]
+            var o: [String: Any] = [
+                "id": m.id, "name": v(m.name), "mode": v(m.mode), "precision": v(m.precision), "engine": v(m.engine),
+                "label": engineLabel(engine: m.engine, chip: h.chip), "optimizations": m.optimizations,
+                "residency": v(m.residency), "worker_version": v(m.workerVersion), "fallbacks": fallbacks(m),
+                "selection": v(m.selection.map { selectionObject(effectiveSelection($0, engine: m.engine)) }),
+                "requested_selection": v(m.selection.map(selectionObject)),
+                "not_timed": v(m.notTimed.map(redact))
+            ]
             if let run = m.run {
                 let clips: [[String: Any]] = run.clips.map { c in
                     ["clip": c.name, "text": c.text, "word_edits": v(c.wordEdits), "reference": v(c.reference)]
                 }
-                o["run"] = ["clips": clips, "identical": run.reference == nil ? NSNull() as Any : run.identical as Any,
-                            "pass_s": run.passSeconds.map { ($0 * 10000).rounded() / 10000 }, "audio_s": r2(run.audioSeconds),
-                            "speed_x": r2(run.speedX), "reference": v(run.reference), "reference_speed_x": r2(run.referenceSpeedX)] as [String: Any]
+                o["run"] =
+                    [
+                        "clips": clips, "identical": run.reference == nil ? NSNull() as Any : run.identical as Any,
+                        "pass_s": run.passSeconds.map { ($0 * 10000).rounded() / 10000 }, "audio_s": r2(run.audioSeconds),
+                        "speed_x": r2(run.speedX), "reference": v(run.reference), "reference_speed_x": r2(run.referenceSpeedX)
+                    ] as [String: Any]
             } else {
                 o["run"] = NSNull()
             }
             return o
         }
         let gate: [[String: Any]] = d.gate.map { g in
-            ["status": g.status, "model": v(safeModelName(g.model)), "reason": v(g.reason.map(redact)), "worker_version": v(g.workerVersion),
-             "gpu_family": v(g.gpuFamily), "os_build": v(g.osBuild)]
+            [
+                "status": g.status, "model": v(safeModelName(g.model)), "reason": v(g.reason.map(redact)), "worker_version": v(g.workerVersion),
+                "gpu_family": v(g.gpuFamily), "os_build": v(g.osBuild)
+            ]
         }
-        return ["vella": v(d.cliVersion), "app": v(d.appVersion), "api": v(d.api), "worker_version": v(d.gateVersion), "running": d.running,
-                "host": host, "dictation": v(d.dictation), "dictation_model": v(d.dictationModel), "loaded_for_diagnosis": v(d.loadedForDiagnosis),
-                "models": models, "gate_verdicts": gate, "last_load_error": v(d.statusError.map(redact)), "last_refusal": v(d.refused.map(redact)),
-                "diagnostic_switches": d.switches.sorted(), "reference_available": d.referenceAvailable, "issue_url": issueURL]
+        return [
+            "vella": v(d.cliVersion), "app": v(d.appVersion), "api": v(d.api), "worker_version": v(d.gateVersion), "running": d.running,
+            "host": host, "dictation": v(d.dictation), "dictation_model": v(d.dictationModel), "loaded_for_diagnosis": v(d.loadedForDiagnosis),
+            "models": models, "gate_verdicts": gate, "last_load_error": v(d.statusError.map(redact)), "last_refusal": v(d.refused.map(redact)),
+            "diagnostic_switches": d.switches.sorted(), "reference_available": d.referenceAvailable, "issue_url": issueURL
+        ]
     }
 
     public static func jsonText(_ d: Diagnosis, issueURL: String) -> String {
@@ -388,11 +408,13 @@ public enum Diagnose {
     }
 
     public static func issueURL(_ d: Diagnosis) -> String {
-        IssueURL.bugReport(repository: repository, title: title(d), fields: [
-            ("chip", [displayChip(d.host.chip), d.host.hardware].compactMap { $0 }.joined(separator: ", ")),
-            ("macos", [d.host.macos, d.host.osBuild.map { "(\($0))" }].compactMap { $0 }.joined(separator: " ")),
-            ("version", d.appVersion ?? d.cliVersion ?? ""),
-        ], diagnose: text(d).joined(separator: "\n"), maxLength: maxURLLength)
+        IssueURL.bugReport(
+            repository: repository, title: title(d),
+            fields: [
+                ("chip", [displayChip(d.host.chip), d.host.hardware].compactMap { $0 }.joined(separator: ", ")),
+                ("macos", [d.host.macos, d.host.osBuild.map { "(\($0))" }].compactMap { $0 }.joined(separator: " ")),
+                ("version", d.appVersion ?? d.cliVersion ?? "")
+            ], diagnose: text(d).joined(separator: "\n"), maxLength: maxURLLength)
     }
 }
 
@@ -420,7 +442,7 @@ public enum IssueURL {
         for (n, line) in lines.enumerated() {
             let piece = encode((n == 0 ? "" : "\n") + line)
             if used + piece.count + note.count > budget {
-                if n == 0 {   // one line longer than the whole budget: keep what fits, character by character
+                if n == 0 { // one line longer than the whole budget: keep what fits, character by character
                     for ch in line {
                         let e = encode(String(ch))
                         if used + e.count + note.count > budget { break }

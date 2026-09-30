@@ -189,7 +189,8 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testRetainedTogglePathUnaffected() throws {
         let config = try tempConfig()
-        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(
+            model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         delegate.rebuildMenu()
         let start = try XCTUnwrap(delegate.menu.items.first(where: { $0.title.hasPrefix("Start") || $0.title.hasPrefix("Finish") }))
@@ -260,11 +261,13 @@ final class ShortcutAdversarialTests: XCTestCase {
         defer { board.releaseGlobally() }
         var snapshots = 0
         let config = try tempConfig()
-        let model = DictationController(pasteboard: board, stopCapture: { _ in throw VellaError.message("Synthetic drain failure") },
-                          configurationURL: config, captureDestination: {
-            snapshots += 1
-            return { nil }
-        })
+        let model = DictationController(
+            pasteboard: board, stopCapture: { _ in throw VellaError.message("Synthetic drain failure") },
+            configurationURL: config,
+            captureDestination: {
+                snapshots += 1
+                return { nil }
+            })
         defer { model.onChange = nil; model.cancel() }
         model.phase = .recording
         model.finish()
@@ -293,7 +296,8 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testSubmenuPlacementImmediatelyBelowMicrophone() throws {
         let config = try tempConfig()
-        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(
+            model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         // Shortcuts is required at microphoneIndex+1 in every phase.
         for phase: DictationController.Phase in [.idle, .preparing, .recording, .transcribing, .success, .failed] {
@@ -312,7 +316,8 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testRebuildsStableNoDuplicates() throws {
         let config = try tempConfig()
-        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(
+            model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         delegate.rebuildMenu()
         let count = delegate.menu.items.count
@@ -326,7 +331,8 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testStartItemRetainsCtrlCmdNGlyph() throws {
         let config = try tempConfig()
-        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(
+            model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         for phase: DictationController.Phase in [.idle, .preparing, .recording, .transcribing, .success, .failed] {
             delegate.model.update(phase, "Synthetic")
@@ -356,7 +362,8 @@ final class ShortcutAdversarialTests: XCTestCase {
         // they must reflect the active binding or stay accurate — never instruct
         // a chord that doesn't work. Lock baseline wording so drift is visible.
         let config = try tempConfig()
-        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(
+            model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         delegate.model.update(.recording, "Synthetic")
         delegate.rebuildMenu()
@@ -407,19 +414,25 @@ final class ShortcutAdversarialTests: XCTestCase {
         var snapshots = 0
         let board = syntheticBoard()
         defer { board.releaseGlobally() }
-        let dictation = DictationController(pasteboard: board,
-                              stopCapture: { _ in throw VellaError.message("Synthetic") },
-                              configurationURL: try tempConfig(mode: .dictation),
-                              captureDestination: { snapshots += 1; return { nil } })
+        let dictation = DictationController(
+            pasteboard: board,
+            stopCapture: { _ in throw VellaError.message("Synthetic") },
+            configurationURL: try tempConfig(mode: .dictation),
+            captureDestination: {
+                snapshots += 1; return { nil }
+            })
         defer { dictation.onChange = nil; dictation.cancel() }
         dictation.phase = .recording
         dictation.finish()
         XCTAssertEqual(snapshots, 1, "Dictation Finish must snapshot")
         dictation.cancel()
-        let streaming = DictationController(pasteboard: board,
-                              stopCapture: { _ in throw VellaError.message("Synthetic") },
-                              configurationURL: try tempConfig(mode: .streaming),
-                              captureDestination: { snapshots += 1; return { nil } })
+        let streaming = DictationController(
+            pasteboard: board,
+            stopCapture: { _ in throw VellaError.message("Synthetic") },
+            configurationURL: try tempConfig(mode: .streaming),
+            captureDestination: {
+                snapshots += 1; return { nil }
+            })
         defer { streaming.onChange = nil; streaming.cancel() }
         streaming.phase = .recording
         streaming.finish()
@@ -436,17 +449,21 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     // MARK: - Part II. Contract-bound adversarial tests (real ShortcutCore/Manager)
 
-    private func engineFixture(config: ShortcutConfiguration, recording: Bool = false, busy: Bool = false, nowValue: TimeInterval = 1000, operation: UInt64 = 0) -> (ShortcutEngine, RecordingBox, TimeBox) {
+    private func engineFixture(config: ShortcutConfiguration, recording: Bool = false, busy: Bool = false, nowValue: TimeInterval = 1000, operation: UInt64 = 0) -> (
+        ShortcutEngine, RecordingBox, TimeBox
+    ) {
         let rec = RecordingBox(recording: recording, busy: busy, operation: operation)
         let time = TimeBox(now: nowValue)
-        let engine = ShortcutEngine(configuration: config, sinks: ShortcutEngine.Sinks(
-            start: { rec.starts += 1 },
-            finish: { rec.finishes += 1 },
-            cancel: { rec.cancels += 1 },
-            isRecording: { rec.recording },
-            isBusy: { rec.busy },
-            currentOperation: { rec.operation }
-        ), now: { time.now })
+        let engine = ShortcutEngine(
+            configuration: config,
+            sinks: ShortcutEngine.Sinks(
+                start: { rec.starts += 1 },
+                finish: { rec.finishes += 1 },
+                cancel: { rec.cancels += 1 },
+                isRecording: { rec.recording },
+                isBusy: { rec.busy },
+                currentOperation: { rec.operation }
+            ), now: { time.now })
         return (engine, rec, time)
     }
 
@@ -734,7 +751,8 @@ final class ShortcutAdversarialTests: XCTestCase {
         manager.permissionCheck = { true }
         // Force toggle engine to idle path via fresh manager with recording sinks.
         let rec = RecordingBox(recording: false, busy: false)
-        let toggleEngine = ShortcutEngine(configuration: .default, sinks: .init(start: { actions.append("start") }, finish: {}, cancel: {}, isRecording: { rec.recording }, isBusy: { rec.busy }))
+        let toggleEngine = ShortcutEngine(
+            configuration: .default, sinks: .init(start: { actions.append("start") }, finish: {}, cancel: {}, isRecording: { rec.recording }, isBusy: { rec.busy }))
         let toggleManager = ShortcutManager(engine: toggleEngine, store: ShortcutStore(), registrar: MockShortcutRegistrar())
         toggleManager.permissionCheck = { true }
         toggleManager.handlePress(isRepeat: true)
@@ -755,9 +773,11 @@ final class ShortcutAdversarialTests: XCTestCase {
         let model = DictationController(configurationURL: try tempConfig())
         defer { model.shutdown() }
         let target = ShortcutMenuProbe()
-        let item = ShortcutMenuFactory.shortcutsItem(manager: manager, model: model, target: target,
+        let item = ShortcutMenuFactory.shortcutsItem(
+            manager: manager, model: model, target: target,
             selectBehavior: #selector(ShortcutMenuProbe.behavior(_:)), recordKeys: #selector(ShortcutMenuProbe.record(_:)), cancelCapture: #selector(ShortcutMenuProbe.cancel(_:)),
-            selectModifier: #selector(ShortcutMenuProbe.modifier(_:)), selectMouse: #selector(ShortcutMenuProbe.mouse(_:)), resetDefault: #selector(ShortcutMenuProbe.reset(_:)), openSettings: #selector(ShortcutMenuProbe.settings(_:)))
+            selectModifier: #selector(ShortcutMenuProbe.modifier(_:)), selectMouse: #selector(ShortcutMenuProbe.mouse(_:)), resetDefault: #selector(ShortcutMenuProbe.reset(_:)),
+            openSettings: #selector(ShortcutMenuProbe.settings(_:)))
         XCTAssertEqual(item.title, "Shortcuts")
         let menu = try XCTUnwrap(item.submenu)
         XCTAssertTrue(menu.items.first?.title.hasPrefix("Current:") == true)
@@ -774,9 +794,11 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertFalse(titles.contains(where: { $0.contains("Needs Accessibility") }))
         // Fn current title is compact "Current: Fn · <Behavior>" (no oversized note row).
         XCTAssertTrue(manager.apply(ShortcutConfiguration(trigger: .modifierOnly(key: .function, side: .left), behavior: .toggle)))
-        let fnItem = ShortcutMenuFactory.shortcutsItem(manager: manager, model: model, target: target,
+        let fnItem = ShortcutMenuFactory.shortcutsItem(
+            manager: manager, model: model, target: target,
             selectBehavior: #selector(ShortcutMenuProbe.behavior(_:)), recordKeys: #selector(ShortcutMenuProbe.record(_:)), cancelCapture: #selector(ShortcutMenuProbe.cancel(_:)),
-            selectModifier: #selector(ShortcutMenuProbe.modifier(_:)), selectMouse: #selector(ShortcutMenuProbe.mouse(_:)), resetDefault: #selector(ShortcutMenuProbe.reset(_:)), openSettings: #selector(ShortcutMenuProbe.settings(_:)))
+            selectModifier: #selector(ShortcutMenuProbe.modifier(_:)), selectMouse: #selector(ShortcutMenuProbe.mouse(_:)), resetDefault: #selector(ShortcutMenuProbe.reset(_:)),
+            openSettings: #selector(ShortcutMenuProbe.settings(_:)))
         XCTAssertTrue(fnItem.submenu?.items.first?.title.hasPrefix("Current: Fn") == true, "Compact Fn current title")
     }
 
@@ -800,20 +822,35 @@ final class ShortcutAdversarialTests: XCTestCase {
     func testCmdDownCUpCmdUpMustNotActivateSoloCmd() {
         // Deterministic reducer spec (new API): solo Cmd arbitration with otherKeyDown.
         var s = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .pending)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .otherKeyDown(time: 0.05), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .cancelled, "Cmd-down/C-down cancels solo (no hijack)")
-        XCTAssertEqual(ModifierSoloReducer.step(state: &s, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .none, "Release after cancel does nothing")
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &s, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .holdToTalk),
+            .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &s, event: .otherKeyDown(time: 0.05), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .cancelled,
+            "Cmd-down/C-down cancels solo (no hijack)")
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &s, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .none,
+            "Release after cancel does nothing")
         // Solo tap still works: down, tapRelease (toggle) / holdTimeout+press then holdRelease (hold).
         var solo = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &solo, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle), .pending)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &solo, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .toggle), .tapRelease)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &solo, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .toggle),
+            .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &solo, event: .targetUp(key: .command, side: .left, time: 0.1), targetKey: .command, targetSide: .left, behavior: .toggle), .tapRelease)
         var hold = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &hold, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .pending)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(
+                state: &hold, event: .targetDown(key: .command, side: .left, time: 0, sole: true), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .pending)
         XCTAssertEqual(ModifierSoloReducer.step(state: &hold, event: .holdTimeout(time: 0.35), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .press)
-        XCTAssertEqual(ModifierSoloReducer.step(state: &hold, event: .targetUp(key: .command, side: .left, time: 0.5), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .holdRelease)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(state: &hold, event: .targetUp(key: .command, side: .left, time: 0.5), targetKey: .command, targetSide: .left, behavior: .holdToTalk),
+            .holdRelease)
         // Non-sole down never pends (composed chord start).
         var composed = SoloModifierState()
-        XCTAssertEqual(ModifierSoloReducer.step(state: &composed, event: .targetDown(key: .command, side: .left, time: 0, sole: false), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .none)
+        XCTAssertEqual(
+            ModifierSoloReducer.step(
+                state: &composed, event: .targetDown(key: .command, side: .left, time: 0, sole: false), targetKey: .command, targetSide: .left, behavior: .holdToTalk), .none)
     }
 
     func testFnMustNotIncludeCapsLockFlag() {
@@ -835,12 +872,15 @@ final class ShortcutAdversarialTests: XCTestCase {
         // keyCode/state, not just aggregate flagsContainOnly.
         let bothHeld: CGEventFlags = [.maskCommand]
         XCTAssertTrue(EventTapShortcutRegistrar.flagsContain(bothHeld, key: .command))
-        XCTAssertTrue(EventTapShortcutRegistrar.flagsContainOnly(bothHeld, key: .command), "Aggregate flags identical for left vs right — documents the need for per-device key state")
+        XCTAssertTrue(
+            EventTapShortcutRegistrar.flagsContainOnly(bothHeld, key: .command), "Aggregate flags identical for left vs right — documents the need for per-device key state")
         // Failing assertion: left-only trigger with right still held must release
         // left hold (left is up). Current aggregate logic keeps isDown true.
         // This is filed as source issue; executable release-routing needs private
         // isDown seam, so assert the disambiguation requirement directly:
-        XCTAssertNotEqual(EventTapShortcutRegistrar.modifierCode(key: .control, side: .left), EventTapShortcutRegistrar.modifierCode(key: .control, side: .right), "Sides must route by keyCode, not flags alone")
+        XCTAssertNotEqual(
+            EventTapShortcutRegistrar.modifierCode(key: .control, side: .left), EventTapShortcutRegistrar.modifierCode(key: .control, side: .right),
+            "Sides must route by keyCode, not flags alone")
     }
 
     func testStaleReleaseMustNotCancelForeignMenuFinish() {
@@ -1000,7 +1040,8 @@ final class ShortcutAdversarialTests: XCTestCase {
     func testK2ShiftOnlyPrintableMustNotBecomeBinding() {
         // Ordinary Shift+C typing (Shift-only printable) must not become dictation binding.
         XCTAssertNotNil(ShortcutValidation.validateKeyChord(keyCode: 8, modifiers: 512), "BUG if Shift-only C validates: ordinary capital typing would trigger")
-        XCTAssertNotNil(ShortcutValidation.validate(ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 512), behavior: .toggle)), "Store-level Shift-only C must reject")
+        XCTAssertNotNil(
+            ShortcutValidation.validate(ShortcutConfiguration(trigger: .keyChord(keyCode: 8, modifiers: 512), behavior: .toggle)), "Store-level Shift-only C must reject")
         // Shift remains fine with another modifier (e.g. Ctrl+Shift+C is deliberate).
         // Current policy allows any known-modifier combo; shift-only printable is the gap.
     }
@@ -1012,10 +1053,12 @@ final class ShortcutAdversarialTests: XCTestCase {
         let cfg = ShortcutConfiguration(trigger: .modifierOnly(key: .command, side: .left), behavior: .tapOrHold)
         let rec = RecordingBox(recording: false, busy: false, operation: 7)
         let time = TimeBox(now: 0.30) // guard-fire time
-        let engine = ShortcutEngine(configuration: cfg, sinks: ShortcutEngine.Sinks(
-            start: { rec.starts += 1 }, finish: { rec.finishes += 1 }, cancel: { rec.cancels += 1 },
-            isRecording: { rec.recording }, isBusy: { rec.busy }, currentOperation: { rec.operation }
-        ), now: { time.now })
+        let engine = ShortcutEngine(
+            configuration: cfg,
+            sinks: ShortcutEngine.Sinks(
+                start: { rec.starts += 1 }, finish: { rec.finishes += 1 }, cancel: { rec.cancels += 1 },
+                isRecording: { rec.recording }, isBusy: { rec.busy }, currentOperation: { rec.operation }
+            ), now: { time.now })
         let store = ShortcutStore()
         _ = store.save(cfg)
         let manager = ShortcutManager(engine: engine, store: store, registrar: MockShortcutRegistrar())
@@ -1109,7 +1152,9 @@ final class ShortcutAdversarialTests: XCTestCase {
         let micBeforeReset = try XCTUnwrap(delegate.menu.item(withTitle: "Microphone"), "No mic")
         let countBeforeReset = delegate.menu.items.count
         delegate.menuWillOpen(delegate.menu)
-        if let reset = delegate.menu.item(withTitle: "Shortcuts")?.submenu?.items.first(where: { $0.title == "Reset to Default" }), let action = reset.action, let target = reset.target {
+        if let reset = delegate.menu.item(withTitle: "Shortcuts")?.submenu?.items.first(where: { $0.title == "Reset to Default" }), let action = reset.action,
+            let target = reset.target
+        {
             NSApplication.shared.sendAction(action, to: target, from: reset)
         }
         XCTAssertTrue(delegate.menu.item(withTitle: "Microphone") === micBeforeReset, "BUG [reset]: tracked Microphone replaced")
@@ -1145,10 +1190,14 @@ final class ShortcutAdversarialTests: XCTestCase {
         let panel = ShortcutKeyRecorderPanel()
         var chords: [(UInt32, UInt32)] = []
         var cancels = 0
-        panel.onChord = { code, mods in chords.append((code, mods)); return true }
+        panel.onChord = { code, mods in
+            chords.append((code, mods)); return true
+        }
         panel.onCancel = { cancels += 1 }
         func keyEvent(keyCode: UInt16, flags: NSEvent.ModifierFlags, `repeat` isRepeat: Bool = false) -> NSEvent {
-            NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: panel.windowNumber, context: nil, characters: "c", charactersIgnoringModifiers: "c", isARepeat: isRepeat, keyCode: keyCode)!
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: panel.windowNumber, context: nil,
+                characters: "c", charactersIgnoringModifiers: "c", isARepeat: isRepeat, keyCode: keyCode)!
         }
         // Valid chord C (8) + Ctrl+Cmd => onChord(8, 4352).
         panel.keyDown(with: keyEvent(keyCode: 8, flags: [.control, .command]))
@@ -1194,7 +1243,8 @@ final class ShortcutAdversarialTests: XCTestCase {
     @MainActor func testM3PerDeviceMasksBothSidesCannotRearm() {
         // NX masks: aggregate flags stay set when opposite held; device flags decide.
         XCTAssertTrue(EventTapShortcutRegistrar.sideIsDown(CGEventFlags(rawValue: UInt64(NX_DEVICELCMDKEYMASK)), key: .command, side: .left))
-        XCTAssertFalse(EventTapShortcutRegistrar.sideIsDown(CGEventFlags(rawValue: UInt64(NX_DEVICELCMDKEYMASK)), key: .command, side: .right), "Left device bit must not satisfy right")
+        XCTAssertFalse(
+            EventTapShortcutRegistrar.sideIsDown(CGEventFlags(rawValue: UInt64(NX_DEVICELCMDKEYMASK)), key: .command, side: .right), "Left device bit must not satisfy right")
         // Both sides: non-sole targetDown never rearms pending solo.
         let cfg = ShortcutConfiguration(trigger: .modifierOnly(key: .command, side: .left), behavior: .holdToTalk)
         let tap = EventTapShortcutRegistrar()
@@ -1218,9 +1268,11 @@ final class ShortcutAdversarialTests: XCTestCase {
         let model = DictationController(configurationURL: try tempConfig())
         defer { model.shutdown() }
         let target = ShortcutMenuProbe()
-        let item = ShortcutMenuFactory.shortcutsItem(manager: manager, model: model, target: target,
+        let item = ShortcutMenuFactory.shortcutsItem(
+            manager: manager, model: model, target: target,
             selectBehavior: #selector(ShortcutMenuProbe.behavior(_:)), recordKeys: #selector(ShortcutMenuProbe.record(_:)), cancelCapture: #selector(ShortcutMenuProbe.cancel(_:)),
-            selectModifier: #selector(ShortcutMenuProbe.modifier(_:)), selectMouse: #selector(ShortcutMenuProbe.mouse(_:)), resetDefault: #selector(ShortcutMenuProbe.reset(_:)), openSettings: #selector(ShortcutMenuProbe.settings(_:)))
+            selectModifier: #selector(ShortcutMenuProbe.modifier(_:)), selectMouse: #selector(ShortcutMenuProbe.mouse(_:)), resetDefault: #selector(ShortcutMenuProbe.reset(_:)),
+            openSettings: #selector(ShortcutMenuProbe.settings(_:)))
         let menu = try XCTUnwrap(item.submenu)
         // Assert native measured sizes on real production control views.
         let settingsViews = menu.items.compactMap { $0 as? SettingsMenuItem }.compactMap(\.view)
@@ -1256,7 +1308,10 @@ final class ShortcutAdversarialTests: XCTestCase {
             let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: NSColor.secondaryLabelColor]
             let size = (header as NSString).size(withAttributes: attrs)
             let w = Int(ceil(size.width)) + 32, h = 28
-            if let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
+            if let rep = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                bytesPerRow: 0, bitsPerPixel: 0)
+            {
                 NSGraphicsContext.saveGraphicsState()
                 if let ctx = NSGraphicsContext(bitmapImageRep: rep) {
                     NSGraphicsContext.current = ctx
@@ -1271,7 +1326,8 @@ final class ShortcutAdversarialTests: XCTestCase {
             v.layoutSubtreeIfNeeded()
             let bounds = v.bounds
             guard bounds.width > 0, bounds.height > 0,
-                  let rep = v.bitmapImageRepForCachingDisplay(in: bounds) else { continue }
+                let rep = v.bitmapImageRepForCachingDisplay(in: bounds)
+            else { continue }
             v.cacheDisplay(in: bounds, to: rep)
             reps.append(rep)
         }
@@ -1280,7 +1336,11 @@ final class ShortcutAdversarialTests: XCTestCase {
         let w = reps.map(\.pixelsWide).max() ?? 400
         let headerH = headerRep?.pixelsHigh ?? 0
         let h = headerH + reps.map(\.pixelsHigh).reduce(0, +)
-        guard let out = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
+        guard
+            let out = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                bytesPerRow: 0, bitsPerPixel: 0)
+        else { return }
         NSGraphicsContext.saveGraphicsState()
         if let ctx = NSGraphicsContext(bitmapImageRep: out) {
             NSGraphicsContext.current = ctx
@@ -1305,7 +1365,8 @@ final class ShortcutAdversarialTests: XCTestCase {
         view.layoutSubtreeIfNeeded()
         let bounds = view.bounds
         guard bounds.width > 0, bounds.height > 0,
-              let rep = view.bitmapImageRepForCachingDisplay(in: bounds) else { return }
+            let rep = view.bitmapImageRepForCachingDisplay(in: bounds)
+        else { return }
         view.cacheDisplay(in: bounds, to: rep)
         let png = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
         try png.write(to: url, options: .atomic)
@@ -1313,7 +1374,11 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor private static func writeQAImage(lines: [String], filename: String, title: String) {
         let w = 520, h = 28 + lines.count * 22
-        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
+        guard
+            let rep = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                bytesPerRow: 0, bitsPerPixel: 0)
+        else { return }
         NSGraphicsContext.saveGraphicsState()
         guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else { NSGraphicsContext.restoreGraphicsState(); return }
         NSGraphicsContext.current = ctx
@@ -1332,7 +1397,9 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor private static func writeQAPanelImage(panel: ShortcutKeyRecorderPanel, filename: String) {
         // Isolated panel metadata render (no ordering front, no key capture).
-        let lines = ["Record Shortcut (isolated panel)", "Title: \(panel.title)", "Prompt: Press shortcut…  (Esc cancels)", "Size: \(Int(panel.frame.width))x\(Int(panel.frame.height))"]
+        let lines = [
+            "Record Shortcut (isolated panel)", "Title: \(panel.title)", "Prompt: Press shortcut…  (Esc cancels)", "Size: \(Int(panel.frame.width))x\(Int(panel.frame.height))"
+        ]
         writeQAImage(lines: lines, filename: filename, title: "Recorder")
     }
 }

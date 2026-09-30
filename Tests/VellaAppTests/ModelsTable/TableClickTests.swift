@@ -7,8 +7,12 @@ import SwiftUI
 @MainActor private final class ClickSpy: ModelRuntimeActions {
     var calls: [String] = []
     var selections: [ModelSelection] = []
-    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("load \(family.id) \(precision)"); selections.append(selection) }
-    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) { calls.append("reload \(family.id) \(precision)"); selections.append(selection) }
+    func load(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
+        calls.append("load \(family.id) \(precision)"); selections.append(selection)
+    }
+    func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
+        calls.append("reload \(family.id) \(precision)"); selections.append(selection)
+    }
     func unload(family: ModelFamily) { calls.append("unload \(family.id)") }
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool { false }
 }
@@ -26,9 +30,10 @@ import SwiftUI
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let resources = ModelLibrary.resourceDirectory()
         let registry = root.appendingPathComponent("models-installed.json")
-        let c = ModelsController(dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
-                                 streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-                                 benchmarksURL: resources.appendingPathComponent("benchmarks.json"))
+        let c = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: resources.appendingPathComponent("benchmarks.json"))
         c.runtime = TableRuntime()
         return c
     }
@@ -72,8 +77,9 @@ import SwiftUI
     /// A real click (down, then up queued for the control's tracking loop) at `point` in window coordinates.
     private func click(_ window: NSWindow, at point: NSPoint) {
         func event(_ type: NSEvent.EventType) -> NSEvent {
-            NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            NSEvent.mouseEvent(
+                with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
         }
         NSApp.postEvent(event(.leftMouseUp), atStart: false)
         window.sendEvent(event(.leftMouseDown))
@@ -82,8 +88,10 @@ import SwiftUI
     /// A SwiftUI button's click: down and up both sent to the window (no control tracking loop pulls the up).
     private func buttonClick(_ window: NSWindow, at point: NSPoint) {
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-            window.sendEvent(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+            window.sendEvent(
+                NSEvent.mouseEvent(
+                    with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
             spin(0.05)
         }
         spin()
@@ -222,8 +230,11 @@ import SwiftUI
         XCTAssertEqual(deleted, ["qwen3-asr-1.7b"], "a click on the trash glyph asked to delete")
         XCTAssertEqual(spy.calls.count, 1, "and did not also load")
         // Loaded on Optimized 16: Unload; its Standard 16 cell previewed: the green Reload, which reloads on Standard.
-        c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "BF16", engine: "optimized",
-                                                                          selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast))])
+        c.runtime = TableRuntime(loaded: [
+            "qwen3-asr-1.7b": LoadedFamily(
+                precision: "BF16", engine: "optimized",
+                selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast))
+        ])
         spin()
         func button() -> RowActionView { topDown(all(RowActionView.self, in: view))[index] }
         XCTAssertEqual(button().spec?.title, "Unload")
@@ -254,8 +265,10 @@ import SwiftUI
         XCTAssertTrue(area.options.contains(.mouseEnteredAndExited))
         XCTAssertTrue(area.options.contains(.inVisibleRect))
         let point = a.convert(NSPoint(x: a.bounds.midX, y: a.bounds.midY), to: nil)
-        let enter = try XCTUnwrap(NSEvent.enterExitEvent(with: .mouseEntered, location: point, modifierFlags: [], timestamp: 0,
-                                                          windowNumber: window.windowNumber, context: nil, eventNumber: 0, trackingNumber: 0, userData: nil))
+        let enter = try XCTUnwrap(
+            NSEvent.enterExitEvent(
+                with: .mouseEntered, location: point, modifierFlags: [], timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, eventNumber: 0, trackingNumber: 0, userData: nil))
         a.mouseEntered(with: enter)
         XCTAssertTrue(a.hovered)
         a.mouseExited(with: enter)

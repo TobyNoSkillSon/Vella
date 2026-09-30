@@ -1,6 +1,6 @@
 import Foundation
 #if canImport(XCTest)
-import XCTest
+    import XCTest
 #endif
 
 /// Tests that start another program (a built product such as the app or the `vella` binary, a compiler, an installer
@@ -18,9 +18,9 @@ public enum Integration {
 // `swift build` (scripts/build.sh, Command Line Tools) also compiles this support target, and the Command Line Tools
 // have no XCTest; the test targets build with Xcode's toolchain, which has it.
 #if canImport(XCTest)
-extension Integration {
-    public static func require(_ environment: [String: String] = ProcessInfo.processInfo.environment) throws {
-        if let reason = skipReason(environment) { throw XCTSkip(reason) }
+    extension Integration {
+        public static func require(_ environment: [String: String] = ProcessInfo.processInfo.environment) throws {
+            if let reason = skipReason(environment) { throw XCTSkip(reason) }
+        }
     }
-}
 #endif
