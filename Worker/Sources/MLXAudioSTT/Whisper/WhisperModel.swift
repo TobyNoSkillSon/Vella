@@ -44,27 +44,6 @@ public final class WhisperModel: Module, STTGenerationModel {
     /// only while the model runs in the checkpoint dtype (the encoder component).
     private var fusedDecoder: WhisperFusedDecoder?
     private var fusedDecoderBuilt = false
-    /// L3 lever "enc-deq" (`VELLA_WHISPER_ENC_DEQUANT=1` / `=0`, gate key): with the checkpoint-dtype encoder, a quantized
-    /// checkpoint's encoder Linears run as dense Linears over their dequantized weights (same values, dequantized once).
-    /// At the encoder's M = 1500 MLX's affine `quantized_matmul` costs ~1.37x the dense FP16 GEMM on q/k/v/out and fc1
-    /// (M5 Max, lab/models/Whisper/L3-int8-encoder.md). The quantized modules stay loaded for the stock path, so the
-    /// dense copies add ~2 bytes per encoder weight while the component is on. Inexact vs `quantized_matmul` (one fp16
-    /// ulp on ~29 % of outputs): the self-test's checkpoint-dtype reference encodes with the same dense weights, so the
-    /// token-exact comparison still tests the decoder; quality is the v2 gate's call. v2-mini large-v3 8b (30 Sep, ABBA,
-    /// lab/models/Whisper/L3-enc-deq.md): 45.05 -> 46.2x, 74.68 -> 69.21 J/min, 21/21 transcripts identical.
-    /// Off by default until the full-v2 gate and the memory trade (+1.06 GB peak on large-v3 8b) are decided; flipping it
-    /// changes the revision, so every checkpoint requalifies.
-    static let encoderDequantByDefault = false
-    static let encoderDequant: Bool = {
-        switch ProcessInfo.processInfo.environment["VELLA_WHISPER_ENC_DEQUANT"] {
-        case "1": return true
-        case "0": return false
-        default: return encoderDequantByDefault
-        }
-    }()
-    private var denseEncoderModules: [(String, Module)]?
-    private var quantizedEncoderModules: [(String, Module)]?
-    private var encoderDense = false
     private var activeFusedDecoder: WhisperFusedDecoder? { fastDecode && fastEncoder ? fusedDecoder : nil }
     /// Every raw decoder-logit tensor consumed while an optimized component is active (language detection, the
     /// pipelined greedy loop, and every step-by-step attempt including the temperature retries) finite, over the
@@ -738,38 +717,7 @@ public final class WhisperModel: Module, STTGenerationModel {
 
 extension WhisperModel: FastPathCapable {
     /// Bump whenever the optimized components or their parity reference change.
-    /// The dense encoder over dequantized weights (`encoderDequant`, L3) appends "-encdeq"; off, the revision is the
-    /// one qualified before it.
-    public static var fastPathRevision: String {
-        (halfEncoder ? "whisper-3-f16-model" : "whisper-3") + (halfEncoder && encoderDequant ? "-encdeq" : "")
-    }
-
-    /// Swap the encoder's quantized Linears for dense ones over their dequantized weights, or back (freeing them).
-    func setEncoderDense(_ on: Bool) {
-        guard on != encoderDense else { return }
-        if on {
-            if denseEncoderModules == nil {
-                var dense: [(String, Module)] = [], original: [(String, Module)] = []
-                for (path, module) in model.encoder.leafModules().flattened() {
-                    guard let q = module as? QuantizedLinear, q.globalScale == nil else { continue }
-                    let weight = dequantized(q.weight, scales: q.scales, biases: q.biases, groupSize: q.groupSize,
-                                             bits: q.bits, mode: q.mode).asType(q.scales.dtype)
-                    let linear = Linear(weight: weight, bias: q.bias)
-                    linear.freeze()
-                    dense.append((path, linear)); original.append((path, q))
-                }
-                guard !dense.isEmpty else { return }
-                eval(dense.compactMap { ($0.1 as? Linear)?.weight })
-                denseEncoderModules = dense; quantizedEncoderModules = original
-            }
-            model.encoder.update(modules: ModuleChildren.unflattened(denseEncoderModules!))
-        } else if let original = quantizedEncoderModules {
-            // Back to the checkpoint's modules; drop the dense copies so the stock path holds no extra memory.
-            model.encoder.update(modules: ModuleChildren.unflattened(original))
-            denseEncoderModules = nil; quantizedEncoderModules = nil
-        }
-        encoderDense = on
-    }
+    public static var fastPathRevision: String { halfEncoder ? "whisper-3-f16-model" : "whisper-3" }
 
     /// The checkpoint's floating dtype (FP16 for every published Whisper), nil when the encoder is Float32.
     var checkpointHalfDType: DType? {
@@ -799,7 +747,6 @@ extension WhisperModel: FastPathCapable {
             let active = enabled && WhisperModel.halfEncoder && checkpointHalfDType != nil
             model.encoder.positionDType = active ? checkpointHalfDType : nil
             fastEncoder = active
-            setEncoderDense(active && WhisperModel.encoderDequant)
         }
         return true
     }
@@ -814,8 +761,7 @@ extension WhisperModel: FastPathCapable {
     }
 
     public var fastPathComponents: [String: Bool] {
-        ["decoder": fastDecode, "encoder": fastEncoder, "fused_decode": activeFusedDecoder != nil,
-         "encoder_dense": encoderDense]
+        ["decoder": fastDecode, "encoder": fastEncoder, "fused_decode": activeFusedDecoder != nil]
     }
 
     /// Token IDs for a self-test clip, exactly as the worker transcribes. With the half-precision encoder the stock
@@ -824,12 +770,7 @@ extension WhisperModel: FastPathCapable {
         let reference = WhisperModel.halfEncoder && !fastEncoder
         let saved = model.encoder.positionDType
         if reference { model.encoder.positionDType = checkpointHalfDType }
-        let denseReference = reference && WhisperModel.encoderDequant && checkpointHalfDType != nil
-        if denseReference { setEncoderDense(true) }
-        defer {
-            if reference { model.encoder.positionDType = saved }
-            if denseReference { setEncoderDense(false) }
-        }
+        defer { if reference { model.encoder.positionDType = saved } }
         // Temperature fallback samples from MLX's time-seeded global key: seed it so a clip that falls back
         // samples the same keys on both paths (the self-test child only).
         MLXRandom.seed(WhisperModel.samplingSeed)
