@@ -28,6 +28,7 @@ final class GateStringTests: XCTestCase {
         #"gemvRevision = "gemv-1""#,
         #"qtileRevision = "qtile-1""#,
         #""+int8-1+smallm-""#,
+        #""+int4-1+smallm-""#,
         #""whisper-3-f16-model""#,
         #""whisper-3""#,
         #""qwen3-asr-3-f32-encoder-p3""#,

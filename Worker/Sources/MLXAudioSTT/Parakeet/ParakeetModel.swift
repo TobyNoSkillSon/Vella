@@ -51,6 +51,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
         "parakeet-r2-dense-encoder"
             + (FastParakeetNAX.enabled ? "+nax2+smallm-" + SmallMGEMM.tileRevision : "")
             + (FastParakeetInt8.enabled ? "+int8-1+smallm-" + SmallMGEMM.qtileRevision : "")
+            + (FastParakeetInt8.int4Enabled ? "+int4-1+smallm-" + SmallMGEMM.qtileRevision : "")
     }
     /// The dtype the worker converts request samples to before `generate`: the log-mel is computed in it (BF16,
     /// matching mlx-audio's rounding).
@@ -62,15 +63,14 @@ public final class ParakeetModel: Module, STTGenerationModel {
     public var fastPathComponents: [String: Bool] {
         var components = ["encoder": fastEncoder != nil, "decoder": fastDecoder != nil]
         if naxEligible { components["nax_gemm"] = fastEncoder?.useNAX ?? false }
-        if int8Eligible { components["int8_gemm"] = fastEncoder?.useInt8 ?? false }
+        if let integerComponent { components[integerComponent] = fastEncoder?.useInt8 ?? false }
         return components
     }
-    /// The native-int8 encoder would run on this checkpoint and Mac: enabled, an 8-bit affine group-64 encoder with
-    /// BF16 scales, a GPU with tensor ops.
-    var int8Eligible: Bool {
-        guard FastParakeetInt8.enabled, FastParakeetInt8.available, let q = encoder.layers.first?.relSelfAttn?.linearQ as? QuantizedLinear
-        else { return false }
-        return FastParakeetInt8.eligible(bits: q.bits, groupSize: q.groupSize, mode: q.mode, scales: q.scales)
+    /// The native-integer encoder's gate component on this checkpoint and Mac (`int8_gemm` / `int4_gemm`), or nil:
+    /// its switch on, an 8/4-bit affine group-64 encoder with BF16 scales, a GPU with tensor ops.
+    var integerComponent: String? {
+        guard FastParakeetInt8.available, let q = encoder.layers.first?.relSelfAttn?.linearQ as? QuantizedLinear else { return nil }
+        return FastParakeetInt8.component(bits: q.bits, groupSize: q.groupSize, mode: q.mode, scales: q.scales)
     }
     /// NAX would run on this checkpoint and Mac: enabled, a dense BF16 encoder, a GPU with tensor ops.
     var naxEligible: Bool {
@@ -79,7 +79,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
         return q.weight.dtype == .bfloat16
     }
     /// Two-stage gate: the NAX GEMMs are the one inexact component; the fused encoder and decoder stay token-exact.
-    public var fastPathTolerantComponents: [String] { (naxEligible ? ["nax_gemm"] : []) + (int8Eligible ? ["int8_gemm"] : []) }
+    public var fastPathTolerantComponents: [String] { (naxEligible ? ["nax_gemm"] : []) + (integerComponent.map { [$0] } ?? []) }
     public var fastPathDisabledComponents: Set<String> = []
     /// SentencePiece pieces joined, split at the word marker (special tokens dropped), as the transcript reads.
     public func qualificationWords(_ tokens: [Int]) -> [String] {
@@ -151,7 +151,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
             // Quantized checkpoints keep FP32 activations; dense ones run in their own dtype.
             let dense = encoder.layers.first?.relSelfAttn?.linearQ.weight.dtype ?? .bfloat16
             // The native int8 encoder (tolerant component `int8_gemm`) runs an eligible 8-bit checkpoint in BF16.
-            let int8 = quantized && int8Eligible && !fastPathDisabledComponents.contains("int8_gemm")
+            let int8 = quantized && integerComponent.map { !fastPathDisabledComponents.contains($0) } ?? false
             let dtype: DType = int8 ? .bfloat16 : quantized ? .float32 : (dense.isFloatingPoint ? dense : .bfloat16)
             guard let prepared = FastParakeetEncoder(encoder, dense: !quantized, dtype: dtype,
                                                      fusedConvolution: component != "encoder-no-fused-conv",

@@ -31,6 +31,7 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         .init("VELLA_PARAKEET_FAST", .lab, gateKey: true, worker: true),
         .init("VELLA_PARAKEET_NAX", .lab, gateKey: true, worker: true),
         .init("VELLA_PARAKEET_INT8", .lab, gateKey: true, worker: true),
+        .init("VELLA_PARAKEET_INT4", .lab, gateKey: true, worker: true),
         .init("VELLA_TEST_TOLERANT_FAULT", .test, gateKey: true, worker: true),
         .init("VELLA_NEMO_", prefix: true, .lab, gateKey: true, worker: true),
         // The user's selection: set by the app for every helper, reported as the status's `recipe`.

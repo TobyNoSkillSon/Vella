@@ -2,7 +2,8 @@ import Foundation
 import MLX
 import SmallMGEMM
 
-/// Parakeet's switch for the native-int8 encoder of quantized checkpoints (8-bit affine, group 64, BF16 scales): the
+/// Parakeet's switches for the native-integer encoder of quantized checkpoints (affine group 64, BF16 scales; 8-bit
+/// component `int8_gemm`, 4-bit component `int4_gemm`, each with its own switch and verdict): the
 /// encoder runs in BF16 activations like the BF16 checkpoint's, and its Linears use SmallMGEMM's native quantized tile
 /// kernel (revision `SmallMGEMM.qtileRevision`), which feeds the stored 8-bit codes straight to the tensor unit (no
 /// dequantization, one weight byte per element), the pointwise convolutions the BF16 tile kernel.
@@ -24,10 +25,23 @@ enum FastParakeetInt8 {
         default: return enabledByDefault
         }
     }()
+    /// The 4-bit checkpoints' switch (L3 lever 2): `VELLA_PARAKEET_INT4=1` / `=0` (part of the gate key), off by default.
+    static let int4EnabledByDefault = false
+    static let int4Enabled: Bool = {
+        switch ProcessInfo.processInfo.environment["VELLA_PARAKEET_INT4"] {
+        case "1": return true
+        case "0": return false
+        default: return int4EnabledByDefault
+        }
+    }()
 
-    /// The quantization the kernel takes: MLX affine 8-bit, group 64, scales and biases in the activation dtype.
-    static func eligible(bits: Int, groupSize: Int, mode: QuantizationMode, scales: MLXArray?) -> Bool {
-        bits == 8 && groupSize == 64 && mode == .affine && scales?.dtype == .bfloat16
+    /// The gate component for a checkpoint's bit width, or nil when the kernel does not take it or its switch is off:
+    /// MLX affine 8- or 4-bit, group 64, scales and biases in BF16 (the activation dtype).
+    static func component(bits: Int, groupSize: Int, mode: QuantizationMode, scales: MLXArray?) -> String? {
+        guard groupSize == 64, mode == .affine, scales?.dtype == .bfloat16 else { return nil }
+        if bits == 8 && enabled { return "int8_gemm" }
+        if bits == 4 && int4Enabled { return "int4_gemm" }
+        return nil
     }
 
     /// x [..., K] · Wᵀ (+ bias) on the native kernel, or nil outside its range (the caller runs MLX's quantized matmul).
@@ -37,11 +51,14 @@ enum FastParakeetInt8 {
         return SmallMGEMM.matmul(x, weights, epilogue: bias.map { .bias($0) } ?? .none, native: true)
     }
 
-    /// The package's unit self-test for the classes this path uses (native tile BF16 affine 8-bit none/bias, and the BF16
+    /// The package's unit self-test for the classes this path uses (native tile BF16 affine 8/4-bit none/bias, and the BF16
     /// tile for the pointwise convolutions); run
     /// once per process inside the gate child. Empty = pass.
     static let libraryFailures: [String] = {
-        let results = SmallMGEMM.selfTest(including: { ["qtile.bf16.affine8.none", "qtile.bf16.affine8.bias", "tile.bf16.dense.none"].contains($0) })
+        let classes = [
+            "qtile.bf16.affine8.none", "qtile.bf16.affine8.bias", "qtile.bf16.affine4.none", "qtile.bf16.affine4.bias", "tile.bf16.dense.none"
+        ]
+        let results = SmallMGEMM.selfTest(including: { classes.contains($0) })
         for (name, value) in results.sorted(by: { $0.key < $1.key }) { FastPathGate.debug("smallm \(name) \(value)") }
         return SmallMGEMM.selfTestFailures(results)
     }()
