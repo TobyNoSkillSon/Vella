@@ -70,7 +70,7 @@ func admitCheckpoint(_ path: URL) throws -> String {
     let config = try jsonObject(path.appendingPathComponent("config.json"))
     if let value = config["model_type"], !(value is NSNull), !(value is String) { throw RequestError.invalid }
     var architecture = config["model_type"] as? String
-    // NeMo transducer checkpoints carry no model_type: plain RNNT/TDT.
+    // NeMo transducer checkpoints carry no model_type (the catalog's MLX Parakeet); only TDT ones load.
     if architecture == nil, config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" { architecture = "parakeet" }
     let stub = StubModel.enabled && architecture == "stub" // Test hook, reported in status.
     guard let architecture, stub || ["parakeet", "qwen3_asr", "whisper"].contains(architecture) else { throw RequestError.invalid }
@@ -79,15 +79,8 @@ func admitCheckpoint(_ path: URL) throws -> String {
     guard let quant = rawQuant as? [String: Any] else { throw RequestError.invalid }
     if let bits = quant["bits"], !(bits is NSNull) {
         guard let n = bits as? NSNumber else { throw RequestError.invalid }
-        // Never below 4 bits by quantisation. The one exception is a checkpoint trained
-        // ternary (Parakeet Redux): its 2-bit MLX form is the exact native weights, marked
-        // by the upstream ternary.json that ships with it.
-        let nativeTernary = n == 2 && architecture == "parakeet" && {
-            guard let meta = try? jsonObject(path.appendingPathComponent("ternary.json")),
-                  let q = meta["quant"] as? [String: Any], q["mode"] as? String == "ternary" else { return false }
-            return (q["group_size"] as? NSNumber) == (quant["group_size"] as? NSNumber)
-        }()
-        guard n == 4 || n == 8 || nativeTernary else { throw RequestError.invalid }
+        // Never below 4 bits (the catalog's quantized precisions are 4- and 8-bit).
+        guard n == 4 || n == 8 else { throw RequestError.invalid }
     }
     for name in ["config.json", "tokenizer_config.json"] {
         let url = path.appendingPathComponent(name)

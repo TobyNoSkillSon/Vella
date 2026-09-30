@@ -163,3 +163,18 @@ extension WorkerTests {
         @Test func whisper() { #expect(WhisperModel.fastPathRevision == "whisper-3-f16-model") }
     }
 }
+
+extension WorkerTests {
+    /// Only Parakeet TDT loads: hybrid TDT-CTC, CTC and RNN-T without TDT durations are refused (the worker reports
+    /// the load as failed).
+    @Suite struct ParakeetTargets {
+        @Test func onlyTDT() throws {
+            let rnnt = "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel"
+            try ParakeetVariantResolver.requireTDT(target: rnnt, hasTDTDurations: true)
+            for (target, tdt) in [(rnnt, false), ("nemo.collections.asr.models.hybrid_rnnt_ctc_bpe_models.EncDecHybridRNNTCTCBPEModel", true),
+                                  ("nemo.collections.asr.models.ctc_bpe_models.EncDecCTCModelBPE", false), ("", true)] {
+                #expect(throws: (any Error).self) { try ParakeetVariantResolver.requireTDT(target: target, hasTDTDurations: tdt) }
+            }
+        }
+    }
+}

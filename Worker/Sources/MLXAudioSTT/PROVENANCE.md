@@ -6,7 +6,7 @@ Vella keeps the model families it ships and the code they need:
 
 | Folder | Upstream | Used for |
 |---|---|---|
-| `Parakeet/` | Parakeet (TDT) | Parakeet v3 and v3 Ultra (Dictation) |
+| `Parakeet/` | Parakeet (TDT only) | Parakeet v3 and v3 Ultra (Dictation) |
 | `Qwen3ASR/` | Qwen3 ASR | Qwen3 ASR 1.7B and 0.6B (Dictation) |
 | `Whisper/` | Whisper | Whisper large-v3 and large-v3 turbo (Dictation) |
 | `NemotronASR/` | Nemotron ASR | Nemotron 3.5 streaming (Streaming) |
@@ -24,7 +24,8 @@ What Vella changed:
   (`VellaNemotron*`).
 - **Precisions derived at load** from an installed float checkpoint (`DerivedPrecision`, `CheckpointQuantization`).
 - **Removed** what the workers never call: streaming generation (`generateStream`), Nemotron's offline decode and
-  upstream stream session, the SentencePiece tokenizer, batch and hybrid Parakeet decoders, and unused DSP helpers.
+  upstream stream session, the SentencePiece tokenizer, batch and hybrid Parakeet decoders, the Parakeet variants
+  outside the catalog (TDT-CTC, CTC, RNN-T without TDT), and unused DSP helpers.
 
 The Parakeet frontend follows mlx-audio 0.5.1's MLX filterbank construction (`Worker/LICENSE-mlx-audio-python`);
 Whisper's decoding settings follow mlx-whisper (`Worker/LICENSE-mlx-whisper`).

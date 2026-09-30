@@ -19,7 +19,7 @@ final class FastParakeetTDT {
     private lazy var run: @Sendable ([MLXArray]) -> [MLXArray] = makeRun()
 
     init?(_ model: ParakeetModel) {
-        guard (model.variant == .tdt || model.variant == .tdtCtc), let decoder = model.decoder, let head = model.joint,
+        guard let decoder = model.decoder, let head = model.joint,
               head.activationName == "relu", decoder.prediction.decRnn.layers.count == 2,
               let wb = head.outputProj.bias, let pb = head.pred.bias,
               let b1 = decoder.prediction.decRnn.layers[1].bias,

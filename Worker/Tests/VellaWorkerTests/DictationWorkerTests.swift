@@ -41,7 +41,11 @@ extension WorkerTests {
                 ("tok-automap", #"{"model_type": "whisper"}"#, ["model.safetensors": "w", "tokenizer_config.json": #"{"auto_map": ["x"]}"#]),
                 ("noweights", #"{"model_type": "whisper"}"#, [:]),
             ]
-            for (name, config, files) in refused {
+            // A ternary 2-bit Parakeet (not in the catalog) is refused like any 2-bit checkpoint.
+            let nemo = #"{"target": "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel", "quantization": {"bits": 2, "group_size": 64}}"#
+            let ternary: [(String, String, [String: String])] = [("ternary", nemo, ["model.safetensors": "w",
+                "ternary.json": #"{"quant": {"mode": "ternary", "group_size": 64}}"#])]
+            for (name, config, files) in refused + ternary {
                 let url = try folder(s, name, config: config, files: files)
                 #expect(throws: (any Error).self, "\(name)") { try admitCheckpoint(url) }
             }

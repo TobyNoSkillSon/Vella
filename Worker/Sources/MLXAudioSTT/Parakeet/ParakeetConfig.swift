@@ -191,47 +191,6 @@ public struct ParakeetTDTDecodingConfig: Codable, Sendable {
     }
 }
 
-public struct ParakeetRNNTDecodingConfig: Codable, Sendable {
-    public let greedy: ParakeetGreedyConfig?
-}
-
-public struct ParakeetCTCDecodingConfig: Codable, Sendable {
-    public let greedy: ParakeetGreedyConfig?
-}
-
-public struct ParakeetConvASRDecoderConfig: Codable, Sendable {
-    public let featIn: Int?
-    public let numClasses: Int
-    public let vocabulary: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case featIn = "feat_in"
-        case numClasses = "num_classes"
-        case vocabulary
-    }
-
-    public init(featIn: Int?, numClasses: Int, vocabulary: [String]) {
-        self.featIn = featIn
-        self.numClasses = numClasses
-        self.vocabulary = vocabulary
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        featIn = try container.decodeIfPresent(Int.self, forKey: .featIn)
-        numClasses = try container.decode(Int.self, forKey: .numClasses)
-        vocabulary = try container.decode([String].self, forKey: .vocabulary)
-    }
-}
-
-public struct ParakeetAuxCTCConfig: Codable, Sendable {
-    public let decoder: ParakeetConvASRDecoderConfig
-
-    public init(decoder: ParakeetConvASRDecoderConfig) {
-        self.decoder = decoder
-    }
-}
-
 public struct ParakeetModelDefaults: Codable, Sendable {
     public let tdtDurations: [Int]?
 
@@ -248,7 +207,6 @@ public struct ParakeetRawConfig: Codable, Sendable {
     public let decoder: CodableJSONValue
     public let joint: ParakeetJointConfig?
     public let decoding: CodableJSONValue
-    public let auxCtc: CodableJSONValue?
 
     enum CodingKeys: String, CodingKey {
         case target
@@ -258,7 +216,6 @@ public struct ParakeetRawConfig: Codable, Sendable {
         case decoder
         case joint
         case decoding
-        case auxCtc = "aux_ctc"
     }
 }
 
@@ -270,73 +227,19 @@ public struct ParakeetTDTConfig: Sendable {
     public let decoding: ParakeetTDTDecodingConfig
 }
 
-public struct ParakeetRNNTConfig: Sendable {
-    public let preprocessor: ParakeetPreprocessConfig
-    public let encoder: ParakeetConformerConfig
-    public let decoder: ParakeetPredictConfig
-    public let joint: ParakeetJointConfig
-    public let decoding: ParakeetRNNTDecodingConfig
-}
-
-public struct ParakeetCTCConfig: Sendable {
-    public let preprocessor: ParakeetPreprocessConfig
-    public let encoder: ParakeetConformerConfig
-    public let decoder: ParakeetConvASRDecoderConfig
-    public let decoding: ParakeetCTCDecodingConfig
-}
-
-public struct ParakeetTDTCTCConfig: Sendable {
-    public let preprocessor: ParakeetPreprocessConfig
-    public let encoder: ParakeetConformerConfig
-    public let decoder: ParakeetPredictConfig
-    public let joint: ParakeetJointConfig
-    public let decoding: ParakeetTDTDecodingConfig
-    public let auxCTC: ParakeetAuxCTCConfig
-}
-
-public enum ParakeetVariant: Sendable {
-    case tdt
-    case tdtCtc
-    case rnnt
-    case ctc
-}
-
+/// Vella loads Parakeet TDT only (every catalog Parakeet is TDT): a NeMo `EncDecRNNTBPEModel` with TDT durations.
+/// Hybrid TDT-CTC, CTC and RNN-T-without-TDT checkpoints are refused at load.
 public enum ParakeetVariantResolver {
-    public static func resolve(_ config: ParakeetRawConfig) throws -> ParakeetVariant {
-        let target = config.target ?? ""
-        let hasTdt = config.modelDefaults?.tdtDurations != nil
-
-        if target == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" && hasTdt {
-            return .tdt
-        }
-        if target == "nemo.collections.asr.models.hybrid_rnnt_ctc_bpe_models.EncDecHybridRNNTCTCBPEModel" && hasTdt {
-            return .tdtCtc
-        }
-        if target == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" && !hasTdt {
-            return .rnnt
-        }
-        if target == "nemo.collections.asr.models.ctc_bpe_models.EncDecCTCModelBPE" {
-            return .ctc
-        }
-
-        throw ParakeetConfigError.unsupportedModelTarget(target)
+    public static let tdtTarget = "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel"
+    public static func requireTDT(target: String?, hasTDTDurations: Bool) throws {
+        guard target == tdtTarget, hasTDTDurations else { throw ParakeetConfigError.unsupportedModelTarget(target ?? "") }
+    }
+    public static func requireTDT(_ config: ParakeetRawConfig) throws {
+        try requireTDT(target: config.target, hasTDTDurations: config.modelDefaults?.tdtDurations != nil)
     }
 }
 
 public enum ParakeetConfigParser {
-    private static func resolveDecoderFeatIn(
-        _ decoder: ParakeetConvASRDecoderConfig,
-        fallback: Int
-    ) -> ParakeetConvASRDecoderConfig {
-        if decoder.featIn != nil {
-            return decoder
-        }
-        return ParakeetConvASRDecoderConfig(
-            featIn: fallback,
-            numClasses: decoder.numClasses,
-            vocabulary: decoder.vocabulary
-        )
-    }
 
     public static func parseTDT(_ config: ParakeetRawConfig) throws -> ParakeetTDTConfig {
         guard let joint = config.joint else {
@@ -351,49 +254,6 @@ public enum ParakeetConfigParser {
         )
     }
 
-    public static func parseRNNT(_ config: ParakeetRawConfig) throws -> ParakeetRNNTConfig {
-        guard let joint = config.joint else {
-            throw ParakeetConfigError.missingField("joint")
-        }
-        return ParakeetRNNTConfig(
-            preprocessor: config.preprocessor,
-            encoder: config.encoder,
-            decoder: try config.decoder.decode(as: ParakeetPredictConfig.self),
-            joint: joint,
-            decoding: try config.decoding.decode(as: ParakeetRNNTDecodingConfig.self)
-        )
-    }
-
-    public static func parseCTC(_ config: ParakeetRawConfig) throws -> ParakeetCTCConfig {
-        let rawDecoder = try config.decoder.decode(as: ParakeetConvASRDecoderConfig.self)
-        return ParakeetCTCConfig(
-            preprocessor: config.preprocessor,
-            encoder: config.encoder,
-            decoder: resolveDecoderFeatIn(rawDecoder, fallback: config.encoder.dModel),
-            decoding: try config.decoding.decode(as: ParakeetCTCDecodingConfig.self)
-        )
-    }
-
-    public static func parseTDTCTC(_ config: ParakeetRawConfig) throws -> ParakeetTDTCTCConfig {
-        guard let joint = config.joint else {
-            throw ParakeetConfigError.missingField("joint")
-        }
-        guard let auxCTCRaw = config.auxCtc else {
-            throw ParakeetConfigError.missingField("aux_ctc")
-        }
-        let auxCTC = try auxCTCRaw.decode(as: ParakeetAuxCTCConfig.self)
-        let resolvedAuxCTC = ParakeetAuxCTCConfig(
-            decoder: resolveDecoderFeatIn(auxCTC.decoder, fallback: config.encoder.dModel)
-        )
-        return ParakeetTDTCTCConfig(
-            preprocessor: config.preprocessor,
-            encoder: config.encoder,
-            decoder: try config.decoder.decode(as: ParakeetPredictConfig.self),
-            joint: joint,
-            decoding: try config.decoding.decode(as: ParakeetTDTDecodingConfig.self),
-            auxCTC: resolvedAuxCTC
-        )
-    }
 }
 
 public enum ParakeetConfigError: Error, LocalizedError {

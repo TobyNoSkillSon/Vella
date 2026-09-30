@@ -5,15 +5,8 @@ import MLXNN
 import MLXAudioCore
 import MLXLMCommon
 
+/// Parakeet TDT (the only NeMo target Vella ships: `EncDecRNNTBPEModel` with TDT durations).
 public final class ParakeetModel: Module, STTGenerationModel {
-    public enum Variant: Sendable {
-        case tdt
-        case tdtCtc
-        case rnnt
-        case ctc
-    }
-
-    public let variant: Variant
     public let preprocessConfig: ParakeetPreprocessConfig
     public let encoderConfig: ParakeetConformerConfig
 
@@ -38,7 +31,6 @@ public final class ParakeetModel: Module, STTGenerationModel {
     @ModuleInfo(key: "encoder") var encoder: ParakeetConformer
     @ModuleInfo(key: "decoder") var decoder: ParakeetPredictNetwork?
     @ModuleInfo(key: "joint") var joint: ParakeetJointNetwork?
-    @ModuleInfo(key: "ctc_decoder") var ctcDecoder: ParakeetConvASRDecoder?
 
     var tdtTraceEmitter: (@Sendable (TDTTraceStep) -> Void)?
     private var fastEncoder: FastParakeetEncoder?
@@ -201,17 +193,14 @@ public final class ParakeetModel: Module, STTGenerationModel {
     )
 
     private init(
-        variant: Variant,
         preprocessConfig: ParakeetPreprocessConfig,
         encoderConfig: ParakeetConformerConfig,
         vocabulary: [String],
         durations: [Int],
         maxSymbols: Int?,
         decoderConfig: ParakeetPredictConfig?,
-        jointConfig: ParakeetJointConfig?,
-        ctcConfig: ParakeetConvASRDecoderConfig?
+        jointConfig: ParakeetJointConfig?
     ) {
-        self.variant = variant
         self.preprocessConfig = preprocessConfig
         self.encoderConfig = encoderConfig
         self.vocabulary = vocabulary
@@ -228,11 +217,6 @@ public final class ParakeetModel: Module, STTGenerationModel {
             self._joint.wrappedValue = ParakeetJointNetwork(args: jointConfig)
         } else {
             self._joint.wrappedValue = nil
-        }
-        if let ctcConfig {
-            self._ctcDecoder.wrappedValue = ParakeetConvASRDecoder(args: ctcConfig)
-        } else {
-            self._ctcDecoder.wrappedValue = nil
         }
     }
 
@@ -290,14 +274,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
     }
 
     func decode(mel: MLXArray, lengths: MLXArray? = nil) -> [ParakeetAlignedResult] {
-        switch variant {
-        case .tdt, .tdtCtc:
-            return decodeTDT(mel: mel, lengths: lengths)
-        case .rnnt:
-            return decodeRNNT(mel: mel, lengths: lengths)
-        case .ctc:
-            return decodeCTC(mel: mel, lengths: lengths)
-        }
+        decodeTDT(mel: mel, lengths: lengths)
     }
 
     func encodeBatchFeatures(_ features: MLXArray, lengths: MLXArray? = nil) -> (MLXArray, MLXArray) {
@@ -531,155 +508,6 @@ public final class ParakeetModel: Module, STTGenerationModel {
         )
     }
 
-    private func decodeRNNT(mel: MLXArray, lengths: MLXArray? = nil) -> [ParakeetAlignedResult] {
-        var features = mel
-        if features.ndim == 2 {
-            features = features.expandedDimensions(axis: 0)
-        }
-
-        assert(
-            features.ndim == 3 && features.shape[2] == preprocessConfig.features,
-            "Parakeet RNNT input feature shape mismatch: expected [B, T, \(preprocessConfig.features)], got \(features.shape)"
-        )
-
-        let encoded = encodeBatchFeatures(features, lengths: lengths)
-        return decodeRNNTEncoded(batchFeatures: encoded.0, lengths: encoded.1)
-    }
-
-    private func decodeRNNTEncoded(batchFeatures: MLXArray, lengths: MLXArray) -> [ParakeetAlignedResult] {
-        guard let decoder, let joint else { return [] }
-
-        assert(
-            batchFeatures.ndim == 3 && batchFeatures.shape[2] == encoderConfig.dModel,
-            "Parakeet RNNT encoder output shape mismatch: expected last dim \(encoderConfig.dModel), got \(batchFeatures.shape)"
-        )
-        eval(batchFeatures, lengths)
-
-        var results: [ParakeetAlignedResult] = []
-        let batchSize = batchFeatures.shape[0]
-        let blankToken = vocabulary.count
-
-        for b in 0..<batchSize {
-            let featureSeq = batchFeatures[b..<(b + 1)]
-            let maxLength = Int(lengths[b].item(Int32.self))
-
-            var lastToken = blankToken
-            var hypothesis: [ParakeetAlignedToken] = []
-
-            var t = 0
-            var newSymbols = 0
-            var state: ParakeetLSTMState?
-
-            while t < maxLength {
-                let frame = featureSeq[0..., t..<(t + 1), 0...]
-                let currentToken: MLXArray? = lastToken == blankToken ? nil : MLXArray(lastToken).reshaped([1, 1]).asType(.int32)
-
-                let decoderOut = decoder(currentToken, state: state)
-                let pred = decoderOut.0.asType(frame.dtype)
-                let proposedState: ParakeetLSTMState = (
-                    hidden: decoderOut.1.hidden?.asType(frame.dtype),
-                    cell: decoderOut.1.cell?.asType(frame.dtype)
-                )
-
-                let jointOut = joint(frame, pred)
-                eval(jointOut)
-                let token = jointOut.argMax(axis: -1).item(Int.self)
-                let step = ParakeetDecodingLogic.rnntStep(
-                    predictedToken: token,
-                    blankToken: blankToken,
-                    time: t,
-                    newSymbols: newSymbols,
-                    maxSymbols: maxSymbols
-                )
-
-                if step.emittedToken {
-                    lastToken = token
-                    state = proposedState
-                    if !ParakeetTokenizer.isSpecialToken(token, vocabulary: vocabulary) {
-                        let start = frameTimeSeconds(frameIndex: t)
-                        let duration = frameTimeSeconds(frameIndex: 1)
-                        hypothesis.append(
-                            ParakeetAlignedToken(
-                                id: token,
-                                text: ParakeetTokenizer.decode(tokens: [token], vocabulary: vocabulary),
-                                start: start,
-                                duration: duration
-                            )
-                        )
-                    }
-                }
-
-                t = step.nextTime
-                newSymbols = step.nextNewSymbols
-            }
-
-            results.append(
-                ParakeetAlignment.sentencesToResult(
-                    ParakeetAlignment.tokensToSentences(hypothesis)
-                )
-            )
-        }
-
-        return results
-    }
-
-    private func decodeCTC(mel: MLXArray, lengths: MLXArray? = nil) -> [ParakeetAlignedResult] {
-        var features = mel
-        if features.ndim == 2 {
-            features = features.expandedDimensions(axis: 0)
-        }
-
-        assert(
-            features.ndim == 3 && features.shape[2] == preprocessConfig.features,
-            "Parakeet CTC input feature shape mismatch: expected [B, T, \(preprocessConfig.features)], got \(features.shape)"
-        )
-
-        let encoded = encodeBatchFeatures(features, lengths: lengths)
-        return decodeCTCEncoded(batchFeatures: encoded.0, lengths: encoded.1)
-    }
-
-    private func decodeCTCEncoded(batchFeatures: MLXArray, lengths: MLXArray) -> [ParakeetAlignedResult] {
-        guard let ctcDecoder else { return [] }
-
-        assert(
-            batchFeatures.ndim == 3 && batchFeatures.shape[2] == encoderConfig.dModel,
-            "Parakeet CTC encoder output shape mismatch: expected last dim \(encoderConfig.dModel), got \(batchFeatures.shape)"
-        )
-        let logits = ctcDecoder(batchFeatures)
-        eval(logits, lengths)
-
-        var results: [ParakeetAlignedResult] = []
-        let blankToken = vocabulary.count
-
-        for b in 0..<logits.shape[0] {
-            let featLen = Int(lengths[b].item(Int32.self))
-            let pred = logits[b, ..<featLen, 0...]
-            let bestTokens = pred.argMax(axis: 1)
-
-            let ids: [Int] = (0..<featLen).map { bestTokens[$0].item(Int.self) }
-            let spans = ParakeetDecodingLogic.ctcSpans(bestTokens: ids, blankToken: blankToken)
-            let hypothesis: [ParakeetAlignedToken] = spans.compactMap { span in
-                if ParakeetTokenizer.isSpecialToken(span.token, vocabulary: vocabulary) { return nil }
-                let start = frameTimeSeconds(frameIndex: span.startFrame)
-                let end = frameTimeSeconds(frameIndex: span.endFrame)
-                return ParakeetAlignedToken(
-                    id: span.token,
-                    text: ParakeetTokenizer.decode(tokens: [span.token], vocabulary: vocabulary),
-                    start: start,
-                    duration: end - start
-                )
-            }
-
-            results.append(
-                ParakeetAlignment.sentencesToResult(
-                    ParakeetAlignment.tokensToSentences(hypothesis)
-                )
-            )
-        }
-
-        return results
-    }
-
     private func frameTimeSeconds(frameIndex: Int) -> Double {
         Double(frameIndex * encoderConfig.subsamplingFactor * preprocessConfig.hopLength) / Double(preprocessConfig.sampleRate)
     }
@@ -808,63 +636,17 @@ public extension ParakeetModel {
         let configData = normalizedConfigData(rawConfigData)
         let rawConfig = try JSONDecoder().decode(ParakeetRawConfig.self, from: configData)
         let quantConfig = try JSONDecoder().decode(ParakeetQuantizationConfig.self, from: configData)
-        let variant = try ParakeetVariantResolver.resolve(rawConfig)
-
-        let model: ParakeetModel
-        switch variant {
-        case .tdt:
-            let cfg = try ParakeetConfigParser.parseTDT(rawConfig)
-            model = ParakeetModel(
-                variant: .tdt,
-                preprocessConfig: cfg.preprocessor,
-                encoderConfig: cfg.encoder,
-                vocabulary: cfg.joint.vocabulary,
-                durations: cfg.decoding.durations,
-                maxSymbols: cfg.decoding.greedy?.maxSymbols,
-                decoderConfig: cfg.decoder,
-                jointConfig: cfg.joint,
-                ctcConfig: nil
-            )
-        case .tdtCtc:
-            let cfg = try ParakeetConfigParser.parseTDTCTC(rawConfig)
-            model = ParakeetModel(
-                variant: .tdtCtc,
-                preprocessConfig: cfg.preprocessor,
-                encoderConfig: cfg.encoder,
-                vocabulary: cfg.joint.vocabulary,
-                durations: cfg.decoding.durations,
-                maxSymbols: cfg.decoding.greedy?.maxSymbols,
-                decoderConfig: cfg.decoder,
-                jointConfig: cfg.joint,
-                ctcConfig: cfg.auxCTC.decoder
-            )
-        case .rnnt:
-            let cfg = try ParakeetConfigParser.parseRNNT(rawConfig)
-            model = ParakeetModel(
-                variant: .rnnt,
-                preprocessConfig: cfg.preprocessor,
-                encoderConfig: cfg.encoder,
-                vocabulary: cfg.joint.vocabulary,
-                durations: [1],
-                maxSymbols: cfg.decoding.greedy?.maxSymbols,
-                decoderConfig: cfg.decoder,
-                jointConfig: cfg.joint,
-                ctcConfig: nil
-            )
-        case .ctc:
-            let cfg = try ParakeetConfigParser.parseCTC(rawConfig)
-            model = ParakeetModel(
-                variant: .ctc,
-                preprocessConfig: cfg.preprocessor,
-                encoderConfig: cfg.encoder,
-                vocabulary: cfg.decoder.vocabulary,
-                durations: [1],
-                maxSymbols: nil,
-                decoderConfig: nil,
-                jointConfig: nil,
-                ctcConfig: cfg.decoder
-            )
-        }
+        try ParakeetVariantResolver.requireTDT(rawConfig)
+        let cfg = try ParakeetConfigParser.parseTDT(rawConfig)
+        let model = ParakeetModel(
+            preprocessConfig: cfg.preprocessor,
+            encoderConfig: cfg.encoder,
+            vocabulary: cfg.joint.vocabulary,
+            durations: cfg.decoding.durations,
+            maxSymbols: cfg.decoding.greedy?.maxSymbols,
+            decoderConfig: cfg.decoder,
+            jointConfig: cfg.joint
+        )
 
         var weights: [String: MLXArray] = [:]
         let files = try FileManager.default.contentsOfDirectory(at: modelDir, includingPropertiesForKeys: nil)
@@ -874,7 +656,7 @@ public extension ParakeetModel {
             weights.merge(shard) { _, new in new }
         }
 
-        var sanitized = sanitize(weights: weights, variant: model.variant)
+        var sanitized = sanitize(weights: weights)
         weights.removeAll()
 
         // A locally derived precision (Vella): cast and/or quantize the float source tensor by tensor, then load it
@@ -924,25 +706,20 @@ public extension ParakeetModel {
 }
 
 private extension ParakeetModel {
-    static func sanitize(weights: [String: MLXArray], variant: Variant) -> [String: MLXArray] {
+    static func sanitize(weights: [String: MLXArray]) -> [String: MLXArray] {
         var sanitized: [String: MLXArray] = [:]
         sanitized.reserveCapacity(weights.count)
 
         for (key, value) in weights {
-            guard let remapped = remapKey(key, variant: variant) else { continue }
+            guard let remapped = remapKey(key) else { continue }
             sanitized[remapped] = value
         }
 
         return sanitized
     }
 
-    static func remapKey(_ key: String, variant: Variant) -> String? {
+    static func remapKey(_ key: String) -> String? {
         var newKey = key
-
-        // CTC-only checkpoints keep decoder at top level; Swift model uses ctc_decoder.
-        if variant == .ctc, newKey.hasPrefix("decoder.") {
-            newKey = "ctc_decoder." + newKey.dropFirst("decoder.".count)
-        }
 
         // ConvASRDecoder list index -> single module path.
         newKey = newKey.replacingOccurrences(of: ".decoder_layers.0.", with: ".decoder_layers.")
