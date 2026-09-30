@@ -228,10 +228,12 @@ public enum SmallMGEMM {
     /// Runs every supported (kernel, dtype, format, epilogue) class on fixed random inputs covering its M range and
     /// edge cases against stock MLX and returns the largest relative RMS per class (non-finite → ∞). Classes this GPU
     /// cannot run are absent. Class names: "<kernel>.<dtype>.<format>.<epilogue>", e.g. "tile.f16.dense.bias".
-    /// `including` limits the run to the classes a caller uses (default: all). An excluded class runs no kernel; the
-    /// random inputs are still drawn in the same order, so an included class sees exactly the inputs (and gives the
-    /// value) of a full run.
-    public static func selfTest(including: (String) -> Bool = { _ in true }) -> [String: Float] {
+    /// `including` limits the run to the classes a caller uses. The default, `standardClasses`, is every tile and GEMV
+    /// class (`revision`) and no native quantized tile class (`qtile.*`, `qtileRevision`): those run only when a
+    /// caller of `native: true` selects them, so `selfTest()` tests exactly what it tested before they existed.
+    /// `{ _ in true }` runs everything. An excluded class runs no kernel; the random inputs are still drawn in the same
+    /// order, so an included class sees exactly the inputs (and gives the value) of a full run.
+    public static func selfTest(including: (String) -> Bool = SmallMGEMM.standardClasses) -> [String: Float] {
         var results: [String: Float] = [:]
         var seed: UInt64 = 0x5eed
         func random(_ shape: [Int], _ dtype: DType, scale: Float = 1) -> MLXArray {
@@ -350,6 +352,9 @@ public enum SmallMGEMM {
         }
         return results
     }
+
+    /// The default self-test selection: the tile and GEMV families (`revision`), not the native quantized tile kernel.
+    public static func standardClasses(_ className: String) -> Bool { !className.hasPrefix("qtile.") }
 
     /// silu(a) = a · sigmoid(a), as MLXNN's `silu`, without depending on MLXNN.
     private static func silu(_ a: MLXArray) -> MLXArray { a * MLX.sigmoid(a) }

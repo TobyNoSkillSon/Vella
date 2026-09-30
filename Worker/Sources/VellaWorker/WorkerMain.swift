@@ -53,10 +53,15 @@ struct DictationMain {
         }
         if CommandLine.arguments.dropFirst().first == "smallm-selftest" {
             // The shared SmallMGEMM package's unit self-test: relative RMS per class vs stock MLX, JSON on stdout.
-            let results = SmallMGEMM.selfTest()
+            // Plain: the default selection (tile and GEMV, what a sibling's `selfTest()` runs); `--all` adds the native
+            // quantized tile classes (`qtile.*`).
+            let arguments = Array(CommandLine.arguments.dropFirst(2))
+            guard arguments.isEmpty || arguments == ["--all"] else { exit(2) }
+            let all = arguments == ["--all"]
+            let results = all ? SmallMGEMM.selfTest(including: { _ in true }) : SmallMGEMM.selfTest()
             let failures = SmallMGEMM.selfTestFailures(results)
             let report: [String: Any] = [
-                "revision": SmallMGEMM.revision, "qtile_revision": SmallMGEMM.qtileRevision,
+                "revision": SmallMGEMM.revision, "qtile_revision": SmallMGEMM.qtileRevision, "classes": all ? "all" : "default",
                 "results": results.mapValues { Double($0) }, "failures": failures
             ]
             if let bytes = try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]) {

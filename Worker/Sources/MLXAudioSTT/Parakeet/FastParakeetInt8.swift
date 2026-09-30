@@ -45,21 +45,39 @@ enum FastParakeetInt8 {
     }
 
     /// x [..., K] · Wᵀ (+ bias) on the native kernel, or nil outside its range (the caller runs MLX's quantized matmul).
+    /// Rows `SmallMGEMM.qtileRows` only: with `native: true` the package would otherwise route 1…2-row calls to its
+    /// affine GEMV family, which this component neither self-tests nor keys. Within those rows a call the native kernel
+    /// declines (N > 2048 above 100 rows) finds no other quantized family there and returns nil too.
     static func matmul(_ x: MLXArray, weight: MLXArray, scales: MLXArray, biases: MLXArray, bits: Int, groupSize: Int, bias: MLXArray?) -> MLXArray? {
-        guard x.dtype == .bfloat16 else { return nil }
+        guard x.dtype == .bfloat16, SmallMGEMM.qtileRows.contains(x.size / max(x.dim(-1), 1)) else { return nil }
         let weights = SmallMGEMM.Weights(w: weight, scales: scales, biases: biases, format: .affine(bits: bits, groupSize: groupSize))
         return SmallMGEMM.matmul(x, weights, epilogue: bias.map { .bias($0) } ?? .none, native: true)
     }
 
-    /// The package's unit self-test for the classes this path uses (native tile BF16 affine 8/4-bit none/bias, and the BF16
-    /// tile for the pointwise convolutions); run
-    /// once per process inside the gate child. Empty = pass.
-    static let libraryFailures: [String] = {
-        let classes = [
-            "qtile.bf16.affine8.none", "qtile.bf16.affine8.bias", "qtile.bf16.affine4.none", "qtile.bf16.affine4.bias", "tile.bf16.dense.none"
-        ]
+    /// The package self-test classes a component dispatches: the native tile for its own bit width (no epilogue, bias)
+    /// and the BF16 tile for the pointwise convolutions. The other bit width is not run, so it cannot disable this one.
+    static func libraryClasses(component: String) -> [String] {
+        let bits = component == "int4_gemm" ? 4 : 8
+        return ["qtile.bf16.affine\(bits).none", "qtile.bf16.affine\(bits).bias", "tile.bf16.dense.none"]
+    }
+
+    /// The failing classes among `component`'s own (empty = pass); results of any other class are ignored.
+    static func libraryFailures(component: String, results: [String: Float]) -> [String] {
+        let classes = Set(libraryClasses(component: component))
+        return SmallMGEMM.selfTestFailures(results.filter { classes.contains($0.key) })
+    }
+
+    /// The package's unit self-test for the active component's classes only; run at most once per process and bit
+    /// width, inside the gate child. Empty = pass.
+    static func libraryFailures(component: String) -> [String] {
+        component == "int4_gemm" ? int4LibraryFailures : int8LibraryFailures
+    }
+    private static let int8LibraryFailures = runLibraryTest(component: "int8_gemm")
+    private static let int4LibraryFailures = runLibraryTest(component: "int4_gemm")
+    private static func runLibraryTest(component: String) -> [String] {
+        let classes = Set(libraryClasses(component: component))
         let results = SmallMGEMM.selfTest(including: { classes.contains($0) })
         for (name, value) in results.sorted(by: { $0.key < $1.key }) { FastPathGate.debug("smallm \(name) \(value)") }
-        return SmallMGEMM.selfTestFailures(results)
-    }()
+        return libraryFailures(component: component, results: results)
+    }
 }

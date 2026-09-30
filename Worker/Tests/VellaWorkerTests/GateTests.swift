@@ -250,5 +250,32 @@ extension WorkerTests {
             #expect(SmallMGEMM.selfTestFailures(["tile.bf16.dense.none": 0.03, "gemv.bf16.affine4.none": 0.029]) == ["tile.bf16.dense.none"])
             #expect(SmallMGEMM.selfTestFailures(["tile.bf16.dense.none": .infinity]) == ["tile.bf16.dense.none"])
         }
+
+        /// The plain `selfTest()` (what a sibling vendoring the package runs) selects the tile and GEMV classes only.
+        @Test func defaultSelectionExcludesNativeClasses() {
+            for name in ["tile.bf16.dense.none", "tile.f16.dense.biasResidual", "gemv.bf16.affine8.siluGate", "gemv.f16.mxfp4.none"] {
+                #expect(SmallMGEMM.standardClasses(name), "\(name)")
+            }
+            for name in ["qtile.bf16.affine8.none", "qtile.f16.affine4.bias"] { #expect(!SmallMGEMM.standardClasses(name), "\(name)") }
+        }
+
+        /// Parakeet's integer components qualify exactly the classes they dispatch: their own bit width's native tile
+        /// (none/bias) and the BF16 dense tile; a failure of the other bit width cannot disable the active one.
+        @Test func parakeetIntegerQualification() {
+            #expect(FastParakeetInt8.libraryClasses(component: "int8_gemm") == ["qtile.bf16.affine8.none", "qtile.bf16.affine8.bias", "tile.bf16.dense.none"])
+            #expect(FastParakeetInt8.libraryClasses(component: "int4_gemm") == ["qtile.bf16.affine4.none", "qtile.bf16.affine4.bias", "tile.bf16.dense.none"])
+            let int4Broken: [String: Float] = [
+                "qtile.bf16.affine8.none": 0.005, "qtile.bf16.affine8.bias": 0.005, "tile.bf16.dense.none": 1e-4,
+                "qtile.bf16.affine4.none": .infinity, "qtile.bf16.affine4.bias": 0.5, "gemv.bf16.affine8.none": .infinity
+            ]
+            #expect(FastParakeetInt8.libraryFailures(component: "int8_gemm", results: int4Broken).isEmpty)
+            #expect(FastParakeetInt8.libraryFailures(component: "int4_gemm", results: int4Broken) == ["qtile.bf16.affine4.bias", "qtile.bf16.affine4.none"])
+            #expect(FastParakeetInt8.libraryFailures(component: "int8_gemm", results: ["tile.bf16.dense.none": 0.03]) == ["tile.bf16.dense.none"])
+            // Every qualified class is a native tile class or the dense tile: nothing from the GEMV family.
+            for component in ["int8_gemm", "int4_gemm"] {
+                #expect(FastParakeetInt8.libraryClasses(component: component).allSatisfy { !$0.hasPrefix("gemv.") })
+            }
+            #expect(SmallMGEMM.qtileRows == 9...256)
+        }
     }
 }

@@ -46,12 +46,13 @@ public final class ParakeetModel: Module, STTGenerationModel {
     // FastPathCapable (worker gate + runtime fallback). The revision is hashed into the gate key:
     // bump it whenever kernels, the default component set or the clip set change.
     /// The NAX GEMM kernel (FastParakeetNAX) adds its own suffix when enabled (nax2: tolerance self-test, two-stage),
-    /// with the shared SmallMGEMM package's tile revision since the kernel moved there.
+    /// with the shared SmallMGEMM package's tile revision since the kernel moved there. The opt-in integer encoders add
+    /// theirs (int8-2/int4-2: native tile rows only, each self-testing its own bit width's classes).
     public static var fastPathRevision: String {
         "parakeet-r2-dense-encoder"
             + (FastParakeetNAX.enabled ? "+nax2+smallm-" + SmallMGEMM.tileRevision : "")
-            + (FastParakeetInt8.enabled ? "+int8-1+smallm-" + SmallMGEMM.qtileRevision : "")
-            + (FastParakeetInt8.int4Enabled ? "+int4-1+smallm-" + SmallMGEMM.qtileRevision : "")
+            + (FastParakeetInt8.enabled ? "+int8-2+smallm-" + SmallMGEMM.qtileRevision : "")
+            + (FastParakeetInt8.int4Enabled ? "+int4-2+smallm-" + SmallMGEMM.qtileRevision : "")
     }
     /// The dtype the worker converts request samples to before `generate`: the log-mel is computed in it (BF16,
     /// matching mlx-audio's rounding).
@@ -177,10 +178,12 @@ public final class ParakeetModel: Module, STTGenerationModel {
         // path; a larger deviation fails the component like non-finite output. The word-edit bound is the gate's.
         if let deviation = naxEncoderDeviation(audio: audio) {
             FastPathGate.debug("nax encoder deviation rms \(deviation)")
-            if fastEncoder?.useInt8 == true {
-                if !FastParakeetInt8.libraryFailures.isEmpty {
+            if fastEncoder?.useInt8 == true, let integerComponent {
+                // Only this component's own classes: a failure of the other bit width cannot disable it.
+                let failures = FastParakeetInt8.libraryFailures(component: integerComponent)
+                if !failures.isEmpty {
                     fastPathFinite = false
-                    fastPathError = "SmallMGEMM self-test failed: \(FastParakeetInt8.libraryFailures.joined(separator: ", "))"
+                    fastPathError = "SmallMGEMM self-test failed: \(failures.joined(separator: ", "))"
                 } else if !(deviation <= Self.int8MaxDeviation) {
                     fastPathFinite = false
                     fastPathError = "int8 GEMM deviation \(deviation) > \(Self.int8MaxDeviation)"
