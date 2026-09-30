@@ -22,6 +22,8 @@ public final class NemotronASRModel: Module {
     var fusedEncoder: VellaNemotronFusedEncoder?
     /// BF16 copy of the joint output projection for `VELLA_NEMO_JOINTBATCH=1` (built by the first optimized session).
     var jointBatch: VellaNemotronSmallLinear?
+    /// The joint batch's BF16 copy exists (reported as `joint_batch`; nil for a quantized joint or a lossy copy).
+    public var jointBatchPrepared: Bool { jointBatch != nil }
 
     @ModuleInfo(key: "encoder") var encoder: NemotronASRConformer
     @ModuleInfo(key: "prompt_kernel") var promptKernel: NemotronASRPromptKernel?

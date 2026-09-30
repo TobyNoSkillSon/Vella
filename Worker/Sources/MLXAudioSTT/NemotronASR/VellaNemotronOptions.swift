@@ -14,30 +14,50 @@ public enum VellaNemotronOptions {
         /// Fused layer only, BF16 checkpoints: the dense encoder Linears stay BF16 (no Float32 copy) and run through
         /// the small-M BF16 kernel (not bit-identical: within the fused layer's self-test tolerance).
         public var bf16Linears: Bool
+        /// L3 opt-in levers (`VELLA_NEMO_<NAME>=1`, off by default). Keep-cache: MLX's buffer cache is kept between
+        /// requests (exact). Joint batch: the joint's output projection for a chunk's remaining frames in one small-M
+        /// pass (`VellaNemotronJointBatch`; inexact, so off under Optimized · Exact like the fused layer).
+        public var keepCache, jointBatch: Bool
         public init(f32Weights: Bool, coalesce: Bool, batchedDecode: Bool, positionCache: Bool, keyValueCache: Bool, fusedLayer: Bool,
-                    melBatch: Bool = false, bf16Linears: Bool = false) {
+                    melBatch: Bool = false, bf16Linears: Bool = false, keepCache: Bool = false, jointBatch: Bool = false) {
             self.f32Weights = f32Weights; self.coalesce = coalesce; self.batchedDecode = batchedDecode
             self.positionCache = positionCache; self.keyValueCache = keyValueCache; self.fusedLayer = fusedLayer
-            self.melBatch = melBatch; self.bf16Linears = bf16Linears
+            self.melBatch = melBatch; self.bf16Linears = bf16Linears; self.keepCache = keepCache; self.jointBatch = jointBatch
         }
-        /// `exactOnly` (the Optimized · Exact recipe): the fused layer and its BF16 Linears, the inexact components, stay off.
+        /// `exactOnly` (the Optimized · Exact recipe): the inexact components (the fused layer, its BF16 Linears, the
+        /// joint batch) stay off.
         public init(environment: [String: String], forcedStock: Bool, exactOnly: Bool = false) {
             func on(_ name: String) -> Bool { !forcedStock && environment["VELLA_NEMO_" + name] != "0" }
+            func optIn(_ name: String) -> Bool { !forcedStock && environment["VELLA_NEMO_" + name] == "1" }
             self.init(f32Weights: on("F32"), coalesce: on("COALESCE"), batchedDecode: on("BATCHED_DECODE"),
                       positionCache: on("POSCACHE"), keyValueCache: on("KVCACHE"), fusedLayer: on("FUSED") && !exactOnly,
-                      melBatch: on("MELBATCH"), bf16Linears: on("BF16LINEAR") && !exactOnly)
+                      melBatch: on("MELBATCH"), bf16Linears: on("BF16LINEAR") && !exactOnly,
+                      keepCache: optIn("KEEPCACHE"), jointBatch: optIn("JOINTBATCH") && !exactOnly)
         }
+        /// The joint batch runs only with batched decoding, and only when its BF16 copy was built for this checkpoint.
+        public func jointBatchActive(prepared: Bool = true) -> Bool { jointBatch && batchedDecode && prepared }
+        /// The opt-in levers' gate-key revisions, in a fixed order (empty when none is on).
+        public var labLevers: [String] { (keepCache ? ["keepcache-1"] : []) + (jointBatch ? ["jointbatch-1"] : []) }
         /// The fused layer runs only on the K/V-cache path, and only when its encoder could be built for this checkpoint.
         public func fusedActive(prepared: Bool = true) -> Bool { fusedLayer && keyValueCache && prepared }
         /// Status `optimizations`: every component as it actually runs.
-        public func effective(fusedPrepared: Bool = true) -> [String: Bool] {
-            ["f32_weights": f32Weights, "coalesce": coalesce, "batched_decode": batchedDecode,
-             "position_cache": positionCache, "kv_cache": keyValueCache, "fused_layer": fusedActive(prepared: fusedPrepared),
-             "mel_batch": melBatch && coalesce,
-             "bf16_linears": bf16Linears && fusedActive(prepared: fusedPrepared)]
+        /// An opt-in lever appears only when it is on (so the default dictionary is unchanged).
+        public func effective(fusedPrepared: Bool = true, jointPrepared: Bool = true) -> [String: Bool] {
+            var components = [
+                "f32_weights": f32Weights, "coalesce": coalesce, "batched_decode": batchedDecode,
+                "position_cache": positionCache, "kv_cache": keyValueCache, "fused_layer": fusedActive(prepared: fusedPrepared),
+                "mel_batch": melBatch && coalesce,
+                "bf16_linears": bf16Linears && fusedActive(prepared: fusedPrepared)
+            ]
+            if keepCache { components["keep_cache"] = true }
+            if jointBatch { components["joint_batch"] = jointBatchActive(prepared: jointPrepared) }
+            return components
         }
-        /// At least one component would run: the fused layer alone (K/V cache off) runs nothing.
-        public var anyEnabled: Bool { effective().values.contains(true) }
+        /// At least one component would run: the fused layer alone (K/V cache off) runs nothing, and neither does an
+        /// opt-in lever alone.
+        public var anyEnabled: Bool {
+            effective().filter { $0.key != "keep_cache" && $0.key != "joint_batch" }.values.contains(true)
+        }
     }
     public static let requested = Switches(environment: ProcessInfo.processInfo.environment, forcedStock: FastPathGate.forcedStock,
                                            exactOnly: FastPathGate.exactOnly)
@@ -51,10 +71,9 @@ public enum VellaNemotronOptions {
     /// Per-request mel frontend (the session only defers the mel when the worker coalesces requests).
     public static let melBatch = requested.melBatch && requested.coalesce
     /// Bumped whenever an optimization or its self-test changes, so a persisted self-test verdict is not reused.
-    /// L3 opt-in levers (`VELLA_NEMO_<NAME>=1`, off by default) each append their own revision; with none set the
-    /// revision (and every existing gate key) is unchanged.
-    public static let labLevers: [String] = [("KEEPCACHE", "keepcache-1"), ("JOINTBATCH", "jointbatch-1")]
-        .filter { !FastPathGate.forcedStock && ProcessInfo.processInfo.environment["VELLA_NEMO_" + $0.0] == "1" }.map(\.1)
+    /// L3 opt-in levers (`VELLA_NEMO_<NAME>=1`, off by default) each append their own revision when they run (the joint
+    /// batch not under Optimized · Exact); with none set the revision (and every existing gate key) is unchanged.
+    public static let labLevers: [String] = requested.labLevers
     public static let revision = (["nemotron-stream-5"] + labLevers).joined(separator: "+")
     public static var anyEnabled: Bool { requested.anyEnabled }
     /// The requested components with their dependencies applied (before the fused encoder is built).
@@ -62,12 +81,16 @@ public enum VellaNemotronOptions {
 
     /// Worker status (engine, reason, optimizations) for a streaming model. `fusedPrepared`: the fused encoder was
     /// actually built; a checkpoint it does not support runs the unfused layers and must not report the fused layer.
-    public static func report(optimized: Bool, fusedPrepared: Bool, stockReason: String,
+    /// `jointPrepared`: the joint batch's BF16 copy was built (a quantized joint or a lossy copy keeps the per-frame
+    /// joint and must not report it).
+    public static func report(optimized: Bool, fusedPrepared: Bool, jointPrepared: Bool = false, stockReason: String,
                               switches: Switches = requested) -> (String, String, [String: Bool]) {
         guard optimized else { return ("mlx", stockReason, switches.effective().mapValues { _ in false }) }
-        return ("optimized", switches.fusedActive(prepared: fusedPrepared)
-                ? "Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance)."
+        let fused = switches.fusedActive(prepared: fusedPrepared), joint = switches.jointBatchActive(prepared: jointPrepared)
+        let tolerant = fused && joint ? "the fused layer and the joint batch are" : fused ? "the fused layer is" : "the joint batch is"
+        return ("optimized", fused || joint
+                ? "Self-tested on this Mac against stock MLX (same streamed text; \(tolerant) within a small numeric tolerance)."
                 : "Self-tested on this Mac against stock MLX (identical streamed text); output is bit-identical by construction.",
-                switches.effective(fusedPrepared: fusedPrepared))
+                switches.effective(fusedPrepared: fusedPrepared, jointPrepared: jointPrepared))
     }
 }

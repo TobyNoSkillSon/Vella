@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import MLXAudioSTT
+import MLX
 import SmallMGEMM
 import VellaWire
 
@@ -190,6 +191,74 @@ extension WorkerTests {
             let stock = VellaNemotronOptions.report(optimized: false, fusedPrepared: true, stockReason: "why", switches: all)
             #expect(stock.0 == "mlx"); #expect(stock.1 == "why"); #expect(stock.2.values.allSatisfy { !$0 })
             #expect(VellaNemotronOptions.report(optimized: true, fusedPrepared: true, stockReason: "", switches: all).0 == "optimized")
+        }
+
+        /// The joint batch's small-M Linear refuses what its kernel cannot take (shape/dtype admission, CPU-checkable:
+        /// the test build has no Metal library; the lossy-copy refusal and a quantized joint need MLX arrays).
+        @Test func jointBatchLinearRefusals() {
+            typealias L = VellaNemotronSmallLinear
+            #expect(L.fits(weightShape: [13088, 640], dtype: .bfloat16, r: 4, s: 1))
+            #expect(L.fits(weightShape: [13088, 640], dtype: .float32, r: 4, s: 1))
+            #expect(!L.fits(weightShape: [13088, 640], dtype: .float16, r: 4, s: 1)) // dtype
+            #expect(!L.fits(weightShape: [13088, 640], dtype: .uint32, r: 4, s: 1)) // packed quantized weight
+            #expect(!L.fits(weightShape: [13088, 640, 1], dtype: .bfloat16, r: 4, s: 1)) // not a matrix
+            #expect(!L.fits(weightShape: [13086, 640], dtype: .bfloat16, r: 4, s: 1)) // N % R
+            #expect(!L.fits(weightShape: [13088, 644], dtype: .bfloat16, r: 4, s: 1)) // K % (S · 8)
+            #expect(!L.fits(weightShape: [13088, 640], dtype: .bfloat16, r: 8, s: 1)) // M · R > S · 32
+            // Inputs other than (1, M ≤ 8, K) Float32 are declined, so the caller keeps its stock path.
+            #expect(L.accepts(inputShape: [1, 8, 640], dtype: .float32, k: 640))
+            #expect(L.accepts(inputShape: [1, 1, 640], dtype: .float32, k: 640))
+            #expect(!L.accepts(inputShape: [1, 9, 640], dtype: .float32, k: 640))
+            #expect(!L.accepts(inputShape: [1, 0, 640], dtype: .float32, k: 640))
+            #expect(!L.accepts(inputShape: [1, 2, 640], dtype: .bfloat16, k: 640))
+            #expect(!L.accepts(inputShape: [2, 2, 640], dtype: .float32, k: 640))
+            #expect(!L.accepts(inputShape: [1, 2, 641], dtype: .float32, k: 640))
+            #expect(!L.accepts(inputShape: [2, 640], dtype: .float32, k: 640))
+        }
+
+        /// The opt-in levers: absent by default; the inexact joint batch never runs (or keys, or reports) under
+        /// Optimized · Exact or forced stock, and reports only when its BF16 copy was built.
+        @Test func nemotronLabLevers() {
+            typealias S = VellaNemotronOptions.Switches
+            let both = ["VELLA_NEMO_KEEPCACHE": "1", "VELLA_NEMO_JOINTBATCH": "1"]
+            let unset = S(environment: [:], forcedStock: false)
+            #expect(unset.labLevers.isEmpty); #expect(!unset.jointBatch); #expect(!unset.keepCache)
+            #expect(unset.effective()["joint_batch"] == nil); #expect(unset.effective()["keep_cache"] == nil)
+            #expect(S(environment: ["VELLA_NEMO_JOINTBATCH": "true"], forcedStock: false).labLevers.isEmpty)
+            let fast = S(environment: both, forcedStock: false)
+            #expect(fast.labLevers == ["keepcache-1", "jointbatch-1"])
+            #expect(fast.effective()["joint_batch"] == true); #expect(fast.effective()["keep_cache"] == true)
+            #expect(fast.effective(jointPrepared: false)["joint_batch"] == false)
+            #expect(
+                S(environment: both.merging(["VELLA_NEMO_BATCHED_DECODE": "0"]) { $1 }, forcedStock: false)
+                    .effective()["joint_batch"] == false)
+            let exact = S(environment: both, forcedStock: false, exactOnly: true)
+            #expect(exact.labLevers == ["keepcache-1"]); #expect(!exact.jointBatch); #expect(!exact.jointBatchActive())
+            #expect(exact.effective()["joint_batch"] == nil)
+            let stock = S(environment: both, forcedStock: true)
+            #expect(stock.labLevers.isEmpty); #expect(!stock.anyEnabled)
+            // A lever alone runs nothing.
+            let leversOnly = S(
+                f32Weights: false, coalesce: false, batchedDecode: false, positionCache: false, keyValueCache: false,
+                fusedLayer: false, keepCache: true, jointBatch: true)
+            #expect(!leversOnly.anyEnabled)
+            // Reason: bit-identical only when no inexact component runs.
+            let bitIdentical = "Self-tested on this Mac against stock MLX (identical streamed text); output is bit-identical by construction."
+            let noFused = S(environment: both.merging(["VELLA_NEMO_FUSED": "0"]) { $1 }, forcedStock: false)
+            let jointOnly = VellaNemotronOptions.report(optimized: true, fusedPrepared: true, jointPrepared: true, stockReason: "", switches: noFused)
+            #expect(jointOnly.1 == "Self-tested on this Mac against stock MLX (same streamed text; the joint batch is within a small numeric tolerance).")
+            #expect(jointOnly.2["joint_batch"] == true)
+            #expect(VellaNemotronOptions.report(optimized: true, fusedPrepared: true, jointPrepared: false, stockReason: "", switches: noFused).1 == bitIdentical)
+            let exactNoFused = S(environment: both.merging(["VELLA_NEMO_FUSED": "0"]) { $1 }, forcedStock: false, exactOnly: true)
+            #expect(VellaNemotronOptions.report(optimized: true, fusedPrepared: true, jointPrepared: true, stockReason: "", switches: exactNoFused).1 == bitIdentical)
+            #expect(
+                VellaNemotronOptions.report(optimized: true, fusedPrepared: true, jointPrepared: true, stockReason: "", switches: fast).1
+                    == "Self-tested on this Mac against stock MLX (same streamed text; the fused layer and the joint batch are within a small numeric tolerance).")
+            // Unchanged default wording and components.
+            #expect(
+                VellaNemotronOptions.report(optimized: true, fusedPrepared: true, stockReason: "", switches: unset).1
+                    == "Self-tested on this Mac against stock MLX (same streamed text; the fused layer is within a small numeric tolerance).")
+            #expect(VellaNemotronOptions.report(optimized: true, fusedPrepared: true, stockReason: "", switches: unset).2 == unset.effective())
         }
     }
 }
