@@ -33,7 +33,8 @@ final class APIServer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "vella.api")
     private let uploads: URL
     private weak var handler: APIHandling?
-    private(set) var port = 0
+    /// The bound port, for the Host check; set and read only on `queue`.
+    private var port = 0
     /// Reservations of open connections and spooled uploads; used only on `queue`.
     private var budget: APIUploadBudget
     /// Free space on the uploads volume (tests inject a value).

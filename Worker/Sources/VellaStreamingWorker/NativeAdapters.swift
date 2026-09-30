@@ -160,7 +160,9 @@ final class NemotronNative: StreamingNative {
 }
 func loadStreamingNative(_ path: URL) throws -> any StreamingNative {
     let derived = try DerivedPrecision.resolve(path)
-    let config = try JSONSerialization.jsonObject(with: Data(contentsOf: (derived?.source ?? path).appendingPathComponent("config.json"))) as! [String: Any]
+    guard let config = try JSONSerialization.jsonObject(with: Data(contentsOf: (derived?.source ?? path).appendingPathComponent("config.json"))) as? [String: Any] else {
+        throw StreamingFailure.invalid
+    }
     guard (config["model_type"] as? String).flatMap(Architecture.init(rawValue:)).flatMap(ModelRuntimeRegistry.streaming) != nil else {
         throw StreamingFailure.invalid
     }

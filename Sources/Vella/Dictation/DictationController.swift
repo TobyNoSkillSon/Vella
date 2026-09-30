@@ -235,7 +235,7 @@ import VellaCore
                 if let pcm, let session = recorder.recordingSession { beginStreaming(session, config: config, pcm: pcm, operation: operation) }
                 elapsed = 0
                 update(.recording, "\(microphone) · \(shortcutHint) to finish")
-                meterTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak model = self] _ in
+                let meter = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak model = self] _ in
                     Task { @MainActor [weak model] in
                         guard let self = model, self.phase == .recording else { return }
                         let level = self.recorder.level()
@@ -243,15 +243,17 @@ import VellaCore
                         self.audioLevel += (level - self.audioLevel) * (level > self.audioLevel ? 0.55 : 0.18)
                     }
                 }
-                RunLoop.main.add(meterTimer!, forMode: .common)
-                timer = Timer(timeInterval: 1, repeats: true) { [weak model = self] _ in
+                meterTimer = meter
+                RunLoop.main.add(meter, forMode: .common)
+                let tick = Timer(timeInterval: 1, repeats: true) { [weak model = self] _ in
                     Task { @MainActor [weak model] in
                         guard let self = model, self.phase == .recording else { return }
                         self.recorder.writeDiagnostics()
                         self.recordingTick(error: self.recorder.captureFailure())
                     }
                 }
-                RunLoop.main.add(timer!, forMode: .common)
+                timer = tick
+                RunLoop.main.add(tick, forMode: .common)
             } catch is CancellationError { }
             catch { if self.operation == operation { update(.failed, error.localizedDescription) } }
         }

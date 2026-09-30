@@ -255,7 +255,7 @@ import VellaWire
     func update(_ id: String, worker: HelperStatus) {
         if let chip = worker.gpu.map({ GPUStatus(chip: $0.chip, family: $0.family) }) { gpu = chip }
         workerHooks.merge(worker.testHooks) { $1 }
-        if entries[id] != nil { entries[id]!.worker = worker } else { pendingWorker[id] = worker }
+        if entries[id] != nil { entries[id]?.worker = worker } else { pendingWorker[id] = worker }
         writeStatus()
     }
     func promote(_ id: String) {
@@ -302,7 +302,7 @@ import VellaWire
     func touch(_ id: String) {
         guard entries[id] != nil else { return }
         restarts[id]?.reset() // served a request: recovered
-        entries[id]!.lastUsed = Date().timeIntervalSince1970
+        entries[id]?.lastUsed = Date().timeIntervalSince1970
         schedule(id); writeStatus()
     }
     /// The worker is gone (unloaded, evicted, retired or crashed).

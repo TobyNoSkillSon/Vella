@@ -88,7 +88,8 @@ final class Worker {
         defer { trackCompilationCache() }
         if FaultHooks.loadFails(path) { throw InjectedFault.load }
         let runtime = Self.runtime(architecture)
-        let verdict = runtime.map { FastPathGate.qualify(path, runtime: $0) }
+        var verdict: FastPathGate.Verdict?
+        if let runtime { verdict = await FastPathGate.qualifyInBackground(path, runtime: runtime) }
         gateURL = runtime.flatMap { try? FastPathGate.statusURL(path, revision: $0.gateRevision) }
         let loaded = try await loadStock(path, architecture: architecture)
         self.architecture = architecture

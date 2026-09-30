@@ -206,6 +206,13 @@ public enum FastPathGate {
     public static func qualify(_ path: URL, runtime: any SpeechModelRuntime.Type) -> Verdict {
         qualify(path, revision: runtime.gateRevision, requiredFamily: runtime.requiredGPUFamily)
     }
+    /// `qualify` from async code: the wait for the self-test child (up to 45 s) runs on a dispatch thread, never on a
+    /// Swift concurrency thread.
+    public static func qualifyInBackground(_ path: URL, runtime: any SpeechModelRuntime.Type) async -> Verdict {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async { continuation.resume(returning: qualify(path, runtime: runtime)) }
+        }
+    }
     /// `requiredFamily` nil: the optimized path uses no GPU-family-specific kernels (stock MLX ops only).
     public static func qualify(_ path: URL, revision: String, requiredFamily: String? = "apple9") -> Verdict {
         if forcedStock { return .stock(forcedStockReason) }

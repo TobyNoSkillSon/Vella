@@ -361,9 +361,10 @@ final class SegmentedPCMWriter {
     }
     private func open(overlap: [Float]) throws {
         let index = (session.manifest.segments.last?.index ?? -1) + 1
-        session.manifest.segments.append(.init(index: index, overlapFrames: overlap.count))
+        let segment = RecordingSession.Segment(index: index, overlapFrames: overlap.count)
+        session.manifest.segments.append(segment)
         try session.save() // Metadata first: an interrupted creation is recoverable.
-        let url = session.directory.appendingPathComponent(session.manifest.segments.last!.filename)
+        let url = session.directory.appendingPathComponent(segment.filename)
         guard FileManager.default.createFile(atPath: url.path, contents: nil, attributes: [.posixPermissions: 0o600]) else {
             throw VellaError.message("Could not create the next audio segment. Existing audio is retained.")
         }
@@ -395,7 +396,7 @@ final class SegmentedPCMWriter {
         tail.append(contentsOf: block)
         let overlapCount = Int(policy.overlapSeconds * 16_000)
         if tail.count > overlapCount { tail.removeFirst(tail.count - overlapCount) }
-        let frames = session.manifest.segments.last!.frames
+        let frames = session.manifest.segments.last?.frames ?? 0
         let quiet = quietFrames >= Int(policy.silenceSeconds * 16_000)
         if (frames >= Int(policy.preferredSeconds * 16_000) && quiet) || frames >= Int(policy.maximumSeconds * 16_000) {
             try close()
