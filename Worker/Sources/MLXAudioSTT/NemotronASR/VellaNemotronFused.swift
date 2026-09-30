@@ -293,13 +293,10 @@ final class VellaNemotronFusedEncoder {
 enum VellaNemotronFusedMetal {
     /// Rows per chunk the kernels support (a streaming chunk has 4 frames; the flush tail a few more).
     static let maxRows = 8
-    /// Small-M linear shape: output columns per threadgroup (R) and simdgroups splitting K (S). Lab override (both):
-    /// `VELLA_NEMO_GEMV_R` / `VELLA_NEMO_GEMV_S` (part of the gate key like every `VELLA_NEMO_` switch).
-    /// Default per shape from a dependent-chain microbench (M5 Max, M = 4, BF16 weights; `lab/perf/vk-stream/gemvchain.py`):
+    /// Small-M linear shape: output columns per threadgroup (R) and simdgroups splitting K (S).
+    /// Per shape from a dependent-chain microbench (M5 Max, M = 4, BF16 weights; `lab/perf/vk-stream/gemvchain.py`):
     /// K 4096 (FF linear2) R8 S4, N >= 2048 (FF linear1, Q/K/V) R2 S4, 1024x1024 R2 S2.
     static func linearShape(n: Int, k: Int) -> (r: Int, s: Int) {
-        let env = ProcessInfo.processInfo.environment
-        if let r = env["VELLA_NEMO_GEMV_R"].flatMap(Int.init), let s = env["VELLA_NEMO_GEMV_S"].flatMap(Int.init) { return (r, s) }
         if k >= 4096 { return (8, 4) }
         return n >= 2048 ? (2, 4) : (2, 2)
     }

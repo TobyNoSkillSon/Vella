@@ -17,10 +17,8 @@ import SwiftUI
 struct ExactFastSwitch: View {
     enum Position: String { case exact, fast }
 
-    /// THE variant: the words "Fast"/"Exact" beside the pill (true) or the pill alone (false). The render harness
-    /// overrides it with VELLA_RENDER_SWITCH_WORDS=0/1 to draw both.
-    static let wordsByDefault = true
-    static let showsWords: Bool = ProcessInfo.processInfo.environment["VELLA_RENDER_SWITCH_WORDS"].map { $0 != "0" } ?? wordsByDefault
+    /// THE variant: the words "Fast"/"Exact" beside the pill (true) or the pill alone (false).
+    static let showsWords = true
     /// The column header: none beside the words (they name the positions), else the two positions, top first.
     static var title: String { showsWords ? "" : "Fast/Exact" }
     /// The switch's tooltip (Toby, 29 Sep); state lines follow it on their own lines.

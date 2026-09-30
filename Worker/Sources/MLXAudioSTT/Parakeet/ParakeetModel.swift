@@ -26,16 +26,6 @@ public final class ParakeetModel: Module, STTGenerationModel {
     /// with ~0.2% word drift). Set to `.float32` via the factory method to fall back.
     public var computeDType: DType = .bfloat16
 
-    enum TDTDecoderImplementation: Sendable {
-        case serial
-        case hybrid
-    }
-
-    enum EncoderExecutionImplementation: Sendable {
-        case plain
-        case compiled
-    }
-
     struct TDTTraceStep: Sendable, Equatable {
         let row: Int
         let time: Int
@@ -50,10 +40,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
     @ModuleInfo(key: "joint") var joint: ParakeetJointNetwork?
     @ModuleInfo(key: "ctc_decoder") var ctcDecoder: ParakeetConvASRDecoder?
 
-    var tdtDecoderImplementation: TDTDecoderImplementation?
-    var encoderExecutionImplementation: EncoderExecutionImplementation?
     var tdtTraceEmitter: (@Sendable (TDTTraceStep) -> Void)?
-    private var compiledEncoderFeaturesByShape: [String: @Sendable (MLXArray) -> MLXArray] = [:]
     private var fastEncoder: FastParakeetEncoder?
     private var fastDecoder: FastParakeetTDT?
     private var fastTokenSink: ((Int) -> Void)?
@@ -302,38 +289,6 @@ public final class ParakeetModel: Module, STTGenerationModel {
         )
     }
 
-    public func generateBatch(
-        audios: [MLXArray],
-        generationParameters: STTGenerateParameters = STTGenerateParameters()
-    ) throws -> [STTOutput] {
-        guard !audios.isEmpty else {
-            throw STTError.invalidInput("Parakeet generateBatch requires at least one chunk-sized audio input.")
-        }
-
-        let previousTDTDecoderImplementation = tdtDecoderImplementation
-        let previousEncoderExecutionImplementation = encoderExecutionImplementation
-        if previousTDTDecoderImplementation == nil {
-            tdtDecoderImplementation = audios.count > 1 ? .hybrid : .serial
-        }
-        if previousEncoderExecutionImplementation == nil {
-            encoderExecutionImplementation = .compiled
-        }
-        defer {
-            tdtDecoderImplementation = previousTDTDecoderImplementation
-            encoderExecutionImplementation = previousEncoderExecutionImplementation
-        }
-
-        let batchFeatures = makeBatchFeatures(audios)
-        let results = decode(mel: batchFeatures.features, lengths: batchFeatures.lengths)
-        return results.map {
-            STTOutput(
-                text: $0.text,
-                segments: $0.segments,
-                language: generationParameters.language
-            )
-        }
-    }
-
     func decode(mel: MLXArray, lengths: MLXArray? = nil) -> [ParakeetAlignedResult] {
         switch variant {
         case .tdt, .tdtCtc:
@@ -343,20 +298,6 @@ public final class ParakeetModel: Module, STTGenerationModel {
         case .ctc:
             return decodeCTC(mel: mel, lengths: lengths)
         }
-    }
-
-    func predictTDTToken(_ token: MLXArray?, state: ParakeetLSTMState? = nil) -> (MLXArray, ParakeetLSTMState)? {
-        guard let decoder else { return nil }
-        return decoder(token, state: state)
-    }
-
-    func predictTDTBatch(
-        _ tokenIds: MLXArray,
-        state: ParakeetLSTMState? = nil,
-        blankToken: Int32
-    ) -> (MLXArray, ParakeetLSTMState)? {
-        guard let decoder else { return nil }
-        return decoder.predictBatched(tokenIds, state: state, blankToken: blankToken)
     }
 
     func encodeBatchFeatures(_ features: MLXArray, lengths: MLXArray? = nil) -> (MLXArray, MLXArray) {
@@ -374,51 +315,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
                 return encoder(features, lengths: resolvedLengths)
             }
         }
-        switch encoderExecutionImplementation ?? .plain {
-        case .plain:
-            return encoder(features, lengths: resolvedLengths)
-        case .compiled:
-            let encodedFeatures = compiledEncoderFeatures(for: features)(features)
-            let encodedLengths = computeEncodedLengths(from: resolvedLengths)
-            return (encodedFeatures, encodedLengths)
-        }
-    }
-
-    func compiledEncoderFeatures(for features: MLXArray) -> @Sendable (MLXArray) -> MLXArray {
-        let key = "\(features.shape)-\(features.dtype)"
-        if let compiled = compiledEncoderFeaturesByShape[key] {
-            return compiled
-        }
-
-        let compiled: @Sendable (MLXArray) -> MLXArray = compile { [self] features in
-            self.encoder(features).0
-        }
-        compiledEncoderFeaturesByShape[key] = compiled
-        return compiled
-    }
-
-    func computeEncodedLengths(from lengths: MLXArray) -> MLXArray {
-        guard encoder.preEncodeDw != nil else {
-            return lengths.asType(.int32)
-        }
-
-        let samplingNum = Int(log2(Double(encoderConfig.subsamplingFactor)))
-        var outLengths = lengths.asType(.float32)
-        for _ in 0..<samplingNum {
-            outLengths = floor((outLengths + Float(-1)) / Float(2)) + 1
-        }
-        return outLengths.asType(.int32)
-    }
-
-    func decodeEncoded(batchFeatures: MLXArray, lengths: MLXArray) -> [ParakeetAlignedResult] {
-        switch variant {
-        case .tdt, .tdtCtc:
-            return decodeTDTEncoded(batchFeatures: batchFeatures, lengths: lengths)
-        case .rnnt:
-            return decodeRNNTEncoded(batchFeatures: batchFeatures, lengths: lengths)
-        case .ctc:
-            return decodeCTCEncoded(batchFeatures: batchFeatures, lengths: lengths)
-        }
+        return encoder(features, lengths: resolvedLengths)
     }
 
     private func decodeTDT(mel: MLXArray, lengths: MLXArray? = nil) -> [ParakeetAlignedResult] {
@@ -473,12 +370,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
             return [result]
         }
 
-        switch tdtDecoderImplementation ?? .serial {
-        case .serial:
-            return decodeTDTSerial(batchFeatures: batchFeatures, lengths: lengths, decoder: decoder, joint: joint)
-        case .hybrid:
-            return decodeTDTHybrid(batchFeatures: batchFeatures, lengths: lengths, decoder: decoder, joint: joint)
-        }
+        return decodeTDTSerial(batchFeatures: batchFeatures, lengths: lengths, decoder: decoder, joint: joint)
     }
 
     private func decodeTDTSerial(
@@ -574,124 +466,6 @@ public final class ParakeetModel: Module, STTGenerationModel {
         }
 
         return results
-    }
-
-    private func decodeTDTHybrid(
-        batchFeatures: MLXArray,
-        lengths: MLXArray,
-        decoder: ParakeetPredictNetwork,
-        joint: ParakeetJointNetwork
-    ) -> [ParakeetAlignedResult] {
-        let batchSize = batchFeatures.shape[0]
-        let blankToken = vocabulary.count
-        let maxLengthByRow = lengths.asArray(Int32.self).map(Int.init)
-        let hiddenSize = decoder.prediction.decRnn.layers.first?.hiddenSize ?? decoder.predHidden
-        let numLayers = decoder.prediction.decRnn.numLayers
-        let stateShape = [numLayers, batchSize, hiddenSize]
-
-        let stateDType: DType = computeDType
-        var fullState: ParakeetLSTMState = (
-            hidden: MLXArray.zeros(stateShape, dtype: stateDType),
-            cell: MLXArray.zeros(stateShape, dtype: stateDType)
-        )
-
-        var timeByRow = Array(repeating: 0, count: batchSize)
-        var newSymbolsByRow = Array(repeating: 0, count: batchSize)
-        var lastTokenByRow = Array(repeating: blankToken, count: batchSize)
-        var doneByRow = Array(repeating: false, count: batchSize)
-        var hypothesisByRow = Array(repeating: [ParakeetAlignedToken](), count: batchSize)
-
-        while true {
-            let activeRows = (0..<batchSize).filter { row in
-                let isActive = timeByRow[row] < maxLengthByRow[row]
-                doneByRow[row] = !isActive
-                return isActive
-            }
-
-            if activeRows.isEmpty {
-                break
-            }
-
-            let activeFrames = gatherActiveFrames(batchFeatures: batchFeatures, activeRows: activeRows, timeByRow: timeByRow)
-            let activeState = gatherActiveState(fullState, activeRows: activeRows)
-            let tokenIds = MLXArray(activeRows.map { Int32(lastTokenByRow[$0]) }).reshaped([activeRows.count, 1]).asType(.int32)
-
-            let decoderOut = decoder.predictBatched(tokenIds, state: activeState, blankToken: Int32(blankToken))
-            let pred = decoderOut.0.asType(activeFrames.dtype)
-            let proposedState: ParakeetLSTMState = (
-                hidden: decoderOut.1.hidden?.asType(activeFrames.dtype),
-                cell: decoderOut.1.cell?.asType(activeFrames.dtype)
-            )
-
-            let jointOut = joint(activeFrames, pred)
-            let tokenLogits = jointOut[0..., 0, 0, ..<(blankToken + 1)]
-            let durationLogits = jointOut[0..., 0, 0, (blankToken + 1)...]
-            let tokenArgMax = tokenLogits.argMax(axis: -1).asType(.int32)
-            let durationArgMax = durationLogits.argMax(axis: -1).asType(.int32)
-            let decisions = MLX.stacked([tokenArgMax, durationArgMax], axis: 0)
-            eval(decisions)
-            let decisionPairs = decisions.asArray(Int32.self)
-            let activeCount = activeRows.count
-            let predictedTokens = (0..<activeCount).map { Int(decisionPairs[$0]) }
-            let decisionIndices = (0..<activeCount).map { Int(decisionPairs[activeCount + $0]) }
-
-            var committedRows = Array(repeating: false, count: activeRows.count)
-
-            for (activeIndex, row) in activeRows.enumerated() {
-                let token = predictedTokens[activeIndex]
-                let decisionIndex = decisionIndices[activeIndex]
-                let currentTime = timeByRow[row]
-                let currentNewSymbols = newSymbolsByRow[row]
-                let step = ParakeetDecodingLogic.tdtStep(
-                    predictedToken: token,
-                    blankToken: blankToken,
-                    decisionIndex: decisionIndex,
-                    durations: durations,
-                    time: currentTime,
-                    newSymbols: currentNewSymbols,
-                    maxSymbols: maxSymbols
-                )
-
-                tdtTraceEmitter?(
-                    TDTTraceStep(
-                        row: row,
-                        time: currentTime,
-                        newSymbols: currentNewSymbols,
-                        token: token,
-                        decisionIndex: decisionIndex,
-                        committedState: token != blankToken
-                    )
-                )
-
-                if token != blankToken {
-                    committedRows[activeIndex] = true
-                    lastTokenByRow[row] = token
-
-                    if !ParakeetTokenizer.isSpecialToken(token, vocabulary: vocabulary) {
-                        hypothesisByRow[row].append(
-                            ParakeetAlignedToken(
-                                id: token,
-                                text: ParakeetTokenizer.decode(tokens: [token], vocabulary: vocabulary),
-                                start: frameTimeSeconds(frameIndex: currentTime),
-                                duration: frameTimeSeconds(frameIndex: step.jump)
-                            )
-                        )
-                    }
-                }
-
-                timeByRow[row] = step.nextTime
-                newSymbolsByRow[row] = step.nextNewSymbols
-                doneByRow[row] = step.nextTime >= maxLengthByRow[row]
-            }
-
-            fullState = mergeUpdatedState(fullState, activeRows: activeRows, updatedState: proposedState, committedRows: committedRows)
-        }
-
-        return hypothesisByRow.map { hypothesis in
-            ParakeetAlignment.sentencesToResult(
-                ParakeetAlignment.tokensToSentences(hypothesis)
-            )
-        }
     }
 
     private func gatherActiveFrames(
@@ -912,28 +686,6 @@ public final class ParakeetModel: Module, STTGenerationModel {
 
     private func normalizeAudioToMono(_ audio: MLXArray) -> MLXArray {
         audio.ndim > 1 ? audio.mean(axis: -1) : audio
-    }
-
-    func makeBatchFeatures(_ audios: [MLXArray]) -> (features: MLXArray, lengths: MLXArray) {
-        let melFeatures = audios.map { makeMelFeatures(from: normalizeAudioToMono($0)) }
-        assert(
-            melFeatures.allSatisfy { $0.ndim == 2 && $0.shape[1] == preprocessConfig.features },
-            "Parakeet batch mel feature shape mismatch before stacking; expected trailing dim \(preprocessConfig.features)"
-        )
-        let frameLengths = melFeatures.map { Int32($0.shape[0]) }
-        let maxFrameLength = melFeatures.map { $0.shape[0] }.max() ?? 0
-        let padded = melFeatures.map { padMelFeatures($0, targetFrameLength: maxFrameLength) }
-
-        let stacked = MLX.stacked(padded, axis: 0)
-        assert(
-            stacked.ndim == 3 && stacked.shape[2] == preprocessConfig.features,
-            "Parakeet batch feature stack mismatch: expected [B, T, \(preprocessConfig.features)], got \(stacked.shape)"
-        )
-
-        return (
-            features: stacked,
-            lengths: MLXArray(frameLengths).asType(.int32)
-        )
     }
 
     private func makeMelFeatures(from audio: MLXArray) -> MLXArray {

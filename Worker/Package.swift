@@ -10,7 +10,7 @@ let package = Package(name: "VellaWorker", platforms: [.macOS("26.0")], products
 ], targets: [
     .target(name: "MLXAudioCore", dependencies: [.product(name: "MLX", package: "mlx-swift"), .product(name: "MLXFFT", package: "mlx-swift")]),
     .target(name: "SmallMGEMM", dependencies: [.product(name: "MLX", package: "mlx-swift"), .product(name: "MLXFast", package: "mlx-swift")]),
-    .target(name: "MLXAudioSTT", dependencies: ["MLXAudioCore", "SmallMGEMM", .product(name: "MLX", package: "mlx-swift"), .product(name: "MLXNN", package: "mlx-swift"), .product(name: "MLXFast", package: "mlx-swift"), .product(name: "MLXLMCommon", package: "mlx-swift-lm"), .product(name: "Tokenizers", package: "swift-transformers")], exclude: ["Parakeet/README.md", "Qwen3ASR/README.md", "Whisper/README.md", "NemotronASR/README.md"]),
+    .target(name: "MLXAudioSTT", dependencies: ["MLXAudioCore", "SmallMGEMM", .product(name: "MLX", package: "mlx-swift"), .product(name: "MLXNN", package: "mlx-swift"), .product(name: "MLXFast", package: "mlx-swift"), .product(name: "MLXLMCommon", package: "mlx-swift-lm"), .product(name: "Tokenizers", package: "swift-transformers")], exclude: ["PROVENANCE.md"]),
     .executableTarget(name: "VellaWorker", dependencies: ["MLXAudioSTT", "SmallMGEMM"], resources: [.copy("Resources/clip-a.wav"), .copy("Resources/clip-b.wav"), .copy("Resources/clip-c.wav"), .copy("Resources/clip-d.wav"), .copy("Resources/clip-e.wav"), .copy("Resources/ATTRIBUTION.md"), .copy("Resources/LICENSE-CC-BY-4.0.txt")]),
     .executableTarget(name: "VellaStreamingWorker", dependencies: ["MLXAudioSTT"]),
     // CPU-only unit tests: gate keys and persistence, admission, wire helpers, streaming tolerance. No kernel runs.
