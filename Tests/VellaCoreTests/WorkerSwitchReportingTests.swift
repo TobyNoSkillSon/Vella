@@ -43,12 +43,16 @@ final class WorkerSwitchReportingTests: XCTestCase {
     /// The registry reproduces the hand-kept lists it replaced, policy for policy (VELLA_API and VELLA_UPDATE are
     /// newly reported by the app).
     func testRegistryMembership() {
-        XCTAssertEqual(EnvironmentSwitch.names(where: \.gateKey), ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_TEST_TOLERANT_FAULT"])
+        XCTAssertEqual(
+            EnvironmentSwitch.names(where: \.gateKey),
+            [
+                "VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_WHISPER_ENC_DEQUANT", "VELLA_TEST_TOLERANT_FAULT"
+            ])
         XCTAssertEqual(EnvironmentSwitch.prefixes(where: \.gateKey), ["VELLA_NEMO_"])
         XCTAssertEqual(
             Set(EnvironmentSwitch.names(where: \.workerReported)),
             [
-                "VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_TEST_TOLERANT_FAULT",
+                "VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_WHISPER_ENC_DEQUANT", "VELLA_TEST_TOLERANT_FAULT",
                 "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR", "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG",
                 "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP", "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE",
                 "VELLA_WHISPER_PROFILE", "VELLA_STREAM_PROFILE", "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT",
