@@ -556,13 +556,7 @@ struct ModelTable: View {
     }
 
     /// This Mac's chip: the runtime's, else the CPU brand string.
-    static let localChip: String? = {
-        var size = 0
-        guard sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0) == 0, size > 0 else { return nil }
-        var bytes = [CChar](repeating: 0, count: size)
-        guard sysctlbyname("machdep.cpu.brand_string", &bytes, &size, nil, 0) == 0 else { return nil }
-        return displayChip(String(cString: bytes))
-    }()
+    static let localChip: String? = displayChip(HostInfo.cpuBrand)
 
     /// Left: an error, else download/Loading progress, else the measurement-hardware note. Right: the agent request,
     /// or Cancel while downloading.

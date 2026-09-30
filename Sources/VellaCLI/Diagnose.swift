@@ -204,14 +204,7 @@ struct DiagnoseCollector {
 
     // MARK: This Mac
 
-    static func sysctlString(_ name: String) -> String? {
-        var size = 0
-        guard sysctlbyname(name, nil, &size, nil, 0) == 0, size > 0 else { return nil }
-        var bytes = [CChar](repeating: 0, count: size)
-        guard sysctlbyname(name, &bytes, &size, nil, 0) == 0 else { return nil }
-        let value = String(cString: bytes)
-        return value.isEmpty ? nil : value
-    }
+    static func sysctlString(_ name: String) -> String? { HostInfo.sysctlString(name).flatMap { $0.isEmpty ? nil : $0 } }
     /// Chip, model, memory, macOS and its build, and the Metal family the optimized kernels are gated on.
     static func localHost() -> Diagnosis.Host {
         var memory: UInt64 = 0, size = MemoryLayout<UInt64>.size

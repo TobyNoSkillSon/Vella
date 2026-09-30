@@ -193,9 +193,7 @@ import Darwin
         let token = UUID(), child = Process(), pipe = Pipe()
         child.executableURL = worker
         child.arguments = ["calibrate", "--model", modelPath, "--sample", resources.appendingPathComponent("Calibration").path]
-        var env = ProcessInfo.processInfo.environment
-        for key in ["HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_HUB_DISABLE_TELEMETRY"] { env[key] = "1" }
-        child.environment = env; child.standardOutput = pipe; child.standardError = pipe
+        child.environment = WorkerProcess.environment(); child.standardOutput = pipe; child.standardError = pipe
         do { try child.run() } catch { completion("Installed. Calibration could not start: \(error.localizedDescription)"); return false }
         job = token; process = child; stopReason = nil
         status("Installed. Calibrating local speed…")

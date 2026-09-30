@@ -173,9 +173,6 @@ import VellaCore
         if settings.launchSet.count != before { persistSettings() }
         writeStatus()
     }
-    private func sameFiles(_ a: String, _ b: String) -> Bool {
-        URL(fileURLWithPath: a).standardizedFileURL.path == URL(fileURLWithPath: b).standardizedFileURL.path
-    }
     func setKeepHot(manual: Int? = nil, onDemand: Int? = nil) {
         if let manual, KeepHot.choices.contains(manual) { settings.manualIdleMinutes = manual }
         if let onDemand, KeepHot.choices.contains(onDemand) { settings.onDemandIdleMinutes = onDemand }
@@ -633,26 +630,15 @@ struct WorkerExited: LocalizedError {
         let helper = try workerURL()
         let child = Process(), stdout = Pipe(), stdin = Pipe()
         child.executableURL = helper
-        var env = ProcessInfo.processInfo.environment
-        env["HF_HUB_OFFLINE"] = "1"; env["TRANSFORMERS_OFFLINE"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
-        env[workerRecipeVariable] = ref.recipe
-        child.environment = env; child.standardInput = stdin; child.standardOutput = stdout
+        child.environment = WorkerProcess.environment(recipe: ref.recipe); child.standardInput = stdin; child.standardOutput = stdout
         // Third-party diagnostics can contain speech; never persist them.
         child.standardError = FileHandle.nullDevice
         do { try child.run() }
         catch { throw VellaError.message("Vella's native dictation helper could not start. Reinstall the app; saved audio is retained. (\(error.localizedDescription))") }
         let slot = DictationSlot(ref: ref, process: child, input: stdin.fileHandleForWriting)
         slots[ref.id] = slot; lastSlot = ref.id; ownership = "Vella private worker"
-        let reader = stdout.fileHandleForReading
-        Task.detached { [weak self] in
-            while true {
-                let data = reader.availableData
-                if data.isEmpty { break }
-                await self?.receive(data, slot: slot)
-            }
-            try? reader.close()
-            await self?.ended(slot)
-        }
+        WorkerProcess.forward(stdout.fileHandleForReading, to: { [weak self] data in await self?.receive(data, slot: slot) },
+                              ended: { [weak self] in await self?.ended(slot) })
         runtime.beginLoading(ref.id)
         do {
             try checkStartup(generation)

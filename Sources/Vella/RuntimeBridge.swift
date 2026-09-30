@@ -159,9 +159,6 @@ import VellaCore
             return path
         }
     }
-    private func sameFiles(_ a: String, _ b: String) -> Bool {
-        URL(fileURLWithPath: a).standardizedFileURL.path == URL(fileURLWithPath: b).standardizedFileURL.path
-    }
     /// A successful load makes the model its mode's model (what the next dictation or streaming session loads on
     /// demand) and records the family's precision, so the table and dictation never disagree.
     private func select(_ path: String, mode: RecognitionMode, selection: ModelSelection? = nil) {

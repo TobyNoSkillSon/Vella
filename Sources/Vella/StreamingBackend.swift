@@ -148,11 +148,7 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         let executable = try workerURL()
         let child = Process(), stdout = Pipe(), stdin = Pipe()
         child.executableURL = executable
-        var env = ProcessInfo.processInfo.environment
-        env["HF_HUB_OFFLINE"] = "1"
-        env["TRANSFORMERS_OFFLINE"] = "1"; env["HF_HUB_DISABLE_TELEMETRY"] = "1"
-        env[workerRecipeVariable] = ref.recipe
-        child.environment = env; child.standardInput = stdin; child.standardOutput = stdout
+        child.environment = WorkerProcess.environment(recipe: ref.recipe); child.standardInput = stdin; child.standardOutput = stdout
         child.standardError = FileHandle.nullDevice
         frames = 0; committed = ""; partial = ""; buffer.removeAll(); receivedDone = false
         do { try child.run() }
@@ -160,15 +156,8 @@ final class StreamingPCMBuffer: @unchecked Sendable {
         let generation = UUID()
         epoch = generation
         process = child; input = stdin.fileHandleForWriting
-        Task.detached { [weak self] in
-            while true {
-                let data = stdout.fileHandleForReading.availableData
-                if data.isEmpty { break }
-                await self?.receive(data, generation: generation)
-            }
-            try? stdout.fileHandleForReading.close()
-            await self?.ended(generation: generation)
-        }
+        WorkerProcess.forward(stdout.fileHandleForReading, to: { [weak self] data in await self?.receive(data, generation: generation) },
+                              ended: { [weak self] in await self?.ended(generation: generation) })
         loadingRef = ref; loadingResidency = residency
         runtime.beginLoading(ref.id)
     }

@@ -176,11 +176,8 @@ public final class NativeInstaller {
     }
 
     private static func run(_ args: [String]) throws -> String {
-        let child = Process(); child.executableURL = URL(fileURLWithPath: "/usr/bin/codesign"); child.arguments = args
-        let pipe = Pipe(); child.standardOutput = pipe; child.standardError = pipe
-        try child.run(); child.waitUntilExit()
-        let text = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        guard child.terminationStatus == 0 else { throw NativeInstallError.message("Bundle signature verification failed: \(text.suffix(1200))") }
+        let (status, text) = try runTool("/usr/bin/codesign", args)
+        guard status == 0 else { throw NativeInstallError.message("Bundle signature verification failed: \(text.suffix(1200))") }
         return text
     }
     public static func verifySignedBundle(_ app: URL) throws -> Signature {

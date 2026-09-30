@@ -81,13 +81,7 @@ import VellaCore
         return "\(model.name.replacingOccurrences(of: " ASR \u{B7}", with: "")) \(precisionInProse(precisionLabel(legacyQuantization: model.quantization)))"
     }
     var selected: ModelRecommendation? { models.first { $0.id == selectedID } }
-    static let processor: String = {
-        var size = 0
-        guard sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0) == 0, size > 0 else { return "Unknown processor" }
-        var bytes = [CChar](repeating: 0, count: size)
-        guard sysctlbyname("machdep.cpu.brand_string", &bytes, &size, nil, 0) == 0 else { return "Unknown processor" }
-        return String(cString: bytes)
-    }()
+    static let processor = HostInfo.cpuBrand ?? "Unknown processor"
     func reload() {
         let decoder = JSONDecoder()
         registryReadable = false
