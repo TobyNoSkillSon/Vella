@@ -3,8 +3,6 @@ import Darwin
 import VellaCore
 import VellaWire
 
-/// The dictation worker exited while a request was in flight (crash, jetsam, kill). The request's audio is intact;
-/// `SessionTranscriber` retries that segment once on a fresh worker.
 extension Backend {
     /// A model the worker could not load. For a catalog model that is almost always its files (a truncated or damaged
     /// download): trying again cannot help, getting it again does.
@@ -13,6 +11,8 @@ extension Backend {
     }
 }
 
+/// The dictation worker exited while a request was in flight (crash, jetsam, kill). The request's audio is intact;
+/// `SessionTranscriber` retries that segment once on a fresh worker.
 struct WorkerExited: LocalizedError {
     var errorDescription: String? { "Vella's inference worker exited. Saved audio is retained." }
 }

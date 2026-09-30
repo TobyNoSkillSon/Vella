@@ -267,7 +267,7 @@ extension WorkerTests {
     /// The fast-path revisions under the default environment: the values every production gate key uses.
     @Suite struct Revisions {
         @Test func parakeet() {
-            #expect(ParakeetModel.fastPathRevision.hasPrefix("parakeet-r2-dense-encoder"))
+            #expect(ParakeetModel.fastPathRevision == "parakeet-r2-dense-encoder+nax2+smallm-tile-1")
             #expect(ParakeetModel.inputDType == .bfloat16)
         }
         /// The registry maps each dictation architecture to its runtime, whose gate revision is the model's own.
