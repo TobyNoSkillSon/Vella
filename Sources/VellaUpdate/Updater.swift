@@ -208,9 +208,9 @@ public struct IdentityCheck {
 }
 
 public enum Updater {
-    /// Executables every release bundle carries (scripts/install-release.sh's list).
-    public static let requiredExecutables = ["MacOS/Vella", "MacOS/VellaWorker", "MacOS/VellaStreamingWorker", "MacOS/VellaModelTool",
-                                             "Helpers/VellaInstallTool"]
+    /// Executables a release bundle must carry (scripts/install-release.sh's list). VellaModelTool is retired: it
+    /// still ships as a stub for older updaters but is not required.
+    public static let requiredExecutables = ["MacOS/Vella", "MacOS/VellaWorker", "MacOS/VellaStreamingWorker", "Helpers/VellaInstallTool"]
     public static let metallib = "Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib"
 
     /// Download the release zip and SHA256SUMS, check the SHA-256 and the archive's entries, unpack, check the bundle,
@@ -264,7 +264,7 @@ public enum Updater {
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
-    /// The app, its workers, model tool, installer tool and Metal library are present, and the bundle is Vella at `version`.
+    /// The app, its workers, installer tool and Metal library are present, and the bundle is Vella at `version`.
     public static func checkBundle(_ app: URL, version: SemanticVersion, bundleIdentifier: String = "dev.vella.dictation") throws {
         let fm = FileManager.default
         let contents = app.appendingPathComponent("Contents")

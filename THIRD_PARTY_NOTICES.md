@@ -12,7 +12,7 @@ This file is written by `scripts/third-party-notices.sh` from `Worker/Package.re
 
 ## Swift packages in the recognition helpers
 
-The menu-bar app, the `vella` command, VellaModelTool and VellaInstallTool link no third-party packages. The recognition helpers (VellaWorker for Dictation, VellaStreamingWorker for Streaming) link the packages below, pinned in `Worker/Package.resolved`; `mlx.metallib` is compiled from MLX's Metal sources.
+The menu-bar app, the `vella` command and VellaInstallTool link no third-party packages. The recognition helpers (VellaWorker for Dictation, VellaStreamingWorker for Streaming) link the packages below, pinned in `Worker/Package.resolved`; `mlx.metallib` is compiled from MLX's Metal sources.
 
 ### mlx-swift (MLX, MLXNN, MLXFast, MLXFFT)
 
@@ -2468,7 +2468,7 @@ LibriSpeech by Vassil Panayotov, Guoguo Chen, Daniel Povey and Sanjeev Khudanpur
 
 ## Model weights (downloaded, not included)
 
-Vella.app contains no model weights. When you confirm a download, VellaModelTool fetches the pinned revision from Hugging Face, and the weights keep their own licence; the licence files in a model's repository are downloaded with it. Precisions without a published download are made on your Mac from the downloaded weights and are not redistributed. Each model's licence also shows in its table tooltip.
+Vella.app contains no model weights. When you confirm a download, Vella fetches the pinned revision from Hugging Face, and the weights keep their own licence; the licence files in a model's repository are downloaded with it. Precisions without a published download are made on your Mac from the downloaded weights and are not redistributed. Each model's licence also shows in its table tooltip.
 
 | Model | In the app | Licence | Upstream weights | MLX downloads (Hugging Face) |
 |---|---|---|---|---|

@@ -7,7 +7,8 @@ let package = Package(name: "Vella", platforms: [.macOS("26.0")], products: [.ex
     // In-app updates: release check, verified download, hand-off install with rollback.
     .target(name: "VellaUpdate", dependencies: ["VellaCore"]),
     .executableTarget(name: "Vella", dependencies: ["VellaCore", "VellaUpdate"]),
-    .executableTarget(name: "VellaModelTool", dependencies: ["VellaCore"]),
+    // Retired stub (prints a notice, exits 2); kept in the bundle for the 1.0.x in-app updater's required list.
+    .executableTarget(name: "VellaModelTool"),
     .executableTarget(name: "VellaInstallTool", dependencies: ["VellaCore", "VellaUpdate"]),
     .executableTarget(name: "VellaCLI", dependencies: ["VellaCore"]),
     // Shared by the test targets: the integration-test gate and the fake stdio worker.

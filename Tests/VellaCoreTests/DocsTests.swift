@@ -51,7 +51,7 @@ final class DocsTests: XCTestCase {
         for step in ["https://github.com/TobyNoSkillSon/Vella/releases/download/v$VERSION", "ZIP=\"Vella-$VERSION-arm64.zip\"",
                      "awk -v name=\"$ZIP\" '$2 == name { print $1 }' \"$TEMP/SHA256SUMS\"", "shasum -a 256 \"$TEMP/$ZIP\"",
                      "$0 !~ /^Vella\\.app(\\/|$)/", "ditto -x -k \"$TEMP/$ZIP\" \"$TEMP/unpacked\"",
-                     "MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool",
+                     "MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker Helpers/VellaInstallTool",
                      "mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib", "Print :CFBundleShortVersionString",
                      "codesign --verify --deep --strict \"$APP\"", "--proto '=https,file' --proto-redir '=https' --tlsv1.2"] {
             XCTAssertTrue(release.contains(step), "scripts/install-release.sh: \(step)")

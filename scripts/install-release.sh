@@ -37,7 +37,7 @@ zipinfo -1 "$TEMP/$ZIP" | awk '
 mkdir "$TEMP/unpacked"
 ditto -x -k "$TEMP/$ZIP" "$TEMP/unpacked"
 APP="$TEMP/unpacked/Vella.app"
-for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool; do
+for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker Helpers/VellaInstallTool; do
   [[ -x "$APP/Contents/$f" ]] || { echo "Release archive lacks Contents/$f; nothing installed." >&2; exit 1; }
 done
 [[ -s "$APP/Contents/Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]] || {

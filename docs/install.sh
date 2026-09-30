@@ -38,7 +38,7 @@ main() {
   mkdir "$TEMP/unpacked"
   ditto -x -k "$TEMP/$ZIP" "$TEMP/unpacked"
   local APP="$TEMP/unpacked/Vella.app" f
-  for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool; do
+  for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker Helpers/VellaInstallTool; do
     [[ -x "$APP/Contents/$f" ]] || fail "Release archive lacks Contents/$f; nothing installed."
   done
   [[ -s "$APP/Contents/Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]] || fail 'Release archive lacks the Metal library; nothing installed.'

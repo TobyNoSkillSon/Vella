@@ -12,7 +12,7 @@ You need an Apple Silicon Mac and two toolchains:
 The split is deliberate. Xcode 27's Swift 6.4 emits a runtime symbol (`_swift_initBorrow`) that macOS 26 does not have, so its binaries abort at launch. The shader setting is part of the qualified numerics (see [Dependencies](#dependencies)). The scripts do both halves:
 
 ```sh
-scripts/build.sh                          # dist/Vella.app: app, both recognition helpers, VellaModelTool, the `vella` command, mlx.metallib
+scripts/build.sh                          # dist/Vella.app: app, both recognition helpers, the `vella` command, mlx.metallib
 VELLA_APP_PATH=/tmp/Vella.app VELLA_REGISTER_APP=0 scripts/build.sh   # build elsewhere, leave Launch Services alone
 VELLA_BUILD=source scripts/install.sh     # build this checkout and install it
 ```
@@ -51,7 +51,8 @@ Real-model parity and benchmarks need downloaded weights and a quiet GPU. The ma
 | `Sources/Vella` | The menu-bar app: recording, the Models table, helper supervision, the local API. No MLX. |
 | `Sources/VellaCore` | App logic shared with tests: catalog, recommended precision, residency, memory, the API's request handling. |
 | `Sources/VellaCLI` | The `vella` command (`status`, `models`, `transcribe`, `url`, `skill`, `diagnose`). |
-| `Sources/VellaModelTool`, `Sources/VellaInstallTool` | Model downloads, and the staged install with rollback used by the installers. |
+| `Sources/VellaInstallTool` | The staged install with rollback used by the installers. |
+| `Sources/VellaModelTool` | A retired stub, shipped only because 1.0.x in-app updaters require the file. |
 | `Worker/` | A separate Swift package: the sandboxed recognition helpers (`VellaWorker` for Dictation, `VellaStreamingWorker` for Streaming), the vendored MLX speech models in `Worker/Sources/MLXAudioSTT`, the optimized kernels and their self-tests. |
 | `Resources/` | `models.json` (catalog), `benchmarks.json` (measured figures), `SKILL.md` (agent skill), the calibration clip. |
 | `docs/` | The user guide and the GitHub Pages site (benchmark table and installer). |

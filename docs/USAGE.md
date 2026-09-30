@@ -241,7 +241,7 @@ Successful model output is accepted, including no text. Empty recognition is not
 - Vella does not upload recordings or transcripts. Apps you insert text into may sync or send that text according to their own settings.
 - Clipboard managers and Universal Clipboard can still see text you copy or paste. Streaming live insertion avoids the clipboard per chunk; Dictation paste and recovery use the clipboard path described above.
 - The command line and API listen on 127.0.0.1 only; files you send them are transcribed on this Mac and their temporary copies are removed afterwards.
-- Model downloads (after you confirm one) are the only expected network transfer during normal use, plus the release check described above. The recognition helpers run in a sandbox that denies all network access; downloads are a separate helper, `VellaModelTool`.
+- Model downloads (after you confirm one) are the only expected network transfer during normal use, plus the release check described above. The recognition helpers run in a sandbox that denies all network access; the app itself downloads the models.
 
 ## Updates
 

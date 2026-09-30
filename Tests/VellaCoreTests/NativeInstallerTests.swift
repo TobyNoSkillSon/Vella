@@ -31,6 +31,13 @@ final class NativeInstallerTests: XCTestCase {
             .write(to: app.appendingPathComponent("Contents/Info.plist"))
         try Data(marker.utf8).write(to: app.appendingPathComponent(marker))
     }
+    /// The retired VellaModelTool is not required: a prepared bundle without it installs.
+    func testInstallSucceedsWithoutTheRetiredModelTool() throws {
+        let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.removeItem(at: root.appendingPathComponent("prepared/Vella.app/Contents/MacOS/VellaModelTool"))
+        XCTAssertNil(try installer.install())
+        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: app.appendingPathComponent("Contents/MacOS/VellaWorker").path))
+    }
     func testFreshInstallDownloadsAndPredefinesNothing() throws {
         let (installer, root, app, support) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let runtime = support.appendingPathComponent("Runtimes/legacy/bin/python")
