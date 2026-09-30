@@ -5,11 +5,14 @@ import VellaCore
 struct ModelTable: View {
     /// Column widths; `spacing` between columns, `rowPadding` inside a row on each side.
     enum W {
-        static let model: CGFloat = 182, params: CGFloat = 52
+        static let model: CGFloat = 194, params: CGFloat = 52
         static let precision: CGFloat = TierControl.width + 4, path: CGFloat = max(ExactFastSwitch.width, ExactFastSwitch.showsWords ? 0 : 64)
         static let wer: CGFloat = 62, format: CGFloat = 62, speed: CGFloat = 78, energy: CGFloat = 64, memory: CGFloat = 72
         static let action: CGFloat = RowAction.width
         static let spacing: CGFloat = 6, rowPadding: CGFloat = 8
+        /// The leading icon slot of the Model column: the loaded row's flame, about as tall as the two-line model label
+        /// (13 pt name over the 10.5 pt engine line), and the cloud rows' icon, so every name starts at the same x.
+        static let icon: CGFloat = 24, flameSize: CGFloat = 24
         static let columns: [CGFloat] = [model, params, precision, path, wer, format, speed, energy, memory, action]
         static let row: CGFloat = columns.reduce(0, +) + CGFloat(columns.count - 1) * spacing + 2 * rowPadding
     }
@@ -172,7 +175,8 @@ struct ModelTable: View {
         let downloading = controller.downloadRoot(family, precision).flatMap { family.variants[$0] }.map { library.downloadingID == $0.id } ?? false
         HStack(spacing: W.spacing) {
             HStack(spacing: 6) {
-                Image(systemName: "flame.fill").font(.system(size: 11)).foregroundStyle(Color.orange).frame(width: 12).opacity(hot ? 1 : 0)
+                Image(systemName: "flame.fill").font(.system(size: W.flameSize)).foregroundStyle(Color.orange)
+                    .frame(width: W.icon).opacity(hot ? 1 : 0)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(family.name).font(.system(size: 13)).lineLimit(1)
                     // A flip to Exact that moved the precision says so; else the engine beneath a loaded model.
@@ -252,7 +256,7 @@ struct ModelTable: View {
     @ViewBuilder private func referenceRow(_ r: ReferenceEntry) -> some View {
         HStack(spacing: W.spacing) {
             HStack(spacing: 6) {
-                Image(systemName: "cloud").font(.system(size: 11)).frame(width: 12)
+                Image(systemName: "cloud").font(.system(size: 11)).frame(width: W.icon)
                 Text(r.name).font(.system(size: 13)).lineLimit(1)
             }.frame(width: W.model, alignment: .leading)
                 .appKitTooltip(referenceModelHelp(r))
