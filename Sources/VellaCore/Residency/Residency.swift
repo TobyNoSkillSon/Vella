@@ -191,8 +191,13 @@ public struct MemoryProbe {
         guard result == KERN_SUCCESS else { return 0 }
         return Self.reclaimableMB(free: Double(info.free_count), speculative: Double(info.speculative_count),
                                   external: Double(info.external_page_count), purgeable: Double(info.purgeable_count),
-                                  pageSize: Double(vm_kernel_page_size))
+                                  pageSize: Double(Self.kernelPageSize))
     }
+    /// The kernel's VM page size (`vm_kernel_page_size`), which the page counts above are in.
+    static let kernelPageSize: UInt64 = {
+        var size: vm_size_t = 0
+        return host_page_size(mach_host_self(), &size) == KERN_SUCCESS ? UInt64(size) : UInt64(getpagesize())
+    }()
     private func levelPercent(_ counters: [String: Any]?) -> Double {
         if let level = counters?["memorystatus_level"] as? NSNumber { return level.doubleValue }
         return Self.levelPercent()

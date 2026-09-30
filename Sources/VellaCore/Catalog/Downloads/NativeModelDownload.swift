@@ -3,7 +3,8 @@ import CryptoKit
 
 /// The Hub is only a source of data. Neither repository code nor a Hub-provided
 /// path is ever executed; every byte is checked against the pinned revision's blob identity.
-public final class NativeModelDownload: NSObject, URLSessionDataDelegate {
+/// Its mutable state is guarded by `lock` (URLSession calls the delegate on its own queue).
+public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     struct SourceFile {
         let repository: String
         let revision: String

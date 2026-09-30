@@ -7,22 +7,22 @@ import VellaWire
 
 /// How much precision is kept: 16 (the checkpoint's own bf16/fp16), 8 (affine-8 g64), 4 (affine-4 g64 or vendor
 /// QAT 4-bit). fp32 is never a tier.
-public enum ModelTier: String, Codable, CaseIterable, Comparable {
+public enum ModelTier: String, Codable, CaseIterable, Comparable, Sendable {
     case t16 = "16", t8 = "8", t4 = "4"
     public var bits: Int { Int(rawValue)! }
     public static func < (a: ModelTier, b: ModelTier) -> Bool { a.bits > b.bits }   // 16 first
 }
 
 /// The segment row: Standard (stock MLX, any Apple-silicon Mac) or Optimized (per-layer recipe + our kernels).
-public enum EnginePath: String, Codable, CaseIterable { case standard, optimized }
+public enum EnginePath: String, Codable, CaseIterable, Sendable { case standard, optimized }
 
 /// The Exact/Fast switch: Exact = only kernels whose output is identical to Standard; Fast = adds gate-passing
 /// inexact kernels.
-public enum OptimizedMode: String, Codable, CaseIterable { case exact, fast }
+public enum OptimizedMode: String, Codable, CaseIterable, Sendable { case exact, fast }
 
 /// A benchmarks.json cell key within a tier.
 
-public struct ModelSelection: Codable, Equatable, Hashable {
+public struct ModelSelection: Codable, Equatable, Hashable, Sendable {
     public var tier: ModelTier
     public var path: EnginePath
     /// The switch position; kept on a Standard selection too (the switch is per model, independent of the row).

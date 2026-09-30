@@ -1,6 +1,6 @@
 import Foundation
 
-public enum RecognitionMode: String, Codable, CaseIterable {
+public enum RecognitionMode: String, Codable, CaseIterable, Sendable {
     case dictation, streaming
     public var title: String { self == .dictation ? "Dictation" : "Streaming" }
 }

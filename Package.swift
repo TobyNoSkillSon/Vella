@@ -8,7 +8,7 @@ let package = Package(name: "Vella", platforms: [.macOS("26.0")], products: [.ex
     .executable(name: "vella-cli", targets: ["VellaCLI"])],
     // The vocabulary shared with the recognition helpers (Worker/ depends on it too).
     dependencies: [.package(path: "Packages/VellaWire")], targets: [
-    .target(name: "VellaCore", dependencies: [.product(name: "VellaWire", package: "VellaWire")]),
+    .target(name: "VellaCore", dependencies: [.product(name: "VellaWire", package: "VellaWire")], swiftSettings: swift6),
     // In-app updates: release check, verified download, hand-off install with rollback.
     .target(name: "VellaUpdate", dependencies: ["VellaCore"], swiftSettings: swift6),
     .executableTarget(name: "Vella", dependencies: ["VellaCore", "VellaUpdate", .product(name: "VellaWire", package: "VellaWire")]),
