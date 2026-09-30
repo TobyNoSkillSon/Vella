@@ -1,5 +1,8 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
+
+/// Swift 6 language mode (complete concurrency checking) for the targets that have been moved to it.
+let swift6: [SwiftSetting] = [.swiftLanguageMode(.v6)]
 let package = Package(name: "Vella", platforms: [.macOS("26.0")], products: [.executable(name: "Vella", targets: ["Vella"]), .executable(name: "VellaModelTool", targets: ["VellaModelTool"]), .executable(name: "VellaInstallTool", targets: ["VellaInstallTool"]),
     // The `vella` command (shipped as Contents/Helpers/vella; `vella` and `Vella` collide on a case-insensitive disk).
     .executable(name: "vella-cli", targets: ["VellaCLI"])],
@@ -19,4 +22,4 @@ let package = Package(name: "Vella", platforms: [.macOS("26.0")], products: [.ex
     .testTarget(name: "VellaUpdateTests", dependencies: ["VellaUpdate", "VellaCore"]),
     .testTarget(name: "VellaAppTests", dependencies: ["Vella", "VellaCore", "VellaCLI", "VellaUpdate", "VellaTestSupport",
                                                      .product(name: "VellaWire", package: "VellaWire")], exclude: ["ModelsTable/TierTooltips.txt"])
-])
+], swiftLanguageModes: [.v5])
