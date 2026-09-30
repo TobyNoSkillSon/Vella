@@ -135,16 +135,20 @@ for size in 16 32 128 256 512; do
   sips -z "$double" "$double" .build/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vella.icns"
-# A unique directory preserves the exact UUID's debug material across subsequent local builds.
-SYMBOLS="${VELLA_RELEASE_SYMBOLS_DIR:-$(mktemp -d "$PWD/.build/release-symbols.XXXXXX")}"
-# strip-release.sh requires a fresh destination; mktemp above reserves its name.
-if [[ -z "${VELLA_RELEASE_SYMBOLS_DIR:-}" ]]; then rmdir "$SYMBOLS"; fi
-scripts/strip-release.sh "$APP" "$SYMBOLS"
+# Plain/source builds strip without retaining per-run symbol trees. Packaging opts into exact-build retention.
+if [[ -n "${VELLA_RELEASE_SYMBOLS_DIR:-}" ]]; then
+  scripts/strip-release.sh "$APP" "$VELLA_RELEASE_SYMBOLS_DIR"
+else
+  scripts/strip-release.sh "$APP"
+fi
 codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaModelTool" "$APP/Contents/Helpers/VellaInstallTool" "$APP/Contents/Helpers/vella"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/VellaWorker_VellaWorker.bundle" 2>/dev/null || true
 codesign --force --sign "$IDENTITY" "$APP"
 codesign --verify --deep --strict "$APP"
+[[ "$(readlink "$APP/Contents/MacOS/VellaStreamingWorker")" == VellaWorker ]] || { echo 'Invalid streaming alias target' >&2; exit 1; }
+# Test the actual shipped, stripped and signed images too, not just the pre-assembly smoke copies.
+"$SMOKE/check-helpers" "$APP" || { echo 'Stripped helper smoke failed.' >&2; exit 1; }
 if [[ "${VELLA_REGISTER_APP:-1}" == "1" ]]; then
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
 fi

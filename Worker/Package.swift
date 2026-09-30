@@ -28,6 +28,27 @@ let package = Package(
             name: "VellaWorker", dependencies: ["MLXAudioSTT", "SmallMGEMM", "VellaWorkerSupport", .product(name: "VellaWire", package: "VellaWire")],
             path: "Sources",
             exclude: ["MLXAudioCore", "MLXAudioSTT", "SmallMGEMM", "VellaWorkerSupport"],
+            // Enumerate Swift files, not directories: resource copies have separate rules and stray files stay out.
+            sources: [
+                "VellaStreamingWorker/FusedTolerance.swift",
+                "VellaStreamingWorker/NativeAdapters.swift",
+                "VellaStreamingWorker/ReplayBoundary.swift",
+                "VellaStreamingWorker/SelfTest.swift",
+                "VellaStreamingWorker/StreamingMain.swift",
+                "VellaStreamingWorker/StreamingModelCache.swift",
+                "VellaStreamingWorker/StreamingSession.swift",
+                "VellaStreamingWorker/Watchdog.swift",
+                "VellaWorker/Calibration.swift",
+                "VellaWorker/DescribeModel.swift",
+                "VellaWorker/DictationService.swift",
+                "VellaWorker/FastPathSelfTest.swift",
+                "VellaWorker/QualificationReference.swift",
+                "VellaWorker/StubModel.swift",
+                "VellaWorker/Validation.swift",
+                "VellaWorker/Wire.swift",
+                "VellaWorker/WorkerEntry.swift",
+                "VellaWorker/WorkerMain.swift"
+            ],
             resources: [
                 .copy("VellaWorker/Resources/clip-a.wav"), .copy("VellaWorker/Resources/clip-b.wav"), .copy("VellaWorker/Resources/clip-c.wav"),
                 .copy("VellaWorker/Resources/clip-d.wav"), .copy("VellaWorker/Resources/clip-e.wav"),

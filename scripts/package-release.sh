@@ -19,6 +19,7 @@ VELLA_APP_PATH="$STAGE/Vella.app" VELLA_REGISTER_APP=0 VELLA_BUILD_VERSION="$VER
   "$PROJECT/scripts/build.sh" >/dev/null
 APP="$STAGE/Vella.app"
 codesign --verify --deep --strict "$APP"
+[[ "$(readlink "$APP/Contents/MacOS/VellaStreamingWorker")" == VellaWorker ]] || { echo 'Invalid streaming alias target' >&2; exit 1; }
 ZIP="Vella-$VERSION-arm64.zip"
 "$PROJECT/scripts/release-zip.sh" "$APP" "$STAGE/$ZIP"
 LISTING="$(zipinfo -1 "$STAGE/$ZIP")"
@@ -29,7 +30,13 @@ for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaMod
 done
 if grep -E '\.py$|/Benchmarks/|/ReferenceResults/' <<<"$LISTING" >&2; then echo 'Archive holds development files' >&2; exit 1; fi
 SYMBOLS_ZIP="Vella-$VERSION-arm64-symbols.zip"
-ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "$STAGE/Symbols" "$STAGE/$SYMBOLS_ZIP"
+# The unstripped copies are useful during local staging; dSYMs alone suffice for the public sidecar.
+mkdir -p "$STAGE/public/Symbols"
+cp -R "$STAGE/Symbols/dSYMs" "$STAGE/Symbols/UUIDS.txt" "$STAGE/Symbols/README.txt" "$STAGE/public/Symbols/"
+ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "$STAGE/public/Symbols" "$STAGE/$SYMBOLS_ZIP"
+mkdir "$STAGE/symbols-check"
+ditto -x -k "$STAGE/$SYMBOLS_ZIP" "$STAGE/symbols-check"
+"$PROJECT/scripts/verify-release-symbols.sh" "$APP" "$STAGE/symbols-check/Symbols"
 (cd "$STAGE" && shasum -a 256 "$ZIP" "$SYMBOLS_ZIP") > "$STAGE/SHA256SUMS"
 mkdir -p "$(dirname "$OUT")"
 mkdir "$OUT"

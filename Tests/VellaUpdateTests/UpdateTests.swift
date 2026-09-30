@@ -216,6 +216,17 @@ final class UpdateTrustTests: XCTestCase {
 
 /// VellaModelTool is retired: a release without it passes the bundle check (it still ships as a stub for 1.0.x).
 final class RetiredModelToolTests: XCTestCase {
+    func testBundleWithoutTheModelToolPasses() throws {
+        let root = try ReleaseFixture.temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let app = try ReleaseFixture.app(at: root.appendingPathComponent("Vella.app"), version: "9.9.9", sign: false)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: app.appendingPathComponent("Contents/MacOS/VellaModelTool").path))
+        XCTAssertNoThrow(try Updater.checkBundle(app, version: try XCTUnwrap(SemanticVersion("9.9.9"))))
+        XCTAssertFalse(Updater.requiredExecutables.contains("MacOS/VellaModelTool"))
+    }
+}
+
+/// Invocation-path checks are separate from the retired-tool compatibility fixture.
+final class StreamingAliasTests: XCTestCase {
     func testRelativeStreamingAliasPassesBundleCheckButBrokenAliasFails() throws {
         let root = try ReleaseFixture.temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
         let app = try ReleaseFixture.app(at: root.appendingPathComponent("Vella.app"), version: "9.9.9", sign: false)
@@ -229,11 +240,4 @@ final class RetiredModelToolTests: XCTestCase {
         XCTAssertThrowsError(try Updater.checkBundle(app, version: version))
     }
 
-    func testBundleWithoutTheModelToolPasses() throws {
-        let root = try ReleaseFixture.temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
-        let app = try ReleaseFixture.app(at: root.appendingPathComponent("Vella.app"), version: "9.9.9", sign: false)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: app.appendingPathComponent("Contents/MacOS/VellaModelTool").path))
-        XCTAssertNoThrow(try Updater.checkBundle(app, version: try XCTUnwrap(SemanticVersion("9.9.9"))))
-        XCTAssertFalse(Updater.requiredExecutables.contains("MacOS/VellaModelTool"))
-    }
 }
