@@ -71,7 +71,7 @@ final class DiagnoseCLITests: XCTestCase {
         XCTAssertEqual(code, 0, err)
         XCTAssertFalse(out.contains("for this diagnosis (--load)"), out)
         XCTAssertTrue(out.contains("fake-loadfail: not loaded\n"), out)
-        XCTAssertTrue(out.contains("  not timed: "), out)
+        XCTAssertTrue(out.contains("  not timed: " + Backend.loadFailed("fake-loadfail")), "a failed load names damaged files: \(out)")
     }
 
     @MainActor func testDiagnoseWhenVellaIsNotRunning() async throws {
