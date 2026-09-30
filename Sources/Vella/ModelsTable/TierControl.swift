@@ -169,7 +169,7 @@ private struct TierSegments: NSViewRepresentable {
     var unavailable: Set<String> = []
     /// The Optimized row takes the bolt's tint (Toby, 30 Sep): a wash behind its cells and its labels in that colour,
     /// light blue on an unloaded row, the warm yellow on the loaded one. The Standard row stays neutral (nil).
-    var tint: NSColor? = nil
+    var tint: NSColor?
     let help: (String) -> String
     let onSelect: (String) -> Void
 
