@@ -85,7 +85,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         // via `try?` in Model.init (falls back to .dictation). Future shortcut
         // prefs must follow the same pattern: never force-unwrap/precondition,
         // always recover to defaults.
-        let payload = #"{"executable":"/unused","model":"/m","mode":"hyperdrive"}"#.data(using: .utf8)!
+        let payload = Data(#"{"executable":"/unused","model":"/m","mode":"hyperdrive"}"#.utf8)
         XCTAssertThrowsError(try JSONDecoder().decode(Configuration.self, from: payload))
         let root = try tempRoot()
         let url = root.appendingPathComponent("config.json")
@@ -96,7 +96,7 @@ final class ShortcutAdversarialTests: XCTestCase {
     }
 
     @MainActor func testFutureSchemaExtraKeysIgnored() throws {
-        let payload = #"{"executable":"/unused","model":"/m","mode":"dictation","futureShortcut":{"chord":"F99"},"unknownArray":[1,2]}"#.data(using: .utf8)!
+        let payload = Data(#"{"executable":"/unused","model":"/m","mode":"dictation","futureShortcut":{"chord":"F99"},"unknownArray":[1,2]}"#.utf8)
         let decoded = try JSONDecoder().decode(Configuration.self, from: payload)
         XCTAssertEqual(decoded.mode, .dictation)
         XCTAssertEqual(decoded.model, "/m")
@@ -517,7 +517,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(corrupt.configuration, custom)
         XCTAssertNotNil(corrupt.lastError)
         // Unknown enum + future keys: tolerant decode.
-        let future = #"{"trigger":{"kind":"keyChord","keyCode":45,"modifiers":4352,"future":99},"behavior":"toggle","extra":1}"#.data(using: .utf8)!
+        let future = Data(#"{"trigger":{"kind":"keyChord","keyCode":45,"modifiers":4352,"future":99},"behavior":"toggle","extra":1}"#.utf8)
         try future.write(to: url)
         let tolerant = ShortcutStore(initial: custom, fileURL: url)
         tolerant.load()
@@ -1251,7 +1251,7 @@ final class ShortcutAdversarialTests: XCTestCase {
     @MainActor private static func writeQAComponentImage(views: [NSView], to url: URL, header: String) throws {
         // Composite bitmaps of the REAL production views (each via caching display).
         var reps: [NSBitmapImageRep] = []
-        var headerRep: NSBitmapImageRep? = nil
+        var headerRep: NSBitmapImageRep?
         do {
             let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: NSColor.secondaryLabelColor]
             let size = (header as NSString).size(withAttributes: attrs)

@@ -59,18 +59,18 @@ import VellaUpdate
         /// Every row in use (dictating): segments and switch disabled.
         var inUse = false
         /// config.json: the modes' models and lastLoaded (what an unloaded row shows).
-        var config: Configuration? = nil
-        var lastError: String? = nil
-        var downloadError: String? = nil
-        var downloading: (id: String, progress: Double)? = nil
-        var benchmarks: BenchmarkFile? = nil
+        var config: Configuration?
+        var lastError: String?
+        var downloadError: String?
+        var downloading: (id: String, progress: Double)?
+        var benchmarks: BenchmarkFile?
         /// Switch flips after the previews (family id → position), as a click would make them.
         var flips: [(String, OptimizedMode)] = []
         /// Capabilities filter and its strip.
         var filter: Set<Capability> = []
         var filterOpen = false
         /// The family whose action cell is drawn under the pointer.
-        var hover: String? = nil
+        var hover: String?
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -457,7 +457,7 @@ import VellaUpdate
     init(directory: URL) { self.directory = directory }
 
     /// `worker`: a transcription worker is running (Restart Worker); false shows Start Worker.
-    struct State { var prefix: String; var settings: DefaultMenuSettings; var fact: String?; var lastText: String; var pending: (title: String, help: String)? = nil; var worker = true }
+    struct State { var prefix: String; var settings: DefaultMenuSettings; var fact: String?; var lastText: String; var pending: (title: String, help: String)?; var worker = true }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)

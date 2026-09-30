@@ -1,0 +1,2 @@
+# Tests may force-try, force-cast and call XCTFail() without a message.
+disabled_rules: [force_try, force_cast, xctfail_message]

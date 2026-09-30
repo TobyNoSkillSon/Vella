@@ -135,9 +135,9 @@ struct HUDView: View {
     @VellaState private var finished: Date?
     @VellaState private var previousPhase = DictationController.Phase.idle
     @VellaState private var lastVoiceLevel = 0.45
-    var previewTime: Double? = nil
-    var previewEntryAge: Double? = nil
-    var previewFinishAge: Double? = nil
+    var previewTime: Double?
+    var previewEntryAge: Double?
+    var previewFinishAge: Double?
 
     static func animationPaused(phase: DictationController.Phase, visible: Bool, reduced: Bool) -> Bool {
         reduced || !visible || phase == .idle

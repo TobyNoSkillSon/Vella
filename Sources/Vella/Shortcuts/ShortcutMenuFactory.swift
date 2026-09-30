@@ -87,7 +87,7 @@ enum ShortcutMenuFactory {
             let entry = SettingsMenuItem(title: title, target: target, action: selectModifier)
             entry.target = target as? NSObject
             entry.representedObject = "\(key.rawValue):\(side.rawValue)"
-            if case .modifierOnly(let k, let s) = manager.configuration.trigger, k == key, (key == .function || s == side) {
+            if case .modifierOnly(let k, let s) = manager.configuration.trigger, k == key, key == .function || s == side {
                 entry.state = .on
             } else { entry.state = .off }
             entry.isEnabled = canEdit

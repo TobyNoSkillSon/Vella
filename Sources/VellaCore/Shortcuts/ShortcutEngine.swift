@@ -139,7 +139,7 @@ public final class ShortcutEngine {
             return true
         case .holdToTalk, .tapOrHold:
             // Tap-off arming: previous tap kept capture alive (press cleared, capture kept).
-            if activePressID == nil, let _ = activeCaptureID, tapKept, recording || busy {
+            if activePressID == nil, activeCaptureID != nil, tapKept, recording || busy {
                 let id = nextPressID; nextPressID += 1
                 activePressID = id; pressStartTime = down
                 return true // armed; release will finish

@@ -210,7 +210,7 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         lock.lock(); defer { lock.unlock() }
         guard var state = transfer, let http = response as? HTTPURLResponse,
-              (http.statusCode == 200 || http.statusCode == 206) else { completionHandler(.cancel); return }
+              http.statusCode == 200 || http.statusCode == 206 else { completionHandler(.cancel); return }
         if http.statusCode == 206 {
             guard state.offset > 0, http.value(forHTTPHeaderField: "Content-Range")?.hasPrefix("bytes \(state.offset)-") == true else { completionHandler(.cancel); return }
             do { try state.handle.seekToEnd() } catch { completionHandler(.cancel); return }

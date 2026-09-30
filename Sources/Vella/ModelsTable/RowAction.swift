@@ -28,7 +28,7 @@ struct RowAction: View {
     /// The button's title: Get, Load, Unload or Reload.
     let title: String
     /// A download's percentage or a load's "…": shown instead of the title; no click.
-    var busyText: String? = nil
+    var busyText: String?
     /// A pending change (Reload): the green button.
     var emphasized = false
     let enabled: Bool

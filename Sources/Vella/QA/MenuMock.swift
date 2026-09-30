@@ -91,8 +91,8 @@ final class MenuMock: NSView {
             var x: CGFloat = 14
             if item.state == .on { NSAttributedString(string: "✓", attributes: attrs(color, 12)).draw(at: NSPoint(x: 8, y: y + 5)) }
             if items.contains(where: { $0.state == .on }) { x += 8 }
-            if let image = item.image {
-                let tinted = image.copy() as! NSImage; tinted.isTemplate = false
+            if let image = item.image, let tinted = image.copy() as? NSImage { // NSImage.copy() is an NSImage
+                tinted.isTemplate = false
                 let r = NSRect(x: x, y: y + 6, width: 14, height: 14)
                 NSGraphicsContext.saveGraphicsState()
                 tinted.lockFocus(); color.set(); NSRect(origin: .zero, size: tinted.size).fill(using: .sourceAtop); tinted.unlockFocus()

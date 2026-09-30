@@ -508,8 +508,11 @@ import VellaWire
             path = resolved
         } catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error)"; return }
         if let actions {
-            action == .reload ? actions.reload(family: f, precision: precision, variant: variant, path: path, selection: selection)
-                              : actions.load(family: f, precision: precision, variant: variant, path: path, selection: selection)
+            if action == .reload {
+                actions.reload(family: f, precision: precision, variant: variant, path: path, selection: selection)
+            } else {
+                actions.load(family: f, precision: precision, variant: variant, path: path, selection: selection)
+            }
         } else if lib.installed[variant.id] == nil {
             lastError = "\(f.name) at \(precisionFormatName(precision)) needs the recognition worker; use Start Worker (or Restart Worker) in Vella's menu and try again."
         } else {

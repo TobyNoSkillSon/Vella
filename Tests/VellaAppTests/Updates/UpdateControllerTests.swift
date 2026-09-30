@@ -12,8 +12,8 @@ final class StubReleaseServer: URLProtocol {
     static func reset() { lock.withLock { routes = [:]; requests = [] } }
     static func serve(_ url: String, _ body: Data) { lock.withLock { routes[url] = body } }
     static var requested: [String] { lock.withLock { requests } }
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override static func canInit(with request: URLRequest) -> Bool { true }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let url = request.url!
         let body = Self.lock.withLock { () -> Data? in Self.requests.append(url.absoluteString); return Self.routes[url.absoluteString] }

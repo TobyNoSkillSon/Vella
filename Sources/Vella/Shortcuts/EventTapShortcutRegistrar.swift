@@ -385,6 +385,6 @@ public final class EventTapShortcutRegistrar: ShortcutRegistrar {
         // Caps Lock, numeric pad, help and coalescing flags never block solo.
         others.remove([.maskAlphaShift, .maskHelp, .maskNumericPad, .maskNonCoalesced])
         let extra: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift, .maskSecondaryFn]
-        return others.intersection(extra).isEmpty
+        return others.isDisjoint(with: extra)
     }
 }

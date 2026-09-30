@@ -204,7 +204,7 @@ final class RuntimeTests: XCTestCase {
         try JSONEncoder().encode(Configuration(model: "")).write(to: configURL)
         let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
         var requested: [String] = []
-        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { url, config in requested.append(config.model); return "hello from the new model" },
+        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { _, config in requested.append(config.model); return "hello from the new model" },
                           configurationURL: configURL)
         defer { model.shutdown() }
         let session = try RecordingSession(root: root.appendingPathComponent("rec2"), config: Configuration(model: ""))

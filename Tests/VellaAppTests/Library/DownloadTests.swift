@@ -6,8 +6,8 @@ import VellaCore
 
 private final class HubStub: URLProtocol {
     static var handler: ((URLRequest) throws -> (Int, [String: String], Data))!
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override static func canInit(with request: URLRequest) -> Bool { true }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         do {
             let (code, headers, data) = try Self.handler(request)

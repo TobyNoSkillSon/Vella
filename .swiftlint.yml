@@ -1,0 +1,44 @@
+# SwiftLint for first-party code (scripts/release-check.sh runs `swiftlint lint --strict`).
+# Worker/Sources/MLXAudioCore and MLXAudioSTT (derived from mlx-audio-swift) are not linted.
+# Layout (indentation, wrapping, braces) belongs to swift-format (.swift-format); these are the code rules.
+included:
+  - Package.swift
+  - Sources
+  - Tests
+  - Packages/VellaWire/Package.swift
+  - Packages/VellaWire/Sources
+  - Packages/VellaWire/Tests
+  - Worker/Package.swift
+  - Worker/Sources/SmallMGEMM
+  - Worker/Sources/VellaWorker
+  - Worker/Sources/VellaStreamingWorker
+  - Worker/Sources/VellaWorkerSupport
+  - Worker/Tests
+disabled_rules:
+  - opening_brace                   # swift-format puts `{` on its own line after a wrapped condition
+  - optional_data_string_conversion # String(decoding:as:) repairs invalid UTF-8; switching to the failable form changes behaviour
+line_length:
+  warning: 180
+  error: 250
+  ignores_urls: true
+  ignores_comments: true
+  ignores_interpolated_strings: true
+  ignores_multiline_strings: true
+  excluded_lines_patterns: ['^\s*#*"']  # a line that is a string literal (tooltips, JSON fixtures)
+identifier_name:
+  min_length: 1                     # i, n, x, id: short names in short scopes
+  max_length: 60
+  allowed_symbols: ["_"]
+type_name:
+  min_length: 1                     # single-letter nested helpers (layout constants, test doubles)
+nesting:
+  type_level: 3
+large_tuple:
+  warning: 7
+  error: 8
+# Size limits are ceilings at today's largest (29 Sep 2026 audit): no function, type or file may grow past them.
+cyclomatic_complexity: {warning: 72, error: 73, ignores_case_statements: true}
+function_body_length: {warning: 146, error: 147}
+type_body_length: {warning: 1116, error: 1117}
+file_length: {warning: 1445, error: 1446, ignore_comment_only_lines: true}
+function_parameter_count: {warning: 10, error: 11}

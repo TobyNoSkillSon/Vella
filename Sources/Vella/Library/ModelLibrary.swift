@@ -15,7 +15,7 @@ import VellaCore
     @Published var selectedID = "Qwen3-ASR-1.7B-bf16"
     @Published var message = "Choose a model. Compare it on the same audio."
     @Published var busy = false
-    @Published var progress: Double? = nil
+    @Published var progress: Double?
     @Published var downloadingID: String?
     @Published var downloadError: String?
     @Published var activeModelPath = ""

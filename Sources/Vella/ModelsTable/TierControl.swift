@@ -142,7 +142,7 @@ private struct TierSegments: NSViewRepresentable {
     final class Control: NSSegmentedControl {
         override var controlSize: NSControl.ControlSize {
             get { super.controlSize }
-            set { super.controlSize = .regular }
+            set { _ = newValue; super.controlSize = .regular } // any requested size stays regular
         }
         override var intrinsicContentSize: NSSize {
             NSSize(width: TierControl.segmentsWidth(segmentCount), height: TierControl.segmentHeight)

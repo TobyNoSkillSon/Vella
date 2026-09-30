@@ -100,9 +100,9 @@ struct APIModel: Equatable {
     /// The current dictation model.
     var current = false
     /// What a request runs (loaded: what runs now, a stock fallback included; else what a load would run).
-    var selection: ModelSelection? = nil
+    var selection: ModelSelection?
     /// The requested selection when it differs from `selection` (an Optimized one on stock MLX).
-    var requested: ModelSelection? = nil
+    var requested: ModelSelection?
 }
 
 struct APITranscript {

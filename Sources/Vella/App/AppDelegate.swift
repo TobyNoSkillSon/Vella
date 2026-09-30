@@ -496,7 +496,7 @@ import VellaCore
                     let parts = raw.split(separator: ":").map(String.init)
                     guard parts.count == 2, let k = ModifierKey(rawValue: parts[0]),
                           let s = ModifierSide(rawValue: parts[1]) else { continue }
-                    if case .modifierOnly(let ck, let cs) = shortcutManager.configuration.trigger, ck == k, (k == .function || cs == s) {
+                    if case .modifierOnly(let ck, let cs) = shortcutManager.configuration.trigger, ck == k, k == .function || cs == s {
                         mod.state = .on
                     } else { mod.state = .off }
                     (mod as? SettingsMenuItem)?.synchronize()

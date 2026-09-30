@@ -592,7 +592,7 @@ import VellaCore
         AXUIElementSetMessagingTimeout(app, 0.25) // A stalled target must not hang Finish.
         guard AXUIElementCopyAttributeValue(app, attribute, &value) == .success,
               let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
-        return (value as! AXUIElement)
+        return unsafeDowncast(value, to: AXUIElement.self) // the type ID was checked above
     }
     private static func captureNativeDestination(_ target: NSRunningApplication?) -> DestinationCheck {
         AccessibilityFocus.prepare(target)

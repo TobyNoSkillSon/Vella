@@ -62,7 +62,7 @@ final class APISegmentLoadTests: XCTestCase {
         let alpha = APIModel(id: "alpha", name: "Alpha", precision: "4b", path: try f.path(f.alpha, "4b"))
         let slow = try slowModel()
         var switched = false
-        let job = try await fileHeldBetweenSegments(f, resolve: { switched ? slow : alpha }) { switched = true }
+        let job = try await fileHeldBetweenSegments(f, resolve: { switched ? slow : alpha }, between: { switched = true })
         try await assertDictationRunsDuringTheLoad(f, of: slow.id, dictationModel: alpha.path)
         let result = try await job.value
         XCTAssertEqual(result.model.path, slow.path, "the later segments used the model selected meanwhile")
@@ -74,11 +74,11 @@ final class APISegmentLoadTests: XCTestCase {
         try await f.load(f.alpha, "4b")
         let alpha = try f.path(f.alpha, "4b")
         let slow = try slowModel()
-        let job = try await fileHeldBetweenSegments(f, resolve: { slow }) {
+        let job = try await fileHeldBetweenSegments(f, resolve: { slow }, between: {
             XCTAssertTrue(f.runtime.isLoaded(slow.id))
             await f.runtime.unload(slow.id)
             try await waitUntil { !f.runtime.isLoaded(slow.id) }
-        }
+        })
         try await assertDictationRunsDuringTheLoad(f, of: slow.id, dictationModel: alpha)
         let result = try await job.value
         XCTAssertEqual(result.model.path, slow.path)

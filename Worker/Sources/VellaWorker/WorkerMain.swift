@@ -86,7 +86,7 @@ import VellaWire
                 bytes.withUnsafeBytes { _ = Darwin.write(output, $0.baseAddress, $0.count) }
                 exit(0)
             } catch {
-                let bytes = try! responseBytes(["error": "Qualification probe failed."])
+                let bytes = Data(#"{"error":"Qualification probe failed."}"#.utf8) + Data([10])
                 bytes.withUnsafeBytes { _ = Darwin.write(output, $0.baseAddress, $0.count) }
                 exit(1)
             }
