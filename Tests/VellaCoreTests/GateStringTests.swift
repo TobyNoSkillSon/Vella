@@ -32,7 +32,7 @@ final class GateStringTests: XCTestCase {
         #""whisper-3-f16-model""#,
         #""whisper-3""#,
         #""qwen3-asr-3-f32-encoder-p3""#,
-        #"static let revision = "nemotron-stream-5""#,
+        #""nemotron-stream-5""#,
         #""stub-1""#,
         #""\(gpuFamily):\(osBuild):\(version)""#,
         #"":\(revision)""#,
