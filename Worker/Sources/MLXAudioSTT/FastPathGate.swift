@@ -136,7 +136,16 @@ public enum FastPathGate {
         }
     }
 
-    public static func key(_ path: URL, revision: String) throws -> String {
+    /// The host facts a gate key covers. Tests pin them; the worker always passes `.current`.
+    public struct Host: Equatable, Sendable {
+        public var gpuFamily: String
+        public var osBuild: String
+        public init(gpuFamily: String, osBuild: String) { self.gpuFamily = gpuFamily; self.osBuild = osBuild }
+        public static var current: Host { Host(gpuFamily: FastPathGate.gpuFamily, osBuild: FastPathGate.osBuild) }
+    }
+
+    public static func key(_ path: URL, revision: String, host: Host = .current) throws -> String {
+        let gpuFamily = host.gpuFamily, osBuild = host.osBuild
         var digest = SHA256()
         // A locally derived precision: its recipe plus its source's files (one key per derived precision).
         var files = path

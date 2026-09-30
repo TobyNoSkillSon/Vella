@@ -24,7 +24,8 @@ VELLA_BUILD=source scripts/install.sh     # build this checkout and install it
 ## Test
 
 ```sh
-xcrun swift test
+xcrun swift test          # the app package
+scripts/test-worker.sh    # the Worker package: gate keys, admission, wire helpers (CPU only, Command Line Tools Swift)
 ```
 
 The tests never touch your installed app, its settings, recordings or models. Tests that need a recognition helper use a temporary support directory and either a fake worker (a short script that speaks the helper's stdio protocol; it needs the `python3` of the Command Line Tools) or a built helper with `VELLA_STUB_MODELS=1`. Stub models need no weights and do no GPU work: they return fixed text but report load state, engine labels, fallbacks, residency and memory through the real code.

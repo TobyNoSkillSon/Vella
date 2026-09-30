@@ -85,3 +85,9 @@ jobs:
           CI: "true"                # explicit: Integration.require() skips the integration tests
           NSUnbufferedIO: "YES"     # test output as it happens: a stuck test is then named in the log
         run: xcrun swift test
+
+      - name: Worker unit tests (scripts/test-worker.sh; CPU only, Command Line Tools Swift)
+        timeout-minutes: 30
+        env:
+          NSUnbufferedIO: "YES"
+        run: scripts/test-worker.sh

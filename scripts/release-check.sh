@@ -9,7 +9,8 @@
 #
 # Steps: tracked files are source only; toolchains (Command Line Tools Swift 6.3.3, Metal Toolchain); the version has
 # a CHANGELOG section (the release notes); relative links in the public docs resolve; scripts/package-release.sh
-# (build, helper smoke tests, zip checks) into a temporary directory; SHA256SUMS verifies; xcrun swift test.
+# (build, helper smoke tests, zip checks) into a temporary directory; SHA256SUMS verifies; xcrun swift test;
+# scripts/test-worker.sh (the Worker package's unit tests).
 # One line per step; each step's full output is in the log directory printed at the start.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -118,6 +119,7 @@ step "build and package" package
 step "SHA256SUMS" checksums
 if [[ $SIGNED == 1 ]]; then step "release signature" signature; fi
 step "swift test ($([[ $MODE == ci ]] && echo unit || echo 'unit and integration'))" tests
+step "worker unit tests" scripts/test-worker.sh
 
 ZIP="$WORK/release/Vella-$VERSION-arm64.zip"
 echo "passed: $ZIP · sha256 $(awk '{print $1}' "$WORK/release/SHA256SUMS") · $(du -h "$ZIP" | cut -f1 | xargs)"
