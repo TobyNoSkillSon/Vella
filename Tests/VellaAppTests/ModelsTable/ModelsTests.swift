@@ -337,7 +337,7 @@ final class ModelsTests: XCTestCase {
         _ = NSApplication.shared
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-menu-order-\(UUID())")
         roots.append(root)
-        let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+        let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
         defer { model.shutdown() }
         let delegate = AppDelegate(model: model)
         delegate.modelsMenu = ModelsMenu(controller: try controller())

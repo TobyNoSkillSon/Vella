@@ -28,7 +28,7 @@ final class DerivedAdmissionTests: XCTestCase {
         let path = try prepareDerivedModel(family: family, precision: "4b", sourcePath: source.path, modelsDirectory: controller.dictation.modelsDirectory)
 
         let bridge = RuntimeBridge(runtime: try Runtime.isolated(root))
-        let model = Model(configurationURL: root.appendingPathComponent("config.json")); defer { model.shutdown() }
+        let model = DictationController(configurationURL: root.appendingPathComponent("config.json")); defer { model.shutdown() }
         bridge.attach(controller: controller, model: model)
         let ref = try XCTUnwrap(bridge.ref(path: path, mode: .dictation))
         XCTAssertEqual(ref.id, "alpha"); XCTAssertEqual(ref.precision, "4b"); XCTAssertEqual(ref.path, path)

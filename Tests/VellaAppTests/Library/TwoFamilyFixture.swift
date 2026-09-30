@@ -11,7 +11,7 @@ import VellaTestSupport
     let runtime: Runtime
     let backend: Backend
     let stream: StreamingBackend
-    let model: Model
+    let model: DictationController
     let controller: ModelsController
     let bridge: RuntimeBridge
     let source: ControllerModelSource
@@ -44,7 +44,7 @@ import VellaTestSupport
             streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry), configURL: runtime.configURL)
         backend = Backend(helper: try FakeWorker.install(in: root), requestTimeout: 5, runtime: runtime)
         stream = StreamingBackend(helper: try FakeStreamingWorker.install(in: root), timeout: 5, runtime: runtime)
-        model = Model(configurationURL: runtime.configURL, streamingBackend: stream, backend: backend)
+        model = DictationController(configurationURL: runtime.configURL, streamingBackend: stream, backend: backend)
         bridge = RuntimeBridge(runtime: runtime)
         bridge.attach(controller: controller, model: model)
         source = ControllerModelSource(controller: controller, runtime: runtime)

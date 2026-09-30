@@ -60,7 +60,7 @@ final class ShortcutAdversarialTests: XCTestCase {
     @MainActor func testFreshInstallDefaultsToDictationIdle() throws {
         let root = try tempRoot()
         let missing = root.appendingPathComponent("config.json")
-        let model = Model(configurationURL: missing)
+        let model = DictationController(configurationURL: missing)
         defer { model.shutdown() }
         XCTAssertEqual(model.mode, .dictation)
         XCTAssertEqual(model.phase, .idle)
@@ -73,7 +73,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         try "not-json{{{".write(to: url, atomically: true, encoding: .utf8)
         // Direct decode must throw (caller recovers to defaults, never force-unwraps).
         XCTAssertThrowsError(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: url)))
-        let model = Model(configurationURL: url)
+        let model = DictationController(configurationURL: url)
         defer { model.shutdown() }
         XCTAssertEqual(model.mode, .dictation, "Corrupt payload must recover to defaults")
         XCTAssertEqual(model.phase, .idle)
@@ -90,7 +90,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         let root = try tempRoot()
         let url = root.appendingPathComponent("config.json")
         try payload.write(to: url)
-        let model = Model(configurationURL: url)
+        let model = DictationController(configurationURL: url)
         defer { model.shutdown() }
         XCTAssertEqual(model.mode, .dictation, "Unknown enum must recover to defaults via Model fallback")
     }
@@ -109,7 +109,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         settings.mode = .streaming
         settings.preferredMicrophone = "Synthetic Mic"
         try JSONEncoder().encode(settings).write(to: url, options: .atomic)
-        let model = Model(configurationURL: url)
+        let model = DictationController(configurationURL: url)
         defer { model.shutdown() }
         XCTAssertEqual(model.mode, .streaming, "Existing mode must be untouched by shortcut defaults")
     }
@@ -170,7 +170,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         let config = try tempConfig()
         let board = syntheticBoard()
         defer { board.releaseGlobally() }
-        let model = Model(pasteboard: board, configurationURL: config)
+        let model = DictationController(pasteboard: board, configurationURL: config)
         defer { model.shutdown() }
         // Stale finish / repeat finish with no recording: no-op, no clipboard.
         model.finish()
@@ -189,7 +189,7 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testRetainedTogglePathUnaffected() throws {
         let config = try tempConfig()
-        let delegate = AppDelegate(model: Model(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         delegate.rebuildMenu()
         let start = try XCTUnwrap(delegate.menu.items.first(where: { $0.title.hasPrefix("Start") || $0.title.hasPrefix("Finish") }))
@@ -201,9 +201,9 @@ final class ShortcutAdversarialTests: XCTestCase {
         let config = try tempConfig()
         let board = syntheticBoard()
         defer { board.releaseGlobally() }
-        let model = Model(pasteboard: board, configurationURL: config)
+        let model = DictationController(pasteboard: board, configurationURL: config)
         defer { model.shutdown() }
-        for phase: Model.Phase in [.idle, .preparing, .transcribing, .success, .failed] {
+        for phase: DictationController.Phase in [.idle, .preparing, .transcribing, .success, .failed] {
             model.update(phase, "Synthetic \(phase)")
             model.finish()
             XCTAssertEqual(model.phase, phase, "finish() outside recording must be no-op")
@@ -219,7 +219,7 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testModeSwitchGuardedWhileRecording() throws {
         let config = try tempConfig()
-        let model = Model(configurationURL: config)
+        let model = DictationController(configurationURL: config)
         defer { model.shutdown() }
         model.update(.recording, "Synthetic recording")
         XCTAssertThrowsError(try model.selectMode(.streaming), "Mode switch while recording must stay blocked")
@@ -228,7 +228,7 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testSuccessSettlesAndNewPressCancelsTimer() throws {
         let config = try tempConfig()
-        let model = Model(configurationURL: config)
+        let model = DictationController(configurationURL: config)
         defer { model.shutdown() }
         model.update(.success, "Synthetic success")
         XCTAssertEqual(model.phase, .success)
@@ -245,7 +245,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         let config = try tempConfig()
         let board = syntheticBoard()
         defer { board.releaseGlobally() }
-        let model = Model(insertionPermission: permission, pasteboard: board, configurationURL: config)
+        let model = DictationController(insertionPermission: permission, pasteboard: board, configurationURL: config)
         defer { model.shutdown() }
         model.toggle()
         XCTAssertEqual(model.phase, .idle, "AX-denied press must not start")
@@ -260,7 +260,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         defer { board.releaseGlobally() }
         var snapshots = 0
         let config = try tempConfig()
-        let model = Model(pasteboard: board, stopCapture: { _ in throw VellaError.message("Synthetic drain failure") },
+        let model = DictationController(pasteboard: board, stopCapture: { _ in throw VellaError.message("Synthetic drain failure") },
                           configurationURL: config, captureDestination: {
             snapshots += 1
             return { nil }
@@ -277,7 +277,7 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testSpaceChangeDoesNotCorruptSyntheticRecording() throws {
         let config = try tempConfig()
-        let model = Model(configurationURL: config)
+        let model = DictationController(configurationURL: config)
         defer { model.shutdown() }
         let delegate = AppDelegate(model: model, shortcutStoreURL: try tempRoot().appendingPathComponent("shortcuts-qa.json"))
         delegate.configureHUDPanel() // Isolated panel only; no status item, no app run.
@@ -293,10 +293,10 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testSubmenuPlacementImmediatelyBelowMicrophone() throws {
         let config = try tempConfig()
-        let delegate = AppDelegate(model: Model(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         // Shortcuts is required at microphoneIndex+1 in every phase.
-        for phase: Model.Phase in [.idle, .preparing, .recording, .transcribing, .success, .failed] {
+        for phase: DictationController.Phase in [.idle, .preparing, .recording, .transcribing, .success, .failed] {
             delegate.model.update(phase, "Synthetic")
             delegate.rebuildMenu()
             guard let mic = microphoneIndex(in: delegate.menu) else {
@@ -312,7 +312,7 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testRebuildsStableNoDuplicates() throws {
         let config = try tempConfig()
-        let delegate = AppDelegate(model: Model(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         delegate.rebuildMenu()
         let count = delegate.menu.items.count
@@ -326,9 +326,9 @@ final class ShortcutAdversarialTests: XCTestCase {
 
     @MainActor func testStartItemRetainsCtrlCmdNGlyph() throws {
         let config = try tempConfig()
-        let delegate = AppDelegate(model: Model(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
-        for phase: Model.Phase in [.idle, .preparing, .recording, .transcribing, .success, .failed] {
+        for phase: DictationController.Phase in [.idle, .preparing, .recording, .transcribing, .success, .failed] {
             delegate.model.update(phase, "Synthetic")
             delegate.rebuildMenu()
             let start = delegate.menu.items.first(where: { $0.title.hasPrefix("Start") || $0.title.hasPrefix("Finish") })
@@ -356,7 +356,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         // they must reflect the active binding or stay accurate — never instruct
         // a chord that doesn't work. Lock baseline wording so drift is visible.
         let config = try tempConfig()
-        let delegate = AppDelegate(model: Model(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
+        let delegate = AppDelegate(model: DictationController(configurationURL: config), shortcutStoreURL: config.deletingLastPathComponent().appendingPathComponent("shortcuts-qa.json"))
         defer { delegate.model.shutdown() }
         delegate.model.update(.recording, "Synthetic")
         delegate.rebuildMenu()
@@ -379,7 +379,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         let board = syntheticBoard()
         defer { board.releaseGlobally() }
         board.clearContents(); board.setString("keep", forType: .string)
-        let model = Model(pasteboard: board, configurationURL: try tempConfig())
+        let model = DictationController(pasteboard: board, configurationURL: try tempConfig())
         defer { model.shutdown() }
         model.finishPasteCheck() // copy-only path (no target) — must not post keys
         XCTAssertFalse(model.insertionWasAutomatic)
@@ -407,7 +407,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         var snapshots = 0
         let board = syntheticBoard()
         defer { board.releaseGlobally() }
-        let dictation = Model(pasteboard: board,
+        let dictation = DictationController(pasteboard: board,
                               stopCapture: { _ in throw VellaError.message("Synthetic") },
                               configurationURL: try tempConfig(mode: .dictation),
                               captureDestination: { snapshots += 1; return { nil } })
@@ -416,7 +416,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         dictation.finish()
         XCTAssertEqual(snapshots, 1, "Dictation Finish must snapshot")
         dictation.cancel()
-        let streaming = Model(pasteboard: board,
+        let streaming = DictationController(pasteboard: board,
                               stopCapture: { _ in throw VellaError.message("Synthetic") },
                               configurationURL: try tempConfig(mode: .streaming),
                               captureDestination: { snapshots += 1; return { nil } })
@@ -752,7 +752,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         _ = store.save(.default)
         let engine = ShortcutEngine(configuration: .default, sinks: .init(start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false }))
         let manager = ShortcutManager(engine: engine, store: store, registrar: MockShortcutRegistrar())
-        let model = Model(configurationURL: try tempConfig())
+        let model = DictationController(configurationURL: try tempConfig())
         defer { model.shutdown() }
         let target = ShortcutMenuProbe()
         let item = ShortcutMenuFactory.shortcutsItem(manager: manager, model: model, target: target,
@@ -910,7 +910,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertTrue(manager.currentLabel.contains("C"), "Label must show configured key, not stale N")
         XCTAssertFalse(manager.currentLabel.contains("N"), "BUG if stale ⌃⌘N persists after rebind")
         // AppDelegate Start item reflects configured binding (fix landed: no stale ⌃⌘N).
-        let delegate = AppDelegate(model: Model(configurationURL: try tempConfig()), shortcutManager: manager)
+        let delegate = AppDelegate(model: DictationController(configurationURL: try tempConfig()), shortcutManager: manager)
         defer { delegate.model.shutdown() }
         delegate.rebuildMenu()
         let start = try XCTUnwrap(delegate.menu.items.first(where: { $0.title.hasPrefix("Start") || $0.title.hasPrefix("Finish") }))
@@ -1044,11 +1044,11 @@ final class ShortcutAdversarialTests: XCTestCase {
         let custom = ShortcutConfiguration(trigger: .keyChord(keyCode: 103, modifiers: 4352 | 512), behavior: .holdToTalk)
         XCTAssertNil(ShortcutValidation.validate(custom), "Obscure pre-seed must validate")
         try JSONEncoder().encode(custom).write(to: fileURL, options: .atomic)
-        let delegateA = AppDelegate(model: Model(configurationURL: root.appendingPathComponent("config.json")), shortcutStoreURL: fileURL)
+        let delegateA = AppDelegate(model: DictationController(configurationURL: root.appendingPathComponent("config.json")), shortcutStoreURL: fileURL)
         defer { delegateA.model.shutdown() }
         XCTAssertEqual(delegateA.shortcutManager.configuration, custom, "Factory must load pre-seeded custom (no registration)")
         // Restart: second delegate from SAME isolated url preserves custom.
-        let delegateB = AppDelegate(model: Model(configurationURL: root.appendingPathComponent("config.json")), shortcutStoreURL: fileURL)
+        let delegateB = AppDelegate(model: DictationController(configurationURL: root.appendingPathComponent("config.json")), shortcutStoreURL: fileURL)
         defer { delegateB.model.shutdown() }
         XCTAssertEqual(delegateB.shortcutManager.configuration, custom, "Restart through real factory path must reload custom")
     }
@@ -1063,7 +1063,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertTrue(store.save(.default))
         let engine = ShortcutEngine(configuration: .default, sinks: .init(start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false }, currentOperation: { 0 }))
         let manager = ShortcutManager(engine: engine, store: store, registrar: MockShortcutRegistrar())
-        let delegate = AppDelegate(model: Model(configurationURL: root.appendingPathComponent("config.json")), shortcutManager: manager)
+        let delegate = AppDelegate(model: DictationController(configurationURL: root.appendingPathComponent("config.json")), shortcutManager: manager)
         let confirmation = MouseConfirmationTests.MouseConfirmMonitor()
         manager.confirmationAccessCheck = { true }
         manager.makeConfirmationMonitor = { confirmation }
@@ -1215,7 +1215,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         _ = store.save(.default)
         let engine = ShortcutEngine(configuration: .default, sinks: .init(start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false }, currentOperation: { 0 }))
         let manager = ShortcutManager(engine: engine, store: store, registrar: MockShortcutRegistrar())
-        let model = Model(configurationURL: try tempConfig())
+        let model = DictationController(configurationURL: try tempConfig())
         defer { model.shutdown() }
         let target = ShortcutMenuProbe()
         let item = ShortcutMenuFactory.shortcutsItem(manager: manager, model: model, target: target,

@@ -14,7 +14,7 @@ final class SettingsMenuTests: XCTestCase {
         _ = NSApplication.shared
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-menu-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
-        let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+        let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
         defer { model.shutdown() }
         let delegate = AppDelegate(model: model)
         delegate.rebuildMenu()

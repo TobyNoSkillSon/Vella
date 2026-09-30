@@ -6,7 +6,7 @@ import ApplicationServices
 import QuartzCore
 import VellaCore
 
-@MainActor final class Model: ObservableObject {
+@MainActor final class DictationController: ObservableObject {
     enum Phase { case idle, preparing, recording, transcribing, success, failed }
     @Published var phase = Phase.idle
     @Published private(set) var mode: RecognitionMode = .dictation

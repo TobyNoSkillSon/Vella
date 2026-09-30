@@ -25,7 +25,7 @@ public final class ShortcutManager: ObservableObject {
     var eventTap: EventTapShortcutRegistrar
     private var activeRegistrar: (any ShortcutRegistrar)?
     private var injectedRegistrar: (any ShortcutRegistrar)?
-    private weak var modelRef: Model?
+    private weak var modelRef: DictationController?
     private let actionBox: ShortcutActionBox
     private var recorderPanel: ShortcutKeyRecorderPanel?
     private var interruptionObservers: [NSObjectProtocol] = []
@@ -136,7 +136,7 @@ public final class ShortcutManager: ObservableObject {
 
     /// Load the supplied store; the default is memory-only. Production launch
     /// supplies its file-backed store and explicitly reloads before registering.
-    init(model: Model? = nil, store: ShortcutStore? = nil) {
+    init(model: DictationController? = nil, store: ShortcutStore? = nil) {
         let resolved = store ?? ShortcutStore(fileURL: nil)
         resolved.load()
         let box = ShortcutActionBox()

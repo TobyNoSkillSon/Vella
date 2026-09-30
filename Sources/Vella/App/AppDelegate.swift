@@ -5,13 +5,13 @@ import ServiceManagement
 import VellaCore
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    let model: Model
+    let model: DictationController
     var openExternalURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     /// In-app updates: the orange "Update to X…" item under Support and its popup.
     let updates: UpdateController
     private(set) var shortcutManager: ShortcutManager
-    init(model: Model? = nil, updates: UpdateController? = nil, shortcutManager: ShortcutManager? = nil, shortcutStoreURL: URL? = nil) {
-        let resolved = model ?? Model()
+    init(model: DictationController? = nil, updates: UpdateController? = nil, shortcutManager: ShortcutManager? = nil, shortcutStoreURL: URL? = nil) {
+        let resolved = model ?? DictationController()
         self.model = resolved
         self.updates = updates ?? UpdateController()
         if let shortcutManager {

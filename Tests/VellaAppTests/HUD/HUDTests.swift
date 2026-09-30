@@ -19,7 +19,7 @@ final class HUDTests: XCTestCase {
             let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
             let failed = expectation(description: code)
             var shouldFail = true
-            let model = Model(pasteboard: clipboard, transcriptionRequest: { _, _ in
+            let model = DictationController(pasteboard: clipboard, transcriptionRequest: { _, _ in
                 if shouldFail { throw error }; return "Recovered fixture speech."
             })
             model.onChange = { if model.phase == .failed { failed.fulfill() } }
@@ -50,7 +50,7 @@ final class HUDTests: XCTestCase {
         clipboard.setString("Keep the clipboard", forType: .string)
         let count = clipboard.changeCount
         let settled = expectation(description: "Silence is a normal no-op")
-        let model = Model(pasteboard: clipboard, transcriptionRequest: { _, _ in
+        let model = DictationController(pasteboard: clipboard, transcriptionRequest: { _, _ in
             return ""
         })
         model.onChange = {
@@ -75,7 +75,7 @@ final class HUDTests: XCTestCase {
         try writer.finish(userStopped: true)
         let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
         let settled = expectation(description: "Backend cancellation exits busy state")
-        let model = Model(pasteboard: clipboard, transcriptionRequest: { _, _ in throw CancellationError() })
+        let model = DictationController(pasteboard: clipboard, transcriptionRequest: { _, _ in throw CancellationError() })
         model.referenceSpeed = { _ in 0.001 } // Exercise the progress-timer path.
         model.onChange = { if model.phase == .failed { settled.fulfill() } }
         model.recover(session.directory)
@@ -100,7 +100,7 @@ final class HUDTests: XCTestCase {
         let provider = ClipboardReadProbe()
         let item = NSPasteboardItem(); item.setDataProvider(provider, forTypes: [.string])
         clipboard.writeObjects([item])
-        let model = Model(pasteboard: clipboard), next = Model(pasteboard: otherClipboard)
+        let model = DictationController(pasteboard: clipboard), next = DictationController(pasteboard: otherClipboard)
         model.hudVisible = true
         model.finishPasteCheck() // No target: recovery/copy-only path, no keyboard event.
         next.finishPasteCheck()
@@ -120,7 +120,7 @@ final class HUDTests: XCTestCase {
     }
 
     func testHiddenHUDNeverSchedulesAnimation() {
-        for phase in [Model.Phase.idle, .preparing, .recording, .transcribing, .success, .failed] {
+        for phase in [DictationController.Phase.idle, .preparing, .recording, .transcribing, .success, .failed] {
             XCTAssertTrue(HUDView.animationPaused(phase: phase, visible: false, reduced: false))
             XCTAssertTrue(HUDView.animationPaused(phase: phase, visible: true, reduced: true))
         }
@@ -154,7 +154,7 @@ final class HUDTests: XCTestCase {
     @MainActor func testWarningHUDRendersOrangeWaveAndDisappears() throws {
         _ = NSApplication.shared
         let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
-        let model = Model(pasteboard: clipboard); model.phase = .failed
+        let model = DictationController(pasteboard: clipboard); model.phase = .failed
         var frames: [Data] = []
         for (name, age) in [("warning-a", 0.05), ("warning-b", 0.13), ("warning-collapse", 0.50), ("warning-gone", HUDView.failureDwell)] {
             let renderer = ImageRenderer(content: HUDView(model: model, previewTime: 1,
@@ -186,7 +186,7 @@ final class HUDTests: XCTestCase {
         var drain: CheckedContinuation<Void, Error>?
         let started = expectation(description: "Capture drain started")
         let failed = expectation(description: "Missing fixture journal is reported without insertion")
-        let model = Model(pasteboard: clipboard, stopCapture: { _ in
+        let model = DictationController(pasteboard: clipboard, stopCapture: { _ in
             try await withCheckedThrowingContinuation { continuation in
                 drain = continuation; started.fulfill()
             }
@@ -212,7 +212,7 @@ final class HUDTests: XCTestCase {
         var drain: CheckedContinuation<Void, Error>?
         let started = expectation(description: "Capture drain started")
         let settled = expectation(description: "Cancellation settles after drain")
-        let model = Model(pasteboard: clipboard, stopCapture: { _ in
+        let model = DictationController(pasteboard: clipboard, stopCapture: { _ in
             try await withCheckedThrowingContinuation { continuation in
                 drain = continuation; started.fulfill()
             }
@@ -235,7 +235,7 @@ final class HUDTests: XCTestCase {
         var drain: CheckedContinuation<Void, Error>?
         let started = expectation(description: "Drain started")
         let finished = expectation(description: "Orderly shutdown after drain")
-        let model = Model(pasteboard: clipboard, stopCapture: { _ in
+        let model = DictationController(pasteboard: clipboard, stopCapture: { _ in
             try await withCheckedThrowingContinuation { continuation in
                 drain = continuation; started.fulfill()
             }
@@ -259,7 +259,7 @@ final class HUDTests: XCTestCase {
         var trusted = false, checks = 0
         let history = PermissionPromptHistory(read: { true }, write: {})
         let permission = InsertionPermission(isTrusted: { checks += 1; return trusted }, prompt: {}, history: history)
-        let delegate = AppDelegate(model: Model(insertionPermission: permission, pasteboard: clipboard))
+        let delegate = AppDelegate(model: DictationController(insertionPermission: permission, pasteboard: clipboard))
         XCTAssertNil(delegate.permissionTimer, "No recurring timer before an explicit polling window")
         delegate.beginPermissionPolling(now: 100)
         let first = delegate.permissionTimer
@@ -285,31 +285,31 @@ final class HUDTests: XCTestCase {
             let provider = ClipboardReadProbe()
             let item = NSPasteboardItem(); item.setDataProvider(provider, forTypes: types)
             clipboard.clearContents(); clipboard.writeObjects([item])
-            XCTAssertNil(Model.clipboardTextToRestore(clipboard, eligible: false))
-            if types != [.string] { XCTAssertNil(Model.clipboardTextToRestore(clipboard, eligible: true)) }
+            XCTAssertNil(DictationController.clipboardTextToRestore(clipboard, eligible: false))
+            if types != [.string] { XCTAssertNil(DictationController.clipboardTextToRestore(clipboard, eligible: true)) }
             XCTAssertEqual(provider.reads, 0)
         }
     }
 
     @MainActor func testClipboardRestoresOnlyBoundedTextAndNeverOverwritesANewerCopy() throws {
         let clipboard = privateClipboard(); defer { clipboard.releaseGlobally() }
-        let text = String(repeating: "x", count: Model.clipboardRestoreLimit)
+        let text = String(repeating: "x", count: DictationController.clipboardRestoreLimit)
         clipboard.setString(text, forType: .string)
-        let snapshot = try XCTUnwrap(Model.clipboardTextToRestore(clipboard, eligible: true))
+        let snapshot = try XCTUnwrap(DictationController.clipboardTextToRestore(clipboard, eligible: true))
         clipboard.clearContents(); clipboard.setString("Dictation", forType: .string)
-        Model.restoreClipboardText(snapshot, to: clipboard, changeCount: clipboard.changeCount)
+        DictationController.restoreClipboardText(snapshot, to: clipboard, changeCount: clipboard.changeCount)
         XCTAssertEqual(clipboard.string(forType: .string), text)
         let staleCount = clipboard.changeCount
         clipboard.clearContents(); clipboard.setString("Newer user copy", forType: .string)
-        Model.restoreClipboardText(snapshot, to: clipboard, changeCount: staleCount)
+        DictationController.restoreClipboardText(snapshot, to: clipboard, changeCount: staleCount)
         XCTAssertEqual(clipboard.string(forType: .string), "Newer user copy")
         clipboard.clearContents(); clipboard.setString(text + "x", forType: .string)
-        XCTAssertNil(Model.clipboardTextToRestore(clipboard, eligible: true))
+        XCTAssertNil(DictationController.clipboardTextToRestore(clipboard, eligible: true))
         clipboard.clearContents()
         let first = NSPasteboardItem(), second = NSPasteboardItem()
         first.setString("One", forType: .string); second.setString("Two", forType: .string)
         clipboard.writeObjects([first, second])
-        XCTAssertNil(Model.clipboardTextToRestore(clipboard, eligible: true))
+        XCTAssertNil(DictationController.clipboardTextToRestore(clipboard, eligible: true))
     }
 
     func testEstimateVisibilityUsesPredictedWorkNotRecordingLength() {

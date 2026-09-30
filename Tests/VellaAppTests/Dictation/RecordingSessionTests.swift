@@ -194,7 +194,7 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertEqual(audio.length, 33_920)
     }
     @MainActor func testHourCounterNeverStopsOrPastes() {
-        let model = Model(); model.phase = .recording; model.elapsed = 1799
+        let model = DictationController(); model.phase = .recording; model.elapsed = 1799
         for _ in 0..<5402 { model.recordingTick(error: nil) }
         XCTAssertEqual(model.phase, .recording); XCTAssertEqual(model.elapsed, 7201)
         XCTAssertFalse(model.insertionWasAutomatic); XCTAssertEqual(model.lastText, "")
@@ -285,7 +285,7 @@ final class RecordingSessionTests: XCTestCase {
         _ = try record.complete()
         let clipboard = NSPasteboard(name: .init("vella-recovery-test-\(UUID())"))
         defer { clipboard.releaseGlobally() }
-        let model = Model(pasteboard: clipboard)
+        let model = DictationController(pasteboard: clipboard)
         model.recover(record.directory)
         for _ in 0..<100 { if model.phase == .success || model.phase == .failed { break }; try await Task.sleep(nanoseconds: 20_000_000) }
         XCTAssertEqual(model.phase, .success)
@@ -293,7 +293,7 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertEqual(clipboard.string(forType: .string), "A durable saved transcript.")
         model.shutdown()
         XCTAssertTrue(FileManager.default.fileExists(atPath: record.transcriptURL.path))
-        let restarted = Model(pasteboard: clipboard)
+        let restarted = DictationController(pasteboard: clipboard)
         restarted.recover(record.directory)
         for _ in 0..<100 { if restarted.phase == .success || restarted.phase == .failed { break }; try await Task.sleep(nanoseconds: 20_000_000) }
         XCTAssertEqual(restarted.lastText, "A durable saved transcript.")

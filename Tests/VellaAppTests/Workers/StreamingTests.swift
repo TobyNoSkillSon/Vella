@@ -163,7 +163,7 @@ final class StreamingTests: XCTestCase {
         let path = try root().appendingPathComponent("config.json")
         var config = config(); config.mode = .dictation
         try JSONEncoder().encode(config).write(to: path)
-        let model = Model(configurationURL: path)
+        let model = DictationController(configurationURL: path)
         defer { model.shutdown() }
         try model.selectMode(.streaming)
         XCTAssertEqual(model.mode, .streaming)
@@ -210,7 +210,7 @@ final class StreamingTests: XCTestCase {
         try session.saveStreamingPartial("earlier words")
         let pasteboard = NSPasteboard.withUniqueName()
         defer { pasteboard.releaseGlobally() }
-        let model = Model(pasteboard: pasteboard, streamingBackend: try worker())
+        let model = DictationController(pasteboard: pasteboard, streamingBackend: try worker())
         defer { model.shutdown() }
         model.recover(session.directory)
         let until = Date().addingTimeInterval(5)

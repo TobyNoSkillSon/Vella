@@ -138,7 +138,7 @@ final class ShortcutNativeDispatchTests: XCTestCase {
         _ = NSApplication.shared
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
-        let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+        let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
         defer { model.shutdown() }
         let engine = ShortcutEngine(configuration: .default, sinks: .init(
             start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false }))

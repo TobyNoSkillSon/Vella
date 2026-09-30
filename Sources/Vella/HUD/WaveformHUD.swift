@@ -128,18 +128,18 @@ struct HUDView: View {
     static let panelSize = CGSize(width: 220, height: 124)
     static let successDwell = WaveformMotion.completionDuration + 0.025
     static let failureDwell = WaveformMotion.warningWiggleDuration + successDwell
-    @ObservedObject var model: Model
+    @ObservedObject var model: DictationController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @VellaState private var entered = Date()
     @VellaState private var finished: Date?
-    @VellaState private var previousPhase = Model.Phase.idle
+    @VellaState private var previousPhase = DictationController.Phase.idle
     @VellaState private var lastVoiceLevel = 0.45
     var previewTime: Double? = nil
     var previewEntryAge: Double? = nil
     var previewFinishAge: Double? = nil
 
-    static func animationPaused(phase: Model.Phase, visible: Bool, reduced: Bool) -> Bool {
+    static func animationPaused(phase: DictationController.Phase, visible: Bool, reduced: Bool) -> Bool {
         reduced || !visible || phase == .idle
     }
 

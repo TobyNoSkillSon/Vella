@@ -20,7 +20,7 @@ final class HUDVisibilityTests: XCTestCase {
         _ = NSApplication.shared
         let delegate = AppDelegate(); delegate.configureHUDPanel()
         defer { delegate.panel.close() }
-        for phase in [Model.Phase.idle, .success, .failed] {
+        for phase in [DictationController.Phase.idle, .success, .failed] {
             delegate.model.phase = phase
             delegate.activeSpaceChanged()
             XCTAssertFalse(delegate.panel.isVisible)
@@ -32,7 +32,7 @@ final class HUDVisibilityTests: XCTestCase {
         let delegate = AppDelegate(); delegate.configureHUDPanel()
         defer { delegate.panel.close() }
         let panel = delegate.panel!
-        for phase in [Model.Phase.preparing, .recording, .transcribing] {
+        for phase in [DictationController.Phase.preparing, .recording, .transcribing] {
             delegate.model.phase = phase; delegate.model.audioLevel = 0.65
             panel.alphaValue = 0; panel.contentView?.alphaValue = 0
             delegate.restoreHUDOpacity()

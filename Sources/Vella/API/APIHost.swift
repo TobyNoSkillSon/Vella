@@ -68,7 +68,7 @@ import VellaCore
     private(set) var service: APIService?
 
     /// Starts the API on an ephemeral loopback port. `VELLA_API=0` turns it off (diagnosis).
-    func start(model: Model, controller: ModelsController, runtime: Runtime? = nil) {
+    func start(model: DictationController, controller: ModelsController, runtime: Runtime? = nil) {
         let runtime = runtime ?? model.backend.runtime
         guard server == nil, ProcessInfo.processInfo.environment["VELLA_API"] != "0" else { return }
         let root = runtime.support.appendingPathComponent("API", isDirectory: true)

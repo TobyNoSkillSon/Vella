@@ -33,7 +33,7 @@ final class RecoveryRestoreTests: XCTestCase {
         let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
         var release: CheckedContinuation<Void, Never>?
         let backend = f.backend
-        let model = Model(pasteboard: pasteboard, transcriptionRequest: { url, config in
+        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { url, config in
             let text = try await backend.transcribe(url, config: config)
             await withCheckedContinuation { release = $0 } // the segment has its text; the recovery has not resumed
             if end == .failed { throw Failure() }

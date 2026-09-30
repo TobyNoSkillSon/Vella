@@ -465,7 +465,7 @@ import VellaUpdate
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: RenderFixture.root, withIntermediateDirectories: true)
         let permission = InsertionPermission(isTrusted: { true }, prompt: {}, history: PermissionPromptHistory(read: { true }, write: {}))
-        let model = Model(insertionPermission: permission, configurationURL: RenderFixture.root.appendingPathComponent("config.json"))
+        let model = DictationController(insertionPermission: permission, configurationURL: RenderFixture.root.appendingPathComponent("config.json"))
         app = AppDelegate(model: model)
         let controller = RenderFixture.controller(installed: RenderFixture.downloaded)
         controller.runtime = TableRuntime(loaded: ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")],

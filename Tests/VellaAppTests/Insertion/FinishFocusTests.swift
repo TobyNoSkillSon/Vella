@@ -7,7 +7,7 @@ final class FinishFocusTests: XCTestCase {
     @MainActor private final class Focus {
         var current: String? = "A"
         var snapshots: [String?] = []
-        func capture() -> Model.DestinationCheck {
+        func capture() -> DictationController.DestinationCheck {
             let selected = current
             snapshots.append(selected)
             return { [self] in
@@ -17,7 +17,7 @@ final class FinishFocusTests: XCTestCase {
         }
     }
     @MainActor private func fixture(mode: RecognitionMode = .dictation, focus: Focus,
-                                    stop: @escaping (Recorder) async throws -> Void) throws -> (Model, NSPasteboard, URL) {
+                                    stop: @escaping (Recorder) async throws -> Void) throws -> (DictationController, NSPasteboard, URL) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("finish-focus-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let config = root.appendingPathComponent("config.json")
@@ -26,7 +26,7 @@ final class FinishFocusTests: XCTestCase {
         try JSONEncoder().encode(settings).write(to: config)
         let board = NSPasteboard.withUniqueName()
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
-        let model = Model(pasteboard: board, stopCapture: stop, configurationURL: config,
+        let model = DictationController(pasteboard: board, stopCapture: stop, configurationURL: config,
                           captureDestination: { focus.capture() })
         // Synthetic recording state only: no microphone, native focus, or key events.
         model.phase = .recording

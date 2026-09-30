@@ -204,7 +204,7 @@ final class RuntimeTests: XCTestCase {
         try JSONEncoder().encode(Configuration(model: "")).write(to: configURL)
         let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
         var requested: [String] = []
-        let model = Model(pasteboard: pasteboard, transcriptionRequest: { url, config in requested.append(config.model); return "hello from the new model" },
+        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { url, config in requested.append(config.model); return "hello from the new model" },
                           configurationURL: configURL)
         defer { model.shutdown() }
         let session = try RecordingSession(root: root.appendingPathComponent("rec2"), config: Configuration(model: ""))
@@ -212,7 +212,7 @@ final class RuntimeTests: XCTestCase {
         try [Float](repeating: 0.1, count: 16000).withUnsafeBufferPointer { try writer.append($0) }
         try writer.finish(userStopped: true)
         let modelDir = try self.model("parakeet")
-        model.offerModel = { mode in Model.ModelOffer(id: "parakeet-v3-4b", name: "Parakeet v3", downloadBytes: 1_300_000_000, mode: mode) }
+        model.offerModel = { mode in DictationController.ModelOffer(id: "parakeet-v3-4b", name: "Parakeet v3", downloadBytes: 1_300_000_000, mode: mode) }
         var fetched: [String] = []
         model.fetchModel = { offer in fetched.append(offer.id); return modelDir.path }
         model.recover(session.directory)

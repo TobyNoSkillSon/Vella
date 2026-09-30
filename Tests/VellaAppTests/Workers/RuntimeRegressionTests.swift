@@ -68,7 +68,7 @@ final class RuntimeRegressionTests: XCTestCase {
         try JSONEncoder().encode(Configuration(model: "")).write(to: runtime.configURL)
         let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
         var requested: [String] = []
-        let model = Model(pasteboard: pasteboard, transcriptionRequest: { _, config in requested.append(config.model); return "words after get" },
+        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { _, config in requested.append(config.model); return "words after get" },
                           configurationURL: runtime.configURL)
         defer { model.shutdown() }
         // The real AppDelegate wiring: its `mayChangeModel` permission closure and the RuntimeBridge fetch.
@@ -221,7 +221,7 @@ final class RuntimeRegressionTests: XCTestCase {
         let backend = Backend(helper: try FakeWorker.install(in: root), requestTimeout: 5, runtime: runtime)
         runtime.dictation = backend
         defer { backend.shutdown() }
-        let model = Model(configurationURL: runtime.configURL); defer { model.shutdown() }
+        let model = DictationController(configurationURL: runtime.configURL); defer { model.shutdown() }
         let bridge = RuntimeBridge(runtime: runtime)
         bridge.attach(controller: controller, model: model)
         runtime.start(loadLaunchSet: false)
@@ -341,7 +341,7 @@ final class RuntimeRegressionTests: XCTestCase {
         let backend = Backend(helper: try FakeWorker.install(in: root), requestTimeout: 5, runtime: runtime)
         runtime.dictation = backend
         defer { backend.shutdown() }
-        let model = Model(configurationURL: runtime.configURL); defer { model.shutdown() }
+        let model = DictationController(configurationURL: runtime.configURL); defer { model.shutdown() }
         let bridge = RuntimeBridge(runtime: runtime)
         bridge.attach(controller: controller, model: model)
         runtime.start(loadLaunchSet: false)
@@ -447,7 +447,7 @@ final class RuntimeRegressionTests: XCTestCase {
     @MainActor private final class Focus {
         var current: String? = "A"
         var snapshots: [String?] = []
-        func capture() -> Model.DestinationCheck {
+        func capture() -> DictationController.DestinationCheck {
             let selected = current
             snapshots.append(selected)
             return { [self] in selected == nil ? "Missing field at Finish" : (selected == current ? nil : "Finish target changed") }
@@ -464,7 +464,7 @@ final class RuntimeRegressionTests: XCTestCase {
             let focus = Focus()
             let board = NSPasteboard.withUniqueName(); defer { board.releaseGlobally() }
             var calls = 0
-            let model = Model(pasteboard: board, stopCapture: { $0.adoptForTesting(session) },
+            let model = DictationController(pasteboard: board, stopCapture: { $0.adoptForTesting(session) },
                               transcriptionRequest: { _, _ in
                                   calls += 1
                                   if calls <= crashes { throw WorkerExited() }
@@ -519,7 +519,7 @@ final class RuntimeRegressionTests: XCTestCase {
         // A hot (manual) streaming model on the Model's own streaming backend: what releaseWorkers() would unload.
         let runtime = try Runtime.isolated(root)
         let stream = try streaming(runtime)
-        let model = Model(configurationURL: runtime.configURL, streamingBackend: stream); defer { model.shutdown() }
+        let model = DictationController(configurationURL: runtime.configURL, streamingBackend: stream); defer { model.shutdown() }
         try await runtime.load(runtime.resolve(path("nemo"), mode: .streaming))
         let pid = try XCTUnwrap(stream.processID)
         // A dictation library that calibrates after a download (injected store, no worker).

@@ -10,7 +10,7 @@ import VellaCore
     static let shared = RuntimeBridge()
     let runtime: Runtime
     private weak var controller: ModelsController?
-    private weak var model: Model?
+    private weak var model: DictationController?
     private var subscription: AnyCancellable?
     init(runtime: Runtime? = nil) { self.runtime = runtime ?? .shared }
 
@@ -30,7 +30,7 @@ import VellaCore
             return !status.models.isEmpty || status.loading != nil
         }
     }
-    func attach(controller: ModelsController, model: Model) {
+    func attach(controller: ModelsController, model: DictationController) {
         self.controller = controller; self.model = model
         controller.actions = self
         // The table reads what was loaded from the runtime's config.json.
@@ -240,9 +240,9 @@ import VellaCore
     private func offered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? { controller?.firstOffered(mode) }
     /// The Get row downloads what the recommended precision needs: its own weights, or for a precision made on this
     /// Mac the weights it is made from.
-    func offer(_ mode: RecognitionMode) -> Model.ModelOffer? { controller?.firstOffer(mode) }
+    func offer(_ mode: RecognitionMode) -> DictationController.ModelOffer? { controller?.firstOffer(mode) }
     /// After the offered download: the path to use, the derived directory when the recommended precision is made here.
-    private func offeredPath(_ offer: Model.ModelOffer, sourcePath: String) throws -> String {
+    private func offeredPath(_ offer: DictationController.ModelOffer, sourcePath: String) throws -> String {
         guard let controller, let (family, precision) = offered(offer.mode), family.isDerived(precision), family.variants[precision]?.isStored != true,
               family.downloadSource(of: precision)?.variant.id == offer.id else { return sourcePath }
         return try prepareDerivedModel(family: family, precision: precision, sourcePath: sourcePath,
@@ -250,7 +250,7 @@ import VellaCore
     }
     /// The first-dictation Get row's selection: the family's recorded one, else Optimized · Fast at the offered tier
     /// (the default for a model never loaded).
-    private func offerSelection(_ offer: Model.ModelOffer) -> ModelSelection? {
+    private func offerSelection(_ offer: DictationController.ModelOffer) -> ModelSelection? {
         guard let (family, precision) = offered(offer.mode) else { return nil }
         let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
         return defaultSelection(recorded: config?.selections[family.id], precision: precision)
@@ -260,7 +260,7 @@ import VellaCore
     /// Approvals from the Get row's popup, consumed by `fetch`.
     private var approvals: [String: DownloadApproval] = [:]
     /// The popup for the offered download; nil when the catalog has none.
-    func offerPrompt(_ offer: Model.ModelOffer) -> DownloadPrompt? {
+    func offerPrompt(_ offer: DictationController.ModelOffer) -> DownloadPrompt? {
         guard let controller, let (family, precision) = offered(offer.mode) else { return nil }
         return downloadPrompt(family: family, precision: precision, followUp: .transcribe,
                               freeBytes: freeDiskBytes(at: controller.library(offer.mode).modelsDirectory))
@@ -278,7 +278,7 @@ import VellaCore
     }
     /// Download (only with the Get row's approval) and validate the offered variant, select it for its mode, and
     /// return its path. Nothing loads or downloads until the user clicks the Get row and confirms.
-    func fetch(_ offer: Model.ModelOffer) async throws -> String {
+    func fetch(_ offer: DictationController.ModelOffer) async throws -> String {
         guard let controller else { throw VellaError.message("Models are unavailable.") }
         let library = controller.library(offer.mode)
         if let local = library.installed[offer.id] {

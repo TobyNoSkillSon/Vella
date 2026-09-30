@@ -74,7 +74,7 @@ final class APIWiringTests: XCTestCase {
                                           benchmarksURL: resources.appendingPathComponent("benchmarks.json"))
         let backend = Backend(helper: try FakeWorker.install(in: root), requestTimeout: 10, runtime: runtime)
         let stream = StreamingBackend(helper: try FakeStreamingWorker.install(in: root), timeout: 5, runtime: runtime)
-        let model = Model(configurationURL: runtime.configURL, streamingBackend: stream, backend: backend)
+        let model = DictationController(configurationURL: runtime.configURL, streamingBackend: stream, backend: backend)
         XCTAssertTrue(runtime.dictation === backend)
         let delegate = AppDelegate(model: model)
         delegate.modelsMenu = delegate.makeModelsMenu(controller: controller)

@@ -136,7 +136,7 @@ final class APISelectionConsistencyTests: XCTestCase {
         let pasteboard = NSPasteboard.withUniqueName(); defer { pasteboard.releaseGlobally() }
         var used: [String] = []
         let backend = f.backend
-        let model = Model(pasteboard: pasteboard, transcriptionRequest: { url, config in
+        let model = DictationController(pasteboard: pasteboard, transcriptionRequest: { url, config in
             used.append(config.model); return try await backend.transcribe(url, config: config)
         }, configurationURL: f.runtime.configURL, streamingBackend: f.stream, backend: f.backend)
         model.recover(session.directory)

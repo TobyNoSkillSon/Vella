@@ -58,7 +58,7 @@ final class UpdateControllerTests: XCTestCase {
     @MainActor func testOrangeItemSitsUnderSupport() throws {
         let updates = controller()
         updates.preview(.available(release))
-        let delegate = AppDelegate(model: Model(configurationURL: root.appendingPathComponent("config.json")), updates: updates)
+        let delegate = AppDelegate(model: DictationController(configurationURL: root.appendingPathComponent("config.json")), updates: updates)
         delegate.rebuildMenu()
         let items = delegate.menu.items
         let support = try XCTUnwrap(items.firstIndex { $0.title == "Support the developer…" })
@@ -120,11 +120,11 @@ final class UpdateControllerTests: XCTestCase {
     }
 
     @MainActor func testBlockerReasons() {
-        let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+        let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
         let delegate = AppDelegate(model: model, updates: controller())
         delegate.runtimeLoading = { nil }
         XCTAssertNil(delegate.updateBlocker())
-        for (phase, reason) in [(Model.Phase.recording, "recording"), (.preparing, "preparing a dictation"), (.transcribing, "transcribing"),
+        for (phase, reason) in [(DictationController.Phase.recording, "recording"), (.preparing, "preparing a dictation"), (.transcribing, "transcribing"),
                                 (.success, "pasting a transcript")] {
             model.phase = phase
             XCTAssertEqual(delegate.updateBlocker(), reason)

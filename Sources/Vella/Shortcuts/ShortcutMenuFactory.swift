@@ -24,7 +24,7 @@ enum ShortcutMenuFactory {
         }
     }
 
-    static func shortcutsItem(manager: ShortcutManager, model: Model, target: AnyObject,
+    static func shortcutsItem(manager: ShortcutManager, model: DictationController, target: AnyObject,
                               selectBehavior: Selector, recordKeys: Selector, cancelCapture: Selector,
                               selectModifier: Selector, selectMouse: Selector, resetDefault: Selector,
                               openSettings: Selector) -> NSMenuItem {

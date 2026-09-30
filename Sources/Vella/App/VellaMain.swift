@@ -39,7 +39,7 @@ import VellaCore
         #if DEBUG
         if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--render-preview" {
             application.setActivationPolicy(.accessory)
-            let model = Model()
+            let model = DictationController()
             model.phase = .recording; model.audioLevel = 0.65
             let renderer = ImageRenderer(content: HUDView(model: model, previewTime: 1.2, previewEntryAge: 2))
             renderer.scale = 2

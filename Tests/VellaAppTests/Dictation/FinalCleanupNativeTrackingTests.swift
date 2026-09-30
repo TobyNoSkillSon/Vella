@@ -23,7 +23,7 @@ final class FinalCleanupNativeTrackingTests: XCTestCase {
             throw XCTSkip("Opt-in native menu tracking")
         }
         _ = NSApplication.shared
-        let model = Model(configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).json"))
+        let model = DictationController(configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).json"))
         let engine = ShortcutEngine(configuration: .default, sinks: .init(
             start: { XCTFail("Fixture must not start recording") }, finish: { XCTFail("Fixture must not finish recording") },
             cancel: {}, isRecording: { false }, isBusy: { false }))

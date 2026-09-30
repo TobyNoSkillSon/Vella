@@ -86,18 +86,18 @@ import ApplicationServices
         }
         let clipboard = NSPasteboard.general
         let wasEmpty = clipboard.pasteboardItems?.isEmpty != false
-        let previous = Model.clipboardTextToRestore(clipboard, eligible: true)
+        let previous = DictationController.clipboardTextToRestore(clipboard, eligible: true)
         guard wasEmpty || previous != nil else {
             state["result"] = "blocked: QA will not overwrite an unsupported clipboard payload"; report(state); return
         }
         var qaClipboardCount: Int?
         defer {
             if let qaClipboardCount, clipboard.changeCount == qaClipboardCount {
-                if let previous { Model.restoreClipboardText(previous, to: clipboard, changeCount: qaClipboardCount) }
+                if let previous { DictationController.restoreClipboardText(previous, to: clipboard, changeCount: qaClipboardCount) }
                 else if wasEmpty { clipboard.clearContents() }
             }
         }
-        let model = Model()
+        let model = DictationController()
         model.preparePasteCheck(to: target)
         state["result"] = "prepared"; report(state)
         try? await Task.sleep(nanoseconds: 2_000_000_000)

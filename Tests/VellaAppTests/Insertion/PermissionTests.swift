@@ -10,7 +10,7 @@ final class PermissionTests: XCTestCase {
     @MainActor func testMissingPermissionPromptsAndBlocksRecording() {
         var prompts = 0
         let permission = InsertionPermission(isTrusted: { false }, prompt: { prompts += 1 }, history: freshHistory())
-        let model = Model(insertionPermission: permission)
+        let model = DictationController(insertionPermission: permission)
         model.toggle()
         XCTAssertEqual(prompts, 1)
         XCTAssertEqual(model.phase, .idle)
@@ -35,7 +35,7 @@ final class PermissionTests: XCTestCase {
         XCTAssertEqual(prompts, 1) // No repeated dialog in the same process.
     }
     @MainActor func testCopyAndPasteHaveDifferentStatus() {
-        let model = Model()
+        let model = DictationController()
         model.phase = .success
         XCTAssertEqual(model.title, "Copied—paste with ⌘V")
         model.insertionWasAutomatic = true

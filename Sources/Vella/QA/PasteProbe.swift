@@ -65,7 +65,7 @@ import ApplicationServices
                 try await Task.sleep(nanoseconds: 200_000_000)
             }
             guard shortcutEvents == 2 else { report("failed: global shortcut callbacks missing"); return }
-            let model = Model()
+            let model = DictationController()
             model.checkPaste(to: target)
             try await Task.sleep(nanoseconds: 1_000_000_000)
             guard ownsFocus(url), let raw = attribute(app, kAXFocusedUIElementAttribute), CFGetTypeID(raw) == AXUIElementGetTypeID() else { report("failed: focus changed during paste"); return }

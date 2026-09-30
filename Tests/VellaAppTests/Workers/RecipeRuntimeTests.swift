@@ -40,7 +40,7 @@ final class RecipeRuntimeTests: XCTestCase {
         let backend = Backend(helper: try FakeWorker.install(in: root), requestTimeout: 5, runtime: runtime)
         runtime.dictation = backend
         defer { backend.shutdown() }
-        let model = Model(configurationURL: runtime.configURL); defer { model.shutdown() }
+        let model = DictationController(configurationURL: runtime.configURL); defer { model.shutdown() }
         let bridge = RuntimeBridge(runtime: runtime)
         bridge.attach(controller: controller, model: model)
         func recipes() -> [String] { ((try? String(contentsOf: log, encoding: .utf8)) ?? "").split(separator: "\n").map(String.init) }

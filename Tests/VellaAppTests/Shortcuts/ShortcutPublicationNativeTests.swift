@@ -263,7 +263,7 @@ final class ShortcutPublicationNativeTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+        let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
         defer { model.shutdown() }
         let delegate = AppDelegate(model: model, shortcutManager: manager)
         delegate.menuDidClose(delegate.menu)
@@ -276,7 +276,7 @@ final class ShortcutPublicationNativeTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+        let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
         defer { model.shutdown() }
         let state = PubState()
         let store = ShortcutStore(initial: .default, fileURL: nil)

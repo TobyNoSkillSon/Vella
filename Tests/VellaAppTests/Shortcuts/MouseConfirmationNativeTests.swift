@@ -30,7 +30,7 @@ final class MouseConfirmationNativeTests: XCTestCase {
         for confirm in [true, false] {
             let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
             defer { try? FileManager.default.removeItem(at: root) }
-            let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+            let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
             defer { model.shutdown() }
             let registrar = MouseConfirmationTests.MouseConfirmRegistrar()
             let monitor = MouseConfirmationTests.MouseConfirmMonitor()

@@ -18,7 +18,7 @@ private final class CleanupRegistrar: ShortcutRegistrar {
 @MainActor final class FinalCleanupUITests: XCTestCase {
     func testTrackedShortcutStatusAndEquivalentKeepTheirIdentities() throws {
         _ = NSApplication.shared
-        let model = Model(configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).json"))
+        let model = DictationController(configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).json"))
         let engine = ShortcutEngine(configuration: .default, sinks: .init(start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false }))
         let registrar = CleanupRegistrar()
         let manager = ShortcutManager(engine: engine, store: ShortcutStore(), registrar: registrar)
@@ -113,7 +113,7 @@ private final class CleanupRegistrar: ShortcutRegistrar {
         var prompts = 0
         let permission = InsertionPermission(isTrusted: { false }, prompt: { prompts += 1 },
             history: PermissionPromptHistory(read: { true }, write: {}))
-        let model = Model(insertionPermission: permission,
+        let model = DictationController(insertionPermission: permission,
             configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).json"))
         XCTAssertFalse(model.ensureAutomaticInsertion())
         XCTAssertEqual(prompts, 0)

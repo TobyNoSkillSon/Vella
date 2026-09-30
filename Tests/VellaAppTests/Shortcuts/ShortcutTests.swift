@@ -131,7 +131,7 @@ final class ShortcutTests: XCTestCase {
         _ = NSApplication.shared
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-shortcut-menu-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
-        let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+        let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
         defer { model.shutdown() }
         let store = ShortcutStore(initial: ShortcutConfiguration.default, fileURL: nil)
         let state = RecordingState(recording: false, busy: false)
@@ -179,12 +179,12 @@ final class ShortcutTests: XCTestCase {
         let storeURL = root.appendingPathComponent("shortcuts.json")
         let custom = ShortcutConfiguration(trigger: .keyChord(keyCode: 64, modifiers: 6912), behavior: .holdToTalk)
         XCTAssertNil(ShortcutValidation.validate(custom))
-        let model1 = Model(configurationURL: root.appendingPathComponent("config1.json"))
+        let model1 = DictationController(configurationURL: root.appendingPathComponent("config1.json"))
         defer { model1.shutdown() }
         let delegate1 = AppDelegate(model: model1, shortcutStoreURL: storeURL)
         XCTAssertTrue(delegate1.shortcutManager.apply(custom))
         XCTAssertEqual(delegate1.shortcutManager.configuration, custom)
-        let model2 = Model(configurationURL: root.appendingPathComponent("config2.json"))
+        let model2 = DictationController(configurationURL: root.appendingPathComponent("config2.json"))
         defer { model2.shutdown() }
         let delegate2 = AppDelegate(model: model2, shortcutStoreURL: storeURL)
         delegate2.shortcutManager.reloadFromStore()
@@ -263,7 +263,7 @@ final class ShortcutTests: XCTestCase {
         _ = NSApplication.shared
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-shortcut-tracked-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
-        let model = Model(configurationURL: root.appendingPathComponent("config.json"))
+        let model = DictationController(configurationURL: root.appendingPathComponent("config.json"))
         defer { model.shutdown() }
         let store = ShortcutStore(initial: ShortcutConfiguration.default, fileURL: nil)
         let state = RecordingState(recording: false, busy: false)
