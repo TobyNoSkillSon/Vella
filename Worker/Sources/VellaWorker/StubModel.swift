@@ -15,10 +15,6 @@ final class StubModel: STTGenerationModel, FastPathCapable {
     func generate(audio: MLXArray, generationParameters: STTGenerateParameters) -> STTOutput {
         STTOutput(text: "stub:\(name) \(String(format: "%.1f", Double(audio.size) / 16000))s")
     }
-    func generateStream(audio: MLXArray, generationParameters: STTGenerateParameters) -> AsyncThrowingStream<STTGeneration, Error> {
-        let output = generate(audio: audio, generationParameters: generationParameters)
-        return AsyncThrowingStream { continuation in continuation.yield(.result(output)); continuation.finish() }
-    }
     func configureFastPath(enabled: Bool, component: String) -> Bool { fast = enabled; return enabled }
     /// Two-stage gate test hook (`VELLA_TEST_TOLERANT_FAULT`, part of the gate key): the stub gains a tolerant
     /// component `stub_tolerant` whose output differs from stock by one word per clip (`edit`, within tolerance),

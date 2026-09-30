@@ -94,29 +94,6 @@ public func loadAudioArray(from url: URL, sampleRate: Int? = nil) throws -> (Int
     return (targetSampleRate, MLXArray(resampled))
 }
 
-/// Save audio data to a WAV file.
-func saveAudioArray(_ audio: MLXArray, sampleRate: Double, to url: URL) throws {
-    let samples = audio.asArray(Float.self)
-
-    let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
-    let audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
-
-    let frameCount = AVAudioFrameCount(samples.count)
-    guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
-        throw AudioUtils.AudioUtilsErrors.cannotCreateAudioBuffer
-    }
-
-    buffer.frameLength = frameCount
-
-    if let channelData = buffer.floatChannelData {
-        for i in 0 ..< samples.count {
-            channelData[0][i] = samples[i]
-        }
-    }
-
-    try audioFile.write(from: buffer)
-}
-
 private final class AudioConverterInputProvider: @unchecked Sendable {
     let inputBuffer: AVAudioPCMBuffer
     var consumedInput = false

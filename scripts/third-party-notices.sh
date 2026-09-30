@@ -41,7 +41,7 @@ swift-syntax|swift-syntax|not in the app: resolved for the macro targets of mlx-
 '
 # Code copied or adapted into Worker/Sources, with its licence file in Worker/.
 ADAPTED='
-mlx-audio-swift|https://github.com/Blaizzy/mlx-audio-swift at 01dec7c9bdce3088a6b6b7ab9f2e403458195efb|the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper), generation and output types, audio, DSP and SentencePiece utilities; changed for Vella (local loading only, optimized paths)|MIT|Worker/LICENSE-mlx-audio-swift
+mlx-audio-swift|https://github.com/Blaizzy/mlx-audio-swift at 01dec7c9bdce3088a6b6b7ab9f2e403458195efb|the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper), generation and output types, audio and DSP utilities; changed for Vella (local loading only, optimized paths)|MIT|Worker/LICENSE-mlx-audio-swift
 mlx-audio|https://github.com/Blaizzy/mlx-audio at v0.5.1|the mel filterbank of the Parakeet front end and the streaming DSP|MIT|Worker/LICENSE-mlx-audio-python
 mlx-whisper|https://github.com/ml-explore/mlx-examples (whisper)|Whisper decoding settings|MIT|Worker/LICENSE-mlx-whisper
 '

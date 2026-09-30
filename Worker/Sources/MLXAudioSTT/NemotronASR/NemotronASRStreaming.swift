@@ -6,8 +6,7 @@ import MLXNN
 // Each conformer layer keeps an attention cache (last `leftCache` attention-input
 // frames) and a conv cache (last `convKernel-1` GLU-output frames); subsampling is
 // incremental with a 16-frame mel cache. Output is frame-identical to the offline
-// (chunked_limited) encoder at the native chunk size (rightContext + 1), so the
-// streamed transcript equals `decode(...)`.
+// (chunked_limited) encoder at the native chunk size (rightContext + 1).
 
 private let nemoPreEncodeMelCache = 16
 
@@ -18,10 +17,7 @@ final class NemotronASRPositionCache {
     var projections: [MLXArray?] = []
 }  // >= causal receptive field of 8x dw-striding
 
-/// Per-stream cache-aware encoder state, carried across chunks (and, in a live
-/// session, across `step` calls). Holding it outside the chunk loop is what lets
-/// the same loop serve both the one-shot `generateStream` and the incremental
-/// `NemotronASRStreamSession`.
+/// Per-stream cache-aware encoder state, carried across chunks and, in a live session, across requests.
 /// Test hook (reported in worker status, never inherited by the gate's self-test child): every fused encoder output
 /// of a session is non-finite from this fused chunk on, to prove the optimized path's runtime finite check.
 let nemoTestEncoderFaultChunk: Int? = ProcessInfo.processInfo.environment["VELLA_TEST_ENCODER_NONFINITE"].flatMap(Int.init)
@@ -169,31 +165,8 @@ extension NemotronASRModel {
         return (block.normOut(residual), attnNext, convNext)
     }
 
-    /// Run encoder + prompt fusion in cache-aware chunks, invoking `onChunk` with
-    /// each chunk's post-prompt encoder frames (1, c, d). Frame-identical to offline.
-    /// One-shot wrapper: encodes the whole `mel` with a fresh state and a flushed tail.
-    func cacheAwareStreamEncode(
-        _ mel: MLXArray,
-        language: String?,
-        chunkFrames: Int? = nil,
-        onChunk: (MLXArray) -> Void
-    ) {
-        var features = mel
-        if features.ndim == 2 { features = features.expandedDimensions(axis: 0) }
-        let state = NemotronASRStreamEncoderState(layers: encoder.layers.count)
-        streamEncodeChunks(
-            features,
-            language: language,
-            limit: features.shape[1],
-            chunkFrames: chunkFrames,
-            flushTail: true,
-            state: state,
-            onChunk: onChunk
-        )
-    }
-
-    /// Resumable cache-aware encoder loop shared by `cacheAwareStreamEncode` (one-shot)
-    /// and `NemotronASRStreamSession` (incremental). Processes `mel` frames in
+    /// Resumable cache-aware encoder loop (Vella's streaming session and the fused-layer self-test). Processes `mel`
+    /// frames in
     /// `[state.consumed, limit)`:
     ///   * `flushTail == false`: only whole `chunkMel`-sized chunks are emitted; a
     ///     trailing partial chunk is left for a later call (when more audio arrives).

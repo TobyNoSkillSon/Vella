@@ -7,7 +7,7 @@ The executable and the generated MLX resource bundle must travel together. No Py
 ## Dependencies and offline boundary
 
 MLX: `901941965d82e4a216d4d117231d847d194c563d`.
-Vendored mlx-audio-swift: `01dec7c9bdce3088a6b6b7ab9f2e403458195efb` (MIT; `LICENSE-mlx-audio-swift`). Source origin: https://github.com/Blaizzy/mlx-audio-swift . Vendored: the three Dictation model directories (Parakeet, Qwen3 ASR, Whisper), Nemotron for Streaming, shared NeMo layers, STT generation/output types, audio/DSP/SentencePiece utilities. Optimized components (custom Metal kernels) run only after a load-time self-test against the stock MLX path in a child process; otherwise the stock path runs.
+Vendored mlx-audio-swift: `01dec7c9bdce3088a6b6b7ab9f2e403458195efb` (MIT; `LICENSE-mlx-audio-swift`). Source origin: https://github.com/Blaizzy/mlx-audio-swift . Vendored: the three Dictation model directories (Parakeet, Qwen3 ASR, Whisper), Nemotron for Streaming, shared NeMo layers, STT generation/output types, audio/DSP utilities. Optimized components (custom Metal kernels) run only after a load-time self-test against the stock MLX path in a child process; otherwise the stock path runs.
 
 Removed Hub/repository loaders and Whisper's automatic tokenizer download fallback. Models use directory-only entry points. Qwen's stock tokenizer synthesis runs in a private temporary directory rather than writing into installed weights. The pinned LM common and tokenizer packages contain networking utilities transitively, but no Hub loaders are called; the executable additionally installs a fail-closed OS sandbox denying all networking before MLX/model loading.
 

@@ -7,52 +7,6 @@
 
 import Foundation
 
-// MARK: - STT Generation Events
-
-/// Events emitted during speech-to-text streaming generation.
-public enum STTGeneration: Sendable {
-    /// A generated text token during transcription
-    case token(String)
-    /// Generation statistics
-    case info(STTGenerationInfo)
-    /// Final transcription result
-    case result(STTOutput)
-}
-
-/// Information about the STT generation process.
-public struct STTGenerationInfo: Sendable {
-    public let promptTokenCount: Int
-    public let generationTokenCount: Int
-    public let prefillTime: TimeInterval
-    public let generateTime: TimeInterval
-    public let tokensPerSecond: Double
-    public let peakMemoryUsage: Double
-
-    public init(
-        promptTokenCount: Int,
-        generationTokenCount: Int,
-        prefillTime: TimeInterval,
-        generateTime: TimeInterval,
-        tokensPerSecond: Double,
-        peakMemoryUsage: Double
-    ) {
-        self.promptTokenCount = promptTokenCount
-        self.generationTokenCount = generationTokenCount
-        self.prefillTime = prefillTime
-        self.generateTime = generateTime
-        self.tokensPerSecond = tokensPerSecond
-        self.peakMemoryUsage = peakMemoryUsage
-    }
-
-    public var summary: String {
-        """
-        Prompt:     \(promptTokenCount) tokens, \(String(format: "%.2f", Double(promptTokenCount) / max(prefillTime, 0.001))) tokens/s, \(String(format: "%.3f", prefillTime))s
-        Generation: \(generationTokenCount) tokens, \(String(format: "%.2f", tokensPerSecond)) tokens/s, \(String(format: "%.3f", generateTime))s
-        Peak Memory Usage: \(peakMemoryUsage) GB
-        """
-    }
-}
-
 /// Errors that can occur during STT generation.
 public enum STTError: Error, LocalizedError {
     case modelNotInitialized(String)

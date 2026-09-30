@@ -4,7 +4,7 @@ import MLXNN
 import MLXAudioCore
 import MLXLMCommon
 
-public final class NemotronASRModel: Module, STTGenerationModel {
+public final class NemotronASRModel: Module {
     public let config: NemotronASRConfig
     public let preprocessConfig: NemotronASRPreprocessConfig
     public let encoderConfig: NemotronASRConformerConfig
@@ -25,19 +25,6 @@ public final class NemotronASRModel: Module, STTGenerationModel {
     @ModuleInfo(key: "prompt_kernel") var promptKernel: NemotronASRPromptKernel?
     @ModuleInfo(key: "decoder") var decoder: NemoPredictNetwork
     @ModuleInfo(key: "joint") var joint: NemoJointNetwork
-
-    public var defaultGenerationParameters: STTGenerateParameters {
-        STTGenerateParameters(
-            maxTokens: 8192,
-            temperature: 0.0,
-            topP: 0.95,
-            topK: 0,
-            verbose: false,
-            language: defaultLanguage,
-            chunkDuration: 1200.0,
-            minChunkDuration: 1.0
-        )
-    }
 
     public init(_ config: NemotronASRConfig) {
         self.config = config
@@ -83,185 +70,6 @@ public final class NemotronASRModel: Module, STTGenerationModel {
         )
     }
 
-    public func generate(
-        audio: MLXArray,
-        generationParameters: STTGenerateParameters
-    ) -> STTOutput {
-        let startTime = CFAbsoluteTimeGetCurrent()
-        let audio1D = normalizeAudioToMono(audio).asType(.float32)
-        let sampleRate = preprocessConfig.sampleRate
-        let totalSamples = audio1D.shape[0]
-        let audioDuration = Double(totalSamples) / Double(sampleRate)
-        let chunkDuration = Double(generationParameters.chunkDuration)
-        let result: NemoAlignedResult
-
-        if chunkDuration <= 0 || audioDuration <= chunkDuration {
-            result = decodeChunk(audio1D, language: generationParameters.language)
-        } else {
-            let chunkSamples = max(1, Int(chunkDuration * Double(sampleRate)))
-            let overlapDuration = 2.0
-            let overlapSamples = max(0, min(chunkSamples - 1, Int(overlapDuration * Double(sampleRate))))
-            let stepSamples = max(1, chunkSamples - overlapSamples)
-
-            var allTokens: [NemoAlignedToken] = []
-            var start = 0
-            while start < totalSamples {
-                let end = min(start + chunkSamples, totalSamples)
-                let chunkResult = decodeChunk(audio1D[start..<end], language: generationParameters.language)
-                var chunkTokens = flattenTokens(from: chunkResult)
-                let chunkOffset = Double(start) / Double(sampleRate)
-                for i in chunkTokens.indices {
-                    chunkTokens[i].start += chunkOffset
-                }
-
-                allTokens = mergeTokenSequences(
-                    existing: allTokens,
-                    incoming: chunkTokens,
-                    overlapDuration: overlapDuration
-                )
-                start += stepSamples
-            }
-            result = NemoAlignment.sentencesToResult(NemoAlignment.tokensToSentences(allTokens))
-        }
-
-        let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-        return STTOutput(
-            text: result.text,
-            segments: result.segments,
-            language: generationParameters.language,
-            totalTime: elapsed
-        )
-    }
-
-    public func generateStream(
-        audio: MLXArray,
-        generationParameters: STTGenerateParameters
-    ) -> AsyncThrowingStream<STTGeneration, Error> {
-        AsyncThrowingStream { continuation in
-            let audio1D = self.normalizeAudioToMono(audio).asType(.float32)
-            let sampleRate = self.preprocessConfig.sampleRate
-            let audioDuration = Double(audio1D.shape[0]) / Double(sampleRate)
-            let mel = NemotronASRAudio.logMelSpectrogram(audio1D, config: self.preprocessConfig)
-            let frameSeconds = Double(self.encoderConfig.subsamplingFactor * self.preprocessConfig.hopLength)
-                / Double(sampleRate)
-
-            let rnntState = NemotronASRStreamRNNTState(blankToken: self.blankTokenID)
-            var previousText = ""
-
-            // Cache-aware streaming: incremental subsampling + per-layer attn/conv
-            // caches, greedy RNN-T per chunk. Token-identical to decode() at the
-            // native chunk size; shares both loops with NemotronASRStreamSession.
-            self.cacheAwareStreamEncode(mel, language: generationParameters.language) { prompted in
-                self.streamRNNTDecode(prompted, state: rnntState, frameSeconds: frameSeconds)
-
-                let fullText = NemoAlignment.sentencesToResult(
-                    NemoAlignment.tokensToSentences(rnntState.results)
-                ).text
-                let nextText = fullText.hasPrefix(previousText)
-                    ? String(fullText.dropFirst(previousText.count))
-                    : fullText
-                previousText = fullText
-                if !nextText.isEmpty {
-                    continuation.yield(.token(nextText))
-                }
-            }
-
-            let finalResult = NemoAlignment.sentencesToResult(
-                NemoAlignment.tokensToSentences(rnntState.results)
-            )
-            continuation.yield(
-                .result(
-                    STTOutput(
-                        text: finalResult.text,
-                        segments: finalResult.segments,
-                        language: generationParameters.language,
-                        totalTime: audioDuration
-                    )
-                )
-            )
-            continuation.finish()
-        }
-    }
-
-    func decode(
-        mel: MLXArray,
-        language: String? = nil,
-        attContextSize: [Int]? = nil
-    ) -> NemoAlignedResult {
-        var features = mel
-        if features.ndim == 2 {
-            features = features.expandedDimensions(axis: 0)
-        }
-
-        assert(
-            features.ndim == 3 && features.shape[2] == preprocessConfig.features,
-            "Nemotron ASR input feature shape mismatch: expected [B, T, \(preprocessConfig.features)], got \(features.shape)"
-        )
-
-        features = features.asType(computeDType)
-        let encoded = encoder(features, attContextSize: attContextSize ?? defaultAttContextSize)
-        let prompted = applyPrompt(encoded.0, language: language)
-        eval(prompted, encoded.1)
-
-        let frameSeconds = Double(encoderConfig.subsamplingFactor * preprocessConfig.hopLength)
-            / Double(preprocessConfig.sampleRate)
-        var results: [NemoAlignedToken] = []
-        let maxLength = Int(encoded.1[0].item(Int32.self))
-        var lastToken = blankTokenID
-        var decoderState: NemoLSTMState?
-        var time = 0
-        var newSymbols = 0
-
-        while time < maxLength {
-            let frame = prompted[0..., time..<(time + 1), 0...]
-            let currentToken: MLXArray? = lastToken == blankTokenID
-                ? nil
-                : MLXArray(Int32(lastToken)).reshaped([1, 1]).asType(.int32)
-
-            let decoderOutput = decoder(currentToken, state: decoderState)
-            let pred = decoderOutput.0.asType(frame.dtype)
-            let proposedState: NemoLSTMState = (
-                hidden: decoderOutput.1.hidden?.asType(frame.dtype),
-                cell: decoderOutput.1.cell?.asType(frame.dtype)
-            )
-
-            let jointOutput = joint(frame, pred)
-            eval(jointOutput)
-            let token = jointOutput.argMax(axis: -1).item(Int.self)
-            let step = NemoDecodingLogic.rnntStep(
-                predictedToken: token,
-                blankToken: blankTokenID,
-                time: time,
-                newSymbols: newSymbols,
-                maxSymbols: maxSymbols
-            )
-
-            if step.emittedToken {
-                lastToken = token
-                decoderState = proposedState
-                if !NemotronASRTokenizer.isSpecialToken(token, vocabulary: vocabulary) {
-                    results.append(
-                        NemoAlignedToken(
-                            id: token,
-                            text: NemotronASRTokenizer.decode(tokens: [token], vocabulary: vocabulary),
-                            start: Double(time) * frameSeconds,
-                            duration: frameSeconds
-                        )
-                    )
-                }
-            }
-
-            time = step.nextTime
-            newSymbols = step.nextNewSymbols
-        }
-
-        let aligned = NemoAlignment.sentencesToResult(NemoAlignment.tokensToSentences(results))
-        if aligned.text.isEmpty {
-            return aligned
-        }
-        return aligned
-    }
-
     func applyPrompt(_ encoded: MLXArray, language: String? = nil) -> MLXArray {
         guard let promptKernel else { return encoded }
         let promptIndex = resolvePromptIndex(language)
@@ -287,33 +95,6 @@ public final class NemotronASRModel: Module, STTGenerationModel {
         return 0
     }
 
-    private func normalizeAudioToMono(_ audio: MLXArray) -> MLXArray {
-        audio.ndim > 1 ? audio.mean(axis: -1) : audio
-    }
-
-    private func decodeChunk(_ chunkAudio: MLXArray, language: String?) -> NemoAlignedResult {
-        let mel = NemotronASRAudio.logMelSpectrogram(chunkAudio, config: preprocessConfig)
-        return decode(mel: mel, language: language)
-    }
-
-    private func flattenTokens(from result: NemoAlignedResult) -> [NemoAlignedToken] {
-        result.sentences.flatMap { $0.tokens }
-    }
-
-    private func mergeTokenSequences(
-        existing: [NemoAlignedToken],
-        incoming: [NemoAlignedToken],
-        overlapDuration: Double
-    ) -> [NemoAlignedToken] {
-        if existing.isEmpty { return incoming }
-        if incoming.isEmpty { return existing }
-
-        do {
-            return try NemoAlignment.mergeLongestContiguous(existing, incoming, overlapDuration: overlapDuration)
-        } catch {
-            return NemoAlignment.mergeLongestCommonSubsequence(existing, incoming, overlapDuration: overlapDuration)
-        }
-    }
 }
 
 final class NemotronASRPromptKernel: Module {

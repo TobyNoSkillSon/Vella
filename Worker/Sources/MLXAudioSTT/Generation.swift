@@ -56,11 +56,6 @@ public protocol STTGenerationModel: AnyObject {
         audio: MLXArray,
         generationParameters: STTGenerateParameters
     ) -> STTOutput
-
-    func generateStream(
-        audio: MLXArray,
-        generationParameters: STTGenerateParameters
-    ) -> AsyncThrowingStream<STTGeneration, Error>
 }
 
 public extension STTGenerationModel {
@@ -69,12 +64,5 @@ public extension STTGenerationModel {
         generationParameters: STTGenerateParameters? = nil
     ) -> STTOutput {
         generate(audio: audio, generationParameters: generationParameters ?? defaultGenerationParameters)
-    }
-
-    func generateStream(
-        audio: MLXArray,
-        generationParameters: STTGenerateParameters? = nil
-    ) -> AsyncThrowingStream<STTGeneration, Error> {
-        generateStream(audio: audio, generationParameters: generationParameters ?? defaultGenerationParameters)
     }
 }

@@ -2367,7 +2367,7 @@ This code was copied into `Worker/Sources` and changed there. Its licence files 
 
 - source: https://github.com/Blaizzy/mlx-audio-swift at 01dec7c9bdce3088a6b6b7ab9f2e403458195efb
 - licence: MIT
-- used for: the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper), generation and output types, audio, DSP and SentencePiece utilities; changed for Vella (local loading only, optimized paths)
+- used for: the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper), generation and output types, audio and DSP utilities; changed for Vella (local loading only, optimized paths)
 
 `Worker/LICENSE-mlx-audio-swift`
 
