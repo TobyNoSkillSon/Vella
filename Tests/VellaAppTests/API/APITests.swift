@@ -23,6 +23,8 @@ enum APIFakeWorker {
         for line in sys.stdin:
             r=json.loads(line); op=r.get('op')
             if op=='load':
+                marker=os.path.join(r['model'],'.crashed')
+                if 'crashload' in r['model'].split('/')[-1] and not os.path.exists(marker): open(marker,'w').close(); os._exit(3)
                 if 'loadfail' in r['model'].split('/')[-1]:
                     push('load-failed'); print(json.dumps({'id':r['id'],'error':{'code':'load','message':'x'}}),flush=True); continue
                 model=r['model']; push('load'); print(json.dumps({'id':r['id'],'loaded':True}),flush=True); continue
@@ -30,6 +32,7 @@ enum APIFakeWorker {
                 if op=='unload': model=None
                 push(op); print(json.dumps({'id':r['id'],'ok':True}),flush=True); continue
             name=r['model'].split('/')[-1]
+            if 'crashalways' in name: os._exit(3)
             note('start',name)
             if 'slow' in name: time.sleep(0.3)
             frames=(os.path.getsize(r['audio'])-44)//2
@@ -449,6 +452,26 @@ final class APITests: XCTestCase {
         XCTAssertNotNil(api.runtime.status.models["fake-a"], "the dictation model stays loaded")
         XCTAssertNil(api.runtime.status.models["fake-b"])
         XCTAssertEqual(api.leftovers(), [])
+    }
+
+    /// QA 30 Sep: a worker that dies while the API's model loads gets one fresh start (as a segment does); one that
+    /// keeps dying ends the request with the API's own words (nothing is kept), not the dictation's "Saved audio".
+    @MainActor func testWorkerDeathDuringAPIWorkIsRetriedOnceThenReportedForTheAPI() async throws {
+        do {
+            let api = try await APIFixture(models: ["crashload-a"])
+            defer { api.close() }
+            let (code, _, body) = try await api.post(fields: ["response_format": "text"], file: audio)
+            XCTAssertEqual(code, 200, String(decoding: body, as: UTF8.self))
+        }
+        do {
+            let api = try await APIFixture(models: ["crashalways-a"])
+            defer { api.close() }
+            let (code, _, body) = try await api.post(fields: [:], file: audio)
+            XCTAssertEqual(code, 500)
+            let error = try XCTUnwrap((try JSONSerialization.jsonObject(with: body) as? [String: Any])?["error"] as? [String: Any])
+            XCTAssertEqual(error["code"] as? String, "worker_exited")
+            XCTAssertEqual(error["message"] as? String, APITranscriber.workerExited)
+        }
     }
 
     @MainActor func testQueueLimit() async throws {

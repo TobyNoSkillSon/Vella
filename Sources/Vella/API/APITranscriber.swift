@@ -138,6 +138,7 @@ struct APITranscript {
     var pollNanoseconds: UInt64 = 20_000_000
 
     init(backend: Backend, root: URL) { self.backend = backend; self.root = root }
+    static let workerExited = "Vella's inference worker stopped twice while transcribing this file; nothing was kept. Try again."
 
     /// `resolve`: the model the request names, as it stands now (with its files prepared). `current`: the family id of
     /// the current dictation model, kept out of eviction while this request loads another one.
@@ -191,7 +192,10 @@ struct APITranscript {
                 }
             }
         }
-        try await retryingDictationStops { try await ready() }
+        // A worker that dies while the model loads gets one fresh start, as a segment does (SessionTranscriber).
+        do { try await retryingDictationStops { try await ready() } } catch is WorkerExited {
+            do { try await retryingDictationStops { try await ready() } } catch is WorkerExited { throw APIError(500, Self.workerExited, code: "worker_exited") }
+        }
         let runner = SessionTranscriber { [weak self] url, config in
             guard let self else { throw CancellationError() }
             return try await self.retryingDictationStops {
@@ -207,7 +211,12 @@ struct APITranscript {
                 }
             }
         }
-        do { _ = try await runner.run(session) } catch let error as VellaError { throw APIError(500, error.localizedDescription, code: "transcription_failed") }
+        do { _ = try await runner.run(session) } catch let error as VellaError {
+            throw APIError(500, error.localizedDescription, code: "transcription_failed")
+        } catch is WorkerExited {
+            // Its text ("Saved audio is retained") is the dictation's; the API keeps nothing.
+            throw APIError(500, Self.workerExited, code: "worker_exited")
+        }
         completed += 1
         let (text, segments) = APIAudio.segments(session)
         var used = model; used.loaded = true
