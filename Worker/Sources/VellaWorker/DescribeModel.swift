@@ -4,6 +4,7 @@ import Foundation
 import MLX
 import MLXNN
 import MLXAudioSTT
+import VellaWorkerSupport
 
 /// Developer-only (qualification builds): `VellaWorker describe-model --model <dir> --output <json>` loads a model the
 /// way the workers do (derived precisions included) and writes every parameter's name, dtype, shape and SHA-256 of its

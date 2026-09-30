@@ -2,6 +2,7 @@ import Foundation
 import Darwin
 import MLX
 import MLXAudioSTT
+import VellaWorkerSupport
 
 /// Keeps one loaded streaming model across sessions (Keep Hot). A session that ends with a clean `done` reply
 /// leaves the model loaded for the next `start` with the same path; any error still ends the process (fail closed).
@@ -14,9 +15,7 @@ final class StreamingModelCache {
     func native(for url: URL) throws -> any StreamingNative {
         if let native, path == url { try native.reset(); return native }
         close()
-        if let fault = ProcessInfo.processInfo.environment["VELLA_TEST_LOAD_FAULT"], !fault.isEmpty, url.path.contains(fault) {
-            throw StreamingFailure.inference
-        }
+        if FaultHooks.loadFails(url) { throw StreamingFailure.inference }
         let start = ProcessInfo.processInfo.systemUptime
         let loaded = try loader(url)
         native = loaded; path = url; loadSeconds = ProcessInfo.processInfo.systemUptime - start
@@ -25,11 +24,7 @@ final class StreamingModelCache {
     func close() { native?.close(); native = nil; path = nil; loadSeconds = nil }
     func status(_ event: String) -> [String: Any] {
         var memory: [String: Any] = ["mlx_active_mb": Double(Memory.activeMemory) / 1e6, "mlx_cache_mb": Double(Memory.cacheMemory) / 1e6]
-        var info = rusage_info_v4()
-        let ok = withUnsafeMutablePointer(to: &info) { pointer in
-            pointer.withMemoryRebound(to: Optional<rusage_info_t>.self, capacity: 1) { proc_pid_rusage(getpid(), RUSAGE_INFO_V4, $0) }
-        }
-        if ok == 0 { memory["footprint_mb"] = Double(info.ri_phys_footprint) / 1e6 }
+        if let footprint = processFootprintBytes() { memory["footprint_mb"] = Double(footprint) / 1e6 }
         let hooks = FastPathGate.reportedEnvironment()
         var object: [String: Any] = [
             "worker": "streaming", "pid": Int(getpid()), "version": FastPathGate.version, "event": event, "model": path?.path ?? NSNull(),
@@ -50,7 +45,7 @@ final class StreamingModelCache {
         let sink = open("/dev/null", O_WRONLY)
         guard output >= 0, sink >= 0 else { exit(1) }
         dup2(sink, STDOUT_FILENO); dup2(sink, STDERR_FILENO); Darwin.close(sink)
-        guard streamingSandbox() else { exit(1) }
+        guard installOfflineSandbox() else { exit(1) }
         guard FastPathGate.applyDeviceOverride() else { exit(1) }
         Memory.cacheLimit = 64 * 1024 * 1024
         // FastPathGate's child: stock vs optimized streaming self-test, verdict in the exit status.
@@ -68,19 +63,13 @@ final class StreamingModelCache {
             // stays alive for the life of the process: ~8 MB of heap per audio minute before this pool.
             let proceed: Bool = autoreleasepool {
                 // The deadline covers handling a request, not waiting for one: a hot worker idles between sessions.
-                var line = Data()
-                while line.count <= 10000 {
-                    let c = fgetc(stdin)
-                    if c == EOF { break }
-                    line.append(UInt8(c))
-                    if c == 10 { break }
-                }
+                // At most 10,000 bytes; a longer line is refused (and ends the process), never drained.
                 // stdin EOF: the app is gone or retired this worker.
-                if line.isEmpty { return false }
+                guard let line = readProtocolLine(stdin, limit: 10000, drainOverlong: false) else { return false }
                 watchdog.arm()
                 let value = line.count <= 10000 && line.last == 10 ? try? JSONSerialization.jsonObject(with: line) : nil
                 let request = value as? [String: Any]
-                let identifier = streamingIdentifier(request?["id"])
+                let identifier = requestIdentifier(request?["id"])
                 watchdog.identify(identifier)
                 // Residency control between sessions: preload or drop the model without starting a session.
                 if let request, let identifier, session.native == nil, let op = request["op"] as? String, op == "load" || op == "unload" {
@@ -118,16 +107,4 @@ final class StreamingModelCache {
             if !proceed { break }
         }
     }
-}
-private func streamingSandbox() -> Bool {
-    guard let handle = dlopen(nil, RTLD_NOW), let sym = dlsym(handle, "sandbox_init"), let releaseSym = dlsym(handle, "sandbox_free_error") else { return false }
-    defer { dlclose(handle) }
-    typealias Initialize = @convention(c) (UnsafePointer<CChar>, UInt64, UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> Int32
-    typealias Release = @convention(c) (UnsafeMutablePointer<CChar>) -> Void
-    let initialize = unsafeBitCast(sym, to: Initialize.self)
-    let release = unsafeBitCast(releaseSym, to: Release.self)
-    var error: UnsafeMutablePointer<CChar>?
-    let result = initialize("(version 1)(allow default)(deny network*)", 0, &error)
-    if let error { release(error) }
-    return result == 0
 }

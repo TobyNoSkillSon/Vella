@@ -1,17 +1,34 @@
 import Foundation
 import Testing
 @testable import VellaStreamingWorker
+import VellaWorkerSupport
 
 extension WorkerTests {
     /// The streaming worker's request validation, fused-layer tolerance judge and replay boundary (CPU only).
     @Suite struct StreamingWorker {
+        /// The streaming helper's line policy: at most 10,000 bytes, an overlong line returned undrained (refused).
+        @Test func overlongLinesAreNotDrained() throws {
+            let s = try Scratch("vella-stream-line")
+            let url = s.url.appendingPathComponent("stdin")
+            try Data((String(repeating: "x", count: 10_005) + "\nnext\n").utf8).write(to: url)
+            let file = try #require(fopen(url.path, "r")); defer { fclose(file) }
+            let first = try #require(readProtocolLine(file, limit: 10000, drainOverlong: false))
+            #expect(first.count == 10_001)
+            #expect(readProtocolLine(file, limit: 10000, drainOverlong: false)?.count == 5) // the rest of that line
+            #expect(readProtocolLine(file, limit: 10000, drainOverlong: false) == Data("next\n".utf8))
+            #expect(readProtocolLine(file, limit: 10000, drainOverlong: false) == nil)
+        }
+        @Test func replyLinesAreASCIIWithoutFragments() throws {
+            #expect(String(decoding: try asciiJSONLine(["id": NSNull(), "error": "é/"], fragmentsAllowed: false), as: UTF8.self)
+                    == #"{"error":"\u00e9/","id":null}"# + "\n")
+        }
         @Test func identifiers() {
             let id = "6f1c2a4e-8d3b-4c1a-9e7f-2b5d8c0a1e34"
-            #expect(streamingIdentifier(id) == id)
-            #expect(streamingIdentifier("{\(id)}") == "{\(id)}")
-            #expect(streamingIdentifier("urn:uuid:\(id)") == "urn:uuid:\(id)")
-            #expect(streamingIdentifier("g1") == nil)
-            #expect(streamingIdentifier(7) == nil)
+            #expect(requestIdentifier(id) == id)
+            #expect(requestIdentifier("{\(id)}") == "{\(id)}")
+            #expect(requestIdentifier("urn:uuid:\(id)") == "urn:uuid:\(id)")
+            #expect(requestIdentifier("g1") == nil)
+            #expect(requestIdentifier(7) == nil)
         }
 
         @Test func pcmBounds() throws {

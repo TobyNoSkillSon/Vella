@@ -4,6 +4,7 @@ import MLX
 import Cmlx
 import MLXAudioSTT
 import SmallMGEMM
+import VellaWorkerSupport
 
 @main struct Main {
     static func main() async {
@@ -19,11 +20,11 @@ import SmallMGEMM
             guard values.count == 2, values[0] == "--model", let path = try? localPath(values[1]),
                   let architecture = try? admit(path), Worker.fastPathType(architecture) != nil else { exit(FastPathGate.inconclusive) }
             // Test hook (reported in status): an unexplained child exit, or evidence against the fast path.
-            switch ProcessInfo.processInfo.environment["VELLA_TEST_SELFTEST_FAULT"] {
-            case "crash": abort()
-            case "exit": exit(9)
-            case "mismatch": exit(FastPathGate.verdictFailed)
-            default: break
+            switch FaultHooks.selfTest() {
+            case .crash?: abort()
+            case .exit?: exit(9)
+            case .mismatch?: exit(FastPathGate.verdictFailed)
+            case nil: break
             }
             let outcome: FastPathGate.SelfTestOutcome
             do {
@@ -109,17 +110,6 @@ import SmallMGEMM
         try? worker.release(); close(output)
     }
 }
-func writeAll(_ output: Int32, _ data: Data) -> Bool {
-    data.withUnsafeBytes { raw in
-        var offset = 0
-        while offset < raw.count {
-            let n = Darwin.write(output, raw.baseAddress!.advanced(by: offset), raw.count-offset)
-            if n <= 0 { return false }; offset += n
-        }
-        return true
-    }
-}
-
 enum InjectedFault: Error { case load, optimized, stock }
 
 /// One worker process serves one model at a time. The app runs one process per loaded model, so unloading is
@@ -222,9 +212,7 @@ final class Worker {
     func load(_ path: URL, architecture: String) async throws -> any STTGenerationModel {
         trackCompilationCache()
         defer { trackCompilationCache() }
-        if let fault = ProcessInfo.processInfo.environment["VELLA_TEST_LOAD_FAULT"], !fault.isEmpty, path.path.contains(fault) {
-            throw InjectedFault.load
-        }
+        if FaultHooks.loadFails(path) { throw InjectedFault.load }
         let type = Self.fastPathType(architecture)
         let verdict = type.map { FastPathGate.qualify(path, type: $0) }
         gateURL = type.flatMap { try? FastPathGate.statusURL(path, revision: $0.fastPathRevision) }
@@ -253,7 +241,7 @@ final class Worker {
         }
         return loaded
     }
-    private var optimizedFault: String? { ProcessInfo.processInfo.environment["VELLA_TEST_OPTIMIZED_FAULT"].flatMap { $0.isEmpty ? nil : $0 } }
+    private var optimizedFault: String? { FaultHooks.optimized() }
     private var stockFault: Bool { ProcessInfo.processInfo.environment["VELLA_TEST_STOCK_FAULT"] == "1" }
     private func runStock(_ model: any STTGenerationModel, _ input: MLXArray, _ parameters: STTGenerateParameters) throws -> STTOutput {
         if stockFault { throw InjectedFault.stock }
@@ -359,8 +347,8 @@ final class Worker {
 
     func handle(_ value: Any?) async -> [String: Any] {
         let request = value as? [String: Any]
-        let identifier: Any = validIdentifier(request?["id"]) as Any? ?? NSNull()
-        guard let request, validIdentifier(request["id"]) != nil else {
+        let identifier: Any = requestIdentifier(request?["id"]) as Any? ?? NSNull()
+        guard let request, requestIdentifier(request["id"]) != nil else {
             return ["id": identifier, "error": ["code": "invalid", "message": "Invalid local transcription request."]]
         }
         guard let op = request["op"] else { return await transcribe(request, identifier: identifier) }

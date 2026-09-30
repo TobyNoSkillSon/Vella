@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXAudioSTT
+import VellaWorkerSupport
 
 enum FastPathNonFinite: Error { case invalid }
 

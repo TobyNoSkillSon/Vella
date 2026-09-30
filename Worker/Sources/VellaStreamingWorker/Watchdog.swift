@@ -1,5 +1,6 @@
 import Foundation
 import Darwin
+import VellaWorkerSupport
 
 /// A dispatch thread, never a POSIX signal handler, owns timeout serialization.
 /// Terminating a wedged native operation must release the process, not run MLX
@@ -40,20 +41,7 @@ final class StreamingWatchdog {
     }
     deinit { timer.cancel(); termination.cancel() }
 }
+/// One reply line (no JSON fragments); a failed write ends the process.
 func writeStreamingResponse(_ response: [String: Any], to output: Int32) {
-    guard let json = try? JSONSerialization.data(withJSONObject: response, options: [.sortedKeys, .withoutEscapingSlashes]),
-          let string = String(data: json, encoding: .utf8) else { _exit(1) }
-    var ascii = ""
-    for unit in string.utf16 {
-        if unit < 128 { ascii.append(Character(UnicodeScalar(unit)!)) }
-        else { ascii += String(format: "\\u%04x", unit) }
-    }
-    let data = Data((ascii + "\n").utf8)
-    data.withUnsafeBytes { raw in
-        var offset = 0
-        while offset < raw.count {
-            let n = Darwin.write(output, raw.baseAddress!.advanced(by: offset), raw.count - offset)
-            if n <= 0 { _exit(1) }; offset += n
-        }
-    }
+    guard let data = try? asciiJSONLine(response, fragmentsAllowed: false), writeAll(output, data) else { _exit(1) }
 }

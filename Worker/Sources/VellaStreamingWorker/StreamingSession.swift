@@ -1,5 +1,6 @@
 import Foundation
 import MLXAudioSTT
+import VellaWorkerSupport
 
 // Mirrors Resources/streaming_worker.py. Model code never owns transport state.
 enum StreamingFailure: Error { case invalid, inference }
@@ -36,14 +37,6 @@ extension StreamingNative {
 }
 extension String {
     var streamingTrim: String { trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{001c}\u{001d}\u{001e}\u{001f}"))) }
-}
-func streamingIdentifier(_ value: Any?) -> String? {
-    guard let value = value as? String else { return nil }
-    // uuid.UUID accepts URN/braced/hyphenless forms too; echo the original ID.
-    let raw = value.replacingOccurrences(of: "urn:", with: "").replacingOccurrences(of: "uuid:", with: "")
-        .trimmingCharacters(in: CharacterSet(charactersIn: "{}" )).replacingOccurrences(of: "-", with: "")
-    guard raw.utf8.count == 32, raw.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) }) else { return nil }
-    return value
 }
 func streamingPCM(_ value: Any?) throws -> [Float] {
     guard let string = value as? String, string.utf8.count <= 8536,
@@ -124,7 +117,7 @@ final class StreamingSession {
         return try native.drain()
     }
     func handle(_ value: Any?) throws -> [String: Any] {
-        guard let request = value as? [String: Any], let id = streamingIdentifier(request["id"]), !done else { throw StreamingFailure.invalid }
+        guard let request = value as? [String: Any], let id = requestIdentifier(request["id"]), !done else { throw StreamingFailure.invalid }
         let op = request["op"] as? String
         let expected: Set<String> = op == "start" ? ["id", "op", "model"] : op == "audio" ? ["id", "op", "pcm"] : ["id", "op"]
         guard Set(request.keys) == expected else { throw StreamingFailure.invalid }
@@ -163,7 +156,7 @@ final class StreamingSession {
         do { return try handle(value) }
         catch {
             done = true
-            let identifier: Any = streamingIdentifier((value as? [String: Any])?["id"]) as Any? ?? NSNull()
+            let identifier: Any = requestIdentifier((value as? [String: Any])?["id"]) as Any? ?? NSNull()
             return ["id": identifier, "error": (error as? StreamingFailure) == .invalid ? "Invalid local streaming request." : "Local streaming transcription failed."]
         }
     }

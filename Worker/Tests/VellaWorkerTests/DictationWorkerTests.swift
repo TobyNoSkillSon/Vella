@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 import Testing
 @testable import VellaWorker
+import VellaWorkerSupport
 
 extension WorkerTests {
     /// The dictation worker's checkpoint admission rules and its wire helpers (CPU only).
@@ -107,13 +108,13 @@ extension WorkerTests {
 
         @Test func identifiers() {
             let id = "6f1c2a4e-8d3b-4c1a-9e7f-2b5d8c0a1e34"
-            #expect(validIdentifier(id) == id)
-            #expect(validIdentifier("{\(id)}") == "{\(id)}")
-            #expect(validIdentifier("urn:uuid:\(id)") == "urn:uuid:\(id)")
-            #expect(validIdentifier("6F1C2A4E8D3B4C1A9E7F2B5D8C0A1E34") == "6F1C2A4E8D3B4C1A9E7F2B5D8C0A1E34")
-            #expect(validIdentifier("g1") == nil)
-            #expect(validIdentifier(String(id.dropLast()) + "g") == nil)
-            #expect(validIdentifier(42) == nil)
+            #expect(requestIdentifier(id) == id)
+            #expect(requestIdentifier("{\(id)}") == "{\(id)}")
+            #expect(requestIdentifier("urn:uuid:\(id)") == "urn:uuid:\(id)")
+            #expect(requestIdentifier("6F1C2A4E8D3B4C1A9E7F2B5D8C0A1E34") == "6F1C2A4E8D3B4C1A9E7F2B5D8C0A1E34")
+            #expect(requestIdentifier("g1") == nil)
+            #expect(requestIdentifier(String(id.dropLast()) + "g") == nil)
+            #expect(requestIdentifier(42) == nil)
         }
 
         // MARK: audio

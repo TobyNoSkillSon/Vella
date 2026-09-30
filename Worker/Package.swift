@@ -11,8 +11,10 @@ let package = Package(name: "VellaWorker", platforms: [.macOS("26.0")], products
     .target(name: "MLXAudioCore", dependencies: [.product(name: "MLX", package: "mlx-swift"), .product(name: "MLXFFT", package: "mlx-swift")]),
     .target(name: "SmallMGEMM", dependencies: [.product(name: "MLX", package: "mlx-swift"), .product(name: "MLXFast", package: "mlx-swift")]),
     .target(name: "MLXAudioSTT", dependencies: ["MLXAudioCore", "SmallMGEMM", .product(name: "MLX", package: "mlx-swift"), .product(name: "MLXNN", package: "mlx-swift"), .product(name: "MLXFast", package: "mlx-swift"), .product(name: "MLXLMCommon", package: "mlx-swift-lm"), .product(name: "Tokenizers", package: "swift-transformers")], exclude: ["PROVENANCE.md"]),
-    .executableTarget(name: "VellaWorker", dependencies: ["MLXAudioSTT", "SmallMGEMM"], resources: [.copy("Resources/clip-a.wav"), .copy("Resources/clip-b.wav"), .copy("Resources/clip-c.wav"), .copy("Resources/clip-d.wav"), .copy("Resources/clip-e.wav"), .copy("Resources/ATTRIBUTION.md"), .copy("Resources/LICENSE-CC-BY-4.0.txt")]),
-    .executableTarget(name: "VellaStreamingWorker", dependencies: ["MLXAudioSTT"]),
+    // MLX-free pieces both helpers share: sandbox, stdio transport, request validation, process memory, test hooks.
+    .target(name: "VellaWorkerSupport"),
+    .executableTarget(name: "VellaWorker", dependencies: ["MLXAudioSTT", "SmallMGEMM", "VellaWorkerSupport"], resources: [.copy("Resources/clip-a.wav"), .copy("Resources/clip-b.wav"), .copy("Resources/clip-c.wav"), .copy("Resources/clip-d.wav"), .copy("Resources/clip-e.wav"), .copy("Resources/ATTRIBUTION.md"), .copy("Resources/LICENSE-CC-BY-4.0.txt")]),
+    .executableTarget(name: "VellaStreamingWorker", dependencies: ["MLXAudioSTT", "VellaWorkerSupport"]),
     // CPU-only unit tests: gate keys and persistence, admission, wire helpers, streaming tolerance. No kernel runs.
-    .testTarget(name: "VellaWorkerTests", dependencies: ["VellaWorker", "VellaStreamingWorker", "MLXAudioSTT", "SmallMGEMM"])
+    .testTarget(name: "VellaWorkerTests", dependencies: ["VellaWorker", "VellaStreamingWorker", "VellaWorkerSupport", "MLXAudioSTT", "SmallMGEMM"])
 ], swiftLanguageModes: [.v5])

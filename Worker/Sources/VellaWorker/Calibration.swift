@@ -3,6 +3,7 @@ import CryptoKit
 import Darwin
 import MLX
 import Cmlx
+import VellaWorkerSupport
 
 private enum CalibrationFailure: Error {
     case message(String)
@@ -49,15 +50,7 @@ enum CalibrationCommand {
         defer { if loadingStarted { try? worker.release() } }
         func emit(_ event: String, _ payload: [String: Any]) throws {
             var object = payload; object["event"] = event
-            let bytes = try responseBytes(object)
-            try bytes.withUnsafeBytes { buffer in
-                var offset = 0
-                while offset < buffer.count {
-                    let count = Darwin.write(output, buffer.baseAddress!.advanced(by: offset), buffer.count-offset)
-                    guard count > 0 else { throw CocoaError(.fileWriteUnknown) }
-                    offset += count
-                }
-            }
+            guard writeAll(output, try responseBytes(object)) else { throw CocoaError(.fileWriteUnknown) }
         }
         do {
             guard arguments.count == 4 else { throw CalibrationFailure.message("Invalid calibration arguments") }

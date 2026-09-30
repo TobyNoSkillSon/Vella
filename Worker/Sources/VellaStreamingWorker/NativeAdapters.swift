@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXAudioSTT
+import VellaWorkerSupport
 
 final class NemotronNative: StreamingNative {
     var text = ""
@@ -28,7 +29,7 @@ final class NemotronNative: StreamingNative {
     /// ~10 min of 16-kHz audio (38 MB). A longer unbroken utterance can no longer be replayed; a runtime failure
     /// past that point ends the session with an error (as before the fallback existed).
     static let journalLimit = 16_000 * 600
-    private static let optimizedFault = ProcessInfo.processInfo.environment["VELLA_TEST_OPTIMIZED_FAULT"].flatMap { $0.isEmpty ? nil : $0 }
+    private static let optimizedFault = FaultHooks.optimized()
     private static var faultFired = false
 
     /// `gate` false loads stock only (the self-test child); true asks `FastPathGate` (child-process self-test,
