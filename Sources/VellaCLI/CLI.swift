@@ -4,8 +4,9 @@ import VellaCore
 let usage = """
     vella: transcribe audio files offline with the models loaded in Vella on this Mac.
 
-        vella transcribe FILE [--model ID] [--language CODE] [--json | --verbose-json | --srt | --vtt]
-            prints the transcript; --json/--verbose-json print OpenAI's JSON response, --srt/--vtt subtitles.
+        vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]
+            prints the transcript (--text, the default); --json/--verbose-json print OpenAI's JSON response, --srt/--vtt
+            subtitles.
             FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
             `vella models`; without it the current dictation model is used. Dictation always goes first.
         vella status                 one line: running, dictation model, loaded models, API address
@@ -106,18 +107,19 @@ struct VellaCLI {
 
     func transcribe(_ rest: [String]) async throws {
         let args = try Arguments(rest, values: ["--model", "--language"], flags: ["--json", "--verbose-json", "--srt", "--vtt", "--text"])
-        guard args.positional.count == 1 else { throw CLIError("vella transcribe FILE [--model ID] [--language CODE] [--json | --srt | --vtt]") }
+        guard args.positional.count == 1 else {
+            throw CLIError("vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]")
+        }
         let formats: [(String, String)] = [("--json", "json"), ("--verbose-json", "verbose_json"), ("--srt", "srt"), ("--vtt", "vtt"), ("--text", "text")]
         let chosen = formats.filter { args.flags.contains($0.0) }
-        guard chosen.count <= 1 else { throw CLIError("choose one of --json, --verbose-json, --srt, --vtt") }
+        guard chosen.count <= 1 else { throw CLIError("choose one of --text, --json, --verbose-json, --srt, --vtt") }
         let url = URL(
             fileURLWithPath: (args.positional[0] as NSString).expandingTildeInPath,
             relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         ).standardizedFileURL
         var isDirectory = ObjCBool(false)
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), !isDirectory.boolValue else {
-            throw CLIError("no such file: \(args.positional[0])")
-        }
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { throw CLIError("no such file: \(args.positional[0])") }
+        guard !isDirectory.boolValue else { throw CLIError("\(args.positional[0]) is a directory; give an audio file") }
         var body: [String: Any] = ["path": url.path, "response_format": chosen.first?.1 ?? "text"]
         if let model = args.values["--model"] { body["model"] = model }
         if let language = args.values["--language"] { body["language"] = language }
