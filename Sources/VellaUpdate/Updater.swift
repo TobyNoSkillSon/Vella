@@ -14,17 +14,15 @@ public struct UpdateError: LocalizedError, Equatable {
 /// directory, the same files scripts/install-release.sh downloads. Overrides (tests, local QA of a packaged release):
 ///   VELLA_UPDATE_API_URL      the "latest release" JSON
 ///   VELLA_RELEASE_BASE_URL    the directory holding Vella-X.Y.Z-arm64.zip and SHA256SUMS (as install-release.sh)
-///   VELLA_UPDATE_CA_CERT      a PEM certificate to trust as the only root (a local test server's CA)
 /// Both URLs must be HTTPS, or file:// for a release packaged on this Mac (scripts/package-release.sh), as
 /// install-release.sh allows.
 public struct UpdateSource: Sendable {
     public static let defaultAPI = URL(string: "https://api.github.com/repos/TobyNoSkillSon/Vella/releases/latest")!
     public var apiURL: URL
     public var baseURL: URL?
-    public var anchorDER: Data?
 
-    public init(apiURL: URL = defaultAPI, baseURL: URL? = nil, anchorDER: Data? = nil) {
-        self.apiURL = apiURL; self.baseURL = baseURL; self.anchorDER = anchorDER
+    public init(apiURL: URL = defaultAPI, baseURL: URL? = nil) {
+        self.apiURL = apiURL; self.baseURL = baseURL
     }
 
     public static func fromEnvironment(_ env: [String: String] = ProcessInfo.processInfo.environment) throws -> UpdateSource {
@@ -38,24 +36,12 @@ public struct UpdateSource: Sendable {
             guard let url = URL(string: base), allowed(url) else { throw UpdateError("Release base URL must use HTTPS") }
             source.baseURL = url
         }
-        if let path = env["VELLA_UPDATE_CA_CERT"], !path.isEmpty {
-            guard let pem = try? String(contentsOfFile: path, encoding: .utf8), let der = Self.der(fromPEM: pem) else {
-                throw UpdateError("VELLA_UPDATE_CA_CERT is not a PEM certificate: \(path)")
-            }
-            source.anchorDER = der
-        }
         return source
     }
 
     /// The download directory for a release: the override, else github.com/…/releases/download/v<version>.
     public func downloadBase(for release: ReleaseInfo) -> URL {
         baseURL ?? URL(string: "https://github.com/TobyNoSkillSon/Vella/releases/download/v\(release.version)")!
-    }
-
-    static func der(fromPEM pem: String) -> Data? {
-        let body = pem.components(separatedBy: "\n").filter { !$0.hasPrefix("-----") }.joined()
-        guard pem.contains("BEGIN CERTIFICATE"), let data = Data(base64Encoded: body, options: .ignoreUnknownCharacters), !data.isEmpty else { return nil }
-        return data
     }
 }
 
@@ -137,21 +123,6 @@ public final class UpdateClient: NSObject, URLSessionTaskDelegate, @unchecked Se
     public func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                            newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
         completionHandler(request.url?.scheme == "https" ? request : nil)
-    }
-
-    public func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge,
-                           completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-              let trust = challenge.protectionSpace.serverTrust, let der = source.anchorDER else {
-            completionHandler(.performDefaultHandling, nil); return
-        }
-        // Test servers: the configured CA is the only root; host name and validity are still checked.
-        guard let anchor = SecCertificateCreateWithData(nil, der as CFData) else { completionHandler(.cancelAuthenticationChallenge, nil); return }
-        SecTrustSetAnchorCertificates(trust, [anchor] as CFArray)
-        SecTrustSetAnchorCertificatesOnly(trust, true)
-        var error: CFError?
-        if SecTrustEvaluateWithError(trust, &error) { completionHandler(.useCredential, URLCredential(trust: trust)) }
-        else { completionHandler(.cancelAuthenticationChallenge, nil) }
     }
 }
 

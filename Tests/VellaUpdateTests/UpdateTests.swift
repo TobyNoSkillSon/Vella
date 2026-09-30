@@ -202,3 +202,14 @@ final class StateMachineTests: XCTestCase {
     }
 }
 
+/// Update traffic trusts only the system roots: no environment variable can replace them.
+final class UpdateTrustTests: XCTestCase {
+    func testCertificateOverrideIsIgnored() throws {
+        let source = try UpdateSource.fromEnvironment(["VELLA_UPDATE_CA_CERT": "/nonexistent/ca.pem"])
+        XCTAssertEqual(source.apiURL, UpdateSource.defaultAPI)
+        XCTAssertNil(source.baseURL)
+        // No server-trust challenge handler: URLSession's default evaluation (system roots, host name) applies.
+        XCTAssertFalse(UpdateClient.instancesRespond(to: #selector(URLSessionTaskDelegate.urlSession(_:task:didReceive:completionHandler:))))
+        XCTAssertTrue(UpdateClient.instancesRespond(to: #selector(URLSessionTaskDelegate.urlSession(_:task:willPerformHTTPRedirection:newRequest:completionHandler:))))
+    }
+}
