@@ -1,4 +1,5 @@
 import Foundation
+import VellaWire
 
 // Hover text of the Models table, kept here so tests can pin it. Family tooltip format
 // (VFamily/research/hover-contract-2026-09-28.md): short lines joined with "\n", no trailing periods on fragments.
@@ -202,7 +203,7 @@ public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: 
 
 /// A tier cell's tooltip: flavour; delta vs Standard 16 with its basis; for an offered tier that is worse than 16 on the
 /// recommendation gate, the loss in numbers.
-public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, tier: ModelTier, segment: SegmentKey) -> String {
+public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe) -> String {
     let t = benchmark?.tiers[tier]
     let cell = benchmarkCell(benchmark, ModelSelection(tier: tier, path: segment == .standard ? .standard : .optimized,
                                                        mode: segment == .optimized_fast ? .fast : .exact))

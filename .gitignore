@@ -1,4 +1,6 @@
 /.build/
+/Packages/*/.build/
+/Packages/*/.swiftpm/
 /dist/
 /.swiftpm/
 .DS_Store

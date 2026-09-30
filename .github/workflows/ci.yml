@@ -91,3 +91,7 @@ jobs:
         env:
           NSUnbufferedIO: "YES"
         run: scripts/test-worker.sh
+
+      - name: VellaWire tests (the vocabulary shared by the app and the helpers)
+        timeout-minutes: 10
+        run: xcrun swift test --package-path Packages/VellaWire

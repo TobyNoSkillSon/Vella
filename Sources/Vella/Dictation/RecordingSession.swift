@@ -316,7 +316,7 @@ final class SegmentedPCMWriter {
             if let seconds = ModelRegistry.descriptor(architecture: architecture)?.preferredSegmentSeconds { policy.preferredSeconds = seconds }
             return policy
         }
-        static let whisper = forArchitecture(WhisperDescriptor.descriptor.architecture)
+        static let whisper = forArchitecture(WhisperDescriptor.descriptor.architecture.rawValue)
         /// The policy for the model folder a recording is made for: its config.json, or a derived precision's source.
         static func forModel(_ path: String) -> Policy {
             guard !path.isEmpty else { return Policy() }

@@ -1,4 +1,5 @@
 import Foundation
+import VellaWire
 
 // `vella diagnose`: the report's data, its one-screen text, its JSON and the prefilled GitHub issue URL. Collection
 // (the running app's API, sysctl, the gate's verdict files) lives in the `vella` command; everything here is pure.
@@ -178,20 +179,7 @@ public enum Diagnose {
     public static func words(_ text: String) -> [Substring] { text.split(whereSeparator: { $0.isWhitespace }) }
 
     /// Word-level Levenshtein distance.
-    public static func wordEdits(_ a: String, _ b: String) -> Int {
-        let x = words(a), y = words(b)
-        if x.isEmpty { return y.count }
-        if y.isEmpty { return x.count }
-        var previous = Array(0...y.count), current = [Int](repeating: 0, count: y.count + 1)
-        for i in 1...x.count {
-            current[0] = i
-            for j in 1...y.count {
-                current[j] = min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (x[i - 1] == y[j - 1] ? 0 : 1))
-            }
-            swap(&previous, &current)
-        }
-        return previous[y.count]
-    }
+    public static func wordEdits(_ a: String, _ b: String) -> Int { WordEdits.distance(words(a), words(b)) }
 
     /// Clips of a run compared with the reference run for the model's precision and path (unchanged without one).
     public static func compare(_ clips: [Diagnosis.Clip], with run: DiagnoseReference.Run?) -> [Diagnosis.Clip] {

@@ -1,6 +1,7 @@
 import XCTest
 @testable import VellaCore
 import VellaTestSupport
+import VellaWire
 
 final class CatalogTests: XCTestCase {
     private var resources: URL { Repository.root.appendingPathComponent("Resources") }
@@ -276,7 +277,7 @@ final class CatalogTests: XCTestCase {
             XCTAssertFalse(bench.precisions.keys.contains("FP32"), "\(id): fp32 is never a tier")
             for (tier, t) in bench.tiers {
                 XCTAssertEqual(modelTier(ofPrecision: t.precision), tier, id)
-                XCTAssertEqual(Set(t.cells.keys), Set(SegmentKey.allCases), "\(id) \(tier.rawValue)")
+                XCTAssertEqual(Set(t.cells.keys), Set(Recipe.allCases), "\(id) \(tier.rawValue)")
                 if !t.presence.offered { XCTAssertFalse(t.presence.reasons.isEmpty, "\(id) \(tier.rawValue): absent says why") }
                 if t.gate.status == .fail && tier != .t16 {
                     XCTAssertTrue(t.gate.reasons.contains { $0.contains("uniform affine-\(tier.rawValue) g64 recipe") }, "\(id) \(tier.rawValue): the verdict names the uniform recipe")

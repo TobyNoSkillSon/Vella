@@ -1,4 +1,5 @@
 import Foundation
+import VellaWire
 
 // What a model runs: tier (precision kept) × path (Standard = stock MLX, Optimized = our kernels) × the Exact/Fast
 // switch. Shared by the Models table (VellaCore/Benchmarks cells), config.json (`selections`, written by a successful
@@ -20,9 +21,6 @@ public enum EnginePath: String, Codable, CaseIterable { case standard, optimized
 public enum OptimizedMode: String, Codable, CaseIterable { case exact, fast }
 
 /// A benchmarks.json cell key within a tier.
-public enum SegmentKey: String, Codable, CaseIterable {
-    case standard, optimized_exact, optimized_fast
-}
 
 public struct ModelSelection: Codable, Equatable, Hashable {
     public var tier: ModelTier
@@ -34,7 +32,7 @@ public struct ModelSelection: Codable, Equatable, Hashable {
     /// the table falls back to Standard 16 only where no Optimized 16 cell exists).
     public static let fallback = ModelSelection(tier: .t16, path: .optimized, mode: .fast)
     /// The benchmarks.json cell this selection runs.
-    public var segmentKey: SegmentKey {
+    public var segmentKey: Recipe {
         path == .standard ? .standard : mode == .exact ? .optimized_exact : .optimized_fast
     }
 }

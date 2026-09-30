@@ -3,6 +3,7 @@ import Foundation
 import AppKit
 @testable import Vella
 @testable import VellaCore
+import VellaWire
 
 @MainActor private final class RuntimeSpy: ModelRuntimeActions {
     var calls: [String] = []
@@ -117,7 +118,7 @@ final class ModelsTests: XCTestCase {
     @MainActor func testAbsentTierIsOmittedFromBothRows() throws {
         let file = decodeBenchmarks(Data(Self.tierFixture.utf8))
         let b = try XCTUnwrap(file.models["qwen3-asr-0.6b"])
-        for segment in SegmentKey.allCases {
+        for segment in Recipe.allCases {
             XCTAssertFalse(cellPresent(b, tier: .t4, segment: segment))
             XCTAssertTrue(cellPresent(b, tier: .t8, segment: segment), "worse than 16 on the gate, but offered")
         }

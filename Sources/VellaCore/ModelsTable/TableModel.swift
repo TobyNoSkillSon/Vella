@@ -1,4 +1,5 @@
 import Foundation
+import VellaWire
 
 // The Models table's UI-free logic: sort keys and rows, the shown precision, deltas, formatters, the engine label
 // and the hardware note.
@@ -184,7 +185,7 @@ public let slowSpeedFloor = 20.0
 /// `Optimized · M5 Max` on the optimized path (self-tested at load, no runtime fallback), else `MLX`.
 /// With the loaded selection: `Standard` on stock MLX as chosen, `Optimized Exact \u{00b7} M5 Max` / `Optimized Fast \u{00b7} M5 Max`.
 public func engineLabel(engine: String?, chip: String?, selection: ModelSelection? = nil) -> String {
-    guard engine == "optimized" else { return selection?.path == .standard ? "Standard" : "MLX" }
+    guard engine == Engine.optimized.rawValue else { return selection?.path == .standard ? "Standard" : "MLX" }
     let name = selection.map { $0.mode == .exact ? "Optimized Exact" : "Optimized Fast" } ?? "Optimized"
     guard let chip = displayChip(chip) else { return name }
     return name + " \u{00b7} " + chip
@@ -196,7 +197,7 @@ public func engineHelp(engine: String?, reason: String?, optimizations: [String:
     let active = (optimizations ?? [:]).filter(\.value).keys.sorted()
     let stock = (optimizations ?? [:]).filter { !$0.value }.keys.sorted()
     let why = reason.map { " Why: \($0)." } ?? ""
-    if engine == "optimized" {
+    if engine == Engine.optimized.rawValue {
         lines.append("Optimized path, self-tested at load on this Mac" + (displayChip(chip).map { " (\($0))" } ?? "") + ".")
         if !active.isEmpty { lines.append("Optimized: " + active.joined(separator: ", ") + (stock.isEmpty ? "." : "; stock: " + stock.joined(separator: ", ") + ".")) }
     } else if !active.isEmpty {

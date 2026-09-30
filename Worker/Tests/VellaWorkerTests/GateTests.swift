@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import MLXAudioSTT
 import SmallMGEMM
+import VellaWire
 
 extension WorkerTests {
     /// The fast-path gate on the CPU: key composition (golden hashes derived independently with Python's hashlib from
@@ -79,7 +80,7 @@ extension WorkerTests {
         }
 
         @Test func recipeParsing() {
-            func under(_ environment: [String: String?]) -> (FastPathGate.Recipe, Bool, String) {
+            func under(_ environment: [String: String?]) -> (Recipe, Bool, String) {
                 withEnvironment(Self.clean) { withEnvironment(environment) { (FastPathGate.recipe, FastPathGate.forcedStock, FastPathGate.forcedStockReason) } }
             }
             #expect(under([:]).0 == .optimized_fast); #expect(!under([:]).1)

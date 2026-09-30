@@ -1,4 +1,5 @@
 import Foundation
+import VellaWire
 
 // MARK: benchmarks.json schema 2: tiers × Standard / Optimized Exact / Optimized Fast (models-table round, 29 Sep)
 //
@@ -86,19 +87,19 @@ public struct TierBenchmark: Equatable {
     public var precision: String
     public var presence: TierPresence
     public var gate: SegmentGate
-    public var cells: [SegmentKey: BenchmarkCell]
+    public var cells: [Recipe: BenchmarkCell]
     public init(precision: String, presence: TierPresence = TierPresence(offered: true), gate: SegmentGate = SegmentGate(status: .pass),
-                cells: [SegmentKey: BenchmarkCell]) {
+                cells: [Recipe: BenchmarkCell]) {
         self.precision = precision; self.presence = presence; self.gate = gate; self.cells = cells
     }
-    public func cell(_ key: SegmentKey) -> BenchmarkCell? { cells[key] }
+    public func cell(_ key: Recipe) -> BenchmarkCell? { cells[key] }
 }
 
 /// THE presence rule of the Models table (one function, data-driven; ROUND file, family-wide): a cell shows when its
 /// tier's `presence.offered` is true and the file has that cell (its recipe exists). A tier that breaks against 16 is
 /// absent on both rows; absent cells are omitted, never greyed. A family the file does not describe at all (no tiers:
 /// an unmeasured build) shows every cell as pending.
-public func cellPresent(_ benchmark: FamilyBenchmark?, tier: ModelTier, segment: SegmentKey) -> Bool {
+public func cellPresent(_ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe) -> Bool {
     guard let benchmark, !benchmark.tiers.isEmpty else { return true }
     guard let t = benchmark.tiers[tier], t.presence.offered else { return false }
     return t.cells[segment] != nil
@@ -127,8 +128,8 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
         guard let value, JSONSerialization.isValidJSONObject(value), let data = try? JSONSerialization.data(withJSONObject: value) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
     }
-    var cells: [SegmentKey: BenchmarkCell] = [:]
-    for key in SegmentKey.allCases {
+    var cells: [Recipe: BenchmarkCell] = [:]
+    for key in Recipe.allCases {
         guard let c = object[key.rawValue] as? [String: Any], var result = decode(PrecisionResult.self, c) else { continue }
         let measured = decode(CellMeasured.self, c["measured"])
         result.suite = measured?.suite; result.audio_min = measured?.audio_min
@@ -147,7 +148,7 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
 func legacyPrecisions(_ tiers: [ModelTier: TierBenchmark]) -> [String: PrecisionResult] {
     var out: [String: PrecisionResult] = [:]
     for tier in tiers.values where tier.presence.offered {
-        let shipping = [SegmentKey.optimized_fast, .optimized_exact, .standard].compactMap { tier.cells[$0] }.first { !$0.isPending }
+        let shipping = [Recipe.optimized_fast, .optimized_exact, .standard].compactMap { tier.cells[$0] }.first { !$0.isPending }
         guard var r = shipping?.result else { continue }
         r.gate = GateResult(pass: tier.gate.status == .pass, reasons: tier.gate.reasons)
         if let s = tier.cells[.standard], !s.isPending {

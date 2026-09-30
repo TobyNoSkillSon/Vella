@@ -3,6 +3,7 @@ import AppKit
 import Combine
 import Foundation
 import VellaCore
+import VellaWire
 
 /// What the Models table asks the runtime to do. The app's runtime (Backend) implements it; without one, Load falls
 /// back to selecting the model for its mode (the pre-residency behaviour) and Unload is unavailable.
@@ -214,7 +215,7 @@ import VellaCore
     }
     /// Tiers a row offers: the catalog's options whose cell is present (`cellPresent`, the one presence rule).
     func tiers(_ f: ModelFamily, _ path: EnginePath) -> [ModelTier] {
-        let segment: SegmentKey = path == .standard ? .standard : .optimized_exact
+        let segment: Recipe = path == .standard ? .standard : .optimized_exact
         return ModelTier.allCases.filter { tier in
             guard let l = precisionLabel(f, tier: tier), options(f).contains(l) else { return false }
             return cellPresent(benchmark(f), tier: tier, segment: segment)
@@ -225,7 +226,7 @@ import VellaCore
     /// (greyed switch) either recipe counts. A model without any Optimized recipe offers its Standard tiers.
     func precisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] {
         guard hasOptimizedPath(f) else { return tiers(f, .standard) }
-        let keys: [SegmentKey] = !switchAvailable(f) ? [.optimized_exact, .optimized_fast] : mode == .exact ? [.optimized_exact] : [.optimized_fast]
+        let keys: [Recipe] = !switchAvailable(f) ? [.optimized_exact, .optimized_fast] : mode == .exact ? [.optimized_exact] : [.optimized_fast]
         return offeredTiers(f).filter { tier in keys.contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
     }
     /// A cell has numbers (family rule, 29 Sep: a cell or switch position without a measurement is unavailable, never a
@@ -245,7 +246,7 @@ import VellaCore
     func precisions(_ f: ModelFamily) -> [ModelTier] { precisions(f, currentSelection(f).mode) }
     /// The model has an Optimized row (and so the Exact/Fast switch); every shipped Vella model does.
     func hasOptimizedPath(_ f: ModelFamily) -> Bool {
-        offeredTiers(f).contains { tier in [SegmentKey.optimized_exact, .optimized_fast].contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
+        offeredTiers(f).contains { tier in [Recipe.optimized_exact, .optimized_fast].contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
     }
     private func offeredTiers(_ f: ModelFamily) -> [ModelTier] {
         ModelTier.allCases.filter { precisionLabel(f, tier: $0).map(options(f).contains) ?? false }
@@ -266,7 +267,7 @@ import VellaCore
         if let s = loaded.selection { return s }
         let tier = modelTier(ofPrecision: loaded.precision) ?? .t16
         let stored = config?.selections[f.id]
-        let optimized = loaded.engine == nil || loaded.engine == "optimized"
+        let optimized = loaded.engine == nil || loaded.engine == Engine.optimized.rawValue
         if let stored, stored.tier == tier, optimized == (stored.path == .optimized) { return stored }
         return ModelSelection(tier: tier, path: optimized ? .optimized : .standard, mode: stored?.mode ?? (optimized ? .fast : .exact))
     }
@@ -366,7 +367,7 @@ import VellaCore
     }
     func tierHelp(_ f: ModelFamily, tier: ModelTier, path: EnginePath) -> String {
         let mode = currentSelection(f).mode
-        let segment: SegmentKey = path == .standard ? .standard : mode == .exact ? .optimized_exact : .optimized_fast
+        let segment: Recipe = path == .standard ? .standard : mode == .exact ? .optimized_exact : .optimized_fast
         return tierCellHelp(f, benchmark(f), tier: tier, segment: segment)
     }
     /// The deltas' base in a schema-1 file (no tiers): the recommended precision, else native.

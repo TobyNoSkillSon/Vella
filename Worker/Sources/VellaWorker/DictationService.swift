@@ -5,6 +5,7 @@ import Cmlx
 import MLXAudioSTT
 import SmallMGEMM
 import VellaWorkerSupport
+import VellaWire
 
 enum InjectedFault: Error { case load, optimized, stock }
 
@@ -207,7 +208,7 @@ final class Worker {
         var object: [String: Any] = [
             "worker": "dictation", "pid": Int(getpid()), "version": FastPathGate.version, "event": event,
             "model": path?.path ?? NSNull(), "architecture": architecture ?? NSNull(),
-            "engine": model == nil ? NSNull() : (stockReason == nil ? "optimized" : "mlx"),
+            "engine": model == nil ? NSNull() : (stockReason == nil ? Engine.optimized : Engine.mlx).rawValue,
             "engine_reason": model == nil ? NSNull() : (stockReason ?? NSNull()),
             "optimizations": optimizations, "load_s": loadSeconds ?? NSNull(), "memory": memory, "gpu": Self.gpu,
             "recipe": FastPathGate.recipe.rawValue,

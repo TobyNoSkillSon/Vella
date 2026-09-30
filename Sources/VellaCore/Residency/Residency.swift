@@ -1,5 +1,6 @@
 import Foundation
 import Darwin
+import VellaWire
 
 /// Why a model is loaded. Manual: the user clicked Load/Reload, or it is in the launch set. On demand: a dictation
 /// needed it. Each class has its own Keep Hot idle window; memory eviction takes on-demand models before manual ones.
@@ -40,7 +41,7 @@ public struct ModelRef: Codable, Hashable {
         self.diskBytes = diskBytes; self.memoryMB = memoryMB; self.precisionOptions = precisionOptions; self.selection = selection
     }
     /// The worker's `VELLA_RECIPE`: `standard`, `optimized_exact` or `optimized_fast`.
-    public var recipe: String { workerRecipe(selection) }
+    public var recipe: Recipe { workerRecipe(selection) }
     public var displayName: String { name ?? id }
     /// "Parakeet v3 at 4b", or the name alone when the precision is unknown.
     public var displayWithPrecision: String { precision.isEmpty ? displayName : "\(displayName) at \(precisionInProse(precision))" }
@@ -49,7 +50,7 @@ public struct ModelRef: Codable, Hashable {
 /// The recipe a worker runs for a selection (`VELLA_RECIPE`): Standard = stock MLX (the VELLA_FORCE_STOCK path);
 /// Optimized · Exact = only the components whose output equals stock's; Optimized · Fast = those plus the inexact
 /// components that passed the gate. Nil selection = Optimized · Fast (the behaviour before selections existed).
-public func workerRecipe(_ selection: ModelSelection?) -> String { (selection?.segmentKey ?? .optimized_fast).rawValue }
+public func workerRecipe(_ selection: ModelSelection?) -> Recipe { selection?.segmentKey ?? .optimized_fast }
 /// The selection a load runs when none is passed (an on-demand dictation, an API request, the first-dictation Get):
 /// the family's recorded selection (config.json `selections`) at the precision's tier; else Optimized · Fast, both for
 /// a family used before selections existed (what it ran) and for a model never loaded (family ruling, 29 Sep: fresh
@@ -68,7 +69,7 @@ public func recordedSelection(config: Configuration?, family: String, precision:
 /// What actually runs: the requested selection, except that a worker on stock MLX (`engine` "mlx": Standard asked, the
 /// self-test failed, or a runtime fallback) runs Standard whatever was asked. `engine` nil = not loaded (the request).
 public func effectiveSelection(_ requested: ModelSelection, engine: String?) -> ModelSelection {
-    guard engine == "mlx", requested.path == .optimized else { return requested }
+    guard engine == Engine.mlx.rawValue, requested.path == .optimized else { return requested }
     var running = requested; running.path = .standard; return running
 }
 /// `Standard`, `Optimized Exact`, `Optimized Fast`.
@@ -85,7 +86,7 @@ public func selectionObject(_ selection: ModelSelection) -> [String: Any] {
 }
 
 /// Environment variable the app sets for every worker it launches.
-public let workerRecipeVariable = "VELLA_RECIPE"
+
 
 /// Residency and memory settings, saved in config.json and applied to the running workers.
 public struct ResidencySettings: Codable, Equatable {

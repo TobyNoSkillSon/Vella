@@ -72,7 +72,7 @@ final class RecipeRuntimeTests: XCTestCase {
         try await waitUntil { runtime.status.models["alpha"] == nil }
         let ref = runtime.resolve(source.path, mode: .dictation)
         XCTAssertEqual(ref.selection, exact)
-        XCTAssertEqual(ref.recipe, "optimized_exact")
+        XCTAssertEqual(ref.recipe, .optimized_exact)
     }
 
     @MainActor private func selections(_ runtime: Runtime) throws -> [String: ModelSelection] {
@@ -92,7 +92,7 @@ final class RecipeRuntimeTests: XCTestCase {
         XCTAssertEqual(defaultSelection(recorded: nil, precision: "8b"), fast, "used before selections: what it ran")
         XCTAssertEqual(defaultSelection(recorded: ModelSelection(tier: .t16, path: .optimized, mode: .exact), precision: "8b"),
                        ModelSelection(tier: .t8, path: .optimized, mode: .exact), "the recorded path and switch at the loaded tier")
-        XCTAssertEqual(workerRecipe(nil), "optimized_fast")
+        XCTAssertEqual(workerRecipe(nil), .optimized_fast)
         XCTAssertEqual(effectiveSelection(ModelSelection(tier: .t16, path: .optimized, mode: .fast), engine: "mlx").segmentKey, .standard)
         XCTAssertEqual(effectiveSelection(ModelSelection(tier: .t16, path: .optimized, mode: .fast), engine: "optimized").segmentKey, .optimized_fast)
         XCTAssertEqual(recipeLabel(ModelSelection(tier: .t4, path: .optimized, mode: .exact)), "Optimized Exact")

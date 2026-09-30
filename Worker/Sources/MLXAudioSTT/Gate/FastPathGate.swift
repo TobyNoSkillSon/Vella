@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import Metal
 import MLX
+import VellaWire
 
 public enum FastPathGateError: Error { case invalid }
 
@@ -32,20 +33,7 @@ public enum FastPathGate {
     /// Tolerance self-test of inexact components: at most this many word edits against stock in total over the clips.
     public static let maxTolerantWordEdits = 1
     /// Word-level Levenshtein distance.
-    public static func wordEdits(_ a: [String], _ b: [String]) -> Int {
-        guard !a.isEmpty else { return b.count }
-        guard !b.isEmpty else { return a.count }
-        var row = Array(0...b.count)
-        for i in 1...a.count {
-            var previous = row[0]; row[0] = i
-            for j in 1...b.count {
-                let current = row[j]
-                row[j] = min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] == b[j - 1] ? 0 : 1))
-                previous = current
-            }
-        }
-        return row[b.count]
-    }
+    public static func wordEdits(_ a: [String], _ b: [String]) -> Int { WordEdits.distance(a, b) }
     public static func debug(_ line: String) {
         guard let path = ProcessInfo.processInfo.environment["VELLA_KERNEL_DEBUG_LOG"], path.hasPrefix("/") else { return }
         guard let handle = FileHandle(forWritingAtPath: path) else { return }
@@ -58,9 +46,8 @@ public enum FastPathGate {
     /// stock's (every inexact component off: `FastPathCapable.fastPathTolerantComponents`, Whisper's checkpoint-dtype
     /// encoder, Nemotron's fused layer); `optimized_fast` or unset = today's default (exact + gate-passing inexact).
     /// The two-stage self-test and the runtime stock fallback apply to every recipe.
-    public enum Recipe: String { case standard, optimized_exact, optimized_fast }
     public static var recipe: Recipe {
-        ProcessInfo.processInfo.environment["VELLA_RECIPE"].flatMap(Recipe.init(rawValue:)) ?? .optimized_fast
+        ProcessInfo.processInfo.environment[Recipe.variable].flatMap(Recipe.init(rawValue:)) ?? .optimized_fast
     }
     /// Optimized · Exact: inexact components stay off.
     public static var exactOnly: Bool { recipe == .optimized_exact }
@@ -180,22 +167,20 @@ public enum FastPathGate {
     }
 
     public static func statusURL(_ path: URL, revision: String) throws -> URL { storage().appendingPathComponent(try key(path, revision: revision) + ".json") }
-    public static func status(_ url: URL) -> String? { record(url)?["status"] }
+    /// The file's status as written (any value: an unknown one counts as a failed verdict, never as a pass).
+    public static func status(_ url: URL) -> String? { object(url)?["status"] }
     /// Tolerant components a persisted "fast" verdict leaves off, with why (`disabled.<component>` keys).
-    public static func disabledComponents(_ url: URL) -> [String: String] {
-        let prefix = "disabled."
-        return Dictionary(uniqueKeysWithValues: (record(url) ?? [:]).compactMap { key, value in
-            key.hasPrefix(prefix) ? (String(key.dropFirst(prefix.count)), value) : nil
-        })
-    }
-    private static func record(_ url: URL) -> [String: String]? {
+    public static func disabledComponents(_ url: URL) -> [String: String] { record(url)?.disabled ?? [:] }
+    /// The verdict file's object, when every value is a string (as the gate writes it).
+    private static func object(_ url: URL) -> [String: String]? {
         guard let bytes = try? Data(contentsOf: url), let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: String] else { return nil }
         return object
     }
+    private static func record(_ url: URL) -> GateRecord? { object(url).flatMap { GateRecord(json: $0) } }
     /// Consecutive inconclusive self-tests recorded for this key (0 when none).
     public static func inconclusiveCount(_ url: URL) -> Int {
-        guard let object = record(url), object["status"] == "inconclusive" else { return 0 }
-        return Int(object["count"] ?? "") ?? 0
+        guard let record = record(url), record.status == .inconclusive else { return 0 }
+        return record.count ?? 0
     }
     /// After this many consecutive inconclusive self-tests for one key, the key is persisted as stock.
     public static let inconclusiveLimit = 2
@@ -203,13 +188,11 @@ public enum FastPathGate {
     /// the key alone decides reuse.
     public static func persist(_ value: String, to url: URL, count: Int? = nil, model: URL? = nil, reason: String? = nil,
                                disabled: [String: String] = [:]) {
-        var object = ["status": value, "workerVersion": version, "gpuFamily": gpuFamily, "osBuild": osBuild,
-                      "date": ISO8601DateFormatter().string(from: Date())]
-        for (component, why) in disabled { object["disabled." + component] = why }
-        if let count { object["count"] = String(count) }
-        if let model { object["model"] = model.lastPathComponent }
-        if let reason { object["reason"] = reason }
-        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return }
+        guard let status = GateRecord.Status(rawValue: value) else { return }
+        let record = GateRecord(status: status, workerVersion: version, gpuFamily: gpuFamily, osBuild: osBuild,
+                                date: ISO8601DateFormatter().string(from: Date()), count: count, model: model?.lastPathComponent,
+                                reason: reason, disabled: disabled)
+        guard let data = try? JSONSerialization.data(withJSONObject: record.json) else { return }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: url, options: .atomic)
     }
