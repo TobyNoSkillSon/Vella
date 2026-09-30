@@ -31,9 +31,4 @@ enum LabFixtures {
         }
         return url
     }
-
-    /// Old per-run reference results no longer ship; skip tests of that path when none load.
-    @MainActor static func requireReferences(_ library: ModelLibrary) throws {
-        if library.references.isEmpty { throw XCTSkip("No bundled ReferenceResults; raw results live in lab/review/experiments/overlay/Resources/ReferenceResults.") }
-    }
 }

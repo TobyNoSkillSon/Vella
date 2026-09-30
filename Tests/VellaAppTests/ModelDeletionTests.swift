@@ -31,17 +31,15 @@ final class ModelDeletionTests: XCTestCase {
         controller.preview(family, precision)
         return (ModelsMenu(controller: controller), family)
     }
-    @MainActor func testDeleteKeepsReferencesAndOtherEntriesAndRevertsToInstall() throws {
+    @MainActor func testDeleteKeepsOtherEntriesAndRevertsToInstall() throws {
         let (library, id, folder) = try fixture()
         XCTAssertTrue(library.displayedModels.contains { $0.id == id }, "Installed nonrecommended models must remain manageable")
         var registry = library.installed
         registry["other"] = InstalledModel(path: "/external/untouched")
         try JSONEncoder().encode(registry).write(to: library.registryURL)
-        let references = library.references.count
         XCTAssertTrue(library.deleteModel(id, expectedPath: folder.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
         XCTAssertNil(library.installed[id]); XCTAssertNotNil(library.installed["other"])
-        XCTAssertEqual(library.references.count, references)
         XCTAssertNotNil(library.models.first { $0.id == id })
         let disk = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: library.registryURL))
         XCTAssertNil(disk[id]); XCTAssertNotNil(disk["other"])

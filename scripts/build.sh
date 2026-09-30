@@ -102,7 +102,7 @@ fi
 if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $VELLA_BUNDLE_ID" "$APP/Contents/Info.plist"
 fi
-cp Resources/models.json Resources/benchmark-policy.json Resources/AGENT_GUIDE.md Resources/SKILL.md Resources/diagnose-reference.json "$APP/Contents/Resources/"
+cp Resources/models.json Resources/AGENT_GUIDE.md Resources/SKILL.md Resources/diagnose-reference.json "$APP/Contents/Resources/"
 # models.json schema 2 covers both modes; older checkouts also had streaming-models.json.
 if [[ -f Resources/streaming-models.json ]]; then cp Resources/streaming-models.json "$APP/Contents/Resources/"; else rm -f "$APP/Contents/Resources/streaming-models.json"; fi
 # Measured numbers for the Models table (written by the lab benchmark harness).
@@ -116,6 +116,8 @@ cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 # Benchmark audio and raw results are not part of the source tree or the app.
 # Remove generated copies left by earlier installers, not any source or user recordings.
 rm -rf "$APP/Contents/Resources/Benchmarks" "$APP/Contents/Resources/ReferenceResults"
+# The v1 benchmark policy no longer ships (nothing reads it).
+rm -f "$APP/Contents/Resources/benchmark-policy.json"
 # In-place updates from Python-era builds must not keep their runtime files.
 rm -f "$APP/Contents/Resources/"*.py "$APP/Contents/Resources/setup-backend.sh" "$APP/Contents/Resources/runtime-requirements.txt"
 rm -rf "$APP/Contents/Resources/__pycache__"

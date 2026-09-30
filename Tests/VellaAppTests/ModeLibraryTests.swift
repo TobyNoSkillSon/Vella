@@ -1,5 +1,4 @@
 import XCTest
-import CryptoKit
 @testable import Vella
 @testable import VellaCore
 
@@ -34,8 +33,6 @@ final class ModeLibraryTests: XCTestCase {
         streaming.reload(); dictation.reload()
         XCTAssertEqual(dictation.selectedID, selection)
         XCTAssertEqual(streaming.selectedID, model.id)
-        XCTAssertTrue(streaming.references.values.allSatisfy { $0.recognitionMode == .streaming && $0.streamingQualified == true })
-        XCTAssertTrue(dictation.references.values.allSatisfy { ($0.recognitionMode ?? .dictation) == .dictation })
         XCTAssertFalse(streaming.supports("qwen3_asr"))
         XCTAssertFalse(dictation.supports("nemotron_asr"))
     }
@@ -53,43 +50,6 @@ final class ModeLibraryTests: XCTestCase {
         XCTAssertNil(disk["dictation"], "A stale library must not resurrect a deleted entry")
         XCTAssertNotNil(disk["stream"])
         XCTAssertNotNil(disk["second"])
-    }
-    @MainActor func testStreamingReferencesRejectBatchPilotMemoryAndStaleWorker() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-stream-results-\(UUID())")
-        roots.append(root)
-        let references = root.appendingPathComponent("ReferenceResults")
-        try FileManager.default.createDirectory(at: references, withIntermediateDirectories: true)
-        let source = ModelLibrary.resourceDirectory()
-        let labResults = try LabFixtures.require("Resources/ReferenceResults")
-        for file in ["models.json", "benchmark-policy.json"] {
-            try FileManager.default.copyItem(at: source.appendingPathComponent(file), to: root.appendingPathComponent(file))
-        }
-        let policy = try JSONSerialization.jsonObject(with: Data(contentsOf: source.appendingPathComponent("benchmark-policy.json"))) as! [String: Any]
-        let helper = root.appendingPathComponent("VellaStreamingWorker")
-        try Data("native fixture helper".utf8).write(to: helper)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
-        let workerHash = SHA256.hash(data: try Data(contentsOf: helper)).map { String(format: "%02x", $0) }.joined()
-        let sourceResults = try FileManager.default.contentsOfDirectory(at: labResults, includingPropertiesForKeys: nil)
-        let candidate = try XCTUnwrap(sourceResults.first { $0.lastPathComponent.hasPrefix("formatted-M5Max-") })
-        var record = try JSONSerialization.jsonObject(with: Data(contentsOf: candidate)) as! [String: Any]
-        record["modelID"] = "nemotron-3.5-asr-streaming-0.6b-8bit"; record["clips"] = []
-        record["suiteID"] = policy["suiteID"]; record["suiteHash"] = policy["suiteHash"]
-        record["repeats"] = 2; record["recognitionMode"] = "streaming"
-        record["streamingQualified"] = true; record["streamingWorkerSHA256"] = workerHash
-        record["complete"] = true; record["measurementKind"] = "timing"
-        let library = ModelLibrary(mode: .streaming, resources: root, registryURL: root.appendingPathComponent("registry.json"), streamingHelper: helper)
-        let path = references.appendingPathComponent("fixture.json")
-        func write(_ data: [String: Any]) throws {
-            try JSONSerialization.data(withJSONObject: data).write(to: path)
-            library.reload()
-        }
-        try write(record)
-        XCTAssertNotNil(library.references["nemotron-3.5-asr-streaming-0.6b-8bit"])
-        for (key, value) in [("recognitionMode", "dictation" as Any), ("complete", false), ("streamingQualified", false), ("measurementKind", "memory"), ("streamingWorkerSHA256", "stale")] {
-            var invalid = record; invalid[key] = value
-            try write(invalid)
-            XCTAssertNil(library.references["nemotron-3.5-asr-streaming-0.6b-8bit"], key)
-        }
     }
     @MainActor func testBothSavedSelectionsProtectFilesRegardlessOfMode() throws {
         let (_, streaming) = try libraries()

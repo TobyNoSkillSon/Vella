@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import Darwin
-import CryptoKit
 import VellaCore
 
 @MainActor final class ModelLibrary: ObservableObject {
@@ -13,7 +12,6 @@ import VellaCore
     }
     @Published var models: [ModelRecommendation] = []
     @Published var installed: [String: InstalledModel] = [:]
-    @Published var references: [String: BenchmarkResult] = [:]
     @Published var selectedID = "Qwen3-ASR-1.7B-bf16"
     @Published var message = "Choose a model. Compare it on the same audio."
     @Published var busy = false
@@ -40,7 +38,6 @@ import VellaCore
     private var calibrationLaunch: Task<Void, Never>?
     let resources: URL
     let registryURL: URL
-    private let streamingHelperHash: String?
     // Injectable filesystem operations keep deletion tests away from real models/Trash.
     var currentModelPath: () throws -> String = { try Backend().configuration(requiresModel: false).model }
     var protectedModelPaths: () throws -> [String] = {
@@ -64,15 +61,8 @@ import VellaCore
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &directory), directory.boolValue else { return nil }
         return folder.path // An unfinished download is manageable, but NOT installed.
     }
-    init(mode: RecognitionMode = .dictation, resources: URL? = nil, registryURL: URL? = nil, calibration: CalibrationStore? = nil, streamingHelper: URL? = nil) {
+    init(mode: RecognitionMode = .dictation, resources: URL? = nil, registryURL: URL? = nil, calibration: CalibrationStore? = nil) {
         self.mode = mode
-        // Signed bundle contents cannot change while this library is live.
-        // Hash the ~36 MB helper once, not on every menu/registry reload.
-        if mode == .streaming,
-           let helper = try? NativeHelper.executable("VellaStreamingWorker", override: streamingHelper),
-           let bytes = try? Data(contentsOf: helper) {
-            self.streamingHelperHash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
-        } else { self.streamingHelperHash = nil }
         if registryURL != nil { protectedModelPaths = { [] } }
         // Custom registries are an isolation boundary; callers inject their calibration runner.
         automaticallyCalibrates = mode == .dictation && (registryURL == nil || calibration != nil)
@@ -108,16 +98,6 @@ import VellaCore
         guard sysctlbyname("machdep.cpu.brand_string", &bytes, &size, nil, 0) == 0 else { return "Unknown processor" }
         return String(cString: bytes)
     }()
-    func referenceDescription(_ result: BenchmarkResult) -> String {
-        let matches = result.machine.caseInsensitiveCompare(Self.processor) == .orderedSame
-        let path = result.recognitionMode == .streaming ? "Native streaming input; speed is accelerated replay throughput, not microphone-to-text latency. " : "Batch inference. "
-        return path + "Measured on \(result.machine)\(matches ? " (matches your processor)" : " (reference; your processor is \(Self.processor))"). \(Int(result.audioSeconds)) seconds of audio, \(result.repeats) passes. Not measured on every user's individual Mac"
-    }
-    func formattingDescription(_ result: BenchmarkResult) -> String {
-        guard let f = result.formatting else { return "Formatting not measured" }
-        func percent(_ value: Double?) -> String { value.map { String(format: "%.1f%%", $0 * 100) } ?? "Not measured" }
-        return "Text = case- and punctuation-sensitive character errors. Punctuation F1: \(percent(f.punctuationF1)); casing agreement: \(percent(f.capitalizationAccuracy)), on correctly aligned words. Coverage: words \(percent(f.matchedWordCoverage)), boundaries \(percent(f.boundaryCoverage)), reference punctuation \(percent(f.punctuationCoverage)). Quote F1: \(percent(f.quotationF1)); only \(f.quotedReferenceClips) quote-bearing clips, exploratory. Clean book reading; editorial choices can differ. \(referenceDescription(result))"
-    }
     func reload() {
         let decoder = JSONDecoder()
         registryReadable = false
@@ -141,27 +121,6 @@ import VellaCore
                 activeModelPath = mode == .dictation ? config.model : config.streamingModel
             }
             if !models.contains(where: { $0.id == selectedID }) { selectedID = models.first?.id ?? "" }
-            references = [:]
-            // Old Python results are historical only: native streaming needs
-            // independent qualification against this exact bundled executable.
-            let streamHash = streamingHelperHash
-            let policyData = try Data(contentsOf: resources.appendingPathComponent("benchmark-policy.json"))
-            let policy = try JSONDecoder().decode(BenchmarkPolicy.self, from: policyData)
-            var candidates: [String: [BenchmarkResult]] = [:]
-            for folder in [resources.appendingPathComponent("ReferenceResults"), Backend.support.appendingPathComponent("ReferenceResults")] {
-                for url in (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? [] where url.pathExtension == "json" {
-                    if let data = try? Data(contentsOf: url), let result = try? decoder.decode(BenchmarkResult.self, from: data), result.suiteID == policy.suiteID, result.suiteHash == policy.suiteHash, result.repeats >= policy.minimumRepeats, policy.scorerSHA256 == nil || result.formatting?.scorerSHA256 == policy.scorerSHA256, policy.lexicalNormalizerSHA256 == nil || result.formatting?.lexicalNormalizerSHA256 == policy.lexicalNormalizerSHA256 {
-                        guard (result.recognitionMode ?? .dictation) == mode else { continue }
-                        if mode == .streaming {
-                            guard result.streamingQualified == true, result.complete == true,
-                                  result.measurementKind == "timing", let streamHash,
-                                  result.streamingWorkerSHA256 == streamHash else { continue }
-                        }
-                        candidates[result.modelID, default: []].append(result)
-                    }
-                }
-            }
-            references = candidates.compactMapValues { preferredBenchmark($0, processor: Self.processor) }
         } catch { message = error.localizedDescription }
     }
     // Merge only explicitly changed IDs into the latest shared registry. The other
@@ -492,12 +451,4 @@ import VellaCore
         downloadToken = nil; downloadTimeout?.cancel(); downloadTimeout = nil
         downloadClient?.cancel(); downloadTask?.cancel(); downloadTask = nil; downloadClient = nil
     }
-}
-
-private struct BenchmarkPolicy: Decodable {
-    let suiteID: String
-    let suiteHash: String
-    let minimumRepeats: Int
-    let scorerSHA256: String?
-    let lexicalNormalizerSHA256: String?
 }
