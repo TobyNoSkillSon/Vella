@@ -310,9 +310,13 @@ final class SegmentedPCMWriter {
         /// That merged request may exceed `maximumSeconds` by this much.
         var mergeSlackSeconds = 2.0
         var reserveBytes: Int64 = 256 * 1024 * 1024
-        /// Whisper was trained on 30 s windows and hallucinates on short, cut-up input: cut at a pause only after 20 s.
-        static let whisper: Policy = { var policy = Policy(); policy.preferredSeconds = 20; return policy }()
-        static func forArchitecture(_ architecture: String?) -> Policy { architecture == "whisper" ? .whisper : Policy() }
+        /// A model's own preference (ModelDescriptor): Whisper cuts at a pause only after 20 s.
+        static func forArchitecture(_ architecture: String?) -> Policy {
+            var policy = Policy()
+            if let seconds = ModelRegistry.descriptor(architecture: architecture)?.preferredSegmentSeconds { policy.preferredSeconds = seconds }
+            return policy
+        }
+        static let whisper = forArchitecture(WhisperDescriptor.descriptor.architecture)
         /// The policy for the model folder a recording is made for: its config.json, or a derived precision's source.
         static func forModel(_ path: String) -> Policy {
             guard !path.isEmpty else { return Policy() }

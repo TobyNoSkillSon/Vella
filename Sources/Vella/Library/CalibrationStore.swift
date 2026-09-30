@@ -108,7 +108,7 @@ import Darwin
             guard let config = try JSONSerialization.jsonObject(with: Data(contentsOf: model.appendingPathComponent("config.json"))) as? [String: Any],
                   config["auto_map"] == nil else { return nil }
             let architecture = checkpointArchitecture(config) ?? ""
-            guard ["whisper", "qwen3_asr", "parakeet"].contains(architecture) else { return nil }
+            guard ModelRegistry.descriptor(architecture: architecture)?.calibratable == true else { return nil }
             let files = try FileManager.default.contentsOfDirectory(at: model, includingPropertiesForKeys: nil).filter { !$0.lastPathComponent.hasPrefix(".") }.sorted { $0.path < $1.path }
             guard files.contains(where: { $0.pathExtension == "safetensors" }), files.count < 1024 else { return nil }
             if let all = FileManager.default.enumerator(at: model, includingPropertiesForKeys: nil) {

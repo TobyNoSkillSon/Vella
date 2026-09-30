@@ -8,7 +8,7 @@ import VellaCore
     /// One catalog (models.json v2) for both modes; each library keeps its mode's variants.
     let catalogName = "models.json"
     func supports(_ architecture: String) -> Bool {
-        mode == .streaming ? architecture == "nemotron_asr" : ["whisper", "qwen3_asr", "parakeet"].contains(architecture)
+        ModelRegistry.descriptor(architecture: architecture)?.mode == mode
     }
     @Published var models: [ModelRecommendation] = []
     @Published var installed: [String: InstalledModel] = [:]
