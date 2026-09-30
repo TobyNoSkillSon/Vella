@@ -241,17 +241,6 @@ final class GlobalShortcut {
     /// Current activation hint reflecting the configured binding (default ⌃⌘N).
     /// Updated by AppDelegate from ShortcutManager; never a stale chord.
     var shortcutHint = "⌃⌘N"
-    var shortcutChordKeyCode: UInt32 = 45
-    var shortcutChordModifiers: UInt32 = 4352
-    static func nsModifiers(fromCarbon carbon: UInt32) -> NSEvent.ModifierFlags {
-        var flags: NSEvent.ModifierFlags = []
-        if carbon & 4096 != 0 { flags.insert(.control) }
-        if carbon & 256 != 0 { flags.insert(.command) }
-        if carbon & 2048 != 0 { flags.insert(.option) }
-        if carbon & 512 != 0 { flags.insert(.shift) }
-        if carbon & 0x800000 != 0 { flags.insert(.function) }
-        return flags
-    }
     var busy: Bool { finishingCapture || phase == .preparing || phase == .transcribing }
     var title: String {
         switch phase {
@@ -753,9 +742,7 @@ final class GlobalShortcut {
             // Explicit roaming mode: the OS routes text to current keyboard focus.
             // Delayed words may cross fields; the user controls speech/navigation.
             return AXIsProcessTrusted()
-        }, send: LiveInsertion.nativeSend, monitorUserInput: false)
-        insertion.ignoredChordKeyCode = UInt16(shortcutChordKeyCode)
-        insertion.ignoredChordModifiers = Self.nsModifiers(fromCarbon: shortcutChordModifiers)
+        }, send: LiveInsertion.nativeSend)
         insertion.onBlocked = { [weak self] reason in
             guard let self, self.phase == .recording else { return }
             self.message = "Live insertion paused: \(reason) Microphone capture continues."

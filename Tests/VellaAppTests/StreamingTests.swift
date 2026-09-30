@@ -69,7 +69,7 @@ final class StreamingTests: XCTestCase {
     }
     @MainActor func testRoamingSendsPendingWordsToNewFocusWithoutReplayingEarlierText() async throws {
         var current = "first", fields = ["first": "", "second": ""]
-        let insertion = LiveInsertion(targetIsCurrent: { true }, send: { fields[current, default: ""] += $0 }, monitorUserInput: false)
+        let insertion = LiveInsertion(targetIsCurrent: { true }, send: { fields[current, default: ""] += $0 })
         defer { insertion.cancel() }
         insertion.offer(committed: "", partial: "hello")
         current = "second" // Even already queued words deliberately follow focus.
@@ -91,8 +91,9 @@ final class StreamingTests: XCTestCase {
         let backend = try worker(); defer { backend.shutdown() }
         var writes: [String] = []
         let insertion = LiveInsertion(targetIsCurrent: { true }, send: { writes.append($0) })
-        defer { insertion.cancel(); backend.onUpdate = nil }
-        backend.onUpdate = { insertion.offer(backend.text) }
+        defer { insertion.cancel(); backend.onEvent = nil }
+        // The app's wiring: each reply's new committed text and current partial.
+        backend.onEvent = { committed, partial, _ in insertion.offer(committed: committed, partial: partial) }
         try await backend.start(config: config().forRecording())
         try await backend.feed(Data(repeating: 0, count: 4))
         let deadline = ContinuousClock.now.advanced(by: .seconds(2))
@@ -100,8 +101,8 @@ final class StreamingTests: XCTestCase {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         XCTAssertEqual(writes.joined(), "hello", "Partial must be delivered while the microphone would still be open")
-        let final = try await backend.finish(expectedFrames: 1)
-        await insertion.finish(final)
+        _ = try await backend.finish(expectedFrames: 1)
+        await insertion.finishStream()
         XCTAssertEqual(writes.joined(), "hello world", "Finish sends only the suffix, not another full transcript")
     }
     @MainActor func testSuccessfulEmptyFinishAcceptsAudioWithoutInventingText() async throws {

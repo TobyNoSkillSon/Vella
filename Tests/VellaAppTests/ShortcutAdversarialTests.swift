@@ -11,9 +11,8 @@ import VellaCore
 ///
 /// Sections A–G guard persistence, matching, activation, permissions, sleep and the menu; Part II tests the shortcut
 /// engine, store and manager; Part III pins concrete native bugs that were fixed; Parts IV and V cover validation,
-/// rebinding and masks. `LiveInsertion.observeUserInput` is legacy (not the production blind path): the legacy tests
-/// below document the old helper only; production behaviour uses `EventTapShortcutRegistrar` statics +
-/// `ShortcutEngine` + `ShortcutManager`.
+/// rebinding and masks. Production behaviour uses `EventTapShortcutRegistrar` statics + `ShortcutEngine` +
+/// `ShortcutManager`.
 final class ShortcutAdversarialTests: XCTestCase {
 
     // MARK: - Fixtures (synthetic only)
@@ -162,22 +161,6 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertTrue(EventTapShortcutRegistrar.flagsContain(.maskAlternate, key: .option))
         XCTAssertTrue(EventTapShortcutRegistrar.flagsContainOnly(.maskAlternate, key: .option))
         XCTAssertFalse(EventTapShortcutRegistrar.flagsContainOnly([.maskAlternate, .maskCommand], key: .option), "Composed ⌥⌘ must not fire solo ⌥ (production)")
-        // Legacy helper below is not production (blind Streaming uses no monitor).
-        let idle = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        idle.observeUserInput(type: .flagsChanged, modifiers: [])
-        idle.observeUserInput(type: .flagsChanged, modifiers: [.option])
-        XCTAssertNil(idle.blockedReason, "Legacy helper: flagsChanged alone never disturbed insertion")
-    }
-
-    @MainActor func testFlagsChangedNoiseAndMouseMovedIgnored_Legacy() {
-        // LEGACY: documents old `LiveInsertion.observeUserInput` (unused in production blind path).
-        // Production blind Streaming uses `monitorUserInput:false`; nothing below depends on this helper.
-        let controller = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        controller.observeUserInput(type: .flagsChanged)
-        controller.observeUserInput(type: .mouseMoved)
-        controller.observeUserInput(type: .keyUp, keyCode: 45, modifiers: [])
-        controller.observeUserInput(type: .keyUp, keyCode: 45, modifiers: [.command])
-        XCTAssertNil(controller.blockedReason)
     }
 
     @MainActor func testB7RepeatAndToggleIdempotenceAtModelLayer() throws {
@@ -200,43 +183,6 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertEqual(model.phase, .preparing, "Repeat during preparing must not flap")
         model.cancel()
         XCTAssertEqual(model.phase, .idle)
-    }
-
-    @MainActor func testB10SelfEventImmunity_Legacy() async throws {
-        // LEGACY helper check only (not production). Production self-immunity is via
-        // Carbon/event-tap source filtering + engine ownership, covered in Part III.
-        let controller = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        // Own LiveInsertion events (marker) are ignored.
-        controller.observeUserInput(type: .keyDown, marker: LiveInsertion.eventMarker)
-        // Retained ⌃⌘N keyDown is explicitly ignored by current policy.
-        controller.observeUserInput(type: .keyDown, keyCode: 45, modifiers: [.control, .command])
-        XCTAssertNil(controller.blockedReason, "Self events must not pause")
-        // Genuine user typing/mouse still pauses (control case).
-        let typing = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        typing.observeUserInput(type: .keyDown, keyCode: 0)
-        XCTAssertNotNil(typing.blockedReason)
-        let click = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        click.observeUserInput(type: .leftMouseDown)
-        XCTAssertNotNil(click.blockedReason)
-        // Native event provenance: marker present, keycode 0, unicode intact, no post.
-        let (down, up) = try LiveInsertion.nativeEvents(for: "Hi")
-        for event in [down, up] {
-            XCTAssertEqual(event.getIntegerValueField(.eventSourceUserData), LiveInsertion.eventMarker)
-            XCTAssertEqual(event.getIntegerValueField(.keyboardEventKeycode), 0)
-        }
-        XCTAssertEqual(down.type, .keyDown)
-        XCTAssertEqual(up.type, .keyUp)
-    }
-
-    @MainActor func testHardcodedNIgnoresSupersetRisk_Legacy() {
-        // LEGACY: locks old helper shape only. Do not request semantic changes here;
-        // production chord policy lives in `ShortcutValidation` + Carbon/event-tap routing.
-        let exact = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        exact.observeUserInput(type: .keyDown, keyCode: 45, modifiers: [.control, .command])
-        XCTAssertNil(exact.blockedReason, "Exact ⌃⌘N ignored (current baseline)")
-        let superset = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        superset.observeUserInput(type: .keyDown, keyCode: 45, modifiers: [.control, .command, .shift])
-        XCTAssertNotNil(superset.blockedReason, "Superset currently pauses — implementer must define the superset policy explicitly")
     }
 
     // MARK: - C. Activation state machine
@@ -1039,22 +985,6 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertFalse(manager.isCapturingKeys)
         // Local-only monitor gap filed: menu-close + other-app-active misses keys;
         // needs a transient native surface. No global monitor asserted here.
-    }
-
-    @MainActor func testJ4CustomIgnoredChordFollowsBinding() {
-        // Model per-recording ignored chord (new API) preserves legacy default, follows custom.
-        let insertion = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        XCTAssertEqual(insertion.ignoredChordKeyCode, 45)
-        XCTAssertEqual(insertion.ignoredChordModifiers, [.control, .command])
-        insertion.ignoredChordKeyCode = 8
-        insertion.ignoredChordModifiers = [.control, .command]
-        insertion.observeUserInput(type: .keyDown, keyCode: 8, modifiers: [.control, .command])
-        XCTAssertNil(insertion.blockedReason, "Custom chord ignored exactly")
-        let other = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        other.ignoredChordKeyCode = 8
-        other.ignoredChordModifiers = [.control, .command]
-        other.observeUserInput(type: .keyDown, keyCode: 45, modifiers: [.control, .command])
-        XCTAssertNil(other.blockedReason, "Legacy default still ignored when custom differs (compat)")
     }
 
     // MARK: - Part V. Strict masks, Shift-printable, physical duration, persistence identity

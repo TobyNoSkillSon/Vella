@@ -801,10 +801,6 @@ public final class ShortcutManager: ObservableObject {
         // Hints and Start equivalents always reflect the WORKING binding, never stale.
         let working = isUsingFallback ? (activeConfiguration ?? .default) : configuration
         modelRef?.shortcutHint = ShortcutLabels.triggerDisplay(working.trigger)
-        if case .keyChord(let code, let mods) = working.trigger {
-            modelRef?.shortcutChordKeyCode = code
-            modelRef?.shortcutChordModifiers = mods
-        }
     }
 
     /// Load the owned file-backed store (production launch path) and adopt it.

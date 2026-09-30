@@ -46,7 +46,7 @@ import VellaCore
             NSWorkspace.shared.frontmostApplication?.processIdentifier == pid &&
                 ((window.isKeyWindow && window.firstResponder === editor) ||
                  (secondWindow.isKeyWindow && secondWindow.firstResponder === second))
-        }, monitorUserInput: false)
+        })
         Task {
             var report: [String: Any] = ["passed": false, "nativeTrust": AXIsProcessTrusted()]
             var journal: StreamingJournal?

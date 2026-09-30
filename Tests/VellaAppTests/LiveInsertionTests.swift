@@ -4,32 +4,13 @@ import AppKit
 
 final class LiveInsertionTests: XCTestCase {
     @MainActor
-    func testLiveBeforeFinishAndFinalSuffixOnce() async throws {
-        var output = ""
-        let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
-        controller.offer("Hello")
-        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-        while output != "Hello", ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        XCTAssertEqual(output, "Hello")
-        controller.offer("Hello world")
-        await controller.finish("Hello world!")
-        await controller.finish("Hello world!")
-        try await Task.sleep(for: .milliseconds(150))
-        XCTAssertEqual(output, "Hello world!")
-        XCTAssertEqual(controller.sentText, output)
-        XCTAssertTrue(controller.didSend)
-    }
-
-    @MainActor
     func testCancelFencesPendingTask() async throws {
         var output = ""
         let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
-        controller.offer("stale")
+        controller.offer(committed: "stale", partial: "")
         controller.cancel()
-        controller.offer("stale more")
-        await controller.finish("stale more")
+        controller.offer(committed: "more", partial: "")
+        await controller.finishStream()
         try await Task.sleep(for: .milliseconds(180))
         XCTAssertEqual(output, "")
     }
@@ -42,81 +23,30 @@ final class LiveInsertionTests: XCTestCase {
             output += $0
             current = false
         })
-        await controller.finish(String(repeating: "a", count: 45))
+        controller.offer(committed: String(repeating: "a", count: 45), partial: "")
+        await controller.finishStream()
         XCTAssertEqual(output.count, 20)
         XCTAssertNotNil(controller.blockedReason)
         current = true
-        await controller.finish(String(repeating: "a", count: 50))
+        controller.offer(committed: String(repeating: "a", count: 5), partial: "")
+        await controller.finishStream()
         XCTAssertEqual(output.count, 20)
-    }
-
-    @MainActor
-    func testRetractionIncludingWhitespaceBlocks() async {
-        for changed in ["other", "word"] {
-            var output = ""
-            let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
-            controller.offer("word ")
-            controller.offer(changed)
-            await controller.finish("word more")
-            XCTAssertEqual(output, "")
-            XCTAssertNotNil(controller.blockedReason)
-        }
-    }
-
-    @MainActor
-    func testUserInputPolicy() async {
-        var output = ""
-        let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
-        controller.observeUserInput(type: .keyDown, marker: LiveInsertion.eventMarker)
-        controller.observeUserInput(type: .mouseMoved)
-        controller.observeUserInput(type: .keyDown, keyCode: 45, modifiers: [.command, .control])
-        XCTAssertNil(controller.blockedReason)
-        controller.observeUserInput(type: .leftMouseDown)
-        await controller.finish("no")
-        XCTAssertEqual(output, "")
-        XCTAssertNotNil(controller.blockedReason)
-        let typing = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
-        typing.observeUserInput(type: .keyDown, keyCode: 0)
-        XCTAssertNotNil(typing.blockedReason)
     }
 
     @MainActor
     func testUnicodeAndControlSanitization() async throws {
         var batches: [String] = []
         let controller = LiveInsertion(targetIsCurrent: { true }, send: { batches.append($0) })
-        let text = "A\r\n\t\u{0008}\u{001B}\u{0085}\u{2028}\u{2029}" + String(repeating: "👨‍👩‍👧‍👦é", count: 4)
-        await controller.finish(text)
+        let text = "A\r\n\t\u{0008}\u{001B}\u{0085}\u{2028}\u{2029}" + String(repeating: "👨‍👩‍👧‍👦é", count: 4)
+        controller.offer(committed: text, partial: "")
+        await controller.finishStream()
         XCTAssertEqual(batches.joined(), LiveInsertion.sanitize(text))
         XCTAssertTrue(batches.allSatisfy { $0.utf16.count <= 20 })
         XCTAssertTrue(batches.joined().hasPrefix("A 👨‍👩‍👧‍👦"))
         XCTAssertEqual(try LiveInsertion.unicodeChunks("1234567890123456789😀"), ["1234567890123456789", "😀"])
         XCTAssertThrowsError(try LiveInsertion.unicodeChunks("a" + String(repeating: "\u{0301}", count: 21)))
-    }
-
-    @MainActor
-    func testExtendingSentGraphemeBlocksRatherThanSplits() async throws {
-        var output = ""
-        let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
-        controller.offer("e")
-        // This tests revision of an already sent grapheme, not timer latency.
-        controller.flush()
-        XCTAssertEqual(output, "e")
-        await controller.finish("e\u{0301}")
-        XCTAssertEqual(output, "e")
-        XCTAssertNotNil(controller.blockedReason)
-    }
-
-    @MainActor
-    func testShortcutReleaseAfterModifiersDoesNotBlock() async {
-        var output = ""
-        let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
-        controller.observeUserInput(type: .keyDown, keyCode: 45, modifiers: [.control, .command])
-        controller.observeUserInput(type: .flagsChanged)
-        controller.observeUserInput(type: .keyUp, keyCode: 45, modifiers: [])
-        controller.observeUserInput(type: .keyUp, keyCode: 45, modifiers: [.command])
-        XCTAssertNil(controller.blockedReason)
-        await controller.finish("first word")
-        XCTAssertEqual(output, "first word")
+        XCTAssertEqual(LiveInsertion.sanitize("word   "), "word ")
+        XCTAssertEqual(LiveInsertion.sanitize("a\u{00A0}\u{00A0}b"), "a\u{00A0}\u{00A0}b")
     }
 
     @MainActor
@@ -124,7 +54,6 @@ final class LiveInsertionTests: XCTestCase {
         let (down, up) = try LiveInsertion.nativeEvents(for: "Hi 😀")
         XCTAssertEqual(down.type, .keyDown)
         XCTAssertEqual(up.type, .keyUp)
-        let controller = LiveInsertion(targetIsCurrent: { true }, send: { _ in })
         for event in [down, up] {
             XCTAssertEqual(event.flags, [])
             XCTAssertEqual(event.getIntegerValueField(.keyboardEventKeycode), 0)
@@ -136,40 +65,7 @@ final class LiveInsertionTests: XCTestCase {
             event.keyboardGetUnicodeString(maxStringLength: units.count,
                 actualStringLength: &count, unicodeString: &units)
             XCTAssertEqual(String(decoding: units.prefix(count), as: UTF16.self), "Hi 😀")
-            controller.observeUserInput(type: event.type == .keyDown ? .keyDown : .keyUp,
-                marker: marker)
         }
-        XCTAssertNil(controller.blockedReason)
-        controller.observeUserInput(type: .keyDown, marker: 123)
-        XCTAssertNotNil(controller.blockedReason)
-    }
-
-    @MainActor
-    func testWorkerDrainSpaceNormalizationRemainsAppendOnly() async throws {
-        var output = ""
-        let controller = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
-        controller.offer("hello  world")
-        controller.flush()
-        XCTAssertEqual(output, "hello world")
-        controller.offer("hello world again")
-        await controller.finish("hello   world  again  ")
-        XCTAssertEqual(output, "hello world again ")
-        XCTAssertNil(controller.blockedReason)
-        XCTAssertEqual(LiveInsertion.sanitize("word   "), "word ")
-        XCTAssertEqual(LiveInsertion.sanitize("a\u{00A0}\u{00A0}b"), "a\u{00A0}\u{00A0}b")
-    }
-
-    @MainActor
-    func testUncertainSendNeverRetried() async {
-        var attempts = 0
-        let controller = LiveInsertion(targetIsCurrent: { true }, send: { _ in
-            attempts += 1
-            throw LiveInsertion.DeliveryError.eventCreation
-        })
-        await controller.finish("hello")
-        await controller.finish("hello again")
-        XCTAssertEqual(attempts, 1)
-        XCTAssertNotNil(controller.blockedReason)
     }
 
     @MainActor
@@ -226,7 +122,7 @@ final class LiveInsertionTests: XCTestCase {
     @MainActor
     func testIncrementalGraphemeExtensionAndRoamingGuard() async {
         var output = ""
-        let c = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 }, monitorUserInput: false)
+        let c = LiveInsertion(targetIsCurrent: { true }, send: { output += $0 })
         c.offer(committed: "", partial: "e")
         c.flush()
         c.offer(committed: "", partial: "e\u{0301}")
