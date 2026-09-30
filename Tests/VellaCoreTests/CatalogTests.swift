@@ -1,8 +1,9 @@
 import XCTest
 @testable import VellaCore
+import VellaTestSupport
 
 final class CatalogTests: XCTestCase {
-    private var resources: URL { URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources") }
+    private var resources: URL { Repository.root.appendingPathComponent("Resources") }
     private func r(_ wer: Double?, j: Double? = nil, x: Double? = nil, format: Double? = nil) -> PrecisionResult { PrecisionResult(wer: wer, format: format, speed_x: x, j_per_min: j) }
     private func family(native: String = "BF16", _ labels: [String]) -> ModelFamily {
         ModelFamily(id: "f", name: "F", mode: .dictation, languages: ["en"], params: "1B", license: "mit", native: native,

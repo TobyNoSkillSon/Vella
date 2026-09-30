@@ -1,9 +1,10 @@
 import XCTest
+import VellaTestSupport
 
 /// The app must carry Vella's LICENSE and NOTICE and the licences of every linked package and adapted source
 /// (THIRD_PARTY_NOTICES.md, written by scripts/third-party-notices.sh), and build.sh must ship them.
 final class NoticesTests: XCTestCase {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    static let root = Repository.root
     func text(_ path: String) throws -> String { try String(contentsOf: Self.root.appendingPathComponent(path), encoding: .utf8) }
     /// Trailing whitespace is not content (the generator strips it).
     func normalized(_ s: String) -> String {

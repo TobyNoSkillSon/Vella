@@ -22,7 +22,7 @@ final class APIWiringTests: XCTestCase {
         XCTAssertTrue(condition(), "condition not reached within \(timeout) s")
     }
 
-    private var repo: URL { URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent() }
+    private var repo: URL { Repository.root }
 
     /// Support dir shaped like the 1.0.0 user's (26 Sep 2026): Parakeet v3 Ultra BF16 in the launch set and selected,
     /// Parakeet v3 4-bit downloaded, Qwen3 ASR 1.7B BF16 registered from an outside folder, an imported Whisper, and

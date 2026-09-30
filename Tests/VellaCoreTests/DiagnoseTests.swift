@@ -1,5 +1,6 @@
 import XCTest
 @testable import VellaCore
+import VellaTestSupport
 
 /// `vella diagnose`: the report text, JSON, comparison with the reference transcripts, privacy, and the issue URL.
 final class DiagnoseFormatTests: XCTestCase {
@@ -155,7 +156,7 @@ final class DiagnoseFormatTests: XCTestCase {
         """#.utf8)))
         XCTAssertEqual(lab.run(model: "parakeet-v3", precision: "8b", engine: "mlx")?.speed_x, 100.5)
         // The bundled file: schema 1, and every run carries all five clips.
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let url = Repository.root
             .appendingPathComponent("Resources/diagnose-reference.json")
         let bundled = try XCTUnwrap(DiagnoseReference.decode(try Data(contentsOf: url)))
         for (family, precisions) in bundled.models {
@@ -221,7 +222,7 @@ final class IssueURLTests: XCTestCase {
         XCTAssertEqual(q["version"], "1.0.0 (35)")
         XCTAssertEqual(q["diagnose"], Diagnose.text(d).joined(separator: "\n"))
         XCTAssertTrue(Diagnose.issueURL(d).hasPrefix("https://github.com/TobyNoSkillSon/Vella/issues/new?template=bug_report.yml&"))
-        let form = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let form = Repository.root
             .appendingPathComponent(".github/ISSUE_TEMPLATE/\(IssueURL.template)")
         guard let text = try? String(contentsOf: form, encoding: .utf8) else { throw XCTSkip("no bug form in this checkout") }
         for id in ["diagnose", "chip", "macos", "version"] { XCTAssertTrue(text.contains("id: \(id)\n"), "the form has field \(id)") }

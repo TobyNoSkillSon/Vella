@@ -11,7 +11,7 @@ import VellaTestSupport
 /// `VellaStreamingWorker` (e.g. `dist/Vella.app/Contents/MacOS`); otherwise the release build that scripts/build.sh
 /// leaves in Worker/.build is used, and the test skips when there is none. `VELLA_RECORD_WIRE=1` rewrites the fixtures.
 final class WireSnapshotTests: XCTestCase {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    static let root = Repository.root
     static let fixtures = root.appendingPathComponent("Tests/Fixtures/wire")
     static let id = "6f1c2a4e-8d3b-4c1a-9e7f-2b5d8c0a1e34"
     static let volatile = ["pid", "load_s", "footprint_mb", "mlx_active_mb", "mlx_cache_mb", "loadSeconds", "loadPeakMLXBytes",

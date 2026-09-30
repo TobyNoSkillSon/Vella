@@ -2,6 +2,7 @@ import XCTest
 import Foundation
 @testable import Vella
 @testable import VellaCore
+import VellaTestSupport
 
 /// The Models table's hover text in the family tooltip format (VFamily hover contract, "Tooltip text format"), on the
 /// shipped catalog and benchmarks. Every tooltip of every offered row, at every precision, unloaded and loaded, obeys
@@ -293,7 +294,7 @@ final class TableTooltipTests: XCTestCase {
 
     /// The table's source uses AppKit tooltips only: SwiftUI `.help` never shows inside NSMenu tracking.
     func testModelsTableUsesNoSwiftUIHelp() throws {
-        let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Sources/Vella/ModelsMenu.swift")
+        let source = Repository.root.appendingPathComponent("Sources/Vella/ModelsMenu.swift")
         let text = try String(contentsOf: source, encoding: .utf8)
         XCTAssertFalse(text.contains(".help("), "use .appKitTooltip on a framed non-interactive cell")
         XCTAssertGreaterThanOrEqual(text.components(separatedBy: ".appKitTooltip(").count - 1, 20)

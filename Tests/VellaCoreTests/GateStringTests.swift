@@ -1,11 +1,12 @@
 import XCTest
+import VellaTestSupport
 
 /// Golden gate strings. Every persisted fast-path verdict is keyed by the gate version, each model's fast-path
 /// revision and a few key tokens (FastPathGate.key). Moving or splitting worker files must never change one of them,
 /// or every Mac requalifies (or, worse, reuses a verdict for different code). The worker package needs MLX to build,
 /// so the literals are checked from source: each must appear exactly once anywhere under Worker/Sources.
 final class GateStringTests: XCTestCase {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    static let root = Repository.root
 
     func workerSources() throws -> [(URL, String)] {
         let sources = Self.root.appendingPathComponent("Worker/Sources")

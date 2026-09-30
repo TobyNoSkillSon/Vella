@@ -1,11 +1,12 @@
 import XCTest
 @testable import VellaCore
+import VellaTestSupport
 
 /// Every environment switch a worker reads must show up in status `test_hooks`, so a diagnostic run
 /// (a forced stock path, an F32 Qwen encoder, a profiler) can never look like the shipping defaults.
 /// The worker package needs MLX to build, so its switch lists are checked from source here.
 final class WorkerSwitchReportingTests: XCTestCase {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    static let root = Repository.root
     static let gate = "Worker/Sources/MLXAudioSTT/FastPathGate.swift"
 
     func source(_ path: String) throws -> String { try String(contentsOf: Self.root.appendingPathComponent(path), encoding: .utf8) }

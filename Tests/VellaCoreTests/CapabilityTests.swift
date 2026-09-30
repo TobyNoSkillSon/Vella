@@ -1,9 +1,10 @@
 import XCTest
 @testable import VellaCore
+import VellaTestSupport
 
 /// The Models table's Capabilities slots, derived from models.json only.
 final class CapabilityTests: XCTestCase {
-    private let resources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Resources")
+    private let resources = Repository.root.appendingPathComponent("Resources")
 
     func testSlotsOfTheShippedCatalogArePinned() throws {
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))

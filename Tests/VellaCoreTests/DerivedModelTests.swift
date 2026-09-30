@@ -1,8 +1,9 @@
 import XCTest
 @testable import VellaCore
+import VellaTestSupport
 
 final class DerivedModelTests: XCTestCase {
-    private var resources: URL { URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources") }
+    private var resources: URL { Repository.root.appendingPathComponent("Resources") }
     private func shipped() throws -> ModelCatalog { try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json"))) }
     private func published(_ id: String, _ bytes: Int64 = 1000) -> CatalogVariant {
         CatalogVariant(id: id, repository: "o/\(id)", revision: String(repeating: "a", count: 40), downloadBytes: bytes, architecture: "parakeet")

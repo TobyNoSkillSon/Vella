@@ -9,7 +9,7 @@ import VellaTestSupport
 /// the key sets and value types of `GET /status`, `GET /v1/models`, one model, the error envelope for 400/404/413/503/
 /// 507, and every `response_format`, plus the exact text formats on the fake worker. `VELLA_RECORD_API=1` rewrites it.
 final class APIContractTests: XCTestCase {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    static let root = Repository.root
     static let fixture = root.appendingPathComponent("Tests/Fixtures/api/contract.json")
     private var audio: URL!
     private var observed: [String: Any] = [:]

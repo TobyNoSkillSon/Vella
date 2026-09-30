@@ -96,7 +96,7 @@ final class APIClientTests: XCTestCase {
 
         let (sCode, skill, _) = try await vella(nil, ["skill"], support: empty)
         XCTAssertEqual(sCode, 0)
-        let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let source = Repository.root
             .appendingPathComponent("Resources/SKILL.md")
         XCTAssertEqual(skill, try String(contentsOf: source, encoding: .utf8) + "\n")
         XCTAssertTrue(skill.hasPrefix("---\nname: transcribe\n"))

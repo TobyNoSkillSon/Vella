@@ -1,8 +1,9 @@
 import XCTest
+import VellaTestSupport
 
 /// The public documents: community files, the Pages installer and benchmark site, and what they must not contain.
 final class DocsTests: XCTestCase {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    static let root = Repository.root
     func text(_ path: String) throws -> String { try String(contentsOf: Self.root.appendingPathComponent(path), encoding: .utf8) }
     func exists(_ path: String) -> Bool { FileManager.default.fileExists(atPath: Self.root.appendingPathComponent(path).path) }
     var version: String {

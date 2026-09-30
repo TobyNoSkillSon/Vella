@@ -1,12 +1,13 @@
 import XCTest
 @testable import VellaCore
+import VellaTestSupport
 
 /// The final family design's catalog and download rules (Toby, 29 Sep 2026; lab/notes/models-table-ROUND.md): tiers
 /// 16/8/4 only (fp32 never), 16 = the published 16-bit checkpoint or an fp32 source converted once at Get, 8 and 4
 /// derived locally with affine g64 from 16, never from a quantized source; the Get flow offers only present tiers.
 final class TierCatalogTests: XCTestCase {
     private var resources: URL {
-        URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources")
+        Repository.root.appendingPathComponent("Resources")
     }
     private func catalog() throws -> ModelCatalog { try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json"))) }
 

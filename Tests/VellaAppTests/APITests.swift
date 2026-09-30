@@ -456,7 +456,7 @@ final class APITests: XCTestCase {
         guard binary.range(of: Data("VELLA_MLX_DEVICE".utf8)) != nil else { XCTFail("this VellaWorker ignores VELLA_MLX_DEVICE; it would use the GPU"); return }
         let api = try await APIFixture(models: [], helper: URL(fileURLWithPath: helper), modelPaths: [model])
         defer { api.close() }
-        let speech = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let speech = Repository.root
             .appendingPathComponent("Resources/Calibration/speech.wav")
         let m4a = api.root.appendingPathComponent("speech.m4a")
         let convert = Process()

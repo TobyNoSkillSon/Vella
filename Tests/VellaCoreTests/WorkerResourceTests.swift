@@ -1,11 +1,12 @@
 import XCTest
+import VellaTestSupport
 
 /// SwiftPM's generated `Bundle.module` accessor looks beside the app bundle and in the build machine's `.build`
 /// directory and traps when neither exists. In a release built elsewhere (CI) every dictation self-test crashed, so
 /// every model went inconclusive and then stock. The workers must find their bundled resources explicitly.
 /// The worker package needs MLX to build, so this is checked from source.
 final class WorkerResourceTests: XCTestCase {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    static let root = Repository.root
 
     func testWorkersNeverUseTheGeneratedBundleAccessor() throws {
         let sources = Self.root.appendingPathComponent("Worker/Sources")

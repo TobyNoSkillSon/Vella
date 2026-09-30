@@ -1,13 +1,13 @@
 import XCTest
 @testable import VellaCLI
 @testable import VellaCore
+import VellaTestSupport
 
 /// Files that released versions wrote and later versions must still read (Tests/Fixtures/persisted): config.json of
 /// 0.8.x and 1.0.0, the gate's verdict files (read by `vella diagnose`), and worker-status.json (read by the app, the
 /// CLI and the installer's readiness wait).
 final class PersistedFormatTests: XCTestCase {
-    static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        .appendingPathComponent("Fixtures/persisted")
+    static let fixtures = Repository.root.appendingPathComponent("Tests/Fixtures/persisted")
     func fixture(_ name: String) throws -> Data { try Data(contentsOf: Self.fixtures.appendingPathComponent(name)) }
 
     func testConfigOf08DecodesWithDefaults() throws {
