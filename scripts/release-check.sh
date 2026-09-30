@@ -102,7 +102,7 @@ doc_links() {  # relative markdown links and image sources in the public docs po
 }
 
 package() {
-  local identity=-
+  local identity="${VELLA_SIGN_IDENTITY:--}"
   if [[ $SIGNED == 1 ]]; then
     security find-identity -p codesigning | grep -q "$VELLA_SIGNING_SHA1" \
       || { echo "Vella Release Signing ($VELLA_SIGNING_SHA1) is not in the keychain"; return 1; }
