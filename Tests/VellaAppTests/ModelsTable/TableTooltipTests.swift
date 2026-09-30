@@ -294,7 +294,7 @@ final class TableTooltipTests: XCTestCase {
 
     /// The table's source uses AppKit tooltips only: SwiftUI `.help` never shows inside NSMenu tracking.
     func testModelsTableUsesNoSwiftUIHelp() throws {
-        let source = Repository.root.appendingPathComponent("Sources/Vella/ModelsMenu.swift")
+        let source = Repository.root.appendingPathComponent("Sources/Vella/ModelsTable/ModelTable.swift")
         let text = try String(contentsOf: source, encoding: .utf8)
         XCTAssertFalse(text.contains(".help("), "use .appKitTooltip on a framed non-interactive cell")
         XCTAssertGreaterThanOrEqual(text.components(separatedBy: ".appKitTooltip(").count - 1, 20)

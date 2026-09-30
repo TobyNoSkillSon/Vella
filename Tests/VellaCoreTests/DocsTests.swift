@@ -39,7 +39,7 @@ final class DocsTests: XCTestCase {
     func testFundingMatchesTheSupportLink() throws {
         XCTAssertEqual(try text(".github/FUNDING.yml"), "github: [TobyNoSkillSon]\n")
         XCTAssertTrue(try text("README.md").contains("https://github.com/sponsors/TobyNoSkillSon"))
-        XCTAssertTrue(try text("Sources/Vella/UI.swift").contains("https://github.com/sponsors/TobyNoSkillSon"))
+        XCTAssertTrue(try text("Sources/Vella/App/AppDelegate.swift").contains("https://github.com/sponsors/TobyNoSkillSon"))
     }
 
     /// The Pages installer (the short curl URL) installs this version's prebuilt release with the repository installer's
