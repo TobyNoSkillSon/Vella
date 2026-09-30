@@ -105,13 +105,26 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [], "nothing left to clear")
     }
 
-    /// Without a readable registry nothing can be identified, so nothing is cleared.
-    @MainActor func testNothingIsClearedWithoutARegistry() throws {
+    /// With an unreadable (corrupt) registry nothing can be identified, so nothing is cleared.
+    @MainActor func testNothingIsClearedWithACorruptRegistry() throws {
         let (c, p) = try controller()
         try Data("not json".utf8).write(to: support.appendingPathComponent("models-installed.json"))
         c.dictation.reload()
         try JSONEncoder().encode(Configuration(model: p.plain)).write(to: configURL)
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
         XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, p.plain)
+    }
+
+    /// Without a registry file (a support folder from before v0.6.0, or one the user deleted) nothing can be identified,
+    /// so nothing is cleared: a catalog download stays selected instead of offering Get again.
+    @MainActor func testNothingIsClearedWithoutARegistryFile() throws {
+        let (c, p) = try controller()
+        try? FileManager.default.removeItem(at: support.appendingPathComponent("models-installed.json"))
+        c.dictation.reload()
+        XCTAssertTrue(c.dictation.registryReadable, "a missing registry reads as empty")
+        try JSONEncoder().encode(Configuration(model: p.plain, streamingModel: p.outside)).write(to: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        let after = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+        XCTAssertEqual(after.model, p.plain); XCTAssertEqual(after.streamingModel, p.outside)
     }
 }

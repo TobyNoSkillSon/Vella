@@ -129,11 +129,12 @@ import VellaWire
     /// Launch migration: a mode's model in config.json that is not a catalog precision on this Mac (a folder outside
     /// the catalog, or one whose registry entry the registry migration dropped) is cleared, so that mode's next
     /// session offers Get like a fresh install instead of loading a model Vella no longer supports. Files are never
-    /// touched. Needs a readable registry (otherwise nothing can be identified and nothing changes). Returns the
-    /// cleared paths.
+    /// touched. Needs an existing, readable registry: without one (missing or corrupt) nothing can be identified and
+    /// nothing changes. Returns the cleared paths.
     @discardableResult
     func clearSelectionsOutsideTheCatalog() -> [String] {
         guard !previewing, let configURL, dictation.registryReadable,
+            FileManager.default.fileExists(atPath: dictation.registryURL.path),
             let data = try? Data(contentsOf: configURL), var edited = try? JSONDecoder().decode(Configuration.self, from: data)
         else { return [] }
         var cleared: [String] = []
