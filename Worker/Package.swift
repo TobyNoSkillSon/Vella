@@ -14,5 +14,5 @@ let package = Package(name: "VellaWorker", platforms: [.macOS("26.0")], products
     .executableTarget(name: "VellaWorker", dependencies: ["MLXAudioSTT", "SmallMGEMM"], resources: [.copy("Resources/clip-a.wav"), .copy("Resources/clip-b.wav"), .copy("Resources/clip-c.wav"), .copy("Resources/clip-d.wav"), .copy("Resources/clip-e.wav"), .copy("Resources/ATTRIBUTION.md"), .copy("Resources/LICENSE-CC-BY-4.0.txt")]),
     .executableTarget(name: "VellaStreamingWorker", dependencies: ["MLXAudioSTT"]),
     // CPU-only unit tests: gate keys and persistence, admission, wire helpers, streaming tolerance. No kernel runs.
-    .testTarget(name: "VellaWorkerTests", dependencies: ["VellaWorker", "VellaStreamingWorker", "MLXAudioSTT"])
+    .testTarget(name: "VellaWorkerTests", dependencies: ["VellaWorker", "VellaStreamingWorker", "MLXAudioSTT", "SmallMGEMM"])
 ], swiftLanguageModes: [.v5])

@@ -178,7 +178,10 @@ public enum SmallMGEMM {
     /// Runs every supported (kernel, dtype, format, epilogue) class on fixed random inputs covering its M range and
     /// edge cases against stock MLX and returns the largest relative RMS per class (non-finite → ∞). Classes this GPU
     /// cannot run are absent. Class names: "<kernel>.<dtype>.<format>.<epilogue>", e.g. "tile.f16.dense.bias".
-    public static func selfTest() -> [String: Float] {
+    /// `including` limits the run to the classes a caller uses (default: all). An excluded class runs no kernel; the
+    /// random inputs are still drawn in the same order, so an included class sees exactly the inputs (and gives the
+    /// value) of a full run.
+    public static func selfTest(including: (String) -> Bool = { _ in true }) -> [String: Float] {
         var results: [String: Float] = [:]
         var seed: UInt64 = 0x5eed
         func random(_ shape: [Int], _ dtype: DType, scale: Float = 1) -> MLXArray {
@@ -194,7 +197,8 @@ public enum SmallMGEMM {
                 let x = random([m, k], dtype), w = random([n, k], dtype, scale: 0.05)
                 let b = random([n], dtype), r = random([m, n], dtype)
                 let product = MLX.matmul(x, w.transposed())
-                for (epilogueName, kind) in epilogues where supports(m: m, n: n, k: k, dtype: dtype, format: .dense, epilogue: kind) {
+                for (epilogueName, kind) in epilogues where supports(m: m, n: n, k: k, dtype: dtype, format: .dense, epilogue: kind)
+                    && including("tile.\(dtypeName).dense.\(epilogueName)") {
                     let epilogue: Epilogue, reference: MLXArray
                     switch kind {
                     case .bias: epilogue = .bias(b); reference = product + b
@@ -241,7 +245,8 @@ public enum SmallMGEMM {
                         ("biasResidual", .biasResidual(b, r), { pw + b + r }),
                         ("siluGate", .siluGate(up: uw), { silu(pw) * pu })]
                     for (epilogueName, epilogue, reference) in cases
-                    where supports(m: m, n: n, k: k, dtype: dtype, format: ww.format, epilogue: epilogue.kind) {
+                    where supports(m: m, n: n, k: k, dtype: dtype, format: ww.format, epilogue: epilogue.kind)
+                        && including("gemv.\(dtypeName).\(formatName).\(epilogueName)") {
                         let name = "gemv.\(dtypeName).\(formatName).\(epilogueName)"
                         record(name, matmul(x, ww, epilogue: epilogue).map { relativeRMS($0, reference()) } ?? .infinity)
                     }

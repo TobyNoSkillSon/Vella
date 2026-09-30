@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import MLXAudioSTT
+import SmallMGEMM
 
 extension WorkerTests {
     /// The fast-path gate on the CPU: key composition (golden hashes derived independently with Python's hashlib from
@@ -179,6 +180,20 @@ extension WorkerTests {
                                   ("nemo.collections.asr.models.ctc_bpe_models.EncDecCTCModelBPE", false), ("", true)] {
                 #expect(throws: (any Error).self) { try ParakeetVariantResolver.requireTDT(target: target, hasTDTDurations: tdt) }
             }
+        }
+    }
+}
+
+extension WorkerTests {
+    /// SmallMGEMM's revisions (part of Parakeet's gate key) and self-test bounds. Which classes run is checked on the
+    /// GPU (Phase-3 D-8 check), since the test build has no Metal library.
+    @Suite struct SmallM {
+        @Test func revisionsAndBounds() {
+            #expect(SmallMGEMM.tileRevision == "tile-1")
+            #expect(SmallMGEMM.gemvRevision == "gemv-1")
+            #expect(SmallMGEMM.selfTestFailures([:]).isEmpty)
+            #expect(SmallMGEMM.selfTestFailures(["tile.bf16.dense.none": 0.03, "gemv.bf16.affine4.none": 0.029]) == ["tile.bf16.dense.none"])
+            #expect(SmallMGEMM.selfTestFailures(["tile.bf16.dense.none": .infinity]) == ["tile.bf16.dense.none"])
         }
     }
 }

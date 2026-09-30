@@ -39,9 +39,12 @@ enum FastParakeetNAX {
         return SmallMGEMM.matmul(x, .dense(w))
     }
 
-    /// The package's own unit self-test for the classes Parakeet uses (tile, BF16, dense, no epilogue); run once
-    /// per process inside the gate child. Empty = pass.
+    /// The package's own unit self-test for the only class Parakeet uses (tile, BF16, dense, no epilogue); run once
+    /// per process inside the gate child. Empty = pass. Only that class runs (the same inputs and value as in the full
+    /// `smallm-selftest`); the value goes to `VELLA_KERNEL_DEBUG_LOG`.
     static let libraryFailures: [String] = {
-        SmallMGEMM.selfTestFailures(SmallMGEMM.selfTest().filter { $0.key.hasPrefix("tile.bf16.dense.none") })
+        let results = SmallMGEMM.selfTest(including: { $0.hasPrefix("tile.bf16.dense.none") })
+        for (name, value) in results.sorted(by: { $0.key < $1.key }) { FastPathGate.debug("smallm \(name) \(value)") }
+        return SmallMGEMM.selfTestFailures(results)
     }()
 }
