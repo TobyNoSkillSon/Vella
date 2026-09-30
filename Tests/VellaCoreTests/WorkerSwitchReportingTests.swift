@@ -7,7 +7,7 @@ import VellaTestSupport
 /// The worker package needs MLX to build, so its switch lists are checked from source here.
 final class WorkerSwitchReportingTests: XCTestCase {
     static let root = Repository.root
-    static let gate = "Worker/Sources/MLXAudioSTT/FastPathGate.swift"
+    static let gate = "Worker/Sources/MLXAudioSTT/Gate/FastPathGate.swift"
 
     func source(_ path: String) throws -> String { try String(contentsOf: Self.root.appendingPathComponent(path), encoding: .utf8) }
 

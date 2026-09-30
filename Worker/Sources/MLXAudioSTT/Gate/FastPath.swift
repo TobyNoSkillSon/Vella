@@ -36,6 +36,3 @@ public extension FastPathCapable {
     /// One word per token: the strictest reading when a model does not say how its tokens form words.
     func qualificationWords(_ tokens: [Int]) -> [String] { tokens.map(String.init) }
 }
-
-/// ParakeetModel's members live in Parakeet/ (vo-parakeet); only the conformance is declared here.
-extension ParakeetModel: FastPathCapable {}
