@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changed
+
+- **Only catalog models load.** Vella loads the models in its catalog (downloaded or converted through the Models table); a model folder chosen some other way is no longer accepted. At launch, a dictation or streaming selection that points outside the catalog is cleared (and noted in the log).
+- The optimized path's load self-test checks only the kernel class Vella uses, so a load qualifies sooner (about 0.6 s instead of 0.7 s on an M5 Max). Keys, verdicts and engine labels are unchanged.
+- Removed development switches: `VELLA_UPDATE_CA_CERT`, `VELLA_QWEN_ENC_BF16`, `VELLA_QWEN_PREFILL_HEAD`, `VELLA_QWEN_HOST_LENGTHS`, `VELLA_QWEN_REFERENCE_LENGTHS`, `VELLA_WHISPER_ENC_F16`, `VELLA_WHISPER_FUSED`, `VELLA_PARAKEET_FP32_FRONTEND`, `VELLA_NEMO_GEMV_R`, `VELLA_NEMO_GEMV_S`, `VELLA_RENDER_SWITCH_WORDS`. Parakeet loads TDT models only. `VellaModelTool` is a stub that prints a notice (kept for 1.0.x updaters).
+- Code reorganised by feature, with one model interface in the recognition helpers, a shared wire package (`Packages/VellaWire`), Swift 6 language mode for the MLX-free libraries and tools, and SwiftLint and swift-format checks (`scripts/lint.sh`).
+
 ### Fixed
 
 - **Short or silent endings no longer become separate requests.** A dictation or file whose last segment had under 2 s of new audio, or no audio above the silence level, sent that piece to the model on its own: Whisper answered such pieces with "Thank you." and similar phrases, and Parakeet dropped the opening sentences of a clip cut 0.1 s before its end. That piece is now transcribed together with the segment before it. Saved recordings are written and cut exactly as before.
