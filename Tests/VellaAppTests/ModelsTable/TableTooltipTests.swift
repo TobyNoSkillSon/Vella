@@ -49,11 +49,13 @@ final class TableTooltipTests: XCTestCase {
     }
     private func lines(_ text: String) -> [String] { text.components(separatedBy: "\n") }
 
-    private static let figures: Set<String> = ["WER", "Format", "Speed", "J / min", "Memory"]
+    private static let figures: Set<String> = ["WER", "Format", "Speed", "J / min", "Peak RAM"]
     private static let provenance = #"^Measured by Vella · M5 Max · 20\d\d-\d\d-\d\d$"#
     /// Line 2 of a tier cell: the delta vs Standard 16 with its basis, the reference itself, or pending.
     private static let deltaPattern =
-        #"^(vs Standard 16: (\+[0-9.]+× speed|[0-9.]+× speed|same speed)( · (−|\+)[0-9]+ % energy| · same energy)?( · WER (−|\+)[0-9.]+| · same WER)? · M5 Max, \d+ Sep|Reference for the deltas · M5 Max, \d+ Sep|No Standard 16 measurement to compare with yet · M5 Max, \d+ Sep|Measure pending)$"#
+        #"^(vs Standard (bf16|fp16): (\+[0-9.]+× speed|[0-9.]+× speed|same speed)( · (−|\+)[0-9]+ % energy| · same energy)?( · WER (−|\+)[0-9.]+| · same WER)? · M5 Max, \d+ Sep|Reference for the deltas · M5 Max, \d+ Sep|No Standard (bf16|fp16) measurement to compare with yet · M5 Max, \d+ Sep|Measure pending)$"#
+    /// A greyed cell's one line: why it cannot be chosen.
+    private static let greyedPattern = #"^(Not measured yet|Not offered: [^\n]+|Not offered for this model|No Exact recipe at int[48]; Fast offers it)$"#
 
     /// Checks every cell of one row's tooltips against the format, and that each cell has one.
     @MainActor private func checkRow(_ table: ModelTable, _ family: ModelFamily, loaded: LoadedFamily?, state: String) {
@@ -77,7 +79,8 @@ final class TableTooltipTests: XCTestCase {
                 }
                 assertNoTrailingPeriod(text, label)
             case let c where Self.figures.contains(c):
-                if text == notMeasuredHelp { continue }
+                XCTAssertEqual(text == figuresPendingHelp, table.controller.benchmarks.figuresPending, "\(label): pending figures show none")
+                if text == notMeasuredHelp || text == figuresPendingHelp { continue }
                 // Two lines: what it is, then who measured it; WER adds the measured languages on a third.
                 XCTAssertEqual(l.count, c == "WER" && l.count == 3 ? 3 : 2, "\(label): what it is, then where it comes from")
                 if l.count == 3 { XCTAssertTrue(l[2].hasPrefix("Word error rate by language: "), "\(label): \(l[2])") }
@@ -93,38 +96,48 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertTrue(["Loaded", "On disk, not loaded", "Not downloaded"].contains(l[0]), "\(label): \(l[0])")
                 XCTAssertNotNil(
                     l.last?.range(of: "^(Asks, then downloads|Load it for|Free its memory|Unload the loaded precision)", options: .regularExpression), "\(label): \(l.last ?? "")")
-            case let c where c.hasPrefix("Precision ") && text == TierControl.notMeasuredHelp:
-                continue // an unmeasured cell: greyed, one line (family rule, 29 Sep)
+            case let c where c.hasPrefix("Precision ") && text.range(of: Self.greyedPattern, options: .regularExpression) != nil:
+                continue // a greyed cell: one line saying why (absent, no Exact recipe, not measured yet)
             case let c where c.hasPrefix("Precision "):
-                // Flavour; delta vs Standard 16 with its basis; for a worse precision its loss; while in use the interlock.
-                XCTAssertTrue((2...4).contains(l.count), label)
-                guard l.count >= 2 else { continue }
+                // Flavour; delta vs Standard bf16/fp16 with its basis; for a worse precision its loss; while in use the
+                // interlock. While the figures are pending, the flavour alone (and the interlock).
+                let pending = table.controller.benchmarks.figuresPending
+                XCTAssertTrue((pending ? 1...2 : 2...4).contains(l.count), "\(label): \(text)")
                 XCTAssertNotNil(
                     l[0].range(
                         of: #"^(bf16|fp16), (as published|converted once from the published fp32)$|^[48]-bit weights throughout \(affine-[48] g64\)$"#,
                         options: .regularExpression), "\(label): \(l[0])")
+                if pending {
+                    XCTAssertTrue(l.dropFirst().allSatisfy { $0 == TierControl.inUseHelp }, "\(label): no delta while pending")
+                    continue
+                }
+                guard l.count >= 2 else { continue }
                 XCTAssertNotNil(l[1].range(of: Self.deltaPattern, options: .regularExpression), "\(label): \(l[1])")
                 for extra in l.dropFirst(2) {
-                    XCTAssertTrue(extra.hasPrefix("Loss vs 16: ") || extra == TierControl.inUseHelp, "\(label): \(extra)")
+                    XCTAssertTrue(extra.range(of: "^Loss vs (bf16|fp16): ", options: .regularExpression) != nil || extra == TierControl.inUseHelp, "\(label): \(extra)")
                 }
                 assertNoTrailingPeriod(text, label)
+            case let c where c.hasPrefix("Path "):
+                XCTAssertEqual(l.count, 1, "\(label): one line naming the path")
+                XCTAssertTrue(TierControl.Row.allCases.map(\.help).contains(text), label)
             case "Exact/Fast":
-                XCTAssertEqual(l[0], ExactFastSwitch.help, label)
-                XCTAssertTrue(l.dropFirst().allSatisfy { [ExactFastSwitch.sameHelp, ExactFastSwitch.inUseHelp, ExactFastSwitch.exactNotMeasuredHelp].contains($0) }, label)
+                XCTAssertEqual(Array(l.prefix(2)), [ExactFastSwitch.rowHelp, ExactFastSwitch.help], label)
+                XCTAssertTrue(l.dropFirst(2).allSatisfy { [ExactFastSwitch.sameHelp, ExactFastSwitch.inUseHelp, ExactFastSwitch.exactNotMeasuredHelp].contains($0) }, label)
             case "Engine":
                 XCTAssertNotNil(loaded, label)
             default:
                 XCTFail("\(label): unexpected column")
             }
         }
-        let precisionColumns =
-            table.controller.precisions(family).map { "Precision Optimized \($0.rawValue)" }
-            + table.controller.tiers(family, .standard).map { "Precision Standard \($0.rawValue)" }
+        // All six cells, always (Toby, 30 Sep): each row's icon, then its three cells by the dtype that runs.
+        let precisionColumns = TierControl.Row.allCases.flatMap { row in
+            ["Path \(row.title)"] + ModelTier.allCases.map { "Precision \(row.title) \(tierDTypeLabel(family, $0))" }
+        }
         let capabilityColumns = Capability.allCases.filter { capabilitySlots(family)[$0] != nil }.map { "Capability \($0.rawValue)" }
         XCTAssertFalse(capabilityColumns.isEmpty, "every Vella model is multilingual")
         let expected =
             ["Model"] + (loaded?.engine != nil && table.controller.couplingNote(family) == nil ? ["Engine"] : []) + capabilityColumns + precisionColumns + ["Exact/Fast"]
-            + ["WER", "Format", "Speed", "J / min", "Memory", "Action"]
+            + ["WER", "Format", "Speed", "J / min", "Peak RAM", "Action"]
         XCTAssertEqual(columns, expected, "\(family.id) \(state)")
     }
 
@@ -136,35 +149,38 @@ final class TableTooltipTests: XCTestCase {
         let families = c.families(.dictation) + c.families(.streaming)
         XCTAssertEqual(families.count, 7)
         var checked = 0
-        for family in families {
-            for loaded in [
-                nil, LoadedFamily(precision: c.options(family)[0], engine: "optimized", optimizations: ["decoder": true], residency: "manual"),
-                LoadedFamily(precision: c.options(family).last!, engine: "mlx", engineReason: "no optimized path for this model", residency: "on_demand")
-            ] {
-                c.runtime = TableRuntime(loaded: loaded.map { [family.id: $0] } ?? [:], chip: "Apple M5 Max")
-                for mode in [OptimizedMode.exact, .fast] {
-                    for tier in c.precisions(family, mode) {
-                        c.discardPreviews()
-                        c.setMode(family, mode)
-                        c.select(family, tier: tier)
-                        checkRow(table, family, loaded: loaded, state: "\(tier.rawValue) \(mode)\(loaded.map { " loaded \($0.precision)" } ?? "")")
-                        checked += 1
+        for pending in [true, false] {
+            c.benchmarks.figuresPending = pending
+            for family in families {
+                for loaded in [
+                    nil, LoadedFamily(precision: c.options(family)[0], engine: "optimized", optimizations: ["decoder": true], residency: "manual"),
+                    LoadedFamily(precision: c.options(family).last!, engine: "mlx", engineReason: "no optimized path for this model", residency: "on_demand")
+                ] {
+                    c.runtime = TableRuntime(loaded: loaded.map { [family.id: $0] } ?? [:], chip: "Apple M5 Max")
+                    for mode in [OptimizedMode.exact, .fast] {
+                        for tier in c.precisions(family, mode) {
+                            c.discardPreviews()
+                            c.setMode(family, mode)
+                            c.select(family, tier: tier)
+                            checkRow(table, family, loaded: loaded, state: "\(tier.rawValue) \(mode)\(loaded.map { " loaded \($0.precision)" } ?? "")")
+                            checked += 1
+                        }
+                        for tier in c.tiers(family, .standard) {
+                            c.discardPreviews()
+                            c.setMode(family, mode)
+                            c.select(family, tier: tier, path: .standard)
+                            checkRow(table, family, loaded: loaded, state: "Standard \(tier.rawValue) \(mode)\(loaded.map { " loaded \($0.precision)" } ?? "")")
+                            checked += 1
+                        }
                     }
-                    for tier in c.tiers(family, .standard) {
-                        c.discardPreviews()
-                        c.setMode(family, mode)
-                        c.select(family, tier: tier, path: .standard)
-                        checkRow(table, family, loaded: loaded, state: "Standard \(tier.rawValue) \(mode)\(loaded.map { " loaded \($0.precision)" } ?? "")")
-                        checked += 1
-                    }
+                    c.discardPreviews()
                 }
-                c.discardPreviews()
             }
         }
-        XCTAssertGreaterThan(checked, 3 * 2 * families.count)
+        XCTAssertGreaterThan(checked, 2 * 3 * 2 * families.count)
         for r in c.references(.dictation) + c.references(.streaming) {
             let cells = table.tooltips(r)
-            XCTAssertEqual(cells.map(\.0), ["Model", "WER", "Format", "Speed", "J / min", "Memory"])
+            XCTAssertEqual(cells.map(\.0), ["Model", "WER", "Format", "Speed", "J / min", "Peak RAM"])
             for (column, text) in cells {
                 assertClean(text, "\(r.id) [\(column)]")
                 assertNoTrailingPeriod(text, "\(r.id) [\(column)]")
@@ -178,6 +194,7 @@ final class TableTooltipTests: XCTestCase {
     /// a deliberate change (review the diff).
     @MainActor func testTierCellTooltipsArePinned() throws {
         let c = try shippedController()
+        c.benchmarks.figuresPending = false // pinned as after the final measurement; the pending text is checked below
         let table = ModelTable(controller: c)
         var blocks: [String] = []
         for family in c.families(.dictation) + c.families(.streaming) {
@@ -186,7 +203,7 @@ final class TableTooltipTests: XCTestCase {
                 c.setMode(family, mode)
                 for (column, text) in table.tooltips(family)
                 where column.hasPrefix("Precision Optimized ")
-                    || (mode == .exact && (column.hasPrefix("Precision Standard ") || column == "Exact/Fast"))
+                    || (mode == .exact && (column.hasPrefix("Precision Standard ") || column.hasPrefix("Path ") || column == "Exact/Fast"))
                 {
                     blocks.append("[\(family.name) · \(column)\(column.hasPrefix("Precision Optimized ") ? " · \(mode == .exact ? "Exact" : "Fast")" : "")]\n\(text)\n")
                 }
@@ -197,6 +214,14 @@ final class TableTooltipTests: XCTestCase {
         let pin = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("TierTooltips.txt")
         if ProcessInfo.processInfo.environment["VELLA_PIN_UPDATE"] == "1" { try text.write(to: pin, atomically: true, encoding: .utf8) }
         XCTAssertEqual(text, try String(contentsOf: pin, encoding: .utf8))
+        // While the figures are pending, an available cell shows its flavour only; a greyed one its reason.
+        c.benchmarks.figuresPending = true
+        c.discardPreviews()
+        let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        let tips = Dictionary(table.tooltips(ultra).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
+        XCTAssertEqual(tips["Precision Optimized bf16"], "bf16, as published")
+        XCTAssertEqual(tips["Precision Standard bf16"], "bf16, as published")
+        XCTAssertEqual(tips["Precision Standard int8"], TierControl.notMeasuredHelp)
     }
 
     /// The Model tooltip of every offered row, as the catalog's structured fields assemble it.
@@ -272,6 +297,7 @@ final class TableTooltipTests: XCTestCase {
     /// One row's figures in full: what each is, then who measured it, where and when.
     @MainActor func testFigureTooltipsArePinned() throws {
         let c = try shippedController()
+        c.benchmarks.figuresPending = false // as after the final build's measurement
         let table = ModelTable(controller: c)
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
         c.select(ultra, tier: .t16); c.setMode(ultra, .fast) // Optimized 16 Fast (measured 28 Sep)
@@ -284,11 +310,11 @@ final class TableTooltipTests: XCTestCase {
         XCTAssertEqual(tips["Format"], "Character error rate on the v2 benchmark (240 min), with case and punctuation kept: lower is better\n" + by)
         XCTAssertEqual(tips["Speed"], "Speed in × real time on the v2 quick benchmark (22.5 min), timed after loading: higher is faster\n" + by)
         XCTAssertEqual(tips["J / min"], "Whole-chip joules per audio minute on the v2 quick benchmark (22.5 min), net of loaded idle power: lower is better\n" + by)
-        XCTAssertEqual(tips["Memory"], "Peak memory of Vella's model worker on the v2 quick benchmark (22.5 min), loading included: lower is better\n" + by)
+        XCTAssertEqual(tips["Peak RAM"], "Peak memory of Vella's model worker on the v2 quick benchmark (22.5 min), loading included: lower is better\n" + by)
         XCTAssertNil(tips["On disk"], "no On disk column: the Get pop-up and the action's tooltip give the download size")
         XCTAssertEqual(tips["Action"], "Not downloaded\nAsks, then downloads \(formatBytes(ultra.variants["BF16"]!.downloadBytes)) from Hugging Face; then loads it for dictation.")
         XCTAssertEqual(tips["Capability languages"], "25 European languages")
-        XCTAssertNil(tips["Capability cjk"], "an empty slot has no tooltip")
+        XCTAssertNil(tips["Capability streaming"], "an empty slot has no tooltip")
         c.select(ultra, tier: .t4)
         XCTAssertEqual(
             table.tooltips(ultra).first { $0.0 == "Action" }?.1,
@@ -305,6 +331,9 @@ final class TableTooltipTests: XCTestCase {
         let c = try shippedController()
         let table = ModelTable(controller: c)
         let azure = try XCTUnwrap(c.references(.dictation).first { $0.id == "azure-speech" })
+        // Scaled from the local models' measured WER: pending with them.
+        XCTAssertEqual(table.tooltips(azure).first { $0.0 == "WER" }?.1, figuresPendingHelp)
+        c.benchmarks.figuresPending = false
         let tips = Dictionary(table.tooltips(azure).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
         XCTAssertEqual(tips["Model"], "Microsoft Azure Speech\nMicrosoft · Proprietary cloud API\nCloud speech-to-text shown for comparison only; Vella never sends audio to it")
         XCTAssertEqual(

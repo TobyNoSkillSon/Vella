@@ -491,18 +491,27 @@ final class CatalogTests: XCTestCase {
         for stale in ["In use", "one row per variant", "Install/Use", "inline bit-width picker", "VellaModelTool", "TDT/RNNT"] {
             XCTAssertFalse(all.contains(stale), stale)
         }
-        for column in ["WER", "Format", "Speed", "J / min", "Memory"] { XCTAssertTrue(docs[1].contains(column), column) }
+        for column in ["WER", "Format", "Speed", "J / min", "Peak RAM"] { XCTAssertTrue(docs[1].contains(column), column) }
         // Table v2 with Toby's corrections (29 Sep, 21:xx): one line per model; Capabilities; Precision as two rows,
         // Optimized above Standard, every cell clickable; the Exact/Fast switch beside the Optimized row (up Fast, down
         // Exact, whole-area click, Exact coupled to 16); no On disk column; an always-visible one-word button.
         XCTAssertTrue(docs[1].contains("| Capabilities | Fixed icon slots") && docs[1].contains("Show only models with"), "USAGE Capabilities column and filter")
+        // Table pass v3 (Toby, 30 Sep): six equal cells named by the dtype, icons for the rows, greyed never hidden, the
+        // switch as tall as both rows, Peak RAM, one globe, figures pending until the final build is measured.
         XCTAssertTrue(
-            docs[1].contains("| Precision | Two rows of segments `16 8 4`, bits per weight: **Optimized**") && docs[1].contains("above **Standard**")
-                && docs[1].contains("| (switch) | Beside the Optimized row, a switch, up **Fast**, down **Exact**; a click anywhere on it flips it."),
+            docs[1].contains("| Precision | Two rows of three equal cells, named by the format that runs: **Optimized** (a bolt")
+                && docs[1].contains("above **Standard** (the MLX logo")
+                && docs[1].contains("| (switch) | Beside both rows and as tall as the pair, a switch, up **Fast**, down **Exact**; a click anywhere on it flips it."),
             "USAGE Precision rows and switch")
+        XCTAssertTrue(docs[0].contains("greyed in place") && docs[1].contains("greyed in place, never hidden") && docs[2].contains("greyed in place"), "greyed cells")
         XCTAssertTrue(
-            docs[0].contains("every cell is clickable and shows its own figures") && docs[1].contains("every cell is clickable and shows its own figures"), "both rows clickable")
-        XCTAssertTrue(docs[1].contains("`Exact: 16 only, was 8`") && docs[0].contains("flipping to Exact can move the precision to 16"), "Exact coupling documented")
+            docs[0].contains("Every other cell is clickable and shows its own figures") && docs[1].contains("Every other cell is clickable and shows its own figures"),
+            "both rows clickable")
+        XCTAssertTrue(docs[1].contains("`Exact: bf16 only, was int8`") && docs[0].contains("flipping to Exact can move the precision to 16"), "Exact coupling documented")
+        XCTAssertTrue(docs[1].contains("`figures_pending`") && docs[0].contains("the figure columns show `—`"), "pending figures documented")
+        for stale in ["字", "Chinese, Japanese and Korean)", "Europe globe", "| Memory | Loaded", "Two rows of segments `16 8 4`"] {
+            XCTAssertFalse(all.contains(stale), "retired table v2 wording: \(stale)")
+        }
         XCTAssertTrue(
             docs[1].contains("| (last) | The button: **Get**, **Load**, **Unload** or **Reload**") && docs[0].contains("The last column is the row's button"), "the action button")
         XCTAssertTrue(docs[0].contains("one line per model") && docs[2].contains("two **Precision** rows"), "one line per model, two Precision rows")

@@ -274,6 +274,8 @@ import VellaWire
     func select(_ f: ModelFamily, tier: ModelTier, path: EnginePath) {
         Self.log.notice("segment click \(f.id, privacy: .public) \(tier.rawValue, privacy: .public) \(path == .standard ? "standard" : "optimized", privacy: .public)")
         let s = ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode)
+        // A greyed cell (absent tier, recipe the switch position lacks) is never selected, whatever reaches here.
+        guard isPresent(f, s) || s == loadedSelection(f) else { Self.log.notice("click refused (not offered)"); return }
         guard measured(f, s) || s == loadedSelection(f) else { Self.log.notice("click refused (not measured)"); return }
         guard setPreview(f, s) else { return }
         couplingNotes[f.id] = nil
@@ -297,11 +299,12 @@ import VellaWire
         guard setPreview(f, next) else { return }
         couplingNotes[f.id] = moved
     }
-    /// The name's second line after a flip to Exact moved the precision: `Exact: 16 only, was 8`.
+    /// The name's second line after a flip to Exact moved the precision, in the segments' dtype names:
+    /// `Exact: bf16 only, was int8`.
     func couplingNote(_ f: ModelFamily) -> String? {
         guard let from = couplingNotes[f.id] else { return nil }
-        let offered = precisions(f, .exact).map(\.rawValue)
-        return "Exact: " + (offered.count == 1 ? "\(offered[0]) only" : offered.joined(separator: "/")) + ", was \(from.rawValue)"
+        let offered = precisions(f, .exact).map { tierDTypeLabel(f, $0) }
+        return "Exact: " + (offered.count == 1 ? "\(offered[0]) only" : offered.joined(separator: " and ")) + ", was \(tierDTypeLabel(f, from))"
     }
     @discardableResult private func setPreview(_ f: ModelFamily, _ s: ModelSelection) -> Bool {
         guard !inUse(f) else {
@@ -338,7 +341,7 @@ import VellaWire
     func tierHelp(_ f: ModelFamily, tier: ModelTier, path: EnginePath) -> String {
         let mode = currentSelection(f).mode
         let segment: Recipe = path == .standard ? .standard : mode == .exact ? .optimized_exact : .optimized_fast
-        return tierCellHelp(f, benchmark(f), tier: tier, segment: segment)
+        return tierCellHelp(f, benchmark(f), tier: tier, segment: segment, figuresPending: benchmarks.figuresPending)
     }
     /// The deltas' base in a schema-1 file (no tiers): the recommended precision, else native.
     func base(_ f: ModelFamily) -> String { recommended(f) ?? f.native }

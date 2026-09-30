@@ -43,10 +43,13 @@ public func tableSortKey(_ metric: TableMetric, family: ModelFamily, benchmark: 
 }
 
 /// Rows of one section sorted by a column's best value; ascending = best first. Rows with nothing measured stay last
-/// in either direction; ties keep catalog order.
+/// in either direction; ties keep catalog order. While the file's figures are pending (`figuresPending`) no row has a
+/// value: the order is the catalog's, so hidden figures never show through the order.
 public func sortedFamilies(_ families: [ModelFamily], by metric: TableMetric?, ascending: Bool, benchmarks: BenchmarkFile) -> [ModelFamily] {
     guard let metric else { return families.sorted { ascending ? $0.name < $1.name : $0.name > $1.name } }
-    let keyed = families.enumerated().map { ($0.offset, $0.element, tableSortKey(metric, family: $0.element, benchmark: benchmarks.models[$0.element.id])) }
+    let keyed = families.enumerated().map {
+        ($0.offset, $0.element, benchmarks.figuresPending ? nil : tableSortKey(metric, family: $0.element, benchmark: benchmarks.models[$0.element.id]))
+    }
     return keyed.sorted { a, b in
         switch (a.2, b.2) {
         case let (x?, y?): return x == y ? a.0 < b.0 : (ascending ? x < y : x > y)
@@ -87,6 +90,7 @@ public func sortedRows(
     let rows = families.map(ModelTableRow.family) + references.map(ModelTableRow.reference)
     guard let metric else { return rows.sorted { ascending ? $0.name < $1.name : $0.name > $1.name } }
     let keyed = rows.enumerated().map { index, row -> (Int, ModelTableRow, Double?) in
+        if benchmarks.figuresPending { return (index, row, nil) }
         switch row {
         case .family(let f): return (index, row, tableSortKey(metric, family: f, benchmark: benchmarks.models[f.id]))
         case .reference(let r): return (index, row, referenceSortKey(metric, r))

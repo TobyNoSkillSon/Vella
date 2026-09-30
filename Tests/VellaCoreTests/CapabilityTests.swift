@@ -13,13 +13,16 @@ final class CapabilityTests: XCTestCase {
             let s = capabilitySlots(catalog.family(id)!)
             return Capability.allCases.compactMap { s[$0].map { "\($0.symbol): \($0.help)" } }
         }
-        XCTAssertEqual(slots("parakeet-v3-ultra"), ["globe.europe.africa: 25 European languages"])
-        XCTAssertEqual(slots("parakeet-v3"), ["globe.europe.africa: 25 European languages"])
-        XCTAssertEqual(slots("qwen3-asr-1.7b"), ["globe: 30 languages", "character.textbox.zh: Chinese (with Cantonese), Japanese and Korean"])
-        XCTAssertEqual(slots("whisper-large-v3"), ["globe: 100 languages", "character.textbox.zh: Chinese (with Cantonese), Japanese and Korean"])
-        XCTAssertEqual(slots("nemotron-3.5-streaming-0.6b"), ["globe: 28 languages", "character.textbox.zh: Chinese, Japanese and Korean"])
-        XCTAssertEqual(filterableCapabilities(offered), [.cjk], "every model is multilingual; only CJK tells them apart")
-        XCTAssertEqual(offered.filter { hasCapabilities($0, [.cjk]) }.count, offered.count - 2)
+        // One globe for every multilingual model, its count in the text; no separate Chinese-Japanese-Korean icon
+        // (Toby, 30 Sep). Streaming only where the catalog says so (mode); timestamps and translation are not in it.
+        XCTAssertEqual(slots("parakeet-v3-ultra"), ["globe: 25 European languages"])
+        XCTAssertEqual(slots("parakeet-v3"), ["globe: 25 European languages"])
+        XCTAssertEqual(slots("qwen3-asr-1.7b"), ["globe: 30 languages"])
+        XCTAssertEqual(slots("whisper-large-v3"), ["globe: 100 languages"])
+        XCTAssertEqual(slots("nemotron-3.5-streaming-0.6b"), ["globe: 28 languages", "waveform: Streams: types the text while you speak"])
+        XCTAssertEqual(Capability.allCases, [.languages, .streaming])
+        XCTAssertEqual(filterableCapabilities(offered), [], "every model is multilingual, and Streaming is already a section: nothing to filter")
+        XCTAssertEqual(offered.filter { hasCapabilities($0, [.streaming]) }.map(\.id), ["nemotron-3.5-streaming-0.6b"])
         XCTAssertTrue(offered.allSatisfy { hasCapabilities($0, []) })
     }
 

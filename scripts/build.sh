@@ -108,6 +108,8 @@ if [[ -n "${VELLA_BUNDLE_ID:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $VELLA_BUNDLE_ID" "$APP/Contents/Info.plist"
 fi
 cp Resources/models.json Resources/AGENT_GUIDE.md Resources/SKILL.md Resources/diagnose-reference.json "$APP/Contents/Resources/"
+# The Models table's Standard-row icon (the MLX logo, MIT; its licence travels with it).
+cp Resources/mlx-logo.pdf Resources/LICENSE-mlx "$APP/Contents/Resources/"
 # models.json schema 2 covers both modes; older checkouts also had streaming-models.json.
 if [[ -f Resources/streaming-models.json ]]; then cp Resources/streaming-models.json "$APP/Contents/Resources/"; else rm -f "$APP/Contents/Resources/streaming-models.json"; fi
 # Measured numbers for the Models table (written by the lab benchmark harness).

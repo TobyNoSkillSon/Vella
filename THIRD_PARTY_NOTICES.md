@@ -6,9 +6,10 @@ This file is written by `scripts/third-party-notices.sh` from `Worker/Package.re
 
 1. [Swift packages in the recognition helpers](#swift-packages-in-the-recognition-helpers)
 2. [Code adapted into the recognition helpers](#code-adapted-into-the-recognition-helpers)
-3. [Audio in the app](#audio-in-the-app)
-4. [Model weights (downloaded, not included)](#model-weights-downloaded-not-included)
-5. [Apple](#apple)
+3. [Artwork in the app](#artwork-in-the-app)
+4. [Audio in the app](#audio-in-the-app)
+5. [Model weights (downloaded, not included)](#model-weights-downloaded-not-included)
+6. [Apple](#apple)
 
 ## Swift packages in the recognition helpers
 
@@ -2434,6 +2435,42 @@ SOFTWARE.
 - used for: Whisper decoding settings
 
 `Worker/LICENSE-mlx-whisper`
+
+````text
+MIT License
+
+Copyright © 2023 Apple Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+````
+
+## Artwork in the app
+
+MLX is Apple's machine-learning framework, which Vella's recognition helpers run on. Its logo marks the Models table's Standard row, the path that runs on plain MLX; no endorsement by Apple or the MLX project is implied.
+
+### MLX logo
+
+- source: https://github.com/ml-explore/mlx/blob/9c3d35571ac450a8ecf5c17b4d0e3fac52c08bc8/docs/logo/mlx_logo_dark.svg
+- licence: MIT
+- used for: the Standard row icon of the Models table (Standard is the plain MLX runtime): `Resources/mlx-logo.pdf`, the glyph outlines of that SVG written as a template image by `scripts/mlx-logo.swift` (its white and 57 % grey fills become 100 % and 57 % opacity)
+
+`Resources/LICENSE-mlx`
 
 ````text
 MIT License

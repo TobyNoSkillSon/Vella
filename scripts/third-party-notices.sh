@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Write THIRD_PARTY_NOTICES.md: the licence of every package in Worker/Package.resolved and of the code MLX vendors,
-# copied verbatim from the resolved checkouts, plus the code adapted into the helpers, the audio in the app and the
-# licences of the catalog's models (Resources/models.json).
+# copied verbatim from the resolved checkouts, plus the code adapted into the helpers, the artwork and audio in the app
+# and the licences of the catalog's models (Resources/models.json).
 #
 # Run after changing a dependency pin or the catalog, review the diff, commit. The checkouts come from
 # `swift package resolve --package-path Worker` (or any Worker build); VELLA_CHECKOUTS points elsewhere.
@@ -44,6 +44,10 @@ ADAPTED='
 mlx-audio-swift|https://github.com/Blaizzy/mlx-audio-swift at 01dec7c9bdce3088a6b6b7ab9f2e403458195efb|the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper), generation and output types, audio and DSP utilities; changed for Vella (local loading only, optimized paths)|MIT|Worker/LICENSE-mlx-audio-swift
 mlx-audio|https://github.com/Blaizzy/mlx-audio at v0.5.1|the mel filterbank of the Parakeet front end and the streaming DSP|MIT|Worker/LICENSE-mlx-audio-python
 mlx-whisper|https://github.com/ml-explore/mlx-examples (whisper)|Whisper decoding settings|MIT|Worker/LICENSE-mlx-whisper
+'
+# Artwork in the app: name | source | what it is in Vella | licence | files (relative to the repository)
+ARTWORK='
+MLX logo|https://github.com/ml-explore/mlx/blob/9c3d35571ac450a8ecf5c17b4d0e3fac52c08bc8/docs/logo/mlx_logo_dark.svg|the Standard row icon of the Models table (Standard is the plain MLX runtime): `Resources/mlx-logo.pdf`, the glyph outlines of that SVG written as a template image by `scripts/mlx-logo.swift` (its white and 57 % grey fills become 100 % and 57 % opacity)|MIT|Resources/LICENSE-mlx
 '
 # Catalog family id → upstream weights (the repository the MLX conversions were made from).
 UPSTREAM='
@@ -108,9 +112,10 @@ This file is written by `scripts/third-party-notices.sh` from `Worker/Package.re
 
 1. [Swift packages in the recognition helpers](#swift-packages-in-the-recognition-helpers)
 2. [Code adapted into the recognition helpers](#code-adapted-into-the-recognition-helpers)
-3. [Audio in the app](#audio-in-the-app)
-4. [Model weights (downloaded, not included)](#model-weights-downloaded-not-included)
-5. [Apple](#apple)
+3. [Artwork in the app](#artwork-in-the-app)
+4. [Audio in the app](#audio-in-the-app)
+5. [Model weights (downloaded, not included)](#model-weights-downloaded-not-included)
+6. [Apple](#apple)
 
 ## Swift packages in the recognition helpers
 
@@ -137,6 +142,18 @@ EOF
     printf '### %s\n\n- source: %s\n- licence: %s\n- used for: %s\n\n' "$name" "$origin" "$licence" "$use"
     files . "$list"
   done <<<"$ADAPTED"
+
+  cat <<'EOF'
+## Artwork in the app
+
+MLX is Apple's machine-learning framework, which Vella's recognition helpers run on. Its logo marks the Models table's Standard row, the path that runs on plain MLX; no endorsement by Apple or the MLX project is implied.
+
+EOF
+  while IFS='|' read -r name origin use licence list; do
+    [[ -n "$name" ]] || continue
+    printf '### %s\n\n- source: %s\n- licence: %s\n- used for: %s\n\n' "$name" "$origin" "$licence" "$use"
+    files . "$list"
+  done <<<"$ARTWORK"
 
   cat <<'EOF'
 ## Audio in the app

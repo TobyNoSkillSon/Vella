@@ -54,6 +54,17 @@ public func precisionFormatName(_ label: String) -> String {
     }
 }
 
+/// The dtype a tier runs, as the Models table's Precision segments name it (Toby, 30 Sep 02:30): the 16-bit checkpoint's
+/// own format (`bf16`, or `fp16` for Whisper; Parakeet v3's fp32 release runs as the bf16 it is converted to), `int8`
+/// and `int4` (affine, group 64, made on the Mac).
+public func tierDTypeLabel(_ family: ModelFamily, _ tier: ModelTier) -> String {
+    switch tier {
+    case .t16: return (precisionLabel(family, tier: .t16) ?? "BF16").lowercased()
+    case .t8: return "int8"
+    case .t4: return "int4"
+    }
+}
+
 /// Offered precisions for a family, highest first. With `tiers_offered` (the shipped catalog): the precision label of
 /// each offered tier (16 = the 16-bit variant, 8 = `8b`, 4 = `4b`); FP32 is never a tier. Without it (older catalogs,
 /// fixtures): every catalogued variant, never below 4 bits unless that is the model's native format.

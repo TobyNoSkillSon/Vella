@@ -179,14 +179,16 @@ public func cellBasis(_ cell: BenchmarkCell?) -> String? {
     return parts.isEmpty ? nil : parts.joined(separator: ", ")
 }
 
-/// Line 2 of a tier cell's tooltip: the change against Standard 16 (stock MLX) with its basis,
-/// `vs Standard 16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep`. Standard is not a table position: this line
-/// is where its numbers show. The Standard 16 cell itself is the reference.
-public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: Bool) -> String {
+/// Line 2 of a tier cell's tooltip: the change against Standard at 16 bits (stock MLX; `baseName` is its dtype, `bf16`
+/// or `fp16`) with its basis, `vs Standard bf16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep`. The Standard
+/// 16-bit cell itself is the reference.
+public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: Bool, baseName: String = "16") -> String {
     guard let cell, !cell.isPending else { return "Measure pending" }
     let basis = cellBasis(cell)
     if isBase { return (["Reference for the deltas", basis].compactMap { $0 }).joined(separator: " \u{00b7} ") }
-    guard let base, !base.isPending else { return (["No Standard 16 measurement to compare with yet", basis].compactMap { $0 }).joined(separator: " \u{00b7} ") }
+    guard let base, !base.isPending else {
+        return (["No Standard \(baseName) measurement to compare with yet", basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
+    }
     var parts: [String] = []
     let r = cell.result, b = base.result
     if let x = r.speed_x, let y = b.speed_x, y > 0 {
@@ -201,12 +203,13 @@ public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: 
         let d = x - y
         parts.append(abs(d) < 0.005 ? "same WER" : "WER " + (d < 0 ? "\u{2212}" : "+") + String(format: "%.2f", abs(d)))
     }
-    return "vs Standard 16: " + (parts + [basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
+    return "vs Standard \(baseName): " + (parts + [basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
 }
 
 /// A tier cell's tooltip: flavour; delta vs Standard 16 with its basis; for an offered tier that is worse than 16 on the
-/// recommendation gate, the loss in numbers.
-public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe) -> String {
+/// recommendation gate, the loss in numbers. With `figuresPending` (benchmarks.json `figures_pending`) the flavour only:
+/// no delta and no loss until the final build is measured.
+public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe, figuresPending: Bool = false) -> String {
     let t = benchmark?.tiers[tier]
     let cell = benchmarkCell(
         benchmark,
@@ -214,7 +217,27 @@ public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, t
             tier: tier, path: segment == .standard ? .standard : .optimized,
             mode: segment == .optimized_fast ? .fast : .exact))
     var lines = [tierFlavour(family, tier: tier, cell: cell)]
-    lines.append(tierDeltaLine(cell, base: benchmark?.tiers[.t16]?.cells[.standard], isBase: tier == .t16 && segment == .standard))
-    if let loss = t?.gate.loss, !loss.isEmpty, t?.gate.status != .pass { lines.append("Loss vs 16: " + loss.joined(separator: ", ")) }
+    if figuresPending { return lines[0] }
+    let baseName = tierDTypeLabel(family, .t16)
+    lines.append(tierDeltaLine(cell, base: benchmark?.tiers[.t16]?.cells[.standard], isBase: tier == .t16 && segment == .standard, baseName: baseName))
+    if let loss = t?.gate.loss, !loss.isEmpty, t?.gate.status != .pass { lines.append("Loss vs \(baseName): " + loss.joined(separator: ", ")) }
     return lines.joined(separator: "\n")
 }
+
+// MARK: Greyed cells and pending figures (table pass v3, 30 Sep)
+
+/// Every figure cell's tooltip while benchmarks.json says `figures_pending` (its figures predate the final build).
+public let figuresPendingHelp = "Figures pending the final measurement"
+
+/// A greyed Precision cell of a tier the presence gate removed (or the catalog does not offer), in one line: why.
+/// `Not offered: 1 clip empty or cut short where 16 had the words`.
+public func tierAbsentHelp(_ benchmark: FamilyBenchmark?, tier: ModelTier) -> String {
+    if let t = benchmark?.tiers[tier], !t.presence.offered, let reason = t.presence.reasons.first, !reason.isEmpty {
+        return "Not offered: " + reason
+    }
+    return "Not offered for this model"
+}
+/// A greyed Optimized cell under Exact whose tier has only a Fast recipe (family coupling rule).
+public func exactRecipeMissingHelp(_ dtype: String) -> String { "No Exact recipe at \(dtype); Fast offers it" }
+/// A greyed Optimized row of a model without an Optimized path.
+public let noOptimizedPathHelp = "No Optimized path for this model"

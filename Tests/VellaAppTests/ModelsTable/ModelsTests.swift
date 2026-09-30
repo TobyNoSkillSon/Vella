@@ -189,6 +189,7 @@ final class ModelsTests: XCTestCase {
     @MainActor func testRowOrderIsStableAcrossPrecisionSelections() throws {
         let c = try controller(benchmarks: String(contentsOf: ModelLibrary.resourceDirectory().appendingPathComponent("benchmarks.json"), encoding: .utf8))
         c.previewing = true
+        c.benchmarks.figuresPending = false // sorting by figures (while pending, every row keeps the catalog order)
         for mode in [RecognitionMode.dictation, .streaming] {
             for column in TableSortColumn.allCases {
                 for ascending in [true, false] {
@@ -225,9 +226,11 @@ final class ModelsTests: XCTestCase {
         XCTAssertFalse(tips.contains { $0.0 == "On disk" }, "no On disk column")
         XCTAssertTrue(ModelTable.werHeaderHelp.contains("Hugging Face Open ASR Leaderboard") && ModelTable.werHeaderHelp.contains("substituted, missed or added"))
         XCTAssertTrue(ModelTable.formatHeaderHelp.contains("No industry standard"))
-        XCTAssertEqual(ModelTable.speedHeaderHelp, "Real-time factor (RTFx): audio seconds per processing second. Higher is faster. Difference vs Standard 16 below each figure.")
+        XCTAssertEqual(
+            ModelTable.speedHeaderHelp,
+            "Real-time factor (RTFx): audio seconds per processing second. Higher is faster. Difference vs Standard bf16 (fp16 for Whisper) below each figure.")
         for help in [ModelTable.werHeaderHelp, ModelTable.formatHeaderHelp, ModelTable.energyHeaderHelp] {
-            XCTAssertTrue(help.hasSuffix(" Difference vs Standard 16 below each figure."), "the deltas' base, once per header: \(help)")
+            XCTAssertTrue(help.hasSuffix(" Difference vs Standard bf16 (fp16 for Whisper) below each figure."), "the deltas' base, once per header: \(help)")
         }
     }
 
@@ -237,22 +240,24 @@ final class ModelsTests: XCTestCase {
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
         c.setMode(qwen, .exact) // the default is Fast; start from Exact
         XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .standard), "bf16, as published\nReference for the deltas · M5 Max, 28 Sep")
-        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard 16: +1.5× speed · −25 % energy · same WER · M5 Max, 28 Sep")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard bf16: +1.5× speed · −25 % energy · same WER · M5 Max, 28 Sep")
         c.setMode(qwen, .fast)
-        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard 16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard bf16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep")
         XCTAssertEqual(
             c.tierHelp(qwen, tier: .t8, path: .optimized),
-            "8-bit weights throughout (affine-8 g64)\nvs Standard 16: +1.9× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep\nLoss vs 16: English WER +0.17 pt")
-        XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .standard), "8-bit weights throughout (affine-8 g64)\nMeasure pending\nLoss vs 16: English WER +0.17 pt")
+            "8-bit weights throughout (affine-8 g64)\nvs Standard bf16: +1.9× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep\nLoss vs bf16: English WER +0.17 pt")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .standard), "8-bit weights throughout (affine-8 g64)\nMeasure pending\nLoss vs bf16: English WER +0.17 pt")
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         XCTAssertEqual(tierFlavour(parakeet, tier: .t16, cell: nil), "bf16, converted once from the published fp32")
         let per = BenchmarkCell(recipe: CellRecipe(layers: ["decoder": "affine-8 g64", "encoder": "bf16"]))
         XCTAssertEqual(tierFlavour(qwen, tier: .t8, cell: per), "8-bit decoder, 16-bit encoder (affine-8 g64)")
         XCTAssertEqual(ExactFastSwitch.help, "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.")
-        XCTAssertEqual(ExactFastSwitch.tooltip(available: true, enabled: true), ExactFastSwitch.help)
+        XCTAssertEqual(ExactFastSwitch.rowHelp, "Sets the Optimized row only")
+        XCTAssertEqual(ExactFastSwitch.tooltip(available: true, enabled: true), ExactFastSwitch.rowHelp + "\n" + ExactFastSwitch.help)
         XCTAssertEqual(
             ExactFastSwitch.tooltip(available: false, enabled: false),
-            ExactFastSwitch.help + "\nAlways on: Fast measures the same as Exact for this model\nLocked while the model is in use; a change applies at the next load")
+            ExactFastSwitch.rowHelp + "\n" + ExactFastSwitch.help
+                + "\nAlways on: Fast measures the same as Exact for this model\nLocked while the model is in use; a change applies at the next load")
         XCTAssertEqual(ExactFastSwitch.inUseHelp, TierControl.inUseHelp, "one interlock line in both shared controls")
     }
 
@@ -271,7 +276,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(c.couplingNote(qwen))
         c.setMode(qwen, .exact)
         XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t16, path: .optimized, mode: .exact))
-        XCTAssertEqual(c.couplingNote(qwen), "Exact: 16 only, was 8")
+        XCTAssertEqual(c.couplingNote(qwen), "Exact: bf16 only, was int8")
         XCTAssertEqual(c.precisions(qwen), [.t16], "the segments follow the switch")
         c.setMode(qwen, .fast)
         XCTAssertEqual(c.currentSelection(qwen).tier, .t16, "back to Fast keeps 16")

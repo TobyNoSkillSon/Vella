@@ -75,6 +75,8 @@ import VellaUpdate
         var filterOpen = false
         /// The family whose action cell is drawn under the pointer.
         var hover: String?
+        /// Override of benchmarks.json `figures_pending` (nil: as shipped).
+        var figuresPending: Bool?
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -109,6 +111,14 @@ import VellaUpdate
                 residency: "on_demand", selection: sel(.t8, .optimized, .fast))
         ]
         states.append(loaded)
+        // The same, as after the final build's measurement rewrites benchmarks.json without `figures_pending`.
+        var measuredLoaded = loaded
+        measuredLoaded.name = "loaded-figures-measured"; measuredLoaded.figuresPending = false
+        states.append(measuredLoaded)
+        // The same with `figures_pending` set (the shipped state until the measurement lands): no figure, no delta.
+        var pendingLoaded = loaded
+        pendingLoaded.name = "loaded-figures-pending"; pendingLoaded.figuresPending = true
+        states.append(pendingLoaded)
         // Whisper large-v3 loaded at 16 Fast; the row previews 8 (its numbers, deltas vs Standard 16, and the green
         // Reload). Whisper offers 16 and 8.
         var whisper = State(name: "whisper-previews-8")
@@ -131,12 +141,6 @@ import VellaUpdate
         coupling.flips = [("nemotron-3.5-streaming-0.6b", .exact), ("parakeet-v3-ultra", .exact)]
         coupling.benchmarks = Self.exactAt16Only()
         states.append(coupling)
-        // The Capabilities filter strip open, "Chinese, Japanese and Korean" ticked: the Parakeets and the cloud rows hide.
-        var filtered = State(name: "filter-active")
-        filtered.config = loaded.config
-        filtered.runtime.loaded = loaded.runtime.loaded
-        filtered.filter = [.cjk]; filtered.filterOpen = true
-        states.append(filtered)
         // Parakeet v3 loaded on Optimized 16 Fast, previewing its Standard 16 (the reference: no deltas, green Reload);
         // Parakeet v3 Ultra previewing Standard 8 (its own numbers, deltas vs Standard 16).
         var standard = State(name: "standard-previews")
@@ -197,11 +201,15 @@ import VellaUpdate
         Self.renderControls(to: directory.appendingPathComponent("controls.png")) { [self] in render(states, 0) }
     }
 
-    /// Shipped benchmarks with the Optimized Exact recipes at 8 and 4 removed: the coupling render's data.
+    /// Shipped benchmarks with the Optimized Exact recipes at 8 and 4 removed and the Exact 16 cells measured (a copy of
+    /// their Fast numbers, as after a night window, so the Exact position can be chosen): the coupling render's data.
     static func exactAt16Only() -> BenchmarkFile {
         var file = decodeBenchmarks(try? Data(contentsOf: ModelsController.benchmarksURL(resources: ModelLibrary.resourceDirectory())))
         for (id, var model) in file.models {
             for tier in [ModelTier.t8, .t4] { model.tiers[tier]?.cells[.optimized_exact] = nil }
+            if let fast = model.tiers[.t16]?.cells[.optimized_fast], var exact = model.tiers[.t16]?.cells[.optimized_exact], exact.isPending {
+                exact.result = fast.result; exact.measured = fast.measured; model.tiers[.t16]?.cells[.optimized_exact] = exact
+            }
             file.models[id] = model
         }
         return file
@@ -211,34 +219,44 @@ import VellaUpdate
     /// RowAction.swift) in their states, one per line.
     static func renderControls(to url: URL, done: @escaping () -> Void) {
         typealias Cell = TierControl.Cell
+        let dtypes = ["bf16", "int8", "int4"]
+        /// Greyed cells: the tiers of `absent` on both rows, with the presence gate's reason.
+        func greyed(_ absent: [String], _ extra: [Cell: String] = [:]) -> [Cell: String] {
+            var off = extra
+            for tier in absent { for row in TierControl.Row.allCases { off[Cell(row, tier)] = "Not offered: 1 clip empty or cut short where 16 had the words" } }
+            return off
+        }
         func line(
-            _ title: String, _ optimized: [String], _ standard: [String], _ selected: Cell?, enabled: Bool = true, hot: Bool = false,
+            _ title: String, _ unavailable: [Cell: String], _ selected: Cell?, enabled: Bool = true, hot: Bool = false,
             position: ExactFastSwitch.Position = .exact, available: Bool = true, action: String = "Load", emphasized: Bool = false,
             deletable: Bool = true, hovered: Bool = false, busy: String? = nil
         ) -> some View {
             HStack(alignment: .center, spacing: 10) {
                 Text(title).font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 190, alignment: .leading)
-                TierControl(optimized: optimized, standard: standard, selected: selected, enabled: enabled, hot: hot, help: { _ in "" }, onSelect: { _ in })
+                TierControl(
+                    labels: dtypes, selected: selected, enabled: enabled, unavailable: unavailable, hot: hot, help: { _ in "" }, onSelect: { _ in })
                 ExactFastSwitch(position: position, available: available, enabled: enabled, onChange: { _ in })
-                    .offset(y: (TierControl.segmentHeight - ExactFastSwitch.height) / 2)
-                    .frame(width: ExactFastSwitch.width, height: TierControl.height, alignment: .top)
+                    .frame(width: ExactFastSwitch.width, height: TierControl.height)
                 RowAction(
                     title: action, busyText: busy, emphasized: emphasized, enabled: enabled, deletable: deletable, hot: hot, hovered: hovered,
                     help: "", onPerform: {}, onDelete: {})
             }.padding(.horizontal, 8).frame(height: ModelTable.rowHeight)
+                .foregroundStyle(hot ? ModelTable.hotText : Color.primary)
                 .background(hot ? ModelTable.hotRow : .clear, in: RoundedRectangle(cornerRadius: 5))
         }
-        let all = ["16", "8", "4"]
         let sheet = VStack(alignment: .leading, spacing: 4) {
-            line("Optimized 16 · Exact · on disk", all, all, Cell(.optimized, "16"))
-            line("Standard 8 · not downloaded", ["16", "8"], ["16", "8"], Cell(.standard, "8"), position: .fast, action: "Get", deletable: false)
-            line("Optimized 8 · Fast · loaded", all, all, Cell(.optimized, "8"), hot: true, position: .fast, action: "Unload")
-            line("Loaded, Standard 4 previewed", all, all, Cell(.standard, "4"), hot: true, position: .fast, action: "Reload", emphasized: true)
-            line("Fast = Exact (greyed, always on)", ["16", "8"], ["16", "8"], Cell(.optimized, "16"), available: false)
-            line("Exact offers 16 only", ["16"], all, Cell(.optimized, "16"))
-            line("In use (disabled)", ["16", "8"], ["16", "8"], Cell(.optimized, "8"), enabled: false, position: .fast)
-            line("Pointer over the action", ["16", "8"], ["16", "8"], Cell(.optimized, "16"), position: .fast, hovered: true)
-            line("Downloading", ["16", "8"], ["16", "8"], Cell(.optimized, "8"), position: .fast, busy: "23%")
+            line("Optimized bf16 · Exact · on disk", [:], Cell(.optimized, "16"))
+            line("Standard int8 · int4 greyed", greyed(["4"]), Cell(.standard, "8"), position: .fast, action: "Get", deletable: false)
+            line("Optimized int8 · Fast · loaded", [:], Cell(.optimized, "8"), hot: true, position: .fast, action: "Unload")
+            line("Loaded, Standard int4 previewed", [:], Cell(.standard, "4"), hot: true, position: .fast, action: "Reload", emphasized: true)
+            line("Fast = Exact (greyed, always on)", greyed(["8", "4"]), Cell(.optimized, "16"), available: false)
+            line(
+                "Exact: no Exact recipe at int8/int4",
+                [Cell(.optimized, "8"): "No Exact recipe at int8; Fast offers it", Cell(.optimized, "4"): "No Exact recipe at int4; Fast offers it"],
+                Cell(.optimized, "16"))
+            line("In use (disabled)", greyed(["4"]), Cell(.optimized, "8"), enabled: false, position: .fast)
+            line("Pointer over the action", greyed(["4"]), Cell(.optimized, "16"), position: .fast, hovered: true)
+            line("Downloading", greyed(["4"]), Cell(.optimized, "8"), position: .fast, busy: "23%")
         }.padding(8)
         let view = NSHostingView(rootView: sheet)
         view.frame = NSRect(
@@ -330,16 +348,22 @@ import VellaUpdate
 
     private func render(_ states: [State], _ index: Int) {
         guard index < states.count else {
-            // Table tooltips for one representative state (a PNG cannot hover).
+            // Table tooltips for one representative state (a PNG cannot hover): as shipped (table-tooltips.txt) and as
+            // after the final build's measurement (table-tooltips-measured.txt, `figures_pending` cleared).
             let controller = RenderFixture.controller(installed: RenderFixture.downloaded)
             controller.runtime = TableRuntime(chip: RenderFixture.chip)
             let table = ModelTable(controller: controller)
-            // One block per cell: "[Row · Column]" then the tooltip's lines as shown.
-            let lines = [RecognitionMode.dictation, .streaming].flatMap { mode in
-                controller.families(mode).flatMap { family in table.tooltips(family).map { "[\(family.name) · \($0.0)]\n\($0.1)\n" } }
-                    + controller.references(mode).flatMap { r in table.tooltips(r).map { "[\(r.name) · \($0.0)]\n\($0.1)\n" } }
+            let shipped = controller.benchmarks.figuresPending
+            for (file, pending) in [("table-tooltips.txt", shipped), ("table-tooltips-measured.txt", false)] {
+                controller.benchmarks.figuresPending = pending
+                // One block per cell: "[Row · Column]" then the tooltip's lines as shown.
+                let lines = [RecognitionMode.dictation, .streaming].flatMap { mode in
+                    controller.families(mode).flatMap { family in table.tooltips(family).map { "[\(family.name) · \($0.0)]\n\($0.1)\n" } }
+                        + controller.references(mode).flatMap { r in table.tooltips(r).map { "[\(r.name) · \($0.0)]\n\($0.1)\n" } }
+                }
+                try? lines.joined(separator: "\n").write(to: directory.appendingPathComponent(file), atomically: true, encoding: .utf8)
             }
-            try? lines.joined(separator: "\n").write(to: directory.appendingPathComponent("table-tooltips.txt"), atomically: true, encoding: .utf8)
+            controller.benchmarks.figuresPending = shipped
             Self.renderFirstFrame(
                 controller, to: directory.appendingPathComponent("models-first-frame.png"),
                 check: directory.appendingPathComponent("models-first-frame-check.txt"))
@@ -352,6 +376,7 @@ import VellaUpdate
         let state = states[index]
         let controller = RenderFixture.controller(installed: state.installed)
         if let b = state.benchmarks { controller.benchmarks = b }
+        if let pending = state.figuresPending { controller.benchmarks.figuresPending = pending }
         controller.runtime = state.runtime
         controller.previewConfig(state.config)
         controller.previewSelections(state.selections)

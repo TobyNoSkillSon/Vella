@@ -14,8 +14,9 @@ struct ModelTable: View {
         static let row: CGFloat = columns.reduce(0, +) + CGFloat(columns.count - 1) * spacing + 2 * rowPadding
     }
     static let width: CGFloat = W.row + 8
-    /// One line per model: the Optimized and Standard segment rows with air around them; beside them a 13 pt value
-    /// over a 10.5 pt delta (or the name over its engine label). A cloud row has no controls and keeps a 38 pt line.
+    /// One line per model: the Optimized and Standard segment rows with air around them, the Exact/Fast switch as tall as
+    /// both; beside them a 13 pt value over a 10.5 pt delta (or the name over its engine label). A cloud row has no
+    /// controls and keeps a 38 pt line.
     static let rowHeight: CGFloat = TierControl.height + 6
     static let referenceRowHeight: CGFloat = 38
     static let rowGap: CGFloat = 2
@@ -73,9 +74,11 @@ struct ModelTable: View {
         "Our own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. Lower is better. " + deltaHeaderLine
     static let speedHeaderHelp = "Real-time factor (RTFx): audio seconds per processing second. Higher is faster. " + deltaHeaderLine
     static let energyHeaderHelp = "Joules per minute of audio: whole-chip energy, net of idle. Lower is better. " + deltaHeaderLine
-    static let memoryHeaderHelp = "Peak memory of Vella's model worker with the model loaded. Lower is better."
+    static let memoryHeaderHelp = "Peak RAM of Vella's model worker with the model loaded. Lower is better."
     /// The deltas' base, stated once per figure's header.
-    static let deltaHeaderLine = "Difference vs Standard 16 below each figure."
+    static let deltaHeaderLine = "Difference vs Standard bf16 (fp16 for Whisper) below each figure."
+    /// The Memory column's heading (Toby, 30 Sep).
+    static let memoryTitle = "Peak RAM"
     static let capabilitiesHeaderHelp = "What the model can do beyond English dictation; an empty slot means it cannot. Click to show only models with a capability."
     static let filterLead = "Show only models with"
 
@@ -133,7 +136,7 @@ struct ModelTable: View {
             heading("Format", .format, W.format, .center, help: Self.formatHeaderHelp)
             heading("Speed", .speed, W.speed, .center, help: Self.speedHeaderHelp)
             heading("J / min", .energy, W.energy, .center, help: Self.energyHeaderHelp)
-            heading("Memory", .memory, W.memory, .center, help: Self.memoryHeaderHelp)
+            heading(Self.memoryTitle, .memory, W.memory, .center, help: Self.memoryHeaderHelp)
             Color.clear.frame(width: W.action, height: 1)
         }.padding(.horizontal, W.rowPadding)
     }
@@ -160,7 +163,7 @@ struct ModelTable: View {
         }
     }
 
-    /// "Show only models with ☐ 文 Chinese, Japanese and Korean": inline under the header, because a view hosted in a
+    /// "Show only models with ☐ <icon> <capability>": inline under the header, because a view hosted in a
     /// menu cannot open a pop-up or popover. A click toggles a checkbox; rows without that capability hide at once.
     private var filterStrip: some View {
         HStack(spacing: 14) {
@@ -173,7 +176,7 @@ struct ModelTable: View {
                     HStack(spacing: 5) {
                         Image(systemName: on ? "checkmark.square.fill" : "square").font(.system(size: 13))
                             .foregroundStyle(on ? Color.accentColor : .secondary)
-                        Image(systemName: Self.symbol(capability)).font(.system(size: 13))
+                        Image(systemName: capability.symbol).font(.system(size: 13))
                         Text(capability.filterTitle).font(.system(size: 12))
                     }.contentShape(Rectangle())
                 }.buttonStyle(.plain)
@@ -182,9 +185,6 @@ struct ModelTable: View {
             Spacer(minLength: 0)
         }.padding(.horizontal, W.rowPadding)
     }
-    /// A capability's symbol for the filter strip (a model's own slot may vary it, as the globe does).
-    static func symbol(_ c: Capability) -> String { c == .languages ? "globe" : "character.textbox.zh" }
-
     /// The fixed icon slots: a filled slot shows its symbol with its own tooltip; an empty one keeps its place.
     private func capabilities(_ family: ModelFamily) -> some View {
         let slots = capabilitySlots(family)
@@ -205,9 +205,11 @@ struct ModelTable: View {
         let loading = controller.isLoading(family)
         let precision = controller.selected(family)
         let variant = family.variants[precision]
-        let bench = controller.shownResult(family)
-        let base = controller.baseResult(family)
-        let compare = controller.showsDeltas(family)
+        // benchmarks.json `figures_pending`: no figure and no delta anywhere until the final build is measured.
+        let pending = controller.benchmarks.figuresPending
+        let bench = pending ? nil : controller.shownResult(family)
+        let base = pending ? nil : controller.baseResult(family)
+        let compare = !pending && controller.showsDeltas(family)
         let action = controller.action(family)
         let library = controller.library(family.mode)
         // A confirmed download for this row (a precision made here downloads its source).
@@ -237,25 +239,24 @@ struct ModelTable: View {
             capabilities(family)
             Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params)
             precisionControl(family, hot: hot).frame(width: W.precision)
-            // Beside the Optimized row, the one it applies to: its centre on that row's centre.
+            // As tall as both segment rows and centred on the pair; it applies to the Optimized row (its knob's bolt).
             pathSwitch(family)
-                .offset(y: (TierControl.segmentHeight - ExactFastSwitch.height) / 2)
-                .frame(width: W.path, height: TierControl.height, alignment: .top)
+                .frame(width: W.path, height: TierControl.height)
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
-                .appKitTooltip(werHelp(bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : werHelp(bench, suites: suites))
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
-                .appKitTooltip(formatHelp(bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : formatHelp(bench, suites: suites))
             metric(formatSpeed(bench?.speed_x), compare ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, W.speed, hot: hot)
                 .overlay(alignment: .leading) {
                     if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
                         Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 9)).foregroundStyle(.orange).accessibilityLabel("very slow")
                     }
                 }
-                .appKitTooltip(speedHelp(family.mode, bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : speedHelp(family.mode, bench, suites: suites))
             metric(formatEnergy(bench?.j_per_min), compare ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot)
-                .appKitTooltip(energyHelp(bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : energyHelp(bench, suites: suites))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
-                .appKitTooltip(memoryHelp(bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : memoryHelp(bench, suites: suites))
             rowAction(family, action: action, loading: loading, downloading: downloading, variant: variant, library: library, hot: hot, precision: precision, loaded: loaded)
         }.font(Self.valueFont)
             .padding(.horizontal, W.rowPadding).frame(height: Self.rowHeight)
@@ -303,8 +304,9 @@ struct ModelTable: View {
             Color.clear.frame(width: W.capabilities, height: 1)
             Text("\u{2014}").frame(width: W.params)
             Color.clear.frame(width: W.precision + W.spacing + W.path, height: 1)
-            metric(formatEstimatedErrorRate(r.wer), nil, W.wer, hot: false)
-                .appKitTooltip(referenceWERTooltip(r))
+            // The estimate is scaled from the local models' measured WER: pending with them.
+            metric(controller.benchmarks.figuresPending ? nil : formatEstimatedErrorRate(r.wer), nil, W.wer, hot: false)
+                .appKitTooltip(controller.benchmarks.figuresPending ? figuresPendingHelp : referenceWERTooltip(r))
             metric(nil, nil, W.format, hot: false).appKitTooltip(referenceFormatHelp)
             metric(nil, nil, W.speed, hot: false).appKitTooltip(referenceNotApplicableHelp)
             metric(nil, nil, W.energy, hot: false).appKitTooltip(referenceNotApplicableHelp)
@@ -372,42 +374,51 @@ struct ModelTable: View {
         }.frame(width: width)
     }
 
-    /// The Precision control (TierControl.swift): `Optimized` above `Standard`, each listing its present precisions;
-    /// the Optimized row follows the Exact/Fast switch. Disabled while the model is in use.
-    @ViewBuilder private func precisionControl(_ family: ModelFamily, hot: Bool) -> some View {
-        let optimized = controller.hasOptimizedPath(family) ? controller.precisions(family).map(\.rawValue) : []
-        let standard = controller.tiers(family, .standard).map(\.rawValue)
-        if optimized.isEmpty && standard.isEmpty {
-            Text("—").foregroundStyle(.secondary)
-        } else {
-            TierControl(
-                optimized: optimized, standard: standard,
-                selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
-                enabled: !controller.inUse(family), unmeasured: unmeasuredCells(family, optimized: optimized, standard: standard), hot: hot,
-                help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0.tier) ?? .t16, path: $0.row == .standard ? .standard : .optimized) },
-                onSelect: { cell in
-                    if let tier = ModelTier(rawValue: cell.tier) { controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized) }
-                })
-        }
+    /// The Precision control (TierControl.swift): the Optimized row (bolt) above the Standard row (MLX logo), each with
+    /// all three cells labelled with the dtype that runs; the Optimized row follows the Exact/Fast switch. A cell that
+    /// cannot be chosen is greyed in place with its reason. Disabled while the model is in use.
+    private func precisionControl(_ family: ModelFamily, hot: Bool) -> some View {
+        TierControl(
+            labels: TierControl.columns.map { ModelTier(rawValue: $0).map { tierDTypeLabel(family, $0) } ?? $0 },
+            selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
+            enabled: !controller.inUse(family), unavailable: unavailableCells(family), hot: hot,
+            help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0.tier) ?? .t16, path: $0.row == .standard ? .standard : .optimized) },
+            onSelect: { cell in
+                if let tier = ModelTier(rawValue: cell.tier) { controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized) }
+            })
     }
 
-    /// Cells without a measurement (greyed, 'Not measured yet'); the loaded cell always stays selectable.
-    private func unmeasuredCells(_ family: ModelFamily, optimized: [String], standard: [String]) -> Set<TierControl.Cell> {
+    /// The cells of both rows that cannot be chosen, each with its one-line reason (the greyed cell's tooltip), in this
+    /// order: a model without an Optimized path; a tier the presence gate removed (or the catalog does not offer); under
+    /// Exact, a tier with only a Fast recipe; a cell without a measurement ('Not measured yet'), except the loaded cell,
+    /// which always stays selectable. Selection itself follows `SelectionRules` as before; this only names the cells.
+    func unavailableCells(_ family: ModelFamily) -> [TierControl.Cell: String] {
         let mode = controller.currentSelection(family).mode
         let loaded = controller.loadedSelection(family)
-        var off: Set<TierControl.Cell> = []
-        for (row, tiers, path) in [(TierControl.Row.optimized, optimized, EnginePath.optimized), (.standard, standard, .standard)] {
-            for raw in tiers {
-                guard let tier = ModelTier(rawValue: raw) else { continue }
+        let optimizedPath = controller.hasOptimizedPath(family)
+        let benchmark = controller.benchmark(family)
+        var off: [TierControl.Cell: String] = [:]
+        for tier in ModelTier.allCases {
+            for (row, path) in [(TierControl.Row.optimized, EnginePath.optimized), (.standard, .standard)] {
+                let cell = TierControl.Cell(row, tier.rawValue)
                 let s = ModelSelection(tier: tier, path: path, mode: mode)
-                if !controller.measured(family, s), s != loaded { off.insert(TierControl.Cell(row, raw)) }
+                if path == .optimized && !optimizedPath {
+                    off[cell] = noOptimizedPathHelp
+                } else if !(path == .optimized ? controller.precisions(family) : controller.tiers(family, .standard)).contains(tier) {
+                    let otherMode: OptimizedMode = mode == .exact ? .fast : .exact
+                    off[cell] =
+                        path == .optimized && mode == .exact && controller.precisions(family, otherMode).contains(tier)
+                        ? exactRecipeMissingHelp(tierDTypeLabel(family, tier)) : tierAbsentHelp(benchmark, tier: tier)
+                } else if !controller.measured(family, s), s != loaded {
+                    off[cell] = TierControl.notMeasuredHelp
+                }
             }
         }
         return off
     }
 
-    /// The Exact/Fast switch (ExactFastSwitch.swift) beside the Optimized row: up Fast, down Exact; none for a model
-    /// without an Optimized path.
+    /// The Exact/Fast switch (ExactFastSwitch.swift) beside both rows, for the Optimized one: up Fast, down Exact; none
+    /// for a model without an Optimized path.
     @ViewBuilder private func pathSwitch(_ family: ModelFamily) -> some View {
         if controller.hasOptimizedPath(family) {
             ExactFastSwitch(
@@ -443,26 +454,17 @@ struct ModelTable: View {
         let slots = capabilitySlots(family)
         for c in Capability.allCases { if let slot = slots[c] { cells.append(("Capability \(c.rawValue)", slot.help)) } }
         let optimized = controller.hasOptimizedPath(family)
-        let optimizedTiers = optimized ? controller.precisions(family) : []
-        let standardTiers = controller.tiers(family, .standard)
-        let off = unmeasuredCells(family, optimized: optimizedTiers.map(\.rawValue), standard: standardTiers.map(\.rawValue))
-        for tier in optimizedTiers {
-            cells.append(
-                (
-                    "Precision Optimized \(tier.rawValue)",
-                    off.contains(TierControl.Cell(.optimized, tier.rawValue))
-                        ? TierControl.notMeasuredHelp
-                        : TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .optimized), enabled: enabled)
-                ))
-        }
-        for tier in standardTiers {
-            cells.append(
-                (
-                    "Precision Standard \(tier.rawValue)",
-                    off.contains(TierControl.Cell(.standard, tier.rawValue))
-                        ? TierControl.notMeasuredHelp
-                        : TierControl.tooltip(controller.tierHelp(family, tier: tier, path: .standard), enabled: enabled)
-                ))
+        let off = unavailableCells(family)
+        for row in TierControl.Row.allCases {
+            cells.append(("Path \(row.title)", row.help))
+            for tier in ModelTier.allCases {
+                let cell = TierControl.Cell(row, tier.rawValue)
+                cells.append(
+                    (
+                        "Precision \(row.title) \(tierDTypeLabel(family, tier))",
+                        off[cell] ?? TierControl.tooltip(controller.tierHelp(family, tier: tier, path: row == .standard ? .standard : .optimized), enabled: enabled)
+                    ))
+            }
         }
         if optimized {
             cells.append(
@@ -474,19 +476,23 @@ struct ModelTable: View {
                 ))
         }
         let action = controller.action(family)
-        return cells + [
-            ("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
-            ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),
-            ("Memory", memoryHelp(r, suites: suites)),
-            ("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))
-        ]
+        let figures: [(String, String)] =
+            controller.benchmarks.figuresPending
+            ? ["WER", "Format", "Speed", "J / min", Self.memoryTitle].map { ($0, figuresPendingHelp) }
+            : [
+                ("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
+                ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),
+                (Self.memoryTitle, memoryHelp(r, suites: suites))
+            ]
+        return cells + figures + [("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))]
     }
 
     /// A reference row's tooltips as (column, text); Capabilities, Params and the controls have none (nothing is known).
     func tooltips(_ r: ReferenceEntry) -> [(String, String)] {
         [
-            ("Model", referenceModelHelp(r)), ("WER", referenceWERTooltip(r)), ("Format", referenceFormatHelp),
-            ("Speed", referenceNotApplicableHelp), ("J / min", referenceNotApplicableHelp), ("Memory", referenceNotApplicableHelp)
+            ("Model", referenceModelHelp(r)), ("WER", controller.benchmarks.figuresPending ? figuresPendingHelp : referenceWERTooltip(r)),
+            ("Format", referenceFormatHelp), ("Speed", referenceNotApplicableHelp), ("J / min", referenceNotApplicableHelp),
+            (Self.memoryTitle, referenceNotApplicableHelp)
         ]
     }
 
@@ -521,7 +527,9 @@ struct ModelTable: View {
                     if let loading = runtime?.loading, !loading.isEmpty {
                         ProgressView().controlSize(.mini)
                         Text("Loading \(controller.catalog.family(loading)?.name ?? loading)…").font(.system(size: 10)).foregroundStyle(.secondary)
-                    } else if let note = hardwareNote(thisChip: runtime?.chip ?? Self.localChip, measuredOn: measurementChip(controller.benchmarks)) {
+                    } else if !controller.benchmarks.figuresPending,
+                        let note = hardwareNote(thisChip: runtime?.chip ?? Self.localChip, measuredOn: measurementChip(controller.benchmarks))
+                    {
                         Text(note.text).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
                             .padding(.leading, 8).appKitTooltip(note.help)
                     }
@@ -558,7 +566,9 @@ struct ModelTable: View {
     /// shifts off its column's centre. A Button carries no hover text inside the menu (TooltipCell.swift), so `help` is
     /// its accessibility hint; each cell's tooltip says what its figure is.
     private func heading(_ text: String, _ column: TableSortColumn, _ width: CGFloat, _ alignment: Alignment, help: String? = nil) -> some View {
-        Button {
+        // While the figures are pending, a figure column sorts nothing (catalog order): no arrow, not highlighted.
+        let active = sortColumn == column && (column == .name || !controller.benchmarks.figuresPending)
+        return Button {
             if sortColumn == column { ascending.toggle() } else { sortColumn = column; ascending = true }
         } label: {
             Text(text)
@@ -566,12 +576,12 @@ struct ModelTable: View {
                     Image(systemName: ascending ? "arrow.up" : "arrow.down")
                         .font(.system(size: 9, weight: .semibold)).frame(width: 10)
                         .offset(x: 13)
-                        .opacity(sortColumn == column ? 1 : 0)
+                        .opacity(active ? 1 : 0)
                         .allowsHitTesting(false)
                 }
                 .frame(width: width, height: Self.headerHeight, alignment: alignment)
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).font(.system(size: 12, weight: .medium)).foregroundStyle(sortColumn == column ? .primary : .secondary)
+        }.buttonStyle(.plain).font(.system(size: 12, weight: .medium)).foregroundStyle(active ? .primary : .secondary)
             .accessibilityHint(column == .name ? "Sort by name." : (help.map { $0 + " " } ?? "") + "Sorts by each model's best value across its precisions.")
     }
 }

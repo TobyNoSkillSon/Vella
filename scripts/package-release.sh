@@ -25,7 +25,7 @@ ZIP="Vella-$VERSION-arm64.zip"
 LISTING="$(zipinfo -1 "$STAGE/$ZIP")"
 for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool Helpers/vella Resources/SKILL.md \
          Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib Resources/models.json Resources/diagnose-reference.json \
-         Resources/LICENSE Resources/NOTICE Resources/THIRD_PARTY_NOTICES.md; do
+         Resources/LICENSE Resources/NOTICE Resources/THIRD_PARTY_NOTICES.md Resources/mlx-logo.pdf Resources/LICENSE-mlx; do
   grep -qx "Vella.app/Contents/$f" <<<"$LISTING" || { echo "Archive is missing Vella.app/Contents/$f" >&2; exit 1; }
 done
 if grep -E '\.py$|/Benchmarks/|/ReferenceResults/' <<<"$LISTING" >&2; then echo 'Archive holds development files' >&2; exit 1; fi

@@ -1,6 +1,7 @@
 // Written by scripts/pages-data.sh from Resources/benchmarks.json and Resources/models.json.
 const VELLA_BENCHMARKS = {
  "schema": 2,
+ "figures_pending": true,
  "hardware": "Apple M5 Max, macOS 26.6",
  "suites": {
   "v2": {

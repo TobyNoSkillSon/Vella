@@ -192,11 +192,27 @@ public struct BenchmarkFile: Codable, Equatable {
     public var models: [String: FamilyBenchmark]
     /// Cloud API reference rows, id → entry (estimated; see ReferenceEntry).
     public var references: [String: ReferenceEntry]
+    /// `figures_pending: true`: the file's figures predate the build that ships (Toby, 30 Sep): the Models table shows no
+    /// figure and no delta for any row until the measurement of the final build rewrites the file without the flag
+    /// (lab/bench/measure_catalog.py writes `figures_pending: false`). Only the display changes: which cells exist and
+    /// can be chosen (`SelectionRules`, the cells' `measured`) does not depend on it.
+    public var figuresPending: Bool
     public init(
         schema: Int = 1, hardware: String? = nil, suites: [String: SuiteInfo]? = nil, models: [String: FamilyBenchmark] = [:],
-        references: [String: ReferenceEntry] = [:]
+        references: [String: ReferenceEntry] = [:], figuresPending: Bool = false
     ) {
         self.schema = schema; self.hardware = hardware; self.suites = suites; self.models = models; self.references = references
+        self.figuresPending = figuresPending
+    }
+    enum CodingKeys: String, CodingKey { case schema, hardware, suites, models, references, figuresPending = "figures_pending" }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        schema = try c.decode(Int.self, forKey: .schema)
+        hardware = try c.decodeIfPresent(String.self, forKey: .hardware)
+        suites = try c.decodeIfPresent([String: SuiteInfo].self, forKey: .suites)
+        models = try c.decode([String: FamilyBenchmark].self, forKey: .models)
+        references = try c.decode([String: ReferenceEntry].self, forKey: .references)
+        figuresPending = try c.decodeIfPresent(Bool.self, forKey: .figuresPending) ?? false
     }
     /// Reference rows of a mode, in id order (the table sorts them with the models).
     public func references(_ mode: RecognitionMode) -> [ReferenceEntry] {
@@ -207,7 +223,9 @@ public struct BenchmarkFile: Codable, Equatable {
 /// Decodes benchmarks.json; a malformed family is skipped, a missing or unreadable file is empty (every figure `—`).
 public func decodeBenchmarks(_ data: Data?) -> BenchmarkFile {
     guard let data, let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return BenchmarkFile() }
-    var file = BenchmarkFile(schema: object["schema"] as? Int ?? 1, hardware: object["hardware"] as? String)
+    var file = BenchmarkFile(
+        schema: object["schema"] as? Int ?? 1, hardware: object["hardware"] as? String,
+        figuresPending: object["figures_pending"] as? Bool == true)
     if let suites = object["suites"], JSONSerialization.isValidJSONObject(suites), let bytes = try? JSONSerialization.data(withJSONObject: suites) {
         file.suites = try? JSONDecoder().decode([String: SuiteInfo].self, from: bytes)
     }

@@ -1,27 +1,37 @@
 import AppKit
 import SwiftUI
 
-// The Models table's Precision control: two segment rows, `Optimized [16][8][4]` above `Standard [16][8][4]`.
+// The Models table's Precision control: two segment rows, Optimized (a bolt) above Standard (the MLX logo), each with
+// the same three cells, e.g. `⚡ [bf16][int8][int4]` over `MLX [bf16][int8][int4]`.
 // Shared verbatim by Verdict, Vella and Vireo (like TooltipCell.swift): AppKit and SwiftUI only, no app types; plain
 // values in, one callback out.
 //
-// - A row lists only the precisions it offers; an absent one is omitted, never greyed. Segments stay in fixed columns
-//   (16, 8, 4), so a row that lacks its leading precision starts one column in. A row with none shows no label either.
+// - Every row shows all three columns (16, 8, 4), equal width, labelled with the dtype that runs (`labels`, e.g. bf16,
+//   fp16, int8, int4). A cell that cannot be chosen (a tier the presence gate removed, a recipe the switch position
+//   lacks, a cell without a measurement) is greyed in place, never hidden: the grid never shifts. `unavailable` maps it
+//   to its one-line reason, which is its tooltip; a click on it does nothing.
 // - Exactly one cell is selected across both rows. Clicking a cell reports it; what that means (preview, deltas,
 //   Reload) is the app's business. No cell is coloured as recommended.
-// - The row labels are in the body type of the table (13 pt, primary), not a caption.
+// - The rows are named by icons in the text colour, each with a one-line tooltip naming its path: a plain bolt for
+//   Optimized, the MLX logo (`mlx-logo.pdf` in the app's Resources, a template image; ml-explore/mlx, MIT) for Standard.
 // - `enabled == false` is the in-use interlock (dictating, speaking, rendering, judging, loading): both rows are
 //   disabled and every segment's tooltip gains `inUseHelp`.
 // - Segment tooltips are NSSegmentedControl per-segment tooltips: they work inside an NSMenu, where SwiftUI `.help`
 //   never shows (TooltipCell.swift).
-// - The geometry is explicit (two regular segmented controls, `segmentHeight` each, `rowSpacing` apart): a hosted
-//   NSControl can take the environment's control size until its first update, so nothing here asks the control for
-//   its size and the FIRST layout of a menu already has both rows apart.
+// - The geometry is explicit (two regular segmented controls, `segmentHeight` each, `rowSpacing` apart, `cellWidth`
+//   per column): a hosted NSControl can take the environment's control size until its first update, so nothing here
+//   asks the control for its size and the FIRST layout of a menu already has both rows apart.
 
 struct TierControl: View {
     enum Row: String, CaseIterable {
         case optimized, standard
         var title: String { self == .optimized ? "Optimized" : "Standard" }
+        /// The row icon's tooltip: one line naming the path.
+        var help: String {
+            self == .optimized
+                ? "Optimized: the same weights with custom kernels for this Mac's chip"
+                : "Standard: the plain MLX runtime, same weights, no custom kernels"
+        }
     }
     struct Cell: Hashable {
         var row: Row
@@ -29,14 +39,15 @@ struct TierControl: View {
         init(_ row: Row, _ tier: String) { self.row = row; self.tier = tier }
     }
 
-    /// The column header and its tooltip (Toby, 29 Sep).
+    /// The column header and its tooltip.
     static let title = "Precision"
-    static let headerHelp = "Bits per weight. 16 = as released; 8 and 4 compressed on your Mac \u{2014} smaller, faster, slightly less accurate."
-    /// The one interlock line, shared by the Precision segments and the Exact/Fast switch in every app.
+    static let headerHelp =
+        "The number format the weights run in: bf16 or fp16 as released; int8 and int4 compressed on your Mac \u{2014} smaller, faster, slightly less accurate."
     /// The selected cell's fill on a loaded row.
     static let hotSelection = NSColor(white: 0.1, alpha: 0.85)
+    /// The one interlock line, shared by the Precision segments and the Exact/Fast switch in every app.
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
-    /// Columns, highest precision first. Labels are bare: 16, 8, 4.
+    /// Columns, highest precision first: 16, 8, 4 bits (the cells' identity; `labels` names them).
     static let columns = ["16", "8", "4"]
     /// A regular NSSegmentedControl's height (24 pt on macOS 26).
     static let segmentHeight: CGFloat = 24
@@ -44,60 +55,83 @@ struct TierControl: View {
     static let rowSpacing: CGFloat = 6
     /// Both rows: the control's own height, which the table row and the Exact/Fast switch beside it use.
     static let height: CGFloat = 2 * segmentHeight + rowSpacing
-    /// Width of one column (a bare two-digit label in a regular segment).
-    static let cellWidth: CGFloat = 32
-    /// The row label ("Optimized" in 13 pt) and the gap after it.
-    static let labelWidth: CGFloat = 68, labelGap: CGFloat = 6
-    static let labelFont = Font.system(size: 13)
+    /// Width of one column: room for a four-letter dtype (`bf16`, `int8`) in a regular segment. Every cell is this wide.
+    static let cellWidth: CGFloat = 46
+    /// The row icon's slot (the MLX logo at `logoHeight` is about 34 pt wide) and the gap after it.
+    static let iconWidth: CGFloat = 36, iconGap: CGFloat = 8
+    static let logoHeight: CGFloat = 11
     /// Width of a row's segments: each segment is `cellWidth - 2` wide plus a 1 pt divider, less the outer one.
     static func segmentsWidth(_ count: Int) -> CGFloat { count == 0 ? 0 : CGFloat(count) * (cellWidth - 1) - 1 }
-    /// Label plus three columns.
-    static let width: CGFloat = labelWidth + labelGap + CGFloat(columns.count) * cellWidth
+    /// Icon plus three columns.
+    static let width: CGFloat = iconWidth + iconGap + CGFloat(columns.count) * cellWidth
     static var font: NSFont { .systemFont(ofSize: 13, weight: .medium) }
 
-    /// Precisions each row offers (a subset of `columns`, in any order).
-    let optimized: [String]
-    let standard: [String]
+    /// The Standard row's icon: the MLX logo as a template image, from the app's Resources (or ./Resources when run from
+    /// the package, as in tests). Nil when the file is missing: the row then shows the letters MLX.
+    static let mlxLogo: NSImage? = {
+        let name = "mlx-logo.pdf"
+        let places = [
+            Bundle.main.resourceURL?.appendingPathComponent(name),
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("Resources").appendingPathComponent(name)
+        ]
+        for url in places.compactMap({ $0 }) where FileManager.default.fileExists(atPath: url.path) {
+            if let image = NSImage(contentsOf: url) { image.isTemplate = true; return image }
+        }
+        return nil
+    }()
+
+    /// The label of each column, in `columns` order: the dtype that runs (`bf16`, `int8`, `int4`); bare bits by default.
+    var labels: [String] = columns
     let selected: Cell?
     let enabled: Bool
-    /// Cells whose recipe has no measurement yet: shown greyed with `notMeasuredHelp`, never selectable (family rule,
-    /// 29 Sep). They become selectable as soon as the app's data has their numbers.
-    var unmeasured: Set<Cell> = []
+    /// Cells that cannot be chosen, each with its one-line reason (shown as its tooltip): greyed in place, never
+    /// selectable. A cell becomes selectable as soon as the app stops listing it.
+    var unavailable: [Cell: String] = [:]
     /// The model is loaded: the selected segment uses the accent colour.
     var hot = false
-    /// Tooltip per cell (the app's flavour and "vs Standard 16" lines).
+    /// Tooltip per available cell (the app's flavour and "vs Standard" lines).
     let help: (Cell) -> String
     let onSelect: (Cell) -> Void
 
     /// A segment's tooltip as shown: the app's text, plus the interlock line while in use.
     static func tooltip(_ text: String, enabled: Bool) -> String { enabled ? text : text + "\n" + inUseHelp }
-    /// The tooltip of a cell with no measurement.
+    /// The tooltip of a cell with no measurement (family rule, 29 Sep).
     static let notMeasuredHelp = "Not measured yet"
 
     var body: some View {
         VStack(alignment: .leading, spacing: Self.rowSpacing) {
-            row(.optimized, optimized)
-            row(.standard, standard)
+            row(.optimized)
+            row(.standard)
         }.frame(width: Self.width, height: Self.height, alignment: .topLeading)
             .fixedSize()
     }
 
-    @ViewBuilder private func row(_ row: Row, _ offered: [String]) -> some View {
-        let shown = Self.columns.filter(offered.contains)
-        HStack(spacing: Self.labelGap) {
-            Text(shown.isEmpty ? "" : row.title).font(Self.labelFont).lineLimit(1).fixedSize()
-                .frame(width: Self.labelWidth, alignment: .leading)
-            if let first = shown.first {
-                let off = Set(shown.filter { unmeasured.contains(Cell(row, $0)) })
-                TierSegments(
-                    tiers: shown, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot, unmeasured: off,
-                    help: { off.contains($0) ? Self.notMeasuredHelp : Self.tooltip(help(Cell(row, $0)), enabled: enabled) },
-                    onSelect: { tier in if !off.contains(tier) { onSelect(Cell(row, tier)) } }
-                )
-                .frame(width: Self.segmentsWidth(shown.count), height: Self.segmentHeight)
-                .padding(.leading, CGFloat(Self.columns.firstIndex(of: first) ?? 0) * Self.cellWidth)
-            }
+    private func row(_ row: Row) -> some View {
+        var off: [String: String] = [:]
+        for tier in Self.columns { if let reason = unavailable[Cell(row, tier)] { off[tier] = reason } }
+        return HStack(spacing: Self.iconGap) {
+            Self.icon(row).frame(width: Self.iconWidth, height: Self.segmentHeight)
+                .appKitTooltip(row.help)
+                .accessibilityElement().accessibilityLabel(row.title)
+            TierSegments(
+                tiers: Self.columns, labels: labels, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot,
+                unavailable: Set(off.keys),
+                help: { off[$0] ?? Self.tooltip(help(Cell(row, $0)), enabled: enabled) },
+                onSelect: { tier in if off[tier] == nil { onSelect(Cell(row, tier)) } }
+            )
+            .frame(width: Self.segmentsWidth(Self.columns.count), height: Self.segmentHeight)
         }.frame(width: Self.width, height: Self.segmentHeight, alignment: .leading)
+    }
+
+    /// The row's icon in the text colour: a plain bolt, or the MLX logo.
+    @ViewBuilder static func icon(_ row: Row) -> some View {
+        if row == .optimized {
+            Image(systemName: "bolt.fill").font(.system(size: 15, weight: .semibold))
+        } else if let logo = mlxLogo {
+            Image(nsImage: logo).renderingMode(.template).resizable().scaledToFit().frame(height: logoHeight)
+        } else {
+            Text("MLX").font(.system(size: 11, weight: .heavy))
+        }
     }
 }
 
@@ -121,10 +155,11 @@ enum HostRefresh {
 /// One row's segments: a regular NSSegmentedControl with per-segment tooltips.
 private struct TierSegments: NSViewRepresentable {
     let tiers: [String]
+    let labels: [String]
     let selected: String?
     let enabled: Bool
     let hot: Bool
-    var unmeasured: Set<String> = []
+    var unavailable: Set<String> = []
     let help: (String) -> String
     let onSelect: (String) -> Void
 
@@ -186,10 +221,10 @@ private struct TierSegments: NSViewRepresentable {
         control.controlSize = .regular // SwiftUI may push its environment size onto hosted controls
         control.font = TierControl.font
         for (i, tier) in tiers.enumerated() {
-            control.setLabel(tier, forSegment: i)
+            control.setLabel(labels.indices.contains(i) ? labels[i] : tier, forSegment: i)
             control.setWidth(TierControl.cellWidth - 2, forSegment: i)
             control.setToolTip(help(tier), forSegment: i)
-            control.setEnabled(!unmeasured.contains(tier), forSegment: i)
+            control.setEnabled(!unavailable.contains(tier), forSegment: i)
         }
         control.selectedSegment = selected.flatMap { tiers.firstIndex(of: $0) } ?? -1
         control.isEnabled = enabled

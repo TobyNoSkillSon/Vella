@@ -69,6 +69,20 @@ final class NoticesTests: XCTestCase {
         XCTAssertFalse(attribution.contains("Resources/Benchmarks"), "the attribution names no path that is not in the repository")
     }
 
+    /// The MLX logo (the Models table's Standard-row icon, from ml-explore/mlx, MIT): its source, its licence verbatim, and
+    /// build.sh and the release archive ship both files.
+    func testTheMLXLogoIsCreditedAndShipped() throws {
+        let notices = normalized(try text("THIRD_PARTY_NOTICES.md"))
+        XCTAssertTrue(notices.contains("### MLX logo"))
+        XCTAssertTrue(notices.contains("https://github.com/ml-explore/mlx/blob/9c3d35571ac450a8ecf5c17b4d0e3fac52c08bc8/docs/logo/mlx_logo_dark.svg"))
+        let licence = normalized(try text("Resources/LICENSE-mlx")).trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertTrue(licence.hasPrefix("MIT License\n\nCopyright \u{00a9} 2023 Apple Inc."))
+        XCTAssertTrue(notices.contains(licence), "Resources/LICENSE-mlx is not reproduced verbatim; rerun scripts/third-party-notices.sh")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: Self.root.appendingPathComponent("Resources/mlx-logo.pdf").path))
+        XCTAssertTrue(try text("scripts/build.sh").contains("cp Resources/mlx-logo.pdf Resources/LICENSE-mlx \"$APP/Contents/Resources/\""))
+        XCTAssertTrue(try text("scripts/package-release.sh").contains("Resources/mlx-logo.pdf Resources/LICENSE-mlx"))
+    }
+
     /// Every catalog model is listed with its catalog licence and its download repositories.
     func testEveryCatalogModelIsListed() throws {
         let notices = try text("THIRD_PARTY_NOTICES.md")
