@@ -35,8 +35,12 @@ final class WireSnapshotTests: XCTestCase {
         let input = Pipe(), output = Pipe()
         process.standardInput = input; process.standardOutput = output; process.standardError = FileHandle.nullDevice
         try process.run()
-        input.fileHandleForWriting.write(Data(lines.map { $0 + "\n" }.joined().utf8))
-        try input.fileHandleForWriting.close()
+        // The streaming helper exits after an error reply; a later line then meets a closed pipe (EPIPE, not a crash:
+        // the throwing write, with SIGPIPE ignored for this write).
+        let previous = signal(SIGPIPE, SIG_IGN)
+        try? input.fileHandleForWriting.write(contentsOf: Data(lines.map { $0 + "\n" }.joined().utf8))
+        try? input.fileHandleForWriting.close()
+        signal(SIGPIPE, previous)
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         return String(decoding: data, as: UTF8.self)

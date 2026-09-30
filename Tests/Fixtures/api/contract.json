@@ -1,0 +1,275 @@
+{
+  "error 400 response_format" : {
+    "code" : null,
+    "param" : "response_format",
+    "shape" : {
+      "error" : {
+        "code" : "null",
+        "message" : "string",
+        "param" : "string",
+        "type" : "string"
+      }
+    },
+    "status" : 400,
+    "type" : "invalid_request_error"
+  },
+  "error 404 model_not_found" : {
+    "code" : "model_not_found",
+    "param" : "model",
+    "shape" : {
+      "error" : {
+        "code" : "string",
+        "message" : "string",
+        "param" : "string",
+        "type" : "string"
+      }
+    },
+    "status" : 404,
+    "type" : "invalid_request_error"
+  },
+  "error 404 transcription model" : {
+    "code" : "model_not_found",
+    "param" : "model",
+    "shape" : {
+      "error" : {
+        "code" : "string",
+        "message" : "string",
+        "param" : "string",
+        "type" : "string"
+      }
+    },
+    "status" : 404,
+    "type" : "invalid_request_error"
+  },
+  "error 413 json body" : {
+    "code" : null,
+    "param" : null,
+    "shape" : {
+      "error" : {
+        "code" : "null",
+        "message" : "string",
+        "param" : "null",
+        "type" : "string"
+      }
+    },
+    "status" : 413,
+    "type" : "invalid_request_error"
+  },
+  "error 503 connections" : {
+    "code" : null,
+    "param" : null,
+    "shape" : {
+      "error" : {
+        "code" : "null",
+        "message" : "string",
+        "param" : "null",
+        "type" : "string"
+      }
+    },
+    "status" : 503,
+    "type" : "server_error"
+  },
+  "error 507 insufficient_memory" : {
+    "code" : "insufficient_memory",
+    "param" : null,
+    "shape" : {
+      "error" : {
+        "code" : "string",
+        "message" : "string",
+        "param" : "null",
+        "type" : "string"
+      }
+    },
+    "status" : 507,
+    "type" : "server_error"
+  },
+  "GET \/status (idle)" : {
+    "api" : "number",
+    "api_jobs" : {
+      "completed" : "number",
+      "running" : "number",
+      "waiting" : "number"
+    },
+    "api_port" : "number",
+    "app" : "string",
+    "app_pid" : "number",
+    "dictation" : "string",
+    "dictation_model" : {
+      "id" : "string",
+      "name" : "string",
+      "precision" : "string"
+    },
+    "evictions" : [
+
+    ],
+    "launch_set" : [
+
+    ],
+    "memory" : {
+      "available_mb" : "number",
+      "ram_mb" : "number",
+      "workers_mb" : "number"
+    },
+    "models" : {
+
+    },
+    "pid" : "number",
+    "port" : "number",
+    "schema" : "number",
+    "settings" : {
+      "allow_swap" : "bool",
+      "manual_idle_minutes" : "number",
+      "on_demand_idle_minutes" : "number"
+    },
+    "test_hooks" : {
+      "VELLA_TEST_MEMORY_FILE" : "string",
+      "VELLA_TEST_MINUTE_SECONDS" : "string"
+    },
+    "updated" : "number",
+    "version" : "string"
+  },
+  "GET \/status (model loaded)" : {
+    "api" : "number",
+    "api_jobs" : {
+      "completed" : "number",
+      "running" : "number",
+      "waiting" : "number"
+    },
+    "api_port" : "number",
+    "app" : "string",
+    "app_pid" : "number",
+    "dictation" : "string",
+    "dictation_model" : {
+      "id" : "string",
+      "name" : "string",
+      "precision" : "string"
+    },
+    "evictions" : [
+
+    ],
+    "gpu" : {
+      "chip" : "string",
+      "family" : "string"
+    },
+    "launch_set" : [
+
+    ],
+    "memory" : {
+      "available_mb" : "number",
+      "ram_mb" : "number",
+      "workers_mb" : "number"
+    },
+    "models" : {
+      "fake-a" : {
+        "engine" : "string",
+        "keep_hot_min" : "number",
+        "last_used" : "number",
+        "load_s" : "number",
+        "memory_mb" : "number",
+        "mode" : "string",
+        "name" : "string",
+        "optimizations" : {
+
+        },
+        "path" : "string",
+        "pid" : "number",
+        "precision" : "string",
+        "residency" : "string",
+        "unloads_at" : "number"
+      }
+    },
+    "pid" : "number",
+    "port" : "number",
+    "schema" : "number",
+    "settings" : {
+      "allow_swap" : "bool",
+      "manual_idle_minutes" : "number",
+      "on_demand_idle_minutes" : "number"
+    },
+    "test_hooks" : {
+      "VELLA_TEST_MEMORY_FILE" : "string",
+      "VELLA_TEST_MINUTE_SECONDS" : "string"
+    },
+    "updated" : "number",
+    "version" : "string"
+  },
+  "GET \/v1\/models" : {
+    "data" : [
+      {
+        "created" : "number",
+        "current" : "bool",
+        "id" : "string",
+        "languages" : [
+          "string"
+        ],
+        "loaded" : "bool",
+        "name" : "string",
+        "object" : "string",
+        "owned_by" : "string",
+        "precision" : "string"
+      }
+    ],
+    "object" : "string"
+  },
+  "GET \/v1\/models\/{id}" : {
+    "created" : "number",
+    "current" : "bool",
+    "id" : "string",
+    "languages" : [
+      "string"
+    ],
+    "loaded" : "bool",
+    "name" : "string",
+    "object" : "string",
+    "owned_by" : "string",
+    "precision" : "string"
+  },
+  "POST transcriptions json" : {
+    "contentType" : "application\/json",
+    "shape" : {
+      "text" : "string",
+      "usage" : {
+        "seconds" : "number",
+        "type" : "string"
+      }
+    }
+  },
+  "POST transcriptions srt" : {
+    "body" : "1\n00:00:00,000 --> 00:00:06,400\nfake-a heard 6.40 s.\n\n2\n00:00:06,400 --> 00:00:14,200\nfake-a heard 7.80 s.\n\n3\n00:00:14,200 --> 00:00:19,400\nfake-a heard 5.20 s.\n",
+    "contentType" : "text\/plain; charset=utf-8"
+  },
+  "POST transcriptions text" : {
+    "body" : "fake-a heard 6.40 s. fake-a heard 7.80 s. fake-a heard 5.20 s.\n",
+    "contentType" : "text\/plain; charset=utf-8"
+  },
+  "POST transcriptions verbose_json" : {
+    "contentType" : "application\/json",
+    "shape" : {
+      "duration" : "number",
+      "language" : "string",
+      "segments" : [
+        {
+          "end" : "number",
+          "id" : "number",
+          "seek" : "number",
+          "start" : "number",
+          "temperature" : "number",
+          "text" : "string",
+          "tokens" : [
+
+          ]
+        }
+      ],
+      "task" : "string",
+      "text" : "string",
+      "usage" : {
+        "seconds" : "number",
+        "type" : "string"
+      }
+    }
+  },
+  "POST transcriptions vtt" : {
+    "body" : "WEBVTT\n\n00:00:00.000 --> 00:00:06.400\nfake-a heard 6.40 s.\n\n00:00:06.400 --> 00:00:14.200\nfake-a heard 7.80 s.\n\n00:00:14.200 --> 00:00:19.400\nfake-a heard 5.20 s.\n",
+    "contentType" : "text\/plain; charset=utf-8"
+  }
+}
