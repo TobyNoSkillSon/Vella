@@ -110,24 +110,10 @@ public func memoryHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> S
     return figure("Peak memory of Vella's model worker", on: suite, "loading included", better: "lower is better", r, stock: true)
 }
 
-/// The On disk cell. `derivedSource`: the precision it is made from on this Mac; `sizeKnown`: the cell shows a size
-/// (a derived precision without one gets no second line: nothing of its own is stored to size).
-public func diskHelp(_ f: ModelFamily, _ precision: String, installed: Bool, derivedSource: String?, sizeKnown: Bool) -> String {
-    guard let v = f.variants[precision] else { return "No download at this precision" }
-    if let source = derivedSource {
-        let name = precisionInProse(source)
-        return "Made on this Mac at load from the \(name) weights; nothing extra is stored"
-            + (sizeKnown ? "\nThe size shown is those \(name) files" : "")
-    }
-    return installed ? "Downloaded from Hugging Face\nThe size of the pinned files"
-        : "Not downloaded\nDownloads \(formatBytes(v.downloadBytes)) from Hugging Face after you confirm"
-}
-
 // MARK: Cloud reference rows
 
 public let referenceNotApplicableHelp = "Not applicable: a cloud API runs on the provider's servers"
 public let referenceFormatHelp = "Not estimated: no public case-and-punctuation figure to scale from"
-public let referenceDiskHelp = "Cloud service: nothing to download\nVella never sends audio to it"
 
 public func referenceModelHelp(_ r: ReferenceEntry) -> String {
     [r.name, (r.provider.map { "\($0) \u{00b7} " } ?? "") + "Proprietary cloud API",

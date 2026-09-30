@@ -8,11 +8,6 @@ import VellaCore
     let runtime: Runtime
     init(controller: ModelsController, runtime: Runtime) { self.controller = controller; self.runtime = runtime }
 
-    private var currentPath: String {
-        let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
-        return config?.model ?? ""
-    }
-
     /// The current family is always at its selected precision (what the next dictation loads), even when another
     /// precision of it is loaded (a saved recording retried with an older one); other families at their loaded
     /// precision, else the committed one.

@@ -403,18 +403,6 @@ import VellaCore
     }
     /// The running download's completion, so cancel() can end it.
     private var downloadCompletion: ((Bool) -> Void)?
-    func importModel() {
-        guard let selected, !busy, !calibration.isRunning, mayChangeModel() else { return }
-        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.showsHiddenFiles = true
-        panel.message = "Choose existing \(selected.name) \(selected.quantization) weights. Vella validates the architecture and quantization before importing."
-        guard panel.runModal() == .OK, let path = panel.url else { return }
-        do {
-            try validateModel(path, expected: selected)
-            installed[selected.id] = InstalledModel(path: path.path)
-            try saveRegistry(updating: selected.id)
-            message = mode == .dictation ? "Imported locally. Repository revision is unverified; benchmark before choosing." : "Imported locally. Repository revision is unverified; live streaming metrics are not available."
-        } catch { message = error.localizedDescription }
-    }
     func validateModel(_ folder: URL, expected: ModelRecommendation) throws {
         guard supports(expected.architecture) else { throw VellaError.message("The folder does not match this model architecture/quantization or is missing weights.") }
         try NativeModelDownload.validate(folder, expected: expected)
@@ -442,22 +430,6 @@ import VellaCore
             beginCalibration(id: selected.id, path: local.path)
             return true
         } catch { message = error.localizedDescription; downloadError = message; return false }
-    }
-    /// Menu Load: make a downloaded variant this mode's model (config.json) without stopping workers; the runtime
-    /// then loads it. The previous config is kept as config.previous.json.
-    func selectForMode(_ id: String) throws -> String {
-        guard let expected = models.first(where: { $0.id == id }), let local = installed[id] else {
-            throw VellaError.message("Download this model before loading it.")
-        }
-        try validateModel(URL(fileURLWithPath: local.path), expected: expected)
-        guard registryURL == Self.registry else { activeModelPath = local.path; return local.path }   // isolated tests
-        var config = try Backend().configuration(requiresModel: false)
-        let previous = try (try? Data(contentsOf: Backend.configURL)) ?? JSONEncoder().encode(config)
-        try previous.write(to: Backend.support.appendingPathComponent("config.previous.json"), options: .atomic)
-        config.selectModel(local.path, for: mode)
-        try JSONEncoder().encode(config).write(to: Backend.configURL, options: .atomic)
-        activeModelPath = local.path
-        return local.path
     }
     var agentRequest: String {
         let docs = resources.appendingPathComponent("AGENT_GUIDE.md").path

@@ -183,11 +183,6 @@ public final class EventTapShortcutRegistrar: ShortcutRegistrar {
     deinit { unregister() }
     // Test seams: drive without host input.
     public func simulatePress() { onPress?() }
-    public func simulateRelease() { onRelease?() }
-    public func simulateTapDisabled() {
-        resetPendingInput()
-        onInterruption?()
-    }
     /// Deterministic reducer entry for realistic sequences (no host input).
     /// Returns the reducer output; fires onPress/onRelease to mirror production.
     @discardableResult
@@ -1183,10 +1178,6 @@ public final class ShortcutManager: ObservableObject {
         guard !isCapturingKeys, !isConfirmingMouseButton else { return }
         _ = engine.release()
     }
-    public func handleReleaseForPressID(_ id: UInt64) {
-        guard !isCapturingKeys, !isConfirmingMouseButton else { return }
-        _ = engine.releaseForPressID(id)
-    }
     public func handleInterruption() {
         let wasConfirming = isConfirmingMouseButton
         if wasConfirming {
@@ -1271,9 +1262,6 @@ public final class ShortcutManager: ObservableObject {
     }
     public func applyModifierOnly(key: ModifierKey, side: ModifierSide) -> Bool {
         apply(ShortcutConfiguration(trigger: .modifierOnly(key: key, side: side), behavior: configuration.behavior))
-    }
-    public func applyMouseButton(_ button: MouseButton) -> Bool {
-        apply(ShortcutConfiguration(trigger: .mouseButton(button: button), behavior: configuration.behavior))
     }
 
     nonisolated static func carbonModifiers(from flags: NSEvent.ModifierFlags) -> UInt32 {

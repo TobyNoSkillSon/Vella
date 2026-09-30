@@ -532,14 +532,6 @@ public final class WhisperModel: Module, STTGenerationModel {
         return logits + MLXArray(mask)
     }
 
-    private func suppressFromIndex(_ logits: MLXArray, fromIndex: Int) -> MLXArray {
-        let length = logits.dim(-1)
-        if fromIndex >= length { return logits }
-        var mask = [Float](repeating: 0, count: length)
-        for i in fromIndex..<length { mask[i] = -1e9 }
-        return logits + MLXArray(mask)
-    }
-
     // MARK: - Loading
 
     /// Source layout for a Whisper safetensors checkpoint.

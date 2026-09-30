@@ -471,23 +471,6 @@ public class Qwen3ASRAudioEncoder: Module {
         self._proj2.wrappedValue = Linear(embedDim, config.outputDim)
     }
 
-    private func createBlockAttentionMask(
-        seqLen: Int, cuSeqlens: [Int], dtype: DType
-    ) -> MLXArray {
-        var maskValues = [Float](repeating: -1e9, count: seqLen * seqLen)
-        for i in 0..<(cuSeqlens.count - 1) {
-            let start = min(cuSeqlens[i], seqLen)
-            let end = min(cuSeqlens[i + 1], seqLen)
-            guard start < end else { continue }
-            for r in start..<end {
-                for c in start..<end {
-                    maskValues[r * seqLen + c] = 0.0
-                }
-            }
-        }
-        return MLXArray(maskValues).reshaped(seqLen, seqLen).asType(dtype)
-    }
-
     public func callAsFunction(
         _ inputFeatures: MLXArray,
         featureAttentionMask: MLXArray? = nil
@@ -666,100 +649,6 @@ public class Qwen3ASRAudioEncoder: Module {
         hiddenStates = proj2(hiddenStates)
 
         return hiddenStates  // [seqLen, outputDim]
-    }
-
-    // MARK: - Single Window Encoding (for streaming)
-
-    /// Encode a single window of mel frames for streaming inference.
-    ///
-    /// Extracts the per-window encoding logic: Conv2d frontend → positional embedding
-    /// → transformer layers (with self-attention, no cross-window attention) → ln_post → proj1 → proj2.
-    ///
-    /// - Parameter melFrames: Mel spectrogram frames `[numFrames, nMels]` where numFrames ≤ nWindowInfer (800).
-    ///   Frames are automatically split into conv-sized chunks internally.
-    /// - Returns: Encoded features `[numTokens, outputDim]`
-    public func encodeSingleWindow(_ melFrames: MLXArray) -> MLXArray {
-        let numFrames = melFrames.dim(0)
-        let chunkSize = nWindow * 2  // 100 mel frames per conv chunk
-
-        // Split into conv-sized chunks
-        let numChunks = Int(ceil(Double(numFrames) / Double(chunkSize)))
-        var chunks: [MLXArray] = []
-        var chunkLengths: [Int] = []
-
-        for j in 0..<numChunks {
-            let start = j * chunkSize
-            let end = min(start + chunkSize, numFrames)
-            let chunk = melFrames[start..<end]  // [clen, nMels]
-            let transposed = chunk.transposed(1, 0)  // [nMels, clen]
-            chunks.append(transposed)
-            chunkLengths.append(end - start)
-        }
-
-        let maxChunkLen = chunkLengths.max() ?? 0
-
-        // Pad chunks to same length
-        var paddedChunks: [MLXArray] = []
-        for (idx, chunk) in chunks.enumerated() {
-            let clen = chunkLengths[idx]
-            if clen < maxChunkLen {
-                let padWidth = maxChunkLen - clen
-                let padded = MLX.padded(chunk, widths: [IntOrPair((0, 0)), IntOrPair((0, padWidth))])
-                paddedChunks.append(padded)
-            } else {
-                paddedChunks.append(chunk)
-            }
-        }
-
-        // Compute output lengths after CNN
-        let chunkLensArray = MLXArray(chunkLengths.map { Int32($0) })
-        let featureLensAfterCnn = getFeatExtractOutputLengths(chunkLensArray)
-        let featureLensAfterCnnValues = (0..<chunkLengths.count).map {
-            Int(featureLensAfterCnn[$0].item(Int32.self))
-        }
-
-        // Conv2d frontend: [batch, nMels, time, 1]
-        var x = MLX.stacked(paddedChunks, axis: 0).expandedDimensions(axis: -1)
-        x = gelu(conv2d1(x))
-        x = gelu(conv2d2(x))
-        x = gelu(conv2d3(x))
-
-        let f = x.dim(1)
-        let t = x.dim(2)
-        let c = x.dim(3)
-        x = x.transposed(0, 2, 3, 1).reshaped(numChunks, t, c * f)
-        x = convOut(x)
-
-        let posEmb = positionalEmbedding(x.dim(1))
-        x = x + posEmb.expandedDimensions(axis: 0)
-        eval(x)
-
-        // Extract valid-length hidden states
-        var hiddenList: [MLXArray] = []
-        for i in 0..<numChunks {
-            let validLen = featureLensAfterCnnValues[i]
-            hiddenList.append(x[i, 0..<validLen])
-        }
-
-        // Concatenate all chunks into a single sequence
-        var hiddenStates = MLX.concatenated(hiddenList, axis: 0)  // [totalTokens, dModel]
-
-        // Self-attention across the full window (no cross-window mask needed)
-        hiddenStates = hiddenStates.expandedDimensions(axis: 0)  // [1, totalTokens, dModel]
-        if let layerDType { hiddenStates = hiddenStates.asType(layerDType) }
-        for layer in layers {
-            hiddenStates = layer(hiddenStates, mask: nil)
-        }
-        eval(hiddenStates)
-
-        hiddenStates = hiddenStates.squeezed(axis: 0)  // [totalTokens, dModel]
-
-        // Post-processing
-        hiddenStates = lnPost(hiddenStates)
-        hiddenStates = gelu(proj1(hiddenStates))
-        hiddenStates = proj2(hiddenStates)
-
-        return hiddenStates  // [numTokens, outputDim]
     }
 }
 

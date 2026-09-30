@@ -20,14 +20,9 @@ typealias ParakeetDecodingLogic = NemoDecodingLogic
 
 // Alignment (NemoAlignment.swift)
 public typealias ParakeetAlignedToken = NemoAlignedToken
-public typealias ParakeetAlignedSentence = NemoAlignedSentence
 public typealias ParakeetAlignedResult = NemoAlignedResult
-public typealias ParakeetStreamingResult = NemoStreamingResult
 typealias ParakeetAlignment = NemoAlignment
-typealias ParakeetAlignmentError = NemoAlignmentError
 
 // RNN-T config structs (NemoRNNTConfig.swift) — public
-public typealias ParakeetPredictNetworkConfig = NemoPredictNetworkConfig
 public typealias ParakeetPredictConfig = NemoPredictConfig
-public typealias ParakeetJointNetworkConfig = NemoJointNetworkConfig
 public typealias ParakeetJointConfig = NemoJointConfig
