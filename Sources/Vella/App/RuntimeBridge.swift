@@ -89,13 +89,41 @@ import VellaCore
         if let id = library.installed.first(where: { $0.value.path == path })?.key,
             let (family, precision) = controller.catalog.locate(variant: id)
         {
-            return ref(family, precision, path: path)
+            return runnableRef(family, precision, path: path)
         }
         // A precision made on this Mac: its directory holds only the derivation manifest (never in the registry).
         guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = controller.catalog.family(manifest.family),
             family.variants[manifest.precision]?.isDerived == true
         else { return nil }
-        return ref(family, manifest.precision, path: path)
+        return runnableRef(family, manifest.precision, path: path)
+    }
+    /// What a request for these files runs (`SelectionRules.runnable`, the table's rule): the loaded model when these
+    /// files are loaded (its cell stays, whatever it is); else the recorded selection when it is offered and measured,
+    /// else the table's fallback cell, at that cell's precision and files. A precision no longer offered (an older
+    /// version's load) or a cell never measured therefore never loads, here or through the API.
+    func runnableRef(_ family: ModelFamily, _ precision: String, path: String) -> ModelRef {
+        if let loaded = runtime.loadedRef(family.id), sameFiles(loaded.path, path) { return loaded }
+        guard let controller else { return ref(family, precision, path: path) }
+        let rules = controller.rules(family)
+        let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
+        let runnable = rules.runnable(recorded: config?.selections[family.id], precision: precision, available: { controller.available(family, $0) })
+        guard let valid = rules.precision(of: runnable), valid != precision else {
+            return ref(family, precision, path: path, selection: runnable.tier == modelTier(ofPrecision: precision) ? runnable : nil)
+        }
+        guard let files = runnablePath(family, valid) else { return ref(family, precision, path: path) }
+        if let loaded = runtime.loadedRef(family.id), sameFiles(loaded.path, files) { return loaded }
+        return ref(family, valid, path: files, selection: runnable)
+    }
+    /// The files of a precision: its registered download, or a precision made on this Mac (its manifest is written
+    /// here; the worker makes the weights at load). Nil when its weights are not on this Mac.
+    private func runnablePath(_ family: ModelFamily, _ precision: String) -> String? {
+        guard let controller else { return nil }
+        if let installed = controller.installed(family, precision)?.path { return installed }
+        let library = controller.library(family.mode)
+        guard let variant = family.variants[precision], variant.isDerived, !variant.isStored, let source = family.downloadSource(of: precision),
+            let local = library.installed[source.variant.id]
+        else { return nil }
+        return try? prepareDerivedModel(family: family, precision: precision, sourcePath: local.path, modelsDirectory: library.modelsDirectory)
     }
     /// `selection` nil: the family's recorded one (`defaultSelection`), so an on-demand load runs what the user chose.
     func ref(_ family: ModelFamily, _ precision: String, path: String, selection: ModelSelection? = nil) -> ModelRef {

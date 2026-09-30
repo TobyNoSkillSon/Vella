@@ -192,16 +192,15 @@ import VellaWire
         return DictationController.ModelOffer(id: source.variant.id, name: family.name, downloadBytes: source.variant.downloadBytes, mode: mode)
     }
     /// The precision the row returns to without a preview: the committed selection's tier.
-    /// ONE state: a loaded model shows its loaded precision, an unloaded one what it was last loaded at (what dictation
-    /// loads for its mode's model), offered or not; else the committed selection's tier.
+    /// ONE state: a loaded model shows its loaded precision (offered or not); an unloaded one the committed selection's
+    /// tier, which is what its next load runs: a last-loaded precision no longer offered resolves to a valid one
+    /// (`SelectionRules.runnable`), here and in the runtime and the API alike.
     func committed(_ f: ModelFamily) -> String {
         if let loaded = loaded(f)?.precision { return effectivePrecision(stored: loaded, native: f.native) }
-        if let last = lastLoaded(f).map({ effectivePrecision(stored: $0, native: f.native) }), f.variants[last] != nil,
-            !options(f).contains(last)
-        {
-            return last
-        }
-        return label(f, committedSelection(f))
+        let s = committedSelection(f)
+        // A recorded precision no longer offered that `runnable` kept (no offered precision's weights are here).
+        if let last = lastLoaded(f), !options(f).contains(last), modelTier(ofPrecision: last) == s.tier { return last }
+        return label(f, s)
     }
     /// The precision the row shows: a running confirmed download's, else the preview, else the committed one.
     func selected(_ f: ModelFamily) -> String {
@@ -225,29 +224,14 @@ import VellaWire
         if let l = precisionLabel(f, tier: s.tier), options(f).contains(l) { return l }
         return shownPrecision(preview: nil, loaded: loaded(f)?.precision, lastLoaded: lastLoaded(f), recommended: nil, family: f)
     }
+    /// The cell rules (VellaCore `SelectionRules`, shared with the runtime and the API).
+    func rules(_ f: ModelFamily) -> SelectionRules { SelectionRules(family: f, benchmark: benchmark(f)) }
     /// Tiers a row offers: the catalog's options whose cell is present (`cellPresent`, the one presence rule).
-    func tiers(_ f: ModelFamily, _ path: EnginePath) -> [ModelTier] {
-        let segment: Recipe = path == .standard ? .standard : .optimized_exact
-        return ModelTier.allCases.filter { tier in
-            guard let l = precisionLabel(f, tier: tier), options(f).contains(l) else { return false }
-            return cellPresent(benchmark(f), tier: tier, segment: segment)
-        }
-    }
-    /// The Optimized row's segments for a switch position (family coupling rule): Exact offers the tiers with an
-    /// Optimized Exact recipe (bit-identical to Standard), Fast those with an Optimized Fast one; where Fast = Exact
-    /// (greyed switch) either recipe counts. A model without any Optimized recipe offers its Standard tiers.
-    func precisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] {
-        guard hasOptimizedPath(f) else { return tiers(f, .standard) }
-        let keys: [Recipe] = !switchAvailable(f) ? [.optimized_exact, .optimized_fast] : mode == .exact ? [.optimized_exact] : [.optimized_fast]
-        return offeredTiers(f).filter { tier in keys.contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
-    }
-    /// A cell has numbers (family rule, 29 Sep: a cell or switch position without a measurement is unavailable, never a
-    /// row of dashes). Families without tiers in the file (unmeasured catalog) count as measured, so they stay usable.
-    func measured(_ f: ModelFamily, _ s: ModelSelection) -> Bool {
-        guard let b = benchmark(f), !b.tiers.isEmpty else { return true }
-        guard let cell = benchmarkCell(b, s) else { return false }
-        return !cell.isPending
-    }
+    func tiers(_ f: ModelFamily, _ path: EnginePath) -> [ModelTier] { rules(f).tiers(path) }
+    /// The Optimized row's segments for a switch position (family coupling rule, `SelectionRules.precisions`).
+    func precisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] { rules(f).precisions(mode) }
+    /// A cell has numbers (`SelectionRules.measured`).
+    func measured(_ f: ModelFamily, _ s: ModelSelection) -> Bool { rules(f).measured(s) }
     /// Tiers of the Optimized row for a switch position that have a measurement.
     func measuredPrecisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] {
         precisions(f, mode).filter { measured(f, ModelSelection(tier: $0, path: .optimized, mode: mode)) }
@@ -257,21 +241,10 @@ import VellaWire
     /// The Optimized row's segments as the row shows them (the current switch position).
     func precisions(_ f: ModelFamily) -> [ModelTier] { precisions(f, currentSelection(f).mode) }
     /// The model has an Optimized row (and so the Exact/Fast switch); every shipped Vella model does.
-    func hasOptimizedPath(_ f: ModelFamily) -> Bool {
-        offeredTiers(f).contains { tier in [Recipe.optimized_exact, .optimized_fast].contains { cellPresent(benchmark(f), tier: tier, segment: $0) } }
-    }
-    private func offeredTiers(_ f: ModelFamily) -> [ModelTier] {
-        ModelTier.allCases.filter { precisionLabel(f, tier: $0).map(options(f).contains) ?? false }
-    }
-    func isPresent(_ f: ModelFamily, _ s: ModelSelection) -> Bool {
-        s.path == .standard || !hasOptimizedPath(f) ? tiers(f, .standard).contains(s.tier) : precisions(f, s.mode).contains(s.tier)
-    }
-    /// The Exact/Fast switch is live: some offered tier's Fast recipe runs an inexact component. Unmeasured families
-    /// (no tiers in the file) keep it live.
-    func switchAvailable(_ f: ModelFamily) -> Bool {
-        guard let b = benchmark(f), !b.tiers.isEmpty else { return true }
-        return fastDiffersFromExact(b)
-    }
+    func hasOptimizedPath(_ f: ModelFamily) -> Bool { rules(f).hasOptimizedPath }
+    func isPresent(_ f: ModelFamily, _ s: ModelSelection) -> Bool { rules(f).isPresent(s) }
+    /// The Exact/Fast switch is live (`SelectionRules.switchAvailable`).
+    func switchAvailable(_ f: ModelFamily) -> Bool { rules(f).switchAvailable }
     /// The loaded model's selection: as the worker reports it, else from the engine (optimized → Optimized with the
     /// remembered switch, default Fast; anything else → Standard) at the loaded tier.
     func loadedSelection(_ f: ModelFamily) -> ModelSelection? {
@@ -289,27 +262,11 @@ import VellaWire
     /// An unloaded selection whose cell is no longer present falls back to Standard at its tier, then Standard 16.
     func committedSelection(_ f: ModelFamily) -> ModelSelection {
         if let s = loadedSelection(f) { return s }
-        // Same rule as the runtime's on-demand loads (VellaCore `defaultSelection`).
-        let stored = config?.selections[f.id]
-        let candidate = lastLoaded(f).map { defaultSelection(recorded: stored, precision: $0) } ?? stored ?? .fallback
-        return valid(f, candidate)
+        // The same rule as the runtime's on-demand loads and the API (VellaCore `SelectionRules.runnable`).
+        return rules(f).runnable(recorded: config?.selections[f.id], precision: lastLoaded(f), available: { self.available(f, $0) })
     }
-    /// `s` when its cell is present, else the Optimized cell at its tier (its switch position, then the other), else
-    /// Optimized 16, else the first present cell; Standard only for a model without an Optimized path.
-    func valid(_ f: ModelFamily, _ s: ModelSelection) -> ModelSelection {
-        // A selectable cell: present and measured (an unmeasured cell is greyed, never the row's selection).
-        let ok: (ModelSelection) -> Bool = { self.isPresent(f, $0) && self.measured(f, $0) }
-        if ok(s) { return s }
-        for tier in [s.tier] + ModelTier.allCases {
-            for mode in [s.mode, s.mode == .fast ? .exact : .fast] {
-                let optimized = ModelSelection(tier: tier, path: .optimized, mode: mode)
-                if hasOptimizedPath(f), ok(optimized) { return optimized }
-            }
-            let standard = ModelSelection(tier: tier, path: .standard, mode: s.mode)
-            if ok(standard) { return standard }
-        }
-        return isPresent(f, s) ? s : s
-    }
+    /// `s` when its cell is present and measured, else the fallback cell (`SelectionRules.valid`).
+    func valid(_ f: ModelFamily, _ s: ModelSelection) -> ModelSelection { rules(f).valid(s) }
     /// What the row shows: a running confirmed download's selection, else the preview, else the committed one.
     func currentSelection(_ f: ModelFamily) -> ModelSelection { pendingSelections[f.id] ?? previews[f.id] ?? committedSelection(f) }
     /// A segment click: preview that cell (its numbers, deltas and button). Picking the committed cell ends the preview.
@@ -411,7 +368,11 @@ import VellaWire
     /// or a precision made on this Mac, loaded or not), else the first loaded model of that mode.
     func activeLabel(_ mode: RecognitionMode) -> String? {
         let lib = library(mode)
-        if let (family, precision) = identify(path: lib.activeModelPath, mode: mode) { return "\(family.name) \(precisionInProse(precision))" }
+        if let (family, precision) = identify(path: lib.activeModelPath, mode: mode) {
+            // Unloaded at a precision no longer offered: what its next load runs (`SelectionRules.runnable`).
+            let runs = loaded(family) != nil || options(family).contains(precision) ? precision : committed(family)
+            return "\(family.name) \(precisionInProse(runs))"
+        }
         guard let (id, loaded) = runtime?.loaded.filter({ catalog.family($0.key)?.mode == mode }).sorted(by: { $0.key < $1.key }).first,
             let family = catalog.family(id)
         else { return lib.activeModelLabel }

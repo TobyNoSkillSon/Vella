@@ -5,7 +5,8 @@ import VellaCore
 
 /// Parity QA: for every dictation family of the shipped catalog and every tier × Standard/Optimized × Exact/Fast
 /// recorded in config.json (what a table Load/Reload writes), the table's row, the API's /v1/models object and the
-/// `vella models` line must name the same selection. Writes a matrix to VELLA_QA_OUT when set.
+/// `vella models` line must name the same selection, including recorded selections the table would refuse (they
+/// resolve to the table's cell everywhere). Writes a matrix to VELLA_QA_OUT when set.
 @MainActor final class TableAPIParityQATests: XCTestCase {
     func testTableAPIAndCLIReportTheSameSelection() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-qa-parity-\(UUID().uuidString)")
@@ -13,8 +14,10 @@ import VellaCore
         let runtime = try Runtime.isolated(root)
         let resources = ModelLibrary.resourceDirectory()
         let registry = runtime.support.appendingPathComponent("models-installed.json")
-        let dictation = ModelLibrary(mode: .dictation, resources: resources, registryURL: registry, calibration: CalibrationStore(directory: root.appendingPathComponent("Cal"), resources: resources))
-        let controller = ModelsController(dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry), configURL: runtime.configURL)
+        let dictation = ModelLibrary(
+            mode: .dictation, resources: resources, registryURL: registry, calibration: CalibrationStore(directory: root.appendingPathComponent("Cal"), resources: resources))
+        let controller = ModelsController(
+            dictation: dictation, streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry), configURL: runtime.configURL)
         // Every family's downloaded weights (its 16-bit source), so every tier is available (8 and 4 are made here).
         // Every family's downloaded weights (published and stored-conversion variants; 8 and 4 are made here).
         for family in controller.families(.dictation) {
@@ -49,7 +52,8 @@ import VellaCore
                         func text(_ s: ModelSelection?) -> String { s.map { "\($0.tier.rawValue) \(recipeLabel($0))" } ?? "nil" }
                         rows.append("\(family.id)\t\(text(stored))\t\(selectable)\t\(text(table))\t\(text(apiSelection))\t\(line)")
                         if apiSelection != table || !line.contains(recipeLabel(table)) {
-                            mismatches.append("\(family.id) stored \(text(stored)) (table-selectable \(selectable)): table \(text(table)), API \(text(apiSelection)), CLI \"\(line)\"")
+                            mismatches.append(
+                                "\(family.id) stored \(text(stored)) (table-selectable \(selectable)): table \(text(table)), API \(text(apiSelection)), CLI \"\(line)\"")
                         }
                     }
                 }
@@ -61,8 +65,7 @@ import VellaCore
                 to: URL(fileURLWithPath: out).appendingPathComponent("table-api-parity.tsv"), atomically: true, encoding: .utf8)
         }
         print("QA parity mismatches (\(mismatches.count)):\n" + mismatches.joined(separator: "\n"))
-        // Selections the table can make itself must be reported identically; the others are listed for the notes.
-        let reachable = mismatches.filter { $0.contains("(table-selectable true)") }
-        XCTAssertEqual(reachable, [], "a selection the table makes is reported differently by the API/CLI")
+        // One rule (SelectionRules): every recorded selection, selectable in the table or not, is reported alike.
+        XCTAssertEqual(mismatches, [], "the table and the API/CLI disagree on what a recorded selection runs")
     }
 }
