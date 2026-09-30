@@ -158,6 +158,10 @@ extension WorkerTests {
 extension WorkerTests {
     /// The fast-path revisions under the default environment: the values every production gate key uses.
     @Suite struct Revisions {
+        @Test func parakeet() {
+            #expect(ParakeetModel.fastPathRevision.hasPrefix("parakeet-r2-dense-encoder"))
+            #expect(ParakeetModel.inputDType == .bfloat16)
+        }
         @Test func qwen() { #expect(Qwen3ASRModel.fastPathRevision == "qwen3-asr-3-f32-encoder-p3") }
         /// Whisper's revision is decided once per process from the recipe (Fast here: the test runs without one).
         @Test func whisper() { #expect(WhisperModel.fastPathRevision == "whisper-3-f16-model") }

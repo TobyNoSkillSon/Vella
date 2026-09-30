@@ -22,7 +22,6 @@ final class GateStringTests: XCTestCase {
     static let golden = [
         #"static let version = "native-kernels-10""#,
         #""parakeet-r2-dense-encoder""#,
-        #""parakeet-r3-fp32-frontend""#,
         #""+nax2+smallm-""#,
         #"tileRevision = "tile-1""#,
         #"gemvRevision = "gemv-1""#,
@@ -59,8 +58,7 @@ final class GateStringTests: XCTestCase {
                 Range($0.range(at: 1), in: body).map { String(body[$0]) }
             }
         }
-        XCTAssertEqual(try list("componentSwitches"), ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND", "VELLA_PARAKEET_NAX",
-                                                       "VELLA_TEST_TOLERANT_FAULT"])
+        XCTAssertEqual(try list("componentSwitches"), ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_TEST_TOLERANT_FAULT"])
         XCTAssertEqual(try list("componentSwitchPrefixes"), ["VELLA_NEMO_"])
     }
 }

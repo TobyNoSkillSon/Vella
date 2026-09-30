@@ -52,8 +52,4 @@ final class WorkerSwitchReportingTests: XCTestCase {
         let data = try Data(contentsOf: Self.root.appendingPathComponent("Resources/diagnose-reference.json"))
         XCTAssertEqual(DiagnoseReference.decode(data)?.gate_version, version)
     }
-
-    func testParakeetFrontendSwitchIsReportedByTheApp() {
-        XCTAssertEqual(activeTestHooks(["VELLA_PARAKEET_FP32_FRONTEND": "1", "HOME": "/x"]), ["VELLA_PARAKEET_FP32_FRONTEND": "1"])
-    }
 }
