@@ -67,7 +67,7 @@ final class WorkerSwitchReportingTests: XCTestCase {
                 "VELLA_TEST_MEMORY_FILE", "VELLA_TEST_VM_STATS", "VELLA_TEST_MINUTE_SECONDS", "VELLA_SUPPORT_DIR",
                 "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
                 "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK",
-                "VELLA_API", "VELLA_UPDATE"
+                "VELLA_API", "VELLA_UPDATE", "VELLA_QA_HEADLESS"
             ])
         XCTAssertEqual(
             activeTestHooks(["VELLA_API": "0", "VELLA_UPDATE": "0", "VELLA_RECIPE": "standard", "HOME": "/x"]),
