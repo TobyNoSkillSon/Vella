@@ -51,6 +51,28 @@ source_only() {
   fi
 }
 
+no_lab_paths() {
+  local listing="$1"
+  if grep -E '(^|/)lab(/|$)' "$listing"; then
+    echo "release tree contains a local-only lab/ path"; return 1
+  fi
+}
+
+source_archive_no_lab() {
+  git archive --format=tar HEAD | tar -tf - >"$WORK/source-archive-paths.txt"
+  no_lab_paths "$WORK/source-archive-paths.txt"
+}
+
+release_archive_no_lab() {
+  local tree="$WORK/release-tree-check"
+  zipinfo -1 "$WORK/release/Vella-$VERSION-arm64.zip" >"$WORK/release-archive-paths.txt"
+  no_lab_paths "$WORK/release-archive-paths.txt" || return 1
+  mkdir -p "$tree"
+  /usr/bin/unzip -q "$WORK/release/Vella-$VERSION-arm64.zip" -d "$tree"
+  (cd "$tree" && find . -print) >"$WORK/release-tree-paths.txt"
+  no_lab_paths "$WORK/release-tree-paths.txt"
+}
+
 toolchains() {
   local v; v="$("$CLT_SWIFT" --version 2>&1)"; echo "$v"
   grep -q 'Apple Swift version 6\.3\.3 ' <<<"$v" \
@@ -113,11 +135,13 @@ tests() {
 }
 
 step "source only in git" source_only
+step "source archive excludes lab" source_archive_no_lab
 step "toolchains" toolchains
 step "changelog $VERSION" changelog
 step "doc links" doc_links
 step "lint (swift-format, SwiftLint)" scripts/lint.sh
 step "build and package" package
+step "release archive and tree exclude lab" release_archive_no_lab
 step "SHA256SUMS" checksums
 if [[ $SIGNED == 1 ]]; then step "release signature" signature; fi
 step "swift test ($([[ $MODE == ci ]] && echo unit || echo 'unit and integration'))" tests
