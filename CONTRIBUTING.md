@@ -17,7 +17,9 @@ VELLA_APP_PATH=/tmp/Vella.app VELLA_REGISTER_APP=0 scripts/build.sh   # build el
 VELLA_BUILD=source scripts/install.sh     # build this checkout and install it
 ```
 
-`scripts/build.sh` builds the root package (the app) and `Worker/` (the helpers, through `Worker/build-split.sh`), then smoke-tests both helpers with stub models before it assembles the app. A source build is signed ad hoc unless you configure `VELLA_SIGN_IDENTITY`; replacing an ad-hoc build can make macOS ask for Microphone and Accessibility access again.
+`scripts/build.sh` builds the root package (the app) and `Worker/` (the helpers, through `Worker/build-split.sh`), then smoke-tests both helpers with stub models before it assembles the app. A source build is signed ad hoc unless you configure `VELLA_SIGN_IDENTITY`; replacing an ad-hoc build can make macOS ask for Microphone and Accessibility access again. `VELLA_BUNDLE_ID=<id>` gives the built app another bundle identifier, so macOS keeps a development build's privacy permissions apart from an installed Vella's (in-app updates are off for any identifier other than `dev.vella.dictation`).
+
+Every `VELLA_*` switch the Swift code reads is listed, with its owner and whether it joins the fast-path gate key or is reported in status, in `Packages/VellaWire/Sources/VellaWire/EnvironmentSwitch.swift`.
 
 `swift build` builds with whichever Swift you run it with; it is fine for compiling and for tests, not for shipping.
 

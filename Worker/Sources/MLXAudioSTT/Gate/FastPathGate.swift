@@ -96,8 +96,8 @@ public enum FastPathGate {
     /// Environment switches that change which optimized components run or what they compute (diagnosis/A-B only).
     /// The effective set is part of the gate key, so a verdict qualified under an override is never reused for
     /// production defaults, and the self-test child (which inherits them) tests exactly what the worker will run.
-    public static let componentSwitches = ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_TEST_TOLERANT_FAULT"]
-    public static let componentSwitchPrefixes = ["VELLA_NEMO_"]
+    public static let componentSwitches = EnvironmentSwitch.names(where: \.gateKey)
+    public static let componentSwitchPrefixes = EnvironmentSwitch.prefixes(where: \.gateKey)
     /// "" for production defaults; otherwise the sorted `KEY=value` list of set switches.
     public static func componentConfiguration(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
         environment.filter { key, value in
@@ -107,13 +107,8 @@ public enum FastPathGate {
     /// Every release env hook that changes behaviour or adds instrumentation, for the worker status `test_hooks`.
     /// The user's selection, set by the app for every worker (`recipe`): reported as the status's `recipe`, never in
     /// `test_hooks` (it is not a diagnosis switch).
-    public static let selectionSwitches = ["VELLA_RECIPE"]
-    public static let reportedSwitches = componentSwitches + ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR",
-        "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
-        "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_WHISPER_PROFILE", "VELLA_STREAM_PROFILE",
-        "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB",
-        "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_TEST_ENCODER_NONFINITE", "VELLA_MLX_DEVICE",
-        "VELLA_SELFTEST_RESULT", "VELLA_WHISPER_SEED"]
+    public static let selectionSwitches = [Recipe.variable]
+    public static let reportedSwitches = EnvironmentSwitch.names(where: \.workerReported)
     public static func reportedEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
         environment.filter { key, value in
             !value.isEmpty && (reportedSwitches.contains(key) || componentSwitchPrefixes.contains { key.hasPrefix($0) })
@@ -231,8 +226,7 @@ public enum FastPathGate {
         process.arguments = ["fast-selftest", "--model", path.path]
         // QA-only instrumentation and runtime-fallback fault injection cannot weaken the production qualification.
         var environment = ProcessInfo.processInfo.environment.filter {
-            !["VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP", "VELLA_TEST_DECODER_NONFINITE",
-              "VELLA_TEST_ENCODER_NONFINITE", resultVariable].contains($0.key)
+            !EnvironmentSwitch.names(where: \.strippedFromSelfTestChild).contains($0.key)
         }
         // Beside the verdicts (never *.json, so `vella diagnose` does not read it as one); removed once read.
         let result = url.deletingPathExtension().appendingPathExtension("selftest-\(getpid())")

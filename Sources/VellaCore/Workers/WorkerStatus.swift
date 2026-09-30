@@ -1,4 +1,5 @@
 import Foundation
+import VellaWire
 
 /// One loaded model in `worker-status.json`. Every field is optional on decode so older files still render.
 public struct WorkerModelStatus: Codable, Equatable {
@@ -174,12 +175,8 @@ public func writeOwnerOnly(_ data: Data, to url: URL, emptyACL: () -> acl_t? = {
     }
 }
 
-/// Diagnostic switches that change runtime behaviour; any that are set are reported in status, never hidden.
-public let runtimeTestHookNames = [
-    "VELLA_TEST_MEMORY_FILE", "VELLA_TEST_VM_STATS", "VELLA_TEST_MINUTE_SECONDS", "VELLA_SUPPORT_DIR",
-    "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT",
-    "VELLA_TEST_STUB_FOOTPRINT_MB", "VELLA_TEST_SELFTEST_FAULT", "VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK",
-]
+/// Diagnostic switches (and switched-off app features) the app reports in status when set, never hidden.
+public let runtimeTestHookNames = EnvironmentSwitch.names(where: \.appReported)
 public func activeTestHooks(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
     environment.filter { runtimeTestHookNames.contains($0.key) && !$0.value.isEmpty }
 }

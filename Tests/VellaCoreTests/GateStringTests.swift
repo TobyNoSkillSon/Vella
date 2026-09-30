@@ -45,21 +45,4 @@ final class GateStringTests: XCTestCase {
             XCTAssertEqual(occurrences(literal, in: sources), 1, literal)
         }
     }
-
-    /// The switches whose effective values join the gate key, and the prefix list, exactly as today.
-    func testComponentSwitchesAreUnchanged() throws {
-        let joined = try workerSources().map(\.1).joined(separator: "\n")
-        func list(_ name: String) throws -> [String] {
-            let start = try XCTUnwrap(joined.range(of: "static let \(name) = ["), name)
-            let rest = joined[start.upperBound...]
-            let end = try XCTUnwrap(rest.range(of: "]"), name)
-            let regex = try NSRegularExpression(pattern: #""([A-Z0-9_]+)""#)
-            let body = String(rest[..<end.lowerBound])
-            return regex.matches(in: body, range: NSRange(body.startIndex..., in: body)).compactMap {
-                Range($0.range(at: 1), in: body).map { String(body[$0]) }
-            }
-        }
-        XCTAssertEqual(try list("componentSwitches"), ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_TEST_TOLERANT_FAULT"])
-        XCTAssertEqual(try list("componentSwitchPrefixes"), ["VELLA_NEMO_"])
-    }
 }

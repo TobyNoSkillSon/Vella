@@ -211,6 +211,7 @@ print(result.text, [(s.start, s.end) for s in result.segments])
 - The key is ignored, but SDKs need one: pass any string.
 - Errors use OpenAI's shape, `{"error": {"message", "type", "param", "code"}}`: 400 invalid request, 404 unknown or not downloaded model (`model_not_found`), 413 over 200 MB, 429 queue full (at most nine uploads, 1 GB in total, are received or waiting at once), 503 too many open connections, 507 not enough free memory (`insufficient_memory`) or disk (an upload must leave 2 GB free for recordings). A client that has not sent its request headers within 10 s, or pauses for 30 s while sending its body, is disconnected.
 - Uploads are limited to 200 MB. A JSON body `{"path": "/absolute/file.m4a", …}` with the same fields transcribes a local file without uploading it (this is what `vella` does); it needs the header `X-Vella-Token` set to `api_token` from `worker-status.json`, so an app that cannot read Vella's files (a sandboxed one) cannot make Vella read yours.
+- `VELLA_API=0` in Vella's environment turns the API off (the `vella` command then cannot reach the app); `vella status` and `vella diagnose` list it as a switch that is set.
 - Security: it listens on the IPv4 loopback address only. Requests with an `Origin` header (web pages) or a `Host` other than `127.0.0.1:<port>`/`localhost:<port>` get 403, and POST bodies other than multipart/form-data or JSON get 415, all before any of the body is read. The port and API version are in `~/Library/Application Support/Vella/worker-status.json` (`api_port`, `api`).
 
 ## When little or no text appears
@@ -254,7 +255,7 @@ A newer release adds an orange **Update to X…** item under **Support the devel
 3. If you started a dictation meanwhile, waits until Vella is idle again (up to 15 minutes), then quits and hands the install to its installer tool.
 4. The installer swaps the new app in with the previous one kept aside, starts it and waits until it is ready (the same rule as `scripts/install.sh`). Then the previous app is deleted. If the new version does not start, exits, keeps failing to load a model you keep loaded, or is still loading after 30 minutes, the previous version is put back and started, and it tells you why.
 
-Settings, models and recordings in `~/Library/Application Support/Vella` are kept. Progress is logged to `update.log` there. `VELLA_UPDATE=0` turns the check off.
+Settings, models and recordings in `~/Library/Application Support/Vella` are kept. Progress is logged to `update.log` there. `VELLA_UPDATE=0` turns the check off (it is then listed among the switches that are set in `worker-status.json` and `vella diagnose`).
 
 ## Uninstall
 
