@@ -115,7 +115,7 @@ struct TierControl: View {
                 .accessibilityElement().accessibilityLabel(row.title)
             TierSegments(
                 tiers: Self.columns, labels: labels, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot,
-                unavailable: Set(off.keys),
+                unavailable: Set(off.keys), tint: row == .optimized ? Self.boltColor(hot: hot) : nil,
                 help: { off[$0] ?? Self.tooltip(help(Cell(row, $0)), enabled: enabled) },
                 onSelect: { tier in if off[tier] == nil { onSelect(Cell(row, tier)) } }
             )
@@ -167,6 +167,9 @@ private struct TierSegments: NSViewRepresentable {
     let enabled: Bool
     let hot: Bool
     var unavailable: Set<String> = []
+    /// The Optimized row takes the bolt's tint (Toby, 30 Sep): a wash behind its cells and its labels in that colour,
+    /// light blue on an unloaded row, the warm yellow on the loaded one. The Standard row stays neutral (nil).
+    var tint: NSColor? = nil
     let help: (String) -> String
     let onSelect: (String) -> Void
 
@@ -193,7 +196,46 @@ private struct TierSegments: NSViewRepresentable {
         }
         /// A loaded row rings its selected cell in white: on the accent-blue row a fill alone does not stand out.
         var ringsSelection = false { didSet { if ringsSelection != oldValue { needsDisplay = true } } }
+        /// The Optimized row is drawn tinted as a whole (Toby, 30 Sep): the cells washed in the bolt's colour, the selected
+        /// cell solid in it with a dark label, the others white, greyed cells dimmed. Stock drawing for the Standard row.
+        var tint: NSColor? { didSet { if tint != oldValue { needsDisplay = true } } }
+        static let hotWash = NSColor(srgbRed: 208 / 255, green: 162 / 255, blue: 81 / 255, alpha: 1)
         override func draw(_ dirtyRect: NSRect) {
+            guard let tint else { return drawStock(dirtyRect) }
+            NSGraphicsContext.current?.cgContext.setAlpha(isEnabled ? 1 : 0.5)
+            let pitch = TierControl.cellWidth - 1
+            // On the loaded row the yellow must win over the blue behind it, so the wash is strong and labels are dark.
+            let hotRow = ringsSelection
+            // Yellow over the complementary blue greys out when blended, so the loaded row's wash is an opaque, deeper
+            // shade of the same yellow (41° 62 % 58 %).
+            (hotRow ? Self.hotWash : tint.withAlphaComponent(0.36)).setFill()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6).fill()
+            for i in 0..<segmentCount {
+                let cell = NSRect(x: CGFloat(i) * pitch, y: 0, width: pitch, height: bounds.height)
+                let selected = i == selectedSegment
+                if selected {
+                    tint.setFill()
+                    NSBezierPath(roundedRect: cell.insetBy(dx: 1.5, dy: 2), xRadius: 5, yRadius: 5).fill()
+                } else if i > 0, i - 1 != selectedSegment {
+                    (hotRow ? NSColor(white: 0.1, alpha: 0.25) : NSColor.white.withAlphaComponent(0.18)).setFill()
+                    NSRect(x: cell.minX - 0.5, y: cell.minY + 6, width: 1, height: cell.height - 12).fill()
+                }
+                let text = label(forSegment: i) ?? ""
+                let color: NSColor = !isEnabled(forSegment: i) ? (hotRow ? NSColor(white: 0.1, alpha: 0.35) : NSColor.white.withAlphaComponent(0.3))
+                    : selected || hotRow ? NSColor(white: 0.1, alpha: 1) : NSColor.white.withAlphaComponent(0.92)
+                let attributes: [NSAttributedString.Key: Any] = [.font: font ?? TierControl.font, .foregroundColor: color]
+                let size = (text as NSString).size(withAttributes: attributes)
+                (text as NSString).draw(at: NSPoint(x: cell.midX - size.width / 2, y: cell.midY - size.height / 2), withAttributes: attributes)
+            }
+            if ringsSelection, selectedSegment >= 0 {
+                let cell = NSRect(x: CGFloat(selectedSegment) * pitch, y: 0, width: pitch, height: bounds.height).insetBy(dx: 1, dy: 1.5)
+                let ring = NSBezierPath(roundedRect: cell, xRadius: 5, yRadius: 5)
+                ring.lineWidth = 1.5
+                NSColor.white.withAlphaComponent(0.95).setStroke()
+                ring.stroke()
+            }
+        }
+        private func drawStock(_ dirtyRect: NSRect) {
             super.draw(dirtyRect)
             guard ringsSelection, selectedSegment >= 0, selectedSegment < segmentCount else { return }
             let x = CGFloat(selectedSegment) * (TierControl.cellWidth - 1)
@@ -205,6 +247,7 @@ private struct TierSegments: NSViewRepresentable {
         }
     }
 
+    /// Draws an enabled segment's label in the row's tint; everything else (bezels, selection, greyed cells) is stock.
     func makeNSView(context: Context) -> NSSegmentedControl {
         let control = Control()
         control.controlSize = .regular
@@ -239,6 +282,7 @@ private struct TierSegments: NSViewRepresentable {
         // white label stands out from the light unselected cells there.
         control.selectedSegmentBezelColor = hot ? TierControl.hotSelection : nil
         (control as? Control)?.ringsSelection = hot
+        (control as? Control)?.tint = tint
         control.needsDisplay = true
     }
 }
