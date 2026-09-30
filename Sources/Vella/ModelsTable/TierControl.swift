@@ -110,7 +110,7 @@ struct TierControl: View {
         var off: [String: String] = [:]
         for tier in Self.columns { if let reason = unavailable[Cell(row, tier)] { off[tier] = reason } }
         return HStack(spacing: Self.iconGap) {
-            Self.icon(row).frame(width: Self.iconWidth, height: Self.segmentHeight)
+            Self.icon(row, hot: hot).frame(width: Self.iconWidth, height: Self.segmentHeight)
                 .appKitTooltip(row.help)
                 .accessibilityElement().accessibilityLabel(row.title)
             TierSegments(
@@ -123,10 +123,17 @@ struct TierControl: View {
         }.frame(width: Self.width, height: Self.segmentHeight, alignment: .leading)
     }
 
-    /// The row's icon in the text colour: a plain bolt, or the MLX logo.
-    @ViewBuilder static func icon(_ row: Row) -> some View {
+    /// The bolt's tint (Toby, 30 Sep): light blue on an unloaded row; on the loaded row, whose background is blue (hue
+    /// ≈ 221°), a warm yellow at the complementary hue (≈ 41°) with matched lightness, so it sits on that blue.
+    /// HSL: blue 221° 85 % 76 % (#8EAFF6), yellow 41° 85 % 72 % (#F4CE7B); both ≥ 5.8:1 on their row.
+    static let boltTint = NSColor(srgbRed: 142 / 255, green: 175 / 255, blue: 246 / 255, alpha: 1)
+    static let hotBoltTint = NSColor(srgbRed: 244 / 255, green: 206 / 255, blue: 123 / 255, alpha: 1)
+    static func boltColor(hot: Bool) -> NSColor { hot ? hotBoltTint : boltTint }
+
+    /// The row's icon: the bolt in its tint, or the MLX logo in the text colour.
+    @ViewBuilder static func icon(_ row: Row, hot: Bool = false) -> some View {
         if row == .optimized {
-            Image(systemName: "bolt.fill").font(.system(size: 15, weight: .semibold))
+            Image(systemName: "bolt.fill").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color(nsColor: boltColor(hot: hot)))
         } else if let logo = mlxLogo {
             Image(nsImage: logo).renderingMode(.template).resizable().scaledToFit().frame(height: logoHeight)
         } else {

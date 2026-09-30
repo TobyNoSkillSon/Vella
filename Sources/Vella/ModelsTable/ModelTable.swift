@@ -10,9 +10,9 @@ struct ModelTable: View {
         static let wer: CGFloat = 62, format: CGFloat = 62, speed: CGFloat = 78, energy: CGFloat = 64, memory: CGFloat = 72
         static let action: CGFloat = RowAction.width
         static let spacing: CGFloat = 6, rowPadding: CGFloat = 8
-        /// The leading icon slot of the Model column: the loaded row's flame, about as tall as the two-line model label
+        /// The leading icon slot of the Model column: the loaded row's 17 pt flame (taller than the name, shorter than the two-line label)
         /// (13 pt name over the 10.5 pt engine line), and the cloud rows' icon, so every name starts at the same x.
-        static let icon: CGFloat = 24, flameSize: CGFloat = 24
+        static let icon: CGFloat = 24, flameSize: CGFloat = 17
         static let columns: [CGFloat] = [model, params, precision, path, wer, format, speed, energy, memory, action]
         static let row: CGFloat = columns.reduce(0, +) + CGFloat(columns.count - 1) * spacing + 2 * rowPadding
     }
@@ -382,7 +382,7 @@ struct ModelTable: View {
             ExactFastSwitch(
                 position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
                 available: controller.switchAvailable(family), enabled: !controller.inUse(family),
-                exactAvailable: controller.exactAvailable(family),
+                exactAvailable: controller.exactAvailable(family), hot: controller.loaded(family) != nil,
                 onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
         } else {
             Color.clear.frame(height: 1)

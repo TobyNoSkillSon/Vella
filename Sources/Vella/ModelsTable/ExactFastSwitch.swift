@@ -43,6 +43,8 @@ struct ExactFastSwitch: View {
     /// False: no Exact recipe of this model has a measurement yet; the Exact position is greyed and a click does nothing
     /// (from Exact itself a click still goes to Fast).
     var exactAvailable = true
+    /// The model is loaded (its row is blue): the knob's bolt takes the loaded tint (TierControl.boltColor).
+    var hot = false
     let onChange: (Position) -> Void
 
     /// The tooltip as shown for a state.
@@ -54,7 +56,7 @@ struct ExactFastSwitch: View {
     var body: some View {
         SwitchRepresentable(
             position: available ? position : .fast, active: available && enabled,
-            greyed: !available, exactUnavailable: available && !exactAvailable,
+            greyed: !available, exactUnavailable: available && !exactAvailable, hot: hot,
             tooltip: Self.tooltip(available: available, enabled: enabled, exactAvailable: exactAvailable), onChange: onChange
         )
         .frame(width: Self.width, height: Self.height)
@@ -66,6 +68,7 @@ private struct SwitchRepresentable: NSViewRepresentable {
     let active: Bool
     let greyed: Bool
     var exactUnavailable = false
+    var hot = false
     let tooltip: String
     let onChange: (ExactFastSwitch.Position) -> Void
 
@@ -75,7 +78,7 @@ private struct SwitchRepresentable: NSViewRepresentable {
         CGSize(width: ExactFastSwitch.width, height: ExactFastSwitch.height)
     }
     private func update(_ view: SwitchView) {
-        view.position = position; view.active = active; view.greyed = greyed; view.exactUnavailable = exactUnavailable; view.onChange = onChange
+        view.position = position; view.active = active; view.greyed = greyed; view.exactUnavailable = exactUnavailable; view.hot = hot; view.onChange = onChange
         if view.toolTip != tooltip { view.toolTip = tooltip }
         view.needsDisplay = true
     }
@@ -89,6 +92,7 @@ final class SwitchView: NSView {
     var greyed = false
     /// The Exact position has no measurement: its word is dimmed; the switch stays on Fast.
     var exactUnavailable = false
+    var hot = false { didSet { if hot != oldValue { needsDisplay = true } } }
     var onChange: ((ExactFastSwitch.Position) -> Void)?
 
     override var isFlipped: Bool { true }
@@ -114,7 +118,7 @@ final class SwitchView: NSView {
         NSColor.white.setFill()
         NSBezierPath(ovalIn: current).fill()
         // The Optimized row's bolt on the knob: the switch belongs to that row.
-        if let bolt = Self.bolt {
+        if let bolt = Self.bolt(hot: hot) {
             let size = bolt.size
             bolt.draw(
                 in: NSRect(x: current.midX - size.width / 2, y: current.midY - size.height / 2, width: size.width, height: size.height),
@@ -133,12 +137,16 @@ final class SwitchView: NSView {
         let knobSize = Self.trackWidth - 4
         return NSRect(x: track.minX + 2, y: position == .fast ? track.minY + 2 : track.maxY - 2 - knobSize, width: knobSize, height: knobSize)
     }
-    /// A plain bolt in dark grey, sized for the knob.
-    static let bolt: NSImage? = {
+    /// The knob's bolt, sized for the knob, in the row's bolt hue: the white knob needs a deeper shade of the same hue
+    /// to read (blue 221° 75 % 45 %, 6.7:1 on white; amber 41° 90 % 38 %, 3.3:1).
+    static let knobBolt = image(NSColor(srgbRed: 29 / 255, green: 83 / 255, blue: 201 / 255, alpha: 1))
+    static let hotKnobBolt = image(NSColor(srgbRed: 184 / 255, green: 128 / 255, blue: 10 / 255, alpha: 1))
+    static func bolt(hot: Bool) -> NSImage? { hot ? hotKnobBolt : knobBolt }
+    private static func image(_ color: NSColor) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: 9, weight: .bold)
-            .applying(NSImage.SymbolConfiguration(paletteColors: [NSColor(white: 0.25, alpha: 1)]))
+            .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
         return NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: nil)?.withSymbolConfiguration(config)
-    }()
+    }
 
     /// The whole view is the hit target: pill, knob and words.
     override func mouseDown(with event: NSEvent) {
