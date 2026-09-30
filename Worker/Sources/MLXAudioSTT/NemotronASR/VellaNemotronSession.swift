@@ -28,6 +28,10 @@ public final class VellaNemotronSession {
     private var melFrame = 0
     /// Optimized session: every encoder chunk is finite-checked, whether or not decoding is batched.
     private let checksFinite: Bool
+    /// `VELLA_NEMO_KEEPCACHE=1` (optimized, opt-in; exact): keep MLX's buffer cache between requests (see `advance`).
+    private let keepCache: Bool
+    /// `VELLA_NEMO_JOINTBATCH=1` (optimized, batched decode, dense joint): see `VellaNemotronJointBatch`.
+    private let jointBatch: VellaNemotronSmallLinear?
     /// Set when the optimized path saw a non-finite encoder output (batched decoding: checked inside the argmax
     /// sync; per-frame decoding: one extra read per chunk).
     public private(set) var nonFinite = false
@@ -48,6 +52,11 @@ public final class VellaNemotronSession {
         batchedDecode = optimized && VellaNemotronOptions.batchedDecode
         batchedMel = optimized && VellaNemotronOptions.melBatch
         checksFinite = optimized
+        keepCache = optimized && VellaNemotronOptions.labLevers.contains("keepcache-1")
+        if optimized && batchedDecode && VellaNemotronJointBatch.enabled && model.jointBatch == nil {
+            model.jointBatch = VellaNemotronJointBatch.make(model.joint.outputProj)
+        }
+        jointBatch = optimized && batchedDecode && VellaNemotronJointBatch.enabled ? model.jointBatch : nil
         last = model.blankTokenID
     }
     public func push(_ chunk: [Float], final: Bool) throws -> String {
@@ -153,7 +162,10 @@ public final class VellaNemotronSession {
         if let c = hidden?.cell { live.append(c) }
         if !live.isEmpty { VellaStreamProfile.time("live_eval") { eval(live) }; VellaStreamProfile.add("sync_live") }
         closed = final
-        Memory.clearCache()
+        // `VELLA_NEMO_KEEPCACHE=1`: keep MLX's buffer cache (bounded by the worker's 64 MB cache limit) across requests
+        // instead of freeing every request's buffers and allocating them again the next request (v2-mini BF16:
+        // +18 % speed, -11 % J/min, identical transcripts; lab/models/Nemotron/L3-keepcache.md).
+        if !keepCache { Memory.clearCache() }
         return text
     }
 
@@ -185,18 +197,25 @@ public final class VellaNemotronSession {
                 predictor = (state, joint.pred(result.0.asType(dtype)).expandedDimensions(axis: 1))
             }
             let projection = predictor!.projection
-            let logits = encoded[time...].map { encP -> MLXArray in
-                var x = encP + projection
+            func activate(_ v: MLXArray) -> MLXArray {
                 switch joint.activationName {
-                case "relu": x = relu(x)
-                case "sigmoid": x = sigmoid(x)
-                default: x = tanh(x)
+                case "relu": return relu(v)
+                case "sigmoid": return sigmoid(v)
+                default: return tanh(v)
                 }
-                return joint.outputProj(x).argMax()
+            }
+            var argmaxes: MLXArray?
+            if let jointBatch, count - time <= VellaNemotronFusedMetal.maxRows {
+                // All remaining frames in one pass (`VellaNemotronJointBatch`): same activations, one weight read.
+                let rest = activate(MLX.concatenated(Array(encoded[time...]), axis: 1) + projection)
+                if let y = jointBatch(rest.reshaped([1, count - time, rest.shape[3]])) { argmaxes = y.argMax(axis: -1).reshaped([count - time]) }
+            }
+            if argmaxes == nil {
+                argmaxes = MLX.stacked(encoded[time...].map { joint.outputProj(activate($0 + projection)).argMax() })
             }
             // Finiteness of the chunk rides along in the same host sync.
             let finite = Self.finite(features).asType(.int32)
-            let read = MLX.concatenated([MLX.stacked(logits).asType(.int32), finite.reshaped([1])]).asArray(Int32.self)
+            let read = MLX.concatenated([argmaxes!.asType(.int32), finite.reshaped([1])]).asArray(Int32.self)
             let predictions = Array(read.dropLast())
             if read.last != 1 { nonFinite = true }
             VellaStreamProfile.add("sync_item")

@@ -20,6 +20,8 @@ public final class NemotronASRModel: Module {
     let positionCache = NemotronASRPositionCache()
     /// Built by `prepareFusedEncoder()` on the optimized path only (after any load-time weight conversion).
     var fusedEncoder: VellaNemotronFusedEncoder?
+    /// BF16 copy of the joint output projection for `VELLA_NEMO_JOINTBATCH=1` (built by the first optimized session).
+    var jointBatch: VellaNemotronSmallLinear?
 
     @ModuleInfo(key: "encoder") var encoder: NemotronASRConformer
     @ModuleInfo(key: "prompt_kernel") var promptKernel: NemotronASRPromptKernel?

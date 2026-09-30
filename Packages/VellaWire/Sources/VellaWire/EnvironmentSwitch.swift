@@ -34,6 +34,9 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         .init("VELLA_PARAKEET_INT4", .lab, gateKey: true, worker: true),
         .init("VELLA_TEST_TOLERANT_FAULT", .test, gateKey: true, worker: true),
         .init("VELLA_NEMO_", prefix: true, .lab, gateKey: true, worker: true),
+        // Nemotron L3 opt-in levers (also matched by the prefix above; each appends its own gate revision when "1").
+        .init("VELLA_NEMO_KEEPCACHE", .lab, gateKey: true, worker: true),
+        .init("VELLA_NEMO_JOINTBATCH", .lab, gateKey: true, worker: true),
         // The user's selection: set by the app for every helper, reported as the status's `recipe`.
         .init("VELLA_RECIPE", .app),
         // Diagnosis and instrumentation.

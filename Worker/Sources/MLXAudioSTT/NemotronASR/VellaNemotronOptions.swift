@@ -51,7 +51,11 @@ public enum VellaNemotronOptions {
     /// Per-request mel frontend (the session only defers the mel when the worker coalesces requests).
     public static let melBatch = requested.melBatch && requested.coalesce
     /// Bumped whenever an optimization or its self-test changes, so a persisted self-test verdict is not reused.
-    public static let revision = "nemotron-stream-5"
+    /// L3 opt-in levers (`VELLA_NEMO_<NAME>=1`, off by default) each append their own revision; with none set the
+    /// revision (and every existing gate key) is unchanged.
+    public static let labLevers: [String] = [("KEEPCACHE", "keepcache-1"), ("JOINTBATCH", "jointbatch-1")]
+        .filter { !FastPathGate.forcedStock && ProcessInfo.processInfo.environment["VELLA_NEMO_" + $0.0] == "1" }.map(\.1)
+    public static let revision = (["nemotron-stream-5"] + labLevers).joined(separator: "+")
     public static var anyEnabled: Bool { requested.anyEnabled }
     /// The requested components with their dependencies applied (before the fused encoder is built).
     public static var active: [String: Bool] { requested.effective() }

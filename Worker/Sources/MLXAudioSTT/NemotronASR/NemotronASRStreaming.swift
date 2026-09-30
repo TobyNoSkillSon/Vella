@@ -208,6 +208,7 @@ extension NemotronASRModel {
             let winLen = win.shape[1]
             let lengths = MLXArray([Int32(winLen)]).asType(.int32)
             let sub = encoder.preEncode(win, lengths: lengths).0  // (1, k, d)
+            if VellaStreamProfile.enabled { VellaStreamProfile.time("pre_eval") { eval(sub) } }
 
             let isFinal = flushTail && (end >= limit)
             let base = (state.consumed - cacheLen) / sf
@@ -225,6 +226,7 @@ extension NemotronASRModel {
             if state.useFusedLayer, state.useKeyValueCache, let fused = fusedEncoder,
                h.shape[1] <= VellaNemotronFusedMetal.maxRows, leftCache + VellaNemotronFusedMetal.maxRows <= fused.headDim {
                 h = fused(h, model: self, state: state, leftCache: leftCache)
+                if VellaStreamProfile.enabled { VellaStreamProfile.time("layers_eval") { eval(h) } }
                 if let from = nemoTestEncoderFaultChunk, state.fusedChunks >= from { h = h * MLXArray(Float.nan) }
                 state.fusedChunks += 1
                 onChunk(applyPrompt(h, language: language))
