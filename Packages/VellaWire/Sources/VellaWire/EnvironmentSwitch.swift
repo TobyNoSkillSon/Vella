@@ -30,6 +30,8 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         // Gate components (lab A/B and the two-stage gate's test hook).
         .init("VELLA_PARAKEET_FAST", .lab, gateKey: true, worker: true),
         .init("VELLA_PARAKEET_NAX", .lab, gateKey: true, worker: true),
+        .init("VELLA_PARAKEET_INT8", .lab, gateKey: true, worker: true),
+        .init("VELLA_PARAKEET_INT4", .lab, gateKey: true, worker: true),
         .init("VELLA_TEST_TOLERANT_FAULT", .test, gateKey: true, worker: true),
         .init("VELLA_NEMO_", prefix: true, .lab, gateKey: true, worker: true),
         // The user's selection: set by the app for every helper, reported as the status's `recipe`.
@@ -42,6 +44,7 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         .init("VELLA_KERNEL_DIAGNOSTIC_COMPONENT", .lab, worker: true, stripped: true),
         .init("VELLA_KERNEL_DIAGNOSTIC_CLIP", .lab, worker: true, stripped: true),
         .init("VELLA_PARAKEET_PROFILE", .lab, worker: true),
+        .init("VELLA_DICTATION_KEEP_CACHE", .lab, worker: true),
         .init("VELLA_QWEN_PROFILE", .lab, worker: true),
         .init("VELLA_WHISPER_PROFILE", .lab, worker: true),
         .init("VELLA_STREAM_PROFILE", .lab, worker: true),

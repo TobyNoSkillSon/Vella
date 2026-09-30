@@ -57,9 +57,12 @@ final class FastParakeetEncoder {
             }
         }
 
-        func call(_ x: MLXArray, nax: Bool = false) -> MLXArray {
+        func call(_ x: MLXArray, nax: Bool = false, int8: Bool = false) -> MLXArray {
             let y: MLXArray
-            if let scales {
+            if int8, let scales, let biases, mode == .affine,
+               let fast = FastParakeetInt8.matmul(x, weight: weight, scales: scales, biases: biases, bits: bits, groupSize: groupSize, bias: bias) {
+                return fast
+            } else if let scales {
                 y = MLX.quantizedMM(x, weight, scales: scales, biases: biases, groupSize: groupSize, bits: bits, mode: mode)
             } else if nax, let rowMajor, let fast = FastParakeetNAX.matmul(x, rowMajor) {
                 y = fast
@@ -100,18 +103,23 @@ final class FastParakeetEncoder {
     /// Weight GEMMs on the Metal 4 tensor-op kernel (FastParakeetNAX). Set only for dense BF16 checkpoints on an
     /// eligible GPU; `useNAX = false` gives the previous fused path (the self-test compares the two).
     var useNAX: Bool
+    /// Quantized Linears on SmallMGEMM's native int8 kernel and the pointwise convolutions on the BF16 tile kernel
+    /// (FastParakeetInt8). Set only for eligible 8-bit checkpoints built with BF16 activations; `useInt8 = false` runs
+    /// the same BF16 encoder on MLX's GEMMs (the self-test's reference).
+    var useInt8: Bool
     private let fusedConv = MLXFast.metalKernel(name: "vella_glu_dwconv_silu", inputNames: ["y", "w", "bias"], outputNames: ["out"], source: FastParakeetMetal.src)
     private let compiledFFN: @Sendable ([MLXArray]) -> [MLXArray] = MLX.compile(shapeless: true) { a in
         let h = MLXFast.layerNorm(a[0], weight: a[1], bias: a[2], eps: 1e-5)
         return [a[0] + 0.5 * MLX.matmul(MLXNN.silu(MLX.matmul(h, a[3])), a[4])]
     }
 
-    init?(_ encoder: ParakeetConformer, dense: Bool = true, dtype: DType = .bfloat16, fusedConvolution: Bool = true, nax: Bool = false) {
+    init?(_ encoder: ParakeetConformer, dense: Bool = true, dtype: DType = .bfloat16, fusedConvolution: Bool = true, nax: Bool = false, int8: Bool = false) {
         guard encoder.posEnc != nil, encoder.preEncodeDw != nil,
               encoder.layers.allSatisfy({ $0.relSelfAttn != nil && Dictionary(uniqueKeysWithValues: $0.conv.batchNorm.parameters().flattened())["running_var"] != nil && Dictionary(uniqueKeysWithValues: $0.conv.batchNorm.parameters().flattened())["running_mean"] != nil && $0.conv.batchNorm.weight != nil && $0.conv.batchNorm.bias != nil }) else { return nil }
         stock = encoder
         useFusedConvolution = fusedConvolution
         useNAX = nax && dense && dtype == .bfloat16 && FastParakeetNAX.available
+        useInt8 = int8 && !dense && dtype == .bfloat16 && FastParakeetInt8.available
         blocks = encoder.layers.map { b in
             let a = b.relSelfAttn!, c = b.conv, bn = c.batchNorm
             let stats = Dictionary(uniqueKeysWithValues: bn.parameters().flattened())
@@ -139,7 +147,7 @@ final class FastParakeetEncoder {
            let nw = norm.weight, let nb = norm.bias {
             return compiledFFN([x, nw, nb, a.weight, b.weight])[0]
         }
-        return x + 0.5 * b.call(MLXNN.silu(a.call(norm(x))))
+        return x + 0.5 * b.call(MLXNN.silu(a.call(norm(x), int8: useInt8)), int8: useInt8)
     }
 
     private func relShift(_ x: MLXArray) -> MLXArray {
@@ -158,17 +166,17 @@ final class FastParakeetEncoder {
             let b = l.stock, a = b.relSelfAttn!
             x = ff(x, norm: b.normFeedForward1, a: l.ff11, b: l.ff12)
             let h = b.normSelfAtt(x), batch = h.shape[0], time = h.shape[1], dim = h.shape[2]
-            let projected = l.qkv.call(h, nax: useNAX).split(parts: 3, axis: -1)
+            let projected = l.qkv.call(h, nax: useNAX, int8: useInt8).split(parts: 3, axis: -1)
             let q = projected[0].reshaped([batch, time, l.heads, l.headDim])
             let k = projected[1].reshaped([batch, time, l.heads, l.headDim]).transposed(0, 2, 1, 3)
             let v = projected[2].reshaped([batch, time, l.heads, l.headDim]).transposed(0, 2, 1, 3)
-            let p = l.pos.call(position, nax: useNAX).reshaped([batch, -1, l.heads, l.headDim]).transposed(0, 2, 1, 3)
+            let p = l.pos.call(position, nax: useNAX, int8: useInt8).reshaped([batch, -1, l.heads, l.headDim]).transposed(0, 2, 1, 3)
             let qu = (q + a.posBiasU.asType(q.dtype)).transposed(0, 2, 1, 3)
             let qv = (q + a.posBiasV.asType(q.dtype)).transposed(0, 2, 1, 3)
             let bd = relShift(MLX.matmul(qv, p.swappedAxes(-2, -1)))[0..., 0..., 0..., ..<time] * MLXArray(l.scale).asType(q.dtype)
             let attended = MLXFast.scaledDotProductAttention(queries: qu, keys: k, values: v, scale: l.scale, mask: .array(bd))
-            x = x + l.out.call(attended.transposed(0, 2, 1, 3).reshaped([batch, time, dim]), nax: useNAX)
-            let y = l.pw1.call(b.normConv(x), nax: useNAX)
+            x = x + l.out.call(attended.transposed(0, 2, 1, 3).reshaped([batch, time, dim]), nax: useNAX, int8: useInt8)
+            let y = l.pw1.call(b.normConv(x), nax: useNAX || useInt8)
             let channels = y.shape[2] / 2, kernel = l.kernelSize
             let middle: MLXArray
             if useFusedConvolution {
@@ -181,7 +189,7 @@ final class FastParakeetEncoder {
                 let gated = split[0] * MLX.sigmoid(split[1])
                 middle = MLXNN.silu(MLX.conv1d(gated, l.dwWeight, padding: (kernel-1)/2, groups: channels) + l.dwBias)
             }
-            x = x + l.pw2.call(middle, nax: useNAX)
+            x = x + l.pw2.call(middle, nax: useNAX || useInt8)
             x = ff(x, norm: b.normFeedForward2, a: l.ff21, b: l.ff22)
             x = b.normOut(x)
         }
