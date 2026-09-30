@@ -26,7 +26,11 @@ final class DownloadTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let model = ModelRecommendation(id: "fixture", name: "Fixture", quantization: "4-bit", repository: "org/repo",
             revision: String(repeating: "a", count: 40), downloadBytes: 100, architecture: "parakeet", license: "test", recommendation: "test")
-        try JSONEncoder().encode([model]).write(to: root.appendingPathComponent("models.json"))
+        let family = ModelFamily(id: "fixture", name: model.name, mode: .dictation, languages: ["en"], params: "0.6B", license: model.license,
+                                 native: "4b", variants: ["4b": CatalogVariant(id: model.id, repository: model.repository, revision: model.revision,
+                                                                               downloadBytes: model.downloadBytes, architecture: model.architecture)],
+                                 notes: model.recommendation)
+        try JSONEncoder().encode(ModelCatalog(schema: 2, families: [family])).write(to: root.appendingPathComponent("models.json"))
         let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [HubStub.self]
         return (root, model, configuration)
     }

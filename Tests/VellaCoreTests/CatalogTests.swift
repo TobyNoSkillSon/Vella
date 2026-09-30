@@ -74,18 +74,11 @@ final class CatalogTests: XCTestCase {
         }
     }
 
-    func testLegacyFlatCatalogGroupsIntoFamilies() throws {
-        let legacy = #"""
-        [{"id":"a-8","name":"A","quantization":"8-bit","repository":"o/a8","revision":"r","downloadBytes":2,"architecture":"parakeet","license":"l","recommendation":"x","recommended":false},
-         {"id":"a-4","name":"A","quantization":"4-bit","repository":"o/a4","revision":"r","downloadBytes":1,"architecture":"parakeet","license":"l","recommendation":"x","recommended":true},
-         {"id":"s","name":"S","quantization":"BF16","repository":"o/s","revision":"r","downloadBytes":3,"architecture":"nemotron_asr","license":"l","recommendation":"x"}]
-        """#
-        let catalog = try decodeCatalog(Data(legacy.utf8))
-        XCTAssertEqual(catalog.families.count, 2)
-        XCTAssertEqual(Set(catalog.families[0].variants.keys), ["8b", "4b"])
-        XCTAssertTrue(catalog.families[0].offered)
-        XCTAssertEqual(catalog.families[1].mode, .streaming)
-        XCTAssertEqual(catalogVariants(catalog).map(\.id).sorted(), ["a-4", "a-8", "s"])
+    func testOnlySchemaTwoCatalogsDecode() throws {
+        let flat = #"[{"id":"a-8","name":"A","quantization":"8-bit","repository":"o/a8","revision":"r","downloadBytes":2,"architecture":"parakeet","license":"l","recommendation":"x"}]"#
+        XCTAssertThrowsError(try decodeCatalog(Data(flat.utf8)), "the pre-v2 flat array is no longer read")
+        XCTAssertThrowsError(try decodeCatalog(Data(#"{"schema": 1, "families": []}"#.utf8)))
+        XCTAssertEqual(try decodeCatalog(Data(#"{"schema": 2, "families": []}"#.utf8)).families.count, 0)
     }
 
     func testPrecisionOptionsOrderAndFourBitFloor() {

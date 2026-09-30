@@ -167,31 +167,13 @@ public struct ModelCatalog: Codable, Equatable {
     public func offered(_ mode: RecognitionMode) -> [ModelFamily] { families.filter { $0.offered && $0.mode == mode } }
 }
 
-/// Decodes models.json v2. A pre-v2 flat array of variants (one entry per precision) is grouped into families by name
-/// so older catalogs and fixtures still load.
+/// Decodes models.json (schema 2: families with their variants).
 public func decodeCatalog(_ data: Data) throws -> ModelCatalog {
-    if let catalog = try? JSONDecoder().decode(ModelCatalog.self, from: data), catalog.schema >= 2 { return catalog }
-    let legacy = try JSONDecoder().decode([LegacyEntry].self, from: data)
-    var families: [ModelFamily] = []
-    for entry in legacy {
-        let precision = precisionLabel(legacyQuantization: entry.quantization)
-        let variant = CatalogVariant(id: entry.id, repository: entry.repository, revision: entry.revision, downloadBytes: entry.downloadBytes,
-                                     architecture: entry.architecture, processorSource: entry.processorSource)
-        if let index = families.firstIndex(where: { $0.name == entry.name && $0.variants[precision] == nil }) {
-            families[index].variants[precision] = variant
-            if entry.recommended == true { families[index].offered = true }
-        } else {
-            let mode: RecognitionMode = entry.architecture == "nemotron_asr" ? .streaming : .dictation
-            families.append(ModelFamily(id: entry.id, name: entry.name, mode: mode, languages: [], params: "", license: entry.license,
-                                        native: precision, variants: [precision: variant], offered: entry.recommended ?? true, notes: entry.recommendation))
-        }
+    let catalog = try JSONDecoder().decode(ModelCatalog.self, from: data)
+    guard catalog.schema >= 2 else {
+        throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "models.json schema \(catalog.schema) is not supported"))
     }
-    return ModelCatalog(schema: 2, families: families)
-}
-private struct LegacyEntry: Decodable {
-    let id: String, name: String, quantization: String, repository: String, revision: String
-    let downloadBytes: Int64, architecture: String, license: String, recommendation: String?
-    let recommended: Bool?, processorSource: ProcessorSource?
+    return catalog
 }
 
 /// Every variant of a catalog as the downloader's flat record (one per precision). `quantization` keeps the
@@ -215,7 +197,7 @@ public func catalogVariants(_ catalog: ModelCatalog) -> [ModelRecommendation] {
         }
     }
 }
-/// Reads a catalog file (v2 or legacy) as flat variant records.
+/// Reads a catalog file as flat variant records.
 public func catalogVariants(contentsOf url: URL) throws -> [ModelRecommendation] { catalogVariants(try decodeCatalog(Data(contentsOf: url))) }
 /// The pinned processor recipe for an install id, if any.
 public func processorSource(variant id: String, catalogURL: URL) throws -> ProcessorSource? {
