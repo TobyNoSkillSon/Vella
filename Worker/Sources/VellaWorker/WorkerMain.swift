@@ -55,7 +55,10 @@ import VellaWire
             // The shared SmallMGEMM package's unit self-test: relative RMS per class vs stock MLX, JSON on stdout.
             let results = SmallMGEMM.selfTest()
             let failures = SmallMGEMM.selfTestFailures(results)
-            let report: [String: Any] = ["revision": SmallMGEMM.revision, "results": results.mapValues { Double($0) }, "failures": failures]
+            let report: [String: Any] = [
+                "revision": SmallMGEMM.revision, "qtile_revision": SmallMGEMM.qtileRevision,
+                "results": results.mapValues { Double($0) }, "failures": failures
+            ]
             if let bytes = try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]) {
                 bytes.withUnsafeBytes { _ = write(output, $0.baseAddress, $0.count) }
                 _ = write(output, "\n", 1)

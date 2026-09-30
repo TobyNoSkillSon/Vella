@@ -16,6 +16,13 @@ import MLXFast
 /// about MLX's gemv; the gain comes from the fused epilogues (the SiLU-gate pair reads gate and up in one pass,
 /// residual/bias added before the single rounding) and fewer launches. Also inexact (different summation order).
 ///
+/// Native quantized tile kernel (`qtile`, M 9…256 by default, opt-in with `native: true`): MLX affine g64 weights fed to
+/// `matmul2d` as they are stored — 8-bit codes as `uint8_t`, 4-bit as `uint4b_format`, both native right operands of
+/// the tensor unit next to a bfloat/half left operand on macOS 26 — so weights stream from memory at 1 or ½ byte per
+/// element with no dequantization. Per K group of 64: one `matmul2d` of the raw codes into a fresh float tile, then
+/// acc += scale[n, g] · P + bias[n, g] · Σₖ x[m, k] (MLX's qmv product form), split-K over the simdgroups by whole
+/// groups, float reduction, one rounding. Inexact like the others (float order; x is read in its own dtype).
+///
 /// Callers: `let y = SmallMGEMM.matmul(x, weights, epilogue: e) ?? stock(x)`. `supports` answers the same question
 /// without building a graph. `revision` is part of every gate key and changes whenever a summation order can change.
 public enum SmallMGEMM {
@@ -68,11 +75,16 @@ public enum SmallMGEMM {
     /// Per kernel family; gate keys include the families they use (or `revision` for all).
     public static let tileRevision = "tile-1"
     public static let gemvRevision = "gemv-1"
+    /// Covers the tile and GEMV families (unchanged by the native kernel, so keys built on it stay as they were).
     public static let revision = tileRevision + " " + gemvRevision
+    /// The native quantized tile kernel; callers that pass `native: true` put it in their gate keys.
+    public static let qtileRevision = "qtile-1"
 
     /// Row ranges per kernel family.
     public static let tileRows = 9...256
     public static let gemvRows = 1...8
+    /// Rows of the native quantized tile kernel (`native: true`).
+    public static let qtileRows = 9...256
 
     /// Tensor-op matmul needs Metal 4 and an Apple GPU of generation 17 or later (MLX's own test before its NAX
     /// kernels: `applegpu_g<gen><class>`, gen ≥ 17, phones ≥ 18).
@@ -90,8 +102,13 @@ public enum SmallMGEMM {
     /// Covers the GPU family (Apple gen ≥ 17 for the tile kernel's `matmul2d`; the GEMV kernel runs on any Apple
     /// GPU), dtype (bfloat16/float16), weight format, M range and K alignment (tile: K % 16; dense GEMV: K % 8;
     /// affine GEMV: bits 4|8, group 64, K % 64).
-    public static func supports(m: Int, n: Int, k: Int, dtype: DType, format: WeightFormat, epilogue: EpilogueKind) -> Bool {
-        gemvRows.contains(m)
+    /// `native`: also allow the native quantized tile kernel (revision `qtileRevision`) for `.affine(8|4, 64)`
+    /// weights; it takes the call wherever its plan exists, else the standard families decide as without it.
+    public static func supports(
+        m: Int, n: Int, k: Int, dtype: DType, format: WeightFormat, epilogue: EpilogueKind, native: Bool = false
+    ) -> Bool {
+        if native, qtilePlan(m: m, n: n, k: k, dtype: dtype, format: format, epilogue: epilogue) != nil { return true }
+        return gemvRows.contains(m)
             ? gemvPlan(m: m, n: n, k: k, dtype: dtype, format: format, epilogue: epilogue) != nil
             : tilePlan(m: m, n: n, k: k, dtype: dtype, format: format, epilogue: epilogue) != nil
     }
@@ -99,7 +116,8 @@ public enum SmallMGEMM {
     /// out[M, N] = epilogue(x[..., K] · Wᵀ) with the leading dimensions of x flattened into M; nil when `supports`
     /// is false for this call or an operand does not fit (bias [N], residual [M, N] or [..., N]; the up projection of
     /// `.siluGate` in the same format and shape as the gate).
-    public static func matmul(_ x: MLXArray, _ weights: Weights, epilogue: Epilogue = .none) -> MLXArray? {
+    /// `native`: as in `supports`.
+    public static func matmul(_ x: MLXArray, _ weights: Weights, epilogue: Epilogue = .none, native: Bool = false) -> MLXArray? {
         let k = x.dim(-1), n = weights.n, rows = x.size / max(k, 1)
         guard fits(weights, k: k, dtype: x.dtype) else { return nil }
         var bias: MLXArray?, residual: MLXArray?, up: Weights?
@@ -118,7 +136,19 @@ public enum SmallMGEMM {
         }
         let x2 = x.reshaped([rows, k])
         let out: MLXArray
-        if gemvRows.contains(rows) {
+        if native, up == nil, case .affine(let bits, let groupSize) = weights.format,
+            let simdgroups = qtilePlan(m: rows, n: n, k: k, dtype: x.dtype, format: weights.format, epilogue: epilogue.kind)
+        {
+            out =
+                (bits == 8 ? qtile8Kernel : qtile4Kernel)(
+                    [x2, weights.w, weights.scales!, weights.biases!, bias ?? placeholder, residual ?? placeholder],
+                    template: [
+                        ("T", x.dtype), ("BITS", bits), ("GS", groupSize), ("BM", tile), ("BN", tile), ("SG", simdgroups),
+                        ("HAS_BIAS", bias != nil), ("HAS_RES", residual != nil)
+                    ],
+                    grid: ((rows + tile - 1) / tile * 32 * simdgroups, (n + tile - 1) / tile, 1),
+                    threadGroup: (32 * simdgroups, 1, 1), outputShapes: [[rows, n]], outputDTypes: [x.dtype])[0]
+        } else if gemvRows.contains(rows) {
             guard let plan = gemvPlan(m: rows, n: n, k: k, dtype: x.dtype, format: weights.format, epilogue: epilogue.kind) else { return nil }
             let flags: [(String, any KernelTemplateArg)] = [
                 ("MR", rows), ("R", plan.rowsPerGroup), ("SGK", plan.simdgroups),
@@ -286,6 +316,38 @@ public enum SmallMGEMM {
                 }
             }
         }
+        // Native quantized tile, last so the classes above draw the same inputs as before it existed: MLX affine
+        // 8/4-bit group 64 against MLX's quantized matmul; both simdgroup counts, partial row and column tiles, K
+        // groups spread unevenly over the simdgroups (G % SG != 0).
+        let qtileShapes = [(9, 96, 320), (33, 200, 1088), (100, 160, 1024), (256, 64, 448)]
+        for (dtypeName, dtype) in [("bf16", DType.bfloat16), ("f16", DType.float16)] {
+            for (m, n, k) in qtileShapes {
+                let x = random([m, k], dtype), w = random([n, k], dtype, scale: 0.05)
+                let b = random([n], dtype), r = random([m, n], dtype)
+                for bits in [8, 4] {
+                    let format = WeightFormat.affine(bits: bits, groupSize: 64)
+                    let names = epilogues.map { "qtile.\(dtypeName).affine\(bits).\($0.0)" }
+                    guard names.contains(where: including) else { continue }
+                    let q = MLX.quantized(w, groupSize: 64, bits: bits)
+                    let weights = Weights(w: q.wq, scales: q.scales, biases: q.biases, format: format)
+                    let product = MLX.quantizedMM(x, q.wq, scales: q.scales, biases: q.biases, transpose: true, groupSize: 64, bits: bits)
+                    for (epilogueName, kind) in epilogues
+                    where supports(m: m, n: n, k: k, dtype: dtype, format: format, epilogue: kind, native: true)
+                        && including("qtile.\(dtypeName).affine\(bits).\(epilogueName)")
+                    {
+                        let epilogue: Epilogue, reference: MLXArray
+                        switch kind {
+                        case .bias: epilogue = .bias(b); reference = product + b
+                        case .residual: epilogue = .residual(r); reference = product + r
+                        case .biasResidual: epilogue = .biasResidual(b, r); reference = product + b + r
+                        default: epilogue = .none; reference = product
+                        }
+                        let name = "qtile.\(dtypeName).affine\(bits).\(epilogueName)"
+                        record(name, matmul(x, weights, epilogue: epilogue, native: true).map { relativeRMS($0, reference) } ?? .infinity)
+                    }
+                }
+            }
+        }
         return results
     }
 
@@ -320,6 +382,21 @@ public enum SmallMGEMM {
             tileRows.contains(m), n > 0, k % 16 == 0, k >= simdgroups * 16
         else { return nil }
         return simdgroups
+    }
+
+    /// Simdgroups per threadgroup for the native quantized tile kernel, or nil when it cannot run the call: MLX affine
+    /// 8/4-bit group 64, scales and biases in x's dtype (checked by `fits`), tensor ops, rows `qtileRows`.
+    private static func qtilePlan(m: Int, n: Int, k: Int, dtype: DType, format: WeightFormat, epilogue: EpilogueKind) -> Int? {
+        guard tensorOpsAvailable, dtype == .bfloat16 || dtype == .float16, case .affine(let bits, let groupSize) = format,
+            bits == 8 || bits == 4, groupSize == 64, epilogue != .siluGate, qtileRows.contains(m), n > 0, k % groupSize == 0,
+            // M5 Max, 8-bit, vs MLX's quantized matmul (bf16 or f32 x): faster at M 12–256 for N ≤ 2048 (1024²: 7.1 vs
+            // 9.4 µs at M 16, 20.4 vs 47.6 at M 256) but only up to M ≈ 100 for N 3072/4096 (1024→4096 at M 256: 66 vs
+            // 51 µs); M ≤ 8 and M ≥ 512 lose everywhere (lab/models/Parakeet/l3-int8/bench-range.jsonl).
+            n <= 2048 || m <= 100
+        else { return nil }
+        // Same split as the dense tile kernel: 8 simdgroups up to 64 rows, 4 above; K is split by whole groups, so a
+        // simdgroup may get none (it then adds zeros).
+        return m <= 64 ? 8 : 4
     }
 
     private struct GemvPlan { let rowsPerGroup: Int; let simdgroups: Int }
@@ -397,6 +474,94 @@ public enum SmallMGEMM {
     private static let tileKernel = MLXFast.metalKernel(
         name: "smallm_tile", inputNames: ["x", "w", "bias", "res"], outputNames: ["out"],
         source: tileSource, header: tileHeader)
+
+    // MARK: - Native quantized tile kernel (qtile-1)
+
+    // x [M, K] row-major T (bfloat or half); w = MLX affine-quantized [N, K] (packed uint32 [N, K · BITS / 32], read as
+    // bytes: 8-bit codes in element order, 4-bit two per byte low nibble first — `uint8_t` / `uint4b_format` operands of
+    // matmul2d as stored), scales and biases [N, K / GS] (T), element = scale · q + bias. out [M, N] = x · wᵀ (+ bias[n])
+    // (+ res[m, n]). Grid as the dense tile kernel. Simdgroup sg owns the K groups [g0, g0 + gc) (spread as evenly as
+    // possible); per group: P = matmul2d(x tile, raw codes) into a fresh float tile, xs = Σ of the lane's x row over the
+    // group (lane l = tile row l), then per element acc += scale[n, g] · P + bias[n, g] · xs[m] (scale/bias of tile
+    // column l and xs of tile row l are lane l's values, fetched by simd_shuffle). The partial tiles are added in
+    // threadgroup memory in simdgroup order, the epilogue adds in float and rounds once. The host guarantees K % GS == 0.
+    static let qtileSource = #"""
+            const int M = x_shape[0], K = x_shape[1], N = scales_shape[0];
+            const int G = K / GS;
+            const int tm = threadgroup_position_in_grid.x, tn = threadgroup_position_in_grid.y;
+            const int sg = simdgroup_index_in_threadgroup, lane = thread_index_in_simdgroup;
+            const int base = G / SG, extra = G % SG;
+            const int g0 = sg * base + min(sg, extra), gc = base + (sg < extra ? 1 : 0);
+            constexpr auto desc = matmul2d_descriptor(BM, BN, static_cast<int>(dynamic_extent), false, true, false);
+            matmul2d<desc, execution_simdgroup> op;
+            const int xrow = min(tm * BM + lane, M - 1), wcol = min(tn * BN + lane, N - 1);
+            device const T* xr = x + (size_t)xrow * K;
+            device const T* sc = scales + (size_t)wcol * G;
+            device const T* bi = biases + (size_t)wcol * G;
+            device uchar* wb = (device uchar*)w;
+            constexpr int CAP = BM * BN / 32;
+            float acc[CAP];
+            #pragma unroll
+            for (int i = 0; i < CAP; ++i) acc[i] = 0.0f;
+            for (int g = g0; g < g0 + gc; ++g) {
+                const int k0 = g * GS;
+                auto A = tensor<device T, dextents<int32_t, 2>, tensor_inline>((device T*)x + k0, dextents<int32_t, 2>(GS, M), array<int, 2>{1, K});
+                auto B = tensor<device WT, dextents<int32_t, 2>, tensor_inline>(wb + k0 * BITS / 8, dextents<int32_t, 2>(GS, N), array<int, 2>{1, K});
+                auto mA = A.slice(0, tm * BM);
+                auto mB = B.slice(0, tn * BN);
+                auto cT = op.template get_destination_cooperative_tensor<decltype(mA), decltype(mB), float>();
+                #pragma unroll
+                for (uint16_t i = 0; i < cT.get_capacity(); ++i) { if (cT.is_valid_element(i)) cT[i] = 0; }
+                op.run(mA, mB, cT);
+                float xs = 0.0f;
+                #pragma unroll
+                for (int j = 0; j < GS; j += 8) {
+                    const vec<T, 4> a = *(device const vec<T, 4>*)(xr + k0 + j);
+                    const vec<T, 4> b = *(device const vec<T, 4>*)(xr + k0 + j + 4);
+                    xs += (float(a[0]) + float(a[1])) + (float(a[2]) + float(a[3])) + (float(b[0]) + float(b[1])) + (float(b[2]) + float(b[3]));
+                }
+                const float s = float(sc[g]), bb = float(bi[g]);
+                #pragma unroll
+                for (uint16_t i = 0; i < cT.get_capacity(); ++i) {
+                    if (!cT.is_valid_element(i)) continue;
+                    auto idx = cT.get_multidimensional_index(i);
+                    acc[i] += simd_shuffle(s, ushort(idx[0])) * cT[i] + simd_shuffle(bb, ushort(idx[0])) * simd_shuffle(xs, ushort(idx[1]));
+                }
+            }
+            threadgroup float red[SG][BM * BN];
+            {
+                auto A = tensor<device T, dextents<int32_t, 2>, tensor_inline>((device T*)x, dextents<int32_t, 2>(GS, M), array<int, 2>{1, K});
+                auto B = tensor<device WT, dextents<int32_t, 2>, tensor_inline>(wb, dextents<int32_t, 2>(GS, N), array<int, 2>{1, K});
+                auto mA = A.slice(0, tm * BM);
+                auto mB = B.slice(0, tn * BN);
+                auto cT = op.template get_destination_cooperative_tensor<decltype(mA), decltype(mB), float>();
+                #pragma unroll
+                for (uint16_t i = 0; i < cT.get_capacity(); ++i) {
+                    if (!cT.is_valid_element(i)) continue;
+                    auto idx = cT.get_multidimensional_index(i);
+                    red[sg][idx[1] * BN + idx[0]] = acc[i];
+                }
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            for (int e = thread_index_in_threadgroup; e < BM * BN; e += SG * 32) {
+                float s = 0.0f;
+                #pragma unroll
+                for (int j = 0; j < SG; ++j) s += red[j][e];
+                const int n = tn * BN + e % BN, m = tm * BM + e / BN;
+                if (n < N && m < M) {
+                    if (HAS_BIAS) s += static_cast<float>(bias[n]);
+                    if (HAS_RES) s += static_cast<float>(res[m * N + n]);
+                    out[m * N + n] = static_cast<T>(s);
+                }
+            }
+        """#
+
+    private static let qtile8Kernel = MLXFast.metalKernel(
+        name: "smallm_qtile8", inputNames: ["x", "w", "scales", "biases", "bias", "res"], outputNames: ["out"],
+        source: qtileSource.replacingOccurrences(of: "WT", with: "uint8_t"), header: tileHeader)
+    private static let qtile4Kernel = MLXFast.metalKernel(
+        name: "smallm_qtile4", inputNames: ["x", "w", "scales", "biases", "bias", "res"], outputNames: ["out"],
+        source: qtileSource.replacingOccurrences(of: "WT", with: "uint4b_format"), header: tileHeader)
 
     // MARK: - GEMV kernel (gemv-1)
 

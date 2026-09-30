@@ -50,6 +50,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
     public static var fastPathRevision: String {
         "parakeet-r2-dense-encoder"
             + (FastParakeetNAX.enabled ? "+nax2+smallm-" + SmallMGEMM.tileRevision : "")
+            + (FastParakeetInt8.enabled ? "+int8-1+smallm-" + SmallMGEMM.qtileRevision : "")
     }
     /// The dtype the worker converts request samples to before `generate`: the log-mel is computed in it (BF16,
     /// matching mlx-audio's rounding).
@@ -61,7 +62,15 @@ public final class ParakeetModel: Module, STTGenerationModel {
     public var fastPathComponents: [String: Bool] {
         var components = ["encoder": fastEncoder != nil, "decoder": fastDecoder != nil]
         if naxEligible { components["nax_gemm"] = fastEncoder?.useNAX ?? false }
+        if int8Eligible { components["int8_gemm"] = fastEncoder?.useInt8 ?? false }
         return components
+    }
+    /// The native-int8 encoder would run on this checkpoint and Mac: enabled, an 8-bit affine group-64 encoder with
+    /// BF16 scales, a GPU with tensor ops.
+    var int8Eligible: Bool {
+        guard FastParakeetInt8.enabled, FastParakeetInt8.available, let q = encoder.layers.first?.relSelfAttn?.linearQ as? QuantizedLinear
+        else { return false }
+        return FastParakeetInt8.eligible(bits: q.bits, groupSize: q.groupSize, mode: q.mode, scales: q.scales)
     }
     /// NAX would run on this checkpoint and Mac: enabled, a dense BF16 encoder, a GPU with tensor ops.
     var naxEligible: Bool {
@@ -70,7 +79,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
         return q.weight.dtype == .bfloat16
     }
     /// Two-stage gate: the NAX GEMMs are the one inexact component; the fused encoder and decoder stay token-exact.
-    public var fastPathTolerantComponents: [String] { naxEligible ? ["nax_gemm"] : [] }
+    public var fastPathTolerantComponents: [String] { (naxEligible ? ["nax_gemm"] : []) + (int8Eligible ? ["int8_gemm"] : []) }
     public var fastPathDisabledComponents: Set<String> = []
     /// SentencePiece pieces joined, split at the word marker (special tokens dropped), as the transcript reads.
     public func qualificationWords(_ tokens: [Int]) -> [String] {
@@ -81,9 +90,26 @@ public final class ParakeetModel: Module, STTGenerationModel {
     /// v3 BF16 (the fused MLX-GEMM path itself sits 0.014–0.065 from the stock modules), while injected kernel faults
     /// (a dropped K slice, one zeroed column in 32, a zeroed last row) gave 0.46–0.98 (M5 Max, 28 Sep 2026).
     static let naxMaxDeviation: Float = 0.2
-    /// Relative RMS ||nax − mlx|| / ||mlx|| of the fused encoder output on `audio`'s log-mel (non-finite → ∞), or nil
-    /// when the NAX GEMMs are not active.
+    /// Self-test bound on the native int8 GEMMs: relative RMS of the BF16-activation encoder's output with vs without
+    /// them (MLX's quantized matmul and matmul instead), per clip. Calibration in lab/models/Parakeet/L3-int8.md.
+    static let int8MaxDeviation: Float = 0.2
+    /// Relative RMS ||kernel − mlx|| / ||mlx|| of the fused encoder output on `audio`'s log-mel with the active inexact
+    /// GEMM component (NAX or native int8) on vs off (non-finite → ∞), or nil when neither is active.
     public func naxEncoderDeviation(audio: MLXArray) -> Float? {
+        if let fastEncoder, fastEncoder.useInt8 {
+            let mel = ParakeetAudio.logMelSpectrogram(normalizeAudioToMono(audio), config: preprocessConfig)
+            var features = mel.ndim == 2 ? mel.expandedDimensions(axis: 0) : mel
+            features = features.asType(computeDType)
+            let lengths = MLXArray([Int32(features.shape[1])])
+            fastEncoder.useInt8 = false
+            let reference = fastEncoder.call(features, lengths: lengths).0.asType(.float32)
+            fastEncoder.useInt8 = true
+            let int8 = fastEncoder.call(features, lengths: lengths).0.asType(.float32)
+            let delta = int8 - reference
+            let value = MLX.sqrt((delta * delta).sum() / (reference * reference).sum()).item(Float.self)
+            FastPathGate.debug("frames \(features.shape[1]) int8 vs bf16-mlx \(value) dtype \(int8.dtype)")
+            return value.isFinite ? value : .infinity
+        }
         guard let fastEncoder, fastEncoder.useNAX else { return nil }
         let mel = ParakeetAudio.logMelSpectrogram(normalizeAudioToMono(audio), config: preprocessConfig)
         var features = mel.ndim == 2 ? mel.expandedDimensions(axis: 0) : mel
@@ -124,10 +150,13 @@ public final class ParakeetModel: Module, STTGenerationModel {
         if wantsEncoder {
             // Quantized checkpoints keep FP32 activations; dense ones run in their own dtype.
             let dense = encoder.layers.first?.relSelfAttn?.linearQ.weight.dtype ?? .bfloat16
-            let dtype: DType = quantized ? .float32 : (dense.isFloatingPoint ? dense : .bfloat16)
+            // The native int8 encoder (tolerant component `int8_gemm`) runs an eligible 8-bit checkpoint in BF16.
+            let int8 = quantized && int8Eligible && !fastPathDisabledComponents.contains("int8_gemm")
+            let dtype: DType = int8 ? .bfloat16 : quantized ? .float32 : (dense.isFloatingPoint ? dense : .bfloat16)
             guard let prepared = FastParakeetEncoder(encoder, dense: !quantized, dtype: dtype,
                                                      fusedConvolution: component != "encoder-no-fused-conv",
-                                                     nax: FastParakeetNAX.enabled && !fastPathDisabledComponents.contains("nax_gemm")) else {
+                                                     nax: FastParakeetNAX.enabled && !fastPathDisabledComponents.contains("nax_gemm"),
+                                                     int8: int8) else {
                 fastDecoder = nil
                 return false
             }
@@ -148,7 +177,15 @@ public final class ParakeetModel: Module, STTGenerationModel {
         // path; a larger deviation fails the component like non-finite output. The word-edit bound is the gate's.
         if let deviation = naxEncoderDeviation(audio: audio) {
             FastPathGate.debug("nax encoder deviation rms \(deviation)")
-            if !FastParakeetNAX.libraryFailures.isEmpty {
+            if fastEncoder?.useInt8 == true {
+                if !FastParakeetInt8.libraryFailures.isEmpty {
+                    fastPathFinite = false
+                    fastPathError = "SmallMGEMM self-test failed: \(FastParakeetInt8.libraryFailures.joined(separator: ", "))"
+                } else if !(deviation <= Self.int8MaxDeviation) {
+                    fastPathFinite = false
+                    fastPathError = "int8 GEMM deviation \(deviation) > \(Self.int8MaxDeviation)"
+                }
+            } else if !FastParakeetNAX.libraryFailures.isEmpty {
                 fastPathFinite = false
                 fastPathError = "SmallMGEMM self-test failed: \(FastParakeetNAX.libraryFailures.joined(separator: ", "))"
             } else if !(deviation <= Self.naxMaxDeviation) {

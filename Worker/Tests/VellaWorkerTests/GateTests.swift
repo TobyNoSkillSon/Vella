@@ -221,6 +221,9 @@ extension WorkerTests {
         @Test func revisionsAndBounds() {
             #expect(SmallMGEMM.tileRevision == "tile-1")
             #expect(SmallMGEMM.gemvRevision == "gemv-1")
+            #expect(SmallMGEMM.qtileRevision == "qtile-1")
+            #expect(SmallMGEMM.revision == "tile-1 gemv-1")
+            #expect(SmallMGEMM.selfTestBound("qtile.bf16.affine8.none") == 3e-2)
             #expect(SmallMGEMM.selfTestFailures([:]).isEmpty)
             #expect(SmallMGEMM.selfTestFailures(["tile.bf16.dense.none": 0.03, "gemv.bf16.affine4.none": 0.029]) == ["tile.bf16.dense.none"])
             #expect(SmallMGEMM.selfTestFailures(["tile.bf16.dense.none": .infinity]) == ["tile.bf16.dense.none"])
