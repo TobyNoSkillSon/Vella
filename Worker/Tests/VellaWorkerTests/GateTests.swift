@@ -63,6 +63,28 @@ extension WorkerTests {
             }
         }
 
+        /// A mixed per-layer recipe (`floatModules`) is its own recipe identity; uniform recipes keep theirs.
+        @Test func derivedFloatModules() throws {
+            let scratch = try Scratch("vella-gate")
+            let source = try checkpoint(scratch, "source")
+            func resolve(_ name: String, _ extra: String) throws -> DerivedPrecision? {
+                let folder = try scratch.folder(name)
+                let manifest = "{\"schema\": 1, \"precision\": \"8b\", \"bits\": 8, \"groupSize\": 64, \"source\": \"\(source.path)\"\(extra)}"
+                try Data(manifest.utf8).write(to: folder.appendingPathComponent(DerivedPrecision.manifestName))
+                return try DerivedPrecision.resolve(folder)
+            }
+            let uniform = try #require(try resolve("uniform", ""))
+            #expect(uniform.canonical == "derived:8b:dtype=-:bits=8:group=64")
+            #expect(uniform.floatModules.isEmpty && !uniform.keepsFloat("model.encoder.layers.0.fc1"))
+            let mixed = try #require(try resolve("mixed", ", \"floatModules\": [\"model.encoder\"]"))
+            #expect(mixed.canonical == "derived:8b:dtype=-:bits=8:group=64:float=model.encoder")
+            #expect(mixed.keepsFloat("model.encoder") && mixed.keepsFloat("model.encoder.layers.0.fc1"))
+            #expect(!mixed.keepsFloat("model.encoder_x.fc1") && !mixed.keepsFloat("model.decoder.layers.0.fc1"))
+            for (index, bad) in [", \"floatModules\": []", ", \"floatModules\": \"model.encoder\"", ", \"floatModules\": [\"a/b\"]"].enumerated() {
+                #expect(throws: (any Error).self) { try resolve("bad\(index)", bad) }
+            }
+        }
+
         @Test func keyNeedsWeights() throws {
             let scratch = try Scratch("vella-gate")
             let folder = try scratch.folder("empty")
