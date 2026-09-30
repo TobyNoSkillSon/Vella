@@ -741,9 +741,6 @@ public final class ShortcutManager: ObservableObject {
     public var currentLabel: String { ShortcutLabels.display(configuration) }
     public var activeLabel: String { ShortcutLabels.display(activeConfiguration ?? configuration) }
     public var requiresEventTap: Bool { configuration.trigger.requiresEventTap }
-    public var eventTapPermissionNote: String {
-        "Modifier and mouse bindings need Accessibility access. Key chords need none. No prompt appears until you choose such a binding."
-    }
     public var canEdit: Bool { engine.canChangeSettings && !isCapturingKeys }
 
     /// Load the supplied store; the default is memory-only. Production launch

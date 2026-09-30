@@ -113,8 +113,6 @@ final class ShortcutTests: XCTestCase {
         let (manager, _, _) = managerWithEngine()
         XCTAssertTrue(manager.apply(.init(trigger: .modifierOnly(key: .control, side: .left), behavior: .holdToTalk)))
         XCTAssertTrue(manager.requiresEventTap)
-        XCTAssertTrue(manager.eventTapPermissionNote.contains("Accessibility"))
-        XCTAssertFalse(manager.eventTapPermissionNote.contains("Input Monitoring"))
         XCTAssertTrue(manager.apply(.init(trigger: .mouseButton(button: .middle), behavior: .toggle)))
         XCTAssertTrue(manager.requiresEventTap)
     }

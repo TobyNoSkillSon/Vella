@@ -167,7 +167,6 @@ final class ShortcutPublicationStateTests: XCTestCase {
         // Modifier-only and mouse are valid types; Fn carries note not error.
         XCTAssertNil(ShortcutValidation.validate(.init(trigger: .modifierOnly(key: .control, side: .left), behavior: .holdToTalk)))
         XCTAssertNil(ShortcutValidation.validate(.init(trigger: .modifierOnly(key: .function, side: .left), behavior: .toggle)))
-        XCTAssertFalse(ShortcutValidation.functionKeyReliabilityNote.isEmpty)
         XCTAssertNil(ShortcutValidation.validate(.init(trigger: .mouseButton(button: .middle), behavior: .toggle)))
     }
 
@@ -626,7 +625,7 @@ final class ShortcutPublicationStateTests: XCTestCase {
         let tapEngine = pubEngine(behavior: .holdToTalk, box: tapBox, clock: PubClock())
         XCTAssertTrue(tapEngine.press())
         tapBox.busy = true
-        tapEngine.handleTapDisabled()
+        tapEngine.handleInterruption()
         XCTAssertEqual(tapBox.cancels, 1)
         XCTAssertEqual(tapBox.finishes, 0)
     }
@@ -653,8 +652,6 @@ final class ShortcutPublicationStateTests: XCTestCase {
         XCTAssertFalse(rec.canChangeSettings)
         let busy = ShortcutEngine(configuration: cfg, sinks: .init(start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { true }))
         XCTAssertFalse(busy.canChangeSettings)
-        XCTAssertFalse(idle.isRecordingActive)
-        XCTAssertFalse(idle.isBusyActive)
     }
 
     func testPub_Engine_CaptureEpochMonotonic() {
@@ -754,7 +751,6 @@ final class ShortcutPublicationStateTests: XCTestCase {
         XCTAssertEqual(manager.currentLabel, "⌃⌘C · Toggle")
         XCTAssertTrue(manager.apply(.init(trigger: .modifierOnly(key: .control, side: .left), behavior: .holdToTalk)))
         XCTAssertTrue(manager.requiresEventTap)
-        XCTAssertTrue(manager.eventTapPermissionNote.contains("Accessibility"))
     }
 
     @MainActor

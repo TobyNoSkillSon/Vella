@@ -34,7 +34,6 @@ final class ShortcutCoreTests: XCTestCase {
         // Modifier-only and mouse are valid types; Fn carries a reliability note, not an error.
         XCTAssertNil(ShortcutValidation.validate(.init(trigger: .modifierOnly(key: .control, side: .left), behavior: .holdToTalk)))
         XCTAssertNil(ShortcutValidation.validate(.init(trigger: .modifierOnly(key: .function, side: .left), behavior: .toggle)))
-        XCTAssertFalse(ShortcutValidation.functionKeyReliabilityNote.isEmpty)
         XCTAssertNil(ShortcutValidation.validate(.init(trigger: .mouseButton(button: .middle), behavior: .toggle)))
     }
     func testTriggerRequiresEventTap() {

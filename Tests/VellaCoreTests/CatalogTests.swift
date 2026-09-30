@@ -96,18 +96,7 @@ final class CatalogTests: XCTestCase {
 
     // MARK: Q column labels
 
-    func testSegmentLabelsAreBareWidthsWithExactFallback() {
-        XCTAssertEqual(precisionSegmentLabels(["FP32", "BF16", "8b", "4b"]), ["32", "16", "8", "4"])
-        XCTAssertEqual(precisionSegmentLabels(["BF16", "8b"]), ["16", "8"])
-        // A bare 16 is BF16 (the Q heading says so); FP16 keeps its exact label.
-        XCTAssertEqual(precisionSegmentLabels(["FP16", "8b", "4b"]), ["FP16", "8", "4"])
-        XCTAssertEqual(precisionSegmentLabels(["FP16"]), ["FP16"])
-        XCTAssertEqual(precisionSegmentLabels(["ternary"]), ["1.58"])
-        // Both 16-bit formats in one family: every segment shows its exact format instead.
-        XCTAssertEqual(precisionSegmentLabels(["FP32", "FP16", "BF16", "4b"]), ["FP32", "FP16", "BF16", "4b"])
-        for label in precisionSegmentLabels(["FP32", "BF16", "8b", "4b"]) {
-            XCTAssertFalse(label.contains("b") || label.contains("BF") || label.contains("FP"), label)
-        }
+    func testPrecisionInProse() {
         XCTAssertEqual(precisionInProse("BF16"), "BF16")
         XCTAssertEqual(precisionInProse("FP32"), "FP32")
         XCTAssertEqual(precisionInProse("8b"), "8-bit")
@@ -173,30 +162,10 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(recommendationTolerance(nil), 0.1)
     }
 
-    /// The recommended segment states the trade whenever a more efficient offered precision was rejected, with the
-    /// file's numbers (Qwen3-ASR 1.7B, r6: 4b 15.37, 8b 15.07, BF16 15.03).
-    func testRecommendationHelpStatesTheRejectedTrade() {
+    /// Qwen3-ASR 1.7B, r6: 4b 15.37, 8b 15.07, BF16 15.03: 8b is the lowest energy within the tolerance.
+    func testRecommendedIsTheLowestEnergyWithinTolerance() {
         let qwen = FamilyBenchmark(precisions: ["BF16": r(15.03, j: 75.47), "8b": r(15.07, j: 67.78), "4b": r(15.37, j: 54.51)])
         XCTAssertEqual(recommendedPrecision(qwen, native: "BF16"), "8b")
-        XCTAssertEqual(recommendationHelp(qwen, recommended: "8b", native: "BF16"),
-                       "Recommended: lowest energy per audio minute within 0.1 pt WER of the native precision (BF16)\n"
-                       + "Against BF16: +0.04 pt English word errors, 10% less energy\n"
-                       + "4-bit uses 20% less energy (55 J vs 68 J per audio minute) but has 0.30 pt more word errors (0.34 pt over BF16; limit 0.1 pt)")
-        var measured = qwen; measured.tolerance_pt = 0.15
-        XCTAssertTrue(recommendationHelp(measured, recommended: "8b", native: "BF16").hasSuffix("(0.34 pt over BF16; limit 0.15 pt)"))
-        // Not offered → not a trade the user can make.
-        XCTAssertFalse(recommendationHelp(qwen, recommended: "8b", native: "BF16", options: ["BF16", "8b"]).contains("4-bit"))
-        // A rejected precision that is less efficient is not a trade either.
-        let ultra = FamilyBenchmark(precisions: ["BF16": r(15.52, j: 5.18), "8b": r(15.54, j: 9.43), "4b": r(15.78, j: 9.22)])
-        XCTAssertEqual(recommendationHelp(ultra, recommended: "BF16", native: "BF16"),
-                       "Recommended: lowest energy per audio minute within 0.1 pt WER of the native precision (BF16)")
-        // Without energy anywhere the trade is speed.
-        let speed = FamilyBenchmark(precisions: ["BF16": r(5, x: 10), "4b": r(5.5, x: 30)])
-        XCTAssertEqual(recommendationHelp(speed, recommended: "BF16", native: "BF16"),
-                       "Recommended: fastest measured precision within 0.1 pt WER of the native precision (BF16)\nEnergy not measured")
-        let partial = FamilyBenchmark(precisions: ["BF16": r(5, j: 2, x: 10), "4b": r(5.5, j: 2, x: 30)])
-        XCTAssertTrue(recommendationHelp(partial, recommended: "BF16", native: "BF16").hasSuffix(
-            "\n4-bit is 3.0× faster (30.0× vs 10.0× real time) but has 0.50 pt more word errors (0.50 pt over BF16; limit 0.1 pt)"))
     }
 
     /// With gate verdicts in the file, `gate.pass` decides (thresholds live in the benchmark tools); the native
@@ -211,21 +180,12 @@ final class CatalogTests: XCTestCase {
             "8b": g(15.07, j: 67.78, pass: false, ["multilingual mean +0.48 pt (limit 0.10)", "Turkish +2.55 pt (limit 2.0)"]),
             "4b": g(15.37, j: 54.51, pass: false, ["English +0.34 pt (limit 0.10)"])])
         XCTAssertEqual(recommendedPrecision(qwen, native: "BF16"), "BF16")
-        XCTAssertEqual(recommendationHelp(qwen, recommended: "BF16", native: "BF16"),
-                       "Recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (BF16)\n"
-                       + "4-bit uses 28% less energy (55 J vs 75 J per audio minute) but fails the quality gate: English +0.34 pt (limit 0.10)\n"
-                       + "8-bit uses 10% less energy (68 J vs 75 J per audio minute) but fails the quality gate: multilingual mean +0.48 pt (limit 0.10); Turkish +2.55 pt (limit 2.0)")
         // A pass beyond the English tolerance (decided by the tools, e.g. on streaming speed) is taken, and said.
         let stream = FamilyBenchmark(precisions: [
             "BF16": g(23.42, j: 78.92, pass: false),
             "8b": g(23.47, j: 47.02, pass: true, ["passes on speed: 1.47x faster than BF16 with English within 0.10 pt; multilingual mean +0.60 pt"]),
             "4b": g(32.97, j: 40.2, pass: false, [])])
         XCTAssertEqual(recommendedPrecision(stream, native: "BF16"), "8b", "native's own gate field is ignored")
-        XCTAssertEqual(recommendationHelp(stream, recommended: "8b", native: "BF16"),
-                       "Recommended: lowest energy per audio minute among the precisions that pass the quality gate against the native precision (BF16)\n"
-                       + "8-bit: passes on speed: 1.47x faster than BF16 with English within 0.10 pt; multilingual mean +0.60 pt\n"
-                       + "Against BF16: +0.05 pt English word errors, 40% less energy\n"
-                       + "4-bit uses 15% less energy (40 J vs 47 J per audio minute) but fails the quality gate")
         let wide = FamilyBenchmark(precisions: ["BF16": g(5, j: 3, pass: nil), "4b": g(9, j: 1, pass: true)])
         XCTAssertEqual(recommendedPrecision(wide, native: "BF16"), "4b")
         // A failed verdict wins over an English WER inside the tolerance.
@@ -250,9 +210,6 @@ final class CatalogTests: XCTestCase {
         XCTAssertNil(recommendedPrecision(nil, native: "BF16"))
         // Candidates are limited to offered precisions.
         XCTAssertEqual(recommendedPrecision(FamilyBenchmark(precisions: ["BF16": r(5, j: 3), "2b": r(5, j: 1)]), native: "BF16", options: ["BF16"]), "BF16")
-        XCTAssertEqual(recommendationHelp(FamilyBenchmark(precisions: ["8b": r(5, j: 2)]), recommended: "8b", native: "BF16"),
-                       "Recommended: lowest energy per audio minute within 0.1 pt WER of the native precision (BF16)")
-        XCTAssertTrue(recommendationHelp(FamilyBenchmark(precisions: ["8b": r(5)]), recommended: "8b", native: "BF16").hasSuffix("\nEnergy not measured"))
     }
 
     /// The benchmark script writes `recommended` per
@@ -353,11 +310,8 @@ final class CatalogTests: XCTestCase {
         let f = family(["BF16", "8b", "4b"])
         // Loaded wins over last loaded and the recommendation.
         XCTAssertEqual(shownPrecision(loaded: "4b", lastLoaded: "BF16", recommended: "8b", family: f), "4b")
-        XCTAssertEqual(loadAction(selected: shownPrecision(loaded: "4b", lastLoaded: "BF16", recommended: "8b", family: f),
-                                  loaded: "4b", native: "BF16", downloaded: true), .unload, "a loaded row offers Unload")
         // A preview shows its precision; the loaded row then offers Reload.
         XCTAssertEqual(shownPrecision(preview: "BF16", loaded: "4b", lastLoaded: nil, recommended: "8b", family: f), "BF16")
-        XCTAssertEqual(loadAction(selected: "BF16", loaded: "4b", native: "BF16", downloaded: false), .reload)
         // Unloaded: last loaded, else recommended, else native, else the highest offered.
         XCTAssertEqual(shownPrecision(loaded: nil, lastLoaded: "4b", recommended: "8b", family: f), "4b")
         XCTAssertEqual(shownPrecision(loaded: nil, lastLoaded: nil, recommended: "8b", family: f), "8b")
@@ -366,7 +320,6 @@ final class CatalogTests: XCTestCase {
         // Labels no longer offered fall through; the retired `native` sentinel resolves.
         XCTAssertEqual(shownPrecision(preview: "6b", loaded: nil, lastLoaded: "2b", recommended: nil, family: f), "BF16")
         XCTAssertEqual(shownPrecision(loaded: nil, lastLoaded: nativeSelection, recommended: "8b", family: f), "BF16")
-        XCTAssertEqual(committedPrecision(loaded: "8b", lastLoaded: "4b", recommended: nil, family: f), "8b")
     }
 
     func testConfigurationRecordsLoads() throws {
@@ -379,16 +332,6 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(decoded.lastLoaded, config.lastLoaded)
         // Older config.json files have no lastLoaded.
         XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(#"{"model":"/x"}"#.utf8)).lastLoaded, [:])
-    }
-
-    func testLoadAction() {
-        XCTAssertEqual(loadAction(selected: "8b", loaded: nil, native: "BF16", downloaded: false), .get)
-        XCTAssertEqual(loadAction(selected: "8b", loaded: nil, native: "BF16", downloaded: true), .load)
-        XCTAssertEqual(loadAction(selected: "8b", loaded: "8b", native: "BF16", downloaded: true), .unload)
-        XCTAssertEqual(loadAction(selected: "BF16", loaded: nativeSelection, native: "BF16", downloaded: true), .unload)
-        XCTAssertEqual(loadAction(selected: "4b", loaded: "BF16", native: "BF16", downloaded: true), .reload)
-        // Reload stays Reload when the selected precision still has to be downloaded.
-        XCTAssertEqual(loadAction(selected: "4b", loaded: "BF16", native: "BF16", downloaded: false), .reload)
     }
 
     // MARK: Deltas and formatters
@@ -420,8 +363,6 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(formatSpeed(512.3), "512×"); XCTAssertEqual(formatSpeed(18.44), "18.4×")
         XCTAssertEqual(formatEnergy(1.94), "1.9 J"); XCTAssertEqual(formatEnergy(42.4), "42 J")
         XCTAssertEqual(formatMemory(1340), "1.34 GB"); XCTAssertEqual(formatMemory(782), "782 MB")
-        XCTAssertEqual(formatLanguages(["en"]), "en"); XCTAssertEqual(formatLanguages(["en", "pl"]), "en, pl")
-        XCTAssertEqual(formatLanguages(["en", "pl", "de"]), "3"); XCTAssertEqual(formatLanguages([]), "—")
         XCTAssertNil(formatErrorRate(nil)); XCTAssertNil(formatSpeed(nil)); XCTAssertNil(formatEnergy(nil))
     }
 

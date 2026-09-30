@@ -69,10 +69,6 @@ public enum ShortcutTrigger: Equatable {
         case .modifierOnly, .mouseButton: return true
         }
     }
-    public var isKeyChord: Bool {
-        if case .keyChord = self { return true }
-        return false
-    }
 }
 
 extension ShortcutTrigger: Codable {
@@ -153,9 +149,6 @@ public enum ShortcutValidation {
     /// Function keys safe with Shift alone (Shift+F-keys never produce typing).
     /// Covers F1-F20 using Apple key codes (F13-F20: 105,107,113,106,64,79,80,90).
     static var shiftAloneFunctionKeys: Set<UInt32> { [64, 79, 80, 90, 96, 97, 98, 99, 100, 101, 103, 105, 106, 107, 109, 111, 113, 118, 120, 122] }
-    public static var functionKeyReliabilityNote: String {
-        "Fn reliability varies by keyboard; prefer another binding if Fn does not fire."
-    }
     public static func validate(_ config: ShortcutConfiguration) -> String? {
         switch config.trigger {
         case .keyChord(let code, let mods):
@@ -488,9 +481,6 @@ public final class ShortcutEngine {
         tapKept = false
     }
     public var canChangeSettings: Bool { !(sinks.isRecording() || sinks.isBusy()) }
-    /// Read-only state for activation policy (e.g. stopping never needs permission).
-    public var isRecordingActive: Bool { sinks.isRecording() }
-    public var isBusyActive: Bool { sinks.isBusy() }
 
     @discardableResult
     public func press(isRepeat: Bool = false, downTime: TimeInterval? = nil) -> Bool {
@@ -613,5 +603,4 @@ public final class ShortcutEngine {
         }
         activeCaptureID = nil; activeOperation = nil
     }
-    public func handleTapDisabled() { handleInterruption() }
 }

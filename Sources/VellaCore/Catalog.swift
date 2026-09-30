@@ -242,15 +242,6 @@ public func precisionWidth(_ label: String) -> String? {
     guard let bits = labelBits(label) else { return nil }
     return bits == bits.rounded() ? String(Int(bits)) : String(format: "%g", bits)
 }
-/// Segment labels for a family's options: bare widths (`32 16 8 4`). A bare 16 always means BF16, as the Q heading
-/// says, so an FP16 option (Whisper) keeps its exact label `FP16`. If two options ever share a
-/// width, every segment falls back to its exact label.
-public func precisionSegmentLabels(_ options: [String]) -> [String] {
-    let widths = options.map { precisionWidth($0) }
-    let unique = Set(widths.compactMap { $0 }).count == options.count && !widths.contains(nil)
-    guard unique else { return options }
-    return zip(options, widths).map { ["FP16", "F16"].contains($0.uppercased()) ? "FP16" : $1! }
-}
 /// A precision in prose (menu header, messages): quantized `4-bit`, `8-bit`; float formats exact (`BF16`, `FP32`).
 public func precisionInProse(_ label: String) -> String { legacyQuantization(label) }
 /// The exact format of a precision label, for tooltips: `BF16 (bfloat16)`, `FP16 (float16)`, `FP32 (float32)`,
@@ -680,87 +671,8 @@ public func shownPrecision(preview: String? = nil, loaded: String?, lastLoaded: 
     return options.first ?? family.native
 }
 
-/// The precision a row returns to without a preview: loaded, else last loaded, else recommended (see shownPrecision).
-public func committedPrecision(loaded: String?, lastLoaded: String?, recommended: String?, family: ModelFamily) -> String {
-    shownPrecision(preview: nil, loaded: loaded, lastLoaded: lastLoaded, recommended: recommended, family: family)
-}
-
-/// `0.1`, `0.15`, `0.2`: a tolerance in points without trailing zeros.
-func formatPoints(_ value: Double) -> String {
-    var text = String(format: "%.2f", value)
-    while text.hasSuffix("0") { text.removeLast() }
-    if text.hasSuffix(".") { text.removeLast() }
-    return text
-}
-
-/// Tooltip of the recommended segment: which criterion chose it (energy only when energy was measured); on what
-/// grounds the recommended precision passed when its gate says so; and, for every offered precision that would have
-/// ranked first but failed, the trade with the file's numbers and the gate's reasons, e.g. `4-bit uses 28% less
-/// energy (55 J vs 75 J per audio minute) but fails the quality gate: multilingual mean +0.48 pt (limit 0.10).`
-public func recommendationHelp(_ benchmark: FamilyBenchmark?, recommended: String, native: String, options: [String]? = nil) -> String {
-    let tolerance = recommendationTolerance(benchmark)
-    let gated = benchmark?.precisions.contains { $0.key != native && $0.value.gate != nil } ?? false
-    let criterion = gated ? "among the precisions that pass the quality gate against the native precision (\(native))"
-                          : "within \(formatPoints(tolerance)) pt WER of the native precision (\(native))"
-    guard let benchmark, let chosen = benchmark.result(recommended), chosen.j_per_min != nil else {
-        return "Recommended: fastest measured precision \(criterion)\nEnergy not measured"
-    }
-    // One line per statement (the tooltip format): the rule, then at most one line per rejected precision, each
-    // naming its gain and its first two gate reasons.
-    var lines = ["Recommended: lowest energy per audio minute \(criterion)"]
-    if recommended != native, let gate = chosen.gate, gate.pass, !gate.reasons.isEmpty {
-        lines.append("\(precisionInProse(recommended)): \(gate.reasons.prefix(2).joined(separator: "; "))")
-    }
-    // A recommendation other than the native precision states its trade against it: what it costs in word
-    // errors and what it gains in speed, energy and memory, with the file's numbers.
-    if recommended != native, let base = benchmark.result(native), let cw = chosen.wer, let bw = base.wer {
-        var parts = [String(format: "%+.2f pt English word errors", cw - bw)]
-        if let d = speedDelta(chosen.speed_x, base: base.speed_x), let a = formatSpeed(chosen.speed_x), let b = formatSpeed(base.speed_x) {
-            parts.append(d.text == "same" ? "the same speed" : "\(d.text) (\(a) vs \(b) real time)")
-        }
-        if let d = energyDelta(chosen.j_per_min, base: base.j_per_min) {
-            parts.append(d.text == "same" ? "the same energy" : "\(d.text) energy")
-        }
-        if let d = memoryDelta(chosen.memory_mb, base: base.memory_mb), let a = formatMemory(chosen.memory_mb), let b = formatMemory(base.memory_mb) {
-            parts.append(d.text == "same" ? "the same memory" : "\(d.text) memory (\(a) vs \(b))")
-        }
-        lines.append("Against \(precisionInProse(native)): " + parts.joined(separator: ", "))
-    }
-    var text: String { lines.joined(separator: "\n") }
-    guard let nativeWER = benchmark.result(native)?.wer else { return text }
-    let rejected = benchmark.precisions.filter { label, r in
-        guard label != recommended, options?.contains(label) ?? true, r.wer != nil else { return false }
-        return !passesGate(label, r, native: native, nativeWER: nativeWER, tolerance: tolerance) && ranksBefore((label, r), (recommended, chosen))
-    }.sorted { ranksBefore(($0.key, $0.value), ($1.key, $1.value)) }
-    for (label, r) in rejected {
-        guard let wer = r.wer else { continue }
-        let gain: String
-        if let e = energyDelta(r.j_per_min, base: chosen.j_per_min), e.tone == .better, let a = formatEnergy(r.j_per_min), let b = formatEnergy(chosen.j_per_min) {
-            gain = "uses \(e.text) energy (\(a) vs \(b) per audio minute)"
-        } else if let x = speedDelta(r.speed_x, base: chosen.speed_x), x.tone == .better, let a = formatSpeed(r.speed_x), let b = formatSpeed(chosen.speed_x) {
-            gain = "is \(x.text) (\(a) vs \(b) real time)"
-        } else { continue }
-        let why: String
-        if let gate = r.gate {
-            let more = gate.reasons.count > 2 ? " (+\(gate.reasons.count - 2) more)" : ""
-            why = "fails the quality gate" + (gate.reasons.isEmpty ? "" : ": " + gate.reasons.prefix(2).joined(separator: "; ") + more)
-        } else {
-            why = "has \(String(format: "%.2f", wer - (chosen.wer ?? nativeWER))) pt more word errors "
-                + "(\(String(format: "%.2f", wer - nativeWER)) pt over \(precisionInProse(native)); limit \(formatPoints(tolerance)) pt)"
-        }
-        lines.append("\(precisionInProse(label)) \(gain) but \(why)")
-    }
-    return text
-}
-
-/// What the row's button does for the shown precision given the loaded one (nil = not loaded). Without a preview a
-/// loaded row shows its loaded precision, so it offers Unload; a previewed other precision offers the green Reload.
+/// What a row's button does: Get (download), Load, Unload, or the green Reload of a previewed other precision.
 public enum LoadAction: Equatable { case get, load, unload, reload }
-public func loadAction(selected: String, loaded: String?, native: String, downloaded: Bool) -> LoadAction {
-    guard let loaded else { return downloaded ? .load : .get }
-    // Reload downloads the selected precision first when needed; the button stays the green pending-apply Reload.
-    return effectivePrecision(stored: loaded, native: native) == effectivePrecision(stored: selected, native: native) ? .unload : .reload
-}
 
 // MARK: Deltas vs the recommended precision
 
@@ -822,10 +734,6 @@ public func formatEnergy(_ j: Double?) -> String? {
 }
 /// Megabytes → `782 MB` / `1.34 GB`, like On disk.
 public func formatMemory(_ mb: Double?) -> String? { mb.map { formatBytes(Int64(($0 * 1_000_000).rounded())) } }
-/// `en` for one or two languages (`en, pl`), else the count (`25`).
-public func formatLanguages(_ codes: [String]) -> String {
-    codes.isEmpty ? "—" : codes.count <= 2 ? codes.joined(separator: ", ") : String(codes.count)
-}
 /// Under ~20× real time a model is very slow for dictation.
 public let slowSpeedFloor = 20.0
 

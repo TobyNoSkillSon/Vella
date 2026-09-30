@@ -530,15 +530,12 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertNil(ShortcutValidation.validate(ShortcutConfiguration(trigger: .modifierOnly(key: .control, side: .left), behavior: .toggle)))
         XCTAssertNil(ShortcutValidation.validate(ShortcutConfiguration(trigger: .mouseButton(button: .middle), behavior: .holdToTalk)))
         XCTAssertNil(ShortcutValidation.validate(ShortcutConfiguration(trigger: .modifierOnly(key: .function, side: .left), behavior: .toggle)), "Bare Fn valid but unreliable")
-        XCTAssertTrue(ShortcutValidation.functionKeyReliabilityNote.contains("Fn"))
     }
 
     func testH3TriggerRequiresEventTapPolicy() {
         XCTAssertFalse(ShortcutConfiguration(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .toggle).trigger.requiresEventTap)
         XCTAssertTrue(ShortcutConfiguration(trigger: .modifierOnly(key: .option, side: .right), behavior: .toggle).trigger.requiresEventTap)
         XCTAssertTrue(ShortcutConfiguration(trigger: .mouseButton(button: .button3), behavior: .toggle).trigger.requiresEventTap)
-        XCTAssertTrue(ShortcutConfiguration(trigger: .keyChord(keyCode: 45, modifiers: 4352), behavior: .toggle).trigger.isKeyChord)
-        XCTAssertFalse(ShortcutConfiguration(trigger: .mouseButton(button: .middle), behavior: .toggle).trigger.isKeyChord)
         // Mouse type prevents primary/secondary by construction.
         XCTAssertNil(MouseButton(rawValue: 0))
         XCTAssertNil(MouseButton(rawValue: 1))
@@ -702,7 +699,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         let (tap, tapRec, _) = engineFixture(config: ShortcutConfiguration(trigger: .mouseButton(button: .middle), behavior: .holdToTalk))
         XCTAssertTrue(tap.press())
         tapRec.busy = true
-        tap.handleTapDisabled()
+        tap.handleInterruption()
         XCTAssertEqual(tapRec.cancels, 1)
         XCTAssertEqual(tapRec.finishes, 0)
     }
@@ -778,8 +775,6 @@ final class ShortcutAdversarialTests: XCTestCase {
         XCTAssertFalse(manager.requiresEventTap, "Key chord needs no tap")
         XCTAssertTrue(manager.apply(ShortcutConfiguration(trigger: .modifierOnly(key: .option, side: .left), behavior: .toggle)))
         XCTAssertTrue(manager.requiresEventTap)
-        XCTAssertTrue(manager.eventTapPermissionNote.contains("Accessibility"), "Permission note mentions Accessibility (Input Monitoring only where actual API requires it)")
-        XCTAssertFalse(manager.eventTapPermissionNote.contains("Input Monitoring"), "Optional taps must not claim mandatory Input Monitoring")
         XCTAssertTrue(manager.apply(ShortcutConfiguration(trigger: .mouseButton(button: .middle), behavior: .holdToTalk)))
         XCTAssertTrue(manager.requiresEventTap)
         // canEdit mirrors engine guard + capture flag.
