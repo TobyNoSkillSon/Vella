@@ -36,27 +36,8 @@ final class LongDictationQATests: XCTestCase {
         var report = Report()
 
         // 1. Record: the file's PCM in 4096-frame capture buffers through the Recorder's sink.
-        let config = Configuration(model: modelPath)
-        let record = try RecordingSession(root: out.appendingPathComponent("recording"), config: config)
-        let sink = try CaptureSink(session: record)
-        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false))
-        let input = try FileHandle(forReadingFrom: URL(fileURLWithPath: pcmPath))
-        defer { try? input.close() }
-        let totalFrames = Int(seconds * 16_000)
-        var fed = 0
-        var sourceHash = SHA256()
-        while fed < totalFrames {
-            let count = min(4096, totalFrames - fed)
-            guard let data = try input.read(upToCount: count * 4), data.count == count * 4 else { break }
-            let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count)))
-            buffer.frameLength = AVAudioFrameCount(count)
-            data.withUnsafeBytes { raw in buffer.floatChannelData![0].update(from: raw.bindMemory(to: Float.self).baseAddress!, count: count) }
-            sourceHash.update(data: data)
-            sink.consume(try LongRecordingTests.sample(buffer))
-            fed += count
-        }
-        sink.finish(userStopped: true)
-        XCTAssertNil(sink.error)
+        let (record, fed, sourceDigest) = try Self.record(
+            pcm: URL(fileURLWithPath: pcmPath), seconds: seconds, into: out.appendingPathComponent("recording"), model: modelPath)
         report.audioSeconds = record.seconds
         XCTAssertEqual(record.seconds, Double(fed) / 16_000, accuracy: 0.001, "no audio lost between the capture buffers and the journal")
         let recovered = try RecordingSession(directory: record.directory)
@@ -64,7 +45,7 @@ final class LongDictationQATests: XCTestCase {
         for segment in recovered.manifest.segments {
             savedHash.update(data: try Data(contentsOf: recovered.directory.appendingPathComponent(segment.filename)).dropFirst(segment.overlapFrames * 4))
         }
-        report.sourceSHA256 = sourceHash.finalize().map { String(format: "%02x", $0) }.joined()
+        report.sourceSHA256 = sourceDigest
         report.savedSHA256 = savedHash.finalize().map { String(format: "%02x", $0) }.joined()
         XCTAssertEqual(report.sourceSHA256, report.savedSHA256, "every fed sample is on disk exactly once")
         report.segments = recovered.manifest.segments.count
@@ -85,7 +66,9 @@ final class LongDictationQATests: XCTestCase {
         // 2. Clean transcription: the reference for the fault runs.
         var requests = 0
         let started = ProcessInfo.processInfo.systemUptime
-        let clean = SessionTranscriber { url, config in requests += 1; return try await backend.transcribe(url, config: config) }
+        let clean = SessionTranscriber { url, config in
+            requests += 1; return try await backend.transcribe(url, config: config)
+        }
         let cleanText = try await clean.run(recovered)
         report.cleanSeconds = ProcessInfo.processInfo.systemUptime - started
         report.cleanRequests = requests
@@ -152,7 +135,9 @@ final class LongDictationQATests: XCTestCase {
             session = try await RecordingSession.recover(doubleDir)
             XCTAssertEqual(session.manifest.segments.filter { $0.text != nil }.count, doneBeforeRetry, "saved per-segment text survives on disk")
             var retryRequests = 0
-            let retry = SessionTranscriber { url, config in retryRequests += 1; return try await backend.transcribe(url, config: config) }
+            let retry = SessionTranscriber { url, config in
+                retryRequests += 1; return try await backend.transcribe(url, config: config)
+            }
             let text = try await retry.run(session)
             report.doubleKill = [
                 "firstError": firstError, "stateAfterFailure": try RecordingSession(directory: doubleDir).manifest.state,
@@ -178,7 +163,9 @@ final class LongDictationQATests: XCTestCase {
             let resumed = try await RecordingSession.recover(crashPoint)
             let saved = resumed.manifest.segments.filter { $0.text != nil }.count
             var resumedRequests = 0
-            let retry = SessionTranscriber { url, config in resumedRequests += 1; return try await backend.transcribe(url, config: config) }
+            let retry = SessionTranscriber { url, config in
+                resumedRequests += 1; return try await backend.transcribe(url, config: config)
+            }
             let text = try await retry.run(resumed)
             report.appCrash = [
                 "stateAtCrash": atCrash.manifest.state, "segmentsSavedAtCrash": String(saved),
@@ -194,5 +181,31 @@ final class LongDictationQATests: XCTestCase {
         try json.write(to: out.appendingPathComponent("long-dictation-report.json"))
         try Data(cleanText.utf8).write(to: out.appendingPathComponent("clean-transcript.txt"))
         print("QA long dictation: \(String(decoding: json, as: UTF8.self))")
+    }
+
+    /// Feeds `seconds` of the PCM file through `CaptureSink` into a new recording; returns it, the frames fed and the
+    /// fed samples' SHA-256.
+    @MainActor static func record(pcm: URL, seconds: Double, into root: URL, model: String) throws -> (RecordingSession, Int, String) {
+        let record = try RecordingSession(root: root, config: Configuration(model: model))
+        let sink = try CaptureSink(session: record)
+        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false))
+        let input = try FileHandle(forReadingFrom: pcm)
+        defer { try? input.close() }
+        let totalFrames = Int(seconds * 16_000)
+        var fed = 0
+        var sourceHash = SHA256()
+        while fed < totalFrames {
+            let count = min(4096, totalFrames - fed)
+            guard let data = try input.read(upToCount: count * 4), data.count == count * 4 else { break }
+            let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count)))
+            buffer.frameLength = AVAudioFrameCount(count)
+            data.withUnsafeBytes { raw in buffer.floatChannelData![0].update(from: raw.bindMemory(to: Float.self).baseAddress!, count: count) }
+            sourceHash.update(data: data)
+            sink.consume(try LongRecordingTests.sample(buffer))
+            fed += count
+        }
+        sink.finish(userStopped: true)
+        XCTAssertNil(sink.error)
+        return (record, fed, sourceHash.finalize().map { String(format: "%02x", $0) }.joined())
     }
 }

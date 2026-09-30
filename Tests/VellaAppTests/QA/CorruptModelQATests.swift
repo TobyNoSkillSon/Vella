@@ -24,14 +24,20 @@ final class CorruptModelQATests: XCTestCase {
             try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil).first { $0.pathExtension == "safetensors" }!
         }
         let cases: [(String, (URL) throws -> Void)] = [
-            ("truncated-weights", { folder in
-                let file = try weights(folder); let handle = try FileHandle(forWritingTo: file)
-                try handle.truncate(atOffset: (try handle.seekToEnd()) / 2); try handle.close()
-            }),
-            ("garbage-weights-header", { folder in
-                let file = try weights(folder); let handle = try FileHandle(forWritingTo: file)
-                try handle.seek(toOffset: 0); try handle.write(contentsOf: Data(repeating: 0xFF, count: 64)); try handle.close()
-            }),
+            (
+                "truncated-weights",
+                { folder in
+                    let file = try weights(folder); let handle = try FileHandle(forWritingTo: file)
+                    try handle.truncate(atOffset: (try handle.seekToEnd()) / 2); try handle.close()
+                }
+            ),
+            (
+                "garbage-weights-header",
+                { folder in
+                    let file = try weights(folder); let handle = try FileHandle(forWritingTo: file)
+                    try handle.seek(toOffset: 0); try handle.write(contentsOf: Data(repeating: 0xFF, count: 64)); try handle.close()
+                }
+            ),
             ("garbage-config", { folder in try Data("{not json".utf8).write(to: folder.appendingPathComponent("config.json")) }),
             ("missing-weights", { folder in try FileManager.default.removeItem(at: try weights(folder)) })
         ]

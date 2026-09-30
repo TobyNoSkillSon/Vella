@@ -274,7 +274,8 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     /// A failed write of downloaded bytes, in words the footer can show (a full disk says so).
     static func writeError(_ error: Error) -> Error {
         let ns = error as NSError
-        let full = (ns.domain == NSCocoaErrorDomain && ns.code == NSFileWriteOutOfSpaceError)
+        let full =
+            (ns.domain == NSCocoaErrorDomain && ns.code == NSFileWriteOutOfSpaceError)
             || (ns.domain == NSPOSIXErrorDomain && ns.code == Int(ENOSPC))
             || (ns.userInfo[NSUnderlyingErrorKey] as? NSError).map { $0.domain == NSPOSIXErrorDomain && $0.code == Int(ENOSPC) } == true
         return full ? DownloadError.invalid("the disk is full. Free some space, then try again") : error

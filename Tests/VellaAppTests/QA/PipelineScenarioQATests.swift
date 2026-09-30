@@ -39,7 +39,11 @@ import CryptoKit
     }
     /// The status-item menu the app would show now (real AppDelegate.rebuildMenu, no status item installed).
     private func menu(for model: DictationController) -> (header: String, titles: [String], delegate: AppDelegate) {
-        let delegate = AppDelegate(model: model, shortcutManager: ShortcutManager(engine: ShortcutEngine(configuration: .default, sinks: .init(start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false })), store: ShortcutStore(), registrar: QARegistrar()))
+        let delegate = AppDelegate(
+            model: model,
+            shortcutManager: ShortcutManager(
+                engine: ShortcutEngine(configuration: .default, sinks: .init(start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false })), store: ShortcutStore(),
+                registrar: QARegistrar()))
         delegate.pendingModelRow = { model.pendingModelRequest.map { ($0.title, $0.help) } }
         delegate.rebuildMenu()
         let titles = delegate.menu.items.filter { !$0.isSeparatorItem }.map(\.title)
@@ -87,7 +91,9 @@ import CryptoKit
         XCTAssertTrue(microphones.allSatisfy { !$0.isEnabled }, "no microphone switch while recording")
         model.recordingTick(error: "The microphone stopped delivering audio. Check its connection and start again.")
         XCTAssertEqual(model.phase, .failed)
-        XCTAssertEqual(model.message, "The microphone stopped delivering audio. Check its connection and start again. Saved audio is retained; Retry processes it without automatic insertion.")
+        XCTAssertEqual(
+            model.message, "The microphone stopped delivering audio. Check its connection and start again. Saved audio is retained; Retry processes it without automatic insertion."
+        )
         let failed = menu(for: model)
         XCTAssertEqual(failed.header, "Dictation: needs attention…")
         XCTAssertTrue(failed.titles.contains("Retry Saved Recording"))
@@ -141,7 +147,9 @@ import CryptoKit
         let engine = ShortcutEngine(
             configuration: .default,
             sinks: .init(
-                start: { starts += 1; phase = .preparing }, finish: { finishes += 1 }, cancel: {},
+                start: {
+                    starts += 1; phase = .preparing
+                }, finish: { finishes += 1 }, cancel: {},
                 isRecording: { phase == .recording }, isBusy: { phase == .preparing }))
         let manager = ShortcutManager(engine: engine, store: ShortcutStore(), registrar: QARegistrar())
         manager.handlePress(); manager.handlePress() // second press before the first release (key bounce)
@@ -197,7 +205,8 @@ import CryptoKit
         XCTAssertEqual(menu(for: model).header, "Dictation: Accessibility required")
         // The next start is refused before the microphone opens; the shortcut path goes through the same check.
         XCTAssertFalse(model.ensureAutomaticInsertion())
-        XCTAssertEqual(model.message, "macOS has not granted this running Vella build Accessibility access. Click “Accessibility required” in Vella’s menu. Recording has not started.")
+        XCTAssertEqual(
+            model.message, "macOS has not granted this running Vella build Accessibility access. Click “Accessibility required” in Vella’s menu. Recording has not started.")
         var starts = 0
         let manager = ShortcutManager(
             engine: ShortcutEngine(configuration: .default, sinks: .init(start: { starts += 1 }, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false })),
@@ -340,7 +349,9 @@ final class QAHub: URLProtocol {
             architecture: "parakeet", license: "test", recommendation: "test")
         let family = ModelFamily(
             id: "fixture", name: model.name, mode: .dictation, languages: ["en"], params: "0.6B", license: model.license, native: "4b",
-            variants: ["4b": CatalogVariant(id: model.id, repository: model.repository, revision: model.revision, downloadBytes: model.downloadBytes, architecture: model.architecture)],
+            variants: [
+                "4b": CatalogVariant(id: model.id, repository: model.repository, revision: model.revision, downloadBytes: model.downloadBytes, architecture: model.architecture)
+            ],
             notes: model.recommendation)
         try JSONEncoder().encode(ModelCatalog(schema: 2, families: [family])).write(to: root.appendingPathComponent("models.json"))
         files = [
