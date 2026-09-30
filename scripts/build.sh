@@ -15,6 +15,9 @@ else
 fi
 # Never silently replace an existing certificate-backed installation with ad-hoc code.
 APP="${VELLA_APP_PATH:-$PWD/dist/Vella.app}"
+if [[ -n "${VELLA_RELEASE_SYMBOLS_DIR:-}" && -e "$VELLA_RELEASE_SYMBOLS_DIR" ]]; then
+  echo 'Release symbols directory already exists; preserving the app and exact-build debug artefacts.' >&2; exit 1
+fi
 if [[ "$IDENTITY" == "-" && -d "$APP" ]] && codesign -dv "$APP" 2>&1 | grep -q '^Authority='; then
   echo 'Refusing to discard the installed signing identity. Configure VELLA_SIGN_IDENTITY or the local signing-identity file.' >&2
   exit 1
@@ -47,7 +50,8 @@ done
 SMOKE="$PWD/.build/helper-smoke"
 # App layout without an .app name or Info.plist, so LaunchServices never registers it as a Vella copy.
 rm -rf "$SMOKE" && mkdir -p "$SMOKE/helpers/Contents/MacOS" "$SMOKE/helpers/Contents/Resources"
-cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" "$SMOKE/helpers/Contents/MacOS/"
+cp "$WORKER_BIN/VellaWorker" "$SMOKE/helpers/Contents/MacOS/"
+ln -s VellaWorker "$SMOKE/helpers/Contents/MacOS/VellaStreamingWorker"
 cp -R "$WORKER_BIN/mlx-swift_Cmlx.bundle" "$WORKER_BIN/VellaWorker_VellaWorker.bundle" "$SMOKE/helpers/Contents/Resources/"
 DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swiftc" -O -sdk "$CLT/SDKs/MacOSX.sdk" scripts/check-helpers.swift -o "$SMOKE/check-helpers" 2>/dev/null
 "$SMOKE/check-helpers" "$SMOKE/helpers" || { echo 'Helper smoke failed; build left installed app unchanged.' >&2; exit 1; }
@@ -79,7 +83,8 @@ print(apps.isEmpty ? "0" : "1")
 ')"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Vella "$APP/Contents/MacOS/Vella"
-cp "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker" .build/release/VellaModelTool "$APP/Contents/MacOS/"
+cp "$WORKER_BIN/VellaWorker" .build/release/VellaModelTool "$APP/Contents/MacOS/"
+ln -sfn VellaWorker "$APP/Contents/MacOS/VellaStreamingWorker"
 # The installer tool travels inside the app so a release zip holds exactly one bundle.
 mkdir -p "$APP/Contents/Helpers"
 cp .build/release/VellaInstallTool "$APP/Contents/Helpers/VellaInstallTool"
@@ -130,11 +135,20 @@ for size in 16 32 128 256 512; do
   sips -z "$double" "$double" .build/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Vella.icns"
-codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaStreamingWorker" "$APP/Contents/MacOS/VellaModelTool" "$APP/Contents/Helpers/VellaInstallTool" "$APP/Contents/Helpers/vella"
+# Plain/source builds strip without retaining per-run symbol trees. Packaging opts into exact-build retention.
+if [[ -n "${VELLA_RELEASE_SYMBOLS_DIR:-}" ]]; then
+  scripts/strip-release.sh "$APP" "$VELLA_RELEASE_SYMBOLS_DIR"
+else
+  scripts/strip-release.sh "$APP"
+fi
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/VellaWorker" "$APP/Contents/MacOS/VellaModelTool" "$APP/Contents/Helpers/VellaInstallTool" "$APP/Contents/Helpers/vella"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/mlx-swift_Cmlx.bundle"
 codesign --force --sign "$IDENTITY" "$APP/Contents/Resources/VellaWorker_VellaWorker.bundle" 2>/dev/null || true
 codesign --force --sign "$IDENTITY" "$APP"
 codesign --verify --deep --strict "$APP"
+[[ "$(readlink "$APP/Contents/MacOS/VellaStreamingWorker")" == VellaWorker ]] || { echo 'Invalid streaming alias target' >&2; exit 1; }
+# Test the actual shipped, stripped and signed images too, not just the pre-assembly smoke copies.
+"$SMOKE/check-helpers" "$APP" || { echo 'Stripped helper smoke failed.' >&2; exit 1; }
 if [[ "${VELLA_REGISTER_APP:-1}" == "1" ]]; then
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
 fi

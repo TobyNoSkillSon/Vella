@@ -119,6 +119,7 @@ signature() {  # release.yml "Check the signature in the zip"
   rm -rf "$check" && mkdir -p "$check"
   /usr/bin/unzip -q "$WORK/release/Vella-$VERSION-arm64.zip" -d "$check"
   app="$check/Vella.app"
+  [[ "$(readlink "$app/Contents/MacOS/VellaStreamingWorker")" == VellaWorker ]] || { echo 'Invalid streaming alias target'; return 1; }
   codesign --verify --deep --strict "$app"
   pin="$(tr '[:upper:]' '[:lower:]' <<<"$VELLA_SIGNING_SHA1")"
   expected="identifier \"dev.vella.dictation\" and certificate leaf = H\"$pin\""
@@ -126,7 +127,7 @@ signature() {  # release.yml "Check the signature in the zip"
   [[ "$requirement" == "$expected" ]] || { echo "designated requirement is '$requirement', expected '$expected'"; return 1; }
   for f in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool Helpers/vella \
            Resources/mlx-swift_Cmlx.bundle; do
-    codesign -dvv "$app/Contents/$f" 2>&1 | grep -qx 'Authority=Vella Release Signing' || { echo "$f is not signed by Vella Release Signing"; return 1; }
+    codesign -dvv "$app/Contents/$f" 2>&1 | grep -x 'Authority=Vella Release Signing' >/dev/null || { echo "$f is not signed by Vella Release Signing"; return 1; }
   done
 }
 
@@ -140,6 +141,7 @@ step "toolchains" toolchains
 step "changelog $VERSION" changelog
 step "doc links" doc_links
 step "lint (swift-format, SwiftLint)" scripts/lint.sh
+step "symbol retention fixture" scripts/test-release-symbols.sh
 step "build and package" package
 step "release archive and tree exclude lab" release_archive_no_lab
 step "SHA256SUMS" checksums
@@ -149,5 +151,5 @@ step "worker unit tests" scripts/test-worker.sh
 step "VellaWire tests" xcrun swift test --package-path Packages/VellaWire
 
 ZIP="$WORK/release/Vella-$VERSION-arm64.zip"
-echo "passed: $ZIP · sha256 $(awk '{print $1}' "$WORK/release/SHA256SUMS") · $(du -h "$ZIP" | cut -f1 | xargs)"
+echo "passed: $ZIP · sha256 $(awk -v name="$(basename "$ZIP")" '$2 == name {print $1}' "$WORK/release/SHA256SUMS") · $(du -h "$ZIP" | cut -f1 | xargs)"
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] || echo "note: uncommitted changes to tracked files; a tag builds only what is committed"

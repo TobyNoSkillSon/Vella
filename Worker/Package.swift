@@ -3,8 +3,7 @@ import PackageDescription
 let package = Package(
     name: "VellaWorker", platforms: [.macOS("26.0")],
     products: [
-        .executable(name: "VellaWorker", targets: ["VellaWorker"]),
-        .executable(name: "VellaStreamingWorker", targets: ["VellaStreamingWorker"])
+        .executable(name: "VellaWorker", targets: ["VellaWorker"])
     ],
     dependencies: [
         .package(url: "https://github.com/ml-explore/mlx-swift.git", revision: "901941965d82e4a216d4d117231d847d194c563d"),
@@ -27,16 +26,39 @@ let package = Package(
         .target(name: "VellaWorkerSupport"),
         .executableTarget(
             name: "VellaWorker", dependencies: ["MLXAudioSTT", "SmallMGEMM", "VellaWorkerSupport", .product(name: "VellaWire", package: "VellaWire")],
+            path: "Sources",
+            exclude: ["MLXAudioCore", "MLXAudioSTT", "SmallMGEMM", "VellaWorkerSupport"],
+            // Enumerate Swift files, not directories: resource copies have separate rules and stray files stay out.
+            sources: [
+                "VellaStreamingWorker/FusedTolerance.swift",
+                "VellaStreamingWorker/NativeAdapters.swift",
+                "VellaStreamingWorker/ReplayBoundary.swift",
+                "VellaStreamingWorker/SelfTest.swift",
+                "VellaStreamingWorker/StreamingMain.swift",
+                "VellaStreamingWorker/StreamingModelCache.swift",
+                "VellaStreamingWorker/StreamingSession.swift",
+                "VellaStreamingWorker/Watchdog.swift",
+                "VellaWorker/Calibration.swift",
+                "VellaWorker/DescribeModel.swift",
+                "VellaWorker/DictationService.swift",
+                "VellaWorker/FastPathSelfTest.swift",
+                "VellaWorker/QualificationReference.swift",
+                "VellaWorker/StubModel.swift",
+                "VellaWorker/Validation.swift",
+                "VellaWorker/Wire.swift",
+                "VellaWorker/WorkerEntry.swift",
+                "VellaWorker/WorkerMain.swift"
+            ],
             resources: [
-                .copy("Resources/clip-a.wav"), .copy("Resources/clip-b.wav"), .copy("Resources/clip-c.wav"), .copy("Resources/clip-d.wav"), .copy("Resources/clip-e.wav"),
-                .copy("Resources/ATTRIBUTION.md"), .copy("Resources/LICENSE-CC-BY-4.0.txt")
+                .copy("VellaWorker/Resources/clip-a.wav"), .copy("VellaWorker/Resources/clip-b.wav"), .copy("VellaWorker/Resources/clip-c.wav"),
+                .copy("VellaWorker/Resources/clip-d.wav"), .copy("VellaWorker/Resources/clip-e.wav"),
+                .copy("VellaWorker/Resources/ATTRIBUTION.md"), .copy("VellaWorker/Resources/LICENSE-CC-BY-4.0.txt")
             ]),
-        .executableTarget(name: "VellaStreamingWorker", dependencies: ["MLXAudioSTT", "VellaWorkerSupport", .product(name: "VellaWire", package: "VellaWire")]),
         // CPU-only unit tests: gate keys and persistence, admission, wire helpers, streaming tolerance. No kernel runs.
         .testTarget(
             name: "VellaWorkerTests",
             dependencies: [
-                "VellaWorker", "VellaStreamingWorker", "VellaWorkerSupport", "MLXAudioSTT", "SmallMGEMM",
+                "VellaWorker", "VellaWorkerSupport", "MLXAudioSTT", "SmallMGEMM",
                 .product(name: "VellaWire", package: "VellaWire")
             ])
     ], swiftLanguageModes: [.v5])

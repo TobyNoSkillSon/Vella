@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import VellaStreamingWorker
+@testable import VellaWorker
 import VellaWorkerSupport
 
 extension WorkerTests {

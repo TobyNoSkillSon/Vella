@@ -61,6 +61,17 @@ final class DownloadTests: XCTestCase {
         XCTAssertEqual(FakeReleaseServer.requested, ["\(ReleaseFixture.base)/SHA256SUMS", "\(ReleaseFixture.base)/Vella-1.0.1-arm64.zip"])
     }
 
+    func testPreparePreservesSignedStreamingAliasThroughExtraction() async throws {
+        let release = try ReleaseFixture.publish(version: "1.0.1", root: root) {
+            try ReleaseFixture.app(at: $0, version: "1.0.1", streamingAlias: true)
+        }
+        let staged = try await prepare(release)
+        defer { try? FileManager.default.removeItem(atPath: staged.directory) }
+        let app = URL(fileURLWithPath: staged.app)
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: app.appendingPathComponent("Contents/MacOS/VellaStreamingWorker").path), "VellaWorker")
+        XCTAssertEqual(try NativeInstaller.verifySignedBundle(app), .init("adhoc"))
+    }
+
     func testTamperedChecksumInstallsNothing() async throws {
         let wrong = Data("\(String(repeating: "0", count: 64))  Vella-1.0.1-arm64.zip\n".utf8)
         let release = try ReleaseFixture.publish(version: "1.0.1", root: root, sums: wrong)

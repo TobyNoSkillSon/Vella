@@ -224,3 +224,20 @@ final class RetiredModelToolTests: XCTestCase {
         XCTAssertFalse(Updater.requiredExecutables.contains("MacOS/VellaModelTool"))
     }
 }
+
+/// Invocation-path checks are separate from the retired-tool compatibility fixture.
+final class StreamingAliasTests: XCTestCase {
+    func testRelativeStreamingAliasPassesBundleCheckButBrokenAliasFails() throws {
+        let root = try ReleaseFixture.temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let app = try ReleaseFixture.app(at: root.appendingPathComponent("Vella.app"), version: "9.9.9", sign: false)
+        let alias = app.appendingPathComponent("Contents/MacOS/VellaStreamingWorker")
+        try FileManager.default.removeItem(at: alias)
+        try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: "VellaWorker")
+        let version = try XCTUnwrap(SemanticVersion("9.9.9"))
+        XCTAssertNoThrow(try Updater.checkBundle(app, version: version))
+        try FileManager.default.removeItem(at: alias)
+        try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: "missing-worker")
+        XCTAssertThrowsError(try Updater.checkBundle(app, version: version))
+    }
+
+}

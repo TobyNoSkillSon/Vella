@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Dictation and streaming helpers now share one executable image; the app and download are smaller. Both processes appear as **VellaWorker** in Activity Monitor, `top` and crash reports (signing identifier `VellaWorker`); the streaming invocation remains `VellaStreamingWorker`. Use a PID rather than a process name for diagnostics.
+- Shipped executables are stripped. Release packages include a separate, checksummed `Vella-VERSION-arm64-symbols.zip` with UUID-matched dSYMs for crash symbolication; installers download only the app. Plain source builds retain no extra symbol directories.
+
 - **Only catalog models load.** Vella loads the models in its catalog (downloaded or converted through the Models table); a model folder chosen some other way is no longer accepted. At launch, a dictation or streaming selection that points outside the catalog is cleared (and noted in the log).
 - The optimized path's load self-test checks only the kernel class Vella uses, so a load qualifies sooner (about 0.6 s instead of 0.7 s on an M5 Max). Keys, verdicts and engine labels are unchanged.
 - Removed development switches: `VELLA_UPDATE_CA_CERT`, `VELLA_QWEN_ENC_BF16`, `VELLA_QWEN_PREFILL_HEAD`, `VELLA_QWEN_HOST_LENGTHS`, `VELLA_QWEN_REFERENCE_LENGTHS`, `VELLA_WHISPER_ENC_F16`, `VELLA_WHISPER_FUSED`, `VELLA_PARAKEET_FP32_FRONTEND`, `VELLA_NEMO_GEMV_R`, `VELLA_NEMO_GEMV_S`, `VELLA_RENDER_SWITCH_WORDS`. Parakeet loads TDT models only. `VellaModelTool` is a stub that prints a notice (kept for 1.0.x updaters).

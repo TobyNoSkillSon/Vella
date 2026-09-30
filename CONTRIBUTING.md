@@ -17,7 +17,13 @@ VELLA_APP_PATH=/tmp/Vella.app VELLA_REGISTER_APP=0 scripts/build.sh   # build el
 VELLA_BUILD=source scripts/install.sh     # build this checkout and install it
 ```
 
-`scripts/build.sh` builds the root package (the app) and `Worker/` (the helpers, through `Worker/build-split.sh`), then smoke-tests both helpers with stub models before it assembles the app. A source build is signed ad hoc unless you configure `VELLA_SIGN_IDENTITY`; replacing an ad-hoc build can make macOS ask for Microphone and Accessibility access again. `VELLA_BUNDLE_ID=<id>` gives the built app another bundle identifier, so macOS keeps a development build's privacy permissions apart from an installed Vella's (in-app updates are off for any identifier other than `dev.vella.dictation`).
+`scripts/build.sh` builds the root package (the app) and `Worker/` (the helpers, through `Worker/build-split.sh`), then smoke-tests both helpers with stub models before assembly and again against the stripped, signed app. Signing uses `VELLA_SIGN_IDENTITY`, then the local `~/Library/Application Support/Vella/signing-identity` file, otherwise ad hoc; replacing an ad-hoc build can make macOS ask for Microphone and Accessibility access again. `VELLA_BUNDLE_ID=<id>` gives the built app another bundle identifier, so macOS keeps a development build's privacy permissions apart from an installed Vella's (in-app updates are off for any identifier other than `dev.vella.dictation`).
+
+Both helper names invoke one image: `VellaStreamingWorker` is a relative symlink to `VellaWorker`, and the invoked name selects the protocol. Their source folders stay separate. Build the `VellaWorker` product, or use `Worker/build-split.sh` to create both invocation paths.
+
+Activity Monitor, `top` and crash reports show both processes as **VellaWorker**, with signing identifier `VellaWorker`. `pgrep -x VellaStreamingWorker` matches the streaming invocation's argv, but does not restore a distinct kernel process name. Use the PID for `footprint`/`vmmap`; use the stack (`StreamingMain` versus `DictationMain`) to identify a crash's mode.
+
+Shipped binaries are stripped. Plain/source builds retain no symbol directories. When `VELLA_RELEASE_SYMBOLS_DIR` is set, the build retains path-named dSYMs and unstripped copies outside the app and verifies every shipped UUID against them. `scripts/package-release.sh` publishes only the dSYMs, `UUIDS.txt` and symbolication note in a checksummed `Vella-VERSION-arm64-symbols.zip`; installers download only the app zip. Both worker modes use `MacOS-VellaWorker.dSYM`. Match the crash report's image UUID to the dSYM before symbolication. `scripts/verify-release-symbols.sh APP SYMBOLS_DIRECTORY` also checks an extracted sidecar.
 
 Every `VELLA_*` switch the Swift code reads is listed, with its owner and whether it joins the fast-path gate key or is reported in status, in `Packages/VellaWire/Sources/VellaWire/EnvironmentSwitch.swift`.
 
@@ -41,7 +47,7 @@ CI runs only the fast unit tests. The integration tests (everything that starts 
 ```sh
 scripts/release-check.sh            # everything CI and the release workflow check, run on your Mac
 scripts/release-check.sh --ci       # the CI test set only (unit tests, CI=true)
-scripts/release-check.sh --signed   # maintainer: sign with "Vella Release Signing" and check the signature as release.yml does
+scripts/release-check.sh --signed   # release-signing environment: check the "Vella Release Signing" identity as release.yml does
 ```
 
 It runs the steps of `.github/workflows/ci.yml` and `release.yml` locally: tracked files are source only; Command Line Tools Swift 6.3.3 and the Metal Toolchain are present; `CHANGELOG.md` has a section for the version in `Resources/Info.plist` (it becomes the release notes); relative links in the public docs resolve; `scripts/lint.sh` is clean; `scripts/package-release.sh` builds, smoke-tests and zips the app into `.build/release-check/<time>/release/`; `SHA256SUMS` verifies; `xcrun swift test` passes. It prints one line per step and ends with the zip's path and SHA-256. It installs, uploads, tags and publishes nothing. Run it before a pull request that touches the build, the scripts or the docs, and before every tag.

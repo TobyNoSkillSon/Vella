@@ -50,7 +50,7 @@ enum ReleaseFixture {
     @discardableResult
     static func app(
         at app: URL, version: String, identifier: String = "dev.vella.dictation", signingIdentifier: String? = nil,
-        sign: Bool = true
+        sign: Bool = true, streamingAlias: Bool = false
     ) throws -> URL {
         let fm = FileManager.default
         let contents = app.appendingPathComponent("Contents")
@@ -58,6 +58,11 @@ enum ReleaseFixture {
             let path = contents.appendingPathComponent(file)
             try fm.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
             try fm.copyItem(at: URL(fileURLWithPath: "/usr/bin/true"), to: path)
+        }
+        if streamingAlias {
+            let alias = contents.appendingPathComponent("MacOS/VellaStreamingWorker")
+            try fm.removeItem(at: alias)
+            try fm.createSymbolicLink(atPath: alias.path, withDestinationPath: "VellaWorker")
         }
         let metallib = contents.appendingPathComponent(Updater.metallib)
         try fm.createDirectory(at: metallib.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -68,7 +73,9 @@ enum ReleaseFixture {
         ]
         try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0).write(to: contents.appendingPathComponent("Info.plist"))
         guard sign else { return app }
-        let helpers = Updater.requiredExecutables.filter { $0 != "MacOS/Vella" }.map { contents.appendingPathComponent($0).path }
+        let helpers = Updater.requiredExecutables.filter { $0 != "MacOS/Vella" && (!streamingAlias || $0 != "MacOS/VellaStreamingWorker") }.map {
+            contents.appendingPathComponent($0).path
+        }
         try codesign(["--force", "--sign", "-"] + helpers)
         try codesign(["--force", "--sign", "-"] + (signingIdentifier.map { ["--identifier", $0] } ?? []) + [app.path])
         return app

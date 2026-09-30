@@ -31,6 +31,34 @@ final class NativeInstallerTests: XCTestCase {
             .write(to: app.appendingPathComponent("Contents/Info.plist"))
         try Data(marker.utf8).write(to: app.appendingPathComponent(marker))
     }
+    /// A real signed bundle must keep its sealed relative alias through copy, swap and a second update.
+    func testSignedStreamingAliasSurvivesFreshInstallAndUpdate() throws {
+        let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let prepared = root.appendingPathComponent("prepared/Vella.app")
+        let contents = prepared.appendingPathComponent("Contents")
+        for name in ["Vella", "VellaWorker", "VellaModelTool"] {
+            let path = contents.appendingPathComponent("MacOS/\(name)")
+            try FileManager.default.removeItem(at: path)
+            try FileManager.default.copyItem(at: URL(fileURLWithPath: "/usr/bin/true"), to: path)
+            if name != "Vella" { XCTAssertEqual(try runTool("/usr/bin/codesign", ["--force", "--sign", "-", path.path]).status, 0) }
+        }
+        let alias = contents.appendingPathComponent("MacOS/VellaStreamingWorker")
+        try FileManager.default.removeItem(at: alias)
+        try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: "VellaWorker")
+        let info: [String: Any] = ["CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella", "CFBundlePackageType": "APPL"]
+        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0).write(to: contents.appendingPathComponent("Info.plist"))
+        XCTAssertEqual(try runTool("/usr/bin/codesign", ["--force", "--sign", "-", prepared.path]).status, 0)
+        installer.verify = NativeInstaller.verifySignedBundle // do not stub signature checks
+        installer.keepPrevious = true
+        XCTAssertNil(try installer.install())
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: app.appendingPathComponent("Contents/MacOS/VellaStreamingWorker").path), "VellaWorker")
+        XCTAssertEqual(try NativeInstaller.verifySignedBundle(app), .init("adhoc"))
+        let previous = try XCTUnwrap(installer.install())
+        for copy in [app, previous] {
+            XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: copy.appendingPathComponent("Contents/MacOS/VellaStreamingWorker").path), "VellaWorker")
+            XCTAssertEqual(try NativeInstaller.verifySignedBundle(copy), .init("adhoc"))
+        }
+    }
     /// The retired VellaModelTool is not required: a prepared bundle without it installs.
     func testInstallSucceedsWithoutTheRetiredModelTool() throws {
         let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }

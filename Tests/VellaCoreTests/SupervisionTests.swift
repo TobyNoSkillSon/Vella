@@ -4,6 +4,34 @@ import Foundation
 import VellaTestSupport
 
 final class SupervisionTests: XCTestCase {
+    func testSweepDeduplicatesAnOrphanLaunchedThroughRelativeSymlink() throws {
+        try Integration.require()
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("vella-symlink-sweep-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let source = dir.appendingPathComponent("fake.c"), helper = dir.appendingPathComponent("VellaWorker")
+        let alias = dir.appendingPathComponent("VellaStreamingWorker")
+        try "#include <unistd.h>\nint main(void){sleep(60);return 0;}\n".write(to: source, atomically: true, encoding: .utf8)
+        let cc = Process(); cc.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        cc.arguments = ["clang", "-o", helper.path, source.path]
+        try cc.run(); cc.waitUntilExit()
+        XCTAssertEqual(cc.terminationStatus, 0)
+        try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: "VellaWorker")
+        let spawn = Process(); spawn.executableURL = URL(fileURLWithPath: "/bin/bash")
+        spawn.arguments = ["-c", "'\(alias.path)' </dev/null >/dev/null 2>&1 & echo $!"]
+        let out = Pipe(); spawn.standardOutput = out
+        try spawn.run(); spawn.waitUntilExit()
+        let orphan = try XCTUnwrap(pid_t(String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)))
+        defer { kill(orphan, SIGKILL) }
+        for _ in 0..<40 where StraySweep.parentPID(orphan) != 1 { usleep(50_000) }
+        XCTAssertEqual(StraySweep.parentPID(orphan), 1)
+        XCTAssertEqual(StraySweep.matching(executables: [helper, alias], orphansOnly: true).map(\.pid), [orphan])
+        var lines: [String] = []
+        XCTAssertEqual(StraySweep.sweep(executables: [helper, alias], grace: 2) { lines.append($0) }, [orphan])
+        XCTAssertEqual(lines.count, 1, "one inode must not be stopped twice")
+        XCTAssertEqual(StraySweep.matching(executables: [helper, alias], orphansOnly: true).count, 0)
+    }
+
     func testRestartPolicyBacksOffThenGivesUpAndResets() {
         var policy = RestartPolicy()
         XCTAssertEqual(policy.nextDelay(), 2)
