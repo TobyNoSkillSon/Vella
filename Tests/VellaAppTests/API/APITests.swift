@@ -23,6 +23,8 @@ enum APIFakeWorker {
         for line in sys.stdin:
             r=json.loads(line); op=r.get('op')
             if op=='load':
+                if 'loadfail' in r['model'].split('/')[-1]:
+                    push('load-failed'); print(json.dumps({'id':r['id'],'error':{'code':'load','message':'x'}}),flush=True); continue
                 model=r['model']; push('load'); print(json.dumps({'id':r['id'],'loaded':True}),flush=True); continue
             if op in ('unload','status','trim'):
                 if op=='unload': model=None
