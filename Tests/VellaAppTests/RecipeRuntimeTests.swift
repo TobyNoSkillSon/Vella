@@ -2,6 +2,7 @@ import XCTest
 import AppKit
 @testable import Vella
 import VellaCore
+import VellaTestSupport
 
 /// The selection reaches the worker at load (lab/notes/models-table-ROUND.md): every worker is launched with
 /// `VELLA_RECIPE` = the selection's recipe; another recipe on the same files is a reload (a new worker); a successful

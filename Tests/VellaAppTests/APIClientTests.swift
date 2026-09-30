@@ -2,6 +2,7 @@ import XCTest
 import Foundation
 @testable import Vella
 @testable import VellaCore
+import VellaTestSupport
 
 /// The `vella` command and the OpenAI Python SDK against a stub API (fake worker, isolated support dir).
 final class APIClientTests: XCTestCase {

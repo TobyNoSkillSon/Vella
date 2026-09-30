@@ -3,6 +3,7 @@ import AppKit
 import CryptoKit
 @testable import Vella
 import VellaCore
+import VellaTestSupport
 
 /// An approval as the confirmation popup gives it when the user chooses Download (tests only; the app's popup is the
 /// sole other source).

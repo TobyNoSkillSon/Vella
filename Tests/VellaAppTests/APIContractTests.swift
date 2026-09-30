@@ -3,6 +3,7 @@ import Foundation
 import XCTest
 @testable import Vella
 @testable import VellaCore
+import VellaTestSupport
 
 /// The public API contract (OpenAI SDKs and the agent skill depend on it) against Tests/Fixtures/api/contract.json:
 /// the key sets and value types of `GET /status`, `GET /v1/models`, one model, the error envelope for 400/404/413/503/

@@ -4,6 +4,7 @@ import CryptoKit
 import Darwin
 @testable import Vella
 import VellaCore
+import VellaTestSupport
 
 /// Regression tests for model lifecycle and worker supervision, each built from a reproduction: the real
 /// app/runtime wiring with fake stdio workers, an isolated support dir, a fake memory probe and mocked HTTP.

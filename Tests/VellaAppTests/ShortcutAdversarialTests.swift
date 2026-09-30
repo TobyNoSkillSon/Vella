@@ -1147,8 +1147,8 @@ final class ShortcutAdversarialTests: XCTestCase {
         func clickControl(matching: (SettingsMenuItem) -> Bool, actionName: String) throws {
             delegate.rebuildMenu()
             let countBefore = delegate.menu.items.count
-            guard let micBefore = delegate.menu.item(withTitle: "Microphone") else { throw XCTSkip("No mic") }
-            guard let shortcuts = delegate.menu.item(withTitle: "Shortcuts")?.submenu else { throw XCTSkip("No Shortcuts") }
+            let micBefore = try XCTUnwrap(delegate.menu.item(withTitle: "Microphone"), "No mic")
+            let shortcuts = try XCTUnwrap(delegate.menu.item(withTitle: "Shortcuts")?.submenu, "No Shortcuts")
             // Behavior radios live at top level; modifier/mouse live in nested pickers.
             let allControls: [SettingsMenuItem] = shortcuts.items.flatMap { item -> [SettingsMenuItem] in
                 var found: [SettingsMenuItem] = []
@@ -1156,7 +1156,7 @@ final class ShortcutAdversarialTests: XCTestCase {
                 if let sub = item.submenu { found += sub.items.compactMap { $0 as? SettingsMenuItem } }
                 return found
             }
-            guard let control = allControls.first(where: matching) else { throw XCTSkip("No control for \(actionName)") }
+            let control = try XCTUnwrap(allControls.first(where: matching), "No control for \(actionName)")
             delegate.menuWillOpen(delegate.menu)
             control.control.performClick(nil)
             if actionName == "mouse" {
@@ -1170,7 +1170,7 @@ final class ShortcutAdversarialTests: XCTestCase {
                 }
                 RunLoop.main.run(until: Date().addingTimeInterval(0.05))
             }
-            guard let micAfter = delegate.menu.item(withTitle: "Microphone") else { delegate.menuDidClose(delegate.menu); throw XCTSkip("No mic after") }
+            guard let micAfter = delegate.menu.item(withTitle: "Microphone") else { delegate.menuDidClose(delegate.menu); XCTFail("No mic after"); return }
             XCTAssertTrue(micBefore === micAfter, "BUG [\(actionName)]: tracked Microphone replaced; must update checkbox in place")
             XCTAssertEqual(delegate.menu.items.count, countBefore, "BUG [\(actionName)]: menu count changed during tracking")
             XCTAssertEqual(control.state, .on, "BUG [\(actionName)]: clicked control must show .on")
@@ -1181,7 +1181,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         try clickControl(matching: { ($0.representedObject as? String) == String(MouseButton.middle.rawValue) }, actionName: "mouse")
         // Reset is a plain item (no embedded control): invoke via sendAction like native selection.
         delegate.rebuildMenu()
-        guard let micBeforeReset = delegate.menu.item(withTitle: "Microphone") else { throw XCTSkip("No mic") }
+        let micBeforeReset = try XCTUnwrap(delegate.menu.item(withTitle: "Microphone"), "No mic")
         let countBeforeReset = delegate.menu.items.count
         delegate.menuWillOpen(delegate.menu)
         if let reset = delegate.menu.item(withTitle: "Shortcuts")?.submenu?.items.first(where: { $0.title == "Reset to Default" }), let action = reset.action, let target = reset.target {

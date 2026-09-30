@@ -2,6 +2,7 @@ import XCTest
 import AppKit
 @testable import Vella
 @testable import VellaCore
+import VellaTestSupport
 
 /// The API through the app's own launch wiring (AppDelegate + its Models table + RuntimeBridge + `startAPI`), with the
 /// bundled catalog, an isolated support dir holding a registry and config like the shipped 1.0.0 user's, and the fake

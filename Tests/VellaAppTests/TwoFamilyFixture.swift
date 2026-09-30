@@ -2,6 +2,7 @@ import XCTest
 import Foundation
 @testable import Vella
 @testable import VellaCore
+import VellaTestSupport
 
 /// Real app wiring (controller, bridge, runtime, fake stdio workers) over an isolated support directory with two
 /// dictation families: Alpha (BF16 and 4b, both downloaded) and Zeta (BF16 downloaded, 4b made on this Mac from it).

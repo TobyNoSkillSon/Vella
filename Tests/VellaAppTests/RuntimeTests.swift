@@ -4,6 +4,7 @@ import Foundation
 import Darwin
 @testable import Vella
 import VellaCore
+import VellaTestSupport
 
 /// CHECKLIST 6 (status), 8 (fresh install, residency classes) and 9 (memory admission) through the real Backend and
 /// Runtime with a fake stdio worker, an isolated support dir, a fake memory probe and shortened minutes.

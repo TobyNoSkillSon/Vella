@@ -1,6 +1,7 @@
 import XCTest
 import Foundation
 @testable import VellaCore
+import VellaTestSupport
 
 final class NativeInstallerTests: XCTestCase {
     private func fixture() throws -> (NativeInstaller, URL, URL, URL) {

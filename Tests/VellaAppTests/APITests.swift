@@ -3,6 +3,7 @@ import Foundation
 import AVFoundation
 @testable import Vella
 @testable import VellaCore
+import VellaTestSupport
 
 /// A worker stand-in for API tests: like FakeWorker, but the text names the segment's length (so timing is checkable),
 /// `slow` model folders take 0.3 s per request, and every request is logged (start/end, model) for ordering checks.

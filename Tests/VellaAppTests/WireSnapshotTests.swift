@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import VellaTestSupport
 
 /// The exact bytes both recognition helpers write on their stdio protocol, against Tests/Fixtures/wire. The app, the
 /// `vella` command and lab scripts parse these lines, so a typed rewrite of the protocol must reproduce them: key order,

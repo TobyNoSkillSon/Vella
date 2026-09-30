@@ -10,7 +10,9 @@ let package = Package(name: "Vella", platforms: [.macOS("26.0")], products: [.ex
     .executableTarget(name: "VellaModelTool", dependencies: ["VellaCore"]),
     .executableTarget(name: "VellaInstallTool", dependencies: ["VellaCore", "VellaUpdate"]),
     .executableTarget(name: "VellaCLI", dependencies: ["VellaCore"]),
-    .testTarget(name: "VellaCoreTests", dependencies: ["VellaCore"]),
+    // Shared by the test targets: the integration-test gate and the fake stdio worker.
+    .target(name: "VellaTestSupport", path: "Tests/Support"),
+    .testTarget(name: "VellaCoreTests", dependencies: ["VellaCore", "VellaTestSupport"]),
     .testTarget(name: "VellaUpdateTests", dependencies: ["VellaUpdate", "VellaCore"]),
-    .testTarget(name: "VellaAppTests", dependencies: ["Vella", "VellaCore", "VellaCLI", "VellaUpdate"], exclude: ["TierTooltips.txt"])
+    .testTarget(name: "VellaAppTests", dependencies: ["Vella", "VellaCore", "VellaCLI", "VellaUpdate", "VellaTestSupport"], exclude: ["TierTooltips.txt"])
 ])

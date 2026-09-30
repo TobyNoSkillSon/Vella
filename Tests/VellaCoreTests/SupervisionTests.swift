@@ -1,6 +1,7 @@
 import XCTest
 import Foundation
 @testable import VellaCore
+import VellaTestSupport
 
 final class SupervisionTests: XCTestCase {
     func testRestartPolicyBacksOffThenGivesUpAndResets() {

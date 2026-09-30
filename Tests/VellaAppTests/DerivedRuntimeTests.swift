@@ -3,6 +3,7 @@ import AppKit
 import Darwin
 @testable import Vella
 import VellaCore
+import VellaTestSupport
 
 /// Runtime side of precisions made on this Mac (derived from a downloaded source): Delete of the source and memory
 /// admission. Real app wiring with the fake stdio worker and an isolated support dir; no model runs, no GPU.

@@ -1,14 +1,13 @@
 import Foundation
-@testable import Vella
-import VellaCore
 
 /// A Python stand-in for VellaWorker speaking the stdio protocol: load/unload/status/trim ops, status push before
 /// every change, transcription replies. The model folder name selects behaviour (`loadfail`, `slowload` 10 s,
 /// `delayload` 1 s, `slowexit`: ignores SIGTERM and exits 0.5 s after stdin EOF; `crashonce`/`crashalways`: the
 /// worker dies mid-transcription the first time / every time); `FAKE_FOOTPRINT_MB` sets the
-/// footprint it reports; `FAKE_RECIPE_LOG` names a file each load appends its `VELLA_RECIPE` to. Tests pair it with an isolated `Runtime` (temp support dir, memory file, minute seconds).
-enum FakeWorker {
-    static let script = #"""
+/// footprint it reports; `FAKE_RECIPE_LOG` names a file each load appends its `VELLA_RECIPE` to.
+/// Tests pair it with an isolated `Runtime` (temp support dir, memory file, minute seconds; `Runtime.isolated`).
+public enum FakeWorker {
+    public static let script = #"""
 #!/usr/bin/env python3
 import json,sys,os,time,signal
 model=None
@@ -38,25 +37,10 @@ for line in sys.stdin:
     print(json.dumps({'id':r['id'],'text':'Fixture recognized speech.','metrics':{'pid':os.getpid()}}),flush=True)
 if model and 'slowexit' in model: time.sleep(0.5)
 """#
-    static func install(in root: URL) throws -> URL {
+    public static func install(in root: URL) throws -> URL {
         let url = root.appendingPathComponent("fake-worker.py")
         try script.write(to: url, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
         return url
-    }
-}
-
-extension Runtime {
-    /// An isolated runtime: its own support dir, a fake memory probe and fast minutes. Never the real support dir.
-    @MainActor static func isolated(_ root: URL, availableMB: Double = 100_000, minuteSeconds: Double = 60) throws -> Runtime {
-        let support = root.appendingPathComponent("support", isDirectory: true)
-        try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        let memory = root.appendingPathComponent("memory.json")
-        try JSONSerialization.data(withJSONObject: ["available_mb": availableMB]).write(to: memory)
-        return Runtime(support: support, environment: ["VELLA_TEST_MEMORY_FILE": memory.path, "VELLA_TEST_MINUTE_SECONDS": String(minuteSeconds)])
-    }
-    @MainActor func setAvailableMB(_ value: Double) throws {
-        guard let file = probe.testFile else { return }
-        try JSONSerialization.data(withJSONObject: ["available_mb": value]).write(to: file)
     }
 }

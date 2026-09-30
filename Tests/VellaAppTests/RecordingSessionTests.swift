@@ -4,6 +4,7 @@ import AVFoundation
 import CryptoKit
 @testable import Vella
 import VellaCore
+import VellaTestSupport
 
 final class RecordingSessionTests: XCTestCase {
     func testIndexedRecoveryPreservesSparseMetadataFirstDuplicateAndOrphans() throws {

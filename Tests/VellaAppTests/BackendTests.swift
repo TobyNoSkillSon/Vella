@@ -58,9 +58,10 @@ final class BackendTests: XCTestCase {
         catch { XCTAssertTrue(error.localizedDescription.contains("native streaming helper could not start")) }
         XCTAssertNil(stream.processID)
     }
+    /// Enumeration only: device ids are unique and names non-empty. It never starts the microphone, so it is no
+    /// coverage of capture (CaptureTests, opt-in, and CaptureRegressionTests cover capture).
     @MainActor func testNativeMicrophoneEnumeration() throws {
         let devices = Recorder.devices()
-        // Enumeration is read-only; this test never starts the microphone.
         XCTAssertEqual(Set(devices.map(\.id)).count, devices.count)
         XCTAssertTrue(devices.allSatisfy { !$0.name.isEmpty })
     }
