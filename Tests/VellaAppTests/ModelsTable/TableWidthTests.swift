@@ -15,6 +15,15 @@ import SwiftUI
         walk(view); return found
     }
 
+    /// The table at 90 % of the 1006 pt × 60 pt-row v4 table (Toby, 30 Sep: about 10 % smaller in both directions).
+    func testTheTableIsTheScaledSize() {
+        XCTAssertEqual(TableMetrics.scale, 0.9)
+        XCTAssertEqual(ModelTable.width, 907)
+        XCTAssertEqual(ModelTable.rowHeight, 54)
+        XCTAssertEqual(ModelTable.referenceRowHeight, 34)
+        XCTAssertEqual(TierControl.height, 48.5)
+    }
+
     /// The declared width is the sum of the layout constants, and the table's own content is exactly that wide.
     func testDeclaredWidthIsTheColumnsAndEqualsTheFittingWidth() {
         let columns = ModelTable.W.columns.reduce(0, +) + CGFloat(ModelTable.W.columns.count - 1) * ModelTable.W.spacing

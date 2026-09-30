@@ -18,10 +18,13 @@ import SwiftUI
 // - The geometry is explicit (`width` × `height`, `buttonRect`, `trashRect`), so the first frame of a menu is right.
 
 struct RowAction: View {
-    static let width: CGFloat = 96
-    static let height: CGFloat = 28
-    /// The button: wide enough for "Unload" and "Reload"; a small control's height.
-    static let buttonWidth: CGFloat = 64, buttonHeight: CGFloat = 22
+    static let width: CGFloat = TableMetrics.pt(96)
+    static let height: CGFloat = TableMetrics.pt(28)
+    /// The button: wide enough for "Unload" and "Reload"; a small control's height (both scaled, TierControl.swift).
+    static let buttonWidth: CGFloat = TableMetrics.pt(64), buttonHeight: CGFloat = TableMetrics.pt(22)
+    /// The trash glyph's square, its gap after the button, and the button's corner radius and leading inset.
+    static let trashSize: CGFloat = TableMetrics.pt(22), trashGap: CGFloat = TableMetrics.pt(8)
+    static let cornerRadius: CGFloat = TableMetrics.pt(5), inset: CGFloat = TableMetrics.pt(2)
     /// Delete's tooltip.
     static let deleteHelp = "Delete these weights (asks first)"
 
@@ -61,7 +64,8 @@ final class RowActionView: NSView, NSViewToolTipOwner {
     private(set) var hovered = false
     /// Green of the deltas' family, deep enough for white text on the loaded row.
     static let green = NSColor(calibratedRed: 0.20, green: 0.56, blue: 0.31, alpha: 1)
-    static let titleFont = NSFont.systemFont(ofSize: 12)
+    static let titleFont = NSFont.systemFont(ofSize: TableMetrics.font(12))
+    static let busyFont = NSFont.monospacedDigitSystemFont(ofSize: TableMetrics.font(12), weight: .regular)
 
     override var isFlipped: Bool { true }
     override var isOpaque: Bool { false }
@@ -69,9 +73,13 @@ final class RowActionView: NSView, NSViewToolTipOwner {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     var buttonRect: NSRect {
-        NSRect(x: 2, y: (bounds.height - RowAction.buttonHeight) / 2, width: RowAction.buttonWidth, height: RowAction.buttonHeight)
+        NSRect(x: RowAction.inset, y: (bounds.height - RowAction.buttonHeight) / 2, width: RowAction.buttonWidth, height: RowAction.buttonHeight)
     }
-    var trashRect: NSRect { NSRect(x: RowAction.buttonWidth + 8, y: (bounds.height - 22) / 2, width: 22, height: 22) }
+    var trashRect: NSRect {
+        NSRect(
+            x: RowAction.buttonWidth + RowAction.trashGap, y: (bounds.height - RowAction.trashSize) / 2, width: RowAction.trashSize,
+            height: RowAction.trashSize)
+    }
     private var showsHover: Bool { hovered || forcedHover }
 
     // MARK: Hover (see the note above)
@@ -93,7 +101,7 @@ final class RowActionView: NSView, NSViewToolTipOwner {
     override func mouseDown(with event: NSEvent) {
         guard let spec, spec.busyText == nil else { return }
         let point = convert(event.locationInWindow, from: nil)
-        if spec.deletable, trashRect.insetBy(dx: -2, dy: -4).contains(point) {
+        if spec.deletable, trashRect.insetBy(dx: -TableMetrics.pt(2), dy: -TableMetrics.pt(4)).contains(point) {
             spec.onDelete()
         } else if spec.enabled {
             spec.onPerform()
@@ -122,11 +130,11 @@ final class RowActionView: NSView, NSViewToolTipOwner {
         let text: NSColor = spec.hot ? .selectedMenuItemTextColor : .labelColor
         let quiet: NSColor = spec.hot ? NSColor.selectedMenuItemTextColor.withAlphaComponent(0.7) : .secondaryLabelColor
         let button = buttonRect
-        let shape = NSBezierPath(roundedRect: button.insetBy(dx: 0.5, dy: 0.5), xRadius: 5, yRadius: 5)
+        let shape = NSBezierPath(roundedRect: button.insetBy(dx: 0.5, dy: 0.5), xRadius: RowAction.cornerRadius, yRadius: RowAction.cornerRadius)
         let context = NSGraphicsContext.current?.cgContext
         if let busy = spec.busyText {
             NSColor.white.withAlphaComponent(0.18).setStroke(); shape.lineWidth = 1; shape.stroke()
-            drawCentred(busy, in: button, font: .monospacedDigitSystemFont(ofSize: 12, weight: .regular), color: quiet)
+            drawCentred(busy, in: button, font: Self.busyFont, color: quiet)
         } else if spec.emphasized {
             context?.setAlpha(spec.enabled ? 1 : 0.5)
             Self.green.setFill(); shape.fill()
@@ -140,7 +148,7 @@ final class RowActionView: NSView, NSViewToolTipOwner {
             drawCentred(spec.title, in: button, font: Self.titleFont, color: text)
             context?.setAlpha(1)
         }
-        if showsHover && spec.deletable && spec.busyText == nil { drawSymbol("trash", in: trashRect, size: 13, color: quiet) }
+        if showsHover && spec.deletable && spec.busyText == nil { drawSymbol("trash", in: trashRect, size: TableMetrics.font(13), color: quiet) }
     }
     private func drawCentred(_ string: String, in rect: NSRect, font: NSFont, color: NSColor) {
         let s = NSAttributedString(string: string, attributes: [.font: font, .foregroundColor: color])

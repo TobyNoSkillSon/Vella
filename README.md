@@ -15,7 +15,7 @@ Apple Silicon, macOS 26 or newer. No Xcode, Python or developer account.
 [Models](#models) · [Install](#install) · [Using it](#using-it) · [For your agent](#for-your-agent) · [Privacy](#privacy) · [User guide](docs/USAGE.md) · [Sponsor](https://github.com/sponsors/TobyNoSkillSon)
 
 <p align="center">
-  <img src="docs/images/models.png" alt="The Models table: one line per model in a Dictation and a Streaming group divided by a thick line, Precision cells bf16 int8 int4 on an Optimized row (a bolt) above a Standard row (the MLX logo), unavailable cells greyed in place, a Fast/Exact switch as tall as both rows, Parakeet v3 loaded on Optimized bf16 Fast with its figures against Standard bf16, Nemotron loaded for Streaming, a Load, Get or Unload button per row, and two estimated cloud API rows" width="1000">
+  <img src="docs/images/models.png" alt="The Models table: one line per model in a Dictation and a Streaming group divided by a thick line, Precision cells bf16 int8 int4 on an Optimized row (a bolt) above a Standard row (the MLX logo), unavailable cells greyed in place, a Fast/Exact switch as tall as both rows, Parakeet v3 loaded on Optimized bf16 Fast with its figures against Standard bf16, Nemotron loaded for Streaming, a Load, Get or Unload button per row, and two estimated cloud API rows" width="904">
 </p>
 
 ## Models

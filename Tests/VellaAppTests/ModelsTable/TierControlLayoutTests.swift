@@ -66,14 +66,20 @@ import SwiftUI
                     XCTAssertEqual(gap, TierControl.rowSpacing, accuracy: 0.5, "\(label): real air between Optimized and Standard")
                     for control in all(NSSegmentedControl.self, in: host) {
                         XCTAssertEqual(control.controlSize, .regular, "the environment's size does not reach the control")
+                        // The stock regular geometry in its own bounds, scaled by its frame (TableMetrics).
+                        XCTAssertEqual(control.bounds.width, TierControl.Natural.segmentsWidth(3), accuracy: 0.01, "\(label): natural bounds")
+                        XCTAssertEqual(control.bounds.height, TierControl.Natural.segmentHeight, accuracy: 0.01, "\(label): natural bounds")
                     }
                     let switchView = try XCTUnwrap(all(SwitchView.self, in: host).first)
-                    XCTAssertEqual(switchView.frame.size, NSSize(width: ExactFastSwitch.width, height: ExactFastSwitch.height))
+                    // Half-point sizes (TableMetrics) land on whole points where the host draws at 1x.
+                    XCTAssertEqual(switchView.frame.width, ExactFastSwitch.width, accuracy: 0.5, label)
+                    XCTAssertEqual(switchView.frame.height, ExactFastSwitch.height, accuracy: 0.5, label)
                     XCTAssertEqual(ExactFastSwitch.height, TierControl.height, "the switch spans both rows")
                     let s = switchView.convert(switchView.bounds, to: host)
                     XCTAssertEqual(s.midY, (top.midY + bottom.midY) / 2, accuracy: 0.5, "\(label): centred on the pair")
                     let action = try XCTUnwrap(all(RowActionView.self, in: host).first)
-                    XCTAssertEqual(action.frame.size, NSSize(width: RowAction.width, height: RowAction.height))
+                    XCTAssertEqual(action.frame.width, RowAction.width, accuracy: 0.5, label)
+                    XCTAssertEqual(action.frame.height, RowAction.height, accuracy: 0.5, label)
                     let frames = segments + [switchView.convert(switchView.bounds, to: host), action.convert(action.bounds, to: host)]
                     for (i, a) in frames.enumerated() { for b in frames[(i + 1)...] { XCTAssertFalse(a.intersects(b), "\(label): \(a) overlaps \(b)") } }
                 }
@@ -85,10 +91,13 @@ import SwiftUI
         let host = NSHostingView(rootView: TierControl(selected: nil, enabled: true, help: { _ in "" }, onSelect: { _ in }))
         XCTAssertEqual(host.fittingSize.height, TierControl.height, accuracy: 0.5)
         XCTAssertEqual(host.fittingSize.width, TierControl.width, accuracy: 0.5)
-        // The constant still matches AppKit: a real regular segmented control is one segment high.
+        // The natural constant still matches AppKit: a real regular segmented control is one natural segment high, and
+        // on screen a segment row is that height at the table's scale.
         let probe = NSSegmentedControl(labels: ["16"], trackingMode: .selectOne, target: nil, action: nil)
         probe.controlSize = .regular; probe.font = TierControl.font
-        XCTAssertLessThanOrEqual(probe.intrinsicContentSize.height, TierControl.segmentHeight)
+        XCTAssertLessThanOrEqual(probe.intrinsicContentSize.height, TierControl.Natural.segmentHeight)
+        XCTAssertEqual(TierControl.segmentHeight, TierControl.Natural.segmentHeight * TableMetrics.scale, accuracy: 0.25)
+        XCTAssertEqual(TierControl.segmentsWidth(3), TierControl.Natural.segmentsWidth(3) * TableMetrics.scale, accuracy: 1)
         // No "Tier" anywhere a user reads.
         XCTAssertEqual(TierControl.title, "Precision")
         XCTAssertEqual(

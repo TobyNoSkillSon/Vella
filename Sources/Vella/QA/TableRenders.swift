@@ -440,22 +440,24 @@ import VellaUpdate
         var overlaps = 0
         for (i, a) in all.enumerated() { for b in all[(i + 1)...] where a.intersects(b) { overlaps += 1 } }
         // The Optimized and Standard rows of one model: segment controls in the same row band, one above the other.
-        var gaps: [Int] = []
+        var gaps: [CGFloat] = []
         for (i, a) in controls.enumerated() {
             for b in controls[(i + 1)...] where a.minY != b.minY && abs(a.midY - b.midY) <= TierControl.segmentHeight + TierControl.rowSpacing + 1 {
-                gaps.append(Int((max(a.minY, b.minY) - min(a.maxY, b.maxY)).rounded()))
+                gaps.append(((max(a.minY, b.minY) - min(a.maxY, b.maxY)) * 2).rounded() / 2)
             }
         }
+        /// Sizes to the half point (the table's lengths are scaled and rounded to half points, TableMetrics).
+        func f(_ v: CGFloat) -> String { String(format: "%g", (v * 2).rounded() / 2) }
         let lines =
             [
                 "precision segment controls: \(controls.count), exact/fast switches: \(switches.count), action buttons: \(actions.count)",
                 "overlapping pairs on the first frame: \(overlaps)",
-                "gaps between a model's Optimized and Standard rows: \(Set(gaps).sorted()) over \(gaps.count) models (expected \(Int(TierControl.rowSpacing)))",
-                "segment heights: \(Set(controls.map { Int($0.height) }).sorted()) (expected \(Int(TierControl.segmentHeight)))",
-                "switch sizes: \(Set(switches.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(ExactFastSwitch.width))x\(Int(ExactFastSwitch.height)))",
-                "action sizes: \(Set(actions.map { "\(Int($0.width))x\(Int($0.height))" }).sorted()) (expected \(Int(RowAction.width))x\(Int(RowAction.height)))",
-                "table width: \(Int(table.frame.width)), fitting \(Int(table.fittingSize.width)) (expected \(Int(ModelTable.width)))",
-                "right edge of the last button or trash glyph: \(Int(rightEdge)), margin \(Int(table.bounds.maxX - rightEdge)) (expected at least \(Int(ModelTable.trailingMargin)))"
+                "gaps between a model's Optimized and Standard rows: \(Set(gaps).sorted()) over \(gaps.count) models (expected \(f(TierControl.rowSpacing)))",
+                "segment heights: \(Set(controls.map { f($0.height) }).sorted()) (expected \(f(TierControl.segmentHeight)))",
+                "switch sizes: \(Set(switches.map { "\(f($0.width))x\(f($0.height))" }).sorted()) (expected \(f(ExactFastSwitch.width))x\(f(ExactFastSwitch.height)))",
+                "action sizes: \(Set(actions.map { "\(f($0.width))x\(f($0.height))" }).sorted()) (expected \(f(RowAction.width))x\(f(RowAction.height)))",
+                "table width: \(f(table.frame.width)), fitting \(f(table.fittingSize.width)) (expected \(f(ModelTable.width)))",
+                "right edge of the last button or trash glyph: \(f(rightEdge)), margin \(f(table.bounds.maxX - rightEdge)) (expected at least \(f(ModelTable.trailingMargin)))"
             ]
             + all.map { "\($0)" }
         try? lines.joined(separator: "\n").write(to: check, atomically: true, encoding: .utf8)

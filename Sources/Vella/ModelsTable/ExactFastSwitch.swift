@@ -30,8 +30,8 @@ struct ExactFastSwitch: View {
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
     /// The Exact position with no measured recipe: greyed, not selectable.
     static let exactNotMeasuredHelp = "Exact: not measured yet"
-    static let pillWidth: CGFloat = 24
-    static let width: CGFloat = showsWords ? 62 : pillWidth
+    static let pillWidth: CGFloat = TableMetrics.pt(24)
+    static let width: CGFloat = showsWords ? TableMetrics.pt(62) : pillWidth
     /// Both segment rows high: the switch is centred on the pair (Toby, 30 Sep: larger, full two-row height).
     static let height: CGFloat = TierControl.height
 
@@ -100,11 +100,15 @@ final class SwitchView: NSView {
     override var acceptsFirstResponder: Bool { false }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    static let trackWidth: CGFloat = 20
-    static let font = NSFont.systemFont(ofSize: 12)
+    static let trackWidth: CGFloat = TableMetrics.pt(20)
+    /// The pill's inset in the view and the knob's inset in the pill.
+    static let inset: CGFloat = TableMetrics.pt(2)
+    static let font = NSFont.systemFont(ofSize: TableMetrics.font(12))
+    /// The words' line height (centred on the knob) and their gap after the pill.
+    static let lineHeight: CGFloat = TableMetrics.pt(15), wordGap: CGFloat = TableMetrics.pt(5)
 
     /// The pill's rectangle (the words sit to its right).
-    var track: NSRect { NSRect(x: 2, y: 2, width: Self.trackWidth, height: bounds.height - 4) }
+    var track: NSRect { NSRect(x: Self.inset, y: Self.inset, width: Self.trackWidth, height: bounds.height - 2 * Self.inset) }
 
     override func draw(_ dirtyRect: NSRect) {
         // Locked while in use: the whole switch at reduced opacity (system colours keep their own alpha). Greyed (Fast =
@@ -125,17 +129,18 @@ final class SwitchView: NSView {
                 from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         }
         guard ExactFastSwitch.showsWords else { return }
-        let lineHeight: CGFloat = 15
+        let lineHeight = Self.lineHeight
         for (word, which, y) in [("Fast", ExactFastSwitch.Position.fast, knob(at: .fast).midY - lineHeight / 2), ("Exact", .exact, knob(at: .exact).midY - lineHeight / 2)] {
             let color: NSColor = which == position ? .labelColor : which == .exact && exactUnavailable ? .quaternaryLabelColor : .tertiaryLabelColor
             NSAttributedString(string: word, attributes: [.font: Self.font, .foregroundColor: color])
-                .draw(at: NSPoint(x: track.maxX + 5, y: y))
+                .draw(at: NSPoint(x: track.maxX + Self.wordGap, y: y))
         }
     }
     /// The knob's rectangle at a position (the words sit level with it).
     private func knob(at position: ExactFastSwitch.Position) -> NSRect {
-        let knobSize = Self.trackWidth - 4
-        return NSRect(x: track.minX + 2, y: position == .fast ? track.minY + 2 : track.maxY - 2 - knobSize, width: knobSize, height: knobSize)
+        let knobSize = Self.trackWidth - 2 * Self.inset
+        return NSRect(
+            x: track.minX + Self.inset, y: position == .fast ? track.minY + Self.inset : track.maxY - Self.inset - knobSize, width: knobSize, height: knobSize)
     }
     /// The knob's bolt, sized for the knob, in the row's bolt hue: the white knob needs a deeper shade of the same hue
     /// to read (blue 221° 75 % 45 %, 6.7:1 on white; amber 41° 90 % 38 %, 3.3:1).
@@ -143,7 +148,7 @@ final class SwitchView: NSView {
     static let hotKnobBolt = image(NSColor(srgbRed: 184 / 255, green: 128 / 255, blue: 10 / 255, alpha: 1))
     static func bolt(hot: Bool) -> NSImage? { hot ? hotKnobBolt : knobBolt }
     private static func image(_ color: NSColor) -> NSImage? {
-        let config = NSImage.SymbolConfiguration(pointSize: 9, weight: .bold)
+        let config = NSImage.SymbolConfiguration(pointSize: TableMetrics.font(9), weight: .bold)
             .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
         return NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: nil)?.withSymbolConfiguration(config)
     }

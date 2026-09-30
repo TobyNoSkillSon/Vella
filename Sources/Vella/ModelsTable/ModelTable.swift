@@ -2,22 +2,30 @@ import AppKit
 import SwiftUI
 import VellaCore
 
+/// Every size of the table is a base size scaled by `ModelTable.Metrics.scale` (TableMetrics, TierControl.swift): a
+/// length with `pt`, a font or symbol size with `size`. The comments give the base sizes.
+private func pt(_ base: CGFloat) -> CGFloat { TableMetrics.pt(base) }
+private func size(_ base: CGFloat) -> CGFloat { TableMetrics.font(base) }
+
 struct ModelTable: View {
+    typealias Metrics = TableMetrics
     /// Column widths; `spacing` between columns, `rowPadding` inside a row on each side.
     enum W {
-        static let model: CGFloat = 194, params: CGFloat = 52
-        static let precision: CGFloat = TierControl.width + 4, path: CGFloat = max(ExactFastSwitch.width, ExactFastSwitch.showsWords ? 0 : 64)
-        static let wer: CGFloat = 62, format: CGFloat = 62, speed: CGFloat = 78, energy: CGFloat = 64, memory: CGFloat = 72
+        static let model: CGFloat = pt(194), params: CGFloat = pt(52)
+        static let precision: CGFloat = TierControl.width + pt(4), path: CGFloat = max(ExactFastSwitch.width, ExactFastSwitch.showsWords ? 0 : pt(64))
+        static let wer: CGFloat = pt(62), format: CGFloat = pt(62), speed: CGFloat = pt(78), energy: CGFloat = pt(64), memory: CGFloat = pt(72)
         static let action: CGFloat = RowAction.width
-        static let spacing: CGFloat = 6, rowPadding: CGFloat = 8
+        static let spacing: CGFloat = pt(6), rowPadding: CGFloat = pt(8)
         /// The leading icon slot of the Model column: the loaded row's 17 pt flame (taller than the name, shorter than the two-line label)
         /// (13 pt name over the 10.5 pt engine line), and the cloud rows' icon, so every name starts at the same x.
-        static let icon: CGFloat = 24, flameSize: CGFloat = 17
+        static let icon: CGFloat = pt(24), flameSize: CGFloat = size(17)
+        /// The gap after the icon slot, and between the name and the engine line.
+        static let iconGap: CGFloat = pt(6), lineGap: CGFloat = pt(1)
         static let columns: [CGFloat] = [model, params, precision, path, wer, format, speed, energy, memory, action]
         static let row: CGFloat = columns.reduce(0, +) + CGFloat(columns.count - 1) * spacing + 2 * rowPadding
     }
     /// The table's padding around the rows: 6 pt leading, `trailingPadding` after the last column (as before v3).
-    static let leadingPadding: CGFloat = 6, trailingPadding: CGFloat = 2
+    static let leadingPadding: CGFloat = pt(6), trailingPadding: CGFloat = pt(2)
     /// The table's width, from the columns above: the menu item view and so the menu window take exactly this width, and
     /// the table's own content is exactly this wide in every state (TableWidthTests checks both, on the first layout
     /// pass). Nothing in a row, the header or the footer may be wider than `W.row`.
@@ -28,17 +36,20 @@ struct ModelTable: View {
     /// One line per model: the Optimized and Standard segment rows with air around them, the Exact/Fast switch as tall as
     /// both; beside them a 13 pt value over a 10.5 pt delta (or the name over its engine label). A cloud row has no
     /// controls and keeps a 38 pt line.
-    static let rowHeight: CGFloat = TierControl.height + 6
-    static let referenceRowHeight: CGFloat = 38
-    static let rowGap: CGFloat = 2
-    static let headerHeight: CGFloat = 26, sectionHeight: CGFloat = 24, footerHeight: CGFloat = 28
+    static let rowHeight: CGFloat = TierControl.height + pt(6)
+    static let referenceRowHeight: CGFloat = pt(38)
+    static let rowGap: CGFloat = pt(2)
+    static let headerHeight: CGFloat = pt(26), sectionHeight: CGFloat = pt(24), footerHeight: CGFloat = pt(28)
+    /// The table's padding above and below, the air above and below each hairline divider (the divider itself is 1 pt),
+    /// the section label's inset above its bottom, and the loaded and progress rows' corner radius.
+    static let verticalPadding: CGFloat = pt(6), dividerPadding: CGFloat = pt(4), sectionBottom: CGFloat = pt(4), rowCorner: CGFloat = pt(5)
     /// The thick line between the Dictation and the Streaming group (Toby, 30 Sep): `groupRule` thick, with air above
     /// and below; it carries the separation, the group words stay.
-    static let groupRule: CGFloat = 3, groupRuleAbove: CGFloat = 8, groupRuleBelow: CGFloat = 2
+    static let groupRule: CGFloat = pt(3), groupRuleAbove: CGFloat = pt(8), groupRuleBelow: CGFloat = pt(2)
     static let groupRuleHeight: CGFloat = groupRuleAbove + groupRule + groupRuleBelow
     /// Every visible row fits without scrolling: paddings, heading, dividers, section labels, the group rule and footer.
     static func height(models: Int, references: Int, sections: Int) -> CGFloat {
-        12 + headerHeight + 18 + CGFloat(sections) * sectionHeight + CGFloat(max(0, sections - 1)) * groupRuleHeight
+        2 * verticalPadding + headerHeight + 2 * (1 + 2 * dividerPadding) + CGFloat(sections) * sectionHeight + CGFloat(max(0, sections - 1)) * groupRuleHeight
             + CGFloat(models) * (rowHeight + rowGap) + CGFloat(references) * (referenceRowHeight + rowGap) + footerHeight
     }
     @MainActor static func height(_ c: ModelsController) -> CGFloat {
@@ -46,8 +57,11 @@ struct ModelTable: View {
         return height(models: c.rowCount - references, references: references, sections: c.sectionCount)
     }
 
-    static let valueFont = Font.system(size: 13).monospacedDigit()
-    static let deltaFont = Font.system(size: 10.5).monospacedDigit()
+    /// Base 13 pt values over 10.5 pt deltas; the name at the value's size over the engine line at the delta's; 12 pt
+    /// headings and section labels; 10 pt footer notes, 11 pt for its request.
+    static let valueSize = size(13), deltaSize = size(10.5), headingSize = size(12), footerSize = size(10), requestSize = size(11)
+    static let valueFont = Font.system(size: valueSize).monospacedDigit()
+    static let deltaFont = Font.system(size: deltaSize).monospacedDigit()
 
     @ObservedObject var controller: ModelsController
     var requestDelete: (ModelFamily) -> Void = { _ in }
@@ -102,7 +116,7 @@ struct ModelTable: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header.frame(width: W.row, height: Self.headerHeight)
-            Divider().opacity(0.35).padding(.vertical, 4)
+            Divider().opacity(0.35).padding(.vertical, Self.dividerPadding)
             let sections = Self.sections(controller)
             ForEach(sections, id: \.self) { mode in
                 let sectionRows = rows(mode)
@@ -112,8 +126,8 @@ struct ModelTable: View {
                         .padding(.top, Self.groupRuleAbove).padding(.bottom, Self.groupRuleBelow)
                         .accessibilityHidden(true)
                 }
-                Text(mode.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-                    .padding(.leading, W.rowPadding).padding(.bottom, 4)
+                Text(mode.title).font(.system(size: Self.headingSize, weight: .semibold)).foregroundStyle(.secondary)
+                    .padding(.leading, W.rowPadding).padding(.bottom, Self.sectionBottom)
                     .frame(height: Self.sectionHeight, alignment: .bottomLeading)
                     .appKitTooltip(mode == .dictation ? "Transcribes when you finish speaking" : "Types text while you speak")
                 ForEach(sectionRows) { item in
@@ -125,19 +139,19 @@ struct ModelTable: View {
                     }.padding(.bottom, Self.rowGap)
                 }
             }
-            Divider().opacity(0.35).padding(.vertical, 4)
+            Divider().opacity(0.35).padding(.vertical, Self.dividerPadding)
             footer.frame(width: W.row, height: Self.footerHeight)
-        }.padding(.vertical, 6).padding(.leading, Self.leadingPadding).padding(.trailing, Self.trailingPadding)
+        }.padding(.vertical, Self.verticalPadding).padding(.leading, Self.leadingPadding).padding(.trailing, Self.trailingPadding)
             .fixedSize(horizontal: true, vertical: false)
             .frame(height: Self.height(controller), alignment: .top)
             .background(Color.clear)
             .foregroundStyle(.primary)
             .overlay(alignment: .top) {
                 if copied {
-                    Text("Copied").font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 12).padding(.vertical, 5)
+                    Text("Copied").font(.system(size: Self.headingSize, weight: .medium))
+                        .padding(.horizontal, pt(12)).padding(.vertical, pt(5))
                         .background(.regularMaterial, in: Capsule())
-                        .padding(.top, 3).transition(.opacity).allowsHitTesting(false)
+                        .padding(.top, pt(3)).transition(.opacity).allowsHitTesting(false)
                 }
             }
     }
@@ -174,19 +188,19 @@ struct ModelTable: View {
         // A confirmed download for this row (a precision made here downloads its source).
         let downloading = controller.downloadRoot(family, precision).flatMap { family.variants[$0] }.map { library.downloadingID == $0.id } ?? false
         HStack(spacing: W.spacing) {
-            HStack(spacing: 6) {
+            HStack(spacing: W.iconGap) {
                 Image(systemName: "flame.fill").font(.system(size: W.flameSize)).foregroundStyle(Color.orange)
                     .frame(width: W.icon).opacity(hot ? 1 : 0)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(family.name).font(.system(size: 13)).lineLimit(1)
+                VStack(alignment: .leading, spacing: W.lineGap) {
+                    Text(family.name).font(.system(size: Self.valueSize)).lineLimit(1)
                     // A flip to Exact that moved the precision says so; else the engine beneath a loaded model.
                     if let note = controller.couplingNote(family) {
-                        Text(note).font(.system(size: 10.5, weight: .medium)).lineLimit(1)
+                        Text(note).font(.system(size: Self.deltaSize, weight: .medium)).lineLimit(1)
                             .foregroundStyle(hot ? Self.hotText.opacity(0.8) : .secondary)
                             .appKitTooltip("Exact offers only the precisions whose kernels give output identical to Standard")
                     } else if let loaded, loaded.engine != nil {
                         Text(engineLabel(engine: loaded.engine, chip: runtime?.chip, selection: shownEngineSelection(family, engine: loaded.engine)))
-                            .font(.system(size: 10.5, weight: .medium))
+                            .font(.system(size: Self.deltaSize, weight: .medium))
                             .foregroundStyle(Self.tone(.better, hot: hot)).lineLimit(1)
                             .appKitTooltip(
                                 engineHelp(
@@ -208,7 +222,7 @@ struct ModelTable: View {
             metric(formatSpeed(bench?.speed_x), compare ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, W.speed, hot: hot)
                 .overlay(alignment: .leading) {
                     if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
-                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 9)).foregroundStyle(.orange).accessibilityLabel("very slow")
+                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: size(9))).foregroundStyle(.orange).accessibilityLabel("very slow")
                     }
                 }
                 .appKitTooltip(pending ? figuresPendingHelp : speedHelp(family.mode, bench, suites: suites))
@@ -219,11 +233,11 @@ struct ModelTable: View {
             rowAction(family, action: action, loading: loading, downloading: downloading, variant: variant, library: library, hot: hot, precision: precision, loaded: loaded)
         }.font(Self.valueFont)
             .padding(.horizontal, W.rowPadding).frame(height: Self.rowHeight)
-            .background(hot ? Self.hotRow : .clear, in: RoundedRectangle(cornerRadius: 5))
+            .background(hot ? Self.hotRow : .clear, in: RoundedRectangle(cornerRadius: Self.rowCorner))
             .background {
                 if downloading, let value = library.progress {
                     GeometryReader { geometry in
-                        RoundedRectangle(cornerRadius: 5)
+                        RoundedRectangle(cornerRadius: Self.rowCorner)
                             .fill(Color(nsColor: .selectedContentBackgroundColor).opacity(0.35))
                             .frame(width: geometry.size.width * min(1, max(0, value)))
                             .animation(reduceMotion ? nil : .linear(duration: 0.25), value: value)
@@ -255,9 +269,9 @@ struct ModelTable: View {
     /// Its WER is an estimate (`~13%`); the tooltip says from where and that we did not measure it.
     @ViewBuilder private func referenceRow(_ r: ReferenceEntry) -> some View {
         HStack(spacing: W.spacing) {
-            HStack(spacing: 6) {
-                Image(systemName: "cloud").font(.system(size: 11)).frame(width: W.icon)
-                Text(r.name).font(.system(size: 13)).lineLimit(1)
+            HStack(spacing: W.iconGap) {
+                Image(systemName: "cloud").font(.system(size: size(11))).frame(width: W.icon)
+                Text(r.name).font(.system(size: Self.valueSize)).lineLimit(1)
             }.frame(width: W.model, alignment: .leading)
                 .appKitTooltip(referenceModelHelp(r))
             Text("\u{2014}").frame(width: W.params)
@@ -323,7 +337,7 @@ struct ModelTable: View {
 
     /// Value on top, delta vs Standard 16 beneath it in small type; centred under the column's label.
     @ViewBuilder private func metric(_ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool) -> some View {
-        VStack(alignment: .center, spacing: 1) {
+        VStack(alignment: .center, spacing: W.lineGap) {
             Text(value ?? "—").lineLimit(1)
             if let delta {
                 Text(delta.text).font(Self.deltaFont).lineLimit(1).fixedSize()
@@ -462,10 +476,10 @@ struct ModelTable: View {
         Group {
             let appError = controller.lastError ?? (busyLibrary == nil ? [controller.dictation, controller.streaming].compactMap(\.downloadError).first : nil)
             if let error = footerNotice(lastError: appError, workerError: runtime?.workerError, refusal: runtime?.refusal, now: Date().timeIntervalSince1970) {
-                let text = Text(error).font(.system(size: 10)).foregroundStyle(.red).lineLimit(1).appKitTooltip(error)
+                let text = Text(error).font(.system(size: Self.footerSize)).foregroundStyle(.red).lineLimit(1).appKitTooltip(error)
                 ViewThatFits(in: .horizontal) {
                     HStack {
-                        text.fixedSize(); Spacer(minLength: 16); requestButton
+                        text.fixedSize(); Spacer(minLength: pt(16)); requestButton
                     }
                     HStack {
                         text; Spacer(minLength: 0)
@@ -474,22 +488,27 @@ struct ModelTable: View {
             } else if let busyLibrary {
                 HStack {
                     if busyLibrary.progress == nil { ProgressView().controlSize(.mini) }
-                    Text(busyLibrary.message).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).appKitTooltip(busyLibrary.message)
-                    Spacer(minLength: 16)
-                    Button("Cancel") { controller.cancelDownloads() }
+                    Text(busyLibrary.message).font(.system(size: Self.footerSize)).foregroundStyle(.secondary).lineLimit(1).appKitTooltip(busyLibrary.message)
+                    Spacer(minLength: pt(16))
+                    // A stock small button (its bezel stays 20 pt high); its title at the table's scale.
+                    Button {
+                        controller.cancelDownloads()
+                    } label: {
+                        Text("Cancel").font(.system(size: Self.requestSize))
+                    }
                 }
             } else {
                 HStack {
                     if let loading = runtime?.loading, !loading.isEmpty {
                         ProgressView().controlSize(.mini)
-                        Text("Loading \(controller.catalog.family(loading)?.name ?? loading)…").font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text("Loading \(controller.catalog.family(loading)?.name ?? loading)…").font(.system(size: Self.footerSize)).foregroundStyle(.secondary)
                     } else if !controller.benchmarks.figuresPending,
                         let note = hardwareNote(thisChip: runtime?.chip ?? Self.localChip, measuredOn: measurementChip(controller.benchmarks))
                     {
-                        Text(note.text).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
-                            .padding(.leading, 8).appKitTooltip(note.help)
+                        Text(note.text).font(.system(size: Self.footerSize)).foregroundStyle(.secondary).lineLimit(1)
+                            .padding(.leading, pt(8)).appKitTooltip(note.help)
                     }
-                    Spacer(minLength: 16)
+                    Spacer(minLength: pt(16))
                     requestButton
                 }
             }
@@ -506,16 +525,16 @@ struct ModelTable: View {
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) { copied = false }
             }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: pt(6)) {
                 Text("Want another model? Copy instructions for your agent.")
                 Image(systemName: "doc.on.doc").accessibilityHidden(true)
-            }.padding(.horizontal, 8).contentShape(Rectangle())
-        }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize()
+            }.padding(.horizontal, pt(8)).contentShape(Rectangle())
+        }.buttonStyle(.plain).font(.system(size: Self.requestSize)).foregroundStyle(.secondary).fixedSize()
             .accessibilityHint("Copies installation instructions to the clipboard. Nothing is sent automatically.")
     }
 
     private func plainHeading(_ text: String, _ width: CGFloat, help: String) -> some View {
-        Text(text).frame(width: width).font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).appKitTooltip(help)
+        Text(text).frame(width: width).font(.system(size: Self.headingSize, weight: .medium)).foregroundStyle(.secondary).appKitTooltip(help)
     }
 
     /// Sortable heading; the active one is primary with a small arrow in an overlay beside it, so the label never
@@ -530,14 +549,14 @@ struct ModelTable: View {
             Text(text)
                 .overlay(alignment: .trailing) {
                     Image(systemName: ascending ? "arrow.up" : "arrow.down")
-                        .font(.system(size: 9, weight: .semibold)).frame(width: 10)
-                        .offset(x: 13)
+                        .font(.system(size: size(9), weight: .semibold)).frame(width: pt(10))
+                        .offset(x: pt(13))
                         .opacity(active ? 1 : 0)
                         .allowsHitTesting(false)
                 }
                 .frame(width: width, height: Self.headerHeight, alignment: alignment)
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).font(.system(size: 12, weight: .medium)).foregroundStyle(active ? .primary : .secondary)
+        }.buttonStyle(.plain).font(.system(size: Self.headingSize, weight: .medium)).foregroundStyle(active ? .primary : .secondary)
             .accessibilityHint(column == .name ? "Sort by name." : (help.map { $0 + " " } ?? "") + "Sorts by each model's best value across its precisions.")
     }
 }

@@ -21,6 +21,21 @@ import SwiftUI
 // - The geometry is explicit (two regular segmented controls, `segmentHeight` each, `rowSpacing` apart, `cellWidth`
 //   per column): a hosted NSControl can take the environment's control size until its first update, so nothing here
 //   asks the control for its size and the FIRST layout of a menu already has both rows apart.
+// - Scale: every size here, in ExactFastSwitch.swift, RowAction.swift and the table is a base size times
+//   `TableMetrics.scale`. The segments are the exception in mechanism, not in result: AppKit draws a regular segment's
+//   bezel 24 pt high whatever its frame (the small size is 20 pt), so each segmented control keeps that natural geometry
+//   (`natural`) as its own bounds and its frame is the scaled size. Bezel, labels, tint and ring scale with it, and hit
+//   testing stays AppKit's own (a control's bounds are its coordinate system), unlike a scaled view around the hosting view.
+
+/// The Models table's size (Toby, 30 Sep: about 10 % smaller in both directions, proportions kept): one factor for the
+/// table and its shared controls. Lengths round to the half point; font and symbol sizes are exact.
+enum TableMetrics {
+    static let scale: CGFloat = 0.9
+    /// A length (width, height, spacing, padding, radius): `base × scale` to the nearest half point.
+    static func pt(_ base: CGFloat) -> CGFloat { (base * scale * 2).rounded() / 2 }
+    /// A font or symbol point size: `base × scale`.
+    static func font(_ base: CGFloat) -> CGFloat { base * scale }
+}
 
 struct TierControl: View {
     enum Row: String, CaseIterable {
@@ -49,22 +64,31 @@ struct TierControl: View {
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
     /// Columns, highest precision first: 16, 8, 4 bits (the cells' identity; `labels` names them).
     static let columns = ["16", "8", "4"]
-    /// A regular NSSegmentedControl's height (24 pt on macOS 26).
-    static let segmentHeight: CGFloat = 24
+    /// A segmented control's own coordinate space (its bounds): a regular NSSegmentedControl as AppKit draws it, 24 pt
+    /// high (macOS 26), 46 pt per column, labels at 13 pt medium. Its frame is this times `TableMetrics.scale`.
+    enum Natural {
+        static let segmentHeight: CGFloat = 24
+        static let cellWidth: CGFloat = 46
+        static func segmentsWidth(_ count: Int) -> CGFloat { count == 0 ? 0 : CGFloat(count) * (cellWidth - 1) - 1 }
+        static var font: NSFont { .systemFont(ofSize: 13, weight: .medium) }
+    }
+    /// One segment row's height on screen (the regular 24 pt, scaled).
+    static let segmentHeight: CGFloat = TableMetrics.pt(Natural.segmentHeight)
     /// Air between the Optimized and the Standard row.
-    static let rowSpacing: CGFloat = 6
+    static let rowSpacing: CGFloat = TableMetrics.pt(6)
     /// Both rows: the control's own height, which the table row and the Exact/Fast switch beside it use.
     static let height: CGFloat = 2 * segmentHeight + rowSpacing
-    /// Width of one column: room for a four-letter dtype (`bf16`, `int8`) in a regular segment. Every cell is this wide.
-    static let cellWidth: CGFloat = 46
-    /// The row icon's slot (the MLX logo at `logoHeight` is about 34 pt wide) and the gap after it.
-    static let iconWidth: CGFloat = 36, iconGap: CGFloat = 8
-    static let logoHeight: CGFloat = 11
-    /// Width of a row's segments: each segment is `cellWidth - 2` wide plus a 1 pt divider, less the outer one.
+    /// Width of one column on screen: room for a four-letter dtype (`bf16`, `int8`). Every cell is this wide.
+    static let cellWidth: CGFloat = TableMetrics.pt(Natural.cellWidth)
+    /// The row icon's slot (the MLX logo at `logoHeight` is about 3.1 times as wide as high) and the gap after it.
+    static let iconWidth: CGFloat = TableMetrics.pt(36), iconGap: CGFloat = TableMetrics.pt(8)
+    static let logoHeight: CGFloat = TableMetrics.pt(11)
+    /// Width of a row's segments on screen: each segment is `cellWidth - 2` wide plus a 1 pt divider, less the outer one.
     static func segmentsWidth(_ count: Int) -> CGFloat { count == 0 ? 0 : CGFloat(count) * (cellWidth - 1) - 1 }
     /// Icon plus three columns.
     static let width: CGFloat = iconWidth + iconGap + CGFloat(columns.count) * cellWidth
-    static var font: NSFont { .systemFont(ofSize: 13, weight: .medium) }
+    /// The segment labels in the control's own (natural) space; on screen 13 × scale.
+    static var font: NSFont { Natural.font }
 
     /// The Standard row's icon: the MLX logo as a template image, from the app's Resources (or ./Resources when run from
     /// the package, as in tests). Nil when the file is missing: the row then shows the letters MLX.
@@ -133,11 +157,11 @@ struct TierControl: View {
     /// The row's icon: the bolt in its tint, or the MLX logo in the text colour.
     @ViewBuilder static func icon(_ row: Row, hot: Bool = false) -> some View {
         if row == .optimized {
-            Image(systemName: "bolt.fill").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color(nsColor: boltColor(hot: hot)))
+            Image(systemName: "bolt.fill").font(.system(size: TableMetrics.font(15), weight: .semibold)).foregroundStyle(Color(nsColor: boltColor(hot: hot)))
         } else if let logo = mlxLogo {
             Image(nsImage: logo).renderingMode(.template).resizable().scaledToFit().frame(height: logoHeight)
         } else {
-            Text("MLX").font(.system(size: 11, weight: .heavy))
+            Text("MLX").font(.system(size: TableMetrics.font(11), weight: .heavy))
         }
     }
 }
@@ -185,7 +209,8 @@ private struct TierSegments: NSViewRepresentable {
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    /// Always regular and always one segment high, whatever size the hosting environment pushes onto it.
+    /// Always regular and always one segment high, whatever size the hosting environment pushes onto it. Its bounds are
+    /// the natural regular geometry (`TierControl.Natural`) whatever its frame: everything below draws in that space.
     final class Control: NSSegmentedControl {
         override var controlSize: NSControl.ControlSize {
             get { super.controlSize }
@@ -193,6 +218,15 @@ private struct TierSegments: NSViewRepresentable {
         }
         override var intrinsicContentSize: NSSize {
             NSSize(width: TierControl.segmentsWidth(segmentCount), height: TierControl.segmentHeight)
+        }
+        override func setFrameSize(_ newSize: NSSize) {
+            super.setFrameSize(newSize)
+            naturalBounds()
+        }
+        /// Bounds = the natural size, so a frame of `TableMetrics.scale` of it scales the stock drawing and its hit testing.
+        func naturalBounds() {
+            let natural = NSSize(width: TierControl.Natural.segmentsWidth(segmentCount), height: TierControl.Natural.segmentHeight)
+            if frame.width > 0, frame.height > 0, natural.width > 0, bounds.size != natural { setBoundsSize(natural) }
         }
         /// A loaded row rings its selected cell in white: on the accent-blue row a fill alone does not stand out.
         var ringsSelection = false { didSet { if ringsSelection != oldValue { needsDisplay = true } } }
@@ -203,7 +237,7 @@ private struct TierSegments: NSViewRepresentable {
         override func draw(_ dirtyRect: NSRect) {
             guard let tint else { return drawStock(dirtyRect) }
             NSGraphicsContext.current?.cgContext.setAlpha(isEnabled ? 1 : 0.5)
-            let pitch = TierControl.cellWidth - 1
+            let pitch = TierControl.Natural.cellWidth - 1
             // On the loaded row the yellow must win over the blue behind it, so the wash is strong and labels are dark.
             let hotRow = ringsSelection
             // Yellow over the complementary blue greys out when blended, so the loaded row's wash is an opaque, deeper
@@ -240,8 +274,8 @@ private struct TierSegments: NSViewRepresentable {
         private func drawStock(_ dirtyRect: NSRect) {
             super.draw(dirtyRect)
             guard ringsSelection, selectedSegment >= 0, selectedSegment < segmentCount else { return }
-            let x = CGFloat(selectedSegment) * (TierControl.cellWidth - 1)
-            let cell = NSRect(x: x, y: 0, width: TierControl.cellWidth - 1, height: bounds.height).insetBy(dx: 1, dy: 1.5)
+            let x = CGFloat(selectedSegment) * (TierControl.Natural.cellWidth - 1)
+            let cell = NSRect(x: x, y: 0, width: TierControl.Natural.cellWidth - 1, height: bounds.height).insetBy(dx: 1, dy: 1.5)
             let ring = NSBezierPath(roundedRect: cell, xRadius: 5, yRadius: 5)
             ring.lineWidth = 1.5
             NSColor.white.withAlphaComponent(isEnabled ? 0.95 : 0.5).setStroke()
@@ -274,10 +308,11 @@ private struct TierSegments: NSViewRepresentable {
         control.font = TierControl.font
         for (i, tier) in tiers.enumerated() {
             control.setLabel(labels.indices.contains(i) ? labels[i] : tier, forSegment: i)
-            control.setWidth(TierControl.cellWidth - 2, forSegment: i)
+            control.setWidth(TierControl.Natural.cellWidth - 2, forSegment: i)
             control.setToolTip(help(tier), forSegment: i)
             control.setEnabled(!unavailable.contains(tier), forSegment: i)
         }
+        (control as? Control)?.naturalBounds()
         control.selectedSegment = selected.flatMap { tiers.firstIndex(of: $0) } ?? -1
         control.isEnabled = enabled
         // On a loaded (accent-blue) row an accent selection disappears into the row; a near-black selection with the
