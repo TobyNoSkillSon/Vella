@@ -162,10 +162,12 @@ public final class VellaNemotronSession {
         if let c = hidden?.cell { live.append(c) }
         if !live.isEmpty { VellaStreamProfile.time("live_eval") { eval(live) }; VellaStreamProfile.add("sync_live") }
         closed = final
-        // `VELLA_NEMO_KEEPCACHE=1`: keep MLX's buffer cache (bounded by the worker's 64 MB cache limit) across requests
-        // instead of freeing every request's buffers and allocating them again the next request (v2-mini BF16:
-        // +18 % speed, -11 % J/min, identical transcripts; lab/models/Nemotron/L3-keepcache.md).
-        if !keepCache { Memory.clearCache() }
+        // `VELLA_NEMO_KEEPCACHE=1`: keep MLX's buffer cache across requests instead of freeing every request's buffers
+        // and allocating them again the next request (v2-mini BF16: +18 % speed, -11 % J/min, identical transcripts;
+        // lab/models/Nemotron/L3-keepcache.md). The live state was just evaluated, so the request's buffers are freed;
+        // `BufferCache.bound` then holds the idle cache at the worker's cache limit (MLX alone can overshoot it by
+        // the last buffer freed).
+        if keepCache { BufferCache.bound(limit: Memory.cacheLimit) } else { Memory.clearCache() }
         return text
     }
 

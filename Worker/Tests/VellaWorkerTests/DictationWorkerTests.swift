@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 import Testing
 @testable import VellaWorker
+import MLXAudioSTT
 import VellaWorkerSupport
 import VellaWire
 
@@ -158,6 +159,57 @@ extension WorkerTests {
                 #expect(throws: (any Error).self, "\(name)") { try Audio(url.path) }
             }
             #expect(throws: (any Error).self) { try Audio("relative.wav") }
+        }
+
+        // MARK: buffer cache between requests
+
+        /// Kept by default; only `VELLA_DICTATION_KEEP_CACHE=0` restores the per-request clear.
+        @Test func keepCacheSwitch() {
+            #expect(Worker.keepCache(environment: [:]))
+            #expect(Worker.keepCache(environment: ["VELLA_DICTATION_KEEP_CACHE": "1"]))
+            #expect(!Worker.keepCache(environment: ["VELLA_DICTATION_KEEP_CACHE": "0"]))
+            #expect(cacheBytes == 64 * 1024 * 1024)
+        }
+
+        /// The idle cache ends at most at the limit: MLX's own limit admits one freed buffer past it (a 128 MiB buffer
+        /// freed into a 64 MiB-limited cache stays cached until the next allocation), so the request boundary trims.
+        @Test func idleCacheIsBoundedAtTheLimit() {
+            final class Fake {
+                var cached: Int
+                var trims = 0, clears = 0
+                let afterTrim: Int
+                init(_ cached: Int, afterTrim: Int) { self.cached = cached; self.afterTrim = afterTrim }
+                func bound(_ limit: Int) -> BufferCache.Outcome {
+                    BufferCache.bound(
+                        limit: limit, cached: { self.cached },
+                        trim: {
+                            self.trims += 1; self.cached = self.afterTrim
+                        },
+                        clear: {
+                            self.clears += 1; self.cached = 0
+                        })
+                }
+            }
+            let limit = cacheBytes
+            // Below or at the limit: nothing runs, the cache is kept.
+            for size in [0, limit - 1, limit] {
+                let f = Fake(size, afterTrim: -1)
+                #expect(f.bound(limit) == .within); #expect(f.cached == size); #expect(f.trims == 0 && f.clears == 0)
+            }
+            // Overshoot by one oversized buffer (Astra's reproduction: 134,217,732 bytes cached at a 64 MiB limit): the
+            // allocator's trim brings it under and keeps the rest.
+            let trimmed = Fake(134_217_732, afterTrim: limit - 4096)
+            #expect(trimmed.bound(limit) == .trimmed); #expect(trimmed.cached <= limit); #expect(trimmed.clears == 0)
+            // A trim that leaves it above the limit clears it.
+            let stuck = Fake(limit + 1, afterTrim: limit + 1)
+            #expect(stuck.bound(limit) == .cleared); #expect(stuck.cached == 0)
+            // Repeated requests of varying size: after each one the cache is within the limit.
+            let varying = Fake(0, afterTrim: limit / 2)
+            for peak in [limit / 4, 3 * limit, limit + 1, limit, 10 * limit, 1] {
+                varying.cached = peak
+                _ = varying.bound(limit)
+                #expect(varying.cached <= limit, "\(peak)")
+            }
         }
     }
 }
