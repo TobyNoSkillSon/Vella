@@ -221,7 +221,9 @@ private struct TierSegments: NSViewRepresentable {
                     NSRect(x: cell.minX - 0.5, y: cell.minY + 6, width: 1, height: cell.height - 12).fill()
                 }
                 let text = label(forSegment: i) ?? ""
-                let color: NSColor = !isEnabled(forSegment: i) ? (hotRow ? NSColor(white: 0.1, alpha: 0.35) : NSColor.white.withAlphaComponent(0.3))
+                let color: NSColor =
+                    !isEnabled(forSegment: i)
+                    ? (hotRow ? NSColor(white: 0.1, alpha: 0.35) : NSColor.white.withAlphaComponent(0.3))
                     : selected || hotRow ? NSColor(white: 0.1, alpha: 1) : NSColor.white.withAlphaComponent(0.92)
                 let attributes: [NSAttributedString.Key: Any] = [.font: font ?? TierControl.font, .foregroundColor: color]
                 let size = (text as NSString).size(withAttributes: attributes)
