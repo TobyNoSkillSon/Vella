@@ -1,0 +1,7 @@
+{"status":{"engine":null,"engine_reason":null,"event":"unload","load_s":null,"memory":{"footprint_mb":0,"mlx_active_mb":0,"mlx_cache_mb":0},"model":null,"optimizations":{},"pid":0,"recipe":"optimized_fast","test_hooks":{"VELLA_WORKER_DATA_DIR":"$SCRATCH/data"},"version":"native-kernels-10","worker":"streaming"}}
+{"frames":0,"id":"6f1c2a4e-8d3b-4c1a-9e7f-2b5d8c0a1e34","unloaded":true}
+{"error":"Invalid local streaming request.","id":"6f1c2a4e-8d3b-4c1a-9e7f-2b5d8c0a1e34"}
+{"error":"Invalid local streaming request.","id":null}
+{"status":{"engine":null,"engine_reason":null,"event":"load-failed","load_s":null,"memory":{"footprint_mb":0,"mlx_active_mb":0,"mlx_cache_mb":0},"model":null,"optimizations":{},"pid":0,"recipe":"optimized_fast","test_hooks":{"VELLA_WORKER_DATA_DIR":"$SCRATCH/data"},"version":"native-kernels-10","worker":"streaming"}}
+{"error":"The streaming model failed to load.","frames":0,"id":"6f1c2a4e-8d3b-4c1a-9e7f-2b5d8c0a1e34"}
+{"error":"Invalid local streaming request.","frames":0,"id":"6f1c2a4e-8d3b-4c1a-9e7f-2b5d8c0a1e34"}
