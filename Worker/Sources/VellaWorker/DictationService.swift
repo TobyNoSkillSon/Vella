@@ -48,9 +48,20 @@ final class Worker {
         mlx_detail_compile_cache(&cache)
         compilationCaches[threadID] = cache
     }
-    func cleanup() throws {
+    /// After each transcription request: keep MLX's buffer cache (capped at `cacheBytes`) for the next request instead of
+    /// clearing it, which made every request re-allocate its buffers. Exact; Parakeet Ultra BF16 v2-mini 464.2 → 485.4×,
+    /// segment p50 15.1 → 14.4 ms, GPU J equal (lab/models/Parakeet/L3-keepcache.md). Load, unload and `trim` still
+    /// clear it; `VELLA_DICTATION_KEEP_CACHE=0` restores the per-request clear.
+    static let keepCacheBetweenRequests: Bool = {
+        switch ProcessInfo.processInfo.environment["VELLA_DICTATION_KEEP_CACHE"] {
+        case "0": return false
+        default: return true
+        }
+    }()
+    func cleanup(keepCache: Bool = false) throws {
         try withError {
-            Stream.gpu.synchronize(); Memory.clearCache()
+            Stream.gpu.synchronize()
+            if !keepCache { Memory.clearCache() }
         }
     }
     func release() throws {
@@ -301,7 +312,7 @@ final class Worker {
             if failure["code"] as? String != "invalid" && !keepModel, model != nil { try? release(); push?(status("unload")) }
         }
         let t = ProcessInfo.processInfo.systemUptime
-        do { try cleanup() } catch {
+        do { try cleanup(keepCache: Self.keepCacheBetweenRequests) } catch {
             model = nil; path = nil
             return ["id": identifier, "error": ["code": "memory", "message": "Insufficient memory for transcription."]]
         }

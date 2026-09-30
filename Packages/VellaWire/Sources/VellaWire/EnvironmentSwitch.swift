@@ -43,6 +43,7 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         .init("VELLA_KERNEL_DIAGNOSTIC_COMPONENT", .lab, worker: true, stripped: true),
         .init("VELLA_KERNEL_DIAGNOSTIC_CLIP", .lab, worker: true, stripped: true),
         .init("VELLA_PARAKEET_PROFILE", .lab, worker: true),
+        .init("VELLA_DICTATION_KEEP_CACHE", .lab, worker: true),
         .init("VELLA_QWEN_PROFILE", .lab, worker: true),
         .init("VELLA_WHISPER_PROFILE", .lab, worker: true),
         .init("VELLA_STREAM_PROFILE", .lab, worker: true),
