@@ -17,15 +17,8 @@ import MLXNN
 /// Used on quantized checkpoints only. v2-mini A/B (M5 Max, 28 Sep, lab/notes/vk-whisper-REPORT.md): large-v3 4b
 /// 36.5 → 38.1× and 104.7 → 95.9 J/min; at FP16 the step is GEMV-bandwidth bound and the fusion was within noise
 /// (v3 +1.0 % speed / +0.5 % J, turbo +0.6 % / −1.1 %), so dense checkpoints keep the plain step.
-/// `VELLA_WHISPER_FUSED` (a gate component switch): unset = both parts on quantized checkpoints; "qkv" or "norm" =
-/// that part only; "dense" (lab) = both parts on dense checkpoints too; "0" = off.
 final class WhisperFusedDecoder {
-    static let setting = ProcessInfo.processInfo.environment["VELLA_WHISPER_FUSED"] ?? ""
-    static let parts: Set<String> = {
-        if setting.isEmpty || setting == "dense" { return ["qkv", "norm"] }
-        if setting == "0" { return [] }
-        return Set(setting.split(separator: ",").map(String.init)).intersection(["qkv", "norm"])
-    }()
+    static let parts: Set<String> = ["qkv", "norm"]
 
     /// One projection over concatenated rows: FP16 `addMM` with the concatenated bias, or `quantizedMM` + bias.
     struct Projection {
@@ -50,7 +43,7 @@ final class WhisperFusedDecoder {
     /// nil when this checkpoint does not have the stock Whisper decoder layout the kernels assume.
     init?(_ decoder: WhisperDecoder, parts: Set<String> = WhisperFusedDecoder.parts) {
         guard !parts.isEmpty, let first = decoder.layers.first,
-              first.selfAttn.qProj is QuantizedLinear || Self.setting == "dense" else { return nil }
+              first.selfAttn.qProj is QuantizedLinear else { return nil }
         let attention = first.selfAttn
         dModel = attention.embedDim; heads = attention.numHeads; headDim = attention.headDim
         guard heads * headDim == dModel, dModel % 8 == 0, dModel <= 6656,

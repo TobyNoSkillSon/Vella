@@ -60,7 +60,7 @@ final class GateStringTests: XCTestCase {
             }
         }
         XCTAssertEqual(try list("componentSwitches"), ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND", "VELLA_PARAKEET_NAX",
-                                                       "VELLA_TEST_TOLERANT_FAULT", "VELLA_WHISPER_FUSED"])
+                                                       "VELLA_TEST_TOLERANT_FAULT"])
         XCTAssertEqual(try list("componentSwitchPrefixes"), ["VELLA_NEMO_"])
     }
 }

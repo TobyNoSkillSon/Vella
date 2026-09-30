@@ -110,8 +110,7 @@ public enum FastPathGate {
     /// The effective set is part of the gate key, so a verdict qualified under an override is never reused for
     /// production defaults, and the self-test child (which inherits them) tests exactly what the worker will run.
     public static let componentSwitches = ["VELLA_PARAKEET_FAST", "VELLA_PARAKEET_FP32_FRONTEND", "VELLA_PARAKEET_NAX",
-                                             "VELLA_TEST_TOLERANT_FAULT",
-                                             "VELLA_WHISPER_FUSED"]
+                                             "VELLA_TEST_TOLERANT_FAULT"]
     public static let componentSwitchPrefixes = ["VELLA_NEMO_"]
     /// "" for production defaults; otherwise the sorted `KEY=value` list of set switches.
     public static func componentConfiguration(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
@@ -125,7 +124,7 @@ public enum FastPathGate {
     public static let selectionSwitches = ["VELLA_RECIPE"]
     public static let reportedSwitches = componentSwitches + ["VELLA_FORCE_STOCK", "VELLA_PARAKEET_FORCE_STOCK", "VELLA_WORKER_DATA_DIR",
         "VELLA_SUPPORT_DIR", "VELLA_KERNEL_DEBUG_LOG", "VELLA_KERNEL_DIAGNOSTIC_COMPONENT", "VELLA_KERNEL_DIAGNOSTIC_CLIP",
-        "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_WHISPER_PROFILE", "VELLA_WHISPER_ENC_F16", "VELLA_STREAM_PROFILE",
+        "VELLA_PARAKEET_PROFILE", "VELLA_QWEN_PROFILE", "VELLA_WHISPER_PROFILE", "VELLA_STREAM_PROFILE",
         "VELLA_STUB_MODELS", "VELLA_TEST_LOAD_FAULT", "VELLA_TEST_OPTIMIZED_FAULT", "VELLA_TEST_STOCK_FAULT", "VELLA_TEST_STUB_FOOTPRINT_MB",
         "VELLA_TEST_SELFTEST_FAULT", "VELLA_TEST_DECODER_NONFINITE", "VELLA_TEST_ENCODER_NONFINITE", "VELLA_MLX_DEVICE",
         "VELLA_SELFTEST_RESULT", "VELLA_WHISPER_SEED"]

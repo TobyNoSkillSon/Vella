@@ -67,7 +67,7 @@ extension WorkerTests {
         }
 
         @Test func componentConfigurationAndReportedSwitches() {
-            let environment = ["VELLA_PARAKEET_FAST": "decoder", "VELLA_NEMO_FUSED": "0", "VELLA_WHISPER_FUSED": "", "VELLA_RECIPE": "optimized_exact",
+            let environment = ["VELLA_PARAKEET_FAST": "decoder", "VELLA_NEMO_FUSED": "0", "VELLA_PARAKEET_NAX": "", "VELLA_RECIPE": "optimized_exact",
                                "VELLA_FORCE_STOCK": "1", "VELLA_QWEN_PROFILE": "1", "HOME": "/x"]
             #expect(FastPathGate.componentConfiguration(environment) == "VELLA_NEMO_FUSED=0,VELLA_PARAKEET_FAST=decoder")
             #expect(FastPathGate.componentConfiguration(["HOME": "/x"]) == "")
@@ -159,5 +159,7 @@ extension WorkerTests {
     /// The fast-path revisions under the default environment: the values every production gate key uses.
     @Suite struct Revisions {
         @Test func qwen() { #expect(Qwen3ASRModel.fastPathRevision == "qwen3-asr-3-f32-encoder-p3") }
+        /// Whisper's revision is decided once per process from the recipe (Fast here: the test runs without one).
+        @Test func whisper() { #expect(WhisperModel.fastPathRevision == "whisper-3-f16-model") }
     }
 }

@@ -34,10 +34,10 @@ public final class WhisperModel: Module, STTGenerationModel {
 
     // MARK: - Optimized path state (FastPathCapable; off after load, the worker enables it once the gate qualified it)
 
-    /// Default on: the encoder component runs the model in the checkpoint dtype (see `WhisperEncoder.positionDType`).
-    /// VELLA_WHISPER_ENC_F16=0 keeps the stock Float32 promotion, so the optimized path is decoder-only.
-    /// The checkpoint-dtype encoder is inexact against stock (which promotes to Float32): off under Optimized · Exact.
-    public static let halfEncoder = ProcessInfo.processInfo.environment["VELLA_WHISPER_ENC_F16"] != "0" && !FastPathGate.exactOnly
+    /// The encoder component runs the model in the checkpoint dtype (see `WhisperEncoder.positionDType`). It is inexact
+    /// against stock (which promotes to Float32), so it is off under Optimized · Exact: the optimized path is then
+    /// decoder-only.
+    public static let halfEncoder = !FastPathGate.exactOnly
     public private(set) var fastDecode = false
     public private(set) var fastEncoder = false
     /// The fused decode step (`WhisperFusedDecoder`), built once when the decoder component is first enabled; used
