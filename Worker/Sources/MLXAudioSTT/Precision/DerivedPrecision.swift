@@ -18,10 +18,26 @@ public struct DerivedPrecision: Equatable, Sendable {
     public let dtype: DType?
     public let bits: Int?
     public let groupSize: Int?
+    /// A mixed per-layer recipe (manifest key `floatModules`, optional): module-path prefixes, as the architecture's
+    /// loader names them (Whisper `model.encoder`), whose layers keep the source's float weights instead of being
+    /// quantized. Empty = the uniform recipe. Stock and optimized paths load the same derived weights.
+    public let floatModules: [String]
 
-    /// Recipe identity for the fast-path gate key (the source files are hashed separately).
+    public init(source: URL, precision: String, dtype: DType?, bits: Int?, groupSize: Int?, floatModules: [String] = []) {
+        self.source = source; self.precision = precision; self.dtype = dtype; self.bits = bits; self.groupSize = groupSize
+        self.floatModules = floatModules
+    }
+
+    /// Recipe identity for the fast-path gate key (the source files are hashed separately). A mixed recipe appends
+    /// `:float=<prefixes>`; uniform recipes keep their string byte for byte.
     public var canonical: String {
         "derived:\(precision):dtype=\(dtype.map { "\($0)" } ?? "-"):bits=\(bits.map(String.init) ?? "-"):group=\(groupSize.map(String.init) ?? "-")"
+            + (floatModules.isEmpty ? "" : ":float=\(floatModules.joined(separator: ","))")
+    }
+
+    /// True when `path` is one of the float-kept modules or inside one.
+    public func keepsFloat(_ path: String) -> Bool {
+        floatModules.contains { path == $0 || path.hasPrefix($0 + ".") }
     }
 
     public enum Invalid: Error { case manifest(String) }
@@ -60,7 +76,17 @@ public struct DerivedPrecision: Equatable, Sendable {
                 throw Invalid.manifest("quantization")
             }
         } else if dtype == nil { throw Invalid.manifest("empty recipe") }
-        return DerivedPrecision(source: source, precision: precision, dtype: dtype, bits: bits, groupSize: groupSize)
+        var floatModules: [String] = []
+        if let value = object["floatModules"] {
+            // Only meaningful with a quantization; prefixes are plain module paths.
+            guard bits != nil, let list = value as? [String], !list.isEmpty, list.count <= 16, Set(list).count == list.count,
+                  list.allSatisfy({ !$0.isEmpty && $0.count <= 128 && $0.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+                                    && !$0.hasPrefix(".") && !$0.hasSuffix(".") })
+            else { throw Invalid.manifest("floatModules") }
+            floatModules = list
+        }
+        return DerivedPrecision(source: source, precision: precision, dtype: dtype, bits: bits, groupSize: groupSize,
+                                floatModules: floatModules)
     }
 
     /// The quantization the loader installs, as a checkpoint config would declare it.
@@ -75,7 +101,7 @@ public struct DerivedPrecision: Equatable, Sendable {
     public func quantizationTargets(_ model: Module, exclude: (String) -> Bool = { _ in false }) -> Set<String> {
         guard let groupSize else { return [] }
         var targets: Set<String> = []
-        for (path, module) in model.leafModules().flattened() where !exclude(path) {
+        for (path, module) in model.leafModules().flattened() where !exclude(path) && !keepsFloat(path) {
             let width: Int?
             if let linear = module as? Linear { width = linear.weight.shape.last }
             else if let embedding = module as? Embedding { width = embedding.weight.shape.last }
