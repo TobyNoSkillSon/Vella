@@ -95,7 +95,7 @@ import CryptoKit
             model.message, "The microphone stopped delivering audio. Check its connection and start again. Saved audio is retained; Retry processes it without automatic insertion."
         )
         let failed = menu(for: model)
-        XCTAssertEqual(failed.header, "Dictation: needs attention…")
+        XCTAssertEqual(failed.header, "Dictation: needs attention… · Parakeet v3 Ultra BF16")
         XCTAssertTrue(failed.titles.contains("Retry Saved Recording"))
         model.retry()
         try await settle(model) { $0.phase == .success }
@@ -200,9 +200,9 @@ import CryptoKit
         XCTAssertEqual(model.message, "Copied to clipboard. Paste with ⌘V. Enable Accessibility for Vella to insert automatically.")
         XCTAssertEqual(pasteboard.string(forType: .string), "revoked mid session")
         XCTAssertFalse(model.insertionWasAutomatic)
-        XCTAssertEqual(menu(for: model).header, "Dictation: copied—press ⌘V")
+        XCTAssertEqual(menu(for: model).header, "Dictation: copied—press ⌘V · Parakeet v3 Ultra BF16")
         try await settle(model) { $0.phase == .idle }
-        XCTAssertEqual(menu(for: model).header, "Dictation: Accessibility required")
+        XCTAssertEqual(menu(for: model).header, "Dictation: Accessibility required · Parakeet v3 Ultra BF16")
         // The next start is refused before the microphone opens; the shortcut path goes through the same check.
         XCTAssertFalse(model.ensureAutomaticInsertion())
         XCTAssertEqual(
