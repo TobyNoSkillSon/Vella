@@ -4,9 +4,10 @@ Read this when a user wants a model Vella does not offer, another precision of o
 
 ## How Vella runs models
 
-- The menu-bar app never runs inference. Each loaded model runs in its own helper process (`VellaWorker` for Dictation, `VellaStreamingWorker` for Streaming) inside a sandbox with no network access. Downloads are a separate helper, `VellaModelTool`, which fetches data files only (never `.py` or other code) at a pinned revision.
+- The menu-bar app never runs inference. Each loaded model runs in its own helper process (`VellaWorker` for Dictation, `VellaStreamingWorker` for Streaming) inside a sandbox with no network access. The app itself downloads a model: data files only (never `.py` or other code), at the revision the catalog pins, each file checked against the size and hash recorded for that revision.
 - Models run natively on MLX (mlx-swift). There is no Python in the app. A model can be offered only if its architecture is implemented in `Worker/Sources/MLXAudioSTT/` and the helper can load it from a local folder.
-- Supported architectures today: Parakeet (TDT/RNNT), Qwen3-ASR and Whisper for Dictation; Nemotron streaming for Streaming (native incremental input, not chunked batch recognition). "On Hugging Face", "MLX format" or a `stream=True` option is not enough.
+- Vella loads only models in its catalog (below); a folder prepared some other way is not accepted.
+- Supported architectures today: Parakeet (TDT), Qwen3-ASR and Whisper for Dictation; Nemotron streaming for Streaming (native incremental input, not chunked batch recognition). "On Hugging Face", "MLX format" or a `stream=True` option is not enough.
 
 ## The catalog
 

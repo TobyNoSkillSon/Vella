@@ -488,7 +488,7 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(docs[0].contains("Mode · Microphone · Shortcuts") && docs[0].contains("Models… · Keep Hot · Memory"), "menu order")
         XCTAssertEqual(keepHotChoices.map(\.minutes), [5, 15, 30, 60, 0])
         XCTAssertTrue(all.contains("Always (default), 5, 15, 30 or 60 min"), "manual Keep Hot choices and default")
-        for stale in ["In use", "one row per variant", "Install/Use", "inline bit-width picker"] {
+        for stale in ["In use", "one row per variant", "Install/Use", "inline bit-width picker", "VellaModelTool", "TDT/RNNT"] {
             XCTAssertFalse(all.contains(stale), stale)
         }
         for column in ["WER", "Format", "Speed", "J / min", "Memory"] { XCTAssertTrue(docs[1].contains(column), column) }
