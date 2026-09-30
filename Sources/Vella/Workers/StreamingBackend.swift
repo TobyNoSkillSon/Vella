@@ -1,22 +1,14 @@
 import Foundation
 import Darwin
 import VellaCore
+import VellaWire
 
 /// One owned, offline, stateful worker. Each request is acknowledged before the
 /// next frame is sent. UUIDs, frame accounting and deadlines fail closed.
 /// After a clean finish the worker keeps its model loaded for the next session (Keep Hot);
 /// any failure ends the process.
 @MainActor final class StreamingBackend {
-    private struct Reply: Decodable {
-        let id: UUID
-        let frames: Int?
-        let committed: String?
-        let partial: String?
-        let done: Bool?
-        let error: String?
-        let incomplete: Bool?
-        let loaded: Bool?
-    }
+    private typealias Reply = StreamingReply
     private let helperOverride: URL?
     let runtime: Runtime
     /// The model the running worker holds, once loaded.
@@ -207,7 +199,7 @@ import VellaCore
             let line = Data(buffer.prefix(upTo: newline)); buffer.removeSubrange(...newline)
             if let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any], object["id"] == nil,
                let status = object["status"] as? [String: Any] {
-                if let id = (loadingRef ?? hotRef)?.id { runtime.update(id, worker: status) }
+                if let id = (loadingRef ?? hotRef)?.id { runtime.update(id, worker: HelperStatus(json: status)) }
                 continue
             }
             guard let reply = try? JSONDecoder().decode(Reply.self, from: line), reply.id == pending?.0 else {

@@ -1,6 +1,7 @@
 import Foundation
 import Darwin
 import VellaCore
+import VellaWire
 
 /// The dictation worker exited while a request was in flight (crash, jetsam, kill). The request's audio is intact;
 /// `SessionTranscriber` retries that segment once on a fresh worker.
@@ -285,7 +286,7 @@ struct WorkerExited: LocalizedError {
             let line = slot.buffer.prefix(upTo: newline); slot.buffer.removeSubrange(...newline)
             guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { failProtocol(slot); return }
             if object["id"] == nil, let status = object["status"] as? [String: Any] {
-                runtime.update(slot.ref.id, worker: status); continue
+                runtime.update(slot.ref.id, worker: HelperStatus(json: status)); continue
             }
             guard let id = object["id"] as? String, id == slot.pending?.0.uuidString else { failProtocol(slot); return }
             finish(slot, .success(object))

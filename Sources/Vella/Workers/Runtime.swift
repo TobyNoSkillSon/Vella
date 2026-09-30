@@ -1,6 +1,7 @@
 import Foundation
 import Darwin
 import VellaCore
+import VellaWire
 
 /// Residency, memory admission and status for every loaded model, across the dictation and streaming workers.
 /// Each loaded model is one private worker process; unloading a model ends its process. The app is the single
@@ -26,14 +27,14 @@ import VellaCore
         var ref: ModelRef
         var residency: ResidencyClass
         var lastUsed: Double
-        var worker: [String: Any]
+        var worker: HelperStatus?
         var unload: @MainActor () async -> Void
         var timer: DispatchWorkItem?
     }
     private var entries: [String: Entry] = [:]
     private var order: [String] = []
     private var pinned: [String: Int] = [:]
-    private var pendingWorker: [String: [String: Any]] = [:]
+    private var pendingWorker: [String: HelperStatus] = [:]
     private var evictions: [Eviction] = []
     private var refused: Refusal?
     private var loading: String?
@@ -189,7 +190,7 @@ import VellaCore
     // MARK: Admission
 
     private func reclaimMB(_ entry: Entry) -> Double {
-        if let footprint = (entry.worker["memory"] as? [String: Any])?["footprint_mb"] as? Double, footprint > 0 { return footprint }
+        if let footprint = entry.worker?.memory?.footprintMB, footprint > 0 { return footprint }
         return memoryEstimateMB(entry.ref)
     }
     private var loadedReclaimMB: Double { entries.values.reduce(0) { $0 + reclaimMB($1) } }
@@ -237,7 +238,7 @@ import VellaCore
         let now = Date().timeIntervalSince1970
         let previous = entries[ref.id]
         entries[ref.id] = Entry(ref: ref, residency: previous?.residency == .manual ? .manual : residency, lastUsed: now,
-                                worker: pendingWorker.removeValue(forKey: ref.id) ?? previous?.worker ?? [:], unload: unload, timer: previous?.timer)
+                                worker: pendingWorker.removeValue(forKey: ref.id) ?? previous?.worker, unload: unload, timer: previous?.timer)
         if !order.contains(ref.id) { order.append(ref.id) }
         if loading == ref.id { loading = nil }
         refused = nil; error = nil
@@ -251,9 +252,9 @@ import VellaCore
         writeStatus()
     }
     /// A status line pushed by the model's worker.
-    func update(_ id: String, worker: [String: Any]) {
-        if let chip = (worker["gpu"] as? [String: Any]).map({ GPUStatus(chip: $0["chip"] as? String, family: $0["family"] as? String) }) { gpu = chip }
-        if let hooks = worker["test_hooks"] as? [String: String] { workerHooks.merge(hooks) { $1 } }
+    func update(_ id: String, worker: HelperStatus) {
+        if let chip = worker.gpu.map({ GPUStatus(chip: $0.chip, family: $0.family) }) { gpu = chip }
+        workerHooks.merge(worker.testHooks) { $1 }
         if entries[id] != nil { entries[id]!.worker = worker } else { pendingWorker[id] = worker }
         writeStatus()
     }
@@ -381,24 +382,24 @@ import VellaCore
         for (id, entry) in entries {
             var model = WorkerModelStatus()
             model.mode = entry.ref.mode; model.precision = entry.ref.precision; model.path = entry.ref.path; model.name = entry.ref.name
-            model.pid = (entry.worker["pid"] as? NSNumber).map { Int32(truncating: $0) }
-            model.engine = entry.worker["engine"] as? String
-            model.engine_reason = entry.worker["engine_reason"] as? String
-            model.optimizations = entry.worker["optimizations"] as? [String: Bool]
+            model.pid = entry.worker?.pid.map { Int32(truncatingIfNeeded: $0) }
+            model.engine = entry.worker?.engine
+            model.engine_reason = entry.worker?.engineReason
+            model.optimizations = entry.worker?.optimizations
             model.residency = entry.residency.rawValue
             model.keep_hot_min = settings.idleMinutes(entry.residency)
             model.last_used = entry.lastUsed
             model.unloads_at = unloadDeadline(lastUsed: entry.lastUsed, residency: entry.residency, settings: settings, minuteSeconds: minuteSeconds)
-            model.load_s = entry.worker["load_s"] as? Double
-            model.memory_mb = (entry.worker["memory"] as? [String: Any])?["footprint_mb"] as? Double
-            model.worker_version = entry.worker["version"] as? String
+            model.load_s = entry.worker?.loadSeconds
+            model.memory_mb = entry.worker?.memory?.footprintMB
+            model.worker_version = entry.worker?.version
             model.selection = entry.ref.selection
             next.models[id] = model
         }
         next.loading = loading
         next.error = error
         next.memory = MemoryStatus(available_mb: probe.availableMB(loadedMB: loadedReclaimMB), ram_mb: probe.totalMB,
-                                   workers_mb: entries.values.compactMap { ($0.worker["memory"] as? [String: Any])?["footprint_mb"] as? Double }.reduce(0, +))
+                                   workers_mb: entries.values.compactMap { $0.worker?.memory?.footprintMB }.reduce(0, +))
         next.settings = StatusSettings(settings)
         next.launch_set = settings.launchSet.map(\.id)
         next.evictions = evictions

@@ -16,7 +16,7 @@ let package = Package(name: "VellaWorker", platforms: [.macOS("26.0")], products
     // MLX-free pieces both helpers share: sandbox, stdio transport, request validation, process memory, test hooks.
     .target(name: "VellaWorkerSupport"),
     .executableTarget(name: "VellaWorker", dependencies: ["MLXAudioSTT", "SmallMGEMM", "VellaWorkerSupport", .product(name: "VellaWire", package: "VellaWire")], resources: [.copy("Resources/clip-a.wav"), .copy("Resources/clip-b.wav"), .copy("Resources/clip-c.wav"), .copy("Resources/clip-d.wav"), .copy("Resources/clip-e.wav"), .copy("Resources/ATTRIBUTION.md"), .copy("Resources/LICENSE-CC-BY-4.0.txt")]),
-    .executableTarget(name: "VellaStreamingWorker", dependencies: ["MLXAudioSTT", "VellaWorkerSupport"]),
+    .executableTarget(name: "VellaStreamingWorker", dependencies: ["MLXAudioSTT", "VellaWorkerSupport", .product(name: "VellaWire", package: "VellaWire")]),
     // CPU-only unit tests: gate keys and persistence, admission, wire helpers, streaming tolerance. No kernel runs.
     .testTarget(name: "VellaWorkerTests", dependencies: ["VellaWorker", "VellaStreamingWorker", "VellaWorkerSupport", "MLXAudioSTT", "SmallMGEMM",
                                                         .product(name: "VellaWire", package: "VellaWire")])
