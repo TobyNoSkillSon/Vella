@@ -45,7 +45,7 @@ final class WorkerSwitchReportingTests: XCTestCase {
     func testRegistryMembership() {
         XCTAssertEqual(
             EnvironmentSwitch.names(where: \.gateKey),
-[
+            [
                 "VELLA_PARAKEET_FAST", "VELLA_PARAKEET_NAX", "VELLA_PARAKEET_INT8", "VELLA_PARAKEET_INT4", "VELLA_TEST_TOLERANT_FAULT",
                 "VELLA_NEMO_KEEPCACHE", "VELLA_NEMO_JOINTBATCH"
             ])
