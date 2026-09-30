@@ -3,6 +3,7 @@ import Foundation
 import Testing
 @testable import VellaWorker
 import VellaWorkerSupport
+import VellaWire
 
 extension WorkerTests {
     /// The dictation worker's checkpoint admission rules and its wire helpers (CPU only).
@@ -21,12 +22,12 @@ extension WorkerTests {
 
         @Test func admitsCatalogArchitecturesAndQuantizations() throws {
             let s = try Scratch("vella-admit")
-            #expect(try admitCheckpoint(folder(s, "w", config: #"{"model_type": "whisper"}"#)) == "whisper")
-            #expect(try admitCheckpoint(folder(s, "q4", config: #"{"model_type": "qwen3_asr", "quantization": {"bits": 4, "group_size": 64}}"#)) == "qwen3_asr")
-            #expect(try admitCheckpoint(folder(s, "q8", config: #"{"model_type": "qwen3_asr", "quantization_config": {"bits": 8}}"#)) == "qwen3_asr")
+            #expect(try admitCheckpoint(folder(s, "w", config: #"{"model_type": "whisper"}"#)) == .whisper)
+            #expect(try admitCheckpoint(folder(s, "q4", config: #"{"model_type": "qwen3_asr", "quantization": {"bits": 4, "group_size": 64}}"#)) == .qwen3ASR)
+            #expect(try admitCheckpoint(folder(s, "q8", config: #"{"model_type": "qwen3_asr", "quantization_config": {"bits": 8}}"#)) == .qwen3ASR)
             // NeMo transducer checkpoints (the catalog's MLX Parakeet) carry no model_type, only the NeMo target.
             let target = #"{"target": "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel"}"#
-            #expect(try admitCheckpoint(folder(s, "tdt", config: target)) == "parakeet")
+            #expect(try admitCheckpoint(folder(s, "tdt", config: target)) == .parakeet)
         }
 
         @Test func refusesOtherBitWidthsArchitecturesAndCode() throws {
@@ -58,7 +59,7 @@ extension WorkerTests {
             let without = withEnvironment(["VELLA_STUB_MODELS": nil]) { try? admitCheckpoint(stub) }
             let with = withEnvironment(["VELLA_STUB_MODELS": "1"]) { try? admitCheckpoint(stub) }
             #expect(without == nil)
-            #expect(with == "stub")
+            #expect(with == .stub)
         }
 
         @Test func derivedAdmissionUsesTheFloatSource() throws {
@@ -67,7 +68,7 @@ extension WorkerTests {
             let derived = try s.folder("derived")
             try Data(#"{"schema": 1, "precision": "4b", "bits": 4, "groupSize": 64, "source": "\#(source.path)"}"#.utf8)
                 .write(to: derived.appendingPathComponent("vella-derived.json"))
-            #expect(try admit(derived) == "whisper")
+            #expect(try admit(derived) == .whisper)
             let quantized = try folder(s, "qsource", config: #"{"model_type": "whisper", "quantization": {"bits": 4}}"#)
             try Data(#"{"schema": 1, "precision": "4b", "bits": 4, "groupSize": 64, "source": "\#(quantized.path)"}"#.utf8)
                 .write(to: derived.appendingPathComponent("vella-derived.json"))

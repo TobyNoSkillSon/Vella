@@ -2,27 +2,29 @@ import Foundation
 import Darwin
 import MLXAudioSTT
 import VellaWorkerSupport
+import VellaWire
 
 let maximumLine = 16 * 1024
 let cacheBytes = 64 * 1024 * 1024
 
-func admit(_ path: URL) throws -> String {
+func admit(_ path: URL) throws -> Architecture {
     // A locally derived precision: admit its float source; only architectures with a derivation path.
     guard let derived = try DerivedPrecision.resolve(path) else { return try admitCheckpoint(path) }
     let architecture = try admitCheckpoint(derived.source)
     let source = try jsonObject(derived.source.appendingPathComponent("config.json"))
-    guard ["parakeet", "whisper", "qwen3_asr"].contains(architecture), !pythonTruthy(source["quantization"]),
+    guard [.parakeet, .whisper, .qwen3ASR].contains(architecture), !pythonTruthy(source["quantization"]),
           !pythonTruthy(source["quantization_config"]) else { throw RequestError.invalid }
     return architecture
 }
-func admitCheckpoint(_ path: URL) throws -> String {
+func admitCheckpoint(_ path: URL) throws -> Architecture {
     let config = try jsonObject(path.appendingPathComponent("config.json"))
     if let value = config["model_type"], !(value is NSNull), !(value is String) { throw RequestError.invalid }
     var architecture = config["model_type"] as? String
     // NeMo transducer checkpoints carry no model_type (the catalog's MLX Parakeet); only TDT ones load.
     if architecture == nil, config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" { architecture = "parakeet" }
     let stub = StubModel.enabled && architecture == "stub" // Test hook, reported in status.
-    guard let architecture, stub || ["parakeet", "qwen3_asr", "whisper"].contains(architecture) else { throw RequestError.invalid }
+    guard let name = architecture, stub || ["parakeet", "qwen3_asr", "whisper"].contains(name),
+          let architecture = Architecture(rawValue: name) else { throw RequestError.invalid }
     let rawQuant = pythonTruthy(config["quantization"]) ? config["quantization"] :
         pythonTruthy(config["quantization_config"]) ? config["quantization_config"] : [:]
     guard let quant = rawQuant as? [String: Any] else { throw RequestError.invalid }

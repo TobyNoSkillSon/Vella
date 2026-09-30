@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXAudioSTT
 import VellaWorkerSupport
+import VellaWire
 
 final class NemotronNative: StreamingNative {
     var text = ""
@@ -45,7 +46,7 @@ final class NemotronNative: StreamingNative {
             stockReason = "Self-test reference (stock MLX)."
         } else {
             gated = true
-            switch FastPathGate.qualify(path, revision: VellaNemotronOptions.revision, requiredFamily: nil) {
+            switch FastPathGate.qualify(path, runtime: NemotronRuntime.self) {
             case .fast: stockReason = ""; enableOptimized()
             case .stock(let reason): stockReason = reason
             }
@@ -151,7 +152,7 @@ final class NemotronNative: StreamingNative {
                 incompleteFlag = true
                 session = try VellaNemotronSession(model: model!, optimized: false)
                 journal.removeAll(); journalSamples = 0; produced = ""; text = ""
-                if gated, let url = try? FastPathGate.statusURL(path, revision: VellaNemotronOptions.revision) { FastPathGate.persist("stock", to: url, model: path, reason: "runtime fallback: optimized streaming output could not be replayed safely") }
+                if gated, let url = try? FastPathGate.statusURL(path, revision: NemotronRuntime.gateRevision) { FastPathGate.persist("stock", to: url, model: path, reason: "runtime fallback: optimized streaming output could not be replayed safely") }
             }
         }
     }
@@ -160,6 +161,8 @@ final class NemotronNative: StreamingNative {
 func loadStreamingNative(_ path: URL) throws -> any StreamingNative {
     let derived = try DerivedPrecision.resolve(path)
     let config = try JSONSerialization.jsonObject(with: Data(contentsOf: (derived?.source ?? path).appendingPathComponent("config.json"))) as! [String: Any]
-    guard config["model_type"] as? String == "nemotron_asr" else { throw StreamingFailure.invalid }
+    guard (config["model_type"] as? String).flatMap(Architecture.init(rawValue:)).flatMap(ModelRuntimeRegistry.streaming) != nil else {
+        throw StreamingFailure.invalid
+    }
     return try NemotronNative(path)
 }

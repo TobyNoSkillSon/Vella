@@ -16,7 +16,7 @@ final class Worker {
     var model: (any STTGenerationModel)?
     var path: URL?
     var push: (([String: Any]) -> Void)?
-    private var architecture: String?
+    private var architecture: Architecture?
     private var loadSeconds: Double?
     /// nil = optimized path active; otherwise why the model runs on stock MLX.
     private var stockReason: String? = "No model loaded."
@@ -72,47 +72,24 @@ final class Worker {
         #endif
     }
 
-    /// The model class for an architecture, if it has an optimized path (any `FastPathCapable` model qualifies).
-    static func fastPathType(_ architecture: String) -> (any FastPathCapable.Type)? {
-        let type: Any.Type
-        switch architecture {
-        case "parakeet": type = ParakeetModel.self
-        case "whisper": type = WhisperModel.self
-        case "qwen3_asr": type = Qwen3ASRModel.self
-        case "stub": type = StubModel.self
-        default: return nil
-        }
-        return type as? any FastPathCapable.Type
-    }
-    static func input(for model: any STTGenerationModel, _ samples: MLXArray) -> MLXArray {
-        model is ParakeetModel ? samples.asType(ParakeetModel.inputDType) : samples
+    /// The runtime of an admitted architecture (the stub is a test hook of this helper).
+    static func runtime(_ architecture: Architecture) -> (any DictationModelRuntime.Type)? {
+        architecture == .stub ? StubRuntime.self : ModelRuntimeRegistry.dictation(architecture)
     }
     /// Stock load, no fast path configured.
-    func loadStock(_ path: URL, architecture: String) async throws -> any STTGenerationModel {
-        if let derived = try DerivedPrecision.resolve(path) {
-            switch architecture {
-            case "parakeet": return try autoreleasepool { try ParakeetModel.fromDirectory(derived.source, preserveCheckpointDTypes: true, derived: derived) }
-            case "whisper": return try await WhisperModel.fromDirectory(derived.source, derived: derived)
-            case "qwen3_asr": return try await Qwen3ASRModel.fromModelDirectory(derived.source, derived: derived)
-            default: throw RequestError.invalid
-            }
-        }
-        switch architecture {
-        case "parakeet": return try autoreleasepool { try ParakeetModel.fromDirectory(path, preserveCheckpointDTypes: true) }
-        case "whisper": return try await WhisperModel.fromDirectory(path)
-        case "qwen3_asr": return try await Qwen3ASRModel.fromModelDirectory(path)
-        case "stub" where StubModel.enabled: return StubModel(path)
-        default: throw RequestError.invalid
-        }
+    func loadStock(_ path: URL, architecture: Architecture) async throws -> any STTGenerationModel {
+        guard let runtime = Self.runtime(architecture) else { throw RequestError.invalid }
+        let derived = try DerivedPrecision.resolve(path)
+        do { return try await runtime.loadStock(path, derived: derived) } catch ModelRuntimeError.unsupported { throw RequestError.invalid }
     }
     /// Load, then enable the optimized path only if the gate qualified it for this exact key.
-    func load(_ path: URL, architecture: String) async throws -> any STTGenerationModel {
+    func load(_ path: URL, architecture: Architecture) async throws -> any STTGenerationModel {
         trackCompilationCache()
         defer { trackCompilationCache() }
         if FaultHooks.loadFails(path) { throw InjectedFault.load }
-        let type = Self.fastPathType(architecture)
-        let verdict = type.map { FastPathGate.qualify(path, type: $0) }
-        gateURL = type.flatMap { try? FastPathGate.statusURL(path, revision: $0.fastPathRevision) }
+        let runtime = Self.runtime(architecture)
+        let verdict = runtime.map { FastPathGate.qualify(path, runtime: $0) }
+        gateURL = runtime.flatMap { try? FastPathGate.statusURL(path, revision: $0.gateRevision) }
         let loaded = try await loadStock(path, architecture: architecture)
         self.architecture = architecture
         optimizations = [:]; disabledComponents = [:]
@@ -157,7 +134,7 @@ final class Worker {
         guard let model else { throw RequestError.invalid }
         return try autoreleasepool { try withError {
             trackCompilationCache()
-            let input = Self.input(for: model, MLXArray(audio.samples))
+            let input = (architecture.flatMap(Self.runtime)?.input ?? { $0 })(MLXArray(audio.samples))
             let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30)
             var output: STTOutput
             if stockReason == nil, let capable = model as? any FastPathCapable {
@@ -204,7 +181,7 @@ final class Worker {
             memory.footprintMB = stub
         }
         return HelperStatus(worker: .dictation, pid: Int(getpid()), version: FastPathGate.version, event: event, model: path?.path,
-                            architecture: architecture, engine: model == nil ? nil : (stockReason == nil ? Engine.optimized : Engine.mlx).rawValue,
+                            architecture: architecture?.rawValue, engine: model == nil ? nil : (stockReason == nil ? Engine.optimized : Engine.mlx).rawValue,
                             engineReason: model == nil ? nil : stockReason, optimizations: optimizations, loadSeconds: loadSeconds,
                             memory: memory, gpu: Self.gpu, recipe: FastPathGate.recipe.rawValue,
                             // Every behaviour-changing or instrumenting env hook, component overrides included.
@@ -213,7 +190,7 @@ final class Worker {
                             disabledComponents: disabledComponents).jsonObject
     }
 
-    private func loadIfNeeded(_ local: URL, architecture: String, metrics: inout [String: Any]) async throws {
+    private func loadIfNeeded(_ local: URL, architecture: Architecture, metrics: inout [String: Any]) async throws {
         guard local != path else { return }
         try release()
         Memory.peakMemory = 0
@@ -284,16 +261,16 @@ final class Worker {
         var metrics: [String: Any] = [:]
         var keepModel = false
         do {
-            let local: URL; let audio: Audio; let architecture: String
+            let local: URL; let audio: Audio; let architecture: Architecture?
             do {
                 guard Set(request.keys) == Set(["id", "model", "audio"]) else { throw RequestError.invalid }
                 local = try localPath(request["model"]); audio = try Audio(request["audio"])
-                architecture = local != path ? try admit(local) : ""
+                architecture = local != path ? try admit(local) : nil
             } catch { throw RequestError.invalid }
             let cold = local != path
             metrics = ["audioSeconds": audio.seconds, "modelLoaded": cold, "loadSeconds": 0.0,
                        "mlxPeakPhase": cold ? "load_and_first_request" : "warm_request", "allocatorCacheLimitBytes": cacheBytes]
-            if cold { try await loadIfNeeded(local, architecture: architecture, metrics: &metrics) } else { Memory.peakMemory = 0 }
+            if cold, let architecture { try await loadIfNeeded(local, architecture: architecture, metrics: &metrics) } else { Memory.peakMemory = 0 }
             let t = ProcessInfo.processInfo.systemUptime
             do { response["text"] = try infer(audio) }
             catch {

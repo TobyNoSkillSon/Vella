@@ -1,6 +1,7 @@
 import Foundation
 import MLX
 import MLXAudioSTT
+import VellaWire
 
 /// Test-only model (`VELLA_STUB_MODELS=1`, reported in status): a folder with config.json `{"model_type": "stub"}`
 /// and any `.safetensors` file loads without weights. Text is `stub:<folder name> <seconds>s`. It has an "optimized"
@@ -34,4 +35,16 @@ final class StubModel: STTGenerationModel, FastPathCapable {
     }
     var fastPathSelfTestClips: [String] { ["clip-a"] }
     static var fastPathRevision: String { "stub-1" }
+}
+
+/// The stub's runtime (test hook; only while `VELLA_STUB_MODELS=1`).
+enum StubRuntime: DictationModelRuntime {
+    static let architecture = Architecture.stub
+    static var gateRevision: String { StubModel.fastPathRevision }
+    static let requiredGPUFamily: String? = "apple9"
+    static func loadStock(_ directory: URL, derived: DerivedPrecision?) async throws -> any STTGenerationModel {
+        guard derived == nil, StubModel.enabled else { throw ModelRuntimeError.unsupported }
+        return StubModel(directory)
+    }
+    static func input(_ samples: MLXArray) -> MLXArray { samples }
 }

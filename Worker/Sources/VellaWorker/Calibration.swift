@@ -4,6 +4,7 @@ import Darwin
 import MLX
 import Cmlx
 import VellaWorkerSupport
+import VellaWire
 
 private enum CalibrationFailure: Error {
     case message(String)
@@ -98,9 +99,9 @@ enum CalibrationCommand {
             mlx_string_free(version)
             var parameters: [String: Any] = [:]
             // Match the reference's inspect.signature filtering of supported options.
-            if architecture != "parakeet" { parameters["verbose"] = false }
-            if architecture == "qwen3_asr" { parameters["max_tokens"] = 1024 }
-            if ["parakeet", "qwen3_asr", "whisper"].contains(architecture) { parameters["chunk_duration"] = 30.0 }
+            if architecture != .parakeet { parameters["verbose"] = false }
+            if architecture == .qwen3ASR { parameters["max_tokens"] = 1024 }
+            if [.parakeet, .qwen3ASR, .whisper].contains(architecture) { parameters["chunk_duration"] = 30.0 }
             parameters["stream"] = false
             try emit("result", ["result": [
                 "audioSeconds": sample.seconds, "loadSeconds": loadSeconds,

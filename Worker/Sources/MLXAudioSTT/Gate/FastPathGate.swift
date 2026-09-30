@@ -202,9 +202,9 @@ public enum FastPathGate {
         "optimized without " + disabled.keys.sorted().map { "\($0) (\(disabled[$0] ?? "self-test failed"))" }.joined(separator: ", ")
     }
 
-    /// The gate decision for a model of type `type` at `path`, running the child self-test the first time.
-    public static func qualify(_ path: URL, type: any FastPathCapable.Type) -> Verdict {
-        qualify(path, revision: type.fastPathRevision)
+    /// The gate decision for a model of `runtime` at `path`, running the child self-test the first time.
+    public static func qualify(_ path: URL, runtime: any SpeechModelRuntime.Type) -> Verdict {
+        qualify(path, revision: runtime.gateRevision, requiredFamily: runtime.requiredGPUFamily)
     }
     /// `requiredFamily` nil: the optimized path uses no GPU-family-specific kernels (stock MLX ops only).
     public static func qualify(_ path: URL, revision: String, requiredFamily: String? = "apple9") -> Verdict {

@@ -76,7 +76,7 @@ The pull request template asks for these.
 
 Start with a **New model request** issue. A catalog model needs open weights with a licence that allows local use, an MLX checkpoint (or a conversion you can publish) and an architecture that mlx-swift can run. The Models table offers few models on purpose: each must serve a clear purpose the others do not (accuracy, size, languages, speed or another model family). A lower error rate elsewhere does not rule a model out, but a model that duplicates an offered one does not get in.
 
-An implementation adds a family to `Resources/models.json` (every downloadable precision pinned to a repository revision and its exact size), the model code in `Worker/Sources/MLXAudioSTT/<Family>`, and its admission in `Worker/Sources/VellaWorker/Validation.swift`. The pull request must show:
+An implementation adds a family to `Resources/models.json` (every downloadable precision pinned to a repository revision and its exact size); the model code in `Worker/Sources/MLXAudioSTT/<Family>` with its runtime (`SpeechModelRuntime`, one line in `ModelRuntimeRegistry`); its descriptor in `Sources/VellaCore/Models/<Family>` (one line in `ModelRegistry`); and its admission in `Worker/Sources/VellaWorker/Validation.swift`. The pull request must show:
 
 1. **Parity.** Run the model's reference implementation (the authors' code or mlx-audio, at a named version or commit) and Vella on the same public audio, and give the word error rate of each and every transcript that differs. Include the script and the clip list so the result can be reproduced.
 2. **Numbers.** Word error rate on a public set, speed (× real time) and memory, with the chip, memory and macOS they were measured on.
