@@ -22,7 +22,7 @@ let package = Package(
                 "MLXAudioCore", "SmallMGEMM", .product(name: "VellaWire", package: "VellaWire"), .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "MLXNN", package: "mlx-swift"), .product(name: "MLXFast", package: "mlx-swift"), .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
                 .product(name: "Tokenizers", package: "swift-transformers")
-            ], exclude: ["PROVENANCE.md"]),
+            ], exclude: ["PROVENANCE.md", "Parakeet/README.md", "Qwen3ASR/README.md", "Whisper/README.md", "NemotronASR/README.md"]),
         // MLX-free pieces both helpers share: sandbox, stdio transport, request validation, process memory, test hooks.
         .target(name: "VellaWorkerSupport"),
         .executableTarget(
