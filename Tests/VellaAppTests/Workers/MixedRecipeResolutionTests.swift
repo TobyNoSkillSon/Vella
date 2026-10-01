@@ -181,8 +181,8 @@ final class MixedRecipeResolutionTests: XCTestCase {
             try await runtime.admit(runtime.resolve(stale, mode: .dictation))
             XCTFail("admitted the stale folder under a generic identity")
         } catch {}
-        XCTAssertEqual(try String(contentsOf: elsewhere.appendingPathComponent(DerivedModelManifest.fileName), encoding: .utf8).contains("floatModules"), false,
-                       "the stale manifest outside the models folder is left as it is")
+        let staleText = try String(contentsOf: elsewhere.appendingPathComponent(DerivedModelManifest.fileName), encoding: .utf8)
+        XCTAssertFalse(staleText.contains("floatModules"), "the stale manifest outside the models folder is left as it is")
     }
 
     /// Re-check regression: a failed canonical preparation (both `<id>` and `<id>.derived` hold real weights) refuses
