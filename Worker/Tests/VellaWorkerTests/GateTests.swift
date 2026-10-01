@@ -126,27 +126,6 @@ extension WorkerTests {
             #expect(!under(["VELLA_FORCE_STOCK": "0"]).1)
         }
 
-        @Test func unavailableKernelsUseStockWithoutChangingHardwareOrDefaultKeys() throws {
-            let scratch = try Scratch("vella-no-kernels")
-            let model = try checkpoint(scratch)
-            try withEnvironment(Self.clean) {
-                let key = try FastPathGate.key(model, revision: "stub-1", host: Self.host)
-                let family = FastPathGate.gpuFamily
-                try withEnvironment(["VELLA_TEST_KERNELS_UNAVAILABLE": "1", "VELLA_WORKER_DATA_DIR": scratch.url.path]) {
-                    #expect(FastPathGate.testKernelsUnavailable)
-                    #expect(!FastPathGate.forcedStock)
-                    #expect(FastPathGate.gpuFamily == family)
-                    #expect(try FastPathGate.key(model, revision: "stub-1", host: Self.host) != key)
-                    #expect(FastPathGate.qualify(model, revision: "stub-1", requiredFamily: nil) == .stock(FastPathGate.kernelsUnavailableReason))
-                    let url = try FastPathGate.statusURL(model, revision: "stub-1")
-                    #expect(FastPathGate.status(url) == "stock")
-                    #expect(FastPathGate.reportedEnvironment()["VELLA_TEST_KERNELS_UNAVAILABLE"] == "1")
-                }
-                #expect(!FastPathGate.testKernelsUnavailable)
-                #expect(try FastPathGate.key(model, revision: "stub-1", host: Self.host) == key)
-            }
-        }
-
         @Test func verdictPersistence() throws {
             let scratch = try Scratch("vella-gate")
             let url = scratch.url.appendingPathComponent("FastPath/key.json")

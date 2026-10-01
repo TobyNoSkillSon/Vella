@@ -51,12 +51,6 @@ public enum FastPathGate {
     }
     /// Optimized · Exact: inexact components stay off.
     public static var exactOnly: Bool { recipe == .optimized_exact }
-    /// Test-only capability refusal, not a simulated chip identity. All Vella custom kernels are unavailable;
-    /// stock MLX still uses the actual Mac. Included in the gate key and reported by both app and worker.
-    public static var testKernelsUnavailable: Bool {
-        ProcessInfo.processInfo.environment["VELLA_TEST_KERNELS_UNAVAILABLE"] == "1"
-    }
-    public static let kernelsUnavailableReason = "Test capability override: Vella custom kernels unavailable; using stock MLX."
     /// `VELLA_FORCE_STOCK=1` (or the older `VELLA_PARAKEET_FORCE_STOCK`) forces stock MLX for diagnosis and as the
     /// reference for fallback tests; the Standard recipe runs the same path.
     public static var forcedStock: Bool {
@@ -224,10 +218,6 @@ public enum FastPathGate {
         if forcedStock { return .stock(forcedStockReason) }
         guard let url = try? statusURL(path, revision: revision) else {
             return .stock("The optimized path could not be qualified for these model files.")
-        }
-        if testKernelsUnavailable {
-            persist("stock", to: url, model: path, reason: kernelsUnavailableReason)
-            return .stock(kernelsUnavailableReason)
         }
         // "inconclusive" is not a verdict: the self-test runs again.
         if let previous = status(url), previous != "inconclusive" {

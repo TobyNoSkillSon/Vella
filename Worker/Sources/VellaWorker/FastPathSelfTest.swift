@@ -38,7 +38,6 @@ extension FastPathGate {
     /// its words may differ from stock's by at most `maxTolerantWordEdits` edits. Without tolerant components this is
     /// the token-exact test of every optimized component.
     static func runSelfTest(_ model: any FastPathCapable, input: (MLXArray) -> MLXArray) throws -> SelfTestOutcome {
-        guard !testKernelsUnavailable else { return SelfTestOutcome(passed: false) }
         debug("loaded")
         let names = ProcessInfo.processInfo.environment["VELLA_KERNEL_DIAGNOSTIC_CLIP"].map { [$0] } ?? model.fastPathSelfTestClips
         let component = ProcessInfo.processInfo.environment["VELLA_KERNEL_DIAGNOSTIC_COMPONENT"] ?? "both"

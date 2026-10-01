@@ -13,7 +13,6 @@ enum StreamingSelfTest {
     static let clips = ["clip-b", "clip-e"]
 
     static func run(arguments: [String]) -> Int32 {
-        guard !FastPathGate.testKernelsUnavailable else { return FastPathGate.verdictFailed }
         guard arguments.count == 2, arguments[0] == "--model", let path = try? streamingModelPath(arguments[1]) else { return FastPathGate.inconclusive }
         switch ProcessInfo.processInfo.environment["VELLA_TEST_SELFTEST_FAULT"] {
         case "crash": abort()
