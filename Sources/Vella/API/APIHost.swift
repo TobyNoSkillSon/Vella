@@ -71,16 +71,16 @@ import VellaCore
 
     func prepare(_ model: APIModel) throws -> APIModel {
         guard model.path.isEmpty else { return model }
-        guard let family = controller.catalog.family(model.id), let variant = family.variants[model.precision],
-            variant.isDerived, let source = family.downloadSource(of: model.precision),
-            let local = controller.library(.dictation).installed[source.variant.id]
+        // The one resolution (`precisionLoadPath`), as the Models table's Load.
+        let library = controller.library(.dictation)
+        guard let family = controller.catalog.family(model.id),
+            let path = try precisionLoadPath(
+                family, model.precision, installedPath: { library.installed[$0]?.path }, modelsDirectory: library.modelsDirectory)
         else {
             throw APIError(500, "\(model.name) has no files at \(model.precision)")
         }
         var prepared = model
-        prepared.path = try prepareDerivedModel(
-            family: family, precision: model.precision, sourcePath: local.path,
-            modelsDirectory: controller.library(.dictation).modelsDirectory)
+        prepared.path = path
         return prepared
     }
 }
@@ -105,6 +105,7 @@ import VellaCore
         let service = APIService(
             transcriber: transcriber, models: ControllerModelSource(controller: controller, runtime: runtime),
             scratch: root.appendingPathComponent("files", isDirectory: true))
+        service.controls = ModelControls(controller: controller, runtime: runtime)
         service.dictationState = { [weak model] in
             switch model?.phase {
             case .recording?: return "recording"

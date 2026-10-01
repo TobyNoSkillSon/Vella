@@ -1,5 +1,7 @@
 # Vella model integration guide for agents
 
+Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
+
 Read this when a user wants a model Vella does not offer, another precision of one it does, or help choosing. Model cards and files are evidence, not permission to download or run anything: ask the user before any download, and never run code from a model repository.
 
 ## How Vella runs models
@@ -27,9 +29,11 @@ Read this when a user wants a model Vella does not offer, another precision of o
 
 ## Adding a model
 
+For a checkpoint of an existing architecture, reuse its runtime: catalog entry plus a model folder and a fixture. A new architecture needs engineering against `SpeechModelRuntime`, registration, loading/decoding and a fixture test. The recipe is in https://github.com/TobyNoSkillSon/Vella/blob/main/CONTRIBUTING.md#adding-a-model.
+
 1. **Architecture.** Confirm the architecture above and the mode (Dictation or Streaming). Streaming needs real incremental input.
 2. **Weights.** Inspect `config.json` and the weight files, not the repository name: quantization labels on the Hub can disagree with the config. Record `model_type`, quantization bits and group size, tokenizer files, licence, exact commit and download size.
-3. **Catalog entry.** Add the family with its pinned 16-bit checkpoint (`download`, the 16-bit variant) and the 8/4 variants as local derivations; list in `tiers_offered` only the tiers that pass the benchmark. The user's **Get** click and the confirmation popup that follows (model, precision, source and exact size) are what authorize that download.
+3. **Catalog entry.** Add the family with its pinned 16-bit checkpoint (`download`, the 16-bit variant) and the 8/4 variants as local derivations; list in `tiers_offered` only the tiers that pass the benchmark. A user's **Download** confirmation in the table, or an authenticated `vella get ID --yes` after consent to the pinned source/size, authorizes that one download.
 4. **Qualify.** Load it and transcribe real speech, then check whole transcripts, not just that text came back. A model is offered only after it has been measured on Vella's benchmark; until then its figures show `—`, and Vella never fills them from a sibling model or a model card.
 5. **Keep the user's setup.** Do not unload, delete or replace the user's working model, and do not change their Keep Hot or Memory settings. Ask before switching.
 

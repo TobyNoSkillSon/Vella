@@ -205,7 +205,7 @@ struct DiagnoseCollector {
         }
         return nil
     }
-    /// "1.0.0 (34)" from an app's Info.plist.
+    /// "2.0.0 (35)" from an app's Info.plist.
     static func version(of app: URL?) -> String? {
         guard let app, let info = NSDictionary(contentsOf: app.appendingPathComponent("Contents/Info.plist")),
             let short = info["CFBundleShortVersionString"] as? String

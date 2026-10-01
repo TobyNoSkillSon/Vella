@@ -6,7 +6,8 @@
 <key>CFBundleIconFile</key><string>Vella</string>
 <key>CFBundleName</key><string>Vella</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>1.0.0</string>
+<key>CFBundleShortVersionString</key><string>2.0.0</string>
+<key>NSHumanReadableCopyright</key><string>Copyright 2026 Vella contributors. Vella 2.0 is licensed under GNU AGPL-3.0-only. Published 0.x releases remain Apache-2.0. Third-party code and model weights keep their own licences; see NOTICE and THIRD_PARTY_NOTICES.md.</string>
 <key>CFBundleVersion</key><string>35</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>LSUIElement</key><true/>

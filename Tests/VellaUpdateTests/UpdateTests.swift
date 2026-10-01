@@ -35,6 +35,16 @@ final class VersionTests: XCTestCase {
 }
 
 final class ReleaseTests: XCTestCase {
+    func testVellaTwoReleaseMatchesTheInstallerAndPackageAsset() {
+        let version = SemanticVersion("2.0.0")!
+        let release = ReleaseInfo(tag: "v2.0.0", version: version)
+        XCTAssertEqual(release.zipName, "Vella-2.0.0-arm64.zip")
+        XCTAssertEqual(UpdateSource.defaultAPI.absoluteString, "https://api.github.com/repos/TobyNoSkillSon/Vella/releases/latest")
+        XCTAssertEqual(
+            UpdateSource().downloadBase(for: release).appendingPathComponent(release.zipName).absoluteString,
+            "https://github.com/TobyNoSkillSon/Vella/releases/download/v2.0.0/Vella-2.0.0-arm64.zip")
+    }
+
     let latest = #"""
         {"url":"https://api.github.com/repos/TobyNoSkillSon/Vella/releases/1","tag_name":"v0.3.1","name":"Vella 0.3.1",
          "draft":false,"prerelease":false,"created_at":"2026-09-30T10:00:00Z",

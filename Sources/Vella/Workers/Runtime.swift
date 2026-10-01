@@ -18,6 +18,8 @@ import VellaWire
     /// Maps a model path to its catalog identity (family id, precision, measured memory). Wired by the app's model
     /// library; without it a path is identified by its folder name.
     var resolver: ((String, RecognitionMode) -> ModelRef?)?
+    /// Why a worker may not start for these files (RuntimeBridge.recipeRefusal); nil: allowed.
+    var recipeRefusal: ((String, RecognitionMode) -> String?)?
     weak var dictation: Backend?
     weak var streaming: StreamingBackend?
     var statusURL: URL { support.appendingPathComponent("worker-status.json") }
@@ -133,6 +135,7 @@ import VellaWire
         for case let file as URL in files { total += Int64((try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
         return total
     }
+    func isModelInUse(_ id: String) -> Bool { (pinned[id] ?? 0) > 0 || loading != nil }
     func isLoaded(_ id: String) -> Bool { entries[id] != nil }
     func loadedRef(_ id: String) -> ModelRef? { entries[id]?.ref }
     func loadedResidency(_ id: String) -> ResidencyClass? { entries[id]?.residency }
@@ -165,10 +168,13 @@ import VellaWire
         promote(ref.id)
     }
     /// Menu Unload: the model leaves memory and, once its worker has exited, the launch set.
-    func unload(_ id: String) async {
-        userChanged(id); defer { userChanged(id) }
+    @discardableResult func unload(_ id: String) async -> Bool {
+        guard !isModelInUse(id) else { return false }
+        beginSelection(); userChanged(id)
+        defer { userChanged(id); endSelection() }
         if let entry = entries[id] { await entry.unload() }
         settings.leave(id); persistSettings(); writeStatus()
+        return true
     }
     /// Before Delete: unload the model only if these exact files are the loaded ones, and return once its worker has
     /// exited. The launch set is left alone until the deletion succeeded (`deleted(path:)`). Returns what was loaded.
@@ -214,6 +220,11 @@ import VellaWire
     /// `replacing`: a loaded model this load replaces (the one streaming model, whichever family or precision). The
     /// caller unloads it only after admission, so its memory is credited and it is never chosen as a victim.
     func admit(_ ref: ModelRef, credit: Double = 0, together: [String] = [], replacing: String? = nil) async throws {
+        // Files that are not what the catalog resolves their precision to never start a worker (every load path).
+        if let reason = recipeRefusal?(ref.path, ref.mode) {
+            error = reason; writeStatus()
+            throw VellaError.message(reason)
+        }
         let credit = credit + (replacing.flatMap { entries[$0] }.map(reclaimMB) ?? 0)
         func infos() -> [LoadedModelInfo] {
             order.compactMap { id in

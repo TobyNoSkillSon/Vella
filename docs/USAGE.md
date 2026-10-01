@@ -14,7 +14,7 @@ Requirements: an Apple Silicon Mac with macOS 26 or newer. The prebuilt app need
 What `scripts/install.sh` does, in order:
 
 1. Downloads `Vella-<version>-arm64.zip` and `SHA256SUMS` for the version in this checkout with curl (never a browser, which would quarantine the app).
-2. Verifies before touching anything: the exact checksum line for the zip, that the archive holds only `Vella.app` with its helpers and Metal library, that the app's version is the one requested, and its code signature. `scripts/install-release.sh <version> --dry-run` stops here.
+2. Verifies before touching anything: the exact checksum line for the zip, that the archive holds only `Vella.app` with its helpers and Metal library, that the app's version is the one requested, and its code signature. The staged installer clears quarantine before launch. `scripts/install-release.sh <version> --dry-run` stops here.
 3. Refuses, leaving everything unchanged, while Vella is recording, transcribing or loading a model.
 4. Quits a running Vella, copies the new app beside the old one, verifies it again and swaps it in. If the swap fails the old app is restored. A certificate-signed installation is only replaced by an app with the same signing identity, so macOS privacy permissions carry over.
 5. Starts Vella and waits until it is ready: the app has written its status, nothing is loading, and every model you keep loaded at launch is loaded (a fresh install has none). It prints `ready: …`. Only then is the previous app deleted; if Vella is not ready within 30 minutes, or it runs but a model you keep loaded could not load (`degraded: …`), the previous app is kept and its path printed. `VELLA_ACCEPT_DEGRADED=1` makes a degraded install exit 0; the previous app is still kept.
@@ -24,6 +24,8 @@ The installer also links the `vella` command into `~/.local/bin` (see **Transcri
 Models, recordings and settings in `~/Library/Application Support/Vella` are kept. The whole app bundle is replaced, so files from older versions never linger inside it. The checksum detects a corrupted download; it comes from the same release, so it is not a signature.
 
 `VELLA_BUILD=source scripts/install.sh` builds this checkout instead (Command Line Tools Swift, full Xcode and its Metal Toolchain; the installer prints the command that fixes a missing one) and installs it the same way.
+
+**Optional DMG.** An optional disk image is planned to accompany the 2.0.0 release; the ZIP remains the primary asset. Once available, open the image and drag Vella to Applications. The app is self-signed and not notarized: after macOS blocks its first launch, use **System Settings → Privacy & Security → Open Anyway**, then confirm. The command-line installer above needs no Gatekeeper step.
 
 ## First run
 
@@ -176,11 +178,31 @@ vella skill --install ~/.agents/skills           # the agent skill (writes trans
 vella diagnose                                   # a report for bug reports (see Reporting a problem)
 ```
 
+**The Models table from the CLI.** `vella models --json` lists every catalog row, including Streaming and not-downloaded models, with cells/refusal reasons and the download source/bytes. The OpenAI `/v1/models` list remains downloaded Dictation models only.
+
+```sh
+vella select parakeet-v3-ultra --precision bf16 --path Optimized --mode Fast
+vella get parakeet-v3-ultra --yes   # explicit consent; wait until downloaded and loaded
+vella load parakeet-v3-ultra        # already-downloaded weights only
+vella reload parakeet-v3-ultra      # commit a preview in place of the loaded cell
+vella unload parakeet-v3-ultra
+vella delete parakeet-v3-ultra --precision bf16 --yes  # only after explicit consent
+vella keep-hot "Manually loaded" "Always"
+vella keep-hot "Loaded on demand" "15 min idle"
+vella memory "Fit in free memory"  # or "Allow swap (slower)"
+```
+
+A mode-only `vella select ID --mode Exact` flips the table's switch, including coupling to bf16/fp16 if needed; a pinned Fast=Exact switch refuses with its tooltip. An explicit precision/path Select previews exactly the requested cell; the table's same rules refuse unavailable cells with their tooltip reason (`Not offered: …`, `Not measured yet`, or a missing Exact recipe). It never loads or downloads. Load/Reload/Get commits the preview; the menu's normal preview-discard rule still applies when it closes. Get without `--yes` exits nonzero with the same source/size details as the download popup and downloads nothing. Load/Reload never download. The result reports the effective loaded selection and, where it differs, the requested selection or pending preview. Keep Hot choices are Always, 5/15/30/60 min idle; no-argument Keep Hot and Memory report settings.
+
+**Delete.** `vella delete ID --precision bf16/fp16/int8/int4` without `--yes` prints the named weights and actual size and exits nonzero. With explicit consent, it uses the table's same deletion gate, moves only that catalog precision's local weights to Trash, removes dependent recipe files and keeps recordings/transcripts. The selected model, recordings/in-use models, shared or linked folders and configuration/registry uncertainty refuse with the gate's reason. For a locally derived precision without its own local files, use the native source precision instead, after switching that mode to another model.
+
+**Control API.** `GET /v1/models/catalog` lists the full catalog; `GET /v1/settings` returns Keep Hot and Memory. `POST /v1/models/{id}/select` takes `{"precision":"bf16","path":"Optimized","mode":"Fast"}` (fp16/int8/int4 as offered). `POST /v1/models/{id}/load`, `/reload` and `/unload` take `{}`; `/get` requires `{"yes":true}`. `POST /v1/models/{id}/delete` takes `{"precision":"bf16","yes":true}` and uses the same gate. `POST /v1/settings/keep-hot` takes `{"class":"Manually loaded","value":"Always"}`; `/v1/settings/memory` takes `{"value":"Fit in free memory"}`. Every control POST requires application/json and `X-Vella-Token` from the local worker-status.json. An ignored OpenAI API key is not authorization to mutate models/settings. The CLI sends the local token automatically. These endpoints are additive; audio transcriptions still never download a model.
+
 `vella` starts Vella if it is not running. Transcripts are printed only: never pasted, copied or added to your saved recordings. The file's audio is converted in a private temporary folder that is removed when the request ends.
 
 **Your dictation goes first.** A file waits while you record or while a dictation is being transcribed; a dictation that finishes during a file waits for at most the one segment in progress (usually well under a second). Files are processed one at a time; up to eight more wait in line.
 
-**Models.** Without `--model`, a file uses your current dictation model. Another model loads on demand at the precision shown in **Models…** and unloads after its **Keep Hot** time, like any on-demand load. It never unloads your dictation model to make room: if memory is short the request is refused with the numbers. Nothing downloads through the command or the API; get models in **Models…**. Streaming models are not used for files.
+**Models.** Without `--model`, a file uses your current dictation model. Another model loads on demand at the precision shown in **Models…** and unloads after its **Keep Hot** time, like any on-demand load. It never unloads your dictation model to make room: if memory is short the request is refused with the numbers. Transcription requests never download; get models in **Models…** or with `vella get ID --yes`. Streaming models are not used for files.
 
 A file's model is looked up again for each of its segments, when that segment's turn comes, not once for the whole file. If you load, reload or select a model while a long file is being transcribed, the rest of the file uses what you chose: without `--model` (or with `whisper-1` or `current`) that can be another model altogether; `--model` keeps the model, but a Reload at another precision applies to the segments after it. The response does not say which model transcribed which part, and `vella status` afterwards shows only the model selected now.
 

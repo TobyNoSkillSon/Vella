@@ -1,6 +1,23 @@
 Vella
 Copyright 2026 Vella contributors
-Licensed under the Apache License, Version 2.0 (LICENSE).
+Vella 2.0 is licensed under the GNU Affero General Public License, version 3
+only (AGPL-3.0-only); see LICENSE. Published 0.x releases remain Apache-2.0;
+this change does not alter their licences retroactively.
+
+Vella is free software: you may redistribute and modify it under the GNU AGPL
+version 3. It is provided without any warranty, including the implied warranties
+of merchantability or fitness for a particular purpose. Keep the licence and
+notices and meet its corresponding-source requirements, including the network
+source offer when applicable. Third-party code and model weights retain their
+own licences.
+
+Licence text provenance (retrieved 2026-10-01): LICENSE is verbatim
+https://www.gnu.org/licenses/agpl-3.0.txt, SHA-256
+0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0.
+Second source: https://raw.githubusercontent.com/spdx/license-list-data/main/text/AGPL-3.0-only.txt,
+SHA-256 d8a6cc31abc16b6748c7a21f21611f5a1ec33f67d22ca23d7da1c19b95496bee.
+Beyond whitespace the only differences are three http-to-https URLs in GNU's
+text (FSF header and two GNU footer links); canonical GNU text is retained.
 
 Vella is a native Swift application. Speech recognition runs on MLX through
 mlx-swift in sandboxed helper processes; no Python runs at runtime. Third-party
@@ -46,3 +63,10 @@ Bundled third-party code (full texts in THIRD_PARTY_NOTICES.md)
 - swift-collections (Apache-2.0 with Runtime Library Exception, Apple Inc.)
 - swift-crypto and swift-asn1 (Apache-2.0, Apple Inc.), resolved dependencies
   of swift-transformers; on macOS swift-crypto forwards to Apple's CryptoKit
+
+Artwork
+-------
+The MLX logo in the Models table is adapted from ml-explore/mlx,
+https://github.com/ml-explore/mlx/blob/9c3d35571ac450a8ecf5c17b4d0e3fac52c08bc8/docs/logo/mlx_logo_dark.svg
+(MIT, Copyright © 2023 Apple Inc.). Its full licence is in Resources/LICENSE-mlx
+and THIRD_PARTY_NOTICES.md. No endorsement by Apple or ml-explore is implied.

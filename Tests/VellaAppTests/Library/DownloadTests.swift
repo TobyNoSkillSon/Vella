@@ -120,6 +120,41 @@ final class DownloadTests: XCTestCase {
         XCTAssertFalse(library.busy)
         XCTAssertNotNil(library.downloadError, "a refused download says why")
     }
+    @MainActor func testEveryRefusalReportsCompletionOnce() throws {
+        let (root, model, _) = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let library = ModelLibrary(resources: root, registryURL: root.appendingPathComponent("registry.json"))
+        library.selectedID = model.id
+        for reason in ["unconfirmed", "busy", "recording"] {
+            library.busy = reason == "busy"
+            library.mayChangeModel = { reason != "recording" }
+            var completions: [Bool] = []
+            let started = library.download(approval: confirmed(reason == "unconfirmed" ? "other" : model.id)) { completions.append($0) }
+            XCTAssertFalse(started)
+            XCTAssertEqual(completions, [false], reason)
+        }
+    }
+
+    @MainActor func testMismatchedDownloadIDAndShutdownReportFailureOnce() async throws {
+        for shutdown in [false, true] {
+            let (root, model, config) = try fixture()
+            defer { try? FileManager.default.removeItem(at: root) }
+            configure(model, files: contents)
+            let library = ModelLibrary(resources: root, registryURL: root.appendingPathComponent("registry.json"))
+            library.downloadConfiguration = config; library.selectedID = model.id
+            var completions: [Bool] = []
+            XCTAssertTrue(library.download(approval: confirmed(model.id), calibrate: false) { completions.append($0) })
+            if shutdown { library.shutdown() } else { library.downloadingID = "changed" }
+            for _ in 0..<300 where completions.isEmpty { try await Task.sleep(nanoseconds: 10_000_000) }
+            XCTAssertEqual(completions, [false])
+            XCTAssertFalse(library.busy)
+            XCTAssertNil(library.downloadingID)
+            XCTAssertNil(library.installed[model.id])
+            library.cancel()
+            XCTAssertEqual(completions, [false], "Cancellation must not complete twice")
+        }
+    }
+
     /// The downloader itself keeps a pinned partial (resume within one download); the app's library removes it when
     /// the download is cancelled (testLibraryCancelAndFailureRemovePartialFiles).
     func testCancellationLeavesPinnedPartialForResume() async throws {

@@ -1,4 +1,5 @@
 // swift-tools-version: 6.0
+// SPDX-License-Identifier: AGPL-3.0-only
 import PackageDescription
 
 /// Swift 6 language mode (complete concurrency checking) for the targets that have been moved to it.

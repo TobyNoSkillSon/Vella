@@ -136,5 +136,68 @@ final class MixedRecipeResolutionTests: XCTestCase {
         try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
         try uniform.write(to: elsewhere.appendingPathComponent(DerivedModelManifest.fileName))
         XCTAssertEqual(bridge.ref(path: elsewhere.path, mode: .dictation)?.path, path)
+        XCTAssertNotNil(bridge.recipeRefusal(path: elsewhere.path, mode: .dictation), "the stale folder itself never starts a worker")
+        XCTAssertNil(bridge.recipeRefusal(path: path, mode: .dictation))
+    }
+
+    /// Re-check regression: a stale external uniform manifest (an older data directory) whose 16-bit source files still
+    /// exist but are not registered in this library. The table says Get; the bridge, the launch-set preload, the
+    /// table's identity, the API and every worker start refuse it too; nothing runs the uniform recipe as the mixed tier.
+    @MainActor func testStaleExternalManifestWithoutTheRegisteredSourceIsRefusedEverywhere() async throws {
+        let (controller, bridge, runtime, model, imported) = try setUp(rootInstalled: true)
+        defer { model.shutdown() }
+        try FileManager.default.removeItem(atPath: imported)
+        controller.dictation.installed["beta-8bit"] = nil
+        let source = try XCTUnwrap(controller.dictation.installed["beta-fp16"]?.path)
+        controller.dictation.installed["beta-fp16"] = nil // unregistered; its files stay
+        try JSONEncoder().encode(controller.dictation.installed).write(to: controller.dictation.registryURL)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: source + "/config.json"))
+        let elsewhere = root.appendingPathComponent("older-data/beta-8bit")
+        try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+        try Data(
+            #"{"bits":8,"family":"beta","groupSize":64,"precision":"8b","schema":1,"source":"\#(source)","sourcePrecision":"FP16","sourceVariant":"beta-fp16"}"#.utf8
+        ).write(to: elsewhere.appendingPathComponent(DerivedModelManifest.fileName))
+        let stale = elsewhere.path
+        // Table: Get.
+        XCTAssertFalse(controller.available(beta, "8b"))
+        XCTAssertEqual(controller.action(beta), .get)
+        XCTAssertNil(try tableLoadPath(controller))
+        // Identity (launch clean-up, API's current model) and on-demand resolution: nothing.
+        XCTAssertNil(controller.identify(path: stale, mode: .dictation))
+        XCTAssertNil(bridge.ref(path: stale, mode: .dictation))
+        XCTAssertNotEqual(runtime.resolve(stale, mode: .dictation).precision, "8b")
+        // Launch-set preload: refused.
+        XCTAssertNil(runtime.launchRef(ModelRef(id: "beta", precision: "8b", path: stale, mode: .dictation, name: "Beta")))
+        // API: not listed.
+        XCTAssertNil(ControllerModelSource(controller: controller, runtime: runtime).models().first { $0.id == "beta" })
+        // Every worker start: refused with the table's reason, whatever identity the caller attached.
+        let reason = try XCTUnwrap(bridge.recipeRefusal(path: stale, mode: .dictation))
+        XCTAssertTrue(reason.contains("Get"), reason)
+        do {
+            try await runtime.admit(ModelRef(id: "beta", precision: "8b", path: stale, mode: .dictation, name: "Beta"))
+            XCTFail("admitted a stale recipe")
+        } catch { XCTAssertTrue("\(error)".contains("Get"), "\(error)") }
+        do {
+            try await runtime.admit(runtime.resolve(stale, mode: .dictation))
+            XCTFail("admitted the stale folder under a generic identity")
+        } catch {}
+        XCTAssertEqual(try String(contentsOf: elsewhere.appendingPathComponent(DerivedModelManifest.fileName), encoding: .utf8).contains("floatModules"), false,
+                       "the stale manifest outside the models folder is left as it is")
+    }
+
+    /// Re-check regression: a failed canonical preparation (both `<id>` and `<id>.derived` hold real weights) refuses
+    /// the load instead of falling back to the recorded files.
+    @MainActor func testFailedCanonicalPreparationRefusesTheLoad() throws {
+        let (controller, bridge, runtime, model, imported) = try setUp(rootInstalled: true)
+        defer { model.shutdown() }
+        let occupied = controller.dictation.modelsDirectory.appendingPathComponent("beta-8bit.derived")
+        try FileManager.default.createDirectory(at: occupied, withIntermediateDirectories: true)
+        try Data("weights".utf8).write(to: occupied.appendingPathComponent("model.safetensors"))
+        XCTAssertThrowsError(try tableLoadPath(controller))
+        XCTAssertNil(bridge.runnablePath(beta, "8b"))
+        XCTAssertNil(bridge.ref(path: imported, mode: .dictation))
+        XCTAssertNil(runtime.launchRef(ModelRef(id: "beta", precision: "8b", path: imported, mode: .dictation, name: "Beta")))
+        XCTAssertNotNil(bridge.recipeRefusal(path: imported, mode: .dictation))
+        XCTAssertNil(controller.identify(path: imported, mode: .dictation))
     }
 }

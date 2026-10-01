@@ -1,10 +1,14 @@
 # Vella
 
+<p align="center">
+  <img src="docs/images/models.png" alt="Vella Models table with Dictation and Streaming sections, six precision cells per model, Exact/Fast, Get/Load/Unload, and historical M5 Max benchmark figures" width="904">
+</p>
+
+Models table shown with the previous measurement (28 Sep 2026); the 2.0.0 screenshot and figures are pending.
+
 Offline dictation and transcription for Mac: local Whisper, Parakeet and Qwen speech-to-text, tuned for Apple Silicon. Scripts and coding agents get an OpenAI-compatible local API: `POST /v1/audio/transcriptions`.
 
 Press **Control + Command + N**, speak, press it again: Vella transcribes on your Mac and pastes the text where you were typing. In Streaming mode the words appear as you speak. Audio and text stay on the Mac.
-
-**A minute of speech in 0.16 s, 5.2 J** (Parakeet v3 Ultra, loaded, Apple M5 Max, 2026-09-28; every model's figures [below](#models)).
 
 ```sh
 curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
@@ -14,30 +18,31 @@ Apple Silicon, macOS 26 or newer. No Xcode, Python or developer account.
 
 [Models](#models) · [Install](#install) · [Using it](#using-it) · [For your agent](#for-your-agent) · [Privacy](#privacy) · [User guide](docs/USAGE.md) · [Sponsor](https://github.com/sponsors/TobyNoSkillSon)
 
-<p align="center">
-  <img src="docs/images/models.png" alt="The Models table: one line per model in a Dictation and a Streaming group divided by a thick line, Precision cells bf16 int8 int4 on an Optimized row (a bolt) above a Standard row (the MLX logo), unavailable cells greyed in place, a Fast/Exact switch as tall as both rows, Parakeet v3 loaded on Optimized bf16 Fast with its figures against Standard bf16, Nemotron loaded for Streaming, a Load, Get or Unload button per row, and two estimated cloud API rows" width="904">
-</p>
-
 ## Models
 
-Seven open models, each for a purpose the others do not serve. Vella downloads none until you choose one.
+Seven open models; nothing downloads until you choose **Get**. Four starting points:
 
-| Model | Use it for | Licence |
-|---|---|---|
-| Parakeet v3 Ultra | Dictation in 25 European languages, post-trained for dictation | CC BY 4.0 |
-| Parakeet v3 | The same languages: the unmodified NVIDIA original | CC BY 4.0 |
-| Qwen3 ASR 1.7B | 30 languages, including Chinese, Japanese and Korean | Apache-2.0 |
-| Qwen3 ASR 0.6B | The same 30 languages in less memory | Apache-2.0 |
-| Whisper large-v3 | About 100 languages | Apache-2.0 |
-| Whisper large-v3 turbo | The same languages, faster | MIT |
-| Nemotron 3.5 Streaming | Streaming mode: typing while you speak | OpenMDW-1.1 (MLX conversion: NVIDIA Open Model License) |
+<!-- RELEASE_SHORT_TABLE_START -->
+Measurement date: {{benchmark_date}} · {{benchmark_hardware}}. Accuracy: {{accuracy_suite}} ({{accuracy_minutes}} min); speed, energy and Peak RAM: {{performance_suite}} ({{performance_minutes}} min). Final 2.0.0 measurement pending; these placeholders are not results.
 
-Parakeet transcribes at about 365× real time, Qwen3 ASR 1.7B and Whisper large-v3 at about 28× (Apple M5 Max, 2026-09-28). Each model runs at 16 bits per weight as published and, where they hold up, at 8 and 4 bits made on your Mac from it, on stock MLX (Standard) or with Vella's kernels for your chip (Optimized). Every accuracy, speed, energy and memory figure comes from a dated benchmark run; anything not measured shows `—`.
+| Model | Use it for | Tier / path | WER % | Speed | J / audio min | Peak RAM MB |
+|---|---|---|---|---|---|---|
+| Parakeet v3 Ultra | Dictation in 25 European languages | {{parakeet_selection}} | {{parakeet_wer}} | {{parakeet_speed}}× | {{parakeet_energy}} | {{parakeet_ram}} |
+| Whisper large-v3 turbo | About 100 languages, faster Whisper | {{turbo_selection}} | {{turbo_wer}} | {{turbo_speed}}× | {{turbo_energy}} | {{turbo_ram}} |
+| Whisper large-v3 | About 100 languages | {{whisper_selection}} | {{whisper_wer}} | {{whisper_speed}}× | {{whisper_energy}} | {{whisper_ram}} |
+| Qwen3 ASR 1.7B | 30 languages, including Chinese, Japanese and Korean | {{qwen_selection}} | {{qwen_wer}} | {{qwen_speed}}× | {{qwen_energy}} | {{qwen_ram}} |
+<!-- RELEASE_SHORT_TABLE_END -->
+
+Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
+
+Only the checkpoint's native 16-bit weights are downloaded; `int8` and `int4` are made on your Mac from them. The table shows the dtype actually running (`bf16`/`fp16`, `int8`, `int4`). Choose Standard or Optimized; Optimized has Exact and Fast recipes. Missing figures show `—`, never a sibling model's score. Models and weights retain their own licences in [`Resources/models.json`](Resources/models.json).
 
 <details>
 <summary>Every model and precision: word error rate, speed, energy, memory</summary>
 
 <!-- BENCHMARK_TABLE_START -->
+
+The figures below are the previous build's historical measurements, not the 2.0.0 result. The full-measure writer replaces this section after the final run.
 
 Measured on Apple M5 Max, macOS 26.6, 2026-09-28. WER and Format on the 240-minute v2 benchmark (`v2`); speed, energy and memory on its 22.5-minute quick subset; Languages = benchmark languages supported, of 9.
 
@@ -106,7 +111,9 @@ Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); a s
 curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
 ```
 
-Or from a checkout: `git clone https://github.com/TobyNoSkillSon/Vella && cd Vella && scripts/install.sh`. Either way the installer downloads the prebuilt app for this version with curl, checks its SHA-256 and code signature, installs it in `~/Applications`, starts it and ends with `ready: …`. Coding agents can follow [AGENTS.md](AGENTS.md).
+Or from a checkout: `git clone https://github.com/TobyNoSkillSon/Vella && cd Vella && scripts/install.sh`. Either way the installer downloads the prebuilt app for this version with curl, checks its SHA-256 and code signature, clears quarantine, installs it in `~/Applications`, starts it and ends with `ready: …`. Coding agents can follow [AGENTS.md](AGENTS.md).
+
+**Optional DMG.** An optional disk image is planned to accompany the 2.0.0 release; the ZIP remains the primary asset. Once available, open the image and drag Vella to Applications. The app is self-signed and not notarized: after macOS blocks its first launch, use **System Settings → Privacy & Security → Open Anyway**, then confirm. The command-line installer above needs no Gatekeeper step.
 
 Open Vella from the menu bar, approve Microphone and Accessibility access, and press **Control + Command + N**. The first dictation without a model keeps the recording and offers **Get <model> (<size>)**; after the download it transcribes the waiting recording.
 
@@ -180,10 +187,13 @@ The [user guide](docs/USAGE.md) covers every menu item, recovery and troubleshoo
 Install: follow [AGENTS.md](AGENTS.md), then `vella skill --install <skills directory>` writes `transcribe/SKILL.md`. **Copy Skill for Your Agent** in the menu copies the same text.
 
 ```sh
-vella status                      # Vella 1.0.0 running (pid 29335), parakeet-v3-ultra BF16 loaded · dictation model Parakeet v3 Ultra (BF16) · API http://127.0.0.1:63080/v1
+vella status                      # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra 16 loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:63080/v1
 vella transcribe talk.m4a         # the transcript as plain text
 vella transcribe talk.m4a --srt   # SRT subtitles; also --vtt, --json, --verbose-json
-vella models                      # parakeet-v3-ultra  Parakeet v3 Ultra · BF16 · loaded · current dictation model
+vella models --json                # all catalog rows, cells, reasons, source and download size
+vella select parakeet-v3-ultra --precision bf16 --path Optimized --mode Fast
+vella get parakeet-v3-ultra --yes   # only after consent; downloads then loads
+vella unload parakeet-v3-ultra      # free memory, keep downloaded weights
 vella url                         # http://127.0.0.1:63080/v1
 ```
 
@@ -192,7 +202,7 @@ vella url                         # http://127.0.0.1:63080/v1
 | Compatible with | OpenAI audio transcriptions: `POST /v1/audio/transcriptions`, `GET /v1/models` |
 | Base URL | `vella url` (127.0.0.1 only; the port changes when Vella restarts) |
 | Key | Any; the SDKs require one |
-| `model` | `whisper-1` = the user's dictation model, or an id from `/v1/models`; the API never downloads a model |
+| `model` | `whisper-1` = the user's dictation model, or an id from `/v1/models`; transcription never downloads a model |
 | Formats | `text`, `json`, `verbose_json` (timed segments), `srt`, `vtt` |
 | Input | wav, mp3, m4a, flac, caf, aiff; up to 3 hours per file |
 | Not supported | Translation, speaker labels, word-level timestamps |
@@ -211,4 +221,4 @@ Audio and transcripts never leave your Mac. The recognition helpers run in a san
 
 ## Licence
 
-[Apache-2.0](LICENSE). Keep the [NOTICE](NOTICE) when you redistribute. Vella ships no model weights; each model's licence is in the [Models](#models) table above, in its tooltip in the app and in [`Resources/models.json`](Resources/models.json). The helpers include code adapted from mlx-audio-swift, mlx-audio and mlx-whisper (MIT) and link MLX and swift-transformers; [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) has each licence, and Vella.app carries it with LICENSE and NOTICE in `Contents/Resources`.
+Vella 2.0 is [GNU AGPL-3.0-only](LICENSE). Published 0.x releases remain Apache-2.0; this does not change their licence retroactively. Keep the [NOTICE](NOTICE) when you redistribute. Vella ships no model weights; each model's licence is in its tooltip in the app and in [`Resources/models.json`](Resources/models.json). The helpers include code adapted from mlx-audio-swift, mlx-audio and mlx-whisper (MIT) and link MLX and swift-transformers; [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) has each licence, and Vella.app carries it with LICENSE and NOTICE in `Contents/Resources`.

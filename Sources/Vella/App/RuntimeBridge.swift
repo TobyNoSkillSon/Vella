@@ -6,7 +6,7 @@ import VellaCore
 /// Connects the runtime (residency, memory, worker status) to the menu and Models table: the table's Load / Reload /
 /// Unload / Delete, the Keep Hot and Memory submenus, the fact line, the first-dictation Get row, and the catalog
 /// identity (family, precision, measured memory) of a model path.
-@MainActor final class RuntimeBridge: ModelRuntimeActions, MenuSettingsSource {
+@MainActor final class RuntimeBridge: ModelRuntimeActions, AsyncModelRuntimeActions, MenuSettingsSource {
     static let shared = RuntimeBridge()
     let runtime: Runtime
     private weak var controller: ModelsController?
@@ -38,7 +38,14 @@ import VellaCore
             controller.configURL = runtime.configURL
             controller.reloadConfig()
         }
+        for library in [controller.dictation, controller.streaming] {
+            library.modelInUse = { [weak self, weak controller] variant in
+                guard let self, let family = controller?.catalog.locate(variant: variant)?.family else { return false }
+                return self.runtime.isModelInUse(family.id)
+            }
+        }
         runtime.resolver = { [weak self] path, mode in self?.ref(path: path, mode: mode) }
+        runtime.recipeRefusal = { [weak self] path, mode in self?.recipeRefusal(path: path, mode: mode) }
         model.offerModel = { [weak self] mode in self?.offer(mode) }
         model.fetchModel = { [weak self] offer in
             guard let self else { throw CancellationError() }
@@ -108,7 +115,35 @@ import VellaCore
         guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = controller.catalog.family(manifest.family),
             family.variants[manifest.precision]?.isDerived == true
         else { return nil }
-        return runnableRef(family, manifest.precision, path: runnablePath(family, manifest.precision) ?? path)
+        // Never the recorded folder itself when the precision does not resolve (no registered source, or its
+        // preparation failed): that folder may hold an older recipe. Nil, like the table's Get.
+        guard let files = runnablePath(family, manifest.precision) else { return nil }
+        return runnableRef(family, manifest.precision, path: files)
+    }
+    /// Why a load of these files is refused (nil: allowed). Every worker start passes here (`Runtime.admit`): files
+    /// that name a catalog precision load only when they are what `precisionLoadPath` resolves that precision to, so
+    /// no entry point (table, on-demand dictation, launch preload, API) runs another recipe under the tier's name.
+    func recipeRefusal(path: String, mode: RecognitionMode) -> String? {
+        guard let controller else { return nil }
+        let library = controller.library(mode)
+        let named: (family: ModelFamily, precision: String)?
+        if let id = library.installed.first(where: { sameFiles($0.value.path, path) })?.key, let found = controller.catalog.locate(variant: id) {
+            guard registeredCheckpoint(found.family, found.precision, installedPath: { library.installed[$0]?.path }) == nil else { return nil }
+            named = found
+        } else if let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = controller.catalog.family(manifest.family),
+            family.variants[manifest.precision]?.isDerived == true
+        {
+            named = (family, manifest.precision)
+        } else {
+            return nil // not a catalog precision's files
+        }
+        guard let (family, precision) = named else { return nil }
+        let name = "\(family.name) at \(precisionFormatName(precision))"
+        guard let files = runnablePath(family, precision) else {
+            let root = family.downloadSource(of: precision)?.label ?? precision
+            return "\(name) is made from its \(precisionFormatName(root)) weights, which are not on this Mac: Get it in Vella → Models…"
+        }
+        return sameFiles(files, path) ? nil : "\(name) runs the catalog's current recipe from \(files), not \(path): load it in Vella → Models…"
     }
     /// What a request for these files runs (`SelectionRules.runnable`, the table's rule): the loaded model when these
     /// files are loaded (its cell stays, whatever it is); else the recorded selection when it is offered and measured,
@@ -164,22 +199,33 @@ import VellaCore
         Task { await loadAndSelect(ref) }
     }
     func loadAndSelect(_ ref: ModelRef) async {
+        do { try await loadAndSelectThrowing(ref) } catch { controller?.lastError = error.localizedDescription }
+    }
+    func loadAndSelectThrowing(_ ref: ModelRef) async throws {
+        guard !runtime.isModelInUse(ref.id) else { throw APIError(409, "Finish transcription or loading before changing this model.") }
         runtime.beginSelection(); runtime.userChanged(ref.id)
         defer { runtime.userChanged(ref.id); runtime.endSelection() }
-        do {
-            try await runtime.load(ref)
-            select(ref.path, mode: ref.mode, selection: ref.selection)
-        } catch { controller?.lastError = error.localizedDescription }
+        try await runtime.load(ref)
+        try select(ref.path, mode: ref.mode, selection: ref.selection)
+    }
+    func loadForControl(family: ModelFamily, precision: String, path: String, selection: ModelSelection) async throws {
+        try await loadAndSelectThrowing(ref(family, precision, path: path, selection: selection))
+    }
+    func unloadForControl(family: ModelFamily) async throws {
+        guard await runtime.unload(family.id) else { throw APIError(409, "Finish transcription or loading before unloading this model.") }
     }
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
         load(family: family, precision: precision, variant: variant, path: path, selection: selection)
     }
-    func unload(family: ModelFamily) { Task { await runtime.unload(family.id) } }
+    func unload(family: ModelFamily) {
+        Task { do { try await unloadForControl(family: family) } catch { controller?.lastError = error.localizedDescription } }
+    }
     /// Deleting weights also ends every precision made on this Mac from them: a loaded derived precision is unloaded
     /// first (its worker reads the source), and after a successful deletion the launch set drops the source and its
     /// derived entries. Order: unload, delete, launch-set clean-up.
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
-        runtime.userChanged(family.id); defer { runtime.userChanged(family.id) }
+        runtime.beginSelection(); runtime.userChanged(family.id)
+        defer { runtime.userChanged(family.id); runtime.endSelection() }
         let dependents = derivedPaths(source: path, mode: family.mode)
         let loadedPath = runtime.loadedRef(family.id)?.path
         let target = loadedPath.map { loaded in dependents.contains { sameFiles($0, loaded) } ? loaded : path } ?? path
@@ -209,12 +255,12 @@ import VellaCore
     }
     /// A successful load makes the model its mode's model (what the next dictation or streaming session loads on
     /// demand) and records the family's precision, so the table and dictation never disagree.
-    private func select(_ path: String, mode: RecognitionMode, selection: ModelSelection? = nil) {
+    private func select(_ path: String, mode: RecognitionMode, selection: ModelSelection? = nil) throws {
         let url = runtime.configURL
         var config = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) } ?? Configuration(model: "")
         let identity = controller?.identify(path: path, mode: mode)
         config.recordLoad(path: path, mode: mode, family: identity?.family.id, precision: identity?.precision, selection: selection)
-        try? JSONEncoder().encode(config).write(to: url, options: .atomic)
+        try JSONEncoder().encode(config).write(to: url, options: .atomic)
         controller?.library(mode).activeModelPath = path
         controller?.reloadConfig()
     }
@@ -297,9 +343,11 @@ import VellaCore
         guard let controller, let (family, precision) = offered(offer.mode), family.isDerived(precision), family.variants[precision]?.isStored != true,
             family.downloadSource(of: precision)?.variant.id == offer.id
         else { return sourcePath }
-        return try prepareDerivedModel(
-            family: family, precision: precision, sourcePath: sourcePath,
-            modelsDirectory: controller.library(offer.mode).modelsDirectory)
+        // The one resolution (`precisionLoadPath`), as the Models table's Load; the source was just registered.
+        let library = controller.library(offer.mode)
+        guard let path = try precisionLoadPath(family, precision, installedPath: { library.installed[$0]?.path }, modelsDirectory: library.modelsDirectory)
+        else { throw VellaError.message("\(family.name) at \(precisionFormatName(precision)) has no files on this Mac.") }
+        return path
     }
     /// The first-dictation Get row's selection: the family's recorded one, else Optimized · Fast at the offered tier
     /// (the default for a model never loaded).
@@ -338,7 +386,7 @@ import VellaCore
         let library = controller.library(offer.mode)
         if let local = library.installed[offer.id] {
             let path = try offeredPath(offer, sourcePath: local.path)
-            select(path, mode: offer.mode, selection: offerSelection(offer)); return path
+            try select(path, mode: offer.mode, selection: offerSelection(offer)); return path
         }
         guard let approval = approvals.removeValue(forKey: offer.id) else {
             throw VellaError.message("The download of \(offer.name) was not confirmed.")
@@ -355,7 +403,7 @@ import VellaCore
             throw VellaError.message(library.downloadError ?? "\(offer.name) did not download.")
         }
         let path = try offeredPath(offer, sourcePath: local.path)
-        select(path, mode: offer.mode, selection: offerSelection(offer))
+        try select(path, mode: offer.mode, selection: offerSelection(offer))
         return path
     }
 }

@@ -102,22 +102,35 @@ public struct HTTPHead: Equatable {
 
 /// The routes the API serves. Anything else is 404 before the body is read.
 public enum APIRoute: Equatable {
-    case status, models, model(String), transcriptions
+    case status, models, model(String), transcriptions, catalog, settings, modelAction(String, String), settingAction(String)
     public static func match(_ path: String) -> APIRoute? {
         switch path {
         case "/status": return .status
         case "/v1/models": return .models
+        case "/v1/models/catalog": return .catalog
+        case "/v1/settings": return .settings
+        case "/v1/settings/keep-hot": return .settingAction("keep-hot")
+        case "/v1/settings/memory": return .settingAction("memory")
         case "/v1/audio/transcriptions": return .transcriptions
         default:
             let prefix = "/v1/models/"
             if path.hasPrefix(prefix), path.count > prefix.count {
                 let id = String(path.dropFirst(prefix.count))
+                let parts = id.split(separator: "/", omittingEmptySubsequences: false)
+                if parts.count == 2, ["select", "load", "unload", "reload", "get", "delete"].contains(String(parts[1])), !parts[0].isEmpty {
+                    return .modelAction(String(parts[0]).removingPercentEncoding ?? String(parts[0]), String(parts[1]))
+                }
                 return id.contains("/") ? nil : .model(id.removingPercentEncoding ?? id)
             }
             return nil
         }
     }
-    public var method: String { self == .transcriptions ? "POST" : "GET" }
+    public var method: String {
+        switch self {
+        case .transcriptions, .modelAction, .settingAction: return "POST"
+        default: return "GET"
+        }
+    }
 }
 
 /// What a request may send, decided from its head alone: before the body is read and before anything changes.
@@ -132,7 +145,7 @@ public enum APIRequestCheck {
         guard !head.duplicates.contains("host"), let host = head.headers["host"]?.lowercased(), hosts.contains(host) else {
             return APIError(403, "Host must be 127.0.0.1:\(port) or localhost:\(port)")
         }
-        for name in ["content-type", "content-length", "transfer-encoding", "authorization", "expect"] where head.duplicates.contains(name) {
+        for name in ["content-type", "content-length", "transfer-encoding", "authorization", "expect", "x-vella-token"] where head.duplicates.contains(name) {
             return APIError(400, "repeated \(name) header")
         }
         guard let route = APIRoute.match(head.path) else {
@@ -148,7 +161,11 @@ public enum APIRequestCheck {
         } else {
             length = 0
         }
-        if route == .transcriptions {
+        if route.method == "POST", route != .transcriptions {
+            guard head.headers["content-length"] != nil else { return APIError(411, "send Content-Length") }
+            guard head.mediaType == "application/json" else { return APIError(415, "Content-Type must be application/json") }
+            guard length > 0, length <= apiMaxJSONBytes else { return APIError(413, "JSON bodies must be 1 byte to 1 MB") }
+        } else if route == .transcriptions {
             guard head.headers["content-length"] != nil else { return APIError(411, "send Content-Length") }
             switch head.mediaType {
             case "multipart/form-data":

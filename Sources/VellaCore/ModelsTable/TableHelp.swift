@@ -228,6 +228,8 @@ public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, t
 
 /// Every figure cell's tooltip while benchmarks.json says `figures_pending` (its figures predate the final build).
 public let figuresPendingHelp = "Figures pending the final measurement"
+public let unmeasuredCellHelp = "Not measured yet"
+public let modelDeletionBusyHelp = "Finish dictation, downloading or calibration before deleting a model."
 
 /// A greyed Precision cell of a tier the presence gate removed (or the catalog does not offer), in one line: why.
 /// `Not offered: 1 clip empty or cut short where 16 had the words`.

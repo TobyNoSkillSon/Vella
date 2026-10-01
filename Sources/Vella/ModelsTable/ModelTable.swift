@@ -368,23 +368,12 @@ struct ModelTable: View {
     func unavailableCells(_ family: ModelFamily) -> [TierControl.Cell: String] {
         let mode = controller.currentSelection(family).mode
         let loaded = controller.loadedSelection(family)
-        let optimizedPath = controller.hasOptimizedPath(family)
-        let benchmark = controller.benchmark(family)
         var off: [TierControl.Cell: String] = [:]
         for tier in ModelTier.allCases {
             for (row, path) in [(TierControl.Row.optimized, EnginePath.optimized), (.standard, .standard)] {
                 let cell = TierControl.Cell(row, tier.rawValue)
                 let s = ModelSelection(tier: tier, path: path, mode: mode)
-                if path == .optimized && !optimizedPath {
-                    off[cell] = noOptimizedPathHelp
-                } else if !(path == .optimized ? controller.precisions(family) : controller.tiers(family, .standard)).contains(tier) {
-                    let otherMode: OptimizedMode = mode == .exact ? .fast : .exact
-                    off[cell] =
-                        path == .optimized && mode == .exact && controller.precisions(family, otherMode).contains(tier)
-                        ? exactRecipeMissingHelp(tierDTypeLabel(family, tier)) : tierAbsentHelp(benchmark, tier: tier)
-                } else if !controller.measured(family, s), s != loaded {
-                    off[cell] = TierControl.notMeasuredHelp
-                }
+                if let reason = controller.rules(family).cellRefusal(s, loaded: loaded) { off[cell] = reason }
             }
         }
         return off
