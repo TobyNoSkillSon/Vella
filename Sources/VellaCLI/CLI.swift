@@ -286,7 +286,13 @@ struct VellaClient {
         return out
     }
     /// Vella.app when this executable ships inside it (Contents/Helpers/vella).
-    static var containingApp: URL? { app(containing: executablePath()) }
+    static var containingApp: URL? {
+        guard let app = app(containing: executablePath()),
+            let info = NSDictionary(contentsOf: app.appendingPathComponent("Contents/Info.plist")),
+            info["CFBundleExecutable"] as? String == "Vella"
+        else { return nil }
+        return app
+    }
 
     /// This executable's absolute path. argv[0] is only "vella" when the command is found through PATH, so ask the
     /// system (it reports the symlink in ~/.local/bin, which is resolved below).
