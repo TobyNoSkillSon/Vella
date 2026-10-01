@@ -53,6 +53,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
             + (FastParakeetNAX.enabled ? "+nax2+smallm-" + SmallMGEMM.tileRevision : "")
             + (FastParakeetInt8.enabled ? "+int8-2+smallm-" + SmallMGEMM.qtileRevision : "")
             + (FastParakeetInt8.int4Enabled ? "+int4-2+smallm-" + SmallMGEMM.qtileRevision : "")
+            + FastParakeetDecodeOptions.revisionSuffix
     }
     /// The dtype the worker converts request samples to before `generate`: the log-mel is computed in it (BF16,
     /// matching mlx-audio's rounding).
@@ -359,7 +360,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
         if let handle = FileHandle(forWritingAtPath: profile) {
             _ = try? handle.seekToEnd()
             let finiteEncoded = MLX.all(MLX.isFinite(encoded.0)).item(Bool.self)
-            try? handle.write(contentsOf: Data("\(features.shape[1]) \(t1 - t0) \(t2 - t1) enc_finite=\(finiteEncoded) fast_finite=\(fastPathFinite) err=\(fastPathError ?? "-") mel_s=\(t0 - tm) blocks=\(fastDecoder?.lastBlocks ?? -1)\n".utf8))
+            try? handle.write(contentsOf: Data("\(features.shape[1]) \(t1 - t0) \(t2 - t1) enc_finite=\(finiteEncoded) fast_finite=\(fastPathFinite) err=\(fastPathError ?? "-") mel_s=\(t0 - tm) blocks=\(fastDecoder?.lastBlocks ?? -1) active=\(fastDecoder?.lastActive ?? -1)\n".utf8))
             try? handle.close()
         }
         return result

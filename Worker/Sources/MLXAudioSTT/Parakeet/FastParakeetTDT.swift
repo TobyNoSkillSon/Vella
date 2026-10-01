@@ -17,6 +17,11 @@ final class FastParakeetTDT {
     private let lstm2 = MLXFast.metalKernel(name: "vella_tdt_lstm2", inputNames: ["emit", "x", "h", "c", "ch", "cc", "Wx", "Wh", "bias"], outputNames: ["h_o", "c_o", "ch_o", "cc_o"], source: FastParakeetMetal.lstm2, header: FastParakeetMetal.header)
     private let predict = MLXFast.metalKernel(name: "vella_tdt_pred", inputNames: ["emit", "x", "W", "b", "old"], outputNames: ["out"], source: FastParakeetMetal.pred, header: FastParakeetMetal.header)
     private lazy var run: @Sendable ([MLXArray]) -> [MLXArray] = makeRun()
+    /// Shorter blocks for a segment's tail (VELLA_PARAKEET_TAILBLOCK), traced on first use.
+    private lazy var run16: @Sendable ([MLXArray]) -> [MLXArray] = makeRun(steps: 16)
+    private lazy var run8: @Sendable ([MLXArray]) -> [MLXArray] = makeRun(steps: 8)
+    /// Active steps (frame below the input length) run by the last decode (profile only).
+    private(set) var lastActive = 0
 
     init?(_ model: ParakeetModel) {
         guard let decoder = model.decoder, let head = model.joint,
@@ -57,7 +62,7 @@ final class FastParakeetTDT {
     }
 
     // State layout: h0,c0,ch0,cc0,h1,c1,ch1,cc1,pred. Weights start at offset 14.
-    private func makeRun() -> @Sendable ([MLXArray]) -> [MLXArray] {
+    private func makeRun(steps: Int = 32) -> @Sendable ([MLXArray]) -> [MLXArray] {
         // Capture only kernel objects and integer dimensions: never this decoder,
         // the model, or checkpoint arrays in a TLS compilation cache.
         let joint = joint, argmax = argmax, lstm1 = lstm1, lstm2 = lstm2, predict = predict
@@ -68,7 +73,7 @@ final class FastParakeetTDT {
         var state = Array(a[5..<14]); let w = Array(a[14...]); let dtype = feature.dtype
         var records: [[MLXArray]] = []
         var finite: [MLXArray] = []
-        for _ in 0..<32 {
+        for _ in 0..<steps {
             let logits = joint([feature, time, state[8], w[5], w[6]],
                                template: [("D", dimension), ("NOUT", outputs), ("NSG", 8), ("RT", state[8].dtype)],
                                grid: (32, ((outputs + 7) / 8) * 8, 1), threadGroup: (32, 8, 1),
@@ -103,6 +108,8 @@ final class FastParakeetTDT {
         lastFinite = true
         lastError = nil
         lastBlocks = 0
+        lastActive = 0
+        var frame = 0
         guard let model, let head = model.joint, let decoder = model.decoder else {
             lastFinite = false
             return ParakeetAlignment.sentencesToResult(ParakeetAlignment.tokensToSentences([]))
@@ -126,7 +133,8 @@ final class FastParakeetTDT {
             let result: [MLXArray]
             do {
                 result = try MLX.withError {
-                    let arrays = run([enc, n, time, last, syms] + state + weights)
+                    let block = FastParakeetDecodeOptions.tailBlocks ? FastParakeetDecodeOptions.blockSteps(remainingFrames: length - frame) : 32
+                    let arrays = (block == 8 ? run8 : block == 16 ? run16 : run)([enc, n, time, last, syms] + state + weights)
                     MLX.eval(arrays)
                     return arrays
                 }
@@ -138,7 +146,8 @@ final class FastParakeetTDT {
             lastBlocks += 1
             let blockFinite = result[16].item(Bool.self)
             if !blockFinite && lastError == nil {
-                // Diagnostic only: which of the 32 step logits (0-31) or 9 carried states (32-40) went non-finite.
+                // Diagnostic only: which of the block's step logits (0-31 for 32 steps) or 9 carried states (after them)
+                // went non-finite.
                 let flags = result[17].asArray(Bool.self)
                 lastError = "non-finite at t=\(time.item(Int32.self)): " + flags.indices.filter { !flags[$0] }.map(String.init).joined(separator: ",")
             }
@@ -151,7 +160,9 @@ final class FastParakeetTDT {
                 let id = Int(ids[i]); tokens.append(ParakeetAlignedToken(id: id, text: ParakeetTokenizer.decode(tokens: [id], vocabulary: model.vocabulary), start: Double(times[i]) * sec, duration: Double(jumps[i]) * sec))
             }
             time = result[4]; last = result[5]; syms = result[6]; state = Array(result[7..<16])
-            if Int(time.item(Int32.self)) >= length { break }
+            lastActive += times.filter { Int($0) < length }.count
+            frame = Int(time.item(Int32.self))
+            if frame >= length { break }
         }
         return ParakeetAlignment.sentencesToResult(ParakeetAlignment.tokensToSentences(tokens))
     }
