@@ -17,11 +17,15 @@ final class DerivedModelTests: XCTestCase {
         let ultra = try XCTUnwrap(catalog.family("parakeet-v3-ultra"))
         let v3 = try XCTUnwrap(catalog.family("parakeet-v3"))
         let nemotron = try XCTUnwrap(catalog.family("nemotron-3.5-streaming-0.6b"))
-        XCTAssertEqual(try ultra.derivation("8b"), DerivationRecipe(sourceLabel: "BF16", source: ultra.variants["BF16"]!, dtype: nil, bits: 8, groupSize: 64))
+        XCTAssertEqual(
+            try ultra.derivation("8b"),
+            DerivationRecipe(sourceLabel: "BF16", source: ultra.variants["BF16"]!, dtype: nil, bits: 8, groupSize: 64, floatModules: ["decoder", "joint"]))
         XCTAssertEqual(try ultra.derivation("4b").bits, 4)
         // Parakeet v3's BF16 is a stored conversion (made once at Get): a root, not a derivation; 8 and 4 derive from it.
         XCTAssertThrowsError(try v3.derivation("BF16"))
-        XCTAssertEqual(try v3.derivation("8b"), DerivationRecipe(sourceLabel: "BF16", source: v3.variants["BF16"]!, dtype: nil, bits: 8, groupSize: 64))
+        XCTAssertEqual(
+            try v3.derivation("8b"),
+            DerivationRecipe(sourceLabel: "BF16", source: v3.variants["BF16"]!, dtype: nil, bits: 8, groupSize: 64, floatModules: ["decoder", "joint"]))
         XCTAssertEqual(try nemotron.derivation("4b").source.id, "nemotron-3.5-asr-streaming-0.6b-bf16")
         XCTAssertEqual(try nemotron.derivation("8b").source.id, "nemotron-3.5-asr-streaming-0.6b-bf16")
         // Get fetches the root: the 16-bit download, or the stored BF16 (which downloads the FP32 repository).
@@ -110,7 +114,8 @@ final class DerivedModelTests: XCTestCase {
             manifest,
             DerivedModelManifest(
                 schema: 1, family: "parakeet-v3-ultra", precision: "8b", source: source.standardizedFileURL.path,
-                sourceVariant: "parakeet-ultra-mlx-bf16", sourcePrecision: "BF16", dtype: nil, bits: 8, groupSize: 64))
+                sourceVariant: "parakeet-ultra-mlx-bf16", sourcePrecision: "BF16", dtype: nil, bits: 8, groupSize: 64,
+                floatModules: ["decoder", "joint"]))
         let file = URL(fileURLWithPath: path).appendingPathComponent(DerivedModelManifest.fileName)
         let before = try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date
         Thread.sleep(forTimeInterval: 0.02)
@@ -196,6 +201,15 @@ final class DerivedModelTests: XCTestCase {
             let f = try XCTUnwrap(catalog.family(id))
             XCTAssertEqual(f.variants["8b"]?.floatModules, ["model.encoder"], id)
             XCTAssertNil(f.variants["4b"]?.floatModules, id)
+        }
+        // Parakeet v3 / v3 Ultra 8 and 4 tiers: decoder and joint keep BF16 (plain affine g64 elsewhere).
+        for id in ["parakeet-v3", "parakeet-v3-ultra"] {
+            let f = try XCTUnwrap(catalog.family(id))
+            for tier in ["8b", "4b"] {
+                XCTAssertEqual(f.variants[tier]?.floatModules, ["decoder", "joint"], "\(id) \(tier)")
+                XCTAssertEqual(f.variants[tier]?.groupSize, 64, "\(id) \(tier)")
+                XCTAssertEqual(try f.derivation(tier).floatModules, ["decoder", "joint"], "\(id) \(tier)")
+            }
         }
         let large = try XCTUnwrap(catalog.family("whisper-large-v3"))
         let path = try prepareDerivedModel(family: large, precision: "8b", sourcePath: source.path, modelsDirectory: models)

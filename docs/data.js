@@ -3492,6 +3492,11 @@ const VELLA_MODELS = {
           "derivedFrom": "BF16",
           "bits": 8,
           "groupSize": 64,
+          "floatModules": [
+            "decoder",
+            "joint"
+          ],
+          "floatShare": 0.0184,
           "architecture": "parakeet"
         },
         "4b": {
@@ -3499,6 +3504,11 @@ const VELLA_MODELS = {
           "derivedFrom": "BF16",
           "bits": 4,
           "groupSize": 64,
+          "floatModules": [
+            "decoder",
+            "joint"
+          ],
+          "floatShare": 0.0184,
           "architecture": "parakeet"
         }
       },
@@ -3577,6 +3587,11 @@ const VELLA_MODELS = {
           "derivedFrom": "BF16",
           "bits": 8,
           "groupSize": 64,
+          "floatModules": [
+            "decoder",
+            "joint"
+          ],
+          "floatShare": 0.0184,
           "architecture": "parakeet"
         },
         "4b": {
@@ -3584,6 +3599,11 @@ const VELLA_MODELS = {
           "derivedFrom": "BF16",
           "bits": 4,
           "groupSize": 64,
+          "floatModules": [
+            "decoder",
+            "joint"
+          ],
+          "floatShare": 0.0184,
           "architecture": "parakeet"
         }
       },
