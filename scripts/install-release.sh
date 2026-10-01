@@ -6,7 +6,7 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 VERSION="${1:-}"
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Pass a release version, e.g. 1.0.0' >&2; exit 2; }
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Pass a release version, e.g. 2.0.0' >&2; exit 2; }
 DRY_RUN=0
 [[ "${2:-}" == '--dry-run' ]] && DRY_RUN=1
 [[ $# -le 2 && ( $# -lt 2 || "$DRY_RUN" == 1 ) ]] || { echo 'Usage: install-release.sh VERSION [--dry-run]' >&2; exit 2; }

@@ -5,6 +5,8 @@ description: Transcribe audio files offline with Vella, the local speech-to-text
 
 # Transcribe audio with Vella
 
+Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
+
 Vella runs speech-recognition models on this Mac (Apple Silicon); nothing leaves the machine. The models the user dictates with also transcribe your files. The user's own dictation always goes first, so a file may wait a moment while they speak.
 
 ## When to use
@@ -15,7 +17,7 @@ Use another tool to translate, to identify speakers or for word-level timestamps
 
 ## Install
 
-`vella status` prints one line when Vella is installed. If `vella` is missing, try `~/.local/bin/vella`; if that is missing too, ask the user before installing: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` (Apple Silicon, macOS 14 or newer; it ends with `ready: …`). A fresh install has no model: the user gets one in Vella → Models….
+`vella status` prints one line when Vella is installed. If `vella` is missing, try `~/.local/bin/vella`; if that is missing too, ask the user before installing: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` (Apple Silicon, macOS 26 or newer; it ends with `ready: …`). A fresh install has no model: the user gets one in Vella → Models….
 
 ## Results
 
@@ -29,7 +31,7 @@ vella transcribe talk.m4a --srt > talk.srt     # subtitles; --vtt, --json, --ver
 vella transcribe talk.m4a --model parakeet-v3  # a specific model
 vella transcribe talk.m4a --language pl        # a language hint
 vella models                                   # parakeet-v3-ultra  Parakeet v3 Ultra · 16 · Optimized Fast · loaded · current dictation model   (one line per model on this Mac)
-vella status                                   # Vella 1.0.0 running (pid 29335), parakeet-v3-ultra 16 loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:63080/v1
+vella status                                   # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra 16 loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:63080/v1
 vella url                                      # http://127.0.0.1:63080/v1
 vella diagnose                                 # a bug report for the user; its last line is a prefilled GitHub issue link
 ```
@@ -62,3 +64,7 @@ curl -s "$(vella url)/audio/transcriptions" -F file=@talk.m4a -F response_format
 - Vella never downloads a model through the API or the CLI. If a model is missing, ask the user to get it in Vella → Models….
 - The user's dictation takes priority; a file waits while they speak.
 - If transcripts look broken or transcription is far slower than expected, run `vella diagnose` and give the user its report and the bug-report link on its last line; they decide whether to file it. It never starts Vella and loads nothing unless you pass `--load`.
+
+## Measure on another Mac
+
+For community measurement, follow https://github.com/TobyNoSkillSon/Vella/blob/main/CONTRIBUTING.md#community-measurement. One model at a time is enough. The shipped `diagnose` clips are diagnostic evidence, not the full benchmark suite; label the dataset and chip. Use Opus 5.5 / Sol 6.1 or better for an unattended run, and ask consent before scheduling, downloading or submitting an issue/PR. Energy needs `powermetrics` and admin consent; otherwise leave energy unmeasured.

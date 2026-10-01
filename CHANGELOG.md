@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 ({{release_date}})
 
 ### Changed
 
+- **Licence.** Vella 2.0 is GNU AGPL-3.0-only. Published 0.x releases remain Apache-2.0; their licences are not changed retroactively. Third-party code and model weights retain their own licences.
+- **Chip coverage.** Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far. The CLI help and agent guides state that boundary explicitly.
+- **Installation.** The release installer remains the primary route: checksum and signature verification, quarantine removal and automatic launch. The standalone installer now checks macOS 26, matching the shipped app. `scripts/install.sh --dry-run` now forwards verification-only mode correctly.
 - **Updating can change the precision a model runs at.** If your settings record a precision the Models table no longer offers (Parakeet v3 8-bit or 4-bit, Qwen3 ASR 1.7B 8-bit or 4-bit, a 4-bit Qwen3 ASR 0.6B, Whisper or Nemotron) or a cell that has no measurement, dictation, live transcription, `vella` and the API now run the cell the table shows for that model: the same tier's Optimized cell, else 16-bit, which can use more memory. Nothing is downloaded for this; if none of the offered precisions is on this Mac, the older download keeps working as before. A model already loaded at such a precision keeps it until it unloads. Pick another cell in **Models…** to change it.
 - **The dictation helper keeps up to 64 MB of reusable GPU buffers between requests** instead of freeing them after every request, so dictation is slightly faster (about 4 % on Parakeet v3 Ultra BF16). It never holds more than 64 MB while idle, frees them after a failed request, and releases them on unload or when macOS reports memory pressure. `VELLA_DICTATION_KEEP_CACHE=0` restores the old behaviour.
 - **Smaller app and download.** Dictation and live-transcription helpers are now one program, and shipped programs carry no debug symbols. Both helper processes appear as **VellaWorker** in Activity Monitor, `top` and crash reports (signing identifier `VellaWorker`); the streaming one is still started as `VellaStreamingWorker`. Use a PID rather than a process name for diagnostics. Release packages include a separate, checksummed `Vella-VERSION-arm64-symbols.zip` with UUID-matched dSYMs for crash symbolication; installers download only the app. Plain source builds retain no extra symbol directories.

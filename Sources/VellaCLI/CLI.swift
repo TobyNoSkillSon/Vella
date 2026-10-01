@@ -2,6 +2,7 @@ import Foundation
 import VellaCore
 
 let usage = """
+    Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
     vella: transcribe audio files offline with the models loaded in Vella on this Mac.
 
         vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]
@@ -12,6 +13,7 @@ let usage = """
         vella status                 one line: running, dictation model, loaded models, API address
         vella models [--json]        one line per model usable now: id, name, tier, Standard / Optimized Exact / Fast, loaded / current
         vella url                    the OpenAI-compatible base URL (base_url for the openai SDKs)
+        vella --version              print the version without starting Vella
         vella skill [--install DIR]  print the agent skill, or write DIR/transcribe/SKILL.md
         vella diagnose [--load] [--json]
             for bug reports: this Mac, versions, each loaded model's engine and fallbacks, the optimized-path gate
@@ -66,6 +68,11 @@ struct VellaCLI {
 
     func dispatch(_ command: String, _ rest: [String]) async throws {
         switch command {
+        case "--version":
+            let args = try Arguments(rest, values: [], flags: [])
+            if let extra = args.positional.first { throw CLIError("unexpected argument \(extra)") }
+            let info = VellaClient.containingApp.flatMap { NSDictionary(contentsOf: $0.appendingPathComponent("Contents/Info.plist")) }
+            write("Vella \(info?["CFBundleShortVersionString"] as? String ?? "2.0.0")")
         case "transcribe": try await transcribe(rest)
         case "status":
             _ = try Arguments(rest, values: [], flags: [])
@@ -132,7 +139,7 @@ struct VellaCLI {
 
     // MARK: Formatting
 
-    /// "Vella 1.0.0 running (pid 812), no model loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:52314/v1"
+    /// "Vella 2.0.0 running (pid 812), no model loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:52314/v1"
     static func statusLine(_ s: [String: Any], port: Int) -> String {
         let version = (s["version"] as? String).map { " \($0)" } ?? ""
         let pid = (s["pid"] as? NSNumber)?.intValue ?? 0

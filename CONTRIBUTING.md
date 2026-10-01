@@ -79,20 +79,39 @@ Open an issue first for anything larger than a fix, so we can agree on the appro
 
 The pull request template asks for these.
 
-### Proposing a model
+### Adding a model
 
 Start with a **New model request** issue. A catalog model needs open weights with a licence that allows local use, an MLX checkpoint (or a conversion you can publish) and an architecture that mlx-swift can run. The Models table offers few models on purpose: each must serve a clear purpose the others do not (accuracy, size, languages, speed or another model family). A lower error rate elsewhere does not rule a model out, but a model that duplicates an offered one does not get in.
 
-An implementation adds a family to `Resources/models.json` (every downloadable precision pinned to a repository revision and its exact size); the model code in `Worker/Sources/MLXAudioSTT/<Family>` with its runtime (`SpeechModelRuntime`, one line in `ModelRuntimeRegistry`); its descriptor in `Sources/VellaCore/Models/<Family>` (one line in `ModelRegistry`); and its admission in `Worker/Sources/VellaWorker/Validation.swift`. The pull request must show:
+**A new checkpoint of a known architecture is a catalog entry plus a folder, not a new runtime.** Check `config.json`, tensors and tokenizer against the existing adapter. Add the family to `Resources/models.json`, pin the native 16-bit checkpoint's revision, sizes and licence, and let **Get** create its model folder. Add a small fixture/documentation folder alongside the existing architecture's tests explaining the checkpoint, conversion recipe and differences; do not commit weights. Declare int8/int4 as local affine group-64 derivations of the native checkpoint. Add a fixture test proving the entry decodes, resolves to the existing descriptor/runtime and preserves its dtype and derivation. Qualify with public speech before offering any tier; numbers remain absent until measured.
+
+**A new architecture is engineering.** Implement its loader, input preparation and decoding in `Worker/Sources/MLXAudioSTT/<Family>/`. Conform to `SpeechModelRuntime` in `Worker/Sources/MLXAudioSTT/Runtime/SpeechModelRuntime.swift`: architecture, gate revision and required GPU feature family; use `DictationModelRuntime` for segment transcription or `StreamingModelRuntime` for genuinely incremental recognition. Register it in `ModelRuntimeRegistry`, add a descriptor under `Sources/VellaCore/Models/<Family>/` and register it in `ModelRegistry`; extend the wire architecture vocabulary and validation deliberately. Include a fixture test with a tiny local fixture or stub that exercises dispatch, loading, input shape, output and unsupported-config rejection without a weight download. Keep optimized kernels behind a self-test and a working Standard fallback.
+
+For either route, the model's folder documents what it is, which optimizations were tried, their measured effect and hardware, the quality gate and rejected levers. The pull request must show:
 
 1. **Parity.** Run the model's reference implementation (the authors' code or mlx-audio, at a named version or commit) and Vella on the same public audio, and give the word error rate of each and every transcript that differs. Include the script and the clip list so the result can be reproduced.
 2. **Numbers.** Word error rate on a public set, speed (× real time) and memory, with the chip, memory and macOS they were measured on.
 
 Before a model's figures go into `Resources/benchmarks.json`, the maintainer measures it with Vella's v2 benchmark (240 minutes, English and nine other languages) on the reference Mac, so every row of the table is comparable.
 
+### Community measurement
+
+Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
+
+One model at a time is welcome; nobody needs to run the full catalog. **The 2.0 app ships `vella diagnose` and `vella transcribe`, not the maintainer's v2 suite, scorer or measurement harness.** The following produces diagnostic evidence on another Mac, not a v2 benchmark row or a joules claim:
+
+1. Ask the user's consent for the run, any model download and any later scheduling. An unattended agent should use Opus 5.5 / Sol 6.1 or better. Install the release using `scripts/install.sh`; record `vella --version`.
+2. In **Models…**, choose one model, tier (`bf16`/`fp16`, `int8`, `int4`), Standard or Optimized, and Exact/Fast; confirm **Get** if needed, then **Load**. With permission, unload other models so diagnostics times only this one. Keep the same selection throughout the run. The shipped CLI cannot yet get models or change their precision; use the app for those controls.
+3. On an idle Mac with no other inference, record chip, RAM, macOS/build, power source and whether other work was running. Run `vella status`, then `vella diagnose --json > diagnosis.json`. This uses only the bundled public LibriSpeech self-test clips, one request at a time, and includes reference transcripts and timing. It sends nothing. Its exact-match checks are diagnostics, not suite WER.
+4. For a larger public, redistributable clip, record its source URL, licence, SHA-256, exact audio duration and reference text. Warm up once, then run at least three serial timings with `/usr/bin/time -p vella transcribe public.wav --model MODEL_ID > transcript.txt`. Save each elapsed time and transcript separately. These are end-to-end API times, not kernel times. Read and compare the full transcripts; do not describe raw transcript equality as accuracy on a benchmark suite. Without an approved scorer, submit references and transcripts for maintainer scoring.
+5. Save a manifest with app version/build, model id, source revision, actual selection/engine/fallbacks from status, hardware, clip list/hashes/licences, timing method, repeats and load/warm state. Keep diagnostic evidence distinct from v2 or v2-quick. Leave energy absent unless you have a defined measurement protocol. Energy requires `powermetrics` and admin consent: speed/accuracy-only contributions are valid and labelled as such; never put zero for missing energy. Peak RAM likewise needs a described measurement, not installed weight size.
+6. Inspect all files for personal recordings, paths or transcripts before sharing. Ask consent before opening an issue or PR at https://github.com/TobyNoSkillSon/Vella. Attach the manifest, diagnostic JSON, public transcripts and timings; a partial one-model contribution is fine. Sending it is a separate action from measuring.
+
+**Full benchmark kit still needed.** Comparable `benchmarks/<chip>.json` submissions need a redistributable suite (or explicitly labelled public subset), pinned clip manifest/hashes and references, scorer/normalization version, a serial CLI/API runner, quality gate, optional idle-subtracted `powermetrics` protocol and a result-schema validator. These currently live in the local-only lab and are not shipped. There is no automatic validation/merge pipeline in 2.0, and no `vella contribute` command. Until the public kit exists, submit diagnostic evidence for review rather than manufacturing suite scores. Proposed contribution tiers are numbers, tuning existing kernels, and new kernels; kernel changes need review, and numbers-only automation requires that validator first.
+
 ### Chip-specific optimizations
 
-Vella's optimized paths (fused encoders, custom Metal kernels, the decoder loops) are meant to work on every Apple Silicon Mac. So far they have only been verified on an M5 Max. If a path is slow or disabled on your chip and you can fix it, you are welcome to:
+Vella optimizes on hardware we own: M5 Max so far. Standard and working feature-gated fallbacks serve other Macs; no speed claim on them is a measurement until someone measures it. If a path is slow or disabled on your chip and you can fix it, you are welcome to:
 
 - Put the new path **behind the load-time self-test** (`FastPathGate`). When a model loads, a child process runs the optimized and the stock MLX path on the bundled self-test clips and compares the tokens; the verdict is kept per model, GPU family, macOS build and helper version. Gate on GPU family and features, never on chip names. If the test fails, or the path fails during a transcription, Vella must fall back to the stock path and say why: that is what the table's "MLX" label and `vella diagnose` show.
 - Leave other chips' paths unchanged. Transcripts must stay within the parity limits: token-exact on the self-test clips, and English word error rate within 0.1 points of the stock path.
@@ -110,6 +129,6 @@ Nothing is merged automatically. An AI reviewer may comment on pull requests, bu
 
 ## Licence
 
-Vella is licensed under [Apache-2.0](LICENSE). By submitting a contribution you agree that it is licensed under the same terms (section 5 of the licence); there is no separate contributor agreement. "Vella" and its icon are the project's name and mark and are not covered by the licence, so a fork you distribute should use another name and icon.
+Vella 2.0 is licensed under [GNU AGPL-3.0-only](LICENSE). Published 0.x releases remain Apache-2.0. Contributions to 2.0 use the same AGPL terms; there is no separate contributor agreement. Third-party code and model weights keep their own licences. "Vella" and its icon are the project's name and mark; a fork you distribute should use another name and icon.
 
 Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).

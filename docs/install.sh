@@ -8,13 +8,13 @@ set -euo pipefail
 
 # Everything runs from main, so a download cut short executes nothing.
 main() {
-  local VERSION="${VELLA_VERSION:-1.0.0}" DRY_RUN=0
+  local VERSION="${VELLA_VERSION:-2.0.0}" DRY_RUN=0
   [[ "${1:-}" == '--dry-run' ]] && DRY_RUN=1
   [[ $# -eq 0 || ( $# -eq 1 && "$DRY_RUN" == 1 ) ]] || fail 'Usage: install.sh [--dry-run]' 2
-  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VELLA_VERSION must be a release version, e.g. 1.0.0' 2
+  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VELLA_VERSION must be a release version, e.g. 2.0.0' 2
   [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || fail 'Vella requires an Apple Silicon Mac'
   local OS; OS="$(sw_vers -productVersion)"
-  [[ "${OS%%.*}" -ge 14 ]] || fail "Vella requires macOS 14 or newer ($OS)"
+  [[ "${OS%%.*}" -ge 26 ]] || fail "Vella requires macOS 26 or newer ($OS)"
 
   local BASE="${VELLA_RELEASE_BASE_URL:-https://github.com/TobyNoSkillSon/Vella/releases/download/v$VERSION}"
   # file:// serves a locally packaged release (scripts/package-release.sh) for testing.

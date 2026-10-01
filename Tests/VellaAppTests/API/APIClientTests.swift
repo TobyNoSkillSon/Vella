@@ -68,6 +68,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(uCode, 0); XCTAssertEqual(url, "http://127.0.0.1:\(api.port)/v1\n")
         let (hCode, help, _) = try await vella(api, ["--help"])
         XCTAssertEqual(hCode, 0)
+        XCTAssertEqual(help.components(separatedBy: "\n").first, "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far")
         XCTAssertTrue(help.contains("vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]"), help)
 
         // Errors: one line on stderr, exit 1, no stdout.

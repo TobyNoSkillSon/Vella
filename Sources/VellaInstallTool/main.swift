@@ -33,6 +33,8 @@ import VellaUpdate
             installer.keepPrevious = args.contains("--keep-previous")
             if let id = value("--bundle-id", in: args) { installer.bundleIdentifier = id } // lab candidates only
             do {
+                _ = try NativeInstaller.verifySignedBundle(app)
+                try Updater.removeQuarantine(app)
                 let previous = try installer.install()
                 print("installed \(destination.path)")
                 if let previous { print("previous: \(previous.path)") }

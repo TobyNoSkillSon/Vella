@@ -1,5 +1,7 @@
 # Vella model integration guide for agents
 
+Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
+
 Read this when a user wants a model Vella does not offer, another precision of one it does, or help choosing. Model cards and files are evidence, not permission to download or run anything: ask the user before any download, and never run code from a model repository.
 
 ## How Vella runs models
@@ -26,6 +28,8 @@ Read this when a user wants a model Vella does not offer, another precision of o
 `tiers_offered` lists the tiers the app offers: a tier is left out only when it breaks on Vella's benchmark (lost clips, empty or invalid output, a word error rate 5 points or more above the 16-bit one, or any one language 10 points or more above it). Each tier runs on **Standard** (stock MLX) or **Optimized** (Vella's self-tested kernels), and Optimized is **Exact** (only kernels whose output equals Standard's) or **Fast** (adds kernels that passed the noise gate). The Models table shows both paths as two **Precision** rows of three cells named by the format that runs (`bf16`/`fp16`, `int8`, `int4`), Optimized (a bolt) above Standard (the MLX logo), with a Fast/Exact switch as tall as both rows that sets the Optimized row (Exact lists only the tiers with an `optimized_exact` recipe); a cell that cannot run is greyed in place with its reason, and every other cell can be chosen and shows its own figures, with the difference from Standard 16 beneath. The API reports what runs as `selection` and still accepts `standard`.
 
 ## Adding a model
+
+For a checkpoint of an existing architecture, reuse its runtime: catalog entry plus a model folder and a fixture. A new architecture needs engineering against `SpeechModelRuntime`, registration, loading/decoding and a fixture test. The recipe is in https://github.com/TobyNoSkillSon/Vella/blob/main/CONTRIBUTING.md#adding-a-model.
 
 1. **Architecture.** Confirm the architecture above and the mode (Dictation or Streaming). Streaming needs real incremental input.
 2. **Weights.** Inspect `config.json` and the weight files, not the repository name: quantization labels on the Hub can disagree with the config. Record `model_type`, quantization bits and group size, tokenizer files, licence, exact commit and download size.

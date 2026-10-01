@@ -7,7 +7,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
 case "${VELLA_BUILD:-release}" in
-  release) exec scripts/install-release.sh "${1:-$VERSION}" ;;
+  release)
+    if [[ "${1:-}" == --dry-run ]]; then
+      exec scripts/install-release.sh "$VERSION" "$@"
+    fi
+    exec scripts/install-release.sh "${1:-$VERSION}" "${@:2}"
+    ;;
   source) ;;
   *) echo 'VELLA_BUILD must be release or source' >&2; exit 2 ;;
 esac

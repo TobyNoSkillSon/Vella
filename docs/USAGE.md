@@ -14,7 +14,7 @@ Requirements: an Apple Silicon Mac with macOS 26 or newer. The prebuilt app need
 What `scripts/install.sh` does, in order:
 
 1. Downloads `Vella-<version>-arm64.zip` and `SHA256SUMS` for the version in this checkout with curl (never a browser, which would quarantine the app).
-2. Verifies before touching anything: the exact checksum line for the zip, that the archive holds only `Vella.app` with its helpers and Metal library, that the app's version is the one requested, and its code signature. `scripts/install-release.sh <version> --dry-run` stops here.
+2. Verifies before touching anything: the exact checksum line for the zip, that the archive holds only `Vella.app` with its helpers and Metal library, that the app's version is the one requested, and its code signature. The staged installer clears quarantine before launch. `scripts/install-release.sh <version> --dry-run` stops here.
 3. Refuses, leaving everything unchanged, while Vella is recording, transcribing or loading a model.
 4. Quits a running Vella, copies the new app beside the old one, verifies it again and swaps it in. If the swap fails the old app is restored. A certificate-signed installation is only replaced by an app with the same signing identity, so macOS privacy permissions carry over.
 5. Starts Vella and waits until it is ready: the app has written its status, nothing is loading, and every model you keep loaded at launch is loaded (a fresh install has none). It prints `ready: …`. Only then is the previous app deleted; if Vella is not ready within 30 minutes, or it runs but a model you keep loaded could not load (`degraded: …`), the previous app is kept and its path printed. `VELLA_ACCEPT_DEGRADED=1` makes a degraded install exit 0; the previous app is still kept.
@@ -24,6 +24,8 @@ The installer also links the `vella` command into `~/.local/bin` (see **Transcri
 Models, recordings and settings in `~/Library/Application Support/Vella` are kept. The whole app bundle is replaced, so files from older versions never linger inside it. The checksum detects a corrupted download; it comes from the same release, so it is not a signature.
 
 `VELLA_BUILD=source scripts/install.sh` builds this checkout instead (Command Line Tools Swift, full Xcode and its Metal Toolchain; the installer prints the command that fixes a missing one) and installs it the same way.
+
+**Optional DMG.** Open the release disk image and drag Vella to Applications. For the first launch, right-click Vella, choose **Open** and confirm. The command-line installer is the primary route and needs no Gatekeeper step.
 
 ## First run
 
