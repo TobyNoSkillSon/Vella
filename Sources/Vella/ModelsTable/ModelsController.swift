@@ -512,6 +512,15 @@ import VellaWire
         couplingNotes[f.id] = nil
     }
 
+    /// A mode-only request is the table's switch flip, including its coupling to an Exact tier.
+    func setModeForControl(_ f: ModelFamily, mode: OptimizedMode) throws {
+        guard !inUse(f), !anyBusy else { throw APIError(409, ExactFastSwitch.inUseHelp) }
+        guard hasOptimizedPath(f) else { throw APIError(409, noOptimizedPathHelp) }
+        guard switchAvailable(f) else { throw APIError(409, ExactFastSwitch.sameHelp) }
+        guard mode != .exact || exactAvailable(f) else { throw APIError(409, ExactFastSwitch.exactNotMeasuredHelp) }
+        setMode(f, mode)
+    }
+
     func performForControl(_ f: ModelFamily, action: String, yes: Bool) async throws {
         guard !inUse(f), !anyBusy else { throw APIError(409, "Finish dictation, loading or downloading before changing this model.") }
         guard let actions = actions as? any AsyncModelRuntimeActions else { throw APIError(503, "Vella's model runtime is not running.") }

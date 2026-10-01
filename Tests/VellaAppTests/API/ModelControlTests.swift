@@ -122,6 +122,29 @@ final class ModelControlTests: XCTestCase {
         XCTAssertFalse(f.controller.isPreviewing(f.alpha))
     }
 
+
+    @MainActor func testModeOnlyUsesTheTableExactCouplingAndCatalogIncludesStreaming() async throws {
+        let f = try fixture()
+        defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
+        let exact = BenchmarkCell(recipe: CellRecipe(layers: ["all": "bf16"]), measured: CellMeasured(hardware: "fixture"))
+        let fast = BenchmarkCell(recipe: CellRecipe(layers: ["all": "affine-4"], inexact: ["fixture-kernel"]), measured: CellMeasured(hardware: "fixture"))
+        f.controller.benchmarks.models["alpha"] = FamilyBenchmark(tiers: [
+            .t16: TierBenchmark(precision: "BF16", cells: [.standard: exact, .optimized_fast: exact, .optimized_exact: exact]),
+            .t4: TierBenchmark(precision: "4b", cells: [.standard: fast, .optimized_fast: fast])
+        ])
+        let controls = ModelControls(controller: f.controller, runtime: f.runtime)
+        _ = try await controls.perform("select", id: "alpha", fields: ["precision": "int4", "path": "Optimized", "mode": "Fast"])
+        _ = try await controls.perform("select", id: "alpha", fields: ["mode": "Exact"])
+        XCTAssertEqual(f.controller.currentSelection(f.alpha).tier, .t16)
+        XCTAssertEqual(f.controller.currentSelection(f.alpha).mode, .exact)
+        XCTAssertEqual(f.controller.couplingNote(f.alpha), "Exact: bf16 only, was int4")
+        var streaming = f.alpha
+        streaming.id = "stream-fixture"; streaming.name = "Streaming fixture"; streaming.mode = .streaming
+        f.controller.catalog.families.append(streaming)
+        XCTAssertTrue(controls.catalog().contains { $0["id"] as? String == "stream-fixture" })
+        XCTAssertTrue(f.source.unavailableReason("stream-fixture")?.contains("Streaming") == true)
+    }
+
     @MainActor func testMutationNeedsTheLocalTokenBeforeTouchingTheController() async throws {
         let f = try fixture()
         defer { f.close(); try? FileManager.default.removeItem(at: f.root) }

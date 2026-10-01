@@ -78,7 +78,9 @@ import VellaCore
         guard Set(fields.keys).isSubset(of: allowed) else { throw APIError(400, "Unknown model control field") }
         if action == "select" {
             guard !fields.isEmpty else { throw APIError(400, "Select needs Precision, path or Fast/Exact") }
-            try controller.selectForControl(f, selection: selection(fields, family: f))
+            let chosen = try selection(fields, family: f)
+            if Set(fields.keys) == ["mode"] { try controller.setModeForControl(f, mode: chosen.mode) }
+            else { try controller.selectForControl(f, selection: chosen) }
         } else {
             var yes = false
             if let value = fields["yes"] {
