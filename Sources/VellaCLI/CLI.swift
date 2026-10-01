@@ -11,7 +11,16 @@ let usage = """
             FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
             `vella models`; without it the current dictation model is used. Dictation always goes first.
         vella status                 one line: running, dictation model, loaded models, API address
-        vella models [--json]        one line per model usable now: id, name, tier, Standard / Optimized Exact / Fast, loaded / current
+        vella models [--json]        all Models table rows, including not downloaded; --json includes each cell and refusal
+        vella select ID [--precision bf16|fp16|int8|int4] [--path Standard|Optimized] [--mode Fast|Exact]
+            previews a cell under the table's rules; Load / Reload / Get commits it. An unavailable cell says why.
+        vella get ID [--yes]         Get and Load; --yes consents to the displayed source/size; without it nothing downloads
+        vella load ID               Load downloaded weights; never downloads
+        vella reload ID             Reload the previewed cell; never downloads
+        vella unload ID             Unload; keep the weights
+        vella keep-hot ["Manually loaded"|"Loaded on demand" "Always"|"5 min idle"|"15 min idle"|"30 min idle"|"60 min idle"]
+        vella memory ["Fit in free memory"|"Allow swap (slower)"]
+            with no arguments, print Keep Hot and Memory; values match the menu
         vella url                    the OpenAI-compatible base URL (base_url for the openai SDKs)
         vella --version              print the version without starting Vella
         vella skill [--install DIR]  print the agent skill, or write DIR/transcribe/SKILL.md
@@ -78,12 +87,16 @@ struct VellaCLI {
             _ = try Arguments(rest, values: [], flags: [])
             let (status, port) = try await client().status()
             write(Self.statusLine(status, port: port))
+        case "select", "get", "load", "reload", "unload":
+            try await modelControl(command, rest)
+        case "keep-hot", "memory":
+            try await settingsControl(command, rest)
         case "models":
             let args = try Arguments(rest, values: [], flags: ["--json"])
-            let data = try await client().request("GET", "/v1/models")
+            let data = try await client().request("GET", "/v1/models/catalog")
             if args.flags.contains("--json") { write(String(decoding: data, as: UTF8.self)); return }
             let models = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["data"] as? [[String: Any]] ?? []
-            if models.isEmpty { write("no dictation model downloaded; get one in Vella → Models…"); return }
+            if models.isEmpty { write("no models in the catalog"); return }
             models.map(Self.modelLine).forEach(write)
         case "url":
             _ = try Arguments(rest, values: [], flags: [])
@@ -110,6 +123,34 @@ struct VellaCLI {
             write("report it (a prefilled GitHub bug report; add what you saw): \(url)")
         default: throw CLIError("unknown command \(command); see vella --help")
         }
+    }
+
+    func modelControl(_ command: String, _ rest: [String]) async throws {
+        let args = try Arguments(rest, values: command == "select" ? ["--precision", "--path", "--mode"] : [], flags: command == "get" ? ["--yes"] : [])
+        guard args.positional.count == 1 else { throw CLIError("vella \(command) ID; see vella --help") }
+        var fields: [String: Any] = [:]
+        for (key, value) in args.values { fields[String(key.dropFirst(2))] = value }
+        if command == "get" { fields["yes"] = args.flags.contains("--yes") }
+        let id = args.positional[0]
+        var safe = CharacterSet.urlPathAllowed; safe.remove(charactersIn: "/?#%")
+        guard let encoded = id.addingPercentEncoding(withAllowedCharacters: safe), !encoded.isEmpty else { throw CLIError("model id is empty") }
+        let data = try await client().request("POST", "/v1/models/\(encoded)/\(command)", json: fields)
+        guard let model = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { throw CLIError("Vella answered with invalid model JSON") }
+        write(Self.modelLine(model))
+    }
+
+    func settingsControl(_ command: String, _ rest: [String]) async throws {
+        let data: Data
+        if rest.isEmpty { data = try await client().request("GET", "/v1/settings") }
+        else if command == "memory" {
+            data = try await client().request("POST", "/v1/settings/memory", json: ["value": rest.joined(separator: " ")])
+        } else {
+            guard rest.count == 2 else { throw CLIError("vella keep-hot \"Manually loaded\" \"Always\"; see vella --help") }
+            data = try await client().request("POST", "/v1/settings/keep-hot", json: ["class": rest[0], "value": rest[1]])
+        }
+        guard let settings = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let hot = settings["Keep Hot"] as? [String: String], let memory = settings["Memory"] as? String else { throw CLIError("Vella answered with invalid settings JSON") }
+        write("Keep Hot · Manually loaded \(hot["Manually loaded"] ?? "?") · Loaded on demand \(hot["Loaded on demand"] ?? "?") · Memory \(memory)")
     }
 
     func transcribe(_ rest: [String]) async throws {
@@ -179,8 +220,12 @@ struct VellaCLI {
             let asked = selectionFrom(m["requested_selection"]).map { " (\(recipeLabel($0)) asked)" } ?? ""
             parts.append(recipeLabel(selection) + asked)
         }
+        if let preview = selectionFrom(m["preview_selection"]) {
+            parts.append("preview \(m["preview_precision"] as? String ?? preview.tier.rawValue) \(recipeLabel(preview))")
+        }
         if m["loaded"] as? Bool == true { parts.append("loaded") }
         if m["current"] as? Bool == true { parts.append("current dictation model") }
+        if let action = m["action"] as? String { parts.append(action) }
         return "\(m["id"] as? String ?? "?")  " + parts.joined(separator: " · ")
     }
 

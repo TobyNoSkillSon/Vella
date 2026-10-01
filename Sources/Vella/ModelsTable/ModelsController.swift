@@ -20,6 +20,12 @@ import VellaWire
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool
 }
 
+/// Awaitable form of the same runtime actions; the API must not report success before a load/refusal completes.
+@MainActor protocol AsyncModelRuntimeActions: ModelRuntimeActions {
+    func loadForControl(family: ModelFamily, precision: String, path: String, selection: ModelSelection) async throws
+    func unloadForControl(family: ModelFamily) async
+}
+
 /// The Models table's state: catalog families of both modes, measured numbers, what is downloaded (the two mode
 /// libraries) and what is loaded (the runtime).
 ///
@@ -38,6 +44,7 @@ import VellaWire
     /// Family id → the selection a confirmed download will load when it finishes.
     @Published private(set) var pendingSelections: [String: ModelSelection] = [:]
     /// Render harness: draw every row as in use (segments and switch disabled).
+    var controlOperations: Set<String> = []
     var previewInUse = false
     /// Render harness: the family whose action cell is drawn hovered.
     var previewHover: String?
@@ -304,7 +311,7 @@ import VellaWire
     /// In use: recording, dictating, streaming or loading (segments and switch disabled; a change applies at the next
     /// load, and the no-change-during-recording safety still guards the commit).
     func inUse(_ f: ModelFamily) -> Bool {
-        previewInUse || isLoading(f) || runtime?.loading != nil || !library(f.mode).mayChangeModel()
+        !controlOperations.isEmpty || previewInUse || isLoading(f) || runtime?.loading != nil || !library(f.mode).mayChangeModel()
     }
     /// The shown cell's figures: schema 2 → the selection's cell; a schema-1 file → the precision's result.
     func shownResult(_ f: ModelFamily) -> PrecisionResult? {
@@ -406,7 +413,7 @@ import VellaWire
     /// The row button. Unload goes to the runtime; Get/Load/Reload of weights on disk load now; anything that needs a
     /// download first asks in the confirmation popup, then downloads and loads.
     func perform(_ f: ModelFamily) {
-        guard !previewing else { return }
+        guard !previewing, controlOperations.isEmpty else { return }
         lastError = nil
         let precision = selected(f)
         guard f.variants[precision] != nil else { return }
@@ -497,5 +504,73 @@ import VellaWire
         if let tier = modelTier(ofPrecision: precision) { s.tier = tier }
         return s
     }
+    /// Explicit cell preview, shared with the table's rules; Load/Reload/Get is the committing action.
+    func selectForControl(_ f: ModelFamily, selection: ModelSelection) throws {
+        if let reason = rules(f).cellRefusal(selection, loaded: loadedSelection(f)) { throw APIError(409, reason) }
+        guard !inUse(f), !anyBusy else { throw APIError(409, "Finish dictation, loading or downloading before changing this model.") }
+        _ = setPreview(f, selection)
+        couplingNotes[f.id] = nil
+    }
+
+    func performForControl(_ f: ModelFamily, action: String, yes: Bool) async throws {
+        guard !inUse(f), !anyBusy else { throw APIError(409, "Finish dictation, loading or downloading before changing this model.") }
+        guard let actions = actions as? any AsyncModelRuntimeActions else { throw APIError(503, "Vella's model runtime is not running.") }
+        if action == "unload" {
+            controlOperations.insert(f.id)
+            defer { controlOperations.remove(f.id) }
+            await actions.unloadForControl(family: f); previews[f.id] = nil; return
+        }
+        if action == "reload", loaded(f) == nil { throw APIError(409, "Load this model before Reload.") }
+        let selection = currentSelection(f)
+        if let reason = rules(f).cellRefusal(selection, loaded: loadedSelection(f)) { throw APIError(409, reason) }
+        guard let precision = rules(f).precision(of: selection) else { throw APIError(409, "Not offered for this model") }
+        let lib = library(f.mode)
+        let needsDownload = !available(f, precision)
+        if action == "get", !yes {
+            guard let prompt = downloadPrompt(family: f, precision: precision, followUp: .load, freeBytes: freeDiskBytes(at: lib.modelsDirectory)) else {
+                throw APIError(409, "Not offered for this model")
+            }
+            throw APIError(409, (prompt.title + " " + prompt.body).components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " · ")
+                + " · Get requires explicit consent (vella get " + f.id + " --yes).", code: "download_consent_required")
+        }
+        // Even Load/Reload can require a download. Return the table's exact prompt, never silently fetch.
+        if needsDownload {
+            guard let prompt = downloadPrompt(family: f, precision: precision, followUp: loaded(f).map { .reload(from: $0.precision) } ?? .load,
+                                              freeBytes: freeDiskBytes(at: lib.modelsDirectory)) else { throw APIError(409, "Not offered for this model") }
+            guard action == "get", let approval = DownloadGate.ask(prompt, present: { _ in yes }) else {
+                throw APIError(409, (prompt.title + " " + prompt.body).components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " · ") + " · Get requires explicit consent (vella get " + f.id + " --yes).", code: "download_consent_required")
+            }
+            controlOperations.insert(f.id)
+            defer { controlOperations.remove(f.id) }
+            lib.selectedID = approval.variantID
+            pendingLoads[f.id] = precision; pendingSelections[f.id] = selection
+            let downloaded: Bool = await withCheckedContinuation { continuation in
+                let started = lib.download(approval: approval, calibrate: false) { continuation.resume(returning: $0) }
+                if !started { continuation.resume(returning: false) }
+            }
+            pendingLoads[f.id] = nil; pendingSelections[f.id] = nil
+            guard downloaded, available(f, precision) else { throw APIError(500, lib.downloadError ?? "Model download failed") }
+            let deadline = Date().addingTimeInterval(900)
+            while !lib.mayChangeModel() || runtime?.loading != nil {
+                guard Date() < deadline else { throw APIError(409, "Downloaded; finish dictation before Load.") }
+                try await Task.sleep(nanoseconds: 200_000_000)
+            }
+            try await loadForControl(f, precision: precision, selection: selection, actions: actions)
+        } else {
+            controlOperations.insert(f.id)
+            defer { controlOperations.remove(f.id) }
+            try await loadForControl(f, precision: precision, selection: selection, actions: actions)
+        }
+        previews[f.id] = nil; couplingNotes[f.id] = nil; reloadConfig()
+    }
+
+    private func loadForControl(_ f: ModelFamily, precision: String, selection: ModelSelection, actions: any AsyncModelRuntimeActions) async throws {
+        let lib = library(f.mode)
+        guard let path = try precisionLoadPath(f, precision, installedPath: { lib.installed[$0]?.path }, modelsDirectory: lib.modelsDirectory) else {
+            throw APIError(404, "Get this model before Load.")
+        }
+        try await actions.loadForControl(family: f, precision: precision, path: path, selection: selection)
+    }
+
     func cancelDownloads() { dictation.cancel(); streaming.cancel() }
 }

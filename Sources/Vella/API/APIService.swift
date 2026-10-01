@@ -19,6 +19,7 @@ import VellaCore
     let transcriber: APITranscriber
     /// Strong: the service is the source's only owner (APIHost creates it inline). A weak reference here freed it at
     /// once, so the shipped 1.0.0 (b33) listed no models and resolved no model name.
+    var controls: ModelControls?
     var models: APIModelSource?
     var runtime: Runtime { transcriber.backend.runtime }
     /// The dictation state for /status ("idle", "recording", "transcribing").
@@ -40,6 +41,18 @@ import VellaCore
         guard let route = APIRoute.match(request.head.path) else { return .error(APIError(404, "no route \(request.head.path)")) }
         do {
             switch route {
+            case .catalog: return .json(200, ["object": "list", "data": controls?.catalog() ?? (models?.models() ?? []).map(modelObject)])
+            case .settings:
+                guard let controls else { throw APIError(503, "Model controls are not attached") }
+                return .json(200, controls.settings())
+            case .modelAction(let id, let action):
+                let fields = try controlFields(request)
+                guard let controls else { throw APIError(503, "Model controls are not attached") }
+                return .json(200, try await controls.perform(action, id: id, fields: fields))
+            case .settingAction(let action):
+                let fields = try controlFields(request)
+                guard let controls else { throw APIError(503, "Model controls are not attached") }
+                return .json(200, try controls.setting(action, fields: fields))
             case .status: return .json(200, status())
             case .models: return .json(200, ["object": "list", "data": (models?.models() ?? []).map(modelObject)])
             case .model(let id):
@@ -54,6 +67,17 @@ import VellaCore
         } catch {
             return .error(APIError(500, error.localizedDescription))
         }
+    }
+
+    private func controlFields(_ request: APIRequest) throws -> [String: Any] {
+        guard let token = pathToken, request.head.headers["x-vella-token"] == token else {
+            throw APIError(403, "Model and settings controls need X-Vella-Token from worker-status.json")
+        }
+        guard case .memory(let data) = request.body, data.count <= apiMaxJSONBytes,
+              let fields = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            throw APIError(400, "Model controls need a JSON object")
+        }
+        return fields
     }
 
     // MARK: Status

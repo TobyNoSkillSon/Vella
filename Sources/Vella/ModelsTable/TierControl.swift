@@ -120,7 +120,7 @@ struct TierControl: View {
     /// A segment's tooltip as shown: the app's text, plus the interlock line while in use.
     static func tooltip(_ text: String, enabled: Bool) -> String { enabled ? text : text + "\n" + inUseHelp }
     /// The tooltip of a cell with no measurement (family rule, 29 Sep).
-    static let notMeasuredHelp = "Not measured yet"
+    static let notMeasuredHelp = unmeasuredCellHelp
 
     var body: some View {
         VStack(alignment: .leading, spacing: Self.rowSpacing) {

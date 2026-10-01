@@ -1,9 +1,8 @@
 import AppKit
 import VellaCore
 
-/// Proof that the user chose Download in the confirmation popup for one variant. Only `DownloadGate.ask` makes one
-/// (the initializer is private to this file), and `ModelLibrary.download` requires it, so no path can start a model
-/// download without the popup.
+/// Explicit consent for one download: Download in the popup, or authenticated Get with --yes.
+/// Only `DownloadGate.ask` makes one, and `ModelLibrary.download` requires it.
 struct DownloadApproval: Equatable {
     let variantID: String
     fileprivate init(variantID: String) { self.variantID = variantID }

@@ -190,7 +190,10 @@ Install: follow [AGENTS.md](AGENTS.md), then `vella skill --install <skills dire
 vella status                      # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra BF16 loaded · dictation model Parakeet v3 Ultra (BF16) · API http://127.0.0.1:63080/v1
 vella transcribe talk.m4a         # the transcript as plain text
 vella transcribe talk.m4a --srt   # SRT subtitles; also --vtt, --json, --verbose-json
-vella models                      # parakeet-v3-ultra  Parakeet v3 Ultra · BF16 · loaded · current dictation model
+vella models --json                # all catalog rows, cells, reasons, source and download size
+vella select parakeet-v3-ultra --precision bf16 --path Optimized --mode Fast
+vella get parakeet-v3-ultra --yes   # only after consent; downloads then loads
+vella unload parakeet-v3-ultra      # free memory, keep downloaded weights
 vella url                         # http://127.0.0.1:63080/v1
 ```
 
@@ -199,7 +202,7 @@ vella url                         # http://127.0.0.1:63080/v1
 | Compatible with | OpenAI audio transcriptions: `POST /v1/audio/transcriptions`, `GET /v1/models` |
 | Base URL | `vella url` (127.0.0.1 only; the port changes when Vella restarts) |
 | Key | Any; the SDKs require one |
-| `model` | `whisper-1` = the user's dictation model, or an id from `/v1/models`; the API never downloads a model |
+| `model` | `whisper-1` = the user's dictation model, or an id from `/v1/models`; transcription never downloads a model |
 | Formats | `text`, `json`, `verbose_json` (timed segments), `srt`, `vtt` |
 | Input | wav, mp3, m4a, flac, caf, aiff; up to 3 hours per file |
 | Not supported | Translation, speaker labels, word-level timestamps |

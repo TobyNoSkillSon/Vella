@@ -11,6 +11,19 @@ public struct SelectionRules {
     public let benchmark: FamilyBenchmark?
     public init(family: ModelFamily, benchmark: FamilyBenchmark?) { self.family = family; self.benchmark = benchmark }
 
+    /// The same disabled-cell reason in the table and authenticated model controls.
+    public func cellRefusal(_ s: ModelSelection, loaded: ModelSelection? = nil) -> String? {
+        if s.path == .optimized, !hasOptimizedPath { return noOptimizedPathHelp }
+        if !isPresent(s) {
+            if s.path == .optimized, s.mode == .exact, precisions(.fast).contains(s.tier) {
+                return exactRecipeMissingHelp(tierDTypeLabel(family, s.tier))
+            }
+            return tierAbsentHelp(benchmark, tier: s.tier)
+        }
+        if !measured(s), s != loaded { return unmeasuredCellHelp }
+        return nil
+    }
+
     var options: [String] { precisionOptions(family) }
     /// Offered tiers (catalog `tiers_offered`).
     var offeredTiers: [ModelTier] { ModelTier.allCases.filter { precisionLabel(family, tier: $0).map(options.contains) ?? false } }

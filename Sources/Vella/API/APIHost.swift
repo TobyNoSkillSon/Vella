@@ -105,6 +105,7 @@ import VellaCore
         let service = APIService(
             transcriber: transcriber, models: ControllerModelSource(controller: controller, runtime: runtime),
             scratch: root.appendingPathComponent("files", isDirectory: true))
+        service.controls = ModelControls(controller: controller, runtime: runtime)
         service.dictationState = { [weak model] in
             switch model?.phase {
             case .recording?: return "recording"

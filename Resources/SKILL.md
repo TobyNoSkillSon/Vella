@@ -17,11 +17,11 @@ Use another tool to translate, to identify speakers or for word-level timestamps
 
 ## Install
 
-`vella status` prints one line when Vella is installed. If `vella` is missing, try `~/.local/bin/vella`; if that is missing too, ask the user before installing: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` (Apple Silicon, macOS 26 or newer; it ends with `ready: …`). A fresh install has no model: the user gets one in Vella → Models….
+`vella status` prints one line when Vella is installed. If `vella` is missing, try `~/.local/bin/vella`; if that is missing too, ask the user before installing: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` (Apple Silicon, macOS 26 or newer; it ends with `ready: …`). A fresh install has no model. List cells and the pinned source/size with `vella models --json`; ask consent before `vella get ID --yes`.
 
 ## Results
 
-`vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Commands start Vella if it is not running, except `vella diagnose`.
+`vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per catalog model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Commands start Vella if it is not running, except `vella diagnose`.
 
 ## Commands
 
@@ -35,6 +35,29 @@ vella status                                   # Vella 2.0.0 running (pid 29335)
 vella url                                      # http://127.0.0.1:63080/v1
 vella diagnose                                 # a bug report for the user; its last line is a prefilled GitHub issue link
 ```
+
+## Pick and get a model
+
+Use one call per step, without probing or retries:
+
+```sh
+vella models --json   # all table rows, cells/refusal reasons, source and exact download bytes
+vella select MODEL_ID --precision bf16 --path Optimized --mode Fast   # or fp16/int8/int4, Standard, Exact
+vella get MODEL_ID --yes   # only after the user consents to that model/source/size; waits for download and load
+vella transcribe talk.m4a --model MODEL_ID   # then read the returned transcript
+```
+
+Select previews a cell; Get/Load/Reload commits it. Cells with a `reason` are unavailable; choose a listed cell without one. Use fp16 for Whisper, bf16 for the other models. A loaded model's effective selection may be Standard if its optimized gate fell back; replies report both the effective and requested selection. Closing the Models menu discards previews, so intervene only when the user is not changing the table. If the weights are already present, use `vella load MODEL_ID` instead of Get. Unload keeps the download. Streaming rows can be controlled but do not transcribe files.
+
+```sh
+vella reload MODEL_ID
+vella unload MODEL_ID
+vella keep-hot "Manually loaded" "Always"
+vella keep-hot "Loaded on demand" "15 min idle"
+vella memory "Fit in free memory"   # or "Allow swap (slower)"
+```
+
+Keep Hot values are Always, 5/15/30/60 min idle. With no arguments `keep-hot`/`memory` report the current settings; change them only on user authority.
 
 ## Done when
 
@@ -61,7 +84,7 @@ curl -s "$(vella url)/audio/transcriptions" -F file=@talk.m4a -F response_format
 ## Limits
 
 - No translation, no speaker labels, no word-level timestamps; files up to 3 hours.
-- Vella never downloads a model through the API or the CLI. If a model is missing, ask the user to get it in Vella → Models….
+- Transcription never downloads. Get is the only CLI download route and requires explicit consent (`--yes`); Load/Reload of missing weights returns the source/size prompt without downloading.
 - The user's dictation takes priority; a file waits while they speak.
 - If transcripts look broken or transcription is far slower than expected, run `vella diagnose` and give the user its report and the bug-report link on its last line; they decide whether to file it. It never starts Vella and loads nothing unless you pass `--load`.
 

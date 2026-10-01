@@ -6,7 +6,7 @@ import VellaCore
 /// Connects the runtime (residency, memory, worker status) to the menu and Models table: the table's Load / Reload /
 /// Unload / Delete, the Keep Hot and Memory submenus, the fact line, the first-dictation Get row, and the catalog
 /// identity (family, precision, measured memory) of a model path.
-@MainActor final class RuntimeBridge: ModelRuntimeActions, MenuSettingsSource {
+@MainActor final class RuntimeBridge: ModelRuntimeActions, AsyncModelRuntimeActions, MenuSettingsSource {
     static let shared = RuntimeBridge()
     let runtime: Runtime
     private weak var controller: ModelsController?
@@ -154,13 +154,18 @@ import VellaCore
         Task { await loadAndSelect(ref) }
     }
     func loadAndSelect(_ ref: ModelRef) async {
+        do { try await loadAndSelectThrowing(ref) } catch { controller?.lastError = error.localizedDescription }
+    }
+    func loadAndSelectThrowing(_ ref: ModelRef) async throws {
         runtime.beginSelection(); runtime.userChanged(ref.id)
         defer { runtime.userChanged(ref.id); runtime.endSelection() }
-        do {
-            try await runtime.load(ref)
-            select(ref.path, mode: ref.mode, selection: ref.selection)
-        } catch { controller?.lastError = error.localizedDescription }
+        try await runtime.load(ref)
+        try select(ref.path, mode: ref.mode, selection: ref.selection)
     }
+    func loadForControl(family: ModelFamily, precision: String, path: String, selection: ModelSelection) async throws {
+        try await loadAndSelectThrowing(ref(family, precision, path: path, selection: selection))
+    }
+    func unloadForControl(family: ModelFamily) async { await runtime.unload(family.id) }
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
         load(family: family, precision: precision, variant: variant, path: path, selection: selection)
     }
@@ -199,12 +204,12 @@ import VellaCore
     }
     /// A successful load makes the model its mode's model (what the next dictation or streaming session loads on
     /// demand) and records the family's precision, so the table and dictation never disagree.
-    private func select(_ path: String, mode: RecognitionMode, selection: ModelSelection? = nil) {
+    private func select(_ path: String, mode: RecognitionMode, selection: ModelSelection? = nil) throws {
         let url = runtime.configURL
         var config = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) } ?? Configuration(model: "")
         let identity = controller?.identify(path: path, mode: mode)
         config.recordLoad(path: path, mode: mode, family: identity?.family.id, precision: identity?.precision, selection: selection)
-        try? JSONEncoder().encode(config).write(to: url, options: .atomic)
+        try JSONEncoder().encode(config).write(to: url, options: .atomic)
         controller?.library(mode).activeModelPath = path
         controller?.reloadConfig()
     }
@@ -328,7 +333,7 @@ import VellaCore
         let library = controller.library(offer.mode)
         if let local = library.installed[offer.id] {
             let path = try offeredPath(offer, sourcePath: local.path)
-            select(path, mode: offer.mode, selection: offerSelection(offer)); return path
+            try select(path, mode: offer.mode, selection: offerSelection(offer)); return path
         }
         guard let approval = approvals.removeValue(forKey: offer.id) else {
             throw VellaError.message("The download of \(offer.name) was not confirmed.")
@@ -345,7 +350,7 @@ import VellaCore
             throw VellaError.message(library.downloadError ?? "\(offer.name) did not download.")
         }
         let path = try offeredPath(offer, sourcePath: local.path)
-        select(path, mode: offer.mode, selection: offerSelection(offer))
+        try select(path, mode: offer.mode, selection: offerSelection(offer))
         return path
     }
 }

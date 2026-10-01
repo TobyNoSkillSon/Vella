@@ -2,6 +2,11 @@
 
 ## 2.0.0 ({{release_date}})
 
+### Added
+
+- **Models controls for agents.** `vella models --json` lists all table rows and cells; Select, Get (explicit `--yes` consent), Load, Reload, Unload, Keep Hot and Memory use the table's controller and runtime. Authenticated local API routes expose the same controls; file transcription itself still never downloads.
+- **Optional disk image.** `scripts/package-dmg.sh` makes a local `Vella-2.0.0.dmg` from the verified release ZIP, keeps the app's existing signature and adds its checksum. The primary installer still uses the ZIP.
+
 ### Changed
 
 - **Licence.** Vella 2.0 is GNU AGPL-3.0-only. Published 0.x releases remain Apache-2.0; their licences are not changed retroactively. Third-party code and model weights retain their own licences.

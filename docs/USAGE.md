@@ -178,6 +178,23 @@ vella skill --install ~/.agents/skills           # the agent skill (writes trans
 vella diagnose                                   # a report for bug reports (see Reporting a problem)
 ```
 
+**The Models table from the CLI.** `vella models --json` lists every catalog row, including Streaming and not-downloaded models, with cells/refusal reasons and the download source/bytes. The OpenAI `/v1/models` list remains downloaded Dictation models only.
+
+```sh
+vella select parakeet-v3-ultra --precision bf16 --path Optimized --mode Fast
+vella get parakeet-v3-ultra --yes   # explicit consent; wait until downloaded and loaded
+vella load parakeet-v3-ultra        # already-downloaded weights only
+vella reload parakeet-v3-ultra      # commit a preview in place of the loaded cell
+vella unload parakeet-v3-ultra
+vella keep-hot "Manually loaded" "Always"
+vella keep-hot "Loaded on demand" "15 min idle"
+vella memory "Fit in free memory"  # or "Allow swap (slower)"
+```
+
+Select previews exactly the requested cell; the table's same rules refuse unavailable cells with their tooltip reason (`Not offered: …`, `Not measured yet`, or a missing Exact recipe). It never loads or downloads. Load/Reload/Get commits the preview; the menu's normal preview-discard rule still applies when it closes. Get without `--yes` exits nonzero with the same source/size details as the download popup and downloads nothing. Load/Reload never download. The result reports the effective loaded selection and, where it differs, the requested selection or pending preview. Keep Hot choices are Always, 5/15/30/60 min idle; no-argument Keep Hot and Memory report settings.
+
+**Control API.** `GET /v1/models/catalog` lists the full catalog; `GET /v1/settings` returns Keep Hot and Memory. `POST /v1/models/{id}/select` takes `{"precision":"bf16","path":"Optimized","mode":"Fast"}` (fp16/int8/int4 as offered). `POST /v1/models/{id}/load`, `/reload` and `/unload` take `{}`; `/get` requires `{"yes":true}`. `POST /v1/settings/keep-hot` takes `{"class":"Manually loaded","value":"Always"}`; `/v1/settings/memory` takes `{"value":"Fit in free memory"}`. Every control POST requires application/json and `X-Vella-Token` from the local worker-status.json. An ignored OpenAI API key is not authorization to mutate models/settings. The CLI sends the local token automatically. These endpoints are additive; audio transcriptions still never download a model.
+
 `vella` starts Vella if it is not running. Transcripts are printed only: never pasted, copied or added to your saved recordings. The file's audio is converted in a private temporary folder that is removed when the request ends.
 
 **Your dictation goes first.** A file waits while you record or while a dictation is being transcribed; a dictation that finishes during a file waits for at most the one segment in progress (usually well under a second). Files are processed one at a time; up to eight more wait in line.
