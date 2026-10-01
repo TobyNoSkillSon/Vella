@@ -140,6 +140,8 @@ step "source archive excludes lab" source_archive_no_lab
 step "toolchains" toolchains
 step "changelog $VERSION" changelog
 step "doc links" doc_links
+step "model READMEs match the benchmarks" xcrun swift scripts/model-readmes.swift --check
+step "skill and user guide model lists" xcrun swift scripts/agent-docs.swift --check
 step "lint (swift-format, SwiftLint)" scripts/lint.sh
 step "symbol retention fixture" scripts/test-release-symbols.sh
 step "build and package" package

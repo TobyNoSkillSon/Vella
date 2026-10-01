@@ -63,7 +63,7 @@ Real-model parity and benchmarks need downloaded weights and a quiet GPU. The ma
 | `Sources/VellaCLI` | The `vella` command (`status`, `models`, `transcribe`, `url`, `skill`, `diagnose`). |
 | `Sources/VellaInstallTool` | The staged install with rollback used by the installers. |
 | `Sources/VellaModelTool` | A retired stub, shipped only because 1.0.x in-app updaters require the file. |
-| `Worker/` | A separate Swift package: the sandboxed recognition helpers (`VellaWorker` for Dictation, `VellaStreamingWorker` for Streaming), the vendored MLX speech models in `Worker/Sources/MLXAudioSTT`, the optimized kernels and their self-tests. |
+| `Worker/` | A separate Swift package: the sandboxed recognition helpers (`VellaWorker` for Dictation, `VellaStreamingWorker` for Streaming), the vendored MLX speech models in `Worker/Sources/MLXAudioSTT` (each model folder has a README), the optimized kernels and their self-tests. |
 | `Resources/` | `models.json` (catalog), `benchmarks.json` (measured figures), `SKILL.md` (agent skill), the calibration clip. |
 | `docs/` | The user guide and the GitHub Pages site (benchmark table and installer). |
 
@@ -87,7 +87,7 @@ Start with a **New model request** issue. A catalog model needs open weights wit
 
 **A new architecture is engineering.** Implement its loader, input preparation and decoding in `Worker/Sources/MLXAudioSTT/<Family>/`. Conform to `SpeechModelRuntime` in `Worker/Sources/MLXAudioSTT/Runtime/SpeechModelRuntime.swift`: architecture, gate revision and required GPU feature family; use `DictationModelRuntime` for segment transcription or `StreamingModelRuntime` for genuinely incremental recognition. Register it in `ModelRuntimeRegistry`, add a descriptor under `Sources/VellaCore/Models/<Family>/` and register it in `ModelRegistry`; extend the wire architecture vocabulary and validation deliberately. Include a fixture test with a tiny local fixture or stub that exercises dispatch, loading, input shape, output and unsupported-config rejection without a weight download. Keep optimized kernels behind a self-test and a working Standard fallback.
 
-For either route, the model's folder documents what it is, which optimizations were tried, their measured effect and hardware, the quality gate and rejected levers. The pull request must show:
+For either route, the model's folder documents what it is, which optimizations were tried, their measured effect and hardware, the quality gate and rejected levers: a `README.md` in `Worker/Sources/MLXAudioSTT/<Family>/`, written by hand except for its measured-figures block, which `scripts/model-readmes.swift` fills from `Resources/benchmarks.json` and `Resources/models.json` (a new architecture also needs its folder in that script's `FOLDERS`). The model lists in `Resources/SKILL.md` and `docs/USAGE.md` come from `scripts/agent-docs.swift`. Run both (`xcrun swift scripts/<name>.swift`) after changing either JSON file and commit the result; `ModelDocsTests` fails when a generated block is stale. The pull request must show:
 
 1. **Parity.** Run the model's reference implementation (the authors' code or mlx-audio, at a named version or commit) and Vella on the same public audio, and give the word error rate of each and every transcript that differs. Include the script and the clip list so the result can be reproduced.
 2. **Numbers.** Word error rate on a public set, speed (× real time) and memory, with the chip, memory and macOS they were measured on.
