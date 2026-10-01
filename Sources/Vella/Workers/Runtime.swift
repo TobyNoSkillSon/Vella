@@ -120,6 +120,7 @@ import VellaWire
         for case let file as URL in files { total += Int64((try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
         return total
     }
+    func isModelInUse(_ id: String) -> Bool { (pinned[id] ?? 0) > 0 || loading != nil }
     func isLoaded(_ id: String) -> Bool { entries[id] != nil }
     func loadedRef(_ id: String) -> ModelRef? { entries[id]?.ref }
     func loadedResidency(_ id: String) -> ResidencyClass? { entries[id]?.residency }

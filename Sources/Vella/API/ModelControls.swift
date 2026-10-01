@@ -21,9 +21,11 @@ import VellaCore
         let asked = controller.committedSelection(f)
         let running = effectiveSelection(asked, engine: runtime.status.models[f.id]?.engine)
         let precision = controller.committed(f)
-        var o: [String: Any] = ["id": f.id, "name": f.name, "mode": f.mode.title, "precision": precision,
-                               "dtype": tierDTypeLabel(f, running.tier), "selection": selectionObject(running),
-                               "loaded": controller.loaded(f) != nil, "downloaded": controller.available(f, precision)]
+        var o: [String: Any] = [
+            "id": f.id, "name": f.name, "mode": f.mode.title, "precision": precision,
+            "dtype": tierDTypeLabel(f, running.tier), "selection": selectionObject(running),
+            "loaded": controller.loaded(f) != nil, "downloaded": controller.available(f, precision)
+        ]
         if running != asked { o["requested_selection"] = selectionObject(asked) }
         if controller.isPreviewing(f) {
             o["preview_selection"] = selectionObject(controller.currentSelection(f))
@@ -53,7 +55,8 @@ import VellaCore
         var s = existing
         if let value = fields["precision"] {
             guard let precision = value as? String,
-                  let tier = ModelTier.allCases.first(where: { tierDTypeLabel(family, $0) == precision.lowercased() }) else {
+                let tier = ModelTier.allCases.first(where: { tierDTypeLabel(family, $0) == precision.lowercased() })
+            else {
                 throw APIError(400, "Precision must be \(tierDTypeLabel(family, .t16)), int8 or int4", param: "precision")
             }
             s.tier = tier
@@ -74,18 +77,26 @@ import VellaCore
     }
     func perform(_ action: String, id: String, fields: [String: Any]) async throws -> [String: Any] {
         let f = try family(id)
-        let allowed: Set<String> = action == "select" ? ["precision", "path", "mode"] : ["yes"]
+        let allowed: Set<String> = action == "select" ? ["precision", "path", "mode"] : action == "delete" ? ["precision", "yes"] : ["yes"]
         guard Set(fields.keys).isSubset(of: allowed) else { throw APIError(400, "Unknown model control field") }
         if action == "select" {
             guard !fields.isEmpty else { throw APIError(400, "Select needs Precision, path or Fast/Exact") }
             let chosen = try selection(fields, family: f)
-            if Set(fields.keys) == ["mode"] { try controller.setModeForControl(f, mode: chosen.mode) }
-            else { try controller.selectForControl(f, selection: chosen) }
+            if Set(fields.keys) == ["mode"] { try controller.setModeForControl(f, mode: chosen.mode) } else { try controller.selectForControl(f, selection: chosen) }
         } else {
             var yes = false
             if let value = fields["yes"] {
                 guard let flag = value as? NSNumber, CFGetTypeID(flag) == CFBooleanGetTypeID() else { throw APIError(400, "yes must be true or false") }
                 yes = flag.boolValue
+            }
+            if action == "delete" {
+                guard fields["precision"] != nil, let precision = precisionLabel(f, tier: try selection(fields, family: f).tier) else {
+                    throw APIError(400, "Delete requires --precision bf16/fp16/int8/int4")
+                }
+                let plan = try controller.deletionPlan(f, precision: precision)
+                guard yes else { throw APIError(409, plan.title + " " + plan.body + " Delete requires explicit consent (--yes).", code: "deletion_consent_required") }
+                try await controller.performDeletion(f, plan: plan)
+                return object(f)
             }
             if yes && action != "get" { throw APIError(400, "Download consent belongs to Get, not \(action.capitalized)") }
             try await controller.performForControl(f, action: action, yes: yes)
@@ -95,20 +106,24 @@ import VellaCore
     func settings() -> [String: Any] {
         let s = runtime.settings
         func title(_ minutes: Int) -> String { keepHotChoices.first(where: { $0.minutes == minutes })?.title ?? "\(minutes) min idle" }
-        return ["Keep Hot": ["Manually loaded": title(s.manualIdleMinutes), "Loaded on demand": title(s.onDemandIdleMinutes)],
-                "Memory": s.allowSwap ? allowSwapTitle : fitInFreeMemoryTitle]
+        return [
+            "Keep Hot": ["Manually loaded": title(s.manualIdleMinutes), "Loaded on demand": title(s.onDemandIdleMinutes)],
+            "Memory": s.allowSwap ? allowSwapTitle : fitInFreeMemoryTitle
+        ]
     }
     func setting(_ action: String, fields: [String: Any]) throws -> [String: Any] {
         guard let source = controller.actions as? any MenuSettingsSource else { throw APIError(503, "Vella's settings runtime is not running.") }
         if action == "memory" {
             guard Set(fields.keys) == ["value"], let value = fields["value"] as? String,
-                  [fitInFreeMemoryTitle, allowSwapTitle].contains(value) else {
+                [fitInFreeMemoryTitle, allowSwapTitle].contains(value)
+            else {
                 throw APIError(400, "Memory must be \(fitInFreeMemoryTitle) or \(allowSwapTitle)")
             }
             source.apply(.memory(allowSwap: value == allowSwapTitle))
         } else {
             guard Set(fields.keys) == ["class", "value"], let kind = fields["class"] as? String, let value = fields["value"] as? String,
-                  ["Manually loaded", "Loaded on demand"].contains(kind), let choice = keepHotChoices.first(where: { $0.title == value }) else {
+                ["Manually loaded", "Loaded on demand"].contains(kind), let choice = keepHotChoices.first(where: { $0.title == value })
+            else {
                 throw APIError(400, "Keep Hot needs class Manually loaded / Loaded on demand and value Always / 5 min idle / 15 min idle / 30 min idle / 60 min idle")
             }
             source.apply(.keepHot(kind == "Manually loaded" ? .manual : .onDemand, minutes: choice.minutes))

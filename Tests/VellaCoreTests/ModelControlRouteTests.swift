@@ -5,13 +5,13 @@ final class ModelControlRouteTests: XCTestCase {
     func testCatalogAndAuthenticatedControlsAreAdditiveRoutes() {
         XCTAssertEqual(APIRoute.match("/v1/models/catalog"), .catalog)
         XCTAssertEqual(APIRoute.match("/v1/models/alpha"), .model("alpha"))
-        for action in ["select", "load", "unload", "reload", "get"] {
+        for action in ["select", "load", "unload", "reload", "get", "delete"] {
             let route = APIRoute.match("/v1/models/alpha/" + action)
             XCTAssertEqual(route, .modelAction("alpha", action))
             XCTAssertEqual(route?.method, "POST")
         }
         XCTAssertEqual(APIRoute.match("/v1/settings/memory"), .settingAction("memory"))
-        XCTAssertNil(APIRoute.match("/v1/models/alpha/delete"))
+        XCTAssertNil(APIRoute.match("/v1/models/alpha/frobnicate"))
     }
     func testMutationHeadersRequireNonSimpleJSONAndRejectDuplicateToken() {
         func refusal(_ method: String = "POST", _ extra: String = "") -> Int? {

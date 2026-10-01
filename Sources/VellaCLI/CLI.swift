@@ -18,6 +18,8 @@ let usage = """
         vella load ID               Load downloaded weights; never downloads
         vella reload ID             Reload the previewed cell; never downloads
         vella unload ID             Unload; keep the weights
+        vella delete ID --precision bf16|fp16|int8|int4 --yes
+            Move these weights to Trash through the table gate; without --yes prints what/size and changes nothing
         vella keep-hot ["Manually loaded"|"Loaded on demand" "Always"|"5 min idle"|"15 min idle"|"30 min idle"|"60 min idle"]
         vella memory ["Fit in free memory"|"Allow swap (slower)"]
             with no arguments, print Keep Hot and Memory; values match the menu
@@ -87,7 +89,7 @@ struct VellaCLI {
             _ = try Arguments(rest, values: [], flags: [])
             let (status, port) = try await client().status()
             write(Self.statusLine(status, port: port))
-        case "select", "get", "load", "reload", "unload":
+        case "select", "get", "load", "reload", "unload", "delete":
             try await modelControl(command, rest)
         case "keep-hot", "memory":
             try await settingsControl(command, rest)
@@ -126,11 +128,14 @@ struct VellaCLI {
     }
 
     func modelControl(_ command: String, _ rest: [String]) async throws {
-        let args = try Arguments(rest, values: command == "select" ? ["--precision", "--path", "--mode"] : [], flags: command == "get" ? ["--yes"] : [])
+        let args = try Arguments(
+            rest, values: command == "select" ? ["--precision", "--path", "--mode"] : command == "delete" ? ["--precision"] : [],
+            flags: ["get", "delete"].contains(command) ? ["--yes"] : [])
         guard args.positional.count == 1 else { throw CLIError("vella \(command) ID; see vella --help") }
         var fields: [String: Any] = [:]
         for (key, value) in args.values { fields[String(key.dropFirst(2))] = value }
-        if command == "get" { fields["yes"] = args.flags.contains("--yes") }
+        if command == "get" || command == "delete" { fields["yes"] = args.flags.contains("--yes") }
+        if command == "delete", args.values["--precision"] == nil { throw CLIError("vella delete ID --precision bf16/fp16/int8/int4 [--yes]") }
         let id = args.positional[0]
         var safe = CharacterSet.urlPathAllowed; safe.remove(charactersIn: "/?#%")
         guard let encoded = id.addingPercentEncoding(withAllowedCharacters: safe), !encoded.isEmpty else { throw CLIError("model id is empty") }
@@ -141,15 +146,17 @@ struct VellaCLI {
 
     func settingsControl(_ command: String, _ rest: [String]) async throws {
         let data: Data
-        if rest.isEmpty { data = try await client().request("GET", "/v1/settings") }
-        else if command == "memory" {
+        if rest.isEmpty {
+            data = try await client().request("GET", "/v1/settings")
+        } else if command == "memory" {
             data = try await client().request("POST", "/v1/settings/memory", json: ["value": rest.joined(separator: " ")])
         } else {
             guard rest.count == 2 else { throw CLIError("vella keep-hot \"Manually loaded\" \"Always\"; see vella --help") }
             data = try await client().request("POST", "/v1/settings/keep-hot", json: ["class": rest[0], "value": rest[1]])
         }
         guard let settings = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let hot = settings["Keep Hot"] as? [String: String], let memory = settings["Memory"] as? String else { throw CLIError("Vella answered with invalid settings JSON") }
+            let hot = settings["Keep Hot"] as? [String: String], let memory = settings["Memory"] as? String
+        else { throw CLIError("Vella answered with invalid settings JSON") }
         write("Keep Hot · Manually loaded \(hot["Manually loaded"] ?? "?") · Loaded on demand \(hot["Loaded on demand"] ?? "?") · Memory \(memory)")
     }
 
@@ -215,8 +222,13 @@ struct VellaCLI {
     static func modelLine(_ m: [String: Any]) -> String {
         var parts = [m["name"] as? String ?? ""]
         let selection = selectionFrom(m["selection"])
-        if let dtype = m["dtype"] as? String { parts.append(dtype) }
-        else if let tier = selection?.tier.rawValue { parts.append(tier) } else if let p = m["precision"] as? String, !p.isEmpty { parts.append(precisionWidth(p) ?? p) }
+        if let dtype = m["dtype"] as? String {
+            parts.append(dtype)
+        } else if let tier = selection?.tier.rawValue {
+            parts.append(tier)
+        } else if let p = m["precision"] as? String, !p.isEmpty {
+            parts.append(precisionWidth(p) ?? p)
+        }
         if let selection {
             let asked = selectionFrom(m["requested_selection"]).map { " (\(recipeLabel($0)) asked)" } ?? ""
             parts.append(recipeLabel(selection) + asked)

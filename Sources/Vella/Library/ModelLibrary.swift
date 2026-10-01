@@ -32,6 +32,7 @@ import VellaCore
     private var downloadTimeout: Task<Void, Never>?
     private var downloadToken: UUID?
     var mayChangeModel: () -> Bool = { true }
+    var deletionModelInUse: (String) -> Bool = { _ in false }
     var onUse: (() -> Void)?
     var beforeHeavyWork: (() -> Void)?
     var prepareForCalibration: (() async throws -> Void)?
@@ -152,7 +153,7 @@ import VellaCore
         return quant?["bits"] as? Int == bits && quant?["group_size"] as? Int == (variant.groupSize ?? 64) && (mode == nil || mode == "affine")
     }
     func deletionBlockReason(_ id: String) -> String? {
-        if busy || calibration.isRunning || !mayChangeModel() { return "Finish dictation, downloading or calibration before deleting a model." }
+        if busy || calibration.isRunning || !mayChangeModel() || deletionModelInUse(id) { return modelDeletionBusyHelp }
         guard let path = modelFilePath(id) else { return "This model has no local files." }
         let folder = URL(fileURLWithPath: path).standardizedFileURL
         guard let active = try? currentModelPath() else { return "Cannot verify the active model. Check configuration before deleting." }

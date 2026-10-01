@@ -50,42 +50,27 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
     /// Deletes the selected precision's weights of a family, after confirmation.
     private func confirmDeletion(_ family: ModelFamily) {
         let precision = controller.selected(family)
-        guard let variant = family.variants[precision] else { return }
-        let library = controller.library(family.mode)
-        guard let path = library.modelFilePath(variant.id) else { return }
-        let wasInstalled = library.installed[variant.id] != nil
-        let name = "\(family.name) \(legacyQuantization(precision))"
         tableMenu?.cancelTracking()
         DispatchQueue.main.async { [self] in
-            if let reason = library.deletionBlockReason(variant.id) {
+            let plan: ModelDeletionPlan
+            do { plan = try controller.deletionPlan(family, precision: precision) } catch {
                 let blocked = NSAlert(); blocked.messageText = "Model cannot be deleted here"
-                blocked.informativeText = reason
+                blocked.informativeText = (error as? APIError)?.message ?? error.localizedDescription
                 blocked.addButton(withTitle: "OK")
                 _ = presentDeletionConfirmation(blocked)
                 return
             }
             let alert = NSAlert(); alert.alertStyle = .warning
-            alert.messageText = wasInstalled ? "Delete \(name)?" : "Delete unfinished \(name) download?"
-            alert.informativeText =
-                "Moves its downloaded weights to the Trash. If it is loaded it is unloaded first. You can download it again later. Recordings and transcripts are kept."
+            alert.messageText = plan.title; alert.informativeText = plan.body
             alert.addButton(withTitle: "Cancel")
             alert.addButton(withTitle: "Move to Trash")
             guard presentDeletionConfirmation(alert) == .alertSecondButtonReturn else { return }
-            // Deleting a source also removes the manifests of precisions made from it (they hold no weights of their own).
-            let delete: @MainActor () -> Bool = {
-                guard library.deleteModel(variant.id, expectedPath: path, expectedInstalled: wasInstalled) else { return false }
-                removeDerivedModels(sourcePath: path, modelsDirectory: library.modelsDirectory)
-                return true
-            }
-            let reportFailure: @MainActor () -> Void = { [self] in
-                let failure = NSAlert(); failure.messageText = "Model was not deleted"
-                failure.informativeText = library.downloadError ?? "Reopen Models and try again."
-                _ = presentDeletionConfirmation(failure)
-            }
-            // With a runtime: unload (awaited) → delete → launch-set clean-up, as one ordered operation.
-            guard let actions = controller.actions else { if !delete() { reportFailure() }; return }
             Task { @MainActor in
-                if !(await actions.delete(family: family, path: path, delete: delete)) { reportFailure() }
+                do { try await controller.performDeletion(family, plan: plan) } catch {
+                    let failure = NSAlert(); failure.messageText = "Model was not deleted"
+                    failure.informativeText = (error as? APIError)?.message ?? error.localizedDescription
+                    _ = presentDeletionConfirmation(failure)
+                }
             }
         }
     }

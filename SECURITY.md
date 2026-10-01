@@ -35,3 +35,5 @@ Its network traffic is the release download at install time, model weights from 
 - Vulnerabilities in dependencies (MLX, swift-transformers and others) or in model weights with no Vella-specific impact. Please report those upstream; tell us if Vella needs to update.
 
 Model and settings mutations require the per-launch `X-Vella-Token` readable only from the local worker-status.json. OpenAI-style API keys remain ignored for transcription; they do not grant model-management authority. Get additionally requires explicit JSON `yes: true` (CLI `--yes`); model Select/Load/Reload/Unload and Keep Hot/Memory use the same controller/runtime as the app.
+
+Delete additionally requires a catalog model id, the named dtype and explicit `yes: true`. It uses the same protected-path/selection/recording/in-use gate and ordered unload → Trash → registry update as the table; API clients cannot supply a filesystem path. Failed deletion keeps or restores the weights and manual residency.

@@ -96,7 +96,6 @@ final class ModelControlTests: XCTestCase {
         XCTAssertNil(f.controller.pendingLoads["alpha"])
     }
 
-
     @MainActor func testSelectionRefusalsMatchTheTableAndLeaveThePreviewUnchanged() async throws {
         let f = try fixture()
         defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
@@ -121,7 +120,6 @@ final class ModelControlTests: XCTestCase {
         } catch let error as APIError { XCTAssertEqual(error.status, 409) }
         XCTAssertFalse(f.controller.isPreviewing(f.alpha))
     }
-
 
     @MainActor func testModeOnlyUsesTheTableExactCouplingAndCatalogIncludesStreaming() async throws {
         let f = try fixture()
@@ -175,7 +173,8 @@ final class ModelControlTests: XCTestCase {
         let (listed, list, _) = try await APIClientTests.run(APIClientTests.cli, ["models", "--json"], environment: environment)
         XCTAssertEqual(listed, 0)
         XCTAssertTrue(list.contains("cells") && list.contains("org/a"))
-        let (picked, preview, _) = try await APIClientTests.run(APIClientTests.cli,
+        let (picked, preview, _) = try await APIClientTests.run(
+            APIClientTests.cli,
             ["select", "alpha", "--precision", "int4", "--path", "Standard", "--mode", "Fast"], environment: environment)
         XCTAssertEqual(picked, 0)
         XCTAssertTrue(preview.contains("preview int4 Standard"))
@@ -185,9 +184,15 @@ final class ModelControlTests: XCTestCase {
         let (loaded, effective, _) = try await APIClientTests.run(APIClientTests.cli, ["get", "alpha", "--yes"], environment: environment)
         XCTAssertEqual(loaded, 0)
         XCTAssertTrue(effective.contains("Standard") && effective.contains("loaded"))
+        let (deleteRefused, _, deletedPrompt) = try await APIClientTests.run(APIClientTests.cli,
+            ["delete", "zeta", "--precision", "bf16"], environment: environment)
+        XCTAssertEqual(deleteRefused, 1)
+        XCTAssertTrue(deletedPrompt.contains("Size:") && deletedPrompt.contains("Trash"))
+        XCTAssertTrue(f.controller.available(f.zeta, "BF16"))
         let audio = f.root.appendingPathComponent("test.wav")
         try writeTestWAV(audio, bursts: [0.1], gap: 0.01)
-        let (transcribed, text, _) = try await APIClientTests.run(APIClientTests.cli,
+        let (transcribed, text, _) = try await APIClientTests.run(
+            APIClientTests.cli,
             ["transcribe", audio.path, "--model", "alpha"], environment: environment)
         XCTAssertEqual(transcribed, 0)
         XCTAssertFalse(text.isEmpty)

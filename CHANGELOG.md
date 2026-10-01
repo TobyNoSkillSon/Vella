@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Models controls for agents.** `vella models --json` lists all table rows and cells; Select, Get (explicit `--yes` consent), Load, Reload, Unload, Keep Hot and Memory use the table's controller and runtime. Authenticated local API routes expose the same controls; file transcription itself still never downloads.
+- **Models controls for agents.** `vella models --json` lists all table rows and cells; Select, Get (explicit `--yes` consent), Load, Reload, Unload, Delete (explicit precision and `--yes`), Keep Hot and Memory use the table's controller and runtime. Authenticated local API routes expose the same controls; file transcription itself still never downloads.
 - **Optional disk image.** `scripts/package-dmg.sh` makes a local `Vella-2.0.0.dmg` from the verified release ZIP, keeps the app's existing signature and adds its checksum. The primary installer still uses the ZIP.
 
 ### Changed

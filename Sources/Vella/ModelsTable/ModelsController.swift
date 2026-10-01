@@ -26,6 +26,21 @@ import VellaWire
     func unloadForControl(family: ModelFamily) async
 }
 
+/// The same confirmation snapshot for the table and authenticated Delete. No caller supplies a filesystem path.
+struct ModelDeletionPlan {
+    let familyID: String
+    let precision: String
+    let variantID: String
+    let path: String
+    let wasInstalled: Bool
+    let bytes: Int64
+    let title: String
+    var body: String {
+        "Moves its downloaded weights to the Trash. If it is loaded it is unloaded first. You can download it again later. Recordings and transcripts are kept. "
+            + "Size: " + formatBytes(bytes) + " (" + formatExactBytes(bytes) + "). Precisions made from these weights lose their recipe files too."
+    }
+}
+
 /// The Models table's state: catalog families of both modes, measured numbers, what is downloaded (the two mode
 /// libraries) and what is loaded (the runtime).
 ///
@@ -539,15 +554,23 @@ import VellaWire
             guard let prompt = downloadPrompt(family: f, precision: precision, followUp: .load, freeBytes: freeDiskBytes(at: lib.modelsDirectory)) else {
                 throw APIError(409, "Not offered for this model")
             }
-            throw APIError(409, (prompt.title + " " + prompt.body).components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " · ")
-                + " · Get requires explicit consent (vella get " + f.id + " --yes).", code: "download_consent_required")
+            throw APIError(
+                409,
+                (prompt.title + " " + prompt.body).components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " · ")
+                    + " · Get requires explicit consent (vella get " + f.id + " --yes).", code: "download_consent_required")
         }
         // Even Load/Reload can require a download. Return the table's exact prompt, never silently fetch.
         if needsDownload {
-            guard let prompt = downloadPrompt(family: f, precision: precision, followUp: loaded(f).map { .reload(from: $0.precision) } ?? .load,
-                                              freeBytes: freeDiskBytes(at: lib.modelsDirectory)) else { throw APIError(409, "Not offered for this model") }
+            guard
+                let prompt = downloadPrompt(
+                    family: f, precision: precision, followUp: loaded(f).map { .reload(from: $0.precision) } ?? .load,
+                    freeBytes: freeDiskBytes(at: lib.modelsDirectory))
+            else { throw APIError(409, "Not offered for this model") }
             guard action == "get", let approval = DownloadGate.ask(prompt, present: { _ in yes }) else {
-                throw APIError(409, (prompt.title + " " + prompt.body).components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " · ") + " · Get requires explicit consent (vella get " + f.id + " --yes).", code: "download_consent_required")
+                throw APIError(
+                    409,
+                    (prompt.title + " " + prompt.body).components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " · ")
+                        + " · Get requires explicit consent (vella get " + f.id + " --yes).", code: "download_consent_required")
             }
             controlOperations.insert(f.id)
             defer { controlOperations.remove(f.id) }
@@ -579,6 +602,38 @@ import VellaWire
             throw APIError(404, "Get this model before Load.")
         }
         try await actions.loadForControl(family: f, precision: precision, path: path, selection: selection)
+    }
+
+    func deletionPlan(_ f: ModelFamily, precision: String) throws -> ModelDeletionPlan {
+        guard let variant = f.variants[precision] else { throw APIError(400, "Unknown Precision for this model") }
+        let lib = library(f.mode)
+        if let reason = lib.deletionBlockReason(variant.id) { throw APIError(409, reason) }
+        guard controlOperations.isEmpty, !previewInUse, runtime?.loading == nil else { throw APIError(409, modelDeletionBusyHelp) }
+        guard let path = lib.modelFilePath(variant.id) else { throw APIError(409, "This model has no local files.") }
+        guard let bytes = Runtime.folderBytes(path) else { throw APIError(409, "Cannot verify these weights' size; nothing deleted.") }
+        let installed = lib.installed[variant.id] != nil
+        let name = f.name + " " + legacyQuantization(precision)
+        return ModelDeletionPlan(
+            familyID: f.id, precision: precision, variantID: variant.id, path: path, wasInstalled: installed,
+                                 bytes: bytes, title: installed ? "Delete " + name + "?" : "Delete unfinished " + name + " download?")
+    }
+
+    func performDeletion(_ f: ModelFamily, plan: ModelDeletionPlan) async throws {
+        guard f.id == plan.familyID else { throw APIError(400, "Deletion model changed") }
+        let lib = library(f.mode)
+        if let reason = lib.deletionBlockReason(plan.variantID) { throw APIError(409, reason) }
+        guard controlOperations.isEmpty, !previewInUse, runtime?.loading == nil else { throw APIError(409, modelDeletionBusyHelp) }
+        controlOperations.insert(f.id)
+        defer { controlOperations.remove(f.id) }
+        let delete: @MainActor () -> Bool = {
+            guard lib.deleteModel(plan.variantID, expectedPath: plan.path, expectedInstalled: plan.wasInstalled) else { return false }
+            removeDerivedModels(sourcePath: plan.path, modelsDirectory: lib.modelsDirectory)
+            return true
+        }
+        let deleted: Bool
+        if let actions { deleted = await actions.delete(family: f, path: plan.path, delete: delete) } else { deleted = delete() }
+        guard deleted else { throw APIError(409, lib.downloadError ?? "Model was not deleted; reopen Models and try again.") }
+        previews[f.id] = nil; couplingNotes[f.id] = nil; reload()
     }
 
     func cancelDownloads() { dictation.cancel(); streaming.cancel() }

@@ -117,7 +117,7 @@ public enum APIRoute: Equatable {
             if path.hasPrefix(prefix), path.count > prefix.count {
                 let id = String(path.dropFirst(prefix.count))
                 let parts = id.split(separator: "/", omittingEmptySubsequences: false)
-                if parts.count == 2, ["select", "load", "unload", "reload", "get"].contains(String(parts[1])), !parts[0].isEmpty {
+                if parts.count == 2, ["select", "load", "unload", "reload", "get", "delete"].contains(String(parts[1])), !parts[0].isEmpty {
                     return .modelAction(String(parts[0]).removingPercentEncoding ?? String(parts[0]), String(parts[1]))
                 }
                 return id.contains("/") ? nil : .model(id.removingPercentEncoding ?? id)

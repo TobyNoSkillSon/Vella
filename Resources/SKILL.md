@@ -52,10 +52,13 @@ Select previews a cell; Get/Load/Reload commits it. Mode-only `vella select ID -
 ```sh
 vella reload MODEL_ID
 vella unload MODEL_ID
+vella delete MODEL_ID --precision bf16 --yes   # only after explicit deletion consent
 vella keep-hot "Manually loaded" "Always"
 vella keep-hot "Loaded on demand" "15 min idle"
 vella memory "Fit in free memory"   # or "Allow swap (slower)"
 ```
+
+Delete without `--yes` prints what/size and changes nothing. It uses the table gate: recording/in-use/selected models and shared or linked weights refuse with the same reason. It moves only that catalog precision's weights to Trash; recordings and transcripts stay. Locally derived precisions may have no own files: delete the native source precision after loading another model for that mode. Unload alone does not clear the saved mode selection.
 
 Keep Hot values are Always, 5/15/30/60 min idle. With no arguments `keep-hot`/`memory` report the current settings; change them only on user authority.
 

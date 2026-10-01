@@ -38,6 +38,12 @@ import VellaCore
             controller.configURL = runtime.configURL
             controller.reloadConfig()
         }
+        for library in [controller.dictation, controller.streaming] {
+            library.deletionModelInUse = { [weak self, weak controller] variant in
+                guard let self, let family = controller?.catalog.locate(variant: variant)?.family else { return false }
+                return self.runtime.isModelInUse(family.id)
+            }
+        }
         runtime.resolver = { [weak self] path, mode in self?.ref(path: path, mode: mode) }
         model.offerModel = { [weak self] mode in self?.offer(mode) }
         model.fetchModel = { [weak self] offer in
@@ -174,7 +180,8 @@ import VellaCore
     /// first (its worker reads the source), and after a successful deletion the launch set drops the source and its
     /// derived entries. Order: unload, delete, launch-set clean-up.
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool {
-        runtime.userChanged(family.id); defer { runtime.userChanged(family.id) }
+        runtime.beginSelection(); runtime.userChanged(family.id)
+        defer { runtime.userChanged(family.id); runtime.endSelection() }
         let dependents = derivedPaths(source: path, mode: family.mode)
         let loadedPath = runtime.loadedRef(family.id)?.path
         let target = loadedPath.map { loaded in dependents.contains { sameFiles($0, loaded) } ? loaded : path } ?? path

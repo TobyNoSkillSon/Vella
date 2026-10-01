@@ -74,7 +74,8 @@ import VellaCore
             throw APIError(403, "Model and settings controls need X-Vella-Token from worker-status.json")
         }
         guard case .memory(let data) = request.body, data.count <= apiMaxJSONBytes,
-              let fields = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            let fields = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else {
             throw APIError(400, "Model controls need a JSON object")
         }
         return fields
