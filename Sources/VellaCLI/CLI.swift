@@ -37,6 +37,24 @@ let usage = """
 
 struct CLIError: Error { let message: String; init(_ message: String) { self.message = message } }
 
+/// Keep redirected progress compact; a terminal can receive a live line once a second.
+struct GetProgressThrottle {
+    private var phase = ""
+    private var bucket = -1
+    private var last = Date.distantPast
+    mutating func shouldReport(_ progress: [String: Any], terminal: Bool, now: Date = Date()) -> Bool {
+        guard let message = progress["message"] as? String else { return false }
+        let nextPhase = ["Starting", "Downloading", "Verifying", "Converting"].first { message.contains($0) } ?? message
+        let done = (progress["received_bytes"] as? NSNumber)?.doubleValue ?? 0
+        let total = (progress["total_bytes"] as? NSNumber)?.doubleValue ?? 0
+        let nextBucket = total > 0 ? Int(min(10, max(0, done / total * 10))) : -1
+        let elapsed = now.timeIntervalSince(last)
+        guard nextPhase != phase || elapsed >= (terminal ? 1 : 15) || (!terminal && nextBucket > bucket) else { return false }
+        phase = nextPhase; bucket = nextBucket; last = now
+        return true
+    }
+}
+
 /// The `vella` command. `write`/`warn` are stdout/stderr.
 struct VellaCLI {
     var environment = ProcessInfo.processInfo.environment
@@ -151,24 +169,26 @@ struct VellaCLI {
 
     func getWithProgress(id: String, encoded: String, fields: [String: Any]) async throws -> Data {
         let client = client()
+        let port = try await client.ensureRunning()
         let report = warn
+        let terminal = isatty(STDERR_FILENO) != 0
         let polling = Task {
-            var previous = ""
+            var throttle = GetProgressThrottle()
             while !Task.isCancelled {
                 do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
-                guard let data = try? await client.request("GET", "/v1/models/catalog", timeout: 5),
+                guard let data = try? await client.request("GET", "/v1/models/catalog", port: port, timeout: 5),
                     let list = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-                    let rows = list["data"] as? [[String: Any]], let row = rows.first(where: { $0["id"] as? String == id }),
+                    let rows = list["data"] as? [[String: Any]], let row = rows.first(where: { ($0["id"] as? String)?.lowercased() == id.lowercased() }),
                     let progress = row["download_progress"] as? [String: Any], let message = progress["message"] as? String,
-                    message != previous
+                    throttle.shouldReport(progress, terminal: terminal)
                 else { continue }
                 guard !Task.isCancelled else { return }
-                previous = message; report(message)
+                report(message)
             }
         }
-        // The app's byte-stall watchdog bounds Get. A progressing multi-GB download has no total-duration cap.
+        // The app bounds network stalls; the client retains a finite seven-day safety limit.
         do {
-            let data = try await client.request("POST", "/v1/models/\(encoded)/get", json: fields, timeout: nil)
+            let data = try await client.request("POST", "/v1/models/\(encoded)/get", json: fields, port: port, timeout: nil)
             polling.cancel(); await polling.value
             return data
         } catch {
@@ -399,7 +419,7 @@ struct VellaClient {
         if let known { port = known } else { port = try await ensureRunning() }
         var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)\(path)")!)
         request.httpMethod = method
-        let interval = timeout ?? .greatestFiniteMagnitude
+        let interval = timeout ?? 7 * 24 * 3600
         request.timeoutInterval = interval // default: a 3-hour file on a slow model; nil: app-bounded Get
         if let json {
             // A local path is only read for a client that can read Vella's status file (not a sandboxed app).

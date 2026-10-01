@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OSLog
 import Darwin
 import VellaCore
 
@@ -346,7 +347,7 @@ import VellaCore
             // A previous timer may already have woken before new bytes cancel/re-arm it on the main actor.
             guard !Task.isCancelled, let self, self.downloadToken == token else { return }
             let interval = String(format: "%g", seconds)
-            self.cancelDownload(message: "\(label) download stalled (no new bytes for \(interval) seconds); partial files removed.")
+            self.cancelDownload(source: "stall timer", message: "\(label) download stalled (no new bytes for \(interval) seconds); partial files removed.")
         }
     }
     /// The bundled catalog (families), for stored conversions and the registry migration; nil when unreadable.
@@ -415,17 +416,18 @@ import VellaCore
         pasteboard.clearContents()
         return pasteboard.setString(agentRequest, forType: .string)
     }
-    func cancel() {
+    func cancel(source: String = "user") {
         if calibratingID != nil {
             calibrationLaunch?.cancel(); calibrationLaunch = nil; calibration.cancel()
             if !calibration.isRunning { calibratingID = nil; busy = false }
             return
         }
-        cancelDownload(message: nil)
+        cancelDownload(source: source, message: nil)
     }
-    private func cancelDownload(message override: String?) {
+    private func cancelDownload(source: String, message override: String?) {
         guard busy else { return }
         let id = downloadingID
+        Logger(subsystem: "dev.vella.dictation", category: "download").notice("Cancelling download \(id ?? "unknown", privacy: .public): \(source, privacy: .public)")
         let label = models.first { $0.id == id }.map(downloadLabel) ?? "Model"
         downloadToken = nil; downloadTimeout?.cancel(); downloadTimeout = nil
         downloadClient?.cancel(); downloadTask?.cancel(); downloadTask = nil; downloadClient = nil
@@ -464,7 +466,7 @@ import VellaCore
         }
     }
     func shutdown() {
-        cancel()
+        cancel(source: "shutdown")
         calibrationLaunch?.cancel(); calibrationLaunch = nil
         calibration.shutdown()
         downloadToken = nil; downloadTimeout?.cancel(); downloadTimeout = nil

@@ -40,7 +40,7 @@ vella diagnose                                 # a bug report for the user; its 
 
 ## Pick and get a model
 
-Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast: a small general-purpose default; choose a larger model only for a specific language or accuracy need.
+Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast: best for English and 24 other European languages; for other languages choose `whisper-large-v3-turbo`. Choose a larger model only for a specific accuracy need.
 
 Use one call per step, without probing or retries:
 

@@ -584,6 +584,7 @@ struct ModelDeletionPlan {
             lib.selectedID = approval.variantID
             pendingLoads[f.id] = precision; pendingSelections[f.id] = selection
             defer { pendingLoads[f.id] = nil; pendingSelections[f.id] = nil }
+            let cancellation = APIJobCancellation.current
             let downloaded: Bool = await withTaskCancellationHandler(
                 operation: {
                     await withCheckedContinuation { continuation in
@@ -591,7 +592,7 @@ struct ModelDeletionPlan {
                         lib.download(approval: approval, calibrate: false) { continuation.resume(returning: $0) }
                     }
                 },
-                onCancel: { Task { @MainActor in lib.cancel() } })
+                onCancel: { Task { @MainActor in lib.cancel(source: cancellation?.source ?? "request task") } })
             try Task.checkCancellation()
             pendingLoads[f.id] = nil; pendingSelections[f.id] = nil
             guard downloaded, available(f, precision) else { throw APIError(500, lib.downloadError ?? "Model download failed") }

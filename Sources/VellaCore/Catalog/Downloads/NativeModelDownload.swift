@@ -190,7 +190,7 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
             try "\(file.revision)\n\(file.etag)\n\(Date().timeIntervalSince1970)\n".write(to: location.metadata, atomically: true, encoding: .utf8)
             completed += file.size
         }
-        progress("Verifying downloaded model…", Int64(Double(total) * 0.99), total)
+        progress("Verifying downloaded model…", total, total)
         try NativeModelDownload.validate(destination, expected: model)
         try checkCancellation()
         return destination
@@ -209,7 +209,7 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         }
         if !FileManager.default.fileExists(atPath: partial.path) { FileManager.default.createFile(atPath: partial.path, contents: nil) }
         let handle = try FileHandle(forWritingTo: partial)
-        transferConfiguration.timeoutIntervalForResource = .greatestFiniteMagnitude
+        transferConfiguration.timeoutIntervalForResource = 7 * 24 * 3600
         let session = URLSession(configuration: transferConfiguration, delegate: self, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in

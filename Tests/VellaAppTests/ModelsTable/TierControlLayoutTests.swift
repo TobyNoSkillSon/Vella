@@ -7,6 +7,8 @@ import SwiftUI
 /// FIRST layout pass, as when the Models menu first opens: no click, no second pass, whatever control size the hosting
 /// environment pushes. (Toby's screenshots, 29 Sep: controls drawn over each other until a click relaid the row.)
 @MainActor final class TierControlLayoutTests: XCTestCase {
+    func testStandardUsesTheBundledLogoByDefault() { XCTAssertFalse(TierControl.standardUsesWordmark) }
+
     private func firstPass(_ view: some View, in menuItem: Bool) -> NSView {
         let host = NSHostingView(rootView: view)
         host.frame = NSRect(x: 0, y: 0, width: 400, height: 60)

@@ -11,42 +11,33 @@ final class APIUploadLimitTests: XCTestCase {
         var handled = 0
         var delay = false
         var cancelled = false
+        var cancellationSource: String?
         func handle(_ request: APIRequest) async -> APIResponse {
             handled += 1
             if delay {
-                do { try await Task.sleep(nanoseconds: 150_000_000) } catch {
-                    cancelled = true; return .json(499, ["cancelled": true])
+                do { try await Task.sleep(nanoseconds: 60_000_000_000) } catch {
+                    cancelled = true; cancellationSource = APIJobCancellation.current?.source; return .json(499, ["cancelled": true])
                 }
             }
             return .json(200, ["ok": true])
         }
     }
 
-    @MainActor func testWriteHalfCloseDoesNotCancelACompleteLongRequest() async throws {
+    @MainActor func testNormallyExitingTranscriptionClientCancelsAndCleansUpTheJob() async throws {
         let (server, port, handler) = try await server(APIUploadLimits())
         defer { server.stop() }
         handler.delay = true
-        let fd = try open(port, "GET /status HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n")
-        XCTAssertEqual(shutdown(fd, SHUT_WR), 0, "client finished writing but is still reading the response")
-        var result: Int?
-        try await waitUntil {
-            result = self.status(fd); return result != nil
-        }
-        XCTAssertEqual(result, 200)
-        XCTAssertFalse(handler.cancelled)
-        XCTAssertEqual(handler.handled, 1)
-    }
-
-    @MainActor func testTCPResetStillCancelsTheHandlingTask() async throws {
-        let (server, port, handler) = try await server(APIUploadLimits())
-        defer { server.stop() }
-        handler.delay = true
-        let fd = try open(port, "GET /status HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n")
-        try await waitUntil { handler.handled == 1 }
-        var reset = linger(l_onoff: 1, l_linger: 0)
-        XCTAssertEqual(setsockopt(fd, SOL_SOCKET, SO_LINGER, &reset, socklen_t(MemoryLayout<linger>.size)), 0)
-        close(fd)
-        try await waitUntil { handler.cancelled }
+        let body = "--x\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--x--\r\n"
+        let request =
+            "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nContent-Type: multipart/form-data; boundary=x\r\nContent-Length: \(body.utf8.count)\r\n\r\n"
+            + body
+        let client = try ExitingAPIClient(port: port, request: Data(request.utf8))
+        defer { client.exitNormally() }
+        try await waitUntil { handler.handled == 1 && self.uploadFiles == 1 && server.usage().uploads == 1 }
+        client.exitNormally()
+        try await waitUntil { !client.process.isRunning && handler.cancelled && self.uploadFiles == 0 && server.usage() == (0, 0, 0) }
+        XCTAssertEqual(client.process.terminationStatus, 0)
+        XCTAssertEqual(handler.cancellationSource, "client EOF")
     }
     private var root: URL!
     private var sockets: [Int32] = []
