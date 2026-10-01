@@ -23,6 +23,12 @@ public struct CatalogVariant: Codable, Equatable {
     public var groupSize: Int?
     /// Float cast of the source (`bfloat16` or `float16`).
     public var dtype: String?
+    /// A mixed per-layer quantization (only with `bits`): module-path prefixes, as the architecture's worker loader names
+    /// them (Whisper `model.encoder`), whose layers keep the source's float weights. Nil = the uniform recipe.
+    public var floatModules: [String]?
+    /// Share of the source checkpoint's weight bytes held by quantizable layers inside `floatModules` (0…1), for the
+    /// size and memory estimate (`estimatedWeightBytes`). Measured from the source's safetensors header.
+    public var floatShare: Double?
     /// A cast made ONCE at Get and stored as a real checkpoint (Parakeet v3: the FP32 download is converted to BF16 and
     /// only the BF16 weights are kept). Nil/false: derived at each load from a manifest (DerivedModels.swift).
     public var stored: Bool?
@@ -41,7 +47,9 @@ public struct CatalogVariant: Codable, Equatable {
     public var isDerived: Bool { derivedFrom != nil }
     /// Converted once at Get and kept as weights (see `stored`).
     public var isStored: Bool { derivedFrom != nil && stored == true }
-    enum CodingKeys: String, CodingKey { case id, repository, revision, downloadBytes, architecture, processorSource, derivedFrom, bits, groupSize, dtype, stored, legacyIDs }
+    enum CodingKeys: String, CodingKey {
+        case id, repository, revision, downloadBytes, architecture, processorSource, derivedFrom, bits, groupSize, dtype, floatModules, floatShare, stored, legacyIDs
+    }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
@@ -50,6 +58,8 @@ public struct CatalogVariant: Codable, Equatable {
         bits = try c.decodeIfPresent(Int.self, forKey: .bits)
         groupSize = try c.decodeIfPresent(Int.self, forKey: .groupSize)
         dtype = try c.decodeIfPresent(String.self, forKey: .dtype)
+        floatModules = try c.decodeIfPresent([String].self, forKey: .floatModules)
+        floatShare = try c.decodeIfPresent(Double.self, forKey: .floatShare)
         stored = try c.decodeIfPresent(Bool.self, forKey: .stored)
         legacyIDs = try c.decodeIfPresent([String].self, forKey: .legacyIDs)
         processorSource = try c.decodeIfPresent(ProcessorSource.self, forKey: .processorSource)
@@ -74,6 +84,7 @@ public struct CatalogVariant: Codable, Equatable {
         try c.encodeIfPresent(processorSource, forKey: .processorSource)
         try c.encodeIfPresent(derivedFrom, forKey: .derivedFrom); try c.encodeIfPresent(bits, forKey: .bits)
         try c.encodeIfPresent(groupSize, forKey: .groupSize); try c.encodeIfPresent(dtype, forKey: .dtype)
+        try c.encodeIfPresent(floatModules, forKey: .floatModules); try c.encodeIfPresent(floatShare, forKey: .floatShare)
         try c.encodeIfPresent(stored, forKey: .stored); try c.encodeIfPresent(legacyIDs, forKey: .legacyIDs)
     }
 }

@@ -151,6 +151,67 @@ final class DerivedModelTests: XCTestCase {
         XCTAssertEqual(predicted8 / 756247988, 1, accuracy: 0.02)
         XCTAssertNil(estimatedMemory(family: nemotron, precision: "4b", benchmarks: BenchmarkFile()), "nothing measured: no number")
     }
+
+    /// Mixed per-layer recipe (Whisper 8 tiers: encoder FP16, decoder affine-8 g64): the catalog fields reach the worker
+    /// manifest, uniform manifests keep their bytes, the size estimate keeps the float share at 16 bits, and a mixed
+    /// tier always loads from its root (never a checkpoint registered under its id, such as a re-keyed uniform import).
+    func testMixedRecipeFloatModules() throws {
+        let json = #"{"id":"x-8","derivedFrom":"FP16","bits":8,"groupSize":64,"floatModules":["model.encoder"],"floatShare":0.4,"architecture":"whisper"}"#
+        let v = try JSONDecoder().decode(CatalogVariant.self, from: Data(json.utf8))
+        XCTAssertEqual(v.floatModules, ["model.encoder"]); XCTAssertEqual(v.floatShare, 0.4)
+        XCTAssertEqual(try JSONDecoder().decode(CatalogVariant.self, from: JSONEncoder().encode(v)), v)
+        let native = ["FP16": published("s", 3000)]
+        func whisper(_ eight: CatalogVariant) -> ModelFamily {
+            var variants = native; variants["8b"] = eight
+            return ModelFamily(id: "w", name: "W", mode: .dictation, languages: ["en"], params: "1B", license: "mit", native: "FP16", variants: variants)
+        }
+        func mixed(_ modules: [String]?, _ share: Double?, bits: Int? = 8, dtype: String? = nil) -> CatalogVariant {
+            var v = CatalogVariant(id: "m", architecture: "parakeet", derivedFrom: "FP16", bits: bits, groupSize: bits == nil ? nil : 64, dtype: dtype)
+            v.floatModules = modules; v.floatShare = share
+            return v
+        }
+        XCTAssertEqual(whisper(mixed(["model.encoder"], 0.4)).derivationProblems(), [])
+        XCTAssertEqual(try whisper(mixed(["model.encoder"], 0.4)).derivation("8b").floatModules, ["model.encoder"])
+        for (index, bad) in [
+            mixed(["model.encoder"], nil), mixed(nil, 0.4), mixed([], 0.4), mixed(["a/b"], 0.4), mixed([".x"], 0.4),
+            mixed(["model.encoder"], 1.2), mixed(["model.encoder", "model.encoder"], 0.4)
+        ].enumerated() {
+            XCTAssertFalse(whisper(bad).derivationProblems().isEmpty, "case \(index)")
+        }
+        // Uniform recipes: unchanged recipe and size.
+        let uniform = whisper(CatalogVariant(id: "u", architecture: "parakeet", derivedFrom: "FP16", bits: 8, groupSize: 64))
+        XCTAssertEqual(try uniform.derivation("8b").floatModules, [])
+        XCTAssertEqual(try XCTUnwrap(estimatedWeightBytes(uniform, "8b")), 3000 * (0.85 * 8.5 / 16 + 0.15), accuracy: 1e-6)
+        XCTAssertEqual(
+            try XCTUnwrap(estimatedWeightBytes(whisper(mixed(["model.encoder"], 0.4)), "8b")), 3000 * (0.45 * 8.5 / 16 + 0.4 + 0.15), accuracy: 1e-6)
+        // The shipped Whisper 8 tiers are the mixed recipe; the worker manifest carries it.
+        let catalog = try shipped()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-mixed-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let models = root.appendingPathComponent("Models")
+        let source = models.appendingPathComponent("whisper-large-v3-asr-fp16")
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
+        for id in ["whisper-large-v3", "whisper-large-v3-turbo"] {
+            let f = try XCTUnwrap(catalog.family(id))
+            XCTAssertEqual(f.variants["8b"]?.floatModules, ["model.encoder"], id)
+            XCTAssertNil(f.variants["4b"]?.floatModules, id)
+        }
+        let large = try XCTUnwrap(catalog.family("whisper-large-v3"))
+        let path = try prepareDerivedModel(family: large, precision: "8b", sourcePath: source.path, modelsDirectory: models)
+        XCTAssertEqual(derivedModelManifest(at: URL(fileURLWithPath: path))?.floatModules, ["model.encoder"])
+        let four = try prepareDerivedModel(family: large, precision: "4b", sourcePath: source.path, modelsDirectory: models)
+        let fourFile = URL(fileURLWithPath: four).appendingPathComponent(DerivedModelManifest.fileName)
+        let fourObject = try JSONSerialization.jsonObject(with: Data(contentsOf: fourFile)) as? [String: Any]
+        XCTAssertNil(fourObject?["floatModules"], "uniform manifests keep their keys")
+        // A uniform checkpoint registered under the mixed tier's id loads only while the root is absent.
+        let imported = root.appendingPathComponent("outside/q8").path
+        let registered: [String: String] = ["whisper-large-v3-8bit": imported]
+        XCTAssertTrue(precisionAvailable(large, "8b", installedPath: { registered[$0] }))
+        XCTAssertEqual(try precisionLoadPath(large, "8b", installedPath: { registered[$0] }, modelsDirectory: models), imported)
+        let both = registered.merging(["whisper-large-v3-asr-fp16": source.path]) { $1 }
+        XCTAssertEqual(try precisionLoadPath(large, "8b", installedPath: { both[$0] }, modelsDirectory: models), path)
+    }
 }
 
 private enum FamilyTestHelper {

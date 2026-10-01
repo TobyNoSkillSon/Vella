@@ -20,6 +20,18 @@ public struct DerivationRecipe: Equatable {
     public var dtype: String?
     public var bits: Int?
     public var groupSize: Int?
+    /// Float-kept module prefixes of a mixed quantization (empty = uniform).
+    public var floatModules: [String] = []
+}
+
+/// A mixed recipe's module prefixes: 1–16 unique plain paths (letters, digits, `_`, `.`), the worker's own rule
+/// (Worker/Sources/MLXAudioSTT/Precision/DerivedPrecision.swift).
+public func validFloatModules(_ list: [String]) -> Bool {
+    !list.isEmpty && list.count <= 16 && Set(list).count == list.count
+        && list.allSatisfy { p in
+            !p.isEmpty && p.count <= 128 && !p.hasPrefix(".") && !p.hasSuffix(".")
+                && p.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+        }
 }
 
 public enum DerivationError: Error, Equatable, CustomStringConvertible {
@@ -92,6 +104,14 @@ public extension ModelFamily {
             guard let targetBits = labelBits(stepLabel), targetBits < bitsSoFar else {
                 throw DerivationError.invalid("\(stepLabel): derived precisions only go down in bits (never upscale).")
             }
+            if v.floatModules != nil || v.floatShare != nil {
+                // A mixed quantization: float-kept prefixes and their measured share, together, with a quantization.
+                guard v.bits != nil, let modules = v.floatModules, validFloatModules(modules), let share = v.floatShare,
+                    share > 0, share < 1
+                else {
+                    throw DerivationError.invalid("\(stepLabel): floatModules (1–16 module paths) and floatShare (0…1) go together, on a quantization.")
+                }
+            }
             switch (v.dtype, v.bits) {
             case let (dtype?, nil):
                 guard derivedCastLabels[dtype] == stepLabel, v.groupSize == nil else {
@@ -106,6 +126,7 @@ public extension ModelFamily {
                 guard let g = v.groupSize, derivedGroupSizes.contains(g) else { throw DerivationError.invalid("\(stepLabel): group size must be 32, 64 or 128.") }
                 guard recipe.bits == nil else { throw DerivationError.invalid("\(stepLabel): cannot quantize twice.") }
                 recipe.bits = bits; recipe.groupSize = g
+                recipe.floatModules = v.floatModules ?? []
             default:
                 throw DerivationError.invalid("\(stepLabel): a derived variant is either a cast (dtype) or a quantization (bits, groupSize).")
             }
@@ -149,6 +170,8 @@ public struct DerivedModelManifest: Codable, Equatable {
     public var dtype: String?
     public var bits: Int?
     public var groupSize: Int?
+    /// A mixed recipe's float-kept module prefixes; absent for uniform recipes (their manifests stay byte-identical).
+    public var floatModules: [String]?
 }
 
 /// Writes (idempotently) `<modelsDirectory>/<derived id>/vella-derived.json` for a derived precision whose source is
@@ -163,7 +186,8 @@ public func prepareDerivedModel(family: ModelFamily, precision: String, sourcePa
     }
     let manifest = DerivedModelManifest(
         schema: 1, family: family.id, precision: precision, source: source.path, sourceVariant: recipe.source.id,
-        sourcePrecision: recipe.sourceLabel, dtype: recipe.dtype, bits: recipe.bits, groupSize: recipe.groupSize)
+        sourcePrecision: recipe.sourceLabel, dtype: recipe.dtype, bits: recipe.bits, groupSize: recipe.groupSize,
+        floatModules: recipe.floatModules.isEmpty ? nil : recipe.floatModules)
     let directory = modelsDirectory.appendingPathComponent(variant.id, isDirectory: true).standardizedFileURL
     let fm = FileManager.default
     try fm.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -194,10 +218,12 @@ public func precisionLoadPath(
     modelsDirectory: URL
 ) throws -> String? {
     guard let variant = family.variants[precision] else { return nil }
-    if let own = installedPath(variant.id) { return own }
-    guard variant.isDerived, !variant.isStored, let root = family.downloadSource(of: precision),
-        let source = installedPath(root.variant.id)
-    else { return nil }
+    // A mixed recipe (float-kept modules) has no published equivalent: it is made from its root whenever the root is
+    // installed. A checkpoint registered under its id (an earlier import of the uniform quantization, re-keyed by
+    // `legacyIDs`) loads only while the root is absent, so an existing install keeps working until the root is fetched.
+    let rootPath = variant.isDerived && !variant.isStored ? family.downloadSource(of: precision).flatMap { installedPath($0.variant.id) } : nil
+    if let own = installedPath(variant.id), variant.floatModules == nil || rootPath == nil { return own }
+    guard let source = rootPath else { return nil }
     return try prepareDerivedModel(family: family, precision: precision, sourcePath: source, modelsDirectory: modelsDirectory)
 }
 
@@ -238,7 +264,8 @@ public struct MemoryEstimate: Equatable {
 public let quantizableWeightShare = 0.85
 
 /// Estimated weight bytes of a precision: published → its download; derived → the source scaled by bits per weight
-/// (quantized: bits + 32/groupSize for 16-bit scales and biases) over the quantizable share.
+/// (quantized: bits + 32/groupSize for 16-bit scales and biases) over the quantizable share; a mixed recipe keeps its
+/// `floatShare` of the source at the float width.
 public func estimatedWeightBytes(_ family: ModelFamily, _ label: String) -> Double? {
     guard let v = family.variants[label] else { return nil }
     if !v.isDerived { return Double(v.downloadBytes) }
@@ -256,7 +283,8 @@ public func estimatedWeightBytes(_ family: ModelFamily, _ label: String) -> Doub
     let floatBytes = root * floatBits / rootBits
     guard let bits = recipe.bits, let g = recipe.groupSize else { return floatBytes }
     let quantBits = Double(bits) + 32 / Double(g)
-    return floatBytes * (quantizableWeightShare * quantBits / floatBits + (1 - quantizableWeightShare))
+    let kept = Swift.min(Swift.max(v.floatShare ?? 0, 0), quantizableWeightShare)
+    return floatBytes * ((quantizableWeightShare - kept) * quantBits / floatBits + kept + (1 - quantizableWeightShare))
 }
 
 public func estimatedMemory(family: ModelFamily, precision: String, benchmarks: BenchmarkFile) -> MemoryEstimate? {

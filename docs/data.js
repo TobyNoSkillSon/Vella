@@ -3895,6 +3895,10 @@ const VELLA_MODELS = {
           "derivedFrom": "FP16",
           "bits": 8,
           "groupSize": 64,
+          "floatModules": [
+            "model.encoder"
+          ],
+          "floatShare": 0.4081,
           "architecture": "whisper",
           "legacyIDs": [
             "imported-whisper-large-v3-q8"
@@ -4051,6 +4055,10 @@ const VELLA_MODELS = {
           "derivedFrom": "FP16",
           "bits": 8,
           "groupSize": 64,
+          "floatModules": [
+            "model.encoder"
+          ],
+          "floatShare": 0.7797,
           "architecture": "whisper"
         },
         "4b": {
