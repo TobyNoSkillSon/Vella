@@ -21,7 +21,7 @@ Use another tool to translate, to identify speakers or for word-level timestamps
 
 ## Results
 
-`vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per catalog model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Commands start Vella if it is not running, except `vella diagnose`.
+`vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per catalog model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Commands start Vella if it is not running, except `vella diagnose`, `vella --help` and `vella --version`.
 
 ## Commands
 

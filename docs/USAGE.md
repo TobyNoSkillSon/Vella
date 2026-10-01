@@ -25,7 +25,7 @@ Models, recordings and settings in `~/Library/Application Support/Vella` are kep
 
 `VELLA_BUILD=source scripts/install.sh` builds this checkout instead (Command Line Tools Swift, full Xcode and its Metal Toolchain; the installer prints the command that fixes a missing one) and installs it the same way.
 
-**Optional DMG.** Open the release disk image and drag Vella to Applications. For the first launch, right-click Vella, choose **Open** and confirm. The command-line installer is the primary route and needs no Gatekeeper step.
+**Optional DMG.** An optional disk image is planned to accompany the 2.0.0 release; the ZIP remains the primary asset. Once available, open the image and drag Vella to Applications. The app is self-signed and not notarized: after macOS blocks its first launch, use **System Settings → Privacy & Security → Open Anyway**, then confirm. The command-line installer above needs no Gatekeeper step.
 
 ## First run
 
@@ -202,7 +202,7 @@ A mode-only `vella select ID --mode Exact` flips the table's switch, including c
 
 **Your dictation goes first.** A file waits while you record or while a dictation is being transcribed; a dictation that finishes during a file waits for at most the one segment in progress (usually well under a second). Files are processed one at a time; up to eight more wait in line.
 
-**Models.** Without `--model`, a file uses your current dictation model. Another model loads on demand at the precision shown in **Models…** and unloads after its **Keep Hot** time, like any on-demand load. It never unloads your dictation model to make room: if memory is short the request is refused with the numbers. Nothing downloads through the command or the API; get models in **Models…**. Streaming models are not used for files.
+**Models.** Without `--model`, a file uses your current dictation model. Another model loads on demand at the precision shown in **Models…** and unloads after its **Keep Hot** time, like any on-demand load. It never unloads your dictation model to make room: if memory is short the request is refused with the numbers. Transcription requests never download; get models in **Models…** or with `vella get ID --yes`. Streaming models are not used for files.
 
 A file's model is looked up again for each of its segments, when that segment's turn comes, not once for the whole file. If you load, reload or select a model while a long file is being transcribed, the rest of the file uses what you chose: without `--model` (or with `whisper-1` or `current`) that can be another model altogether; `--model` keeps the model, but a Reload at another precision applies to the segments after it. The response does not say which model transcribed which part, and `vella status` afterwards shows only the model selected now.
 

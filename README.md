@@ -113,7 +113,7 @@ curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
 
 Or from a checkout: `git clone https://github.com/TobyNoSkillSon/Vella && cd Vella && scripts/install.sh`. Either way the installer downloads the prebuilt app for this version with curl, checks its SHA-256 and code signature, clears quarantine, installs it in `~/Applications`, starts it and ends with `ready: …`. Coding agents can follow [AGENTS.md](AGENTS.md).
 
-**Optional DMG.** If you prefer a disk image, open the release DMG and drag Vella to Applications. On first launch, right-click Vella and choose **Open**, then confirm. The installer above needs no Gatekeeper step. The release ZIP is the primary asset.
+**Optional DMG.** An optional disk image is planned to accompany the 2.0.0 release; the ZIP remains the primary asset. Once available, open the image and drag Vella to Applications. The app is self-signed and not notarized: after macOS blocks its first launch, use **System Settings → Privacy & Security → Open Anyway**, then confirm. The command-line installer above needs no Gatekeeper step.
 
 Open Vella from the menu bar, approve Microphone and Accessibility access, and press **Control + Command + N**. The first dictation without a model keeps the recording and offers **Get <model> (<size>)**; after the download it transcribes the waiting recording.
 
@@ -187,7 +187,7 @@ The [user guide](docs/USAGE.md) covers every menu item, recovery and troubleshoo
 Install: follow [AGENTS.md](AGENTS.md), then `vella skill --install <skills directory>` writes `transcribe/SKILL.md`. **Copy Skill for Your Agent** in the menu copies the same text.
 
 ```sh
-vella status                      # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra BF16 loaded · dictation model Parakeet v3 Ultra (BF16) · API http://127.0.0.1:63080/v1
+vella status                      # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra 16 loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:63080/v1
 vella transcribe talk.m4a         # the transcript as plain text
 vella transcribe talk.m4a --srt   # SRT subtitles; also --vtt, --json, --verbose-json
 vella models --json                # all catalog rows, cells, reasons, source and download size

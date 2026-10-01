@@ -16,11 +16,16 @@ EXPECTED="$(awk -v name="$ZIP" '$2 == name {print $1}' "$RELEASE/SHA256SUMS")"
 ACTUAL="$(shasum -a 256 "$RELEASE/$ZIP" | awk '{print $1}')"
 [[ "$(tr '[:upper:]' '[:lower:]' <<<"$EXPECTED")" == "$ACTUAL" ]] || { echo 'ZIP checksum mismatch; no DMG made' >&2; exit 1; }
 zipinfo -1 "$RELEASE/$ZIP" | awk '
-  BEGIN { good=1 } { n++; if (n>20000 || $0 !~ /^Vella\.app(\/|$)/ || $0 ~ /(^|\/)\.\.(\/|$)/ || $0 ~ /\\/ || $0 ~ /(^|\/)(\._[^/]*|__MACOSX)(\/|$)/) good=0 }
+  BEGIN { good=1 } { n++; if (n>20000 || $0 !~ /^Vella\.app(\/|$)/ || $0 ~ /(^|\/)\.\.(\/|$)/ || $0 ~ /\\/ || $0 ~ /(^|\/)(\._[^\/]*|__MACOSX)(\/|$)/) good=0 }
   END { exit !(good && n>0) }' || { echo 'Unsafe release archive; no DMG made' >&2; exit 1; }
 mkdir -p "$PROJECT/.build"
 STAGE="$(mktemp -d "$PROJECT/.build/.dmg-stage.XXXXXX")"
-trap 'rm -rf "$STAGE"' EXIT
+MOUNT="$STAGE/mounted"
+cleanup() {
+  if mount | grep -Fq " on $MOUNT ("; then hdiutil detach -quiet "$MOUNT" || return; fi
+  rm -rf "$STAGE"
+}
+trap cleanup EXIT
 mkdir "$STAGE/unpacked" "$STAGE/image"
 ditto -x -k "$RELEASE/$ZIP" "$STAGE/unpacked"
 APP="$STAGE/unpacked/Vella.app"
@@ -28,10 +33,15 @@ APP="$STAGE/unpacked/Vella.app"
   echo 'ZIP app version mismatch; no DMG made' >&2; exit 1;
 }
 codesign --verify --deep --strict "$APP"
-ditto --norsrc --noextattr --noqtn "$APP" "$STAGE/image/Vella.app"
+ditto --noqtn "$APP" "$STAGE/image/Vella.app"
+codesign --verify --deep --strict "$STAGE/image/Vella.app"
 ln -s /Applications "$STAGE/image/Applications"
 hdiutil create -quiet -volname "Vella $VERSION" -srcfolder "$STAGE/image" -format UDZO "$STAGE/$NAME"
 hdiutil verify -quiet "$STAGE/$NAME"
+mkdir "$MOUNT"
+hdiutil attach -quiet -readonly -nobrowse -mountpoint "$MOUNT" "$STAGE/$NAME"
+codesign --verify --deep --strict "$MOUNT/Vella.app"
+hdiutil detach -quiet "$MOUNT"
 # Hash is local integrity evidence, not a signature. The app keeps the signature already in the ZIP.
 (cd "$STAGE" && shasum -a 256 "$NAME") > "$STAGE/dmg.sum"
 awk -v name="$NAME" '$2 != name' "$RELEASE/SHA256SUMS" > "$STAGE/SHA256SUMS"
