@@ -168,17 +168,18 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
             if existing.count >= 2 && existing[1] == file.etag && Self.size(location.final) == file.size,
                 try Self.digest(location.final, size: file.size, etag: file.etag)
             {
-                completed += file.size; progress("Downloading from Hugging Face…", min(completed, Int64(Double(total) * 0.99)), total)
+                completed += file.size; progress("Downloading from Hugging Face…", completed, total)
                 continue
             }
             var offset = Self.size(location.partial) ?? 0
             if offset > file.size { try FileManager.default.removeItem(at: location.partial); offset = 0 }
             if offset != file.size {
-                progress("Downloading from Hugging Face…", min(completed + offset, Int64(Double(total) * 0.99)), total)
+                progress("Downloading from Hugging Face…", completed + offset, total)
                 try await fetch(file, to: location.partial, from: offset) { [progress] bytes in
-                    progress("Downloading from Hugging Face…", min(completed + bytes, Int64(Double(total) * 0.99)), total)
+                    progress("Downloading from Hugging Face…", completed + bytes, total)
                 }
             }
+            progress("Verifying downloaded file…", completed + file.size, total)
             guard Self.size(location.partial) == file.size else { throw DownloadError.invalid("Downloaded file size mismatch: \(file.name)") }
             guard try Self.digest(location.partial, size: file.size, etag: file.etag) else {
                 try? FileManager.default.removeItem(at: location.partial)
@@ -203,9 +204,13 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         let endpoint = try url(file.repository.split(separator: "/").map(String.init) + ["resolve", file.revision] + file.name.split(separator: "/").map(String.init))
         var request = URLRequest(url: endpoint); request.timeoutInterval = 120
         if offset > 0 { request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range") }
+        guard let transferConfiguration = configuration.copy() as? URLSessionConfiguration else {
+            throw DownloadError.invalid("Could not configure the model download")
+        }
         if !FileManager.default.fileExists(atPath: partial.path) { FileManager.default.createFile(atPath: partial.path, contents: nil) }
         let handle = try FileHandle(forWritingTo: partial)
-        let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+        transferConfiguration.timeoutIntervalForResource = .greatestFiniteMagnitude
+        let session = URLSession(configuration: transferConfiguration, delegate: self, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             lock.lock()

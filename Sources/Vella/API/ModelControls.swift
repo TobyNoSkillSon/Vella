@@ -31,6 +31,12 @@ import VellaCore
             o["preview_selection"] = selectionObject(controller.currentSelection(f))
             o["preview_precision"] = tierDTypeLabel(f, controller.currentSelection(f).tier)
         }
+        let library = controller.library(f.mode)
+        if let id = library.downloadingID, f.variants.values.contains(where: { $0.id == id }) {
+            var progress: [String: Any] = ["message": library.message, "received_bytes": library.downloadReceivedBytes ?? 0]
+            if let total = library.downloadTotalBytes { progress["total_bytes"] = total }
+            o["download_progress"] = progress
+        }
         let selectedPath = controller.config.map { f.mode == .dictation ? $0.model : $0.streamingModel } ?? ""
         o["current"] = controller.identify(path: selectedPath, mode: f.mode)?.family.id == f.id
         o["action"] = String(describing: controller.action(f)).capitalized

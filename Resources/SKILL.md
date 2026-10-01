@@ -21,6 +21,8 @@ Use another tool to translate, to identify speakers or for word-level timestamps
 
 ## Results
 
+Get prints download byte progress on stderr while it waits; a progressing download has no total-duration limit.
+
 `vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per catalog model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Commands start Vella if it is not running, except `vella diagnose`, `vella --help` and `vella --version`.
 
 ## Commands
@@ -37,6 +39,8 @@ vella diagnose                                 # a bug report for the user; its 
 ```
 
 ## Pick and get a model
+
+Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast: a small general-purpose default; choose a larger model only for a specific language or accuracy need.
 
 Use one call per step, without probing or retries:
 

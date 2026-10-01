@@ -37,6 +37,8 @@ final class APIServer: @unchecked Sendable {
     private var port = 0
     /// Reservations of open connections and spooled uploads; used only on `queue`.
     private var budget: APIUploadBudget
+    /// Handling tasks by connection, touched only on `queue`. A half-close is not cancellation; a TCP failure is.
+    private var jobs: [ObjectIdentifier: Task<APIResponse, Never>] = [:]
     /// Free space on the uploads volume (tests inject a value).
     var freeBytes: (URL) -> Int64? = { freeDiskBytes(at: $0) }
 
@@ -63,8 +65,10 @@ final class APIServer: @unchecked Sendable {
             connection.stateUpdateHandler = { [weak self] state in
                 switch state {
                 case .failed:
+                    self?.jobs[ObjectIdentifier(connection)]?.cancel()
                     connection.cancel()
                 case .cancelled:
+                    self?.jobs[ObjectIdentifier(connection)]?.cancel()
                     watchdog.disarm()
                     if open { open = false; self?.budget.closeConnection() }
                     connection.stateUpdateHandler = nil
@@ -210,18 +214,25 @@ final class APIServer: @unchecked Sendable {
             guard let handler else { return .error(APIError(503, "Vella is shutting down")) }
             return await handler.handle(request)
         }
-        // A client that disconnects cancels its job (a transcription stops between segments; its files are removed).
+        jobs[ObjectIdentifier(connection)] = job
+        // A transport error cancels the job; a legal write-half-close still awaits our response.
         watchDisconnect(connection, job)
         Task {
             let response = await job.value
             if let cleanup { try? FileManager.default.removeItem(at: cleanup) }
             reservation?.end()
-            send(connection, response)
+            queue.async { [self] in
+                jobs.removeValue(forKey: ObjectIdentifier(connection))
+                send(connection, response)
+            }
         }
     }
     private func watchDisconnect(_ connection: NWConnection, _ job: Task<APIResponse, Never>) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { [weak self] _, _, done, error in
-            if done || error != nil { job.cancel(); return }
+            if error != nil { job.cancel(); return }
+            // EOF is a legal TCP write-half-close after a complete HTTP request. The client may still be reading
+            // our eventual response (notably a long Get); it is not evidence that it abandoned the operation.
+            if done { return }
             self?.watchDisconnect(connection, job) // bytes after the body are ignored
         }
     }

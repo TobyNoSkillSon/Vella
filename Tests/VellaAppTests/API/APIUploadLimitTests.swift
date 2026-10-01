@@ -9,7 +9,44 @@ import Darwin
 final class APIUploadLimitTests: XCTestCase {
     @MainActor private final class Handler: APIHandling {
         var handled = 0
-        func handle(_ request: APIRequest) async -> APIResponse { handled += 1; return .json(200, ["ok": true]) }
+        var delay = false
+        var cancelled = false
+        func handle(_ request: APIRequest) async -> APIResponse {
+            handled += 1
+            if delay {
+                do { try await Task.sleep(nanoseconds: 150_000_000) } catch {
+                    cancelled = true; return .json(499, ["cancelled": true])
+                }
+            }
+            return .json(200, ["ok": true])
+        }
+    }
+
+    @MainActor func testWriteHalfCloseDoesNotCancelACompleteLongRequest() async throws {
+        let (server, port, handler) = try await server(APIUploadLimits())
+        defer { server.stop() }
+        handler.delay = true
+        let fd = try open(port, "GET /status HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n")
+        XCTAssertEqual(shutdown(fd, SHUT_WR), 0, "client finished writing but is still reading the response")
+        var result: Int?
+        try await waitUntil {
+            result = self.status(fd); return result != nil
+        }
+        XCTAssertEqual(result, 200)
+        XCTAssertFalse(handler.cancelled)
+        XCTAssertEqual(handler.handled, 1)
+    }
+
+    @MainActor func testTCPResetStillCancelsTheHandlingTask() async throws {
+        let (server, port, handler) = try await server(APIUploadLimits())
+        defer { server.stop() }
+        handler.delay = true
+        let fd = try open(port, "GET /status HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n")
+        try await waitUntil { handler.handled == 1 }
+        var reset = linger(l_onoff: 1, l_linger: 0)
+        XCTAssertEqual(setsockopt(fd, SOL_SOCKET, SO_LINGER, &reset, socklen_t(MemoryLayout<linger>.size)), 0)
+        close(fd)
+        try await waitUntil { handler.cancelled }
     }
     private var root: URL!
     private var sockets: [Int32] = []

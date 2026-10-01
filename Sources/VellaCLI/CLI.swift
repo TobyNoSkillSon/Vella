@@ -41,7 +41,7 @@ struct CLIError: Error { let message: String; init(_ message: String) { self.mes
 struct VellaCLI {
     var environment = ProcessInfo.processInfo.environment
     var write: (String) -> Void = { print($0) }
-    var warn: (String) -> Void = { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }
+    var warn: @Sendable (String) -> Void = { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }
 
     func run(_ argv: [String]) async -> Int32 {
         guard let command = argv.first, !["-h", "--help", "help"].contains(command) else { write(usage); return 0 }
@@ -139,9 +139,42 @@ struct VellaCLI {
         let id = args.positional[0]
         var safe = CharacterSet.urlPathAllowed; safe.remove(charactersIn: "/?#%")
         guard let encoded = id.addingPercentEncoding(withAllowedCharacters: safe), !encoded.isEmpty else { throw CLIError("model id is empty") }
-        let data = try await client().request("POST", "/v1/models/\(encoded)/\(command)", json: fields)
+        let data: Data
+        if command == "get" {
+            data = try await getWithProgress(id: id, encoded: encoded, fields: fields)
+        } else {
+            data = try await client().request("POST", "/v1/models/\(encoded)/\(command)", json: fields)
+        }
         guard let model = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { throw CLIError("Vella answered with invalid model JSON") }
         write(Self.modelLine(model))
+    }
+
+    func getWithProgress(id: String, encoded: String, fields: [String: Any]) async throws -> Data {
+        let client = client()
+        let report = warn
+        let polling = Task {
+            var previous = ""
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
+                guard let data = try? await client.request("GET", "/v1/models/catalog", timeout: 5),
+                    let list = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                    let rows = list["data"] as? [[String: Any]], let row = rows.first(where: { $0["id"] as? String == id }),
+                    let progress = row["download_progress"] as? [String: Any], let message = progress["message"] as? String,
+                    message != previous
+                else { continue }
+                guard !Task.isCancelled else { return }
+                previous = message; report(message)
+            }
+        }
+        // The app's byte-stall watchdog bounds Get. A progressing multi-GB download has no total-duration cap.
+        do {
+            let data = try await client.request("POST", "/v1/models/\(encoded)/get", json: fields, timeout: nil)
+            polling.cancel(); await polling.value
+            return data
+        } catch {
+            polling.cancel(); await polling.value
+            throw error
+        }
     }
 
     func settingsControl(_ command: String, _ rest: [String]) async throws {
@@ -360,13 +393,14 @@ struct VellaClient {
 
     func request(
         _ method: String, _ path: String, json: [String: Any]? = nil, port known: Int? = nil,
-        timeout: TimeInterval = 4 * 3600
+        timeout: TimeInterval? = 4 * 3600
     ) async throws -> Data {
         let port: Int
         if let known { port = known } else { port = try await ensureRunning() }
         var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)\(path)")!)
         request.httpMethod = method
-        request.timeoutInterval = timeout // default: a 3-hour file on a slow model
+        let interval = timeout ?? .greatestFiniteMagnitude
+        request.timeoutInterval = interval // default: a 3-hour file on a slow model; nil: app-bounded Get
         if let json {
             // A local path is only read for a client that can read Vella's status file (not a sandboxed app).
             if let token = runningStatus()?.api_token { request.setValue(token, forHTTPHeaderField: "X-Vella-Token") }
@@ -375,8 +409,8 @@ struct VellaClient {
         }
         let config = URLSessionConfiguration.ephemeral
         config.connectionProxyDictionary = [:]
-        config.timeoutIntervalForRequest = timeout
-        config.timeoutIntervalForResource = timeout
+        config.timeoutIntervalForRequest = interval
+        config.timeoutIntervalForResource = interval
         let session = URLSession(configuration: config)
         defer { session.finishTasksAndInvalidate() }
         let (data, response): (Data, URLResponse)

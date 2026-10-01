@@ -16,6 +16,8 @@ import VellaCore
     @Published var message = "Choose a model. Compare it on the same audio."
     @Published var busy = false
     @Published var progress: Double?
+    @Published private(set) var downloadReceivedBytes: Int64?
+    @Published private(set) var downloadTotalBytes: Int64?
     @Published var downloadingID: String?
     @Published var downloadError: String?
     @Published var activeModelPath = ""
@@ -31,8 +33,8 @@ import VellaCore
     private var downloadTask: Task<Void, Never>?
     private var downloadTimeout: Task<Void, Never>?
     private var downloadToken: UUID?
-    /// Wall-clock bound, including stalled network or conversion work. Tests shorten it.
-    var downloadTimeoutSeconds: Double = 3600
+    /// Network inactivity bound, reset by new bytes, never by the total duration. Tests shorten it.
+    var downloadTimeoutSeconds: Double = 120
     var mayChangeModel: () -> Bool = { true }
     /// Runtime pins/loading for a catalog variant: one gate shared by Delete, Unload and Reload.
     var modelInUse: (String) -> Bool = { _ in false }
@@ -243,7 +245,7 @@ import VellaCore
     /// Downloads the selected variant. `approval` comes only from the confirmation popup (DownloadGate) and must name
     /// this variant: nothing downloads without the user's Download. Returns false (with `downloadError` set) when the
     /// download did not start. `completion` runs once on refusal, success, failure, cancellation or shutdown:
-    /// true = installed. The wall-clock timeout completes it even if the network never reports back.
+    /// true = installed. The byte-inactivity timeout completes it even if the network never reports back.
     /// `pendingRecording`: the first-dictation Get row. The app is deliberately busy then (it holds the saved
     /// recording in `.preparing` until the model arrives), so that one download is authorized explicitly instead of
     /// relaxing the general "not while dictating" guard. Busy/calibration guards still apply.
@@ -266,6 +268,7 @@ import VellaCore
         let label = downloadLabel(selected)
         downloadingID = selected.id; downloadError = nil
         busy = true; progress = nil; message = "\(label) \u{00b7} Starting…"
+        downloadReceivedBytes = nil; downloadTotalBytes = nil
         downloadCompletion = completion
         let token = UUID(); downloadToken = token
         let client = NativeModelDownload(
@@ -276,24 +279,24 @@ import VellaCore
                 guard let self, self.downloadToken == token else { return }
                 var line = "\(label) \u{00b7} \(text)"
                 if let done, let total, total > 0 {
+                    let advanced = done > (self.downloadReceivedBytes ?? -1)
+                    self.downloadReceivedBytes = done; self.downloadTotalBytes = total
+                    if advanced || self.downloadTimeout == nil { self.armDownloadTimeout(token: token, label: label) }
                     self.progress = min(0.99, max(0, Double(done) / Double(total)))
                     line += " \(formatBytes(done)) of \(formatBytes(total))"
                 }
+                // Checksums/conversion are local work, not a stalled network transfer.
+                if text.hasPrefix("Verifying") { self.downloadTimeout?.cancel(); self.downloadTimeout = nil }
                 self.message = line
             }
         }
         downloadClient = client
-        let timeoutSeconds = downloadTimeoutSeconds
-        downloadTimeout = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
-            guard !Task.isCancelled, let self, self.downloadToken == token else { return }
-            self.cancel()
-            self.message = "\(label) download timed out; partial files removed."; self.downloadError = self.message
-        }
+        armDownloadTimeout(token: token, label: label)
         downloadTask = Task { [weak self] in
             do {
                 guard let self else { return }
                 let folder = try await client.download(selected, modelsDirectory: self.modelsDirectory)
+                self.downloadTimeout?.cancel(); self.downloadTimeout = nil
                 guard self.downloadToken == token, !Task.isCancelled,
                     selected.id == self.downloadingID, folder.standardizedFileURL == self.modelsDirectory.appendingPathComponent(selected.id).standardizedFileURL
                 else { throw CancellationError() }
@@ -334,6 +337,16 @@ import VellaCore
             }
         }
         return true
+    }
+    private func armDownloadTimeout(token: UUID, label: String) {
+        downloadTimeout?.cancel()
+        let seconds = downloadTimeoutSeconds
+        downloadTimeout = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) } catch { return }
+            guard let self, self.downloadToken == token else { return }
+            let interval = String(format: "%g", seconds)
+            self.cancelDownload(message: "\(label) download stalled (no new bytes for \(interval) seconds); partial files removed.")
+        }
     }
     /// The bundled catalog (families), for stored conversions and the registry migration; nil when unreadable.
     var catalog: ModelCatalog? { (try? Data(contentsOf: resources.appendingPathComponent(catalogName))).flatMap { try? decodeCatalog($0) } }
@@ -407,6 +420,9 @@ import VellaCore
             if !calibration.isRunning { calibratingID = nil; busy = false }
             return
         }
+        cancelDownload(message: nil)
+    }
+    private func cancelDownload(message override: String?) {
         guard busy else { return }
         let id = downloadingID
         let label = models.first { $0.id == id }.map(downloadLabel) ?? "Model"
@@ -415,7 +431,7 @@ import VellaCore
         downloadingID = nil; busy = false
         // Its partial files go now; the download task removes anything it wrote while stopping.
         if let id { removePartialDownload(id) }
-        message = "\(label) download cancelled; partial files removed."; downloadError = message
+        message = override ?? "\(label) download cancelled; partial files removed."; downloadError = message
         finishDownload(false)
     }
     private func beginCalibration(id: String, path: String) {

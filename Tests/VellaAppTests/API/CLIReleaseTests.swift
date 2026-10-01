@@ -33,4 +33,10 @@ final class CLIReleaseTests: XCTestCase {
             XCTAssertTrue(text.components(separatedBy: "\n").contains(claim), path)
         }
     }
+
+    func testSkillNamesTheSmallGeneralPurposeDefaultAndGetProgress() throws {
+        let text = try String(contentsOf: Repository.root.appendingPathComponent("Resources/SKILL.md"), encoding: .utf8)
+        XCTAssertTrue(text.contains("Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast"))
+        XCTAssertTrue(text.contains("Get prints download byte progress on stderr"))
+    }
 }

@@ -42,6 +42,46 @@ private final class StalledControlHub: URLProtocol {
     override func stopLoading() {}
 }
 
+/// A transfer lasting several inactivity windows, with real bytes every quarter second. No external network.
+private final class SlowControlHub: URLProtocol, @unchecked Sendable {
+    static var files: [String: Data] {
+        ["config.json": Data(#"{"model_type":"parakeet"}"#.utf8), "model.safetensors": Data(repeating: 1, count: 256 * 1024)]
+    }
+    private let lock = NSLock()
+    private var stopped = false
+    override static func canInit(with request: URLRequest) -> Bool { true }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        do {
+            let data: Data
+            if request.url!.path.contains("/api/models/") {
+                let siblings: [[String: Any]] = Self.files.map { name, bytes in
+                    ["rfilename": name, "size": bytes.count, "lfs": ["sha256": SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()]]
+                }
+                data = try JSONSerialization.data(withJSONObject: ["sha": String(repeating: "a", count: 40), "siblings": siblings])
+            } else {
+                data = Self.files[request.url!.lastPathComponent]!
+            }
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Length": String(data.count)])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            guard request.url!.lastPathComponent == "model.safetensors" else {
+                client?.urlProtocol(self, didLoad: data); client?.urlProtocolDidFinishLoading(self); return
+            }
+            let chunks = 12
+            for index in 0..<chunks {
+                let lower = data.count * index / chunks, upper = data.count * (index + 1) / chunks
+                let bytes = data.subdata(in: lower..<upper)
+                DispatchQueue.global().asyncAfter(deadline: .now() + Double(index + 1) * 0.25) { [self] in
+                    guard !lock.withLock({ stopped }) else { return }
+                    client?.urlProtocol(self, didLoad: bytes)
+                    if index == chunks - 1 { client?.urlProtocolDidFinishLoading(self) }
+                }
+            }
+        } catch { client?.urlProtocol(self, didFailWithError: error) }
+    }
+    override func stopLoading() { lock.withLock { stopped = true } }
+}
+
 final class ModelControlTests: XCTestCase {
     @MainActor func fixture() throws -> TwoFamilyFixture {
         try Integration.require()
@@ -167,7 +207,11 @@ final class ModelControlTests: XCTestCase {
             while !lib.busy, Date() < until { try await Task.sleep(nanoseconds: 1_000_000) }
             XCTAssertTrue(lib.busy)
             if cancel { job.cancel() }
-            do { _ = try await job.value; XCTFail("Stalled Get must fail") } catch {}
+            do { _ = try await job.value; XCTFail("Stalled Get must fail") } catch {
+                if !cancel {
+                    XCTAssertTrue(lib.downloadError?.contains("stalled (no new bytes for 0.1 seconds)") == true, lib.downloadError ?? "")
+                }
+            }
             XCTAssertFalse(lib.busy)
             XCTAssertTrue(f.controller.controlOperations.isEmpty)
             XCTAssertNil(f.controller.pendingLoads["alpha"])
@@ -177,6 +221,37 @@ final class ModelControlTests: XCTestCase {
             _ = try await controls.perform("load", id: "zeta", fields: [:])
             XCTAssertTrue(f.runtime.isLoaded("zeta"), "Other controls still work")
         }
+    }
+
+    @MainActor func testSlowProgressingGetCompletesThroughCLIAndReportsByteProgress() async throws {
+        let f = try fixture()
+        defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
+        let lib = f.controller.dictation
+        lib.installed.removeValue(forKey: "alpha-bf16")
+        lib.installed.removeValue(forKey: "alpha-4bit")
+        try FileManager.default.removeItem(at: lib.modelsDirectory.appendingPathComponent("alpha-bf16"))
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SlowControlHub.self]
+        lib.downloadConfiguration = configuration; lib.downloadTimeoutSeconds = 0.6
+        f.runtime.apiToken = "test-token"
+        let transcriber = APITranscriber(backend: f.backend, root: f.root.appendingPathComponent("jobs"))
+        let service = APIService(transcriber: transcriber, models: f.source, scratch: f.root.appendingPathComponent("files"))
+        service.controls = ModelControls(controller: f.controller, runtime: f.runtime)
+        let server = try APIServer(uploads: f.root.appendingPathComponent("uploads"), handler: service)
+        defer { server.stop() }
+        let port = await withCheckedContinuation { c in server.start { c.resume(returning: $0) } }
+        f.runtime.apiPort = try XCTUnwrap(port); f.runtime.writeStatus()
+        let environment = ["VELLA_SUPPORT_DIR": f.runtime.support.path, "VELLA_NO_LAUNCH": "1", "PATH": "/usr/bin:/bin"]
+        let start = Date()
+        let (code, line, progress) = try await APIClientTests.run(APIClientTests.cli, ["get", "alpha", "--yes"], environment: environment)
+        XCTAssertEqual(code, 0, progress)
+        XCTAssertTrue(line.contains("loaded"), line)
+        XCTAssertTrue(progress.contains("Downloading from Hugging Face") && progress.contains(" of "), progress)
+        XCTAssertGreaterThan(Date().timeIntervalSince(start), 2 * lib.downloadTimeoutSeconds)
+        XCTAssertTrue(f.runtime.isLoaded("alpha"))
+        XCTAssertNil(lib.downloadError)
+        XCTAssertTrue(f.controller.controlOperations.isEmpty)
+        XCTAssertEqual(try Data(contentsOf: lib.modelsDirectory.appendingPathComponent("alpha-bf16/model.safetensors")), SlowControlHub.files["model.safetensors"])
     }
 
     @MainActor func testTokenComparisonRejectsMissingChangedAndDifferentLengthSecrets() {
