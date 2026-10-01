@@ -174,56 +174,105 @@ public struct DerivedModelManifest: Codable, Equatable {
     public var floatModules: [String]?
 }
 
-/// Writes (idempotently) `<modelsDirectory>/<derived id>/vella-derived.json` for a derived precision whose source is
-/// installed at `sourcePath`, and returns that directory's path: the model path to hand the worker for Load/Reload.
-public func prepareDerivedModel(family: ModelFamily, precision: String, sourcePath: String, modelsDirectory: URL) throws -> String {
-    guard let variant = family.variants[precision], variant.isDerived else { throw DerivationError.notDerived(precision) }
+/// The manifest the catalog's current recipe writes for a derived precision made from `sourcePath`.
+public func derivedManifest(family: ModelFamily, precision: String, sourcePath: String) throws -> DerivedModelManifest {
+    guard family.variants[precision]?.isDerived == true else { throw DerivationError.notDerived(precision) }
     let recipe = try family.derivation(precision)
     guard sourcePath.hasPrefix("/") else { throw DerivationError.invalid("The source path must be absolute.") }
     let source = URL(fileURLWithPath: sourcePath).standardizedFileURL
-    guard FileManager.default.fileExists(atPath: source.appendingPathComponent("config.json").path) else {
-        throw DerivationError.invalid("The source model of \(family.name) \(precision) is not installed.")
-    }
-    let manifest = DerivedModelManifest(
+    return DerivedModelManifest(
         schema: 1, family: family.id, precision: precision, source: source.path, sourceVariant: recipe.source.id,
         sourcePrecision: recipe.sourceLabel, dtype: recipe.dtype, bits: recipe.bits, groupSize: recipe.groupSize,
         floatModules: recipe.floatModules.isEmpty ? nil : recipe.floatModules)
-    let directory = modelsDirectory.appendingPathComponent(variant.id, isDirectory: true).standardizedFileURL
+}
+
+/// Whether a directory is absent or holds nothing but a derivation manifest (it stores no weights).
+func holdsOnlyManifest(_ directory: URL) -> Bool {
+    guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else {
+        return !FileManager.default.fileExists(atPath: directory.path)
+    }
+    return names.allSatisfy { $0 == DerivedModelManifest.fileName || $0 == ".DS_Store" }
+}
+
+/// Where a derived precision's manifest lives: `<modelsDirectory>/<variant id>`, unless that folder holds real
+/// weights (a registered checkpoint, e.g. an imported uniform quantization at the canonical path); then
+/// `<variant id>.derived`, so the derivation never collides with, shadows or fails on those weights.
+public func derivedDirectory(_ variant: CatalogVariant, modelsDirectory: URL) -> URL {
+    let own = modelsDirectory.appendingPathComponent(variant.id, isDirectory: true).standardizedFileURL
+    return holdsOnlyManifest(own) ? own : modelsDirectory.appendingPathComponent(variant.id + ".derived", isDirectory: true).standardizedFileURL
+}
+
+private func writeManifest(_ manifest: DerivedModelManifest, to directory: URL) throws {
     let fm = FileManager.default
     try fm.createDirectory(at: directory, withIntermediateDirectories: true)
     // Never mix a manifest into a directory holding anything else (a real install must not be shadowed).
-    let others = try fm.contentsOfDirectory(atPath: directory.path).filter { $0 != DerivedModelManifest.fileName && $0 != ".DS_Store" }
-    guard others.isEmpty else { throw DerivationError.invalid("\(directory.path) is not a derived model directory.") }
+    guard holdsOnlyManifest(directory) else { throw DerivationError.invalid("\(directory.path) is not a derived model directory.") }
     let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     let data = try encoder.encode(manifest)
     let file = directory.appendingPathComponent(DerivedModelManifest.fileName)
     if (try? Data(contentsOf: file)) != data { try data.write(to: file, options: .atomic) }
+}
+
+/// Writes (idempotently) the derived precision's manifest into `derivedDirectory` for a source installed at
+/// `sourcePath`, and returns that directory's path: the model path to hand the worker for Load/Reload.
+public func prepareDerivedModel(family: ModelFamily, precision: String, sourcePath: String, modelsDirectory: URL) throws -> String {
+    guard let variant = family.variants[precision], variant.isDerived else { throw DerivationError.notDerived(precision) }
+    let manifest = try derivedManifest(family: family, precision: precision, sourcePath: sourcePath)
+    guard FileManager.default.fileExists(atPath: URL(fileURLWithPath: manifest.source).appendingPathComponent("config.json").path) else {
+        throw DerivationError.invalid("The source model of \(family.name) \(precision) is not installed.")
+    }
+    let directory = derivedDirectory(variant, modelsDirectory: modelsDirectory)
+    try writeManifest(manifest, to: directory)
     return directory.path
 }
 
-/// Whether a precision can load without a download: a checkpoint registered under its own id (downloaded, stored
-/// conversion, or an earlier download of exactly this format), or for a precision made at load its root's files.
-/// `installedPath` maps a variant id to its registered folder. Never another tier's files.
+/// Launch migration: every derived-model manifest in `modelsDirectory` whose content differs from the catalog's
+/// current recipe for its family and precision (e.g. a uniform manifest an earlier version wrote for a tier that is
+/// now a mixed recipe) is rewritten in place, from its own source. Same folder, so recorded paths stay valid; written
+/// only when the bytes differ; a manifest folder holds no weights, so nothing is lost. Returns the rewritten paths.
+@discardableResult
+public func migrateDerivedManifests(catalog: ModelCatalog, modelsDirectory: URL) -> [String] {
+    guard let entries = try? FileManager.default.contentsOfDirectory(at: modelsDirectory, includingPropertiesForKeys: nil) else { return [] }
+    return entries.compactMap { directory in
+        guard let old = derivedModelManifest(at: directory), let family = catalog.family(old.family),
+            let variant = family.variants[old.precision], variant.isDerived, !variant.isStored, holdsOnlyManifest(directory),
+            let current = try? derivedManifest(family: family, precision: old.precision, sourcePath: old.source), current != old,
+            (try? writeManifest(current, to: directory)) != nil
+        else { return nil }
+        return directory.standardizedFileURL.path
+    }
+}
+
+/// The registered checkpoint that loads as a precision, if any: its own registered weights. Never for a mixed recipe
+/// (float-kept modules): it has no published form, so a checkpoint registered under its id (an imported uniform
+/// quantization re-keyed by `legacyIDs`) is a different recipe and is never presented as this one.
+public func registeredCheckpoint(_ family: ModelFamily, _ precision: String, installedPath: (String) -> String?) -> String? {
+    guard let variant = family.variants[precision], variant.floatModules == nil else { return nil }
+    return installedPath(variant.id)
+}
+
+/// Whether a precision can load without a download: its registered checkpoint (`registeredCheckpoint`), or for a
+/// precision made at load its root's files. `installedPath` maps a variant id to its registered folder.
 public func precisionAvailable(_ family: ModelFamily, _ precision: String, installedPath: (String) -> String?) -> Bool {
     guard let variant = family.variants[precision] else { return false }
-    if installedPath(variant.id) != nil { return true }
+    if registeredCheckpoint(family, precision, installedPath: installedPath) != nil { return true }
     guard variant.isDerived, !variant.isStored, let root = family.downloadSource(of: precision) else { return false }
     return installedPath(root.variant.id) != nil
 }
 
 /// The folder to hand the worker for a precision, preparing its manifest when it is made at load; nil when a Get is
-/// needed first. Its own registered checkpoint wins (it loads as is); a derived-at-load precision reads its root.
+/// needed first. The ONE resolution for the Models table, the runtime (on-demand dictation, launch preload) and the
+/// API: its registered checkpoint loads as is; a precision made at load reads its root through the catalog's current
+/// recipe. A mixed recipe is made from its 16-bit root (never from a registered checkpoint), into a folder that never
+/// collides with real weights; without the root it needs a Get.
 public func precisionLoadPath(
     _ family: ModelFamily, _ precision: String, installedPath: (String) -> String?,
     modelsDirectory: URL
 ) throws -> String? {
     guard let variant = family.variants[precision] else { return nil }
-    // A mixed recipe (float-kept modules) has no published equivalent: it is made from its root whenever the root is
-    // installed. A checkpoint registered under its id (an earlier import of the uniform quantization, re-keyed by
-    // `legacyIDs`) loads only while the root is absent, so an existing install keeps working until the root is fetched.
-    let rootPath = variant.isDerived && !variant.isStored ? family.downloadSource(of: precision).flatMap { installedPath($0.variant.id) } : nil
-    if let own = installedPath(variant.id), variant.floatModules == nil || rootPath == nil { return own }
-    guard let source = rootPath else { return nil }
+    if let own = registeredCheckpoint(family, precision, installedPath: installedPath) { return own }
+    guard variant.isDerived, !variant.isStored, let root = family.downloadSource(of: precision), let source = installedPath(root.variant.id)
+    else { return nil }
     return try prepareDerivedModel(family: family, precision: precision, sourcePath: source, modelsDirectory: modelsDirectory)
 }
 

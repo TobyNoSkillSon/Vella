@@ -335,12 +335,13 @@ final class ModelsTests: XCTestCase {
 
     @MainActor func testWithoutRuntimeTheModeSelectionReadsAsLoaded() throws {
         let c = try controller()
-        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
-        c.dictation.installed["parakeet-tdt-0.6b-v3-mlx-4bit"] = InstalledModel(path: "/fixture/p4")
-        c.dictation.activeModelPath = "/fixture/p4"
-        XCTAssertEqual(c.loaded(parakeet)?.precision, "4b")
-        XCTAssertEqual(c.activeLabel(.dictation), "Parakeet v3 4-bit", "no 4b wording in the menu header")
-        XCTAssertEqual(c.action(parakeet), .unload)
+        // A registered uniform 4-bit checkpoint (Parakeet v3's 4 tier is now a mixed recipe, never a registered one).
+        let turbo = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
+        c.dictation.installed["whisper-large-v3-turbo-asr-4bit"] = InstalledModel(path: "/fixture/t4")
+        c.dictation.activeModelPath = "/fixture/t4"
+        XCTAssertEqual(c.loaded(turbo)?.precision, "4b")
+        XCTAssertEqual(c.activeLabel(.dictation), "\(turbo.name) 4-bit", "no 4b wording in the menu header")
+        XCTAssertEqual(c.action(turbo), .unload)
     }
 
     @MainActor func testMenuOrderAndTooltips() throws {

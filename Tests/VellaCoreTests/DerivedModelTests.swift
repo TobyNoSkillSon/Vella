@@ -127,11 +127,13 @@ final class DerivedModelTests: XCTestCase {
         XCTAssertThrowsError(try prepareDerivedModel(family: ultra, precision: "BF16", sourcePath: source.path, modelsDirectory: models), "not derived")
         XCTAssertThrowsError(
             try prepareDerivedModel(family: ultra, precision: "8b", sourcePath: root.appendingPathComponent("missing").path, modelsDirectory: models), "source not installed")
-        // A directory holding anything else is never used.
+        // A directory holding real weights is never written into: the manifest goes to a non-colliding folder beside it.
         try Data().write(to: URL(fileURLWithPath: four).appendingPathComponent("model.safetensors"))
-        XCTAssertThrowsError(try prepareDerivedModel(family: ultra, precision: "4b", sourcePath: source.path, modelsDirectory: models))
+        let beside = try prepareDerivedModel(family: ultra, precision: "4b", sourcePath: source.path, modelsDirectory: models)
+        XCTAssertEqual(beside, models.appendingPathComponent("parakeet-ultra-mlx-4bit-local.derived").standardizedFileURL.path)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: four).sorted(), ["model.safetensors", DerivedModelManifest.fileName])
         // Deleting the source removes its manifest-only directories and leaves anything else.
-        XCTAssertEqual(removeDerivedModels(sourcePath: source.path, modelsDirectory: models), [path])
+        XCTAssertEqual(removeDerivedModels(sourcePath: source.path, modelsDirectory: models).sorted(), [beside, path].sorted())
         XCTAssertFalse(FileManager.default.fileExists(atPath: path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: four))
         XCTAssertTrue(FileManager.default.fileExists(atPath: source.path))
@@ -218,13 +220,17 @@ final class DerivedModelTests: XCTestCase {
         let fourFile = URL(fileURLWithPath: four).appendingPathComponent(DerivedModelManifest.fileName)
         let fourObject = try JSONSerialization.jsonObject(with: Data(contentsOf: fourFile)) as? [String: Any]
         XCTAssertNil(fourObject?["floatModules"], "uniform manifests keep their keys")
-        // A uniform checkpoint registered under the mixed tier's id loads only while the root is absent.
+        // A uniform checkpoint registered under the mixed tier's id is never that tier: without the root it needs a Get,
+        // with the root the recipe is made from the root.
         let imported = root.appendingPathComponent("outside/q8").path
         let registered: [String: String] = ["whisper-large-v3-8bit": imported]
-        XCTAssertTrue(precisionAvailable(large, "8b", installedPath: { registered[$0] }))
-        XCTAssertEqual(try precisionLoadPath(large, "8b", installedPath: { registered[$0] }, modelsDirectory: models), imported)
+        XCTAssertNil(registeredCheckpoint(large, "8b", installedPath: { registered[$0] }))
+        XCTAssertFalse(precisionAvailable(large, "8b", installedPath: { registered[$0] }))
+        XCTAssertNil(try precisionLoadPath(large, "8b", installedPath: { registered[$0] }, modelsDirectory: models))
         let both = registered.merging(["whisper-large-v3-asr-fp16": source.path]) { $1 }
         XCTAssertEqual(try precisionLoadPath(large, "8b", installedPath: { both[$0] }, modelsDirectory: models), path)
+        // A uniform tier keeps its registered checkpoint.
+        XCTAssertEqual(registeredCheckpoint(large, "4b", installedPath: { ["whisper-large-v3-asr-4bit": "/x/q4"][$0] }), "/x/q4")
     }
 }
 

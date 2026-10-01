@@ -108,19 +108,20 @@ final class OneStateTests: XCTestCase {
 
     // MARK: One state
 
-    /// Toby's repro: dictation loaded Parakeet v3 4-bit while a stored choice said FP32 (not on disk): what is loaded wins.
+    /// Toby's repro: dictation loaded a 4-bit checkpoint while a stored choice said the 16-bit (not on disk): what is
+    /// loaded wins. (Originally Parakeet v3 4-bit vs FP32; its 4 tier is now a mixed recipe, so a uniform 4-bit stands in.)
     @MainActor func testLoadedPrecisionWins() throws {
         let c = try shipped()
-        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        let parakeet = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
-        c.dictation.installed["parakeet-tdt-0.6b-v3-mlx-4bit"] = InstalledModel(path: "/fixture/p4")
+        c.dictation.installed["whisper-large-v3-turbo-asr-4bit"] = InstalledModel(path: "/fixture/p4")
         c.dictation.installed["Qwen3-ASR-0.6B-bf16"] = InstalledModel(path: "/fixture/q06")
         c.streaming.installed["nemotron-3.5-asr-streaming-0.6b-8bit"] = InstalledModel(path: "/fixture/n8")
         var saved = Configuration(model: "/fixture/p4", streamingModel: "/fixture/n8")
-        saved.lastLoaded = ["qwen3-asr-0.6b": "8b", "parakeet-v3": "FP32"]
+        saved.lastLoaded = ["qwen3-asr-0.6b": "8b", "whisper-large-v3-turbo": "FP16"]
         try JSONEncoder().encode(saved).write(to: configURL)
         c.reloadConfig()
-        c.runtime = TableRuntime(loaded: ["parakeet-v3": LoadedFamily(precision: "4b", residency: "on_demand")])
+        c.runtime = TableRuntime(loaded: ["whisper-large-v3-turbo": LoadedFamily(precision: "4b", residency: "on_demand")])
 
         // The loaded row shows what is loaded and offers Unload, not a Reload.
         XCTAssertEqual(c.selected(parakeet), "4b")

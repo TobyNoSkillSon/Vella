@@ -60,6 +60,12 @@ import VellaCore
                 "registry: re-keyed \(result.rekeyed.sorted { $0.key < $1.key }.map { "\($0.key) -> \($0.value)" }.joined(separator: ", ")); dropped \(result.dropped.joined(separator: ", "))"
             )
         }
+        // Manifests of precisions made on this Mac follow the catalog's current recipe (same folders; content only).
+        let directories = Set([controller.dictation.modelsDirectory, controller.streaming.modelsDirectory].map(\.standardizedFileURL))
+        let rewritten = directories.flatMap { migrateDerivedManifests(catalog: controller.catalog, modelsDirectory: $0) }
+        if !rewritten.isEmpty {
+            runtime.log("derived: rewrote to the catalog's current recipe: \(rewritten.map { URL(fileURLWithPath: $0).lastPathComponent }.sorted().joined(separator: ", "))")
+        }
         let cleared = controller.clearSelectionsOutsideTheCatalog()
         if !cleared.isEmpty {
             runtime.log("config: cleared models outside the catalog: \(cleared.map { URL(fileURLWithPath: $0).lastPathComponent }.joined(separator: ", "))")
@@ -89,13 +95,20 @@ import VellaCore
         if let id = library.installed.first(where: { $0.value.path == path })?.key,
             let (family, precision) = controller.catalog.locate(variant: id)
         {
+            // A registered checkpoint runs as the precision only when it IS that recipe (`registeredCheckpoint`); one
+            // re-keyed to a mixed tier (an imported uniform quantization) resolves like Load: the recipe made from the
+            // 16-bit root, else nothing (never the import under the tier's name).
+            guard registeredCheckpoint(family, precision, installedPath: { library.installed[$0]?.path }) != nil else {
+                return runnablePath(family, precision).map { runnableRef(family, precision, path: $0) }
+            }
             return runnableRef(family, precision, path: path)
         }
-        // A precision made on this Mac: its directory holds only the derivation manifest (never in the registry).
+        // A precision made on this Mac: its directory holds only the derivation manifest (never in the registry). It
+        // resolves like Load (precisionLoadPath), so it runs the catalog's current recipe.
         guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = controller.catalog.family(manifest.family),
             family.variants[manifest.precision]?.isDerived == true
         else { return nil }
-        return runnableRef(family, manifest.precision, path: path)
+        return runnableRef(family, manifest.precision, path: runnablePath(family, manifest.precision) ?? path)
     }
     /// What a request for these files runs (`SelectionRules.runnable`, the table's rule): the loaded model when these
     /// files are loaded (its cell stays, whatever it is); else the recorded selection when it is offered and measured,
@@ -114,16 +127,13 @@ import VellaCore
         if let loaded = runtime.loadedRef(family.id), sameFiles(loaded.path, files) { return loaded }
         return ref(family, valid, path: files, selection: runnable)
     }
-    /// The files of a precision: its registered download, or a precision made on this Mac (its manifest is written
-    /// here; the worker makes the weights at load). Nil when its weights are not on this Mac.
-    private func runnablePath(_ family: ModelFamily, _ precision: String) -> String? {
+    /// The files of a precision, resolved exactly as the Models table's Load does (`precisionLoadPath`): its
+    /// registered checkpoint, or a precision made on this Mac (its manifest is written here; the worker makes the
+    /// weights at load). Nil when its weights are not on this Mac.
+    func runnablePath(_ family: ModelFamily, _ precision: String) -> String? {
         guard let controller else { return nil }
-        if let installed = controller.installed(family, precision)?.path { return installed }
         let library = controller.library(family.mode)
-        guard let variant = family.variants[precision], variant.isDerived, !variant.isStored, let source = family.downloadSource(of: precision),
-            let local = library.installed[source.variant.id]
-        else { return nil }
-        return try? prepareDerivedModel(family: family, precision: precision, sourcePath: local.path, modelsDirectory: library.modelsDirectory)
+        return try? precisionLoadPath(family, precision, installedPath: { library.installed[$0]?.path }, modelsDirectory: library.modelsDirectory)
     }
     /// `selection` nil: the family's recorded one (`defaultSelection`), so an on-demand load runs what the user chose.
     func ref(_ family: ModelFamily, _ precision: String, path: String, selection: ModelSelection? = nil) -> ModelRef {

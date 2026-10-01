@@ -104,8 +104,9 @@ import XCTest
     /// version's 4-bit download, nothing else), that precision keeps working everywhere rather than needing a download
     /// in the table while dictation still ran it.
     func testWithdrawnPrecisionWithNoOfferedWeightsKeepsWorkingAndEveryoneSaysSo() throws {
-        let parakeet = try family("parakeet-v3")
-        let four = try install("parakeet-tdt-0.6b-v3-mlx-4bit")
+        // A uniform 4-bit tier that is not offered (Parakeet v3's 4 tier, the original case, is now a mixed recipe).
+        let parakeet = try family("whisper-large-v3-turbo")
+        let four = try install("whisper-large-v3-turbo-asr-4bit")
         try record(model: four, family: parakeet.id, precision: "4b", ModelSelection(tier: .t4, path: .optimized, mode: .fast))
         XCTAssertEqual(controller.committed(parakeet), "4b")
         XCTAssertEqual(controller.committedSelection(parakeet).tier, .t4)
@@ -114,8 +115,8 @@ import XCTest
         let request = try XCTUnwrap(bridge.ref(path: four, mode: .dictation))
         XCTAssertEqual(request.precision, "4b"); XCTAssertEqual(request.path, four)
         // Once the offered 16 is downloaded, the 4-bit files stop being used.
-        let bf16 = try install("parakeet-tdt-0.6b-v3-mlx-bf16-local")
-        XCTAssertEqual(controller.committed(parakeet), "BF16")
+        let bf16 = try install("whisper-large-v3-turbo-asr-fp16")
+        XCTAssertEqual(controller.committed(parakeet), "FP16")
         XCTAssertEqual(bridge.ref(path: four, mode: .dictation)?.path, bf16)
         XCTAssertEqual(source.models().first { $0.id == parakeet.id }?.path, bf16)
     }

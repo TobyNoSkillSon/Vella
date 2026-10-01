@@ -98,19 +98,32 @@ import VellaWire
         Task { await self.loadLaunchSet() }
     }
     func loadLaunchSet() async {
-        for ref in settings.launchSet where entries[ref.id] == nil {
+        for stored in settings.launchSet where entries[stored.id] == nil {
+            // The same resolution as Load and on-demand dictation: the catalog's current recipe and files.
+            guard let ref = launchRef(stored) else {
+                error = "\(stored.displayName) in the launch set no longer matches the catalog's recipe at \(stored.precision). Load it again in Models."
+                writeStatus(); continue
+            }
             guard FileManager.default.fileExists(atPath: ref.path) else {
                 error = "\(ref.displayName) is in the launch set but its files are missing. Get it again or unload it."; writeStatus(); continue
             }
             do { try await load(ref) } catch { /* recorded in status (refused / error) */  }
         }
     }
+    /// A launch-set entry as on-demand dictation resolves its path; nil when it names a catalog precision its files no
+    /// longer run (e.g. an imported uniform checkpoint recorded for a tier that is now a mixed recipe).
+    func launchRef(_ stored: ModelRef) -> ModelRef? {
+        guard let resolver else { return stored }
+        if let ref = resolver(stored.path, stored.mode) { return ref }
+        return stored.precision.isEmpty ? stored : nil
+    }
 
     // MARK: Identity
 
     func resolve(_ path: String, mode: RecognitionMode) -> ModelRef {
         if let ref = resolver?(path, mode) { return ref }
-        if let ref = settings.launchSet.first(where: { $0.path == path }) { return ref }
+        // Without a catalog identity, a recorded launch-set entry names it only when it claims no catalog precision.
+        if let ref = settings.launchSet.first(where: { $0.path == path && (resolver == nil || $0.precision.isEmpty) }) { return ref }
         if let entry = entries.values.first(where: { $0.ref.path == path }) { return entry.ref }
         return ModelRef(id: URL(fileURLWithPath: path).lastPathComponent, path: path, mode: mode, diskBytes: Self.folderBytes(path))
     }

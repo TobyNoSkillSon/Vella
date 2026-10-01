@@ -105,7 +105,8 @@ import VellaWire
         if let id = library(mode).installed.first(where: { $0.value.path == path })?.key, let found = catalog.locate(variant: id),
             found.family.mode == mode
         {
-            return found
+            // A checkpoint registered under a mixed tier's id is not that recipe: it identifies as nothing.
+            return installed(found.family, found.precision) == nil ? nil : found
         }
         guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = catalog.family(manifest.family),
             family.mode == mode, family.variants[manifest.precision]?.isDerived == true
@@ -330,8 +331,10 @@ import VellaWire
     /// The deltas' base in a schema-1 file (no tiers): the recommended precision, else native.
     func base(_ f: ModelFamily) -> String { recommended(f) ?? f.native }
     func result(_ f: ModelFamily, _ precision: String) -> PrecisionResult? { benchmarks.models[f.id]?.result(precision) }
+    /// The registered checkpoint that loads as this precision (`registeredCheckpoint`: never one for a mixed recipe).
     func installed(_ f: ModelFamily, _ precision: String) -> InstalledModel? {
-        f.variants[precision].flatMap { library(f.mode).installed[$0.id] }
+        guard let variant = f.variants[precision], variant.floatModules == nil else { return nil }
+        return library(f.mode).installed[variant.id]
     }
     /// The downloadable precision a derived one resolves to (itself when published).
     func downloadRoot(_ f: ModelFamily, _ precision: String) -> String? { f.downloadSource(of: precision)?.label }
