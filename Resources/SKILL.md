@@ -41,7 +41,7 @@ vella diagnose                                 # a bug report for the user; its 
 Use one call per step, without probing or retries:
 
 ```sh
-vella models --json   # all table rows, cells/refusal reasons, source and exact download bytes
+vella models --json   # all local table rows, cells/refusal reasons, source and exact download bytes
 vella select MODEL_ID --precision bf16 --path Optimized --mode Fast   # or fp16/int8/int4, Standard, Exact
 vella get MODEL_ID --yes   # only after the user consents to that model/source/size; waits for download and load
 vella transcribe talk.m4a --model MODEL_ID   # then read the returned transcript

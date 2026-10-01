@@ -3,6 +3,14 @@ import VellaTestSupport
 @testable import VellaCLI
 
 final class CLIReleaseTests: XCTestCase {
+    func testCatalogLinesUseTheTableDTypeAndCorrectMode() {
+        let model: [String: Any] = [
+            "id": "stream", "name": "Stream", "dtype": "bf16", "mode": "Streaming", "current": true, "action": "Load",
+            "selection": ["tier": "16", "path": "standard", "mode": "fast"]
+        ]
+        XCTAssertEqual(VellaCLI.modelLine(model), "stream  Stream · bf16 · Standard · current streaming model · Load")
+    }
+
     func testHelpLeadsWithTheMeasuredChipBoundary() {
         XCTAssertEqual(
             usage.components(separatedBy: "\n").first,

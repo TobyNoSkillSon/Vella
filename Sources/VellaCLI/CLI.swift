@@ -11,7 +11,7 @@ let usage = """
             FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
             `vella models`; without it the current dictation model is used. Dictation always goes first.
         vella status                 one line: running, dictation model, loaded models, API address
-        vella models [--json]        all Models table rows, including not downloaded; --json includes each cell and refusal
+        vella models [--json]        all local Models table rows, including not downloaded; --json includes each cell and refusal
         vella select ID [--precision bf16|fp16|int8|int4] [--path Standard|Optimized] [--mode Fast|Exact]
             previews a cell under the table's rules; Load / Reload / Get commits it. An unavailable cell says why.
         vella get ID [--yes]         Get and Load; --yes consents to the displayed source/size; without it nothing downloads
@@ -215,7 +215,8 @@ struct VellaCLI {
     static func modelLine(_ m: [String: Any]) -> String {
         var parts = [m["name"] as? String ?? ""]
         let selection = selectionFrom(m["selection"])
-        if let tier = selection?.tier.rawValue { parts.append(tier) } else if let p = m["precision"] as? String, !p.isEmpty { parts.append(precisionWidth(p) ?? p) }
+        if let dtype = m["dtype"] as? String { parts.append(dtype) }
+        else if let tier = selection?.tier.rawValue { parts.append(tier) } else if let p = m["precision"] as? String, !p.isEmpty { parts.append(precisionWidth(p) ?? p) }
         if let selection {
             let asked = selectionFrom(m["requested_selection"]).map { " (\(recipeLabel($0)) asked)" } ?? ""
             parts.append(recipeLabel(selection) + asked)
@@ -224,7 +225,7 @@ struct VellaCLI {
             parts.append("preview \(m["preview_precision"] as? String ?? preview.tier.rawValue) \(recipeLabel(preview))")
         }
         if m["loaded"] as? Bool == true { parts.append("loaded") }
-        if m["current"] as? Bool == true { parts.append("current dictation model") }
+        if m["current"] as? Bool == true { parts.append("current \((m["mode"] as? String)?.lowercased() ?? "dictation") model") }
         if let action = m["action"] as? String { parts.append(action) }
         return "\(m["id"] as? String ?? "?")  " + parts.joined(separator: " · ")
     }
