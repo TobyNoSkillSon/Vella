@@ -256,6 +256,10 @@ final class Worker {
             } catch {
                 var failure = Self.failure(error)
                 if failure["code"] as? String == "inference" { failure = ["code": "load", "message": "The model failed to load."] }
+                // A derived precision whose recipe does not fit this model (e.g. floatModules naming no module of it).
+                if case let DerivedPrecision.Invalid.manifest(detail)? = error as? DerivedPrecision.Invalid {
+                    failure = ["code": "load", "message": "The model failed to load: its derived recipe does not fit this model (\(detail))."]
+                }
                 return ["id": identifier, "error": failure]
             }
         case "unload":
