@@ -38,6 +38,12 @@ enum TableMetrics {
 }
 
 struct TierControl: View {
+    /// Build with -Xswiftc -DVELLA_MLX_WORDMARK for Toby's review variant. Production keeps the approved logo.
+    #if VELLA_MLX_WORDMARK
+        static let standardUsesWordmark = true
+    #else
+        static let standardUsesWordmark = false
+    #endif
     enum Row: String, CaseIterable {
         case optimized, standard
         var title: String { self == .optimized ? "Optimized" : "Standard" }
@@ -158,10 +164,10 @@ struct TierControl: View {
     @ViewBuilder static func icon(_ row: Row, hot: Bool = false) -> some View {
         if row == .optimized {
             Image(systemName: "bolt.fill").font(.system(size: TableMetrics.font(15), weight: .semibold)).foregroundStyle(Color(nsColor: boltColor(hot: hot)))
-        } else if let logo = mlxLogo {
+        } else if !standardUsesWordmark, let logo = mlxLogo {
             Image(nsImage: logo).renderingMode(.template).resizable().scaledToFit().frame(height: logoHeight)
         } else {
-            Text("MLX").font(.system(size: TableMetrics.font(11), weight: .heavy))
+            Text("MLX").font(.system(size: TableMetrics.font(13), weight: .medium))
         }
     }
 }

@@ -126,6 +126,34 @@ final class RuntimeTests: XCTestCase {
     }
 
     // CHECKLIST 9, end to end: LRU on-demand eviction, refusal that unloads nothing, reload under a deficit.
+    @MainActor func testEightAndSixteenGBAdmissionCapsKeepDictationAndRefuseOversizeWithoutSwap() async throws {
+        // Admission simulation, not a physical RAM limit: 2 GB occupied by OS/apps, then MemoryProbe's margin.
+        for totalMB in [8000.0, 16000.0] {
+            let budget = totalMB - 2000 - MemoryProbe(environment: [:], totalMB: totalMB).marginMB
+            let runtime = try Runtime.isolated(root.appendingPathComponent(String(Int(totalMB))), availableMB: budget)
+            let backend = try pair(runtime)
+            defer { backend.shutdown() }
+            runtime.start()
+            let small = runtime.resolve(try model("default-\(Int(totalMB))").path, mode: .dictation)
+            try await runtime.load(small)
+            XCTAssertEqual(try config(runtime).residency.manualIdleMinutes, 0)
+            XCTAssertEqual(try fileStatus(runtime).models[small.id]?.keep_hot_min, 0)
+            var oversized = runtime.resolve(try model("too-big-\(Int(totalMB))").path, mode: .dictation)
+            oversized.memoryMB = budget + 1
+            do { try await runtime.load(oversized); XCTFail("oversize load admitted") } catch {
+                XCTAssertTrue(error.localizedDescription.contains("free without swapping"))
+                XCTAssertTrue(error.localizedDescription.contains("needs ~"))
+            }
+            XCTAssertEqual(Set(try fileStatus(runtime).models.keys), [small.id], "refusal must not unload working dictation")
+            XCTAssertFalse(try config(runtime).residency.allowSwap)
+            let text = try await backend.transcribe(try wav(), config: Configuration(model: small.path))
+            XCTAssertFalse(text.isEmpty)
+            runtime.setKeepHot(manual: 5)
+            XCTAssertEqual(try fileStatus(runtime).models[small.id]?.keep_hot_min, 5)
+            await runtime.unload(small.id)
+        }
+    }
+
     @MainActor func testAdmissionEvictsOnDemandFirstRefusesWithoutUnloadingAndReloadKeepsWorkingModel() async throws {
         // need = 1,000 + 512 = 1,512 MB; each loaded model reports a 1,000 MB footprint.
         let runtime = try Runtime.isolated(root, availableMB: 3_100)

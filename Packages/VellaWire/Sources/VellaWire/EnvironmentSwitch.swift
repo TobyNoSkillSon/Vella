@@ -35,6 +35,7 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         // Parakeet TDT decoder tail-block sizing (exact, opt-in; appends +tailblock-1 when "1").
         .init("VELLA_PARAKEET_TAILBLOCK", .lab, gateKey: true, worker: true),
         .init("VELLA_TEST_TOLERANT_FAULT", .test, gateKey: true, worker: true),
+        .init("VELLA_TEST_KERNELS_UNAVAILABLE", .test, gateKey: true, worker: true, app: true),
         .init("VELLA_NEMO_", prefix: true, .lab, gateKey: true, worker: true),
         // Nemotron L3 opt-in levers (also matched by the prefix above; each appends its own gate revision when "1").
         .init("VELLA_NEMO_KEEPCACHE", .lab, gateKey: true, worker: true),
