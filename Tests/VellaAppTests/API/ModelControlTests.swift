@@ -184,7 +184,8 @@ final class ModelControlTests: XCTestCase {
         let (loaded, effective, _) = try await APIClientTests.run(APIClientTests.cli, ["get", "alpha", "--yes"], environment: environment)
         XCTAssertEqual(loaded, 0)
         XCTAssertTrue(effective.contains("Standard") && effective.contains("loaded"))
-        let (deleteRefused, _, deletedPrompt) = try await APIClientTests.run(APIClientTests.cli,
+        let (deleteRefused, _, deletedPrompt) = try await APIClientTests.run(
+            APIClientTests.cli,
             ["delete", "zeta", "--precision", "bf16"], environment: environment)
         XCTAssertEqual(deleteRefused, 1)
         XCTAssertTrue(deletedPrompt.contains("Size:") && deletedPrompt.contains("Trash"))

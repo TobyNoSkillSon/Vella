@@ -615,7 +615,7 @@ struct ModelDeletionPlan {
         let name = f.name + " " + legacyQuantization(precision)
         return ModelDeletionPlan(
             familyID: f.id, precision: precision, variantID: variant.id, path: path, wasInstalled: installed,
-                                 bytes: bytes, title: installed ? "Delete " + name + "?" : "Delete unfinished " + name + " download?")
+            bytes: bytes, title: installed ? "Delete " + name + "?" : "Delete unfinished " + name + " download?")
     }
 
     func performDeletion(_ f: ModelFamily, plan: ModelDeletionPlan) async throws {

@@ -18,7 +18,9 @@ final class ModelDeletionControlTests: XCTestCase {
         let path = try f.path(f.alpha, "BF16")
         let size = try XCTUnwrap(Runtime.folderBytes(path))
         let registry = try Data(contentsOf: f.controller.dictation.registryURL)
-        f.controller.dictation.trashModel = { _ in XCTFail("unconfirmed Delete reached Trash"); throw CocoaError(.fileWriteNoPermission) }
+        f.controller.dictation.trashModel = { _ in
+            XCTFail("unconfirmed Delete reached Trash"); throw CocoaError(.fileWriteNoPermission)
+        }
         do {
             _ = try await controls.perform("delete", id: "alpha", fields: ["precision": "bf16", "yes": false])
             XCTFail("Delete without yes must refuse")
