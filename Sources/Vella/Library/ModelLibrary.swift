@@ -343,7 +343,8 @@ import VellaCore
         let seconds = downloadTimeoutSeconds
         downloadTimeout = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) } catch { return }
-            guard let self, self.downloadToken == token else { return }
+            // A previous timer may already have woken before new bytes cancel/re-arm it on the main actor.
+            guard !Task.isCancelled, let self, self.downloadToken == token else { return }
             let interval = String(format: "%g", seconds)
             self.cancelDownload(message: "\(label) download stalled (no new bytes for \(interval) seconds); partial files removed.")
         }
