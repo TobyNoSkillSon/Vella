@@ -1,3 +1,4 @@
+import Combine
 import CryptoKit
 import Foundation
 import XCTest
@@ -33,6 +34,14 @@ private final class ControlHub: URLProtocol {
     override func stopLoading() {}
 }
 
+/// Intentionally never completes a request; the library must cancel without a network callback.
+private final class StalledControlHub: URLProtocol {
+    override static func canInit(with request: URLRequest) -> Bool { true }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {}
+    override func stopLoading() {}
+}
+
 final class ModelControlTests: XCTestCase {
     @MainActor func fixture() throws -> TwoFamilyFixture {
         try Integration.require()
@@ -40,6 +49,143 @@ final class ModelControlTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return try TwoFamilyFixture(root)
     }
+    @MainActor func testPinnedModelRefusesUnloadReloadAndTableActionWithoutRetiringWorker() async throws {
+        let f = try fixture()
+        defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
+        try await f.load(f.alpha, "BF16")
+        let pid = f.runtime.status.models["alpha"]?.pid
+        let launchSet = f.runtime.settings.launchSet
+        f.runtime.pin("alpha")
+        defer { f.runtime.unpin("alpha") }
+        let controls = ModelControls(controller: f.controller, runtime: f.runtime)
+        for action in ["unload", "reload"] {
+            do {
+                _ = try await controls.perform(action, id: "alpha", fields: [:])
+                XCTFail("Pinned model accepted " + action)
+            } catch let error as APIError {
+                XCTAssertEqual(error.status, 409)
+                XCTAssertTrue(error.message.contains("transcription"))
+            }
+        }
+        f.controller.perform(f.alpha)
+        XCTAssertNotNil(f.controller.lastError)
+        let unloaded = await f.runtime.unload("alpha")
+        XCTAssertFalse(unloaded, "Runtime must enforce the same pin even without a controller")
+        XCTAssertEqual(f.runtime.status.models["alpha"]?.pid, pid)
+        XCTAssertEqual(f.runtime.loadedResidency("alpha"), .manual)
+        XCTAssertEqual(f.runtime.settings.launchSet, launchSet)
+        XCTAssertEqual(f.runtime.selectionsInFlight, 0)
+    }
+
+    @MainActor func testAwaitedUnloadKeepsAPISelectionTransactionUntilWorkerExit() async throws {
+        let f = try fixture()
+        defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
+        let ref = f.bridge.ref(f.alpha, "BF16", path: try f.path(f.alpha, "BF16"))
+        var entered = false
+        var release: CheckedContinuation<Void, Never>?
+        f.runtime.register(ref, residency: .manual) {
+            entered = true
+            await withCheckedContinuation { release = $0 }
+            f.runtime.removed("alpha")
+        }
+        let controls = ModelControls(controller: f.controller, runtime: f.runtime)
+        let job = Task { try await controls.perform("unload", id: "alpha", fields: [:]) }
+        let until = Date().addingTimeInterval(5)
+        while !entered, Date() < until { try await Task.sleep(nanoseconds: 1_000_000) }
+        XCTAssertTrue(entered)
+        XCTAssertEqual(f.runtime.selectionsInFlight, 1, "API admission waits for the worker to finish exiting")
+        XCTAssertTrue(f.controller.inUse(f.zeta))
+        release?.resume()
+        _ = try await job.value
+        XCTAssertEqual(f.runtime.selectionsInFlight, 0)
+        XCTAssertFalse(f.runtime.isLoaded("alpha"))
+    }
+
+    @MainActor func testActiveAPITranscriptionRefusesAuthenticatedUnloadAndReload() async throws {
+        let f = try fixture()
+        defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
+        let helper = f.root.appendingPathComponent("fake-worker.py")
+        let delayed = FakeWorker.script.replacingOccurrences(of: "name=r['model'].split('/')[-1]; marker=", with: "time.sleep(0.5); name=r['model'].split('/')[-1]; marker=")
+        try delayed.write(to: helper, atomically: true, encoding: .utf8)
+        try await f.load(f.alpha, "BF16")
+        let pid = try XCTUnwrap(f.runtime.status.models["alpha"]?.pid)
+        let launchSet = f.runtime.settings.launchSet
+        f.runtime.apiToken = "test-token"
+        let transcriber = APITranscriber(backend: f.backend, root: f.root.appendingPathComponent("jobs"))
+        let service = APIService(transcriber: transcriber, models: f.source, scratch: f.root.appendingPathComponent("files"))
+        service.controls = ModelControls(controller: f.controller, runtime: f.runtime)
+        let audio = f.root.appendingPathComponent("test.wav")
+        try writeTestWAV(audio, bursts: [0.1], gap: 0.01)
+        let job = Task {
+            try await transcriber.transcribe(audio, resolve: { try XCTUnwrap(f.source.models().first { $0.id == "alpha" }) }, current: { "alpha" })
+        }
+        defer { job.cancel() }
+        let until = Date().addingTimeInterval(5)
+        while !f.runtime.isModelInUse("alpha"), Date() < until { try await Task.sleep(nanoseconds: 1_000_000) }
+        XCTAssertTrue(f.runtime.isModelInUse("alpha"))
+        for action in ["unload", "reload"] {
+            let head = HTTPHead.parse(
+                Data(("POST /v1/models/alpha/" + action + " HTTP/1.1\r\nHost: 127.0.0.1:1234\r\nX-Vella-Token: test-token\r\nContent-Type: application/json").utf8))!
+            let response = await service.handle(APIRequest(head: head, body: .memory(Data("{}".utf8))))
+            XCTAssertEqual(response.status, 409)
+            XCTAssertEqual(f.runtime.status.models["alpha"]?.pid, pid)
+            XCTAssertEqual(f.runtime.settings.launchSet, launchSet)
+            XCTAssertEqual(f.runtime.loadedResidency("alpha"), .manual)
+        }
+        let result = try await job.value
+        XCTAssertFalse(result.text.isEmpty)
+        XCTAssertEqual(f.runtime.status.models["alpha"]?.pid, pid, "No retirement or retry")
+    }
+
+    @MainActor func testAlreadyDownloadedGetLoadsWithoutConsentOrDownload() async throws {
+        let f = try fixture()
+        defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
+        let controls = ModelControls(controller: f.controller, runtime: f.runtime)
+        _ = try await controls.perform("get", id: "alpha", fields: ["yes": false])
+        XCTAssertTrue(f.runtime.isLoaded("alpha"))
+        XCTAssertNil(f.controller.dictation.downloadingID)
+    }
+
+    @MainActor func testStalledGetTimesOutOrCancelsAndReleasesPublishedControlGate() async throws {
+        for cancel in [false, true] {
+            let f = try fixture()
+            defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
+            let lib = f.controller.dictation
+            lib.installed.removeValue(forKey: "alpha-bf16")
+            lib.installed.removeValue(forKey: "alpha-4bit")
+            try FileManager.default.removeItem(at: lib.modelsDirectory.appendingPathComponent("alpha-bf16"))
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.protocolClasses = [StalledControlHub.self]
+            lib.downloadConfiguration = configuration
+            lib.downloadTimeoutSeconds = cancel ? 60 : 0.1
+            let controls = ModelControls(controller: f.controller, runtime: f.runtime)
+            var gates: [Set<String>] = []
+            let subscription = f.controller.$controlOperations.sink { gates.append($0) }
+            defer { subscription.cancel() }
+            let job = Task { try await controls.perform("get", id: "alpha", fields: ["yes": true]) }
+            let until = Date().addingTimeInterval(5)
+            while !lib.busy, Date() < until { try await Task.sleep(nanoseconds: 1_000_000) }
+            XCTAssertTrue(lib.busy)
+            if cancel { job.cancel() }
+            do { _ = try await job.value; XCTFail("Stalled Get must fail") } catch {}
+            XCTAssertFalse(lib.busy)
+            XCTAssertTrue(f.controller.controlOperations.isEmpty)
+            XCTAssertNil(f.controller.pendingLoads["alpha"])
+            XCTAssertNil(f.controller.pendingSelections["alpha"])
+            XCTAssertTrue(gates.contains(["alpha"]))
+            XCTAssertEqual(gates.last, [])
+            _ = try await controls.perform("load", id: "zeta", fields: [:])
+            XCTAssertTrue(f.runtime.isLoaded("zeta"), "Other controls still work")
+        }
+    }
+
+    @MainActor func testTokenComparisonRejectsMissingChangedAndDifferentLengthSecrets() {
+        XCTAssertTrue(APIService.tokensEqual("test-token", "test-token"))
+        for candidate in [nil, "", "Test-token", "test-tokeN", "test-token-extra", "téšt-token"] {
+            XCTAssertFalse(APIService.tokensEqual(candidate, "test-token"))
+        }
+    }
+
     @MainActor func testSelectLoadReloadUnloadUseTheTableRuntimeAndSettings() async throws {
         let f = try fixture()
         defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
@@ -178,9 +324,9 @@ final class ModelControlTests: XCTestCase {
             ["select", "alpha", "--precision", "int4", "--path", "Standard", "--mode", "Fast"], environment: environment)
         XCTAssertEqual(picked, 0)
         XCTAssertTrue(preview.contains("preview int4 Standard"))
-        let (refused, _, prompt) = try await APIClientTests.run(APIClientTests.cli, ["get", "alpha"], environment: environment)
-        XCTAssertEqual(refused, 1)
-        XCTAssertTrue(prompt.contains("bytes") && prompt.contains("org/a4"))
+        let (ready, readyLine, _) = try await APIClientTests.run(APIClientTests.cli, ["get", "alpha"], environment: environment)
+        XCTAssertEqual(ready, 0)
+        XCTAssertTrue(readyLine.contains("loaded"))
         let (loaded, effective, _) = try await APIClientTests.run(APIClientTests.cli, ["get", "alpha", "--yes"], environment: environment)
         XCTAssertEqual(loaded, 0)
         XCTAssertTrue(effective.contains("Standard") && effective.contains("loaded"))

@@ -39,7 +39,7 @@ import VellaCore
             controller.reloadConfig()
         }
         for library in [controller.dictation, controller.streaming] {
-            library.deletionModelInUse = { [weak self, weak controller] variant in
+            library.modelInUse = { [weak self, weak controller] variant in
                 guard let self, let family = controller?.catalog.locate(variant: variant)?.family else { return false }
                 return self.runtime.isModelInUse(family.id)
             }
@@ -163,6 +163,7 @@ import VellaCore
         do { try await loadAndSelectThrowing(ref) } catch { controller?.lastError = error.localizedDescription }
     }
     func loadAndSelectThrowing(_ ref: ModelRef) async throws {
+        guard !runtime.isModelInUse(ref.id) else { throw APIError(409, "Finish transcription or loading before changing this model.") }
         runtime.beginSelection(); runtime.userChanged(ref.id)
         defer { runtime.userChanged(ref.id); runtime.endSelection() }
         try await runtime.load(ref)
@@ -171,11 +172,15 @@ import VellaCore
     func loadForControl(family: ModelFamily, precision: String, path: String, selection: ModelSelection) async throws {
         try await loadAndSelectThrowing(ref(family, precision, path: path, selection: selection))
     }
-    func unloadForControl(family: ModelFamily) async { await runtime.unload(family.id) }
+    func unloadForControl(family: ModelFamily) async throws {
+        guard await runtime.unload(family.id) else { throw APIError(409, "Finish transcription or loading before unloading this model.") }
+    }
     func reload(family: ModelFamily, precision: String, variant: CatalogVariant, path: String, selection: ModelSelection) {
         load(family: family, precision: precision, variant: variant, path: path, selection: selection)
     }
-    func unload(family: ModelFamily) { Task { await runtime.unload(family.id) } }
+    func unload(family: ModelFamily) {
+        Task { do { try await unloadForControl(family: family) } catch { controller?.lastError = error.localizedDescription } }
+    }
     /// Deleting weights also ends every precision made on this Mac from them: a loaded derived precision is unloaded
     /// first (its worker reads the source), and after a successful deletion the launch set drops the source and its
     /// derived entries. Order: unload, delete, launch-set clean-up.

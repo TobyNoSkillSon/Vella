@@ -31,8 +31,11 @@ import VellaCore
     private var downloadTask: Task<Void, Never>?
     private var downloadTimeout: Task<Void, Never>?
     private var downloadToken: UUID?
+    /// Wall-clock bound, including stalled network or conversion work. Tests shorten it.
+    var downloadTimeoutSeconds: Double = 3600
     var mayChangeModel: () -> Bool = { true }
-    var deletionModelInUse: (String) -> Bool = { _ in false }
+    /// Runtime pins/loading for a catalog variant: one gate shared by Delete, Unload and Reload.
+    var modelInUse: (String) -> Bool = { _ in false }
     var onUse: (() -> Void)?
     var beforeHeavyWork: (() -> Void)?
     var prepareForCalibration: (() async throws -> Void)?
@@ -153,7 +156,7 @@ import VellaCore
         return quant?["bits"] as? Int == bits && quant?["group_size"] as? Int == (variant.groupSize ?? 64) && (mode == nil || mode == "affine")
     }
     func deletionBlockReason(_ id: String) -> String? {
-        if busy || calibration.isRunning || !mayChangeModel() || deletionModelInUse(id) { return modelDeletionBusyHelp }
+        if busy || calibration.isRunning || !mayChangeModel() || modelInUse(id) { return modelDeletionBusyHelp }
         guard let path = modelFilePath(id) else { return "This model has no local files." }
         let folder = URL(fileURLWithPath: path).standardizedFileURL
         guard let active = try? currentModelPath() else { return "Cannot verify the active model. Check configuration before deleting." }
@@ -239,7 +242,8 @@ import VellaCore
 
     /// Downloads the selected variant. `approval` comes only from the confirmation popup (DownloadGate) and must name
     /// this variant: nothing downloads without the user's Download. Returns false (with `downloadError` set) when the
-    /// download did not start. `completion` runs once when it ends: true = installed.
+    /// download did not start. `completion` runs once on refusal, success, failure, cancellation or shutdown:
+    /// true = installed. The wall-clock timeout completes it even if the network never reports back.
     /// `pendingRecording`: the first-dictation Get row. The app is deliberately busy then (it holds the saved
     /// recording in `.preparing` until the model arrives), so that one download is authorized explicitly instead of
     /// relaxing the general "not while dictating" guard. Busy/calibration guards still apply.
@@ -250,13 +254,13 @@ import VellaCore
         completion: ((Bool) -> Void)? = nil
     ) -> Bool {
         guard let selected, approval.variantID == selected.id else {
-            downloadError = "This download was not confirmed."; return false
+            downloadError = "This download was not confirmed."; completion?(false); return false
         }
         guard !busy, !calibration.isRunning, calibratingID == nil else {
-            downloadError = "Another download or calibration is running. Try again when it finishes."; return false
+            downloadError = "Another download or calibration is running. Try again when it finishes."; completion?(false); return false
         }
         guard pendingRecording || mayChangeModel() else {
-            message = "Finish or stop dictation before installing a model."; downloadError = message; return false
+            message = "Finish or stop dictation before installing a model."; downloadError = message; completion?(false); return false
         }
         beforeHeavyWork?()
         let label = downloadLabel(selected)
@@ -279,11 +283,12 @@ import VellaCore
             }
         }
         downloadClient = client
+        let timeoutSeconds = downloadTimeoutSeconds
         downloadTimeout = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 3_600_000_000_000)
+            try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
             guard !Task.isCancelled, let self, self.downloadToken == token else { return }
             self.cancel()
-            self.message = "\(label) download timed out after 1 hour; partial files removed."; self.downloadError = self.message
+            self.message = "\(label) download timed out; partial files removed."; self.downloadError = self.message
         }
         downloadTask = Task { [weak self] in
             do {
@@ -291,13 +296,13 @@ import VellaCore
                 let folder = try await client.download(selected, modelsDirectory: self.modelsDirectory)
                 guard self.downloadToken == token, !Task.isCancelled,
                     selected.id == self.downloadingID, folder.standardizedFileURL == self.modelsDirectory.appendingPathComponent(selected.id).standardizedFileURL
-                else { return }
+                else { throw CancellationError() }
                 try NativeModelDownload.validate(folder, expected: selected)
                 // A stored conversion (Parakeet v3: the FP32 download becomes BF16 once, only BF16 is kept).
                 if let (family, precision) = self.catalog?.locate(variant: selected.id), let variant = family.variants[precision], variant.isStored {
                     self.message = "\(label) \u{00b7} Converting to \(precisionInProse(precision))\u{2026}"
                     try await Self.convertStored(folder, family: family, precision: precision, repository: selected.repository, revision: selected.revision)
-                    guard self.downloadToken == token, !Task.isCancelled else { return }
+                    guard self.downloadToken == token, !Task.isCancelled else { throw CancellationError() }
                     try NativeModelDownload.validate(folder, expected: selected)
                 }
                 let previous = self.installed[selected.id]
@@ -411,8 +416,7 @@ import VellaCore
         // Its partial files go now; the download task removes anything it wrote while stopping.
         if let id { removePartialDownload(id) }
         message = "\(label) download cancelled; partial files removed."; downloadError = message
-        let completion = downloadCompletion; downloadCompletion = nil
-        completion?(false)
+        finishDownload(false)
     }
     private func beginCalibration(id: String, path: String) {
         guard automaticallyCalibrates else { return }
@@ -443,9 +447,11 @@ import VellaCore
         }
     }
     func shutdown() {
+        cancel()
         calibrationLaunch?.cancel(); calibrationLaunch = nil
         calibration.shutdown()
         downloadToken = nil; downloadTimeout?.cancel(); downloadTimeout = nil
         downloadClient?.cancel(); downloadTask?.cancel(); downloadTask = nil; downloadClient = nil
+        downloadingID = nil; busy = false; finishDownload(false)
     }
 }

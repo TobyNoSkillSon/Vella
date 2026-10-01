@@ -23,7 +23,7 @@ import VellaWire
 /// Awaitable form of the same runtime actions; the API must not report success before a load/refusal completes.
 @MainActor protocol AsyncModelRuntimeActions: ModelRuntimeActions {
     func loadForControl(family: ModelFamily, precision: String, path: String, selection: ModelSelection) async throws
-    func unloadForControl(family: ModelFamily) async
+    func unloadForControl(family: ModelFamily) async throws
 }
 
 /// The same confirmation snapshot for the table and authenticated Delete. No caller supplies a filesystem path.
@@ -58,8 +58,9 @@ struct ModelDeletionPlan {
     @Published private(set) var previews: [String: ModelSelection] = [:]
     /// Family id → the selection a confirmed download will load when it finishes.
     @Published private(set) var pendingSelections: [String: ModelSelection] = [:]
+    /// Controls serialize commits against other API operations and table actions.
+    @Published private(set) var controlOperations: Set<String> = []
     /// Render harness: draw every row as in use (segments and switch disabled).
-    var controlOperations: Set<String> = []
     var previewInUse = false
     /// Render harness: the family whose action cell is drawn hovered.
     var previewHover: String?
@@ -327,6 +328,7 @@ struct ModelDeletionPlan {
     /// load, and the no-change-during-recording safety still guards the commit).
     func inUse(_ f: ModelFamily) -> Bool {
         !controlOperations.isEmpty || previewInUse || isLoading(f) || runtime?.loading != nil || !library(f.mode).mayChangeModel()
+            || f.variants.values.contains { library(f.mode).modelInUse($0.id) }
     }
     /// The shown cell's figures: schema 2 → the selection's cell; a schema-1 file → the precision's result.
     func shownResult(_ f: ModelFamily) -> PrecisionResult? {
@@ -433,6 +435,7 @@ struct ModelDeletionPlan {
         let precision = selected(f)
         guard f.variants[precision] != nil else { return }
         let action = action(f)
+        guard !inUse(f), !anyBusy else { lastError = "Finish dictation, transcription, loading or downloading before changing this model."; return }
         if action == .unload { actions?.unload(family: f); return }
         guard let source = f.downloadSource(of: precision) else { lastError = "\(f.name) at \(precisionFormatName(precision)) has no source in the catalog."; return }
         if available(f, precision) { commit(f, precision, action); return }
@@ -522,7 +525,7 @@ struct ModelDeletionPlan {
     /// Explicit cell preview, shared with the table's rules; Load/Reload/Get is the committing action.
     func selectForControl(_ f: ModelFamily, selection: ModelSelection) throws {
         if let reason = rules(f).cellRefusal(selection, loaded: loadedSelection(f)) { throw APIError(409, reason) }
-        guard !inUse(f), !anyBusy else { throw APIError(409, "Finish dictation, loading or downloading before changing this model.") }
+        guard !inUse(f), !anyBusy else { throw APIError(409, "Finish dictation, transcription, loading or downloading before changing this model.") }
         _ = setPreview(f, selection)
         couplingNotes[f.id] = nil
     }
@@ -537,12 +540,12 @@ struct ModelDeletionPlan {
     }
 
     func performForControl(_ f: ModelFamily, action: String, yes: Bool) async throws {
-        guard !inUse(f), !anyBusy else { throw APIError(409, "Finish dictation, loading or downloading before changing this model.") }
+        guard !inUse(f), !anyBusy else { throw APIError(409, "Finish dictation, transcription, loading or downloading before changing this model.") }
         guard let actions = actions as? any AsyncModelRuntimeActions else { throw APIError(503, "Vella's model runtime is not running.") }
         if action == "unload" {
             controlOperations.insert(f.id)
             defer { controlOperations.remove(f.id) }
-            await actions.unloadForControl(family: f); previews[f.id] = nil; return
+            try await actions.unloadForControl(family: f); previews[f.id] = nil; return
         }
         if action == "reload", loaded(f) == nil { throw APIError(409, "Load this model before Reload.") }
         let selection = currentSelection(f)
@@ -550,7 +553,7 @@ struct ModelDeletionPlan {
         guard let precision = rules(f).precision(of: selection) else { throw APIError(409, "Not offered for this model") }
         let lib = library(f.mode)
         let needsDownload = !available(f, precision)
-        if action == "get", !yes {
+        if action == "get", needsDownload, !yes {
             guard let prompt = downloadPrompt(family: f, precision: precision, followUp: .load, freeBytes: freeDiskBytes(at: lib.modelsDirectory)) else {
                 throw APIError(409, "Not offered for this model")
             }
@@ -576,10 +579,16 @@ struct ModelDeletionPlan {
             defer { controlOperations.remove(f.id) }
             lib.selectedID = approval.variantID
             pendingLoads[f.id] = precision; pendingSelections[f.id] = selection
-            let downloaded: Bool = await withCheckedContinuation { continuation in
-                let started = lib.download(approval: approval, calibrate: false) { continuation.resume(returning: $0) }
-                if !started { continuation.resume(returning: false) }
-            }
+            defer { pendingLoads[f.id] = nil; pendingSelections[f.id] = nil }
+            let downloaded: Bool = await withTaskCancellationHandler(
+                operation: {
+                    await withCheckedContinuation { continuation in
+                        if Task.isCancelled { continuation.resume(returning: false); return }
+                        lib.download(approval: approval, calibrate: false) { continuation.resume(returning: $0) }
+                    }
+                },
+                onCancel: { Task { @MainActor in lib.cancel() } })
+            try Task.checkCancellation()
             pendingLoads[f.id] = nil; pendingSelections[f.id] = nil
             guard downloaded, available(f, precision) else { throw APIError(500, lib.downloadError ?? "Model download failed") }
             let deadline = Date().addingTimeInterval(900)

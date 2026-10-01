@@ -17,9 +17,9 @@ import VellaCore
     /// Names that mean "the current dictation model" (OpenAI SDK examples send whisper-1).
     static let currentAliases: Set<String> = ["", "whisper-1", "vella", "default", "current"]
     let transcriber: APITranscriber
+    var controls: ModelControls?
     /// Strong: the service is the source's only owner (APIHost creates it inline). A weak reference here freed it at
     /// once, so the shipped 1.0.0 (b33) listed no models and resolved no model name.
-    var controls: ModelControls?
     var models: APIModelSource?
     var runtime: Runtime { transcriber.backend.runtime }
     /// The dictation state for /status ("idle", "recording", "transcribing").
@@ -69,8 +69,18 @@ import VellaCore
         }
     }
 
+    /// Fixed work for every same-length candidate; token length is public, content is not.
+    static func tokensEqual(_ candidate: String?, _ expected: String) -> Bool {
+        guard let candidate else { return false }
+        let supplied = Array(candidate.utf8), secret = Array(expected.utf8)
+        guard supplied.count == secret.count else { return false }
+        var difference: UInt8 = 0
+        for index in secret.indices { difference |= supplied[index] ^ secret[index] }
+        return difference == 0
+    }
+
     private func controlFields(_ request: APIRequest) throws -> [String: Any] {
-        guard let token = pathToken, request.head.headers["x-vella-token"] == token else {
+        guard let token = pathToken, Self.tokensEqual(request.head.headers["x-vella-token"], token) else {
             throw APIError(403, "Model and settings controls need X-Vella-Token from worker-status.json")
         }
         guard case .memory(let data) = request.body, data.count <= apiMaxJSONBytes,
@@ -142,7 +152,7 @@ import VellaCore
         defer { if let cleanup { try? FileManager.default.removeItem(at: cleanup) } }
         switch request.body {
         case .memory(let data):
-            guard let token = pathToken, request.head.headers["x-vella-token"] == token else {
+            guard let token = pathToken, Self.tokensEqual(request.head.headers["x-vella-token"], token) else {
                 throw APIError(
                     403, "a JSON request that names a local file needs X-Vella-Token (api_token in worker-status.json); or upload the file as multipart/form-data", param: "path")
             }

@@ -2,8 +2,8 @@ import Foundation
 import VellaCore
 
 let usage = """
-    Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
     vella: transcribe audio files offline with the models loaded in Vella on this Mac.
+    Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
 
         vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]
             prints the transcript (--text, the default); --json/--verbose-json print OpenAI's JSON response, --srt/--vtt

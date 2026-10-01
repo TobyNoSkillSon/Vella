@@ -153,10 +153,13 @@ import VellaWire
         promote(ref.id)
     }
     /// Menu Unload: the model leaves memory and, once its worker has exited, the launch set.
-    func unload(_ id: String) async {
-        userChanged(id); defer { userChanged(id) }
+    @discardableResult func unload(_ id: String) async -> Bool {
+        guard !isModelInUse(id) else { return false }
+        beginSelection(); userChanged(id)
+        defer { userChanged(id); endSelection() }
         if let entry = entries[id] { await entry.unload() }
         settings.leave(id); persistSettings(); writeStatus()
+        return true
     }
     /// Before Delete: unload the model only if these exact files are the loaded ones, and return once its worker has
     /// exited. The launch set is left alone until the deletion succeeded (`deleted(path:)`). Returns what was loaded.

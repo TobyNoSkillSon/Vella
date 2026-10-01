@@ -11,9 +11,10 @@ final class CLIReleaseTests: XCTestCase {
         XCTAssertEqual(VellaCLI.modelLine(model), "stream  Stream · bf16 · Standard · current streaming model · Load")
     }
 
-    func testHelpLeadsWithTheMeasuredChipBoundary() {
+    func testHelpPutsTheMeasuredChipBoundaryImmediatelyAfterSynopsis() {
+        XCTAssertTrue(usage.components(separatedBy: "\n")[0].hasPrefix("vella:"))
         XCTAssertEqual(
-            usage.components(separatedBy: "\n").first,
+            usage.components(separatedBy: "\n")[1],
             "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far")
     }
 
