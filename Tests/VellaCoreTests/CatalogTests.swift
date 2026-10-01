@@ -17,6 +17,36 @@ final class CatalogTests: XCTestCase {
 
     // MARK: Catalog
 
+    func testEightAndSixteenGBAdmissionMatrixUsesActualCatalogEstimates() throws {
+        let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
+        let benchmarks = decodeBenchmarks(try Data(contentsOf: resources.appendingPathComponent("benchmarks.json")))
+        for totalMB in [8000.0, 16000.0] {
+            let budget = totalMB - 2000 - MemoryProbe(environment: [:], totalMB: totalMB).marginMB
+            for family in catalog.families.filter(\.offered) {
+                for precision in precisionOptions(family) {
+                    let ref = ModelRef(
+                        id: family.id, precision: precision, path: "/fixture/\(family.id)", name: family.name,
+                        diskBytes: estimatedWeightBytes(family, precision).map { Int64($0) } ?? family.diskBytes(precision),
+                        memoryMB: estimatedMemory(family: family, precision: precision, benchmarks: benchmarks)?.mb,
+                        precisionOptions: precisionOptions(family))
+                    let need = memoryEstimateMB(ref) + MemoryProbe.headroomMB
+                    let decision = planAdmission(ref, loaded: [], rawAvailableMB: budget, allowSwap: false)
+                    switch decision {
+                    case .admit(let evict, _, _):
+                        XCTAssertLessThanOrEqual(need, budget); XCTAssertEqual(evict, [])
+                        print("MEMORY CAP \(Int(totalMB / 1000))GB \(family.id) \(precision): admit need=\(Int(need))MB budget=\(Int(budget))MB")
+                    case .refuse(let message, _, _):
+                        XCTAssertGreaterThan(need, budget); XCTAssertTrue(message.contains("free without swapping"))
+                        print("MEMORY CAP \(Int(totalMB / 1000))GB \(family.id) \(precision): refuse \(message)")
+                    }
+                    if family.id == "parakeet-v3-ultra", precision == family.native {
+                        guard case .admit = decision else { return XCTFail("default dictation must fit") }
+                    }
+                }
+            }
+        }
+    }
+
     func testShippedCatalogIsV2WithBothModesAndStableInstallIDs() throws {
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
         XCTAssertEqual(catalog.schema, 2)
