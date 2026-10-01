@@ -276,7 +276,14 @@ final class ModelControlTests: XCTestCase {
         f.runtime.apiPort = try XCTUnwrap(port); f.runtime.writeStatus()
         let environment = ["VELLA_SUPPORT_DIR": f.runtime.support.path, "VELLA_NO_LAUNCH": "1", "PATH": "/usr/bin:/bin"]
         let start = Date()
-        let (code, line, progress) = try await APIClientTests.run(APIClientTests.cli, ["get", "AlPhA", "--yes"], environment: environment)
+        let job = Task { try await APIClientTests.run(APIClientTests.cli, ["get", "AlPhA", "--yes"], environment: environment) }
+        try await waitUntil { lib.busy }
+        // Polling must keep the original port even when discovery no longer finds a running app.
+        let status = f.runtime.support.appendingPathComponent("worker-status.json")
+        try FileManager.default.removeItem(at: status)
+        try await Task.sleep(nanoseconds: 2_000_000_000)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: status.path))
+        let (code, line, progress) = try await job.value
         XCTAssertEqual(code, 0, progress)
         XCTAssertTrue(line.contains("loaded"), line)
         XCTAssertTrue(progress.contains("Downloading from Hugging Face") && progress.contains(" of "), progress)
@@ -350,7 +357,10 @@ final class ModelControlTests: XCTestCase {
         let f = try fixture()
         defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
         let helper = f.root.appendingPathComponent("fake-worker.py")
-        let delayed = FakeWorker.script.replacingOccurrences(of: "name=r['model'].split('/')[-1]; marker=", with: "time.sleep(1); name=r['model'].split('/')[-1]; marker=")
+        let started = f.root.appendingPathComponent("transcription-started")
+        let delayed = FakeWorker.script.replacingOccurrences(
+            of: "name=r['model'].split('/')[-1]; marker=",
+            with: "open(\(String(reflecting: started.path)), 'w').write('started'); time.sleep(1); name=r['model'].split('/')[-1]; marker=")
         try delayed.write(to: helper, atomically: true, encoding: .utf8)
         try await f.load(f.alpha, "BF16")
         f.runtime.apiToken = "test-token"
@@ -368,7 +378,10 @@ final class ModelControlTests: XCTestCase {
             "POST /v1/audio/transcriptions HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nX-Vella-Token: test-token\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\n\r\n"
         let client = try ExitingAPIClient(port: port, request: Data(head.utf8) + body)
         defer { client.exitNormally() }
-        try await waitUntil { f.runtime.isModelInUse("alpha") && !((try? FileManager.default.contentsOfDirectory(atPath: jobs.path)) ?? []).isEmpty }
+        try await waitUntil {
+            FileManager.default.fileExists(atPath: started.path) && f.runtime.isModelInUse("alpha")
+                && !((try? FileManager.default.contentsOfDirectory(atPath: jobs.path)) ?? []).isEmpty
+        }
         client.exitNormally()
         try await waitUntil {
             !client.process.isRunning && !f.runtime.isModelInUse("alpha") && server.usage() == (0, 0, 0)
