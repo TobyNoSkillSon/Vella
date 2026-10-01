@@ -97,18 +97,27 @@ public struct DerivedPrecision: Equatable, Sendable {
 
     /// Module paths the published community quants quantize: Linear and Embedding leaves whose input width is a
     /// multiple of the group size (MLX `nn.quantize`'s default predicate). `exclude` drops architecture-specific
-    /// subtrees that the published quants keep float.
-    public func quantizationTargets(_ model: Module, exclude: (String) -> Bool = { _ in false }) -> Set<String> {
+    /// subtrees that the published quants keep float. Throws when a `floatModules` prefix keeps no quantizable module of
+    /// this model (a typo or another architecture's path): never a silent uniform recipe under a mixed recipe's key.
+    public func quantizationTargets(_ model: Module, exclude: (String) -> Bool = { _ in false }) throws -> Set<String> {
         guard let groupSize else { return [] }
-        var targets: Set<String> = []
-        for (path, module) in model.leafModules().flattened() where !exclude(path) && !keepsFloat(path) {
+        var quantizable: [String] = []
+        for (path, module) in model.leafModules().flattened() where !exclude(path) {
             let width: Int?
             if let linear = module as? Linear { width = linear.weight.shape.last }
             else if let embedding = module as? Embedding { width = embedding.weight.shape.last }
             else { width = nil }
-            if let width, width % groupSize == 0 { targets.insert(path) }
+            if let width, width % groupSize == 0 { quantizable.append(path) }
         }
-        return targets
+        return try targets(quantizable: quantizable)
+    }
+
+    /// The quantization targets among a model's quantizable leaf paths; throws when a `floatModules` prefix keeps none.
+    func targets(quantizable: [String]) throws -> Set<String> {
+        for prefix in floatModules where !quantizable.contains(where: { $0 == prefix || $0.hasPrefix(prefix + ".") }) {
+            throw Invalid.manifest("floatModules: \"\(prefix)\" names no quantizable module of this model")
+        }
+        return Set(quantizable.filter { !keepsFloat($0) })
     }
 
     /// Rewrites a sanitized checkpoint (module-path keys) into the derived precision, one tensor at a time: each source

@@ -158,7 +158,7 @@ public extension NemotronASRModel {
         var perLayerQuantization = quantConfig.perLayerQuantization
         if let derived {
             guard perLayerQuantization == nil else { throw DerivedPrecision.Invalid.manifest("the source is already quantized") }
-            derived.apply(to: &sanitized, targets: derived.quantizationTargets(model))
+            derived.apply(to: &sanitized, targets: try derived.quantizationTargets(model))
             perLayerQuantization = derived.quantization
         }
 

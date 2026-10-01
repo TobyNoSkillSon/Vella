@@ -895,7 +895,7 @@ public class Qwen3ASRModel: Module {
         // (the audio tower stays float), then load it the same way.
         if let derived {
             guard perLayerQuantization == nil else { throw DerivedPrecision.Invalid.manifest("the source is already quantized") }
-            derived.apply(to: &sanitizedWeights, targets: derived.quantizationTargets(model, exclude: { $0.hasPrefix("audio_tower") }))
+            derived.apply(to: &sanitizedWeights, targets: try derived.quantizationTargets(model, exclude: { $0.hasPrefix("audio_tower") }))
             perLayerQuantization = derived.quantization
         }
 

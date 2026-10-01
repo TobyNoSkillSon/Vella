@@ -684,7 +684,7 @@ public final class WhisperModel: Module, STTGenerationModel {
             guard quantization == nil, let bits = derived.bits, let groupSize = derived.groupSize else {
                 throw DerivedPrecision.Invalid.manifest("the source is already quantized")
             }
-            derived.apply(to: &sanitized, targets: derived.quantizationTargets(model, exclude: { $0.contains("embed_positions") }))
+            derived.apply(to: &sanitized, targets: try derived.quantizationTargets(model, exclude: { $0.contains("embed_positions") }))
             quantization = WhisperQuantizationConfig(groupSize: groupSize, bits: bits)
         }
         if let quantization {
