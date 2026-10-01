@@ -224,14 +224,13 @@ final class ModelsTests: XCTestCase {
         XCTAssertTrue(tips.contains { $0.0 == "WER" && $0.1.hasPrefix("Estimated English word error rate") && $0.1.hasSuffix("Estimate scaled from the S") })
         XCTAssertTrue(tips.contains { $0.0 == "Model" && $0.1.contains("never sends audio") })
         XCTAssertFalse(tips.contains { $0.0 == "On disk" }, "no On disk column")
-        XCTAssertTrue(ModelTable.werHeaderHelp.contains("Hugging Face Open ASR Leaderboard") && ModelTable.werHeaderHelp.contains("substituted, missed or added"))
-        XCTAssertTrue(ModelTable.formatHeaderHelp.contains("No industry standard"))
-        XCTAssertEqual(
-            ModelTable.speedHeaderHelp,
-            "Real-time factor (RTFx): audio seconds per processing second. Higher is faster. Difference vs Standard bf16 (fp16 for Whisper) below each figure.")
-        for help in [ModelTable.werHeaderHelp, ModelTable.formatHeaderHelp, ModelTable.energyHeaderHelp] {
-            XCTAssertTrue(help.hasSuffix(" Difference vs Standard bf16 (fp16 for Whisper) below each figure."), "the deltas' base, once per header: \(help)")
-        }
+        // Header texts: one line each, plus the shared small-figure line on the four figures that have one (Toby, 30 Sep).
+        let delta = "Small figure: change vs Standard 16-bit."
+        XCTAssertEqual(ModelTable.werHeaderHelp, "Word error rate: share of words wrong. Ignores capitals and punctuation. Lower is better.\n" + delta)
+        XCTAssertEqual(ModelTable.formatHeaderHelp, "Finished-text errors: share of characters wrong, capitals and punctuation included. Lower is better.\n" + delta)
+        XCTAssertEqual(ModelTable.speedHeaderHelp, "Seconds of audio transcribed per second. Higher is faster.\n" + delta)
+        XCTAssertEqual(ModelTable.energyHeaderHelp, "Energy per minute of audio, whole chip, idle subtracted. Lower is better.\n" + delta)
+        XCTAssertEqual(ModelTable.memoryHeaderHelp, "Most memory the model used while transcribing. Lower is better.")
     }
 
     /// Tier cell tooltips: flavour; delta vs Standard 16 with its basis; the loss of a worse tier; the switch's text.

@@ -97,17 +97,18 @@ struct ModelTable: View {
     }
     private func rows(_ mode: RecognitionMode) -> [ModelTableRow] { Self.rows(controller, mode, sort: sortColumn, ascending: ascending) }
 
-    /// Header tooltips, in plain words (Toby, 26 Sep evening).
-    static let werHeaderHelp =
-        "Word error rate: the percentage of words wrong \u{2014} substituted, missed or added \u{2014} out of the words spoken. The industry-standard accuracy metric, as on the Hugging Face Open ASR Leaderboard. Lower is better. Our v2 benchmark is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. "
-        + deltaHeaderLine
+    /// Header tooltips, one line each (Toby, 30 Sep). The four figures with a small change figure under them add
+    /// `deltaHeaderLine` on a second line.
+    static let werHeaderHelp = "Word error rate: share of words wrong. Ignores capitals and punctuation. Lower is better.\n" + deltaHeaderLine
     static let formatHeaderHelp =
-        "Our own measure of finished text: character error rate with case and punctuation kept. No industry standard exists for it. Lower is better. " + deltaHeaderLine
-    static let speedHeaderHelp = "Real-time factor (RTFx): audio seconds per processing second. Higher is faster. " + deltaHeaderLine
-    static let energyHeaderHelp = "Joules per minute of audio: whole-chip energy, net of idle. Lower is better. " + deltaHeaderLine
-    static let memoryHeaderHelp = "Peak RAM of Vella's model worker with the model loaded. Lower is better."
-    /// The deltas' base, stated once per figure's header.
-    static let deltaHeaderLine = "Difference vs Standard bf16 (fp16 for Whisper) below each figure."
+        "Finished-text errors: share of characters wrong, capitals and punctuation included. Lower is better.\n" + deltaHeaderLine
+    static let speedHeaderHelp = "Seconds of audio transcribed per second. Higher is faster.\n" + deltaHeaderLine
+    static let energyHeaderHelp = "Energy per minute of audio, whole chip, idle subtracted. Lower is better.\n" + deltaHeaderLine
+    static let memoryHeaderHelp = "Most memory the model used while transcribing. Lower is better."
+    static let modelHeaderHelp = "The speech model. Hover a name for its languages and details."
+    static let paramsHeaderHelp = "Model size in parameters."
+    /// The small figures' base, one shared line.
+    static let deltaHeaderLine = "Small figure: change vs Standard 16-bit."
     /// The Memory column's heading (Toby, 30 Sep).
     static let memoryTitle = "Peak RAM"
 
@@ -159,8 +160,8 @@ struct ModelTable: View {
     /// Column labels, each centred over its column (Model reads from the left).
     private var header: some View {
         HStack(spacing: W.spacing) {
-            heading("Model", .name, W.model, .leading)
-            plainHeading("Params", W.params, help: "Model size in parameters.")
+            heading("Model", .name, W.model, .leading, help: Self.modelHeaderHelp)
+            plainHeading("Params", W.params, help: Self.paramsHeaderHelp)
             plainHeading(TierControl.title, W.precision, help: TierControl.headerHelp)
             plainHeading(ExactFastSwitch.title, W.path, help: ExactFastSwitch.help)
             heading("WER", .wer, W.wer, .center, help: Self.werHeaderHelp)
@@ -537,26 +538,80 @@ struct ModelTable: View {
         Text(text).frame(width: width).font(.system(size: Self.headingSize, weight: .medium)).foregroundStyle(.secondary).appKitTooltip(help)
     }
 
-    /// Sortable heading; the active one is primary with a small arrow in an overlay beside it, so the label never
-    /// shifts off its column's centre. A Button carries no hover text inside the menu (TooltipCell.swift), so `help` is
-    /// its accessibility hint; each cell's tooltip says what its figure is.
-    private func heading(_ text: String, _ column: TableSortColumn, _ width: CGFloat, _ alignment: Alignment, help: String? = nil) -> some View {
+    /// Sortable heading. An AppKit view (SortHeaderView) draws the label and the sort arrow and carries the tooltip and
+    /// the click: inside an NSMenu only AppKit's tooltip manager runs, and a SwiftUI Button can neither show `.help`
+    /// there nor sit over a TooltipCell (TooltipCell.swift), so the header text used to reach VoiceOver only.
+    private func heading(_ text: String, _ column: TableSortColumn, _ width: CGFloat, _ alignment: Alignment, help: String) -> some View {
         // While the figures are pending, a figure column sorts nothing (catalog order): no arrow, not highlighted.
         let active = sortColumn == column && (column == .name || !controller.benchmarks.figuresPending)
-        return Button {
-            if sortColumn == column { ascending.toggle() } else { sortColumn = column; ascending = true }
-        } label: {
-            Text(text)
-                .overlay(alignment: .trailing) {
-                    Image(systemName: ascending ? "arrow.up" : "arrow.down")
-                        .font(.system(size: size(9), weight: .semibold)).frame(width: pt(10))
-                        .offset(x: pt(13))
-                        .opacity(active ? 1 : 0)
-                        .allowsHitTesting(false)
-                }
-                .frame(width: width, height: Self.headerHeight, alignment: alignment)
-                .contentShape(Rectangle())
-        }.buttonStyle(.plain).font(.system(size: Self.headingSize, weight: .medium)).foregroundStyle(active ? .primary : .secondary)
-            .accessibilityHint(column == .name ? "Sort by name." : (help.map { $0 + " " } ?? "") + "Sorts by each model's best value across its precisions.")
+        return SortHeader(
+            title: text, help: help, active: active, ascending: ascending, leading: alignment == .leading,
+            onClick: { if sortColumn == column { ascending.toggle() } else { sortColumn = column; ascending = true } }
+        )
+        .frame(width: width, height: Self.headerHeight)
     }
+}
+
+/// A sortable column heading as an AppKit view: label, sort arrow beside it (never shifting the label off its column's
+/// centre), the column's tooltip, and a click that sorts. The whole cell is the hit target.
+private struct SortHeader: NSViewRepresentable {
+    let title: String
+    let help: String
+    let active: Bool
+    let ascending: Bool
+    let leading: Bool
+    let onClick: () -> Void
+
+    func makeNSView(context: Context) -> SortHeaderView { let view = SortHeaderView(); update(view); return view }
+    func updateNSView(_ view: SortHeaderView, context: Context) { update(view) }
+    private func update(_ view: SortHeaderView) {
+        view.title = title; view.active = active; view.ascending = ascending; view.leading = leading; view.onClick = onClick
+        if view.toolTip != help { view.toolTip = help }
+        view.setAccessibilityHelp(help)
+        view.needsDisplay = true
+    }
+}
+
+final class SortHeaderView: NSView {
+    var title = ""
+    var active = false
+    var ascending = true
+    var leading = false
+    var onClick: (() -> Void)?
+
+    override var isFlipped: Bool { true }
+    override var isOpaque: Bool { false }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    static var font: NSFont { .systemFont(ofSize: ModelTable.headingSize, weight: .medium) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: Self.font, .foregroundColor: active ? NSColor.labelColor : NSColor.secondaryLabelColor
+        ]
+        let size = (title as NSString).size(withAttributes: attributes)
+        let x = leading ? 0 : (bounds.width - size.width) / 2
+        (title as NSString).draw(at: NSPoint(x: x, y: (bounds.height - size.height) / 2), withAttributes: attributes)
+        guard active else { return }
+        let config = NSImage.SymbolConfiguration(pointSize: TableMetrics.font(9), weight: .semibold)
+            .applying(NSImage.SymbolConfiguration(paletteColors: [NSColor.labelColor]))
+        guard
+            let arrow = NSImage(systemSymbolName: ascending ? "arrow.up" : "arrow.down", accessibilityDescription: nil)?
+                .withSymbolConfiguration(config)
+        else { return }
+        let a = arrow.size
+        arrow.draw(
+            in: NSRect(x: x + size.width + TableMetrics.pt(3), y: (bounds.height - a.height) / 2, width: a.width, height: a.height),
+            from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        onClick?()
+        HostRefresh.after(self)
+    }
+
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .button }
+    override func accessibilityLabel() -> String? { title }
+    override func accessibilityPerformPress() -> Bool { onClick?(); return true }
 }
