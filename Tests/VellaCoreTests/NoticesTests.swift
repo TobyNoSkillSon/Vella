@@ -24,16 +24,44 @@ final class NoticesTests: XCTestCase {
         ] {
             XCTAssertTrue(notice.contains(credit), credit)
         }
-        XCTAssertFalse(notice.contains("GNU"), "Vella 2.0 is MIT")
         let licence = try Data(contentsOf: Self.root.appendingPathComponent("LICENSE"))
         let hash = SHA256.hash(data: licence).map { String(format: "%02x", $0) }.joined()
         XCTAssertEqual(hash, "c99f39011cf131ff62bb8f3aea9dd20d200b1b881123879efd642a259c88e628", "SPDX MIT text with Vella's copyright line")
         let mit = try text("LICENSE")
         XCTAssertTrue(mit.hasPrefix("MIT License\n\nCopyright (c) 2026 Vella contributors\n\nPermission is hereby granted, free of charge"))
-        XCTAssertFalse(mit.contains("GNU"))
         let notices = try text("THIRD_PARTY_NOTICES.md")
         XCTAssertTrue(notices.contains("licensed under the MIT License; published 0.x releases remain Apache-2.0"))
-        XCTAssertFalse(notices.contains("GNU"))
+    }
+
+    /// Check Vella's declaration without banning words in legitimate third-party attributions or exceptions.
+    func testFirstPartyLicenseDeclarationsAreMIT() throws {
+        for path in ["Package.swift", "Worker/Package.swift", "Packages/VellaWire/Package.swift"] {
+            XCTAssertTrue(try text(path).contains("// SPDX-License-Identifier: MIT"), path)
+        }
+        XCTAssertTrue(try text("README.md").contains("[MIT-licensed](LICENSE)"))
+        XCTAssertTrue(try text("CONTRIBUTING.md").contains("MIT"))
+    }
+
+    /// Scan tracked shipped text, not local lab history or dependency checkouts. Keep the pattern assembled so
+    /// the guard does not match its own source; a GNU Runtime Library Exception is not prohibited.
+    func testTrackedShippedTextHasNoProhibitedLicenseIdentifiers() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.currentDirectoryURL = Self.root
+        process.arguments = ["ls-files", "-z"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0)
+        let pattern = #"(?i)\b(?:"# + "A" + #"GPL(?:-[0-9.]+(?:-only|-or-later)?)?|Aff"# + #"ero General Public License)\b"#
+        let prohibited = try NSRegularExpression(pattern: pattern)
+        for path in String(decoding: data, as: UTF8.self).split(separator: "\0").map(String.init) {
+            if path.hasPrefix("lab/") || path.hasPrefix(".build/") { continue }
+            guard let source = try? text(path) else { continue }
+            XCTAssertNil(prohibited.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)), path)
+        }
     }
 
     func testThirdPartyNoticesCoverEveryResolvedPackage() throws {
