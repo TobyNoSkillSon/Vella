@@ -19,15 +19,21 @@ final class NoticesTests: XCTestCase {
         XCTAssertTrue(notice.hasPrefix("Vella\n"), notice)
         for credit in [
             "mlx-audio-swift", "01dec7c9bdce3088a6b6b7ab9f2e403458195efb", "Prince Canuma", "mlx-audio 0.5.1", "mlx-whisper",
-            "LibriSpeech", "THIRD_PARTY_NOTICES.md", "bundles no model weights", "AGPL-3.0-only",
+            "LibriSpeech", "THIRD_PARTY_NOTICES.md", "bundles no model weights", "licensed under the MIT License",
             "Published 0.x releases remain Apache-2.0", "MLX logo", "Copyright © 2023 Apple Inc."
         ] {
             XCTAssertTrue(notice.contains(credit), credit)
         }
+        XCTAssertFalse(notice.contains("GNU"), "Vella 2.0 is MIT")
         let licence = try Data(contentsOf: Self.root.appendingPathComponent("LICENSE"))
         let hash = SHA256.hash(data: licence).map { String(format: "%02x", $0) }.joined()
-        XCTAssertEqual(hash, "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0", "canonical GNU text, verbatim")
-        XCTAssertTrue(try text("LICENSE").contains("GNU AFFERO GENERAL PUBLIC LICENSE"))
+        XCTAssertEqual(hash, "c99f39011cf131ff62bb8f3aea9dd20d200b1b881123879efd642a259c88e628", "SPDX MIT text with Vella's copyright line")
+        let mit = try text("LICENSE")
+        XCTAssertTrue(mit.hasPrefix("MIT License\n\nCopyright (c) 2026 Vella contributors\n\nPermission is hereby granted, free of charge"))
+        XCTAssertFalse(mit.contains("GNU"))
+        let notices = try text("THIRD_PARTY_NOTICES.md")
+        XCTAssertTrue(notices.contains("licensed under the MIT License; published 0.x releases remain Apache-2.0"))
+        XCTAssertFalse(notices.contains("GNU"))
     }
 
     func testThirdPartyNoticesCoverEveryResolvedPackage() throws {

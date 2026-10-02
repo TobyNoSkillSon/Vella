@@ -1,5 +1,5 @@
 // swift-tools-version: 6.0
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 import PackageDescription
 
 // The vocabulary the app and the recognition helpers share across the process boundary (Foundation only; the app
