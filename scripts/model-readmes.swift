@@ -102,41 +102,46 @@ func pendingLine() -> String {
         + "so no figure is shown. A figure that is not measured is \(dash)."
 }
 
-/// One line naming hardware, suites and dates of the measured cells.
-func measuredLine(_ bench: JSON) -> String {
+/// One line naming hardware, suites and dates of the measured cells of the given families (the ones this README shows).
+/// Every distinct value is listed, in sorted order, so the text does not depend on dictionary iteration order and a mix of
+/// suites, dates or machines is visible instead of one of them labelling all cells.
+func measuredLine(_ bench: JSON, families ids: [String]) -> String {
     let suites = bench["suites"] as? [String: JSON] ?? [:]
-    var dates = Set<String>()
-    var accuracy: String?
-    var performance: String?
-    for family in (bench["models"] as? [String: JSON] ?? [:]).values {
-        for tier in (family["tiers"] as? [String: JSON] ?? [:]).values {
+    var dates = Set<String>(), machines = Set<String>(), accuracy = Set<String>(), performance = Set<String>()
+    for id in ids {
+        let tiers = ((bench["models"] as? JSON)?[id] as? JSON)?["tiers"] as? [String: JSON] ?? [:]
+        for tier in tiers.values {
             for (path, _) in paths {
                 guard let measured = (tier[path] as? JSON)?["measured"] as? JSON else { continue }
                 if let date = measured["date"] as? String { dates.insert(date) }
-                accuracy = accuracy ?? measured["suite"] as? String
-                performance = performance ?? measured["performance_suite"] as? String
+                machines.insert(measured["hardware"] as? String ?? bench["hardware"] as? String ?? dash)
+                if let suite = measured["suite"] as? String { accuracy.insert(suite) }
+                if let suite = measured["performance_suite"] as? String { performance.insert(suite) }
             }
         }
     }
-    func minutes(_ name: String?) -> String {
-        guard let name, let value = double((suites[name])?["audio_min"]) else { return dash }
+    func minutes(_ name: String) -> String {
+        guard let value = double((suites[name])?["audio_min"]) else { return dash }
         return "\(trimmed(value)) min"
+    }
+    func list(_ names: Set<String>) -> String {
+        names.isEmpty ? dash : names.sorted().map { "\($0) (\(minutes($0)))" }.joined(separator: ", ")
     }
     let sorted = dates.sorted()
     let when = sorted.isEmpty ? dash : (sorted.count == 1 ? sorted[0] : "\(sorted[0]) to \(sorted[sorted.count - 1])")
-    return "Measured \(when) on \(bench["hardware"] as? String ?? dash). Accuracy: \(accuracy ?? dash) (\(minutes(accuracy))); "
-        + "speed, energy and peak RAM: \(performance ?? dash) (\(minutes(performance)))."
+    let hardware = machines.isEmpty ? dash : machines.sorted().joined(separator: "; ")
+    return "Measured \(when) on \(hardware). Accuracy: \(list(accuracy)); speed, energy and peak RAM: \(list(performance))."
 }
 
 /// How a tier's weights are made (Resources/models.json), in words.
 func recipeText(_ family: JSON, _ tier: String) -> String {
     if tier == "16" { return family["native_dtype"] as? String == "float32" ? "converted once from the fp32 download" : "the checkpoint as published" }
     let variant = (family["variants"] as? [String: JSON])?[tier == "8" ? "8b" : "4b"] ?? [:]
-    let group = (variant["groupSize"] as? NSNumber)?.intValue ?? 64
+    guard let group = (variant["groupSize"] as? NSNumber)?.intValue else { fail("\(family["id"] ?? "?"): the \(tier == "8" ? "8b" : "4b") variant has no groupSize") }
     var text = "affine group \(group) from the \(dtypeLabel(family, "16")) weights"
     if let kept = variant["floatModules"] as? [String], !kept.isEmpty {
         text += "; " + kept.map { "`\($0)`" }.joined(separator: ", ") + " kept at \(dtypeLabel(family, "16"))"
-        if let share = double(variant["floatShare"]) { text += " (" + String(format: "%.1f", share * 100) + " % of the quantizable weights)" }
+        if let share = double(variant["floatShare"]) { text += " (" + String(format: "%.1f", share * 100) + " % of the source checkpoint's weight bytes)" }
     }
     return text
 }
@@ -146,11 +151,15 @@ func gateText(_ bench: JSON, _ id: String, _ tier: String) -> String {
     let entry = ((bench["models"] as? JSON)?[id] as? JSON).flatMap { ($0["tiers"] as? JSON)?[tier] as? JSON }
     guard tier != "16", let entry, !isPending(bench) else { return dash }
     let gate = entry["gate"] as? JSON ?? [:]
-    let presence = entry["presence"] as? JSON ?? [:]
-    var reasons = presence["reasons"] as? [String] ?? []
-    if reasons.isEmpty { reasons = gate["reasons"] as? [String] ?? [] }
-    var text = "\(gate["status"] as? String ?? dash); " + ((presence["offered"] as? Bool ?? true) ? "present" : "absent")
-    if !reasons.isEmpty { text += ": " + reasons.joined(separator: "; ") }
+    let presence = entry["presence"] as? JSON
+    let word = (presence?["offered"] as? Bool).map { $0 ? "present" : "absent" } ?? dash
+    var text = "\(gate["status"] as? String ?? dash); \(word)"
+    // Why a tier is absent (or, if it is present, why the recommendation gate failed), each under its own label.
+    if let why = presence?["reasons"] as? [String], !why.isEmpty {
+        text += ": " + why.joined(separator: "; ")
+    } else if let why = gate["reasons"] as? [String], !why.isEmpty {
+        text += "; gate: " + why.joined(separator: "; ")
+    }
     return text
 }
 
@@ -203,16 +212,28 @@ func renderFamily(_ family: JSON, _ bench: JSON) -> [String] {
     return lines
 }
 
+/// What a quantized tier leaves at the source dtype besides the Linear and Embedding layers the group size does not divide
+/// (`DerivedPrecision.quantizationTargets`), per architecture.
+let keptFloat = [
+    "qwen3_asr": " The audio tower stays float at every tier.",
+    "nemotron_asr": " The predictor's LSTM stays at bf16 at every tier."
+]
+
 func renderBlock(_ folder: String, _ models: JSON, _ bench: JSON) -> String {
+    let own = families(models).filter { readmeFolder($0) == folder }
+    let ids = own.compactMap { $0["id"] as? String }
+    let extra = Set(own.map(architecture)).sorted().compactMap { keptFloat[$0] }.joined()
     var lines = [
         "<!-- Generated by scripts/model-readmes.swift from Resources/benchmarks.json and Resources/models.json. Do not edit between the markers; run the script. -->",
-        "", isPending(bench) ? pendingLine() : measuredLine(bench), "",
+        "", isPending(bench) ? pendingLine() : measuredLine(bench, families: ids), "",
         "Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "
             + "\"vs Standard\" compares the same tier's Optimized cell with its Standard cell. \"Offered\" is `tiers_offered` in "
-            + "`Resources/models.json`; \"Gate vs 16\" is the quality gate and presence verdict in `Resources/benchmarks.json`.",
+            + "`Resources/models.json`; \"Gate vs 16\" is the quality gate and presence verdict in `Resources/benchmarks.json`. "
+            + "A quantized tier rounds only the Linear and Embedding layers whose input width the group size divides; every other tensor "
+            + "and every kept module stays at the source dtype." + extra,
         ""
     ]
-    for family in families(models) where readmeFolder(family) == folder { lines += renderFamily(family, bench) + [""] }
+    for family in own { lines += renderFamily(family, bench) + [""] }
     while lines.last == "" { lines.removeLast() }
     return lines.joined(separator: "\n")
 }
@@ -257,11 +278,16 @@ func selfTest() {
             "4b": ["architecture": "whisper", "groupSize": 64] as JSON
         ] as JSON
     ]
-    let models: JSON = ["families": [family]]
-    func figures(_ speed: Double, _ joules: Double) -> JSON {
+    // A second family on another architecture, measured on other suites and another date: it must not label the first one.
+    let other: JSON = [
+        "id": "other", "name": "Other", "native_dtype": "bfloat16", "tiers_offered": ["16"],
+        "variants": ["BF16": ["architecture": "parakeet"], "8b": ["architecture": "parakeet", "groupSize": 64] as JSON] as JSON
+    ]
+    let models: JSON = ["families": [family, other]]
+    func figures(_ speed: Double, _ joules: Double, date: String = "2026-10-02", suite: String = "v2", performance: String = "v2-quick") -> JSON {
         [
             "wer": 17.2, "format": 7.7, "multilingual": ["mean": 21.8] as JSON, "speed_x": speed, "j_per_min": joules, "memory_mb": 3346,
-            "measured": ["date": "2026-10-02", "suite": "v2", "performance_suite": "v2-quick"] as JSON
+            "measured": ["date": date, "suite": suite, "performance_suite": performance] as JSON
         ]
     }
     let demoTiers: JSON = [
@@ -271,17 +297,44 @@ func selfTest() {
     ]
     var bench: JSON = [
         "figures_pending": false, "hardware": "Test Mac", "suites": ["v2": ["audio_min": 239.7], "v2-quick": ["audio_min": 22.5]] as JSON,
-        "models": ["demo": ["tolerance_pt": 0.1, "noise_pt": 0.04, "tolerance_ml_pt": 0.2, "tiers": demoTiers] as JSON] as JSON
+        "models": [
+            "demo": ["tolerance_pt": 0.1, "noise_pt": 0.04, "tolerance_ml_pt": 0.2, "tiers": demoTiers] as JSON,
+            "other": ["tiers": ["16": ["standard": figures(5, 50, date: "2026-09-28", suite: "v2-quick", performance: "v2")] as JSON] as JSON] as JSON
+        ] as JSON
     ]
     let whisper = folders["whisper"]!
     let block = renderBlock(whisper, models, bench)
     for expected in [
         "| 16 (fp16) | Optimized Fast | 17.20 | 7.70 | 21.80 | 20.0× | 80.00 | 3346 | +100 % | −20 % |",
         "| 16 (fp16) | Standard | 17.20 | 7.70 | 21.80 | 10.0× | 100.00 | 3346 | — | — |",
-        "| 8 (int8) | affine group 64", "`model.encoder` kept at fp16 (40.8 % of the quantizable weights)", "| 4 (int4) |", "fail; absent: 1 clip lost",
+        "| 8 (int8) | affine group 64", "`model.encoder` kept at fp16 (40.8 % of the source checkpoint's weight bytes)", "| 4 (int4) |", "fail; absent: 1 clip lost",
         "Gate limits: English ≤ 0.10 pt (measured noise 0.04 pt), multilingual mean ≤ 0.20 pt.",
         "Measured 2026-10-02 on Test Mac. Accuracy: v2 (239.7 min); speed, energy and peak RAM: v2-quick (22.5 min)."
     ] where !block.contains(expected) { fail("selftest: missing \(expected)") }
+    if block.contains("2026-09-28") || block.contains("Test Mac. Accuracy: v2-quick") { fail("selftest: another family's date or suite labels this README") }
+    // Mixed suites, dates and machines inside one README are all listed, in sorted order, and the text is the same every time.
+    var mixed = bench
+    var mixedModels = mixed["models"] as? JSON ?? [:]
+    var mixedDemo = mixedModels["demo"] as? JSON ?? [:]
+    var mixedTiers = mixedDemo["tiers"] as? JSON ?? [:]
+    var mixedSixteen = mixedTiers["16"] as? JSON ?? [:]
+    var extra = figures(30, 70, date: "2026-10-04", suite: "v2-quick", performance: "v2")
+    var extraMeasured = extra["measured"] as? JSON ?? [:]
+    extraMeasured["hardware"] = "Other Mac"
+    extra["measured"] = extraMeasured
+    mixedSixteen["optimized_exact"] = extra
+    mixedTiers["16"] = mixedSixteen
+    mixedDemo["tiers"] = mixedTiers
+    mixedModels["demo"] = mixedDemo
+    mixed["models"] = mixedModels
+    let mixedLine = "Measured 2026-10-02 to 2026-10-04 on Other Mac; Test Mac. Accuracy: v2 (239.7 min), v2-quick (22.5 min); "
+        + "speed, energy and peak RAM: v2 (239.7 min), v2-quick (22.5 min)."
+    for _ in 0..<20 where !renderBlock(whisper, models, mixed).contains(mixedLine) { fail("selftest: mixed metadata is not listed deterministically") }
+    // A present tier whose recommendation gate failed keeps its gate reasons apart from presence reasons.
+    let failing: JSON = ["status": "fail", "reasons": ["x +1 pt"]]
+    let tierEight: JSON = ["gate": failing, "presence": ["offered": true] as JSON]
+    let gated: JSON = ["models": ["demo": ["tiers": ["8": tierEight] as JSON] as JSON] as JSON]
+    if gateText(gated, "demo", "8") != "fail; present; gate: x +1 pt" { fail("selftest: \(gateText(gated, "demo", "8"))") }
     bench["figures_pending"] = true
     let pending = renderBlock(whisper, models, bench)
     if !pending.contains("Figures pending") || pending.contains("20.0×") || pending.contains("fail; absent") { fail("selftest: pending block shows figures") }

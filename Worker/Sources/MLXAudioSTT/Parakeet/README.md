@@ -25,20 +25,21 @@ post-trained for dictation; it is the model offered for a first dictation. Pinne
 
 ## Tiers offered, and why
 
-A tier is offered unless it breaks against 16: a clip left empty or cut short, a request error, English or average WER
-5 points worse, or one language 10 points worse (the presence rule). Lower tiers are made on the Mac from the 16-bit
-weights with plain affine group-64 rounding (`mx.quantize`), never from a quantized download. No calibrated, searched,
+A tier is offered unless it breaks against 16 (the presence rule, `lab/bench/gate_check.py`): a clip empty or cut short where
+16 had the words, a request error or worker exit, English WER or the multilingual mean 5 points worse, or any supported
+language 10 points worse. Lower tiers are made on the Mac from the 16-bit
+weights with plain affine group-64 rounding (MLX `quantized`), never from a quantized download. No calibrated, searched,
 refit or bias-aware recipe is used (Toby, 30 Sep 2026: calibration is training on the 16-bit outputs). The only choice
 left is which modules are quantized.
 
 For the 8 and 4 tiers the catalog keeps the prediction network and the joint at BF16 (`floatModules: ["decoder", "joint"]`,
-1.84 % of the quantizable weights, +11 MB) and rounds the rest. That is a choice of modules, not calibration. Reason: the clip a
+1.84 % of the source checkpoint's weight bytes, +11 MB) and rounds the rest. That is a choice of modules, not calibration. Reason: the clip a
 uniform 8-bit v3 loses is lost in the quantized prediction/joint network, not in the encoder (an int8 encoder alone
 does not bring it back; a BF16 decoder and joint do), and a uniform 4-bit v3 cannot qualify its fast path at all (the
 load-time exact stage differs from stock at clip-a, token 18, so the whole model runs stock).
 
 Full-v2 presence screen, 1 Oct 2026, each recipe against the same build's 16 tier, plain affine g64, the quantized
-rows on the native int8 and int4 encoder kernels:
+rows of the 8 and 4 tiers that qualify on the native int8 and int4 encoder kernels (the table's "v3 4 uniform" row runs stock, see above):
 
 | Recipe | Gate | English | Multilingual | Worst language | Lost clips | Presence |
 |---|---|---|---|---|---|---|
@@ -57,8 +58,8 @@ figures. v3's 4 tier stays absent (3 lost clips). `tiers_offered` in `Resources/
 
 ## What Vella optimizes
 
-Always on once the load-time self-test passed on the Mac (revision `parakeet-r2-dense-encoder`; stock MLX is the
-fallback):
+Always on once the load-time self-test passed on the Mac (revision `parakeet-r2-dense-encoder`, plus
+`+nax2+smallm-tile-1` while the NAX kernel is on, which is the default; stock MLX is the fallback):
 
 - **Fused Conformer encoder** (`FastParakeetEncoder`, component `encoder`): exact.
 - **TDT decoder as one compiled graph** (`FastParakeetTDT`, component `decoder`): 32 steps × 5 kernels, every weight a
@@ -95,20 +96,22 @@ Numbers are speed / energy against the arm without the lever, v2-mini, unless no
 - **Tail block sizing on v3 16** (1 Oct): +1.7 % / −2.8 %, under the 3 % bar.
 - **Fewer kernels per decoder step** (27 Sep): 7 → 4 kernels per step measured 2.24 against 2.25 ms per 32-step block.
 - **16-bit encoder with an 8-bit decoder**: not meaningful; the decoder and joint are 3 % of the parameters and the fast decoder dequantizes them at load, so speed is identical and the saving is 11 MB.
-- **Calibrated 4-bit and 8-bit recipes** (mse g32 and g64, bias-aware g64): rejected by Toby on 30 Sep, before any end-to-end run. Plain affine g64 is the only quantization.
+- **Calibrated 4-bit and 8-bit recipes** (mse g32 and g64, bias-aware g64): rejected by Toby on 30 Sep, after the day smokes (built and smoked) and before any A/B or quality run. Plain affine g64 is the only quantization.
 
-Patches for the rejected levers are kept in the lab, not in the source tree.
+Patches for the rejected levers are not published: they stay in the maintainers' lab, outside the source tree and the source archive.
 
 ## Quality gate
 
-The gate decides whether a lever or a tier loses anything measurable. Against the base (the stock path at the same
-precision for a lever; the 16 tier for a tier): English WER within the model's tolerance (0.1 pt, up to 0.2 pt where the
-model's own run-to-run noise is larger), the multilingual mean within a similar noise-based limit, no language more than
-2 pt worse, no empty or cut-off segment. The limits for each model are in `Resources/benchmarks.json` (`tolerance_pt`,
-`tolerance_ml_pt`).
+**Release gate** (offline, full v2, `lab/bench/gate_check.py`). The gate decides whether a lever or a tier loses anything
+measurable. Against the base (the stock path at the same precision for a lever; the 16 tier for a tier), all of these must
+hold: English WER and format CER each within the model's tolerance T (0.1 pt, up to 0.2 pt where the model's own
+run-to-run noise plus 0.05 is larger); the multilingual mean within its own noise-based limit (0.1 to 0.3 pt); no
+supported language with at least 5 minutes of suite audio more than 2 pt worse; no clip empty, and no clip that loses 3 or
+more trailing words the base had right; no request error or worker exit. The limits for each model are in
+`Resources/benchmarks.json` (`tolerance_pt`, `tolerance_ml_pt`).
 
-On the user's Mac, a self-test runs before the optimized path is used, in a child process with a deadline, on five
-public clips. Exact components (`encoder`, `decoder`, tail blocks) must reproduce stock's tokens, or the whole model runs
+**Self-test on the user's Mac** (`FastPathSelfTest.swift`), run before the optimized path is used, in a child process with
+a deadline, on five public clips. Exact components (`encoder`, `decoder`, tail blocks) must reproduce stock's tokens, or the whole model runs
 stock. Each inexact component (`nax_gemm`, `int8_gemm`, `int4_gemm`) must stay within its tolerance and at most one word
 edit in total, or only that component is dropped. A failed verdict is sticky for that model's files, GPU family, macOS build, worker
 version and revision. A runtime fallback to stock covers non-finite output.
@@ -120,15 +123,15 @@ version and revision. A runtime fallback to stock covers non-finite output.
 
 Figures pending: the 2.0.0 measurement has not been written into `Resources/benchmarks.json` yet (`figures_pending` is true), so no figure is shown. A figure that is not measured is —.
 
-Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "vs Standard" compares the same tier's Optimized cell with its Standard cell. "Offered" is `tiers_offered` in `Resources/models.json`; "Gate vs 16" is the quality gate and presence verdict in `Resources/benchmarks.json`.
+Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "vs Standard" compares the same tier's Optimized cell with its Standard cell. "Offered" is `tiers_offered` in `Resources/models.json`; "Gate vs 16" is the quality gate and presence verdict in `Resources/benchmarks.json`. A quantized tier rounds only the Linear and Embedding layers whose input width the group size divides; every other tensor and every kept module stays at the source dtype.
 
 #### Parakeet v3 Ultra (`parakeet-v3-ultra`)
 
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (bf16) | the checkpoint as published | yes | — |
-| 8 (int8) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the quantizable weights) | yes | — |
-| 4 (int4) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the quantizable weights) | yes | — |
+| 8 (int8) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the source checkpoint's weight bytes) | yes | — |
+| 4 (int4) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the source checkpoint's weight bytes) | yes | — |
 
 | Tier | Path | WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
@@ -147,8 +150,8 @@ Speed is × real time, energy is joules per minute of audio (whole chip, idle su
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (bf16) | converted once from the fp32 download | yes | — |
-| 8 (int8) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the quantizable weights) | no | — |
-| 4 (int4) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the quantizable weights) | no | — |
+| 8 (int8) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the source checkpoint's weight bytes) | no | — |
+| 4 (int4) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the source checkpoint's weight bytes) | no | — |
 
 | Tier | Path | WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|

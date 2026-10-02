@@ -26,16 +26,18 @@ revisions and download sizes are in `Resources/models.json`.
 
 ## Tiers offered, and why
 
-A tier is offered unless it breaks against 16: a clip left empty or cut short, a request error, English or average WER
-5 points worse, or one language 10 points worse (the presence rule). Lower tiers are made on the Mac from the BF16
+A tier is offered unless it breaks against 16 (the presence rule, `lab/bench/gate_check.py`): a clip empty or cut short where
+16 had the words, a request error or worker exit, English WER or the multilingual mean 5 points worse, or any supported
+language 10 points worse. Lower tiers are made on the Mac from the BF16
 weights with plain affine group-64 rounding, never from a quantized download. No calibrated, searched, refit or
 bias-aware recipe is used (Toby, 30 Sep 2026: calibration is training on the 16-bit outputs). The predictor's LSTM stays
 BF16 in every tier.
 
-- **16 (bf16) and 8 (int8): offered.** On the 28 Sep full-v2 gate run (segmentation since fixed) the 8 tier was English
-  +0.05, multilingual +0.60, Japanese +2.03, no lost clip: worse than 16 by the gate, nothing broken.
-- **4 (int4): absent.** Plain affine g64 failed the same run: English +9.55, multilingual +9.30, Turkish +15.28, 14 lost
-  clips. A calibrated recipe (clip search plus least-squares refit, g32) brought the error back to the 8-bit level
+- **16 (bf16) and 8 (int8): offered.** The shipped verdict in `Resources/benchmarks.json` (the 29 Sep models-table round,
+  `lab/notes/models-table-ROUND.md`; it predates the 2.0.0 measurement, which replaces it) puts the 8 tier at multilingual
+  +0.55 against a limit of 0.10: worse than 16 by the recommendation gate, nothing broken, so it is offered.
+- **4 (int4): absent.** The same verdict, for plain affine g64: English +9.59, multilingual +9.25, Turkish +15.28,
+  15 clips empty or cut short where 16 had the words. A calibrated recipe (clip search plus least-squares refit, g32) brought the error back to the 8-bit level
   (English −0.05, multilingual +0.44 on v2-quick) but still lost one clip. Toby's ruling excludes it, so the tier stays
   absent.
 
@@ -45,12 +47,12 @@ BF16 in every tier.
 
 The encoder chunk is launch-bound: about 50 small kernels per layer for a 4-frame chunk. Each streaming optimization
 below is on by default, bit-identical to stock except where marked, and active only after the load-time self-test passed
-on the Mac (revision `nemotron-stream-5`). `VELLA_NEMO_<NAME>=0` disables one; `VELLA_FORCE_STOCK=1` disables all.
+on the Mac (revision `nemotron-stream-5`; the self-test is described under Quality gate). `VELLA_NEMO_<NAME>=0` disables one; `VELLA_FORCE_STOCK=1` disables all.
 
 - **Float32 weights, request coalescing, batched decode, position cache, K/V cache of the last frames, one mel call per
   request:** exact.
-- **Fused conformer layer** (about 16 dispatches per layer instead of about 50): inexact (summation order), gated by the
-  self-test tolerance (encoder relative RMS ≤ 1e-2) and the WER gate. Off under Optimized · Exact.
+- **Fused conformer layer** (about 16 dispatches per layer instead of about 50): inexact (summation order), held to the
+  self-test tolerance (see Quality gate) and judged by the WER gate. Off under Optimized · Exact.
 - **BF16 Linears** on the small-M kernel, with the fused layer, on BF16 checkpoints: inexact, off under Optimized · Exact.
 
 Their effect is the Optimized rows against the Standard rows in the generated block below.
@@ -77,7 +79,7 @@ Numbers are speed / energy against the arm without the lever, v2-mini, unless no
 
 - **Native int8 encoder Linears** (`VELLA_NEMO_QLINEAR`, 8 tier; 1 Oct): −2.1 % / +6.9 %. At 4 rows the affine kernel ties or loses to MLX's quantized matmul (feed-forward block 25.5 against 27.6 µs at 8-bit, 25.8 against 25.4 µs at 4-bit).
 - **Quantized joint on the affine kernel** (`VELLA_NEMO_QJOINT`, 8 tier; 1 Oct): +0.8 % / −0.8 %. It wins per block (21.0 against 24.8 µs) but the joint is a small share of a chunk.
-- **Prompt without the one-hot** (folded into a per-language bias; 30 Sep): −0.6 % / in noise. A cached one-hot has no effect (prompt step 1.77 against 1.75 ms per chunk).
+- **Prompt without the one-hot** (folded into a per-language bias; 30 Sep): −0.6 % / −4.5 % for one pair but −2.5 % against the mean of three same-configuration samples (spread 3 %), so in noise. A cached one-hot has no effect (prompt step 1.77 against 1.75 ms per chunk).
 - **Mel as one GPU kernel**: estimated at 1.6 % or less (mel is about 0.19 ms of a 9.6 ms chunk), not built.
 - **Add and LayerNorm in the previous GEMV's epilogue**: estimated about 5 %, not built. It needs ordering across threadgroups, and Metal's device atomics are relaxed-only.
 - **Native tile kernels for 9–256 rows** (`qtile-1`): not applicable, no GEMM in the streaming session reaches 9 rows.
@@ -87,16 +89,26 @@ Numbers are speed / energy against the arm without the lever, v2-mini, unless no
 
 ## Quality gate
 
-The gate decides whether a lever or a tier loses anything measurable. Against the base (the stock path at the same
-precision for a lever; the 16 tier for a tier): English WER within the model's tolerance (0.1 pt, up to 0.2 pt where the
-model's own run-to-run noise is larger), the multilingual mean within a similar noise-based limit, no language more than
-2 pt worse, no empty or cut-off segment. Streaming adds a timing rule: every commit lands within one packet of the
-base's. The limits for each model are in `Resources/benchmarks.json` (`tolerance_pt`, `tolerance_ml_pt`).
+**Release gate** (offline, full v2, `lab/bench/gate_check.py`). The gate decides whether a lever or a tier loses anything
+measurable. Against the base (the stock path at the same precision for a lever; the 16 tier for a tier), all of these must
+hold: English WER and format CER each within the model's tolerance T (0.1 pt, up to 0.2 pt where the model's own
+run-to-run noise plus 0.05 is larger); the multilingual mean within its own noise-based limit (0.1 to 0.3 pt); no
+supported language with at least 5 minutes of suite audio more than 2 pt worse; no clip empty, and no clip that loses 3 or
+more trailing words the base had right; no request error or worker exit. The limits for each model are in
+`Resources/benchmarks.json` (`tolerance_pt`, `tolerance_ml_pt`). Commit timing is not checked in these offline runs. For a
+streaming model, a tier that fails only the multilingual criteria still passes when English is within T and its speed is at
+least 1.25 times the fastest tier that passes outright (`STREAM_SPEED_TRADE`); its reason states the trade.
 
-On the user's Mac, a self-test runs before the optimized path is used, in a child process with a deadline, on five
-public clips. Exact components must reproduce stock's events. Each inexact component (the fused layer, its BF16 Linears,
-joint batching) must stay within its tolerance, or only that component is dropped. A failed verdict is sticky for that
-model's files, GPU family, macOS build, worker version and revision.
+**Self-test on the user's Mac** (`Worker/Sources/VellaStreamingWorker/SelfTest.swift`), run before the optimized path is used,
+in a child process with a deadline. It plays one stream of two public clips (clip-b, 1.2 s of silence, clip-e) through the
+production streaming session in 100-ms packets, on stock MLX and then on the optimized path of the same loaded model. The
+committed text must be non-empty and the encoder outputs finite. Without the fused layer every reply (committed and partial
+text, frame counts, done) must be identical to stock's. With the fused layer the stream must stay within its tolerance
+(`FusedTolerance`): encoder relative RMS ≤ 1e-2, at most one committed-word edit, every commit at most one packet from
+stock's, at most two replies whose partial text differs, every other reply field identical. A failure of this one test
+runs the whole model on stock; there is no per-component drop in the streaming self-test. A failed verdict is sticky for
+that model's files, GPU family, macOS build, worker version and revision. If the optimized path fails at run time, the
+stream is replayed on stock (up to about 10 minutes of audio).
 
 ## Measured figures
 
@@ -105,7 +117,7 @@ model's files, GPU family, macOS build, worker version and revision.
 
 Figures pending: the 2.0.0 measurement has not been written into `Resources/benchmarks.json` yet (`figures_pending` is true), so no figure is shown. A figure that is not measured is —.
 
-Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "vs Standard" compares the same tier's Optimized cell with its Standard cell. "Offered" is `tiers_offered` in `Resources/models.json`; "Gate vs 16" is the quality gate and presence verdict in `Resources/benchmarks.json`.
+Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "vs Standard" compares the same tier's Optimized cell with its Standard cell. "Offered" is `tiers_offered` in `Resources/models.json`; "Gate vs 16" is the quality gate and presence verdict in `Resources/benchmarks.json`. A quantized tier rounds only the Linear and Embedding layers whose input width the group size divides; every other tensor and every kept module stays at the source dtype. The predictor's LSTM stays at bf16 at every tier.
 
 #### Nemotron 3.5 Streaming (`nemotron-3.5-streaming-0.6b`)
 

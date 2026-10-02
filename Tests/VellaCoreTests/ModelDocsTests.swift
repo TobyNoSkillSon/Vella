@@ -88,6 +88,7 @@ final class ModelDocsTests: XCTestCase {
             }
             XCTAssertTrue(readme.contains("calibrat"), "\(folder)/README.md states the no-calibration ruling")
             XCTAssertFalse(readme.contains("{{"), folder)
+            XCTAssertFalse(readme.contains("of the quantizable weights"), "\(folder): floatShare is a share of the source checkpoint's weight bytes")
         }
     }
 
@@ -99,10 +100,13 @@ final class ModelDocsTests: XCTestCase {
             if url.pathExtension == "swift" { source += try String(contentsOf: url, encoding: .utf8) }
         }
         let pairs: [(folder: String, tokens: [String])] = [
-            ("Parakeet", [
-                "VELLA_PARAKEET_INT8", "+int8-2", "VELLA_PARAKEET_INT4", "+int4-2", "VELLA_PARAKEET_TAILBLOCK", "+tailblock-1",
-                "VELLA_PARAKEET_NAX", "VELLA_DICTATION_KEEP_CACHE", "parakeet-r2-dense-encoder", "smallm-"
-            ]),
+            (
+                "Parakeet",
+                [
+                    "VELLA_PARAKEET_INT8", "+int8-2", "VELLA_PARAKEET_INT4", "+int4-2", "VELLA_PARAKEET_TAILBLOCK", "+tailblock-1",
+                    "VELLA_PARAKEET_NAX", "VELLA_DICTATION_KEEP_CACHE", "parakeet-r2-dense-encoder", "smallm-"
+                ]
+            ),
             ("NemotronASR", ["VELLA_NEMO_KEEPCACHE", "keepcache-1", "VELLA_NEMO_JOINTBATCH", "jointbatch-1", "nemotron-stream-5", "VELLA_FORCE_STOCK"]),
             ("Qwen3ASR", ["qwen3-asr-3-f32-encoder-p3"]),
             ("Whisper", ["whisper-3-f16-model", "VELLA_DICTATION_KEEP_CACHE"])
@@ -115,6 +119,48 @@ final class ModelDocsTests: XCTestCase {
             }
         }
         let parakeet = try text("Worker/Sources/MLXAudioSTT/Parakeet/README.md")
-        XCTAssertTrue(source.contains("qtile-1") && parakeet.contains("qtile-1"))
+        XCTAssertTrue(source.contains("qtileRevision = \"qtile-1\"") && parakeet.contains("qtile-1"), "SmallMGEMM.qtileRevision")
+    }
+
+    /// The Default column of each kept lever matches the code: the opt-in levers are off, the NAX kernel and the shared
+    /// keep-cache are on, and the dictation keep-cache is switched off only by `=0`.
+    func testReadmeLeverDefaultsMatchTheCode() throws {
+        func source(_ path: String) throws -> String { try text("Worker/Sources/MLXAudioSTT/\(path)") }
+        let int8 = try source("Parakeet/FastParakeetInt8.swift")
+        XCTAssertTrue(int8.contains("static let enabledByDefault = false") && int8.contains("static let int4EnabledByDefault = false"))
+        let nax = try source("Parakeet/FastParakeetNAX.swift")
+        XCTAssertTrue(nax.contains("static let enabledByDefault = true"))
+        let tail = try source("Parakeet/FastParakeetDecodeOptions.swift")
+        XCTAssertTrue(tail.contains("[\"VELLA_PARAKEET_TAILBLOCK\"] == \"1\""))
+        let nemotron = try source("NemotronASR/VellaNemotronOptions.swift")
+        XCTAssertTrue(nemotron.contains("keepCache: optIn(\"KEEPCACHE\")") && nemotron.contains("jointBatch: optIn(\"JOINTBATCH\") && !exactOnly"))
+        let service = try text("Worker/Sources/VellaWorker/DictationService.swift")
+        XCTAssertTrue(service.contains("environment[\"VELLA_DICTATION_KEEP_CACHE\"] != \"0\""))
+        let rows: [(folder: String, switchName: String, state: String)] = [
+            ("Parakeet", "VELLA_PARAKEET_INT8=1", "off"), ("Parakeet", "VELLA_PARAKEET_INT4=1", "off"),
+            ("Parakeet", "VELLA_PARAKEET_TAILBLOCK=1", "off"), ("Parakeet", "VELLA_DICTATION_KEEP_CACHE=0", "on"),
+            ("NemotronASR", "VELLA_NEMO_KEEPCACHE=1", "off"), ("NemotronASR", "VELLA_NEMO_JOINTBATCH=1", "off"),
+            ("Whisper", "VELLA_DICTATION_KEEP_CACHE=0", "on")
+        ]
+        for row in rows {
+            let readme = try source("\(row.folder)/README.md")
+            let line = try XCTUnwrap(readme.components(separatedBy: "\n").first { $0.hasPrefix("|") && $0.contains("`\(row.switchName)") })
+            XCTAssertTrue(line.hasSuffix("| \(row.state) |"), "\(row.folder): \(row.switchName) default is \(row.state)")
+        }
+    }
+
+    /// The switches of rejected levers are not in the source tree: their patches stay in the lab.
+    func testRejectedLeverSwitchesAreNotInTheSource() throws {
+        var source = ""
+        let files = FileManager.default.enumerator(at: Self.root.appendingPathComponent("Worker/Sources"), includingPropertiesForKeys: nil)
+        while let url = files?.nextObject() as? URL {
+            if url.pathExtension == "swift" { source += try String(contentsOf: url, encoding: .utf8) }
+        }
+        for name in [
+            "VELLA_PARAKEET_JOINTWIN", "VELLA_PARAKEET_QJOINT", "VELLA_NEMO_QLINEAR", "VELLA_NEMO_QJOINT", "VELLA_QWEN_KEEPCACHE", "VELLA_QWEN_GEMV",
+            "VELLA_QWEN_QTILE", "VELLA_QWEN_QTOWER", "VELLA_WHISPER_GEMV", "VELLA_WHISPER_ENC_DEQUANT"
+        ] {
+            XCTAssertFalse(source.contains(name), "\(name) belongs to a rejected lever but is in Worker/Sources")
+        }
     }
 }

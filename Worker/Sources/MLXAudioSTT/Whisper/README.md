@@ -5,8 +5,9 @@ encoder, the decoder, the tokenizer, the decoding loop and the optimized path; t
 `Resources/models.json`.
 
 **Screening numbers.** Every speed, energy and memory figure in the text below is a screening number: a v2-mini A/B
-(21 clips, 3.6 min of audio) on an M5 Max, macOS 26.6, dated 28 Sep to 1 Oct 2026, two symmetric cycles where the table
-says so and one clean pair otherwise. Screening picks levers; it is not the release measurement. The release figures
+(21 clips, 3.6 min of audio) on an M5 Max, macOS 26.6, dated 28 Sep to 1 Oct 2026, one clean pair per lever unless noted. The
+1 Oct spread results (`lab/notes/KERNEL-MATRIX-2026-09-30.md`, Whisper results) used two symmetric cycles, four clean
+samples per arm. Screening picks levers; it is not the release measurement. The release figures
 are the generated block at the end.
 
 ## What it is
@@ -26,22 +27,26 @@ Pinned revisions and download sizes are in `Resources/models.json`.
 
 ## Tiers offered, and why
 
-A tier is offered unless it breaks against 16: a clip left empty or cut short, a request error, English or average WER
-5 points worse, or one language 10 points worse (the presence rule). Lower tiers are made on the Mac from the FP16
+A tier is offered unless it breaks against 16 (the presence rule, `lab/bench/gate_check.py`): more clips empty or cut short
+where 16 had the words than the base's seed allowance, a request error or worker exit, English WER or the multilingual mean
+5 points worse, or any supported language 10 points worse. Whisper has a seed allowance because its temperature fallback
+samples: a clip lost within it is sampling noise, not a rejected tier. Lower tiers are made on the Mac from the FP16
 weights with plain affine group-64 rounding, never from a quantized download. No calibrated, searched, refit or
 bias-aware recipe is used (Toby, 30 Sep 2026: calibration is training on the 16-bit outputs).
 
 - **16 (fp16):** the checkpoint as published.
 - **8 (int8): the encoder stays FP16, the decoder is affine 8-bit g64** (`floatModules: ["model.encoder"]`, 41 % of
-  large-v3's quantizable weights and 78 % of turbo's). That is a choice of modules, not calibration. Reason: the encoder is the cost
+  large-v3's weight bytes and 78 % of turbo's). That is a choice of modules, not calibration. Reason: the encoder is the cost
   (turbo spends about 49 ms per 30-second window there, at the FP16 ceiling) and int8 weights at the encoder's size run
   at the FP16 rate, so quantizing it saves bytes but not time. The mixed recipe is faster and uses less energy than the
   uniform 8-bit recipe and transcribes the same 21 clips identically (screening below). Memory is higher than the uniform
   recipe's, by about 390–400 MB. An imported uniform 8-bit checkpoint no longer counts as this tier; Get makes it from
   the FP16 download.
-- **4 (int4): absent.** Plain affine 4-bit fails the gate on both models. The 28 Sep full-v2 gate run (segmentation
-  since fixed): large-v3 Japanese +2.09, format +0.18, one lost clip; turbo English +0.49, Turkish +2.44, format +0.74,
-  two lost clips.
+- **4 (int4): absent.** Plain affine 4-bit loses clips on both models, which is what makes a tier absent (the presence
+  rule). The shipped verdict in `Resources/benchmarks.json` (the 29 Sep models-table round,
+  `lab/notes/models-table-ROUND.md`; the 2.0.0 measurement replaces it): large-v3 one clip empty or cut short where 16 had
+  the words, turbo two; both also fail the recommendation gate (large-v3 Japanese +2.09, format CER +0.18; turbo English
+  +0.49, Turkish +2.44, format CER +0.74).
 
 `tiers_offered` in `Resources/models.json` is what the app offers.
 
@@ -51,7 +56,7 @@ Always on once the load-time self-test passed on the Mac (revision `whisper-3-f1
 Optimized · Exact; stock MLX is the fallback):
 
 - **Checkpoint-dtype model** (component `encoder`): the FP16 model runs in FP16, where stock promotes to Float32. Inexact
-  against stock, so it is off under Optimized · Exact.
+  against stock, so it is off under Optimized · Exact; the on-Mac self-test does not compare it with stock (see Quality gate).
 - **GPU-side decoder** (component `decoder`, exact): the greedy decode loop runs on the GPU, with a finite check on every logit tensor it uses.
 - **Fused decode step** (listed as `fused_decode` in a quantized tier's recipe, exact, quantized checkpoints only): a
   quantized decode step is launch-bound at one token, so one GEMV serves q, k and v, one kernel appends the new K/V
@@ -82,21 +87,28 @@ Numbers are speed / energy against the arm without the lever, v2-mini.
 - **Bias and GELU folded into kernels; compiled decode step**: rejected on the profile, not built. A custom-kernel call costs 3.4× a binary op on the host, the loop is host/GPU-balanced, and a compiled step only removes host work (Qwen, exact: 1 % or less on every precision). Turbo is encoder-bound.
 - **Decode-step GEMV for fc2** (`VELLA_WHISPER_GEMV`, tolerant `int8_gemv`/`int4_gemv`; 1 Oct): large-v3 8 +0.1 % / +0.9 %, turbo 8 +0.4 % / +0.5 %, 21 of 21 identical. Only one of about nine GEMVs per layer qualifies (K ≥ 2048).
 - **Truncated encoder context** (the encoder on the segment's frames plus a margin): failed the model's own self-test. Word edits over the five self-test clips (bound 1): turbo 2 at 2, 5, 10 and 15 s of margin; large-v3 3, 4 and 4 at 2, 5 and 10 s, while the exact components stayed token-exact. The model needs the full padded window.
-- **Calibrated 4-bit** (clip search plus least-squares refit, g32 and g64): rejected by Toby on 30 Sep before any run. Plain affine g64 is the only quantization.
+- **Calibrated 4-bit** (clip search plus least-squares refit, g32 and g64): rejected by Toby on 30 Sep, after the day smokes (all four checkpoints loaded and ran) and before any A/B or quality run. Plain affine g64 is the only quantization.
 
 ## Quality gate
 
-The gate decides whether a lever or a tier loses anything measurable. Against the base (the stock path at the same
-precision for a lever; the 16 tier for a tier): English WER within the model's tolerance (0.1 pt, up to 0.2 pt where the
-model's own run-to-run noise is larger; Whisper's noise includes a second sampling seed), the multilingual mean within a
-similar noise-based limit, no language more than 2 pt worse, no empty or cut-off segment. The limits for each model are
-in `Resources/benchmarks.json` (`tolerance_pt`, `tolerance_ml_pt`).
+**Release gate** (offline, full v2, `lab/bench/gate_check.py`). The gate decides whether a lever or a tier loses anything
+measurable. Against the base (the stock path at the same precision for a lever; the 16 tier for a tier), all of these must
+hold: English WER and format CER each within the model's tolerance T (0.1 pt, up to 0.2 pt where the model's own
+run-to-run noise plus 0.05 is larger; Whisper's noise pair is two sampling seeds); the multilingual mean within its own
+noise-based limit (0.1 to 0.3 pt); no supported language with at least 5 minutes of suite audio more than 2 pt worse; no
+clip empty, and no clip that loses 3 or more trailing words the base had right, beyond the base's seed allowance (the most
+clips one sampling seed loses against the other in the noise pair); no request error or worker exit. The limits for each
+model are in `Resources/benchmarks.json` (`tolerance_pt`, `tolerance_ml_pt`).
 
-On the user's Mac, a self-test runs before the optimized path is used, in a child process with a deadline, on five
-public clips. Exact components must reproduce stock's tokens, or the whole model runs stock. Each inexact component
-(the checkpoint-dtype encoder) must stay within its tolerance and at most one word edit in total, or only that component
-is dropped. A runtime check falls back to stock on non-finite logits. A failed verdict is sticky for that model's files,
-GPU family, macOS build, worker version and revision.
+**Self-test on the user's Mac** (`FastPathSelfTest.swift`), run before the optimized path is used, in a child process with
+a deadline, on the five default public clips. Whisper declares no tolerant component (`fastPathTolerantComponents` is
+empty), so there is no tolerance stage: the test is token-exact. Per clip it transcribes with the stock path, then with the
+optimized path, and the two token sequences must be identical, non-empty and finite, or the whole model runs stock. In the
+default recipe the encoder runs in the checkpoint dtype (FP16) on both sides, because the stock reference is run in that
+dtype too (`qualificationTokens`), so the test compares the decoder only. The FP16 encoder's difference from stock Float32
+is never compared on the user's Mac: it is measured by the release gate and switched off by Optimized · Exact (there the
+stock reference is Float32 and the optimized path is decoder-only). A runtime check falls back to stock on non-finite
+logits. A failed verdict is sticky for that model's files, GPU family, macOS build, worker version and revision.
 
 ## Measured figures
 
@@ -105,14 +117,14 @@ GPU family, macOS build, worker version and revision.
 
 Figures pending: the 2.0.0 measurement has not been written into `Resources/benchmarks.json` yet (`figures_pending` is true), so no figure is shown. A figure that is not measured is —.
 
-Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "vs Standard" compares the same tier's Optimized cell with its Standard cell. "Offered" is `tiers_offered` in `Resources/models.json`; "Gate vs 16" is the quality gate and presence verdict in `Resources/benchmarks.json`.
+Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "vs Standard" compares the same tier's Optimized cell with its Standard cell. "Offered" is `tiers_offered` in `Resources/models.json`; "Gate vs 16" is the quality gate and presence verdict in `Resources/benchmarks.json`. A quantized tier rounds only the Linear and Embedding layers whose input width the group size divides; every other tensor and every kept module stays at the source dtype.
 
 #### Whisper large-v3 (`whisper-large-v3`)
 
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (fp16) | the checkpoint as published | yes | — |
-| 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (40.8 % of the quantizable weights) | yes | — |
+| 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (40.8 % of the source checkpoint's weight bytes) | yes | — |
 | 4 (int4) | affine group 64 from the fp16 weights | no | — |
 
 | Tier | Path | WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
@@ -132,7 +144,7 @@ Speed is × real time, energy is joules per minute of audio (whole chip, idle su
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (fp16) | the checkpoint as published | yes | — |
-| 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (78.0 % of the quantizable weights) | yes | — |
+| 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (78.0 % of the source checkpoint's weight bytes) | yes | — |
 | 4 (int4) | affine group 64 from the fp16 weights | no | — |
 
 | Tier | Path | WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
