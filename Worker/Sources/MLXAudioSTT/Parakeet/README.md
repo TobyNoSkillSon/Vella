@@ -104,11 +104,12 @@ Patches for the rejected levers are not published: they stay in the maintainers'
 
 **Release gate** (offline, full v2, `lab/bench/gate_check.py`). The gate decides whether a lever or a tier loses anything
 measurable. Against the base (the stock path at the same precision for a lever; the 16 tier for a tier), all of these must
-hold: English WER and format CER each within the model's tolerance T (0.1 pt, up to 0.2 pt where the model's own
-run-to-run noise plus 0.05 is larger); the multilingual mean within its own noise-based limit (0.1 to 0.3 pt); no
-supported language with at least 5 minutes of suite audio more than 2 pt worse; no clip empty, and no clip that loses 3 or
-more trailing words the base had right; no request error or worker exit. The limits for each model are in
-`Resources/benchmarks.json` (`tolerance_pt`, `tolerance_ml_pt`).
+hold: English WER and format CER each within the model's tolerance T (0.1 pt, up to 0.2 pt where the model's own run-to-run
+noise plus 0.05 is larger); the multilingual mean within its own noise-based limit (0.1 to 0.3 pt); no supported language
+with at least 5 minutes of suite audio more than 2 pt worse; no lost clips (the allowance is zero): on English and
+supported-language clips with reference words, an empty hypothesis or a deleted tail counts as lost only when it removes at
+least 3 reference words the base transcribed correctly (`TAIL_WORDS`); no request error or worker exit. The limits for each
+model are in `Resources/benchmarks.json` (`tolerance_pt`, `tolerance_ml_pt`).
 
 **Self-test on the user's Mac** (`FastPathSelfTest.swift`), run before the optimized path is used, in a child process with
 a deadline, on five public clips. Exact components (`encoder`, `decoder`, tail blocks) must reproduce stock's tokens, or the whole model runs

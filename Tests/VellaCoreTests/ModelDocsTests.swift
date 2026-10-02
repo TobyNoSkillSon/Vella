@@ -88,6 +88,12 @@ final class ModelDocsTests: XCTestCase {
             }
             XCTAssertTrue(readme.contains("calibrat"), "\(folder)/README.md states the no-calibration ruling")
             XCTAssertFalse(readme.contains("{{"), folder)
+            // The lost-clip rule is gate_check.py `lost_clips`: an empty hypothesis counts only when the base had >= TAIL_WORDS (3) words right.
+            let flat = readme.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            XCTAssertTrue(
+                flat.contains("an empty hypothesis or a deleted tail counts as lost only when it removes at least 3 reference words the base transcribed correctly (`TAIL_WORDS`)"),
+                "\(folder)/README.md states the lost-clip rule differently from gate_check.py")
+            XCTAssertFalse(flat.contains("no clip empty"), "\(folder)/README.md: an empty clip is lost only with >= 3 correct base words")
             XCTAssertFalse(readme.contains("of the quantizable weights"), "\(folder): floatShare is a share of the source checkpoint's weight bytes")
         }
     }

@@ -133,6 +133,50 @@ func measuredLine(_ bench: JSON, families ids: [String]) -> String {
     return "Measured \(when) on \(hardware). Accuracy: \(list(accuracy)); speed, energy and peak RAM: \(list(performance))."
 }
 
+/// Where one measured cell comes from: date, machine, accuracy suite and speed/energy/RAM suite.
+struct MeasureKey: Hashable, Comparable {
+    let date: String, hardware: String, accuracy: String, performance: String
+    static func < (a: MeasureKey, b: MeasureKey) -> Bool {
+        (a.date, a.hardware, a.accuracy, a.performance) < (b.date, b.hardware, b.accuracy, b.performance)
+    }
+}
+
+func measureKey(_ bench: JSON, _ figures: JSON) -> MeasureKey {
+    let measured = figures["measured"] as? JSON ?? [:]
+    return MeasureKey(
+        date: measured["date"] as? String ?? dash, hardware: measured["hardware"] as? String ?? bench["hardware"] as? String ?? dash,
+        accuracy: measured["suite"] as? String ?? dash, performance: measured["performance_suite"] as? String ?? dash)
+}
+
+/// The distinct measurement keys of the measured cells of the given families, sorted. More than one means the README mixes
+/// dates, machines or suites, and each measured row then carries the number of its key (`footnoteMarks`).
+func measureKeys(_ bench: JSON, families ids: [String]) -> [MeasureKey] {
+    var keys = Set<MeasureKey>()
+    for id in ids {
+        for tier in tiers {
+            for (path, _) in paths { if let figures = cell(bench, id, tier, path) { keys.insert(measureKey(bench, figures)) } }
+        }
+    }
+    return keys.sorted()
+}
+
+/// Superscript number of the nth key (1-based): ¹ ² ³ … ¹⁰.
+func superscript(_ n: Int) -> String {
+    let digits = Array("⁰¹²³⁴⁵⁶⁷⁸⁹")
+    return String(String(n).compactMap { $0.wholeNumberValue.map { digits[$0] } })
+}
+
+/// The keyed footnotes under the measured line, one per key, only when the block mixes keys.
+func footnoteLines(_ keys: [MeasureKey]) -> [String] {
+    guard keys.count > 1 else { return [] }
+    var lines = ["The measured rows come from different runs; the mark after a path names the run:"]
+    for (index, key) in keys.enumerated() {
+        lines.append("- \(superscript(index + 1)) accuracy \(key.accuracy), speed, energy and peak RAM \(key.performance), \(key.hardware), \(key.date)")
+    }
+    lines.append("\"vs Standard\" is \(dash) where the two cells were measured on different hardware or a different speed suite.")
+    return lines + [""]
+}
+
 /// How a tier's weights are made (Resources/models.json), in words.
 func recipeText(_ family: JSON, _ tier: String) -> String {
     if tier == "16" { return family["native_dtype"] as? String == "float32" ? "converted once from the fp32 download" : "the checkpoint as published" }
@@ -176,7 +220,7 @@ func limitsText(_ bench: JSON, _ id: String) -> String? {
     return parts.isEmpty ? nil : "Gate limits: " + parts.joined(separator: ", ") + "."
 }
 
-func renderFamily(_ family: JSON, _ bench: JSON) -> [String] {
+func renderFamily(_ family: JSON, _ bench: JSON, keys: [MeasureKey] = []) -> [String] {
     let id = family["id"] as? String ?? ""
     let hide = isPending(bench)
     var lines = ["#### \(family["name"] as? String ?? id) (`\(id)`)", ""]
@@ -194,10 +238,16 @@ func renderFamily(_ family: JSON, _ bench: JSON) -> [String] {
     for tier in tiers {
         let standard = hide ? nil : cell(bench, id, tier, "standard")
         for (path, title) in paths {
-            var row = Array(repeating: dash, count: 8)
+            var row = Array(repeating: dash, count: 8), mark = ""
             if !hide, let figures = cell(bench, id, tier, path) {
                 let speed = double(figures["speed_x"]), joules = double(figures["j_per_min"])
-                let compared = path != "standard" && standard != nil
+                var compared = path != "standard" && standard != nil
+                if keys.count > 1 {
+                    let key = measureKey(bench, figures)
+                    mark = keys.firstIndex(of: key).map { superscript($0 + 1) } ?? ""
+                    // Speed and energy are only compared between cells of one machine and one speed suite.
+                    if let standard { let base = measureKey(bench, standard); compared = compared && base.hardware == key.hardware && base.performance == key.performance }
+                }
                 row = [
                     number(double(figures["wer"]), 2), number(double(figures["format"]), 2),
                     number(double((figures["multilingual"] as? JSON)?["mean"]), 2), speed.map { number($0, 1) + "×" } ?? dash,
@@ -206,7 +256,7 @@ func renderFamily(_ family: JSON, _ bench: JSON) -> [String] {
                     compared ? percentChange(joules, double(standard?["j_per_min"])) : dash
                 ]
             }
-            lines.append("| \(tier) (\(dtypeLabel(family, tier))) | \(title) | " + row.joined(separator: " | ") + " |")
+            lines.append("| \(tier) (\(dtypeLabel(family, tier))) | \(title)\(mark) | " + row.joined(separator: " | ") + " |")
         }
     }
     return lines
@@ -223,9 +273,11 @@ func renderBlock(_ folder: String, _ models: JSON, _ bench: JSON) -> String {
     let own = families(models).filter { readmeFolder($0) == folder }
     let ids = own.compactMap { $0["id"] as? String }
     let extra = Set(own.map(architecture)).sorted().compactMap { keptFloat[$0] }.joined()
+    let keys = isPending(bench) ? [] : measureKeys(bench, families: ids)
     var lines = [
         "<!-- Generated by scripts/model-readmes.swift from Resources/benchmarks.json and Resources/models.json. Do not edit between the markers; run the script. -->",
-        "", isPending(bench) ? pendingLine() : measuredLine(bench, families: ids), "",
+        "", isPending(bench) ? pendingLine() : measuredLine(bench, families: ids), ""
+    ] + footnoteLines(keys) + [
         "Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "
             + "\"vs Standard\" compares the same tier's Optimized cell with its Standard cell. \"Offered\" is `tiers_offered` in "
             + "`Resources/models.json`; \"Gate vs 16\" is the quality gate and presence verdict in `Resources/benchmarks.json`. "
@@ -233,7 +285,7 @@ func renderBlock(_ folder: String, _ models: JSON, _ bench: JSON) -> String {
             + "and every kept module stays at the source dtype." + extra,
         ""
     ]
-    for family in own { lines += renderFamily(family, bench) + [""] }
+    for family in own { lines += renderFamily(family, bench, keys: keys) + [""] }
     while lines.last == "" { lines.removeLast() }
     return lines.joined(separator: "\n")
 }
@@ -329,6 +381,16 @@ func selfTest() {
     mixed["models"] = mixedModels
     let mixedLine = "Measured 2026-10-02 to 2026-10-04 on Other Mac; Test Mac. Accuracy: v2 (239.7 min), v2-quick (22.5 min); "
         + "speed, energy and peak RAM: v2 (239.7 min), v2-quick (22.5 min)."
+    // Each measured row carries the number of its run, so swapping two runs' metadata changes the rows: Standard and Optimized Fast
+    // are one run (¹), Optimized Exact is another (²), and a speed comparison across machines is withheld.
+    let mixedBlock = renderBlock(whisper, models, mixed)
+    for expected in [
+        "- ¹ accuracy v2, speed, energy and peak RAM v2-quick, Test Mac, 2026-10-02", "- ² accuracy v2-quick, speed, energy and peak RAM v2, Other Mac, 2026-10-04",
+        "| 16 (fp16) | Standard¹ | 17.20 | 7.70 | 21.80 | 10.0× | 100.00 | 3346 | — | — |",
+        "| 16 (fp16) | Optimized Fast¹ | 17.20 | 7.70 | 21.80 | 20.0× | 80.00 | 3346 | +100 % | −20 % |",
+        "| 16 (fp16) | Optimized Exact² | 17.20 | 7.70 | 21.80 | 30.0× | 70.00 | 3346 | — | — |"
+    ] where !mixedBlock.contains(expected) { fail("selftest: mixed row or footnote: missing \(expected)") }
+    if block.contains("¹") || block.contains("different runs") { fail("selftest: a README with one run carries footnotes") }
     for _ in 0..<20 where !renderBlock(whisper, models, mixed).contains(mixedLine) { fail("selftest: mixed metadata is not listed deterministically") }
     // A present tier whose recommendation gate failed keeps its gate reasons apart from presence reasons.
     let failing: JSON = ["status": "fail", "reasons": ["x +1 pt"]]
