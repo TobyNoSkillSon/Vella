@@ -45,6 +45,11 @@ BF16 in every tier.
 
 ## What Vella optimizes
 
+Standard (stock MLX) computes like the reference: Float32 mel into BF16 weights, so every activation is Float32, as in
+mlx-audio's `stream_generate` (default `dtype=mx.float32`) and NeMo's FP32 inference. MLX converts each BF16 weight to
+Float32 on every call, which is why the 16 tier's Standard row is slower than the 8 tier's (a quantized matmul takes
+Float32 input without converting its weights). Checked 3 Oct 2026, `lab/notes/STANDARD-FAITHFULNESS-2026-10-03.md`.
+
 The encoder chunk is launch-bound: about 50 small kernels per layer for a 4-frame chunk. Each streaming optimization
 below is on by default, bit-identical to stock except where marked, and active only after the load-time self-test passed
 on the Mac (revision `nemotron-stream-5`; the self-test is described under Quality gate). `VELLA_NEMO_<NAME>=0` disables one; `VELLA_FORCE_STOCK=1` disables all.

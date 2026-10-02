@@ -115,7 +115,7 @@ final class ModelDocsTests: XCTestCase {
             ),
             ("NemotronASR", ["VELLA_NEMO_KEEPCACHE", "keepcache-1", "VELLA_NEMO_JOINTBATCH", "jointbatch-1", "nemotron-stream-5", "VELLA_FORCE_STOCK"]),
             ("Qwen3ASR", ["qwen3-asr-3-f32-encoder-p3"]),
-            ("Whisper", ["whisper-3-f16-model", "VELLA_DICTATION_KEEP_CACHE"])
+            ("Whisper", ["whisper-4", "VELLA_DICTATION_KEEP_CACHE"])
         ]
         for pair in pairs {
             let readme = try text("Worker/Sources/MLXAudioSTT/\(pair.folder)/README.md")

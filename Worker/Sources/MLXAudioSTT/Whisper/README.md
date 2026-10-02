@@ -52,11 +52,15 @@ bias-aware recipe is used (Toby, 30 Sep 2026: calibration is training on the 16-
 
 ## What Vella optimizes
 
-Always on once the load-time self-test passed on the Mac (revision `whisper-3-f16-model`, or `whisper-3` under
-Optimized · Exact; stock MLX is the fallback):
+Standard (stock MLX) runs the model in the checkpoint dtype (FP16), like the reference mlx-whisper
+(`sinusoids(...).astype(dtype)`). The checkpoints omit the encoder's positional table and the loader synthesises it in
+that dtype; until 3 Oct 2026 it was Float32, which promoted the whole encoder and decoder to Float32 with every FP16
+weight re-cast per call, and running in FP16 was counted as an optimized `encoder` component
+(`lab/notes/STANDARD-FAITHFULNESS-2026-10-03.md`).
 
-- **Checkpoint-dtype model** (component `encoder`): the FP16 model runs in FP16, where stock promotes to Float32. Inexact
-  against stock, so it is off under Optimized · Exact; the on-Mac self-test does not compare it with stock (see Quality gate).
+Always on once the load-time self-test passed on the Mac (revision `whisper-4`, the same under Optimized · Fast and
+Optimized · Exact, because every component is exact; stock MLX is the fallback):
+
 - **GPU-side decoder** (component `decoder`, exact): the greedy decode loop runs on the GPU, with a finite check on every logit tensor it uses.
 - **Fused decode step** (listed as `fused_decode` in a quantized tier's recipe, exact, quantized checkpoints only): a
   quantized decode step is launch-bound at one token, so one GEMV serves q, k and v, one kernel appends the new K/V
@@ -71,7 +75,7 @@ Levers kept from the kernel rounds:
 
 | Lever | Switch | Revision | Exact? | Screening result | Default |
 |---|---|---|---|---|---|
-| Mixed 8 tier: FP16 encoder, affine-8 decoder, made from the FP16 source | catalog `floatModules` | recipe `:float=model.encoder` | inexact against its own Standard, like every Whisper tier (encoder checkpoint dtype; decoder token-exact); Optimized equals Standard on 21 of 21 mini clips | large-v3 (30 Sep): speed +2.9 % (45.05 → 46.35×), energy −5.8 % (74.20 → 69.90 J/min), memory +392 MB (2650 → 3042), 21 of 21 identical to the uniform 8-bit recipe. Turbo (1 Oct): +5.8 %, −10.5 %, +399 MB, 21 of 21 identical | on |
+| Mixed 8 tier: FP16 encoder, affine-8 decoder, made from the FP16 source | catalog `floatModules` | recipe `:float=model.encoder` | exact against its own Standard (decoder token-exact); Optimized equalled Standard on 21 of 21 mini clips | large-v3 (30 Sep): speed +2.9 % (45.05 → 46.35×), energy −5.8 % (74.20 → 69.90 J/min), memory +392 MB (2650 → 3042), 21 of 21 identical to the uniform 8-bit recipe. Turbo (1 Oct): +5.8 %, −10.5 %, +399 MB, 21 of 21 identical | on |
 | Keep MLX's buffer cache between dictation requests (shared dictation service) | `VELLA_DICTATION_KEEP_CACHE=0` restores the per-request clear | — | exact | large-v3 8 (1 Oct): +0.3 % / +1.7 %, −12 MB; turbo 8: +0.8 % / +0.7 %, −8 MB. No effect; kept as the shared default because it is harmless | on |
 
 No Whisper-specific switch is set by the release's measurement plan: Whisper runs with no opt-in lever.
@@ -104,11 +108,9 @@ model are in `Resources/benchmarks.json` (`tolerance_pt`, `tolerance_ml_pt`).
 **Self-test on the user's Mac** (`FastPathSelfTest.swift`), run before the optimized path is used, in a child process with
 a deadline, on the five default public clips. Whisper declares no tolerant component (`fastPathTolerantComponents` is
 empty), so there is no tolerance stage: the test is token-exact. Per clip it transcribes with the stock path, then with the
-optimized path, and the two token sequences must be identical, non-empty and finite, or the whole model runs stock. In the
-default recipe the encoder runs in the checkpoint dtype (FP16) on both sides, because the stock reference is run in that
-dtype too (`qualificationTokens`), so the test compares the decoder only. The FP16 encoder's difference from stock Float32
-is never compared on the user's Mac: it is measured by the release gate and switched off by Optimized · Exact (there the
-stock reference is Float32 and the optimized path is decoder-only). A runtime check falls back to stock on non-finite
+optimized path, and the two token sequences must be identical, non-empty and finite, or the whole model runs stock. Both
+paths run the same encoder in the checkpoint dtype, so the test compares the decoder components; Optimized · Fast and
+Optimized · Exact run the same components. A runtime check falls back to stock on non-finite
 logits. A failed verdict is sticky for that model's files, GPU family, macOS build, worker version and revision.
 
 ## Measured figures

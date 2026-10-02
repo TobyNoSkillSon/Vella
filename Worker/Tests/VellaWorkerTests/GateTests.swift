@@ -286,8 +286,8 @@ extension WorkerTests {
             #expect(ModelRuntimeRegistry.dictation(.stub) == nil && ModelRuntimeRegistry.dictation(.nemotronASR) == nil)
         }
         @Test func qwen() { #expect(Qwen3ASRModel.fastPathRevision == "qwen3-asr-3-f32-encoder-p3") }
-        /// Whisper's revision is decided once per process from the recipe (Fast here: the test runs without one).
-        @Test func whisper() { #expect(WhisperModel.fastPathRevision == "whisper-3-f16-model") }
+        /// Whisper has one revision for every recipe (all its components are exact against the checkpoint-dtype stock).
+        @Test func whisper() { #expect(WhisperModel.fastPathRevision == "whisper-4") }
     }
 }
 

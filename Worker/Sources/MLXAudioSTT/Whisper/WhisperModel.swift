@@ -34,23 +34,18 @@ public final class WhisperModel: Module, STTGenerationModel {
 
     // MARK: - Optimized path state (FastPathCapable; off after load, the worker enables it once the gate qualified it)
 
-    /// The encoder component runs the model in the checkpoint dtype (see `WhisperEncoder.positionDType`). It is inexact
-    /// against stock (which promotes to Float32), so it is off under Optimized · Exact: the optimized path is then
-    /// decoder-only.
-    public static let halfEncoder = !FastPathGate.exactOnly
     public private(set) var fastDecode = false
-    public private(set) var fastEncoder = false
     /// The fused decode step (`WhisperFusedDecoder`), built once when the decoder component is first enabled; used
-    /// only while the model runs in the checkpoint dtype (the encoder component).
+    /// only on a half-precision checkpoint (the model then runs in that dtype, stock included).
     private var fusedDecoder: WhisperFusedDecoder?
     private var fusedDecoderBuilt = false
-    private var activeFusedDecoder: WhisperFusedDecoder? { fastDecode && fastEncoder ? fusedDecoder : nil }
+    private var activeFusedDecoder: WhisperFusedDecoder? { fastDecode && checkpointHalfDType != nil ? fusedDecoder : nil }
     /// Every raw decoder-logit tensor consumed while an optimized component is active (language detection, the
     /// pipelined greedy loop, and every step-by-step attempt including the temperature retries) finite, over the
     /// whole last `generate` call. Raw logits only: the filtered ones carry intentional -inf masks.
     var lastDecoderFinite = true
-    /// An optimized component (the FP16 model or the GPU-side decoder) is active: every attempt is finite-checked.
-    var checksFinite: Bool { fastDecode || fastEncoder }
+    /// The optimized decoder is active: every attempt is finite-checked.
+    var checksFinite: Bool { fastDecode }
     /// Test hook (reported in worker status, never inherited by the gate's self-test child), to prove the stock
     /// fallback: "<step>" makes the pipelined greedy loop's logits non-finite from that step on; "sampled:<step>"
     /// does the same in the optimized step-by-step loop on temperature > 0 attempts only (a retry after a finite
@@ -531,15 +526,23 @@ public final class WhisperModel: Module, STTGenerationModel {
 
         // mlx-whisper omits the encoder positional embedding because it's a
         // fixed sinusoid; synthesise it so `update(parameters:verify:.all)` passes.
+        // In the checkpoint dtype, as the reference does (`sinusoids(...).astype(dtype)`): a Float32 table would
+        // promote the whole encoder and, through the cross-attention K/V, the decoder to Float32.
         let encPosKey = "model.encoder.embed_positions.weight"
         if sanitized[encPosKey] == nil, let conv2 = sanitized["model.encoder.conv2.weight"] {
-            sanitized[encPosKey] = whisperSinusoids(length: 1500, channels: conv2.shape[0])
+            sanitized[encPosKey] = whisperSinusoids(length: 1500, channels: conv2.shape[0], dtype: conv2.dtype)
         }
 
         return sanitized
     }
 
-    private static func whisperSinusoids(length: Int, channels: Int) -> MLXArray {
+    /// The synthesised table's dtype: the checkpoint's half precision (mlx-whisper's model dtype), else Float32.
+    static func positionTableDType(checkpoint: DType) -> DType {
+        checkpoint == .float16 || checkpoint == .bfloat16 ? checkpoint : .float32
+    }
+
+    /// Float32 sinusoids rounded once to `positionTableDType(checkpoint: dtype)`.
+    static func whisperSinusoids(length: Int, channels: Int, dtype: DType = .float32) -> MLXArray {
         precondition(channels % 2 == 0, "Whisper sinusoid channels must be even")
         let half = channels / 2
         let logTimescaleIncrement = log(10000.0) / Double(max(half - 1, 1))
@@ -551,7 +554,9 @@ public final class WhisperModel: Module, STTGenerationModel {
                 values[pos * channels + half + i] = Float(cos(scaledTime))
             }
         }
-        return MLXArray(values).reshaped([length, channels])
+        let table = MLXArray(values).reshaped([length, channels])
+        let target = positionTableDType(checkpoint: dtype)
+        return target == .float32 ? table : table.asType(target)
     }
 
     private static func remapMlxWhisperKey(_ rawKey: String) -> String? {
@@ -717,7 +722,9 @@ public final class WhisperModel: Module, STTGenerationModel {
 
 extension WhisperModel: FastPathCapable {
     /// Bump whenever the optimized components or their parity reference change.
-    public static var fastPathRevision: String { halfEncoder ? "whisper-3-f16-model" : "whisper-3" }
+    /// whisper-4 (3 Oct 2026): stock runs in the checkpoint dtype like mlx-whisper, so the old `encoder` component
+    /// (the checkpoint-dtype model, `whisper-3-f16-model`) is gone; Fast and Exact are the same decoder components.
+    public static var fastPathRevision: String { "whisper-4" }
 
     /// The checkpoint's floating dtype (FP16 for every published Whisper), nil when the encoder is Float32.
     var checkpointHalfDType: DType? {
@@ -727,26 +734,15 @@ extension WhisperModel: FastPathCapable {
 
     /// decoder: the token rules on the GPU and a pipelined greedy loop (token-exact with the stock loop; stock read
     /// three scalars and rebuilt three vocabulary-sized masks on the host per token, leaving the GPU idle), plus the
-    /// detection pass's cross-attention K/V reused for the prompt (identical values).
-    /// encoder (default): the model in the checkpoint dtype, like the reference mlx-whisper; the Float32 positional
-    /// embedding the loader synthesises otherwise promotes the whole encoder and decoder to Float32 with every FP16
-    /// weight re-cast per call. Different numerics from that stock path, so the self-test's stock reference runs
-    /// in the checkpoint dtype too and must match token for token (the decoder), finite.
+    /// detection pass's cross-attention K/V reused for the prompt (identical values), and on quantized checkpoints the
+    /// fused decode step (`fused_decode`, token-exact). Every component is exact: stock and optimized run the same
+    /// encoder in the checkpoint dtype, and the self-test compares their tokens.
     public func configureFastPath(enabled: Bool, component: String) -> Bool {
-        let decoder = component == "both" || component == "decoder"
-        let encoder = component == "both" || component == "encoder"
-        guard decoder || encoder else { return false }
-        if decoder {
-            fastDecode = enabled; lastDecoderFinite = true
-            if enabled && !fusedDecoderBuilt {
-                fusedDecoderBuilt = true
-                fusedDecoder = WhisperFusedDecoder(model.decoder)
-            }
-        }
-        if encoder {
-            let active = enabled && WhisperModel.halfEncoder && checkpointHalfDType != nil
-            model.encoder.positionDType = active ? checkpointHalfDType : nil
-            fastEncoder = active
+        guard component == "both" || component == "decoder" else { return false }
+        fastDecode = enabled; lastDecoderFinite = true
+        if enabled && !fusedDecoderBuilt {
+            fusedDecoderBuilt = true
+            fusedDecoder = WhisperFusedDecoder(model.decoder)
         }
         return true
     }
@@ -761,16 +757,11 @@ extension WhisperModel: FastPathCapable {
     }
 
     public var fastPathComponents: [String: Bool] {
-        ["decoder": fastDecode, "encoder": fastEncoder, "fused_decode": activeFusedDecoder != nil]
+        ["decoder": fastDecode, "fused_decode": activeFusedDecoder != nil]
     }
 
-    /// Token IDs for a self-test clip, exactly as the worker transcribes. With the half-precision encoder the stock
-    /// reference runs in the checkpoint dtype too (the parity reference), so the comparison tests the decoder.
+    /// Token IDs for a self-test clip, exactly as the worker transcribes (stock and optimized alike).
     public func qualificationTokens(audio: MLXArray) -> [Int] {
-        let reference = WhisperModel.halfEncoder && !fastEncoder
-        let saved = model.encoder.positionDType
-        if reference { model.encoder.positionDType = checkpointHalfDType }
-        defer { if reference { model.encoder.positionDType = saved } }
         // Temperature fallback samples from MLX's time-seeded global key: seed it so a clip that falls back
         // samples the same keys on both paths (the self-test child only).
         MLXRandom.seed(WhisperModel.samplingSeed)
