@@ -106,7 +106,7 @@ files() {
   cat <<'EOF'
 # Third-party notices
 
-Vella 2.0's own code is licensed under GNU AGPL-3.0-only; published 0.x releases remain Apache-2.0. See LICENSE and NOTICE. Vella.app carries this file, LICENSE and NOTICE in `Contents/Resources`. The licences below cover what the app contains that others wrote; they are not replaced by Vella's licence.
+Vella 2.0's own code is licensed under the MIT License; published 0.x releases remain Apache-2.0. See LICENSE and NOTICE. Vella.app carries this file, LICENSE and NOTICE in `Contents/Resources`. The licences below cover what the app contains that others wrote; they are not replaced by Vella's licence.
 
 This file is written by `scripts/third-party-notices.sh` from `Worker/Package.resolved`, the pinned checkouts and `Resources/models.json`. Each licence is reproduced verbatim from the pinned source.
 

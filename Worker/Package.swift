@@ -1,5 +1,5 @@
 // swift-tools-version:6.2
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 import PackageDescription
 let package = Package(
     name: "VellaWorker", platforms: [.macOS("26.0")],

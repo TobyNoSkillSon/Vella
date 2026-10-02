@@ -1,23 +1,13 @@
 Vella
 Copyright 2026 Vella contributors
-Vella 2.0 is licensed under the GNU Affero General Public License, version 3
-only (AGPL-3.0-only); see LICENSE. Published 0.x releases remain Apache-2.0;
-this change does not alter their licences retroactively.
+Vella 2.0 is licensed under the MIT License; see LICENSE.
+Published 0.x releases remain Apache-2.0; this change does not alter their
+licences retroactively.
 
-Vella is free software: you may redistribute and modify it under the GNU AGPL
-version 3. It is provided without any warranty, including the implied warranties
-of merchantability or fitness for a particular purpose. Keep the licence and
-notices and meet its corresponding-source requirements, including the network
-source offer when applicable. Third-party code and model weights retain their
+LICENSE is the standard MIT License text (SPDX identifier MIT) with the
+copyright line above. Keep the licence and copyright notice in copies or
+substantial portions of Vella. Third-party code and model weights retain their
 own licences.
-
-Licence text provenance (retrieved 2026-10-01): LICENSE is verbatim
-https://www.gnu.org/licenses/agpl-3.0.txt, SHA-256
-0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0.
-Second source: https://raw.githubusercontent.com/spdx/license-list-data/main/text/AGPL-3.0-only.txt,
-SHA-256 d8a6cc31abc16b6748c7a21f21611f5a1ec33f67d22ca23d7da1c19b95496bee.
-Beyond whitespace the only differences are three http-to-https URLs in GNU's
-text (FSF header and two GNU footer links); canonical GNU text is retained.
 
 Vella is a native Swift application. Speech recognition runs on MLX through
 mlx-swift in sandboxed helper processes; no Python runs at runtime. Third-party

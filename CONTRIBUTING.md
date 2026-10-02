@@ -129,6 +129,6 @@ Nothing is merged automatically. An AI reviewer may comment on pull requests, bu
 
 ## Licence
 
-Vella 2.0 is licensed under [GNU AGPL-3.0-only](LICENSE). Published 0.x releases remain Apache-2.0. Contributions to 2.0 use the same AGPL terms; there is no separate contributor agreement. Third-party code and model weights keep their own licences. "Vella" and its icon are the project's name and mark; a fork you distribute should use another name and icon.
+Vella 2.0 is licensed under the [MIT License](LICENSE). Published 0.x releases remain Apache-2.0. Contributions to 2.0 are accepted under the same MIT terms; there is no separate contributor agreement. Third-party code and model weights keep their own licences. "Vella" and its icon are the project's name and mark; a fork you distribute should use another name and icon.
 
 Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
