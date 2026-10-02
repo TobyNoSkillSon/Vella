@@ -19,7 +19,7 @@ What Vella changed:
   Hub loaders and Whisper's tokenizer download are gone, and the worker runs in a sandbox that denies all networking.
 - **Optimized paths**, each enabled only after the load-time self-test (`FastPathGate`) passed on this Mac, with the
   stock path as the reference and the runtime fallback: Parakeet's fused encoder, 32-step TDT decoder and small-M NAX
-  GEMMs (`FastParakeet*`, `SmallMGEMM`); Qwen3 ASR's pipelined decode and F32 audio tower; Whisper's F16 model and
+  GEMMs (`FastParakeet*`, `SmallMGEMM`); Qwen3 ASR's pipelined decode and F32 audio tower; Whisper's pipelined decoder and
   fused decode step (`WhisperFusedDecode`); Nemotron's cache-aware streaming session and fused conformer layer
   (`VellaNemotron*`).
 - **Precisions derived at load** from an installed float checkpoint (`DerivedPrecision`, `CheckpointQuantization`).

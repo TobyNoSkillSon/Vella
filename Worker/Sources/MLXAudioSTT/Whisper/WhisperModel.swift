@@ -36,7 +36,7 @@ public final class WhisperModel: Module, STTGenerationModel {
 
     public private(set) var fastDecode = false
     /// The fused decode step (`WhisperFusedDecoder`), built once when the decoder component is first enabled; used
-    /// only on a half-precision checkpoint (the model then runs in that dtype, stock included).
+    /// only on a half-precision checkpoint (shipped FP16 models run FP16, stock included).
     private var fusedDecoder: WhisperFusedDecoder?
     private var fusedDecoderBuilt = false
     private var activeFusedDecoder: WhisperFusedDecoder? { fastDecode && checkpointHalfDType != nil ? fusedDecoder : nil }
@@ -181,6 +181,8 @@ public final class WhisperModel: Module, STTGenerationModel {
         var mark = now()
         func lap(_ keyPath: WritableKeyPath<Profile, Double>) { let t = now(); profile[keyPath: keyPath] += t - mark; mark = t }
         // Python DecodingOptions.fp16 defaults to true, including quantized models.
+        // This always rounds mel to FP16: arbitrary FP32 sources receive half-rounded input, and BF16 weights
+        // can promote FP16 input to Float32. Only the shipped FP16 checkpoints are dtype-faithful end to end.
         let features = WhisperAudio.encoderFeatures(audio: audio, nMels: config.numMelBins).asType(.float16)
         if profiling { eval(features); lap(\.mel) }
         let encoderHidden = model.encoder(features)
@@ -479,10 +481,24 @@ public final class WhisperModel: Module, STTGenerationModel {
     }
 
     static func sanitize(weights: [String: MLXArray], config: WhisperConfig) -> [String: MLXArray] {
+        var sanitized: [String: MLXArray]
         switch detectFormat(weights) {
-        case .huggingFace: return sanitizeHuggingFace(weights)
-        case .mlxWhisper: return sanitizeMlxWhisper(weights)
+        case .huggingFace: sanitized = sanitizeHuggingFace(weights)
+        case .mlxWhisper: sanitized = sanitizeMlxWhisper(weights)
         }
+        // Both formats may supply an FP32 fixed table alongside FP16 convolutions. Preserve its values, rounded
+        // once as old Fast rounded them per call; retaining FP32 would silently promote encoder and decoder.
+        // Convolutions stay floating point in affine tiers, so packed Linear weights do not select this dtype.
+        let key = "model.encoder.embed_positions.weight"
+        if let conv = sanitized["model.encoder.conv1.weight"] ?? sanitized["model.encoder.conv2.weight"] {
+            let dtype = positionTableDType(checkpoint: conv.dtype)
+            if let supplied = sanitized[key] {
+                sanitized[key] = supplied.asType(dtype)
+            } else {
+                sanitized[key] = whisperSinusoids(length: config.maxSourcePositions, channels: conv.shape[0], dtype: dtype)
+            }
+        }
+        return sanitized
     }
 
     private static func sanitizeHuggingFace(_ weights: [String: MLXArray]) -> [String: MLXArray] {
@@ -524,24 +540,17 @@ public final class WhisperModel: Module, STTGenerationModel {
             sanitized[mapped] = value
         }
 
-        // mlx-whisper omits the encoder positional embedding because it's a
-        // fixed sinusoid; synthesise it so `update(parameters:verify:.all)` passes.
-        // In the checkpoint dtype, as the reference does (`sinusoids(...).astype(dtype)`): a Float32 table would
-        // promote the whole encoder and, through the cross-attention K/V, the decoder to Float32.
-        let encPosKey = "model.encoder.embed_positions.weight"
-        if sanitized[encPosKey] == nil, let conv2 = sanitized["model.encoder.conv2.weight"] {
-            sanitized[encPosKey] = whisperSinusoids(length: 1500, channels: conv2.shape[0], dtype: conv2.dtype)
-        }
-
         return sanitized
     }
 
-    /// The synthesised table's dtype: the checkpoint's half precision (mlx-whisper's model dtype), else Float32.
+    /// Fixed table storage dtype from the floating convolution, else Float32; not an end-to-end BF16 guarantee.
     static func positionTableDType(checkpoint: DType) -> DType {
         checkpoint == .float16 || checkpoint == .bfloat16 ? checkpoint : .float32
     }
 
-    /// Float32 sinusoids rounded once to `positionTableDType(checkpoint: dtype)`.
+    /// Vella's Double-trig → Float32 sinusoids, rounded once to the selected table dtype.
+    /// Dtype-faithful to mlx-whisper on shipped FP16 sources, not bit-identical: ~1.85% of entries differ by one
+    /// FP16 ulp from its Float32-trig table. Keep these pre-existing values to preserve old Fast token identity.
     static func whisperSinusoids(length: Int, channels: Int, dtype: DType = .float32) -> MLXArray {
         precondition(channels % 2 == 0, "Whisper sinusoid channels must be even")
         let half = channels / 2
@@ -722,7 +731,7 @@ public final class WhisperModel: Module, STTGenerationModel {
 
 extension WhisperModel: FastPathCapable {
     /// Bump whenever the optimized components or their parity reference change.
-    /// whisper-4 (3 Oct 2026): stock runs in the checkpoint dtype like mlx-whisper, so the old `encoder` component
+    /// whisper-4 (3 Oct 2026): stock runs FP16 on shipped checkpoints, dtype-faithful to mlx-whisper, so the old `encoder` component
     /// (the checkpoint-dtype model, `whisper-3-f16-model`) is gone; Fast and Exact are the same decoder components.
     public static var fastPathRevision: String { "whisper-4" }
 
@@ -736,7 +745,7 @@ extension WhisperModel: FastPathCapable {
     /// three scalars and rebuilt three vocabulary-sized masks on the host per token, leaving the GPU idle), plus the
     /// detection pass's cross-attention K/V reused for the prompt (identical values), and on quantized checkpoints the
     /// fused decode step (`fused_decode`, token-exact). Every component is exact: stock and optimized run the same
-    /// encoder in the checkpoint dtype, and the self-test compares their tokens.
+    /// encoder (FP16 on shipped checkpoints), and the self-test compares their tokens.
     public func configureFastPath(enabled: Bool, component: String) -> Bool {
         guard component == "both" || component == "decoder" else { return false }
         fastDecode = enabled; lastDecoderFinite = true

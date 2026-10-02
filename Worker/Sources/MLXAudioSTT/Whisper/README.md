@@ -52,11 +52,13 @@ bias-aware recipe is used (Toby, 30 Sep 2026: calibration is training on the 16-
 
 ## What Vella optimizes
 
-Standard (stock MLX) runs the model in the checkpoint dtype (FP16), like the reference mlx-whisper
+Standard (stock MLX) is activation-dtype-faithful to mlx-whisper on the shipped FP16 checkpoints
 (`sinusoids(...).astype(dtype)`). The checkpoints omit the encoder's positional table and the loader synthesises it in
 that dtype; until 3 Oct 2026 it was Float32, which promoted the whole encoder and decoder to Float32 with every FP16
 weight re-cast per call, and running in FP16 was counted as an optimized `encoder` component
-(`lab/notes/STANDARD-FAITHFULNESS-2026-10-03.md`).
+(`lab/notes/STANDARD-FAITHFULNESS-2026-10-03.md`). Vella keeps its pre-existing Double-trig sinusoid values:
+about 1.85% of table entries differ from mlx-whisper's Float32-trig values by one FP16 ulp, so this is not bitwise
+reference equivalence. Mel is always rounded to FP16; arbitrary FP32/BF16 sources are not proven reference-equivalent.
 
 Always on once the load-time self-test passed on the Mac (revision `whisper-4`, the same under Optimized · Fast and
 Optimized · Exact, because every component is exact; stock MLX is the fallback):
@@ -75,7 +77,7 @@ Levers kept from the kernel rounds:
 
 | Lever | Switch | Revision | Exact? | Screening result | Default |
 |---|---|---|---|---|---|
-| Mixed 8 tier: FP16 encoder, affine-8 decoder, made from the FP16 source | catalog `floatModules` | recipe `:float=model.encoder` | exact against its own Standard (decoder token-exact); Optimized equalled Standard on 21 of 21 mini clips | large-v3 (30 Sep): speed +2.9 % (45.05 → 46.35×), energy −5.8 % (74.20 → 69.90 J/min), memory +392 MB (2650 → 3042), 21 of 21 identical to the uniform 8-bit recipe. Turbo (1 Oct): +5.8 %, −10.5 %, +399 MB, 21 of 21 identical | on |
+| Mixed 8 tier: FP16 encoder, affine-8 decoder, made from the FP16 source | catalog `floatModules` | recipe `:float=model.encoder` | exact against its own Standard (decoder token-exact) | large-v3 (30 Sep): speed +2.9 % (45.05 → 46.35×), energy −5.8 % (74.20 → 69.90 J/min), memory +392 MB (2650 → 3042), 21 of 21 identical to the uniform 8-bit recipe. Turbo (1 Oct): +5.8 %, −10.5 %, +399 MB, 21 of 21 identical | on |
 | Keep MLX's buffer cache between dictation requests (shared dictation service) | `VELLA_DICTATION_KEEP_CACHE=0` restores the per-request clear | — | exact | large-v3 8 (1 Oct): +0.3 % / +1.7 %, −12 MB; turbo 8: +0.8 % / +0.7 %, −8 MB. No effect; kept as the shared default because it is harmless | on |
 
 No Whisper-specific switch is set by the release's measurement plan: Whisper runs with no opt-in lever.
@@ -111,7 +113,7 @@ empty), so there is no tolerance stage: the test is token-exact. Per clip it tra
 optimized path, and the two token sequences must be identical, non-empty and finite, or the whole model runs stock. Both
 paths run the same encoder in the checkpoint dtype, so the test compares the decoder components; Optimized · Fast and
 Optimized · Exact run the same components. A runtime check falls back to stock on non-finite
-logits. A failed verdict is sticky for that model's files, GPU family, macOS build, worker version and revision.
+logits. The runtime fallback now reruns the same FP16 encoder, like mlx-whisper; it does not rescue FP16 encoder overflow with a Float32 rerun. A failed verdict is sticky for that model's files, GPU family, macOS build, worker version and revision.
 
 ## Measured figures
 

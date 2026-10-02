@@ -43,8 +43,8 @@ public enum FastPathGate {
     }
     /// The user's selection, set by the app for every worker it launches (`VELLA_RECIPE`, lab/notes/models-table-ROUND.md):
     /// `standard` = stock MLX (the VELLA_FORCE_STOCK path); `optimized_exact` = only the components whose output equals
-    /// stock's (every inexact component off: `FastPathCapable.fastPathTolerantComponents`, Whisper's checkpoint-dtype
-    /// encoder, Nemotron's fused layer); `optimized_fast` or unset = today's default (exact + gate-passing inexact).
+    /// stock's (every inexact component off: `FastPathCapable.fastPathTolerantComponents`, including
+    /// Nemotron's fused layer; Whisper's Fast and Exact use the same exact decoder components); `optimized_fast` or unset = today's default (exact + gate-passing inexact).
     /// The two-stage self-test and the runtime stock fallback apply to every recipe.
     public static var recipe: Recipe {
         ProcessInfo.processInfo.environment[Recipe.variable].flatMap(Recipe.init(rawValue:)) ?? .optimized_fast
