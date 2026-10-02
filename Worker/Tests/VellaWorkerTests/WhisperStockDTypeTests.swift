@@ -26,10 +26,10 @@ extension WorkerTests {
                                 let convKey = mlxFormat ? "encoder.conv1.weight" : "model.encoder.conv1.weight"
                                 var weights = [convKey: MLXArray(Array(repeating: Float(0), count: 16)).reshaped([4, 2, 2]).asType(checkpoint)]
                                 // A blocks key selects the real mlx-whisper format detector, even on dense tiers.
-                                let linearKey = mlxFormat ? "encoder.blocks.0.mlp.0.weight" : "model.encoder.layers.0.fc1.weight"
+                                let linearKey = mlxFormat ? "encoder.blocks.0.mlp1.weight" : "model.encoder.layers.0.fc1.weight"
                                 weights[linearKey] = quantized ? MLXArray([UInt32(7)]) : MLXArray([Float(7)]).asType(checkpoint)
                                 if quantized {
-                                    let scalesKey = mlxFormat ? "encoder.blocks.0.mlp.0.scales" : "model.encoder.layers.0.fc1.scales"
+                                    let scalesKey = mlxFormat ? "encoder.blocks.0.mlp1.scales" : "model.encoder.layers.0.fc1.scales"
                                     weights[scalesKey] = MLXArray([Float(0.25)]).asType(checkpoint)
                                 }
                                 let supplied = MLXArray((0..<12).map { Float($0) / 7 }).reshaped([3, 4])
