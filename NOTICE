@@ -1,11 +1,13 @@
 Vella
 Copyright 2026 Vella contributors
-Vella 2.0 is licensed under the MIT License; see LICENSE. Published 0.x releases
-remain Apache-2.0; this change does not alter their licences retroactively.
+Vella 2.0 is licensed under the MIT License; see LICENSE.
+Published 0.x releases remain Apache-2.0; this change does not alter their
+licences retroactively.
 
-LICENSE is the standard MIT License text (SPDX identifier MIT) with the copyright
-line above. Keep the licence and copyright notice in copies or substantial
-portions of Vella. Third-party code and model weights retain their own licences.
+LICENSE is the standard MIT License text (SPDX identifier MIT) with the
+copyright line above. Keep the licence and copyright notice in copies or
+substantial portions of Vella. Third-party code and model weights retain their
+own licences.
 
 Vella is a native Swift application. Speech recognition runs on MLX through
 mlx-swift in sandboxed helper processes; no Python runs at runtime. Third-party
