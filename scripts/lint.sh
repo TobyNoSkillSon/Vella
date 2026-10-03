@@ -16,5 +16,5 @@ while IFS= read -r f; do files+=("$f"); done < <(git ls-files 'Package.swift' 'S
   'Worker/Sources/VellaStreamingWorker/*.swift' 'Worker/Sources/VellaWorkerSupport/*.swift' 'Worker/Tests/*.swift')
 if [[ "${1:-}" == --fix ]]; then "$SWIFT_FORMAT" format --configuration .swift-format --in-place --parallel "${files[@]}"; fi
 "$SWIFT_FORMAT" lint --strict --configuration .swift-format --parallel "${files[@]}"
-swiftlint lint --strict --quiet
+XCODE_DEFAULT_TOOLCHAIN_OVERRIDE="${XCODE_DEFAULT_TOOLCHAIN_OVERRIDE:-/Library/Developer/CommandLineTools}" swiftlint lint --strict --quiet
 echo "lint: ${#files[@]} files clean"
