@@ -4,6 +4,8 @@ import XCTest
 import VellaCore
 
 final class APIAudioPipelineTests: XCTestCase {
+    private struct PreparationFailed: Error {}
+
     private func root() throws -> URL {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-overlap-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -50,19 +52,49 @@ final class APIAudioPipelineTests: XCTestCase {
         try await compare(exact, root: root)
     }
 
-    @MainActor func testCapRefusesBeforeAnyRequestOrSession() async throws {
+    @MainActor func testCapRefusesBeforeAnyPreparationRequestOrSession() async throws {
         let root = try root(), file = root.appendingPathComponent("too-long.wav")
         try writeTestWAV(file, bursts: [6], rate: 16_000)
-        var requests = 0
+        var preparations = 0, requests = 0
         let runner = SessionTranscriber { _, _ in
             requests += 1; return "wrong"
         }
         do {
-            _ = try await APIAudio.overlapping(file, root: root, config: Configuration(model: ""), runner: runner, maxSeconds: 5)
+            _ = try await APIAudio.overlapping(file, root: root, config: Configuration(model: ""), runner: runner, maxSeconds: 5) {
+                preparations += 1
+                throw PreparationFailed()
+            }
             XCTFail("Oversize file accepted")
         } catch let error as APIError { XCTAssertEqual(error.code, "audio_too_long") }
+        XCTAssertEqual(preparations, 0)
         XCTAssertEqual(requests, 0)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["too-long.wav"])
+    }
+
+    @MainActor func testPreparationFailureJoinsAndRemovesBothSessionsBeforeAnyRequest() async throws {
+        let root = try root(), file = root.appendingPathComponent("prepare-failure.wav")
+        try writeTestWAV(file, bursts: [150], rate: 16_000)
+        var preparations = 0, requests = 0
+        let runner = SessionTranscriber { _, _ in
+            requests += 1; return "wrong"
+        }
+        do {
+            _ = try await APIAudio.overlapping(file, root: root, config: Configuration(model: ""), runner: runner) {
+                preparations += 1
+                // No consumer drains the three-piece queue during preparation. Let this many-cut file fill it.
+                try await Task.sleep(nanoseconds: 250_000_000)
+                let contents = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])
+                let sessions = try contents.filter { try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true }
+                XCTAssertEqual(sessions.count, 2, "Both consumer and producer sessions are live before preparation fails")
+                throw PreparationFailed()
+            }
+            XCTFail("Preparation failure ignored")
+        } catch is PreparationFailed {}
+        XCTAssertEqual(preparations, 1)
+        XCTAssertEqual(requests, 0)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["prepare-failure.wav"])
+        try await Task.sleep(nanoseconds: 30_000_000)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["prepare-failure.wav"], "No decoder/task creates files after throw")
     }
 
     @MainActor func testCancelWhileProducerIsBackpressuredJoinsAndRemovesBothSessions() async throws {
