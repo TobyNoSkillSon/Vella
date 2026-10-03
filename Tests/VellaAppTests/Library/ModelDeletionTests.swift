@@ -43,6 +43,20 @@ final class ModelDeletionTests: XCTestCase {
         let disk = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: library.registryURL))
         XCTAssertNil(disk[id]); XCTAssertNotNil(disk["other"])
     }
+    @MainActor func testLegacyDeletionDoesNotPromiseAnUnavailableDownload() throws {
+        let (library, id, folder) = try fixture()
+        let legacyID = "retired-weights"
+        let legacy = folder.deletingLastPathComponent().appendingPathComponent(legacyID)
+        try FileManager.default.moveItem(at: folder, to: legacy)
+        library.installed = [legacyID: InstalledModel(path: legacy.path)]
+        try JSONEncoder().encode(library.installed).write(to: library.registryURL)
+        XCTAssertNil(library.models.first { $0.id == legacyID })
+        XCTAssertTrue(library.deleteModel(legacyID, expectedPath: legacy.path))
+        XCTAssertFalse(library.message.contains("download it again"))
+        XCTAssertTrue(library.message.contains("no longer in Vella's catalog"))
+        XCTAssertNil(library.installed[id])
+    }
+
     @MainActor func testActiveBusyAndChangedConfirmationAreProtected() throws {
         let (library, id, folder) = try fixture()
         library.currentModelPath = { folder.path }

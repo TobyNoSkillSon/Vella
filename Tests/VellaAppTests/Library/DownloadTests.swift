@@ -225,6 +225,25 @@ final class DownloadTests: XCTestCase {
         }
     }
 
+    @MainActor func testCancelledExitOriginSurvivesImmediateRestartAndDistinctCancellation() async throws {
+        let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        configure(model, files: contents)
+        let library = ModelLibrary(resources: root, registryURL: root.appendingPathComponent("registry.json"))
+        library.downloadConfiguration = config; library.selectedID = model.id
+        var exits: [String] = []
+        library.onCancelledDownloadExit = { _, reason in exits.append(reason) }
+        XCTAssertTrue(library.download(approval: confirmed(model.id), calibrate: false))
+        library.cancel(source: "request A")
+        // No actor suspension between A's token transition and B; A cannot unwind until after B is cancelled.
+        XCTAssertTrue(library.download(approval: confirmed(model.id), calibrate: false))
+        library.cancel(source: "request B")
+        for _ in 0..<300 where exits.count < 2 { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertEqual(exits.count, 2)
+        XCTAssertEqual(exits.filter { $0.contains("request A") }.count, 1)
+        XCTAssertEqual(exits.filter { $0.contains("request B") }.count, 1)
+        XCTAssertFalse(exits.contains { $0.contains("unknown") })
+    }
+
     /// The downloader itself keeps a pinned partial (resume within one download); the app's library removes it when
     /// the download is cancelled (testLibraryCancelAndFailureRemovePartialFiles).
     func testCancellationLeavesPinnedPartialForResume() async throws {

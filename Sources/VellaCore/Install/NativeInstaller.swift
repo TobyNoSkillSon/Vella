@@ -27,6 +27,8 @@ public final class NativeInstaller {
     public var afterSwap: () throws -> Void = {}
     /// Previous app, kept beside the destination until the caller has checked readiness.
     public var keepPrevious = false
+    /// The committed backup remains discoverable even if launching the replacement throws.
+    public private(set) var previousApp: URL?
     /// Explicit installer-only transition: verified ad-hoc source build -> pinned Vella release signature.
     public var allowSigningMigration = false
     public private(set) var didMigrateSigning = false
@@ -136,7 +138,7 @@ public final class NativeInstaller {
     /// `keepPrevious` is set (delete it after readiness; restore it by moving it back), else nil.
     @discardableResult
     public func install() throws -> URL? {
-        didMigrateSigning = false
+        didMigrateSigning = false; previousApp = nil
         let manager = FileManager.default
         // The common owner root is HOME in production and a disposable fixture
         // root in isolated tests. System aliases above it (such as /var) are not ours.
@@ -202,7 +204,11 @@ public final class NativeInstaller {
             do { try manager.moveItem(at: previousPath, to: target); kept = target } catch { preserveTransaction = true; kept = previousPath }
         }
         // Installation is committed. A launch failure is reported, never rolled back.
-        try launch(destination)
+        previousApp = kept
+        do { try launch(destination) } catch {
+            let recovery = kept.map { " Previous app kept at \($0.path); quit Vella and restore it to \(destination.path) to roll back." } ?? ""
+            throw NativeInstallError.message("Vella was installed at \(destination.path), but could not launch: \(sentence(error.localizedDescription))" + recovery)
+        }
         return kept
     }
 

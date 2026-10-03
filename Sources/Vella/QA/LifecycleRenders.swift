@@ -47,8 +47,8 @@ import VellaCore
             MenuMock.render(app.menu.items, width: 340, to: directory.appendingPathComponent("menu-login-approval.png"), done: next)
         }
         let choices = [
-            SavedRecordingChoice(directory: URL(fileURLWithPath: "/fixture"), title: "3 Oct 2026 at 12:00 · Dictation · interrupted"),
-            SavedRecordingChoice(directory: URL(fileURLWithPath: "/fixture-stream"), title: "3 Oct 2026 at 12:02 · Streaming · interrupted")
+            SavedRecordingChoice(directory: URL(fileURLWithPath: "/fixture"), title: "3 Oct 2026 at 12:00 · Dictation · 0:42 · interrupted"),
+            SavedRecordingChoice(directory: URL(fileURLWithPath: "/fixture-stream"), title: "3 Oct 2026 at 12:02 · Streaming · 1:08 · interrupted")
         ]
         alert("recovery", AppDelegate.savedRecordingAlert(choices))
         alert(
@@ -132,10 +132,11 @@ final class DMGLayoutView: NSView {
         let icon =
             ProcessInfo.processInfo.environment["VELLA_RENDER_ICON"].flatMap { NSImage(contentsOfFile: $0) } ?? NSImage(contentsOf: root.appendingPathComponent("Vella.icns"))
             ?? NSImage(systemSymbolName: "waveform", accessibilityDescription: nil)!
-        for (x, image, label) in [(170.0, icon, "Vella.app"), (470.0, NSWorkspace.shared.icon(forFile: "/Applications"), "Applications")] {
-            image.draw(in: NSRect(x: x - 48, y: 112, width: 96, height: 96), from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        // 28 pt title bar + Iloc y=154: the icon-and-label group is centred in the 332 pt content area.
+        for (x, image, label) in [(170.0, icon, "Vella"), (470.0, NSWorkspace.shared.icon(forFile: "/Applications"), "Applications")] {
+            image.draw(in: NSRect(x: x - 48, y: 134, width: 96, height: 96), from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
             let text = NSAttributedString(string: label, attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor])
-            text.draw(at: NSPoint(x: x - text.size().width / 2, y: 216))
+            text.draw(at: NSPoint(x: x - text.size().width / 2, y: 238))
         }
     }
 }

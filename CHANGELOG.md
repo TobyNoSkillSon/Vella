@@ -11,7 +11,7 @@
 
 ### Known limitations
 
-- Streaming memory: in 20-minute real-time tests Nemotron's footprint stayed bounded (peak 1.78 GB at 16-bit, 1.19 GB at 8-bit, ending below its loaded level), but slow growth of up to about 70 MB per hour can't be ruled out. Streams of an hour or more are not yet verified.
+- Streaming memory: in 20-minute real-time tests Nemotron's peak footprint was 1.78 GB at 16-bit and 1.19 GB at 8-bit, ending below its loaded level. These tests do not bound long-duration memory growth. Streams of an hour or more are not yet verified.
 
 ### Added
 

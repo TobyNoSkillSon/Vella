@@ -29,14 +29,13 @@ import VellaCore
         session.manifest.state = "interrupted"; try session.save()
         let choices = SavedRecordingChoice.list(root: root)
         XCTAssertEqual(choices.count, 1); XCTAssertTrue(sameDirectory(choices[0].directory.resolvingSymlinksInPath(), session.directory.resolvingSymlinksInPath()))
-        XCTAssertTrue(choices[0].title.contains("Streaming · interrupted")); XCTAssertFalse(choices[0].title.contains(session.directory.lastPathComponent))
+        XCTAssertTrue(choices[0].title.contains("Streaming · 0:00 · interrupted")); XCTAssertFalse(choices[0].title.contains(session.directory.lastPathComponent))
         let model = DictationController(monitorDefaultInput: false); defer { model.shutdown() }
         XCTAssertNil(model.savedSession)
         let app = AppDelegate(model: model); app.rebuildMenu()
         XCTAssertTrue(app.menu.item(withTitle: "Recover Saved Recording…")?.isEnabled == true)
         let alert = AppDelegate.savedRecordingAlert(choices)
-        XCTAssertTrue(alert.informativeText.contains("copied, not inserted"))
-        XCTAssertTrue(alert.informativeText.contains("never replayed automatically"))
+        XCTAssertEqual(alert.informativeText, "The transcript is copied to the clipboard.")
     }
     func testNonMeasuredConfigurationsFitTheNativeTableAndLabelOnlySpeed() {
         let state = TableRenderDelegate.states()[0]

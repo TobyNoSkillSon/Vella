@@ -403,15 +403,20 @@ final class CatalogTests: XCTestCase {
     func testSpeedDelta() {
         XCTAssertEqual(speedDelta(135, base: 100), Delta("35% faster", .better))
         XCTAssertEqual(speedDelta(80, base: 100), Delta("20% slower", .worse))
-        XCTAssertEqual(speedDelta(240, base: 100), Delta("2.4× as fast", .better))
-        XCTAssertEqual(speedDelta(40, base: 100), Delta("0.4× as fast", .worse))
+        XCTAssertEqual(speedDelta(199, base: 100), Delta("99% faster", .better))
+        XCTAssertEqual(speedDelta(200, base: 100), Delta("2.0× faster", .better))
+        XCTAssertEqual(speedDelta(240, base: 100), Delta("2.4× faster", .better))
+        XCTAssertEqual(speedDelta(40, base: 100), Delta("60% slower", .worse))
         XCTAssertEqual(speedDelta(100.5, base: 100), Delta("same", .neutral))
         XCTAssertNil(speedDelta(0, base: 100)); XCTAssertNil(speedDelta(10, base: nil))
     }
     func testEnergyDelta() {
         XCTAssertEqual(energyDelta(0.8, base: 1), Delta("20% less", .better))
         XCTAssertEqual(energyDelta(1.15, base: 1), Delta("15% more", .worse))
-        XCTAssertEqual(energyDelta(2.9, base: 1), Delta("2.9× the energy", .worse))
+        XCTAssertEqual(energyDelta(0.3, base: 1), Delta("70% less", .better))
+        XCTAssertEqual(energyDelta(0, base: 1), Delta("100% less", .better))
+        XCTAssertNil(energyDelta(-1, base: 1))
+        XCTAssertEqual(energyDelta(2.9, base: 1), Delta("190% more", .worse))
         XCTAssertEqual(energyDelta(1.004, base: 1), Delta("same", .neutral))
         XCTAssertNil(energyDelta(1, base: 0)); XCTAssertNil(energyDelta(nil, base: 1))
         XCTAssertEqual(memoryDelta(600, base: 1000), Delta("40% less", .better))

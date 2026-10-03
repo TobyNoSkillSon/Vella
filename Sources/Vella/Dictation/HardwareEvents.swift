@@ -6,6 +6,9 @@ import CoreAudio
 @MainActor final class HardwareEvents {
     enum Event { case willSleep, didWake, microphoneChanged }
     private var tokens: [(NotificationCenter, NSObjectProtocol)] = []
+    private let defaultInputMatters: () -> Bool
+    private let receive: (Event) -> Void
+    private var stopped = false
     private var inputListener: AudioObjectPropertyListenerBlock?
     private var inputAddress = AudioObjectPropertyAddress(
         mSelector: kAudioHardwarePropertyDefaultInputDevice, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
@@ -13,6 +16,7 @@ import CoreAudio
         workspace: NotificationCenter, capture: NotificationCenter, matchesCapture: @escaping (Any?) -> Bool,
         matchesDevice: @escaping (Any?) -> Bool, monitorDefaultInput: Bool = true, defaultInputMatters: @escaping () -> Bool = { true }, receive: @escaping (Event) -> Void
     ) {
+        self.defaultInputMatters = defaultInputMatters; self.receive = receive
         func observe(_ center: NotificationCenter, _ name: Notification.Name, _ event: Event, matches: @escaping (Any?) -> Bool = { _ in true }) {
             let token = center.addObserver(forName: name, object: nil, queue: .main) { notification in
                 MainActor.assumeIsolated { if matches(notification.object) { receive(event) } }
@@ -26,12 +30,15 @@ import CoreAudio
         observe(capture, AVCaptureSession.runtimeErrorNotification, .microphoneChanged, matches: matchesCapture)
         if monitorDefaultInput {
             let listener: AudioObjectPropertyListenerBlock = { _, _ in
-                Task { @MainActor in if defaultInputMatters() { receive(.microphoneChanged) } }
+                Task { @MainActor [weak self] in self?.defaultInputChanged() }
             }
             if AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &inputAddress, .main, listener) == noErr { inputListener = listener }
         }
     }
+    /// The CoreAudio callback and CPU fixtures enter the same predicate/dispatch branch.
+    func defaultInputChanged() { if !stopped && defaultInputMatters() { receive(.microphoneChanged) } }
     func stop() {
+        stopped = true
         for (center, token) in tokens { center.removeObserver(token) }; tokens.removeAll()
         if let listener = inputListener { AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &inputAddress, .main, listener); inputListener = nil }
     }

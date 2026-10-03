@@ -100,7 +100,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(c.shownResult(qwen)?.speed_x, 60, "Optimized with the switch at Exact")
         c.setMode(qwen, .fast)
         XCTAssertEqual(c.shownResult(qwen)?.speed_x, 80)
-        XCTAssertEqual(speedDelta(c.shownResult(qwen)?.speed_x, base: c.baseResult(qwen)?.speed_x), Delta("2.0× as fast", .better))
+        XCTAssertEqual(speedDelta(c.shownResult(qwen)?.speed_x, base: c.baseResult(qwen)?.speed_x), Delta("2.0× faster", .better))
         XCTAssertTrue(c.showsDeltas(qwen))
         let before = c.currentSelection(qwen)
         c.select(qwen, tier: .t8, path: .standard)
@@ -242,7 +242,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard bf16: Speed: 50% faster · Energy: 25% less · same WER · M5 Max, 28 Sep")
         c.setMode(qwen, .fast)
         XCTAssertEqual(
-            c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard bf16: Speed: 2.0× as fast · Energy: 35% less · WER +0.05 pt · M5 Max, 28 Sep")
+            c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard bf16: Speed: 2.0× faster · Energy: 35% less · WER +0.05 pt · M5 Max, 28 Sep")
         XCTAssertEqual(
             c.tierHelp(qwen, tier: .t8, path: .optimized),
             "8-bit weights throughout (affine-8 g64)\nvs Standard bf16: Speed: 90% faster · Energy: 18% less · WER +0.17 pt · M5 Max, 28 Sep\nLoss vs bf16: English WER +0.17 pt")
@@ -392,7 +392,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(tipped["Open Saved Recordings"], AppDelegate.privacyHelp)
         let survivors: Set<String> = [
             "Copy Skill for Your Agent", "Keep Hot → Manually loaded", "Keep Hot → Loaded on demand", "Keep Hot → Always",
-            "Memory → Fit in free memory", "Memory → Allow swap (slower)", "Open Saved Recordings", "Microphone → Fallback checked when recording starts"
+            "Memory → Fit in free memory", "Memory → Allow swap (slower)", "Open Saved Recordings"
         ]
         // The header (first item) has one only while it reports an error or permission (menuHeaderToolTip, below).
         let header = delegate.menu.items[0]
@@ -407,7 +407,7 @@ final class ModelsTests: XCTestCase {
         }
         for sub in ["Mode", "Microphone", "Shortcuts"] {
             for item in delegate.menu.item(withTitle: sub)?.submenu?.items ?? [] where item.identifier != ShortcutMenuFactory.errorID {
-                if item.title == "Fallback checked when recording starts" {
+                if item.title == AppDelegate.microphoneFallbackCaption {
                     XCTAssertEqual(item.toolTip, "Losing the microphone during recording stops capture, keeps the audio and offers Retry.")
                     continue
                 }

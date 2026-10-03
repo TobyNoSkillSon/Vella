@@ -274,6 +274,17 @@ struct ModelDeletionPlan {
         let s = currentSelection(f)
         return precisionLabel(f, tier: s.tier) == selected(f) && (isPresent(f, s) || s == loadedSelection(f)) ? s : nil
     }
+    /// An optimized request is still remembered, but the worker is actually running Standard.
+    func fellBack(_ f: ModelFamily) -> Bool {
+        guard let loaded = loaded(f), loaded.engine == "mlx" else { return false }
+        return (loaded.selection ?? config?.selections[f.id])?.path == .optimized
+    }
+    func loadedEngineHelp(_ f: ModelFamily) -> String {
+        guard let loaded = loaded(f) else { return "" }
+        let help = engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations, chip: runtime?.chip, precision: loaded.precision)
+        return fellBack(f) ? help + "\nOptimized Fast or Exact will retry on the next load." : help
+    }
+
     func isPreviewing(_ f: ModelFamily) -> Bool { previews[f.id] != nil }
 
     // MARK: Tier × path × Exact/Fast (TierControl, ExactFastSwitch)

@@ -46,6 +46,11 @@ final class DMGPackageTests: XCTestCase {
             let script = """
                 #!/bin/bash
                 echo "$*" >> "\(verificationLog.path)"
+                if [[ "$*" == *'/mounted/Vella.app'* ]]; then
+                  hidden="$(/usr/bin/xcrun GetFileInfo -aE "${@: -1}")"
+                  echo "hidden-extension:$hidden" >> "\(verificationLog.path)"
+                  [[ "$hidden" == 1 ]] || exit 2
+                fi
                 if [[ "\(refuseMountedSignature)" == true && "$*" == *'/mounted/Vella.app'* ]]; then exit 1; fi
                 exec /usr/bin/codesign "$@"
                 """
@@ -58,6 +63,7 @@ final class DMGPackageTests: XCTestCase {
             XCTAssertFalse(checks.isEmpty, diagnostics)
             XCTAssertTrue(checks.contains("/image/Vella.app"), "Verify the post-copy app")
             XCTAssertTrue(checks.contains("/mounted/Vella.app"), "Verify the app inside the finished image")
+            XCTAssertTrue(checks.contains("hidden-extension:1"), "Finder extension metadata survives packaging: " + diagnostics)
             let output = root.appendingPathComponent("Vella-2.0.0.dmg")
             if refuseMountedSignature {
                 XCTAssertNotEqual(result, 0)

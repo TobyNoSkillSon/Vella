@@ -11,7 +11,9 @@ struct SavedRecordingChoice {
             guard let data = try? Data(contentsOf: directory.appendingPathComponent("session.json")),
                 let manifest = try? JSONDecoder().decode(RecordingSession.Manifest.self, from: data)
             else { return nil }
-            let title = manifest.created.formatted(date: .abbreviated, time: .shortened) + " · " + manifest.config.mode.title + " · " + manifest.state
+            let seconds = Int(manifest.segments.reduce(0) { $0 + $1.seconds })
+            let duration = String(format: "%d:%02d", seconds / 60, seconds % 60)
+            let title = manifest.created.formatted(date: .abbreviated, time: .shortened) + " · " + manifest.config.mode.title + " · " + duration + " · " + manifest.state
             return SavedRecordingChoice(directory: directory, title: title, created: manifest.created)
         }.sorted { $0.created > $1.created }
     }

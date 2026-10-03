@@ -53,7 +53,7 @@ final class TableTooltipTests: XCTestCase {
     private static let provenance = #"^Measured by Vella · M5 Max · 20\d\d-\d\d-\d\d$"#
     /// Line 2 of a tier cell: the delta vs Standard 16 with its basis, the reference itself, or pending.
     private static let deltaPattern =
-        #"^(vs Standard (bf16|fp16): Speed: (same|[0-9.]+% (faster|slower)|[0-9.]+× as fast)( · Energy: (same|[0-9.]+% (less|more)|[0-9.]+× the energy))?( · WER (−|\+)[0-9.]+ pt| · same WER)? · M5 Max, \d+ (Sep|Oct)|Reference for the deltas · M5 Max, \d+ (Sep|Oct)|No Standard (bf16|fp16) measurement to compare with yet · M5 Max, \d+ (Sep|Oct)|Not measured yet(: [^\n]+)?)$"#
+        #"^(vs Standard (bf16|fp16): Speed: (same|[0-9.]+% (faster|slower)|[0-9.]+× faster)( · Energy: (same|[0-9.]+% (less|more)))?( · WER (−|\+)[0-9.]+ pt| · same WER)? · M5 Max, \d+ (Sep|Oct)|Reference for the deltas · M5 Max, \d+ (Sep|Oct)|No Standard (bf16|fp16) measurement to compare with yet · M5 Max, \d+ (Sep|Oct)|Not measured yet(: [^\n]+)?)$"#
     /// A greyed cell's one line: why it cannot be chosen.
     private static let greyedPattern = #"^(Not measured yet(: [^\n]+)?|Not offered: [^\n]+|Not offered for this model|No Exact recipe at int[48]; Fast offers it)$"#
 

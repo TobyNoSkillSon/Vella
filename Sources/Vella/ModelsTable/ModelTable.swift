@@ -200,13 +200,14 @@ struct ModelTable: View {
                             .foregroundStyle(hot ? Self.hotText.opacity(0.8) : .secondary)
                             .appKitTooltip("Exact offers exact-only components that must match Standard on the load-time self-test")
                     } else if let loaded, loaded.engine != nil {
-                        Text(engineLabel(engine: loaded.engine, chip: runtime?.chip, selection: shownEngineSelection(family, engine: loaded.engine)))
-                            .font(.system(size: Self.deltaSize, weight: .medium))
-                            .foregroundStyle(Self.tone(.better, hot: hot)).lineLimit(1)
-                            .appKitTooltip(
-                                engineHelp(
-                                    engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
-                                    chip: runtime?.chip, precision: loaded.precision))
+                        Text(
+                            controller.fellBack(family)
+                                ? "Fell back to Standard" : engineLabel(engine: loaded.engine, chip: runtime?.chip, selection: shownEngineSelection(family, engine: loaded.engine))
+                        )
+                        .font(.system(size: Self.deltaSize, weight: .medium))
+                        .foregroundStyle(controller.fellBack(family) ? Color(nsColor: TierControl.hotBoltTint) : Self.tone(.better, hot: hot)).lineLimit(1)
+                        .appKitTooltip(
+                            controller.loadedEngineHelp(family))
                     }
                 }
             }.frame(width: W.model, alignment: .leading)
@@ -233,7 +234,8 @@ struct ModelTable: View {
             .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, speedHelp(family.mode, bench, suites: suites)))
             metric(
                 controller.benchmarkHardware.energyText(bench?.j_per_min),
-                compare && controller.benchmarkHardware.isMeasuredConfiguration ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot
+                compare && controller.benchmarkHardware.isMeasuredConfiguration ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot,
+                subdued: !controller.benchmarkHardware.isMeasuredConfiguration
             )
             .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, energyHelp(bench, suites: suites)))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
@@ -344,9 +346,9 @@ struct ModelTable: View {
     }
 
     /// Value on top, delta vs Standard 16 beneath it in small type; centred under the column's label.
-    @ViewBuilder private func metric(_ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool, referenceLabel: String? = nil) -> some View {
+    @ViewBuilder private func metric(_ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool, referenceLabel: String? = nil, subdued: Bool = false) -> some View {
         VStack(alignment: .center, spacing: W.lineGap) {
-            Text(value ?? "—").lineLimit(1).foregroundStyle(referenceLabel == nil ? Color.primary : Color.secondary)
+            Text(value ?? "—").lineLimit(1).foregroundStyle(referenceLabel == nil && !subdued ? Color.primary : Color.secondary)
             if let referenceLabel { Text(referenceLabel).font(Self.deltaFont).foregroundStyle(.secondary) }
             if let delta {
                 Text(delta.text).font(Self.deltaFont).lineLimit(1).fixedSize()
@@ -363,6 +365,7 @@ struct ModelTable: View {
             labels: TierControl.columns.map { ModelTier(rawValue: $0).map { tierDTypeLabel(family, $0) } ?? $0 },
             selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
             enabled: !controller.inUse(family), unavailable: unavailableCells(family), hot: hot,
+            loaded: controller.loadedSelection(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
             help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0.tier) ?? .t16, path: $0.row == .standard ? .standard : .optimized) },
             onSelect: { cell in
                 if let tier = ModelTier(rawValue: cell.tier) { controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized) }
@@ -394,7 +397,7 @@ struct ModelTable: View {
             ExactFastSwitch(
                 position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
                 available: controller.switchAvailable(family), enabled: !controller.inUse(family),
-                exactAvailable: controller.exactAvailable(family), hot: controller.loaded(family) != nil,
+                exactAvailable: controller.exactAvailable(family), hot: controller.loadedSelection(family)?.path == .optimized,
                 onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
         } else {
             Color.clear.frame(height: 1)
@@ -412,13 +415,11 @@ struct ModelTable: View {
         let loaded = controller.loaded(family)
         let enabled = !controller.inUse(family)
         var cells: [(String, String)] = [("Model", modelHelp(family, loaded: loaded))]
-        if controller.couplingNote(family) == nil, let loaded, loaded.engine != nil {
+        if controller.couplingNote(family) == nil, loaded?.engine != nil {
             cells.append(
                 (
                     "Engine",
-                    engineHelp(
-                        engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations,
-                        chip: runtime?.chip, precision: loaded.precision)
+                    controller.loadedEngineHelp(family)
                 ))
         }
         let optimized = controller.hasOptimizedPath(family)

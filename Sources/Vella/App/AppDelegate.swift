@@ -6,6 +6,10 @@ import VellaCore
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var loginStatus: () -> SMAppService.Status = { SMAppService.mainApp.status }
+    var registerLogin: () throws -> Void = { try SMAppService.mainApp.register() }
+    var unregisterLogin: () throws -> Void = { try SMAppService.mainApp.unregister() }
+    var openLoginSettings: () -> Void = { SMAppService.openSystemSettingsLoginItems() }
+    var microphoneInputs: () -> [Microphone] = { Recorder.devices() }
     let model: DictationController
     var openExternalURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     /// In-app updates: the orange "Update to X…" item under Support and its popup.
@@ -155,6 +159,27 @@ import VellaCore
         alert.runModal()
     }
 
+    /// Actionable warning headers go directly to the remedy they name.
+    private func warningAction(needsPermission: Bool, pending: Bool) -> Selector? {
+        if needsPermission { return #selector(accessibility) }
+        if pending { return #selector(getPending) }
+        guard model.phase == .failed else { return nil }
+        switch model.attentionTitle {
+        case "Microphone unavailable — choose one under Microphone": return #selector(openMicrophoneChoices)
+        case "Accessibility is off — allow Vella in Settings": return #selector(accessibility)
+        case "Recording stopped — Retry Saved Recording": return #selector(retry)
+        case "Model unavailable — check Models…": return #selector(openModelChoices)
+        default: return #selector(showCaptureError)
+        }
+    }
+    @objc private func openMicrophoneChoices() { openChoices("Microphone") }
+    @objc private func openModelChoices() { openChoices("Models…") }
+    private func openChoices(_ title: String) {
+        // A native popup after an explicit user click; never moves or synthesizes input.
+        guard let choices = menu.item(withTitle: title)?.submenu?.copy() as? NSMenu else { return }
+        choices.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+    }
+
     /// QA harness: `VELLA_QA_HEADLESS=1` with an isolated absolute `VELLA_SUPPORT_DIR` runs the runtime, the Models
     /// controller and the API without a status item, a global shortcut, Accessibility prompts or focus observers, so a
     /// candidate can run beside the user's installed Vella without taking its ⌃⌘N or its menu-bar slot.
@@ -273,6 +298,7 @@ import VellaCore
         rebuildMenu()
     }
     func rebuildMenu() {
+        menu.autoenablesItems = false
         menu.removeAllItems()
         var summary: String
         switch model.phase {
@@ -290,9 +316,9 @@ import VellaCore
         if pending != nil, model.phase == .idle || model.phase == .failed { summary = "Recording saved. Get a model to transcribe it." }
         let needsPermission = !model.insertionPermission.granted
         if needsPermission { summary = "Accessibility is off — allow Vella in Settings" }
-        let header = NSMenuItem(title: summary, action: needsPermission ? #selector(accessibility) : model.phase == .failed ? #selector(showCaptureError) : nil, keyEquivalent: "")
+        let header = NSMenuItem(title: summary, action: warningAction(needsPermission: needsPermission, pending: pending != nil), keyEquivalent: "")
         header.target = self
-        header.isEnabled = needsPermission || model.phase == .failed
+        header.isEnabled = header.action != nil
         // Tooltip only when it adds something: the permission to grant, the error, or why a recording waits.
         header.toolTip = menuHeaderToolTip(
             failed: model.phase == .failed, message: model.message, needsPermission: needsPermission,
@@ -344,17 +370,14 @@ import VellaCore
         system.state = ((try? model.backend.configuration(requiresModel: false).preferredMicrophone) ?? "").isEmpty ? .on : .off
         system.synchronize(); devices.addItem(system)
         let selected = try? model.backend.configuration(requiresModel: false).preferredMicrophone
-        for device in Recorder.devices() {
+        for device in microphoneInputs() {
             let entry = SettingsMenuItem(title: device.name, target: self, action: #selector(selectMicrophone(_:)))
             entry.target = self; entry.representedObject = device.name
             entry.state = device.name == selected ? .on : .off
             entry.isEnabled = canChangeMode; entry.synchronize()
             devices.addItem(entry)
         }
-        devices.addItem(.separator())
-        let fallback = NSMenuItem(title: "Fallback checked when recording starts", action: nil, keyEquivalent: "")
-        fallback.toolTip = "Losing the microphone during recording stops capture, keeps the audio and offers Retry."
-        fallback.isEnabled = false; devices.addItem(fallback)
+        Self.updateMicrophoneCaption(devices, selected: selected)
         microphones.submenu = devices; menu.addItem(microphones)
         // Activation customization lives immediately below Microphone (compact native menu preserved).
         menu.addItem(
@@ -417,7 +440,7 @@ import VellaCore
     }
     static func savedRecordingAlert(_ choices: [SavedRecordingChoice]) -> NSAlert {
         let alert = NSAlert(); alert.messageText = "Transcribe a saved recording?"
-        alert.informativeText = "The result will be copied, not inserted into another app. Previously streamed text is never replayed automatically."
+        alert.informativeText = "The transcript is copied to the clipboard."
         alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Transcribe")
         let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 460, height: 28))
         popup.addItems(withTitles: choices.map(\.title)); alert.accessoryView = popup
@@ -494,7 +517,7 @@ import VellaCore
                 entry.state = entry.representedObject as? String == mode.rawValue ? .on : .off
                 (entry as? SettingsMenuItem)?.synchronize()
             }
-            var summary = "\(mode.title): " + (model.insertionPermission.granted ? "ready" : "Accessibility required")
+            var summary = model.insertionPermission.granted ? "\(mode.title): ready" : "Accessibility is off — allow Vella in Settings"
             // The header keeps the loaded model, as rebuildMenu shows it.
             if let activeModel = modelsMenu.controller.activeLabel(mode) { summary += " \u{00b7} \(activeModel)" }
             if let header = menu.items.first {
@@ -511,6 +534,19 @@ import VellaCore
             // One table holds both modes; nothing to replace.
         } catch { model.update(.failed, error.localizedDescription) }
     }
+    static let microphoneFallbackCaption = "If it's missing, Vella uses the system default."
+    static func updateMicrophoneCaption(_ devices: NSMenu, selected: String?) {
+        let captionID = NSUserInterfaceItemIdentifier("microphone-fallback")
+        let separatorID = NSUserInterfaceItemIdentifier("microphone-fallback-separator")
+        for item in devices.items where item.identifier == captionID || item.identifier == separatorID { devices.removeItem(item) }
+        guard let selected, !selected.isEmpty else { return }
+        let separator = NSMenuItem.separator(); separator.identifier = separatorID; devices.addItem(separator)
+        let caption = NSMenuItem(title: microphoneFallbackCaption, action: nil, keyEquivalent: "")
+        caption.identifier = captionID; caption.isEnabled = false
+        caption.toolTip = "Losing the microphone during recording stops capture, keeps the audio and offers Retry."
+        devices.addItem(caption)
+    }
+
     @objc private func selectMicrophone(_ sender: NSMenuItem) {
         guard canChangeMode, let name = sender.representedObject as? String else { return }
         model.chooseMicrophone(name)
@@ -519,6 +555,7 @@ import VellaCore
             entry.state = entry.representedObject as? String == selected ? .on : .off
             (entry as? SettingsMenuItem)?.synchronize()
         }
+        if let devices = sender.menu { Self.updateMicrophoneCaption(devices, selected: selected) }
     }
     // MARK: Shortcuts submenu (activation customization; disabled while busy).
     private var canChangeShortcuts: Bool { shortcutManager.canEdit && !model.busy && model.phase != .recording }
@@ -639,20 +676,20 @@ import VellaCore
         refreshShortcutsMenuInPlace(submenu)
     }
     @objc private func files() { NSWorkspace.shared.open(Backend.support) }
-    @objc private func toggleLogin() {
-        do {
-            if loginStatus() == .requiresApproval {
-                SMAppService.openSystemSettingsLoginItems()
-            } else if loginStatus() == .enabled {
-                try SMAppService.mainApp.unregister()
-            } else {
-                try SMAppService.mainApp.register()
-            }
-        } catch {
-            let alert = NSAlert(); alert.messageText = "Could not change Launch at Login"
-            alert.informativeText = sentence(error.localizedDescription) + " Check System Settings → General → Login Items & Extensions."
-            alert.addButton(withTitle: "OK"); alert.runModal()
+    func changeLogin() throws {
+        switch loginStatus() {
+        case .requiresApproval: openLoginSettings()
+        case .enabled: try unregisterLogin()
+        default: try registerLogin()
         }
+    }
+    static func loginFailureAlert(_ error: Error) -> NSAlert {
+        let alert = NSAlert(); alert.messageText = "Could not change Launch at Login"
+        alert.informativeText = sentence(error.localizedDescription) + " Check System Settings → General → Login Items & Extensions."
+        alert.addButton(withTitle: "OK"); return alert
+    }
+    @objc private func toggleLogin() {
+        do { try changeLogin() } catch { Self.loginFailureAlert(error).runModal() }
         rebuildMenu()
     }
     /// Why an update cannot start now (completes "Vella is …"), or nil when Vella is idle: a dictation that is not

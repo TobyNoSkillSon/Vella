@@ -285,7 +285,11 @@ import VellaCore
             if phase == .recording {
                 recordingTick(error: "Recording ended after the Mac woke; capture was interrupted.")
             } else if interruptedForSleep {
-                update(.failed, "Mac woke. Recording ended for sleep; audio and recognized text are saved. Retry copies only. Start a new recording to continue.")
+                if savedSession != nil {
+                    update(.failed, "Mac woke. Recording ended for sleep; audio and recognized text are saved. Retry copies only. Start a new recording to continue.")
+                } else {
+                    update(.failed, "Mac woke. Recording did not start before sleep. Start a new recording to continue.")
+                }
             }
             interruptedForSleep = false
         case .microphoneChanged:
@@ -786,8 +790,9 @@ import VellaCore
         if phase == .recording { hardwareEvent(.microphoneChanged) }
         do {
             var config = try backend.configuration(requiresModel: false); config.preferredMicrophone = name
+            if name.isEmpty { config.fallbackMicrophone = "" }
             try JSONEncoder().encode(config).write(to: configurationURL, options: .atomic)
-            microphone = name + " · fallback checked at recording start"
+            microphone = name.isEmpty ? "System Default Input" : name
         } catch { update(.failed, error.localizedDescription) }
     }
     func shutdown() { hardwareEvents?.stop(); hardwareEvents = nil; cancel(); backend.shutdown(); streamingBackend.shutdown() }

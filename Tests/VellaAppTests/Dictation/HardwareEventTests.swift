@@ -59,6 +59,55 @@ final class HardwareEventTests: XCTestCase {
         capture.post(name: AVCaptureSession.runtimeErrorNotification, object: selected)
         XCTAssertEqual(model.phase, .failed)
     }
+    @MainActor func testDefaultInputCallbackStopsOnlySystemDefaultOrSystemFallbackCapture() throws {
+        let usb = Microphone(id: 1, name: "USB"), builtIn = Microphone(id: 2, name: "Built-in")
+        for preferred in ["", "missing", "USB"] {
+            let choice = try XCTUnwrap(microphoneSelection([usb, builtIn], preferred: preferred, fallback: "", systemDefaultID: 2))
+            let session = try session(.dictation)
+            let model = DictationController(monitorDefaultInput: false); defer { model.shutdown() }
+            model.recorder.adoptForTesting(session); model.phase = .recording
+            let events = HardwareEvents(
+                workspace: NotificationCenter(), capture: NotificationCenter(), matchesCapture: { _ in false }, matchesDevice: { _ in false }, monitorDefaultInput: false,
+                defaultInputMatters: { choice.followsSystemDefault }, receive: model.hardwareEvent)
+            events.defaultInputChanged()
+            XCTAssertEqual(model.phase, preferred == "USB" ? .recording : .failed, preferred)
+            if preferred != "USB" { XCTAssertNotNil(model.savedSession) }
+            events.stop(); model.phase = .recording
+            events.defaultInputChanged()
+            XCTAssertEqual(model.phase, .recording, "A removed listener cannot deliver a queued event")
+        }
+    }
+    @MainActor func testPreparationSleepWakeDoesNotClaimUnsavedAudio() {
+        let model = DictationController(monitorDefaultInput: false); defer { model.shutdown() }
+        model.phase = .preparing; model.hardwareEvent(.willSleep); model.hardwareEvent(.didWake)
+        XCTAssertNil(model.savedSession)
+        XCTAssertTrue(model.message.contains("Recording did not start"))
+        XCTAssertFalse(model.message.contains("audio and recognized text are saved"))
+        XCTAssertFalse(model.message.contains("Retry copies only"))
+    }
+    @MainActor func testSystemDefaultChoiceClearsAnUpgradersRetainedFallbackAndPreservesOtherSettings() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-mic-upgrade-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let configURL = root.appendingPathComponent("config.json")
+        let config = Configuration(model: "/kept/model", preferredMicrophone: "Old headset", fallbackMicrophone: "MacBook Pro Microphone")
+        try JSONEncoder().encode(config).write(to: configURL)
+        let runtime = Runtime(support: root, environment: [:])
+        let model = DictationController(configurationURL: configURL, backend: Backend(runtime: runtime), monitorDefaultInput: false); defer { model.shutdown() }
+        let app = AppDelegate(model: model); app.microphoneInputs = { [Microphone(id: 1, name: "MacBook Pro Microphone"), Microphone(id: 2, name: "USB")] }
+        model.chooseMicrophone(""); app.rebuildMenu()
+        let choices = try XCTUnwrap(app.menu.item(withTitle: "Microphone")?.submenu)
+        XCTAssertEqual(choices.item(withTitle: "System Default Input")?.state, .on)
+        XCTAssertEqual(choices.item(withTitle: "MacBook Pro Microphone")?.state, .off)
+        XCTAssertNil(choices.item(withTitle: AppDelegate.microphoneFallbackCaption))
+        let updated = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+        XCTAssertEqual(updated.preferredMicrophone, ""); XCTAssertEqual(updated.fallbackMicrophone, "")
+        XCTAssertEqual(updated.model, config.model)
+        let mac = Microphone(id: 1, name: "MacBook Pro Microphone"), usb = Microphone(id: 2, name: "USB")
+        let selected = try XCTUnwrap(microphoneSelection([mac, usb], preferred: updated.preferredMicrophone, fallback: config.fallbackMicrophone, systemDefaultID: 2))
+        XCTAssertEqual(selected.device, usb); XCTAssertTrue(selected.followsSystemDefault)
+    }
+
     @MainActor func testRevokedAccessibilityDropsQueuedInsertionButKeepsRecognitionCheckpoint() throws {
         let session = try session(.streaming), config = session.directory.appendingPathComponent("config.json")
         try JSONEncoder().encode(session.manifest.config).write(to: config)

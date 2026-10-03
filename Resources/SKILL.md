@@ -40,7 +40,7 @@ vella url                                      # http://127.0.0.1:63080/v1
 vella diagnose                                 # a bug report for the user; its last line is a prefilled GitHub issue link
 ```
 
-Speed and energy differences use percent below a 2× ratio, total ratios at 2× or above (for example 2.4× as fast or 0.3× the energy). A noise-level WER/Format difference reads same.
+Speed differences use N× faster at a ratio of 2× or above and N% faster below; decreases use N% slower. Energy differences always use percentages (N% less or N% more). A noise-level WER/Format difference reads same.
 
 ## Pick and get a model
 

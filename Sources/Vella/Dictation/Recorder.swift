@@ -250,10 +250,12 @@ private struct CaptureDrain: @unchecked Sendable {
         guard !isStopping else { throw VellaError.message("Capture is still being saved.") }
         discard()
         guard
-            let chosen = selectMicrophone(Self.devices(), preferred: config.preferredMicrophone, fallback: config.fallbackMicrophone, systemDefaultID: Self.systemDefaultInputID())
+            let selection = microphoneSelection(
+                Self.devices(), preferred: config.preferredMicrophone, fallback: config.fallbackMicrophone, systemDefaultID: Self.systemDefaultInputID())
         else {
             throw VellaError.message("No microphone is available. Connect one and choose it in Vella → Microphone, then start again.")
         }
+        let chosen = selection.device
         var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyDeviceUID, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var uid: Unmanaged<CFString>?
         var size = UInt32(MemoryLayout.size(ofValue: uid))
@@ -285,7 +287,7 @@ private struct CaptureDrain: @unchecked Sendable {
         session.beginConfiguration(); session.addInput(input); session.addOutput(output); session.commitConfiguration()
         output.setSampleBufferDelegate(sink, queue: queue)
         self.sink = sink; self.session = session; captureDevice = chosen.name; captureDeviceID = device.uniqueID
-        followsSystemDefault = !Self.devices().contains { $0.name == config.preferredMicrophone || $0.name == config.fallbackMicrophone }
+        followsSystemDefault = selection.followsSystemDefault
         session.startRunning()
         guard session.isRunning else { discard(); throw VellaError.message("Microphone capture did not start.") }
         return !config.preferredMicrophone.isEmpty && chosen.name != config.preferredMicrophone ? chosen.name + " (fallback; choose an input in Vella → Microphone)" : chosen.name

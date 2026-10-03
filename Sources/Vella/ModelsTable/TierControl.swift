@@ -119,6 +119,8 @@ struct TierControl: View {
     var unavailable: [Cell: String] = [:]
     /// The model is loaded: the selected segment uses the accent colour.
     var hot = false
+    /// The actual running cell, independent of a preview. Nil defaults to the selected cell for standalone controls.
+    var loaded: Cell?
     /// Tooltip per available cell (the app's flavour and "vs Standard" lines).
     let help: (Cell) -> String
     let onSelect: (Cell) -> Void
@@ -140,17 +142,22 @@ struct TierControl: View {
         var off: [String: String] = [:]
         for tier in Self.columns { if let reason = unavailable[Cell(row, tier)] { off[tier] = reason } }
         return HStack(spacing: Self.iconGap) {
-            Self.icon(row, hot: hot).frame(width: Self.iconWidth, height: Self.segmentHeight)
+            Self.icon(row, hot: isHot(row)).frame(width: Self.iconWidth, height: Self.segmentHeight)
                 .appKitTooltip(row.help)
                 .accessibilityElement().accessibilityLabel(row.title)
             TierSegments(
-                tiers: Self.columns, labels: labels, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: hot,
-                unavailable: Set(off.keys), tint: row == .optimized ? Self.boltColor(hot: hot) : nil,
+                tiers: Self.columns, labels: labels, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: isHot(row),
+                unavailable: Set(off.keys), tint: Self.tint(row, hot: isHot(row)),
                 help: { off[$0] ?? Self.tooltip(help(Cell(row, $0)), enabled: enabled) },
                 onSelect: { tier in if off[tier] == nil { onSelect(Cell(row, tier)) } }
             )
             .frame(width: Self.segmentsWidth(Self.columns.count), height: Self.segmentHeight)
         }.frame(width: Self.width, height: Self.segmentHeight, alignment: .leading)
+    }
+
+    func isHot(_ row: Row) -> Bool { hot && (loaded ?? selected)?.row == row }
+    static func tint(_ row: Row, hot: Bool) -> NSColor? {
+        row == .optimized ? boltColor(hot: hot) : hot ? hotBoltTint : nil
     }
 
     /// The bolt's tint (Toby, 30 Sep): light blue on an unloaded row; on the loaded row, whose background is blue (hue

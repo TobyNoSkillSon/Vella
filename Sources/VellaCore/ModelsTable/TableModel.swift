@@ -148,32 +148,25 @@ public func errorRateDelta(_ value: Double?, base: Double?) -> Delta? {
     return Delta(signed(points, "%.1f") + " pt", points < 0 ? .better : .worse)
 }
 
-/// Speed in × real time → `35% faster` / `20% slower`; from 2× on `2.4× as fast`. Under 1 % reads `same`.
+/// Speed in × real time → `35% faster` / `20% slower`; at 2× or above, `2.4× faster`. Under 1 % reads `same`.
 public func speedDelta(_ value: Double?, base: Double?) -> Delta? {
     guard let value, let base, value > 0, base > 0 else { return nil }
-    let faster = value > base
-    let ratio = faster ? value / base : base / value
-    if ratio - 1 < 0.01 { return Delta("same", .neutral) }
-    let amount = ratio >= 2 ? String(format: "%.1f×", ratio) : String(format: "%.0f%%", (ratio - 1) * 100)
-    if amount == "0%" { return Delta("same", .neutral) }
-    if ratio >= 2 { return Delta(String(format: "%.1f× as fast", value / base), faster ? .better : .worse) }
-    let percent = abs(value / base - 1) * 100
-    return Delta(String(format: "%.0f%%", percent) + (faster ? " faster" : " slower"), faster ? .better : .worse)
+    let change = value / base - 1
+    if abs(change) < 0.01 { return Delta("same", .neutral) }
+    if value / base >= 2 { return Delta(String(format: "%.1f× faster", value / base), .better) }
+    return Delta(String(format: "%.0f%%", abs(change) * 100) + (change > 0 ? " faster" : " slower"), change > 0 ? .better : .worse)
 }
 
-/// Energy per audio minute → `20% less` / `15% more`; from 2× the base on `2.9× the energy`. Under 0.5 % reads `same`.
+/// Energy per audio minute → `20% less` / `15% more`, always a percentage. Under 0.5 % reads `same`.
 public func energyDelta(_ value: Double?, base: Double?) -> Delta? {
-    guard let value, let base, base > 0 else { return nil }
+    guard let value, let base, value >= 0, base > 0 else { return nil }
     let change = value / base - 1
     if abs(change) < 0.005 { return Delta("same", .neutral) }
-    if max(value / base, base / max(value, 0.000001)) >= 2 { return Delta(String(format: "%.1f× the energy", value / base), change < 0 ? .better : .worse) }
     return Delta(String(format: "%.0f%%", abs(change) * 100) + (change < 0 ? " less" : " more"), change < 0 ? .better : .worse)
 }
 
-/// Memory → `40% less` / `1.8× more`, like energy.
-public func memoryDelta(_ value: Double?, base: Double?) -> Delta? {
-    energyDelta(value, base: base).map { Delta($0.text.replacingOccurrences(of: "the energy", with: "the memory"), $0.tone) }
-}
+/// Memory → `40% less` / `80% more`, like energy.
+public func memoryDelta(_ value: Double?, base: Double?) -> Delta? { energyDelta(value, base: base) }
 
 // MARK: Formatters (en_US everywhere)
 

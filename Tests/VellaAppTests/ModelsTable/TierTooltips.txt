@@ -269,11 +269,11 @@ Optimized: the same weights with custom kernels for this Mac's chip
 
 [Nemotron 3.5 Streaming · Precision Optimized bf16 · Exact]
 bf16, as published
-vs Standard bf16: Speed: 2.6× as fast · Energy: 0.4× the energy · WER −0.11 pt · M5 Max, 1 Oct
+vs Standard bf16: Speed: 2.6× faster · Energy: 57% less · WER −0.11 pt · M5 Max, 1 Oct
 
 [Nemotron 3.5 Streaming · Precision Optimized int8 · Exact]
 8-bit weights throughout (affine-8 g64)
-vs Standard bf16: Speed: 4.1× as fast · Energy: 0.3× the energy · WER −0.08 pt · M5 Max, 1 Oct
+vs Standard bf16: Speed: 4.1× faster · Energy: 69% less · WER −0.08 pt · M5 Max, 1 Oct
 Loss vs bf16: multilingual mean +0.16 pt
 
 [Nemotron 3.5 Streaming · Precision Optimized int4 · Exact]
@@ -288,7 +288,7 @@ Reference for the deltas · M5 Max, 1 Oct
 
 [Nemotron 3.5 Streaming · Precision Standard int8]
 8-bit weights throughout (affine-8 g64)
-vs Standard bf16: Speed: 2.1× as fast · Energy: 41% less · WER −0.08 pt · M5 Max, 1 Oct
+vs Standard bf16: Speed: 2.1× faster · Energy: 41% less · WER −0.08 pt · M5 Max, 1 Oct
 Loss vs bf16: multilingual mean +0.16 pt
 
 [Nemotron 3.5 Streaming · Precision Standard int4]
@@ -300,11 +300,11 @@ Exact: exact-only components that must match Standard on the load-time self-test
 
 [Nemotron 3.5 Streaming · Precision Optimized bf16 · Fast]
 bf16, as published
-vs Standard bf16: Speed: 4.8× as fast · Energy: 0.3× the energy · WER −0.15 pt · M5 Max, 1 Oct
+vs Standard bf16: Speed: 4.8× faster · Energy: 73% less · WER −0.15 pt · M5 Max, 1 Oct
 
 [Nemotron 3.5 Streaming · Precision Optimized int8 · Fast]
 8-bit weights throughout (affine-8 g64)
-vs Standard bf16: Speed: 5.3× as fast · Energy: 0.2× the energy · WER −0.06 pt · M5 Max, 1 Oct
+vs Standard bf16: Speed: 5.3× faster · Energy: 77% less · WER −0.06 pt · M5 Max, 1 Oct
 Loss vs bf16: multilingual mean +0.16 pt
 
 [Nemotron 3.5 Streaming · Precision Optimized int4 · Fast]

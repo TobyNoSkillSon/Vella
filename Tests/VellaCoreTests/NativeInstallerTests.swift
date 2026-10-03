@@ -191,6 +191,25 @@ final class NativeInstallerTests: XCTestCase {
         XCTAssertThrowsError(try installer.install())
         XCTAssertEqual(try String(contentsOf: app.appendingPathComponent("old")), "old")
     }
+    func testLaunchFailureReportsTheCommittedDestinationAndPreservedRollbackPath() throws {
+        let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try existingApp(app, marker: "old")
+        installer.keepPrevious = true
+        installer.launch = { _ in throw NativeInstallError.message("fixture launch failed") }
+        XCTAssertThrowsError(try installer.install()) { error in
+            guard let previous = installer.previousApp else { return XCTFail("Missing rollback path") }
+            XCTAssertTrue(error.localizedDescription.contains(previous.path))
+            XCTAssertTrue(error.localizedDescription.contains(app.path))
+            XCTAssertTrue(error.localizedDescription.contains("restore it"))
+            if let directory = ProcessInfo.processInfo.environment["VELLA_RENDER_REVIEW_DIR"] {
+                let output = "previous: \(previous.path)\nVella installation stopped: \(error.localizedDescription)\n"
+                try? output.write(to: URL(fileURLWithPath: directory).appendingPathComponent("installer-launch-failure.txt"), atomically: true, encoding: .utf8)
+            }
+            XCTAssertEqual(try? Data(contentsOf: previous.appendingPathComponent("old")), Data("old".utf8))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: app.appendingPathComponent("Contents/MacOS/Vella").path))
+        }
+    }
+
     func testSigningMismatchAndMalformedConfigArePreserved() throws {
         for cause in ["signature", "config"] {
             let (installer, root, app, support) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
