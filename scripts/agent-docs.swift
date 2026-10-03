@@ -4,6 +4,7 @@ import Foundation
 //
 //   xcrun swift scripts/agent-docs.swift             rewrite the block between <!-- MODELS_START --> and <!-- MODELS_END -->
 //                                                    in Resources/SKILL.md and docs/USAGE.md
+//                                                    and the CREDITS block in Resources/AGENT_GUIDE.md
 //   xcrun swift scripts/agent-docs.swift --check     change nothing; exit 1 and name each file whose block is not the generator's
 //   xcrun swift scripts/agent-docs.swift --selftest  check the generator on synthetic data
 //   options: --root DIR (the checkout, default the current directory), --benchmarks FILE, --models FILE
@@ -47,7 +48,7 @@ func dtypeLabel(_ family: JSON, _ tier: String) -> String {
     }
 }
 
-func replaceBlock(_ text: String, _ body: String) -> String? {
+func replaceBlock(_ text: String, _ body: String, startMarker: String = startMarker, endMarker: String = endMarker) -> String? {
     guard text.components(separatedBy: startMarker).count == 2, text.components(separatedBy: endMarker).count == 2,
         let start = text.range(of: startMarker), let end = text.range(of: endMarker), start.upperBound <= end.lowerBound
     else { return nil }
@@ -97,13 +98,16 @@ func render(_ models: JSON, _ bench: JSON) -> String {
 func run(root: URL, models: JSON, bench: JSON, check: Bool) -> [String] {
     let block = render(models, bench)
     var stale: [String] = []
-    for name in files {
+    for name in files + ["Resources/AGENT_GUIDE.md"] {
         let url = root.appendingPathComponent(name)
         guard let text = try? String(contentsOf: url, encoding: .utf8) else {
             stale.append("\(name): missing")
             continue
         }
-        guard let updated = replaceBlock(text, block) else {
+        let guide = name == "Resources/AGENT_GUIDE.md"
+        let first = guide ? "<!-- CREDITS_START -->" : startMarker
+        let last = guide ? "<!-- CREDITS_END -->" : endMarker
+        guard let updated = replaceBlock(text, guide ? credits(models) : block, startMarker: first, endMarker: last) else {
             stale.append("\(name): needs exactly one \(startMarker) ... \(endMarker) pair")
             continue
         }
@@ -116,6 +120,14 @@ func run(root: URL, models: JSON, bench: JSON, check: Bool) -> [String] {
         }
     }
     return stale
+}
+
+func credits(_ models: JSON) -> String {
+    let ultra = (models["families"] as? [JSON] ?? []).first { $0["id"] as? String == "parakeet-v3-ultra" }
+    guard let ultra, let summary = ultra["summary"] as? String, let licence = ultra["licence"] as? String,
+        let variants = ultra["variants"] as? [String: JSON], let converter = variants["BF16"]?["repository"] as? String
+    else { return "Model publishers, source checkpoints, MLX converters and licences: `THIRD_PARTY_NOTICES.md`." }
+    return "Parakeet v3 Ultra: \(summary). \(licence); MLX conversion: `\(converter)`. Model publishers, source checkpoints, MLX converters and licences: `THIRD_PARTY_NOTICES.md`."
 }
 
 func selfTest() {

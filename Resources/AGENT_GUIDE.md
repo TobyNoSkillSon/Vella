@@ -13,6 +13,10 @@ Read this when a user wants a model Vella does not offer, another precision of o
 
 ## The catalog
 
+<!-- CREDITS_START -->
+Parakeet v3 Ultra: Moondream's post-training of NVIDIA Parakeet v3 for dictation in 25 European languages; none from outside Europe. CC BY 4.0; MLX conversion: `selcukkubur/parakeet-ultra-mlx`. Model publishers, source checkpoints, MLX converters and licences: `THIRD_PARTY_NOTICES.md`.
+<!-- CREDITS_END -->
+
 `Resources/models.json` (schema 2) lists model families. A family offers up to three tiers: **16** (the checkpoint's own bf16 or fp16), **8** (affine 8-bit, group 64) and **4** (affine 4-bit, group 64). fp32 is never a tier. Only the 16-bit checkpoint is downloaded, pinned to an exact commit with its size; an fp32-only model downloads its fp32 source and Vella converts it once to bf16 at Get, keeping only the bf16 weights. 8 and 4 are made on the Mac from the 16-bit weights (`mx.quantize`, group 64), never from a quantized source:
 
 ```json
