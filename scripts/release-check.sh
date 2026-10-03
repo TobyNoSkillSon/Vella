@@ -108,7 +108,8 @@ package() {
       || { echo "Vella Release Signing ($VELLA_SIGNING_SHA1) is not in the keychain"; return 1; }
     identity=$VELLA_SIGNING_SHA1
   fi
-  VELLA_SIGN_IDENTITY="$identity" VELLA_RELEASE_OUTPUT_DIR="$WORK/release" scripts/package-release.sh "$VERSION"
+  DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
+    VELLA_SIGN_IDENTITY="$identity" VELLA_RELEASE_OUTPUT_DIR="$WORK/release" scripts/package-release.sh "$VERSION" || return
   cat Worker/.build/split-build-provenance.txt
 }
 
