@@ -380,6 +380,7 @@ import VellaUpdate
     /// An NSAlert's panel in dark mode, captured offscreen onto the dark alert background (the real panel is vibrant;
     /// the capture has no default-button tint because the offscreen window is not key).
     static func renderAlert(_ alert: NSAlert, to url: URL, done: @escaping () -> Void) {
+        if let icon = ProcessInfo.processInfo.environment["VELLA_RENDER_ICON"].flatMap({ NSImage(contentsOfFile: $0) }) { alert.icon = icon }
         alert.window.appearance = NSAppearance(named: .darkAqua)
         alert.layout()
         let window = alert.window
@@ -548,6 +549,7 @@ import VellaUpdate
         app.updates.preview(.available(release)); app.rebuildMenu()
         MenuMock.render(app.menu.items, width: 340, to: directory.appendingPathComponent("update-menu.png")) { [self] in
             let alert = app.updates.confirmation(release)
+            if let icon = ProcessInfo.processInfo.environment["VELLA_RENDER_ICON"].flatMap({ NSImage(contentsOfFile: $0) }) { alert.icon = icon }
             alert.window.appearance = NSAppearance(named: .darkAqua)
             alert.layout()
             let window = alert.window

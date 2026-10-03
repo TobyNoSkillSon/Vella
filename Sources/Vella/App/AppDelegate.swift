@@ -747,8 +747,8 @@ import VellaCore
         guard model.phase == .recording || model.busy || librariesBusy else { return .terminateNow }
         let alert = NSAlert(); alert.messageText = "Quit Vella?"
         alert.informativeText =
-            librariesBusy && model.phase != .recording && !model.busy
-            ? "The model download will stop and its partial files will be removed. Saved recordings and installed models are kept."
+            librariesBusy
+            ? "The model download will stop and its partial files will be removed. Saved recordings and installed models are kept. Unfinished text will not be inserted."
             : "Saved audio and completed text will be kept. Unfinished text will not be inserted."
         alert.addButton(withTitle: "Keep Vella Open"); alert.addButton(withTitle: "Quit")
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
