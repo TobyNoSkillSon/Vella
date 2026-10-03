@@ -327,7 +327,9 @@ final class CatalogTests: XCTestCase {
         ]
         for (id, bench) in file.models {
             let family = try XCTUnwrap(catalog.family(id))
-            XCTAssertEqual(ModelTier.allCases.filter { cellPresent(bench, tier: $0, segment: .standard) }, offered[id], id)
+            let standard = id == "nemotron-3.5-streaming-0.6b" ? [ModelTier.t16] : offered[id]
+            let measuredStandard = id.hasPrefix("whisper-") ? [] : standard
+            XCTAssertEqual(ModelTier.allCases.filter { cellPresent(bench, tier: $0, segment: .standard) }, measuredStandard, id)
             XCTAssertEqual(family.tiersOffered, offered[id]?.map(\.rawValue), "\(id): models.json tiers_offered agrees with the presence")
             XCTAssertFalse(bench.precisions.keys.contains("FP32"), "\(id): fp32 is never a tier")
             for (tier, t) in bench.tiers {
@@ -351,7 +353,7 @@ final class CatalogTests: XCTestCase {
             XCTAssertFalse(fastDiffersFromExact(file.models[id]), id)
         }
         for id in ["parakeet-v3", "parakeet-v3-ultra", "nemotron-3.5-streaming-0.6b"] {
-            XCTAssertTrue(fastDiffersFromExact(file.models[id]), id)
+            XCTAssertEqual(fastDiffersFromExact(file.models[id]), id != "nemotron-3.5-streaming-0.6b", id)
             XCTAssertFalse(file.models[id]?.tiers[.t16]?.cells[.optimized_exact]?.isPending ?? true, "\(id): Exact 16 measured")
         }
         XCTAssertEqual(file.models["parakeet-v3"]?.tiers[.t16]?.cells[.optimized_fast]?.recipe.inexact, ["nax_gemm"])

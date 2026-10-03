@@ -1,6 +1,7 @@
 import XCTest
 @testable import Vella
 @testable import VellaCore
+import VellaWire
 
 /// How a saved selection maps onto the catalog (the shipped models.json, an isolated registry and config.json): a
 /// catalog download, a stored conversion and a derived precision are identified; a folder outside the catalog is not.
@@ -61,6 +62,63 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(c.identify(path: p.derived, mode: .dictation).map { "\($0.family.id) \($0.precision)" }, "parakeet-v3-ultra 8b")
         XCTAssertNil(c.identify(path: p.outside, mode: .dictation))
         XCTAssertNil(c.identify(path: p.plain, mode: .streaming), "a dictation model is not a streaming selection")
+    }
+
+    @MainActor func testRejectedSavedCellMigratesWithExistingLaunchNoticeAndKeepsFiles() throws {
+        let (c, p) = try controller()
+        let family = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        var benchmark = try XCTUnwrap(c.benchmarks.models[family.id])
+        for tier in benchmark.tiers.keys {
+            for segment in Recipe.allCases {
+                benchmark.tiers[tier]?.cells[segment]?.gate = SegmentGate(
+                    status: .pass, presence: TierPresence(offered: tier == .t16 && segment == .standard))
+            }
+        }
+        c.benchmarks.models[family.id] = benchmark
+        var config = Configuration(model: p.derived)
+        config.lastLoaded = [family.id: "8b"]
+        config.selections[family.id] = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+        try JSONEncoder().encode(config).write(to: configURL)
+        let manifestURL = URL(fileURLWithPath: p.derived).appendingPathComponent("vella-derived.json")
+        let manifest = try Data(contentsOf: manifestURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+        XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, path: .standard, mode: .fast))
+        XCTAssertEqual(saved.model, p.ultra, "migration switches the active path to the offered installed precision")
+        XCTAssertEqual(saved.lastLoaded, config.lastLoaded, "migration is not a successful Load")
+        XCTAssertEqual(c.committedSelection(family), saved.selections[family.id])
+        XCTAssertEqual(c.migrationNotices.count, 1)
+        XCTAssertTrue(c.migrationNotices[0].contains("earlier cell is no longer offered"))
+        XCTAssertEqual(try Data(contentsOf: manifestURL), manifest)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        XCTAssertTrue(c.migrationNotices.isEmpty, "the change is disclosed once")
+    }
+
+    @MainActor func testRejectedSavedCellWithoutOfferedWeightsClearsActivePathAndExplainsGet() throws {
+        let (c, p) = try controller()
+        let family = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        var benchmark = try XCTUnwrap(c.benchmarks.models[family.id])
+        for tier in benchmark.tiers.keys {
+            for segment in Recipe.allCases {
+                benchmark.tiers[tier]?.cells[segment]?.gate = SegmentGate(
+                    status: .pass, presence: TierPresence(offered: tier == .t16 && segment == .standard))
+            }
+        }
+        c.benchmarks.models[family.id] = benchmark
+        c.dictation.installed.removeValue(forKey: "parakeet-ultra-mlx-bf16")
+        var config = Configuration(model: p.derived)
+        config.lastLoaded = [family.id: "8b"]
+        config.selections[family.id] = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+        try JSONEncoder().encode(config).write(to: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [p.derived])
+        let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+        XCTAssertEqual(saved.model, "")
+        XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, path: .standard, mode: .fast))
+        XCTAssertEqual(saved.lastLoaded, config.lastLoaded)
+        XCTAssertTrue(saved.clearedSelectionReasons["dictation"]?.contains("Get or Load") == true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: p.derived + "/vella-derived.json"))
+        XCTAssertEqual(c.migrationNotices.count, 1)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
     }
 
     @MainActor func testRegistryMigrationDropsNonCatalogIDsOnly() throws {
@@ -144,7 +202,7 @@ final class CatalogSelectionTests: XCTestCase {
     }
     /// Representative subset of the 3 Oct upgrader (external registry entries omitted): Ultra BF16 dictation, Nemotron published int8 streaming,
     /// BF16 Nemotron root and unoffered v3 Q4. No user paths, recordings or weights are copied.
-    @MainActor func testOctoberUpgraderKeepsStreamingAtMeasuredInt8() async throws {
+    @MainActor func testOctoberUpgraderMovesRejectedStreamingCellToOfferedStandard() async throws {
         let models = support.appendingPathComponent("Models")
         let names = [
             "nemotron-3.5-asr-streaming-0.6b-8bit", "nemotron-3.5-asr-streaming-0.6b-bf16",
@@ -173,21 +231,18 @@ final class CatalogSelectionTests: XCTestCase {
         let migrated = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
         XCTAssertEqual(c.migrationNotices.count, 1)
         XCTAssertTrue(c.migrationNotices[0].contains("Streaming now uses"))
-        XCTAssertTrue(c.migrationNotices[0].contains("made on this Mac"))
-        XCTAssertTrue(c.migrationNotices[0].contains("earlier download is kept"))
+        XCTAssertTrue(c.migrationNotices[0].contains("earlier precision is no longer offered"))
+        XCTAssertTrue(c.migrationNotices[0].contains("earlier files are kept"))
         XCTAssertEqual(migrated.lastLoaded, config.lastLoaded, "migration is not a successful Load")
         XCTAssertEqual(migrated.model, dictation)
         XCTAssertNotEqual(migrated.streamingModel, old)
-        let manifest = try XCTUnwrap(derivedModelManifest(at: URL(fileURLWithPath: migrated.streamingModel)))
-        XCTAssertEqual(manifest.family, "nemotron-3.5-streaming-0.6b")
-        XCTAssertEqual(manifest.precision, "8b")
-        XCTAssertEqual(manifest.source, models.appendingPathComponent(names[1]).path)
-        XCTAssertEqual(migrated.selections[manifest.family]?.tier, .t8)
+        XCTAssertEqual(migrated.streamingModel, models.appendingPathComponent(names[1]).path)
+        XCTAssertEqual(migrated.selections["nemotron-3.5-streaming-0.6b"], ModelSelection(tier: .t16, path: .standard, mode: .fast))
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: old + "/model.safetensors")), Data("legacy-weight-fixture".utf8))
         let absent = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         XCTAssertFalse(c.options(absent).contains("4b"))
         XCTAssertEqual(try c.deletionPlan(absent, precision: "4b").path, models.appendingPathComponent(names[2]).path)
-        let streamingFamily = try XCTUnwrap(c.catalog.family(manifest.family))
+        let streamingFamily = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
         XCTAssertTrue(try c.deletionPlan(streamingFamily, precision: "8b").title.contains("earlier download (not used)"))
         let legacyPlan = try c.deletionPlan(streamingFamily, precision: "8b")
         XCTAssertTrue(legacyPlan.body.contains("cannot be downloaded again"))
