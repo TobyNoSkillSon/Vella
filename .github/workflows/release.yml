@@ -63,13 +63,13 @@ jobs:
           sudo xcode-select -s "$XCODE_APP/Contents/Developer"
           xcodebuild -version
           "$CLT_SWIFT" --version
-          if ! "$CLT_SWIFT" --version 2>&1 | grep -q 'Apple Swift version 6\.3\.3 '; then
+          if ! "$CLT_SWIFT" --version 2>&1 | grep 'Apple Swift version 6\.3\.3 ' >/dev/null; then
             echo "::error::Releases are built with Command Line Tools Swift 6.3.3"; exit 1
           fi
 
       - name: Metal Toolchain
         run: |
-          if ! xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q 'Status: installed'; then
+          if ! xcodebuild -showComponent MetalToolchain 2>/dev/null | grep 'Status: installed' >/dev/null; then
             xcodebuild -downloadComponent MetalToolchain
           fi
           xcrun metal --version

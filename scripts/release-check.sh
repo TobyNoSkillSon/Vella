@@ -85,7 +85,7 @@ toolchains() {
   grep -q 'Apple Swift version 6\.3\.3 ' <<<"$v" \
     || { echo "releases are built with Command Line Tools Swift 6.3.3 (xcode-select --install)"; return 1; }
   DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcodebuild -version
-  DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q 'Status: installed' \
+  DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcodebuild -showComponent MetalToolchain 2>/dev/null | grep 'Status: installed' >/dev/null \
     || { echo "Metal Toolchain missing: xcodebuild -downloadComponent MetalToolchain"; return 1; }
   DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcrun metal --version
 }
@@ -111,7 +111,7 @@ doc_links() {  # relative markdown links and image sources in the public docs po
 package() {
   local identity="${VELLA_SIGN_IDENTITY:--}"
   if [[ $SIGNED == 1 ]]; then
-    security find-identity -p codesigning | grep -q "$VELLA_SIGNING_SHA1" \
+    security find-identity -p codesigning | grep "$VELLA_SIGNING_SHA1" >/dev/null \
       || { echo "Vella Release Signing ($VELLA_SIGNING_SHA1) is not in the keychain"; return 1; }
     identity=$VELLA_SIGNING_SHA1
   fi
@@ -189,6 +189,7 @@ if [[ $MODE == --selftest-step ]]; then
 fi
 
 step "release step planted failures" "$0" --selftest-step
+step "detached pipefail identity checks" scripts/test-pipefail.sh
 step "source only in git" source_only
 step "source archive excludes lab" source_archive_no_lab
 step "published-history commit citations" xcrun swift scripts/check-commit-citations.swift

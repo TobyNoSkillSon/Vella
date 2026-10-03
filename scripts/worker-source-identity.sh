@@ -42,7 +42,9 @@ build_paths=(
   scripts/test-worker.sh
   scripts/verify-release-symbols.sh
 )
-BUILD_EXPECTED=1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90
+# 4 Oct: pipefail-safe identity/runtime probes in build.sh; no compiler, flags, or build behaviour change.
+# The measured build used the old build.sh text; this pin identifies the current shipped script bytes.
+BUILD_EXPECTED=025547b32840d30e6b1065dcd8322640a0bdcf9d6f972d5c09bfd5b47b76b56b
 
 # git with the user's configuration (autocrlf, excludes, hooks) out of the hash.
 g() { git -c core.autocrlf=false -c core.excludesFile=/dev/null "$@"; }
@@ -55,7 +57,7 @@ verify_index() {
   [[ "$readmes" == "$expected" ]] || { echo 'Worker README.md files differ from the recorded documentation list' >&2; return 1; }
   while IFS= read -r path; do
     [[ "${path##*/}" == README.md ]] || return 1
-    g cat-file blob ":Worker/Package.swift" | grep -Fq "\"${path#Sources/MLXAudioSTT/}\"" || { echo "Worker/Package.swift does not exclude $path" >&2; return 1; }
+    g cat-file blob ":Worker/Package.swift" | grep -F "\"${path#Sources/MLXAudioSTT/}\"" >/dev/null || { echo "Worker/Package.swift does not exclude $path" >&2; return 1; }
   done <<<"$WORKER_DOC_CHANGES"
   tree="$(g write-tree)" || return 1
   [[ "$(g rev-parse "$tree:Worker")" == "$WORKER_FULL_TREE" ]] && full=identical || full='differs in README.md content only (not gated)'

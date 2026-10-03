@@ -18,12 +18,13 @@ APP="${VELLA_APP_PATH:-$PWD/dist/Vella.app}"
 if [[ -n "${VELLA_RELEASE_SYMBOLS_DIR:-}" && -e "$VELLA_RELEASE_SYMBOLS_DIR" ]]; then
   echo 'Release symbols directory already exists; preserving the app and exact-build debug artefacts.' >&2; exit 1
 fi
-if [[ "$IDENTITY" == "-" && -d "$APP" ]] && codesign -dv "$APP" 2>&1 | grep -q '^Authority='; then
+if [[ "$IDENTITY" == "-" && -d "$APP" ]] && codesign -dv "$APP" 2>&1 | grep '^Authority=' >/dev/null; then
   echo 'Refusing to discard the installed signing identity. Configure VELLA_SIGN_IDENTITY or the local signing-identity file.' >&2
   exit 1
 fi
+# Pipeline probes drain their input: grep -q can SIGPIPE the producer under pipefail.
 # Without -v: the self-signed release identity is untrusted on purpose (as on users' Macs) and codesign still signs with it.
-if [[ "$IDENTITY" != "-" ]] && ! security find-identity -p codesigning | grep -Fq -- "$IDENTITY"; then
+if [[ "$IDENTITY" != "-" ]] && ! security find-identity -p codesigning | grep -F -- "$IDENTITY" >/dev/null; then
   echo 'Configured signing identity is unavailable. Installation left unchanged.' >&2
   exit 1
 fi
@@ -42,7 +43,7 @@ WORKER_BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build --package-path Wor
 }
 # Xcode 27's Swift 6.4 emits borrow symbols the macOS 26 Swift runtime lacks; such binaries die in dyld.
 for binary in .build/release/Vella .build/release/VellaModelTool .build/release/VellaInstallTool .build/release/vella-cli "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker"; do
-  if nm -u "$binary" | grep -Eq '_swift_(init|end)Borrow'; then
+  if nm -u "$binary" | grep -E '_swift_(init|end)Borrow' >/dev/null; then
     echo "Unsupported Swift runtime borrow symbol in $(basename "$binary"); build left installed app unchanged." >&2; exit 1
   fi
 done

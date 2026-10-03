@@ -5405,7 +5405,8 @@ const VELLA_BENCHMARKS = {
         "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
         "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
       },
-      "build_scripts_sha256": "1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90",
+      "build_scripts_sha256": "025547b32840d30e6b1065dcd8322640a0bdcf9d6f972d5c09bfd5b47b76b56b",
+      "build_scripts_note": "4 Oct: build.sh identity, existing-signature and runtime-symbol probes now drain producer output under pipefail. The measured build used the old build.sh text. This is non-functional for compilation: compiler, flags, build commands, workers and shader inputs are unchanged. The prior shipped build-script pin was 1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90.",
       "worker_documentation_changes": [
         "Worker/Sources/MLXAudioSTT/NemotronASR/README.md",
         "Worker/Sources/MLXAudioSTT/Parakeet/README.md",
@@ -5413,7 +5414,7 @@ const VELLA_BENCHMARKS = {
         "Worker/Sources/MLXAudioSTT/Whisper/README.md"
       ],
       "build_receipt": "verified CI artifact receipt (filled at publish)",
-      "note": "Worker/Packages tree hashes and build-script bytes are authoritative. The informational commit identifies the measured-defaults baseline, not this chip-safety delta: SmallMGEMM now requires macOS 26.2 for tensor ops; FastPathGate keys and verdict metadata now include GPU architecture and device name; Parakeet tensor wrappers guard availability; worker key/capability tests and the shared GateRecord codec were updated. Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged. Measurements and the original bridge below remain dated evidence from before this safety delta, not a new performance or verdict-reuse qualification. Old verdict keys miss and each model/recipe self-tests once on its next optimized load. Worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate."
+      "note": "Worker/Packages tree hashes and build-script bytes are authoritative. The informational commit identifies the measured-defaults baseline, not this chip-safety delta: SmallMGEMM now requires macOS 26.2 for tensor ops; FastPathGate keys and verdict metadata now include GPU architecture and device name; Parakeet tensor wrappers guard availability; worker key/capability tests and the shared GateRecord codec were updated. Kernels, tile plans, deadlines and dependency pins are unchanged. The separate 4 Oct build-script delta is recorded in build_scripts_note; compilation is unchanged. Measurements and the original bridge below remain dated evidence from before this safety delta, not a new performance or verdict-reuse qualification. Old verdict keys miss and each model/recipe self-tests once on its next optimized load. Worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate."
     },
     "bridge": {
       "evidence": "scoped CPU source/key/verdict bridge receipt (3 Oct 2026)",

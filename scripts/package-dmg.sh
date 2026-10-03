@@ -22,7 +22,7 @@ mkdir -p "$PROJECT/.build"
 STAGE="$(mktemp -d "$PROJECT/.build/.dmg-stage.XXXXXX")"
 MOUNT="$STAGE/mounted"
 cleanup() {
-  if mount | grep -Fq " on $MOUNT ("; then hdiutil detach -quiet "$MOUNT" || return; fi
+  if mount | grep -F " on $MOUNT (" >/dev/null; then hdiutil detach -quiet "$MOUNT" || return; fi
   rm -rf "$STAGE"
 }
 trap cleanup EXIT
