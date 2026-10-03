@@ -20,7 +20,10 @@ public struct TierPresence: Codable, Equatable {
     }
 }
 
-public enum GateStatus: String, Codable, Equatable { case pass, fail, borderline }
+public enum GateStatus: String, Codable, Equatable {
+    case pass, fail, borderline
+    case notGated = "not_gated"
+}
 
 /// The recommendation gate's verdict for a tier (vs 16) or a cell. `loss`: the failed checks as bare losses vs 16
 /// (`multilingual mean +0.55 pt`), stated in an offered-but-worse tier's tooltip.

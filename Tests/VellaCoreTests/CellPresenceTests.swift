@@ -2,6 +2,12 @@ import XCTest
 @testable import VellaCore
 
 final class CellPresenceTests: XCTestCase {
+    func testUngatedStatusIsNotDecodedAsFailure() throws {
+        let gate = try JSONDecoder().decode(
+            SegmentGate.self, from: Data(#"{"status":"not_gated","presence":{"offered":false},"reasons":["not gated (no same-layout baseline)"]}"#.utf8))
+        XCTAssertEqual(gate.status, .notGated)
+        XCTAssertEqual(gate.presence?.offered, false)
+    }
     func testCellPresenceOverridesTierAndDoesNotUseRecommendationVerdict() {
         var cell = BenchmarkCell(recipe: CellRecipe(layers: [:]))
         var tier = TierBenchmark(precision: "BF16", cells: [.standard: cell])
