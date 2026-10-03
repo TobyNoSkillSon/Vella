@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # CPU-only regression for scripts/release-identity.sh: a development-signed build is refused for staging and upload,
-# an ad hoc one is local-only, and only the pinned "Vella Release Signing" build passes. Real ad hoc signing plus a
+# an ad hoc one is local-only, and only the pinned "Vella Release Signing" build passes.
 # REAL codesign on ad hoc and development fixtures. Only the unavailable release certificate is shimmed.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
