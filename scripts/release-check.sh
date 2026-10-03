@@ -204,6 +204,7 @@ step "public prose claims" scripts/check-doc-claims.sh
 step "public prose claims fixture" scripts/check-doc-claims.sh --selftest
 step "release identity fixture" scripts/test-release-identity.sh
 step "model READMEs match the benchmarks" xcrun swift scripts/model-readmes.swift --check
+step "benchmark methods match published inputs" xcrun swift scripts/benchmark-method.swift --check
 step "skill and user guide model lists" xcrun swift scripts/agent-docs.swift --check
 step "lint (swift-format, SwiftLint)" scripts/lint.sh
 step "symbol retention fixture" scripts/test-release-symbols.sh

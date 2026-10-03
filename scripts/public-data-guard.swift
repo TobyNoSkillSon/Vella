@@ -8,7 +8,7 @@ import Foundation
 func violations(_ text: String, isText: Bool = true, isPublic: Bool = true) -> [String] {
     let lower = text.lowercased()
     var reasons: [String] = []
-    if isPublic && isText && lower.contains("lab/") { reasons.append("local-only evidence path") }
+    if isPublic && isText && lower.range(of: #"(?:^|[^a-z0-9])lab/"#, options: .regularExpression) != nil { reasons.append("local-only evidence path") }
     for (needle, reason) in [
         ("/users/", "macOS home path"), ("/home/", "Unix home path"), ("/root/", "Unix root home path"), (#":\users\"#, "Windows home path"), ("buzz", "excluded competitor")
     ] {
@@ -41,7 +41,7 @@ if CommandLine.arguments.contains("--selftest") {
         "%2Fhome%2Fprivate", "lab/notes/private.md"
     ]
     for example in bad where violations(example).isEmpty { fail("public guard missed a forbidden identity kind") }
-    for example in ["$HOME/Applications", "~/Applications", "mlx-community/checkpoint", "https://tobynoskillson.github.io/Vella/"] where !violations(example).isEmpty {
+    for example in ["$HOME/Applications", "~/Applications", "mlx-community/checkpoint", "https://tobynoskillson.github.io/Vella/", "https://github.com/NTRLab/MediaSpeech"] where !violations(example).isEmpty {
         fail("public guard rejected a portable identifier or generic shell placeholder")
     }
     // Compressed image bytes can resemble a short named-user tilde path; literal absolute paths and names still scan.
