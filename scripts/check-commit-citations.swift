@@ -23,6 +23,8 @@ func pinnedTrees(_ text: String) -> Set<String> {
             Range($0.range(at: 1), in: text).map { String(text[$0]) }
         })
 }
+/// Unlike the source-identity script's code pin, this requires the full committed Worker tree, including READMEs.
+/// Refresh WORKER_FULL_TREE and its published provenance references after committing a Worker README-only change.
 func currentTreesMatchPins(_ text: String) -> Bool {
     for (name, path) in [("WORKER_FULL_TREE", "Worker"), ("PACKAGES_TREE", "Packages")] {
         let assignment = try! NSRegularExpression(pattern: "^\(name)=([0-9a-f]{40})\\b", options: .anchorsMatchLines)

@@ -158,6 +158,8 @@ scripts/release-check.sh                 # what CI and the release workflow chec
 
 A source build needs the Command Line Tools Swift (`xcode-select --install`), full Xcode and its Metal Toolchain (`xcodebuild -downloadComponent MetalToolchain`); the installer checks each and prints the command that fixes a missing one. Swift compiles with the Command Line Tools and the MLX shaders with Xcode's Metal compiler. The app is a Swift menu-bar process (`Sources/Vella`) that supervises the recognition helpers (`Worker/`), one process per loaded model; the app itself downloads the models. `scripts/test-unit.sh` builds and runs the app, core and update tests with the shipping Swift compiler and Xcode’s XCTest host. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest.
 
+`scripts/worker-source-identity.sh` permits content-only changes to the recorded Worker README files: its code pin excludes them, while their paths remain pinned. Separately, `scripts/check-commit-citations.swift --check` requires the full committed Worker tree, including READMEs, to match `WORKER_FULL_TREE`. After committing a Worker README-only change, refresh that declared identity and its published provenance references; the code pin stays unchanged.
+
 </details>
 
 ## Using it

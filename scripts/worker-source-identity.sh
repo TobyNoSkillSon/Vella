@@ -5,8 +5,10 @@
 #
 # README rule: every README.md under Worker/ is omitted before the Worker tree is hashed. Worker/Package.swift
 # excludes the four target-source READMEs from the build, and Worker/README.md is outside Sources, so README content
-# never reaches a binary and is not pinned. Which README.md files may exist is pinned (the set below); everything else
-# under Worker/ is pinned byte for byte (content and exec bit), and so is all of Packages/.
+# never reaches a binary and is not pinned by this script. Which README.md files may exist is pinned (the set below);
+# everything else under Worker/ is pinned byte for byte (content and exec bit), and so is all of Packages/.
+# Separately, check-commit-citations.swift requires HEAD's full Worker tree to match WORKER_FULL_TREE; after committing
+# a Worker README-only change, refresh that declared full-tree identity and its published provenance references.
 set -euo pipefail
 SOURCE=843a43444659dbd7f2de507b1e2da11453efb31b # informational measured-defaults commit, never a reachability gate
 WORKER_CODE_TREE=53bde5329b1828bb286071a4d871c0a3cd9a2908   # git tree of Worker/ with its README.md files removed
@@ -14,7 +16,7 @@ PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
 # 3 Oct chip-safety delta: macOS 26.2 tensor preflight; GPU architecture/name in gate keys and optional verdict metadata.
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
-# Reported, never gated: README content is outside the pin.
+# Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
 WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
 # Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 843a434
 # (BASE_WORKER_TREE, full tree including READMEs). The history scrub of 3 Oct rewrote that commit's Whisper README, so this
