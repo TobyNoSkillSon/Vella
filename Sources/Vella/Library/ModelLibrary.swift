@@ -309,10 +309,12 @@ import VellaCore
                 if let stale = self.staleDownloadReason(token: token, id: selected.id) {
                     origin = "after the transfer: " + stale; throw CancellationError()
                 }
+                // Compared as paths: a folder URL gains a trailing slash once the folder exists on disk, and only
+                // URLs Foundation handed out re-check the disk when standardized; a support directory built from a
+                // path (VELLA_SUPPORT_DIR) kept the slash difference and every fresh download ended "cancelled".
                 let expected = self.modelsDirectory.appendingPathComponent(selected.id)
-                guard folder.standardizedFileURL == expected.standardizedFileURL else {
-                    origin = "after the transfer: downloaded folder \(folder.absoluteString) is not \(expected.standardizedFileURL.absoluteString)"
-                    throw CancellationError()
+                guard Self.sameFolder(folder, expected) else {
+                    throw VellaError.message("the files landed in \(folder.path), not in \(expected.path)")
                 }
                 try NativeModelDownload.validate(folder, expected: selected)
                 // A stored conversion (Parakeet v3: the FP32 download becomes BF16 once, only BF16 is kept).
@@ -361,6 +363,8 @@ import VellaCore
         }
         return true
     }
+    /// Whether two folder URLs name the same folder, ignoring a trailing slash and `.`/`..` components.
+    nonisolated static func sameFolder(_ a: URL, _ b: URL) -> Bool { a.standardizedFileURL.path == b.standardizedFileURL.path }
     /// Why a finished transfer no longer belongs to the running download (nil = it does): it was cancelled or replaced.
     private func staleDownloadReason(token: UUID, id: String) -> String? {
         if downloadToken != token { return "cancelled or replaced (cancel requested by \(cancelSource ?? "unknown"))" }

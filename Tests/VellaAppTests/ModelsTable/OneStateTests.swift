@@ -310,6 +310,29 @@ final class OneStateTests: XCTestCase {
         XCTAssertNil(c.dictation.calibratingID, "no calibration run in front of the load")
     }
 
+    /// The table's Get button and a Load of a cell whose source is missing, with the support directory built from a
+    /// path string as `VELLA_SUPPORT_DIR` is: both install and load (they ended "download cancelled" before).
+    @MainActor func testTableGetAndMissingCellLoadInstallInAPathBuiltSupportDir() async throws {
+        for precision in ["BF16", "4b"] {
+            try? FileManager.default.removeItem(at: root)
+            root = URL(fileURLWithPath: "/tmp/vella-one-state-\(UUID())", isDirectory: true)
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let c = try alphaController(installed: false)
+            let spy = ActionSpy(); c.actions = spy
+            c.runtime = TableRuntime()
+            c.confirmDownload = { prompt, answer in answer(DownloadGate.ask(prompt) { _ in true }) }
+            if precision != "BF16" { c.preview(alpha, precision) }
+            XCTAssertEqual(c.action(alpha), .get)
+            c.perform(alpha)
+            XCTAssertEqual(c.dictation.downloadingID, "alpha-bf16")
+            try await waitUntil { !spy.calls.isEmpty || c.dictation.downloadError != nil }
+            XCTAssertNil(c.dictation.downloadError, precision)
+            XCTAssertNotNil(c.dictation.installed["alpha-bf16"], precision)
+            XCTAssertEqual(spy.calls.count, 1, precision)
+            XCTAssertTrue(spy.calls.first?.hasPrefix("load alpha \(precision) ") == true, spy.calls.description)
+        }
+    }
+
     /// A recording that starts while a confirmed download runs keeps its model: the download's load (and the new
     /// selection) waits until the dictation is idle.
     @MainActor func testConfirmedDownloadLoadsOnlyAfterARecordingThatStartedMeanwhile() async throws {

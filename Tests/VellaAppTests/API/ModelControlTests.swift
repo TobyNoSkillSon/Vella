@@ -113,9 +113,16 @@ private final class SlowControlHub: URLProtocol, @unchecked Sendable {
 }
 
 final class ModelControlTests: XCTestCase {
-    @MainActor func fixture() throws -> TwoFamilyFixture {
+    /// `pathBuilt`: the support directory is a URL built from a path string, as the app builds `VELLA_SUPPORT_DIR`
+    /// (`/tmp/…`, the isolated fixtures agents use), instead of one Foundation hands out (`temporaryDirectory`, home).
+    /// Foundation infers a trailing slash from the disk for both, but only re-checks the disk when standardizing the
+    /// latter, so a download's folder compared as a URL matched only there (the Luna-2/Luna-3 "download cancelled").
+    @MainActor func fixture(pathBuilt: Bool = false) throws -> TwoFamilyFixture {
         try Integration.require()
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-controls-\(UUID())")
+        let root =
+            pathBuilt
+            ? URL(fileURLWithPath: "/tmp/vella-controls-\(UUID())", isDirectory: true)
+            : FileManager.default.temporaryDirectory.appendingPathComponent("vella-controls-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return try TwoFamilyFixture(root)
     }
@@ -257,7 +264,17 @@ final class ModelControlTests: XCTestCase {
     }
 
     @MainActor func testSlowProgressingGetCompletesThroughCLIAndReportsByteProgress() async throws {
-        let f = try fixture()
+        try await slowCLIGet(pathBuilt: false)
+    }
+
+    /// Luna-3's run: `vella get … --yes` against a `VELLA_SUPPORT_DIR=/tmp/…` app, polling the catalog every second
+    /// while the bytes arrive, must install and load instead of ending "download cancelled; partial files removed".
+    @MainActor func testCLIGetIntoAPathBuiltSupportDirCompletesWhilePolling() async throws {
+        try await slowCLIGet(pathBuilt: true)
+    }
+
+    @MainActor private func slowCLIGet(pathBuilt: Bool) async throws {
+        let f = try fixture(pathBuilt: pathBuilt)
         defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
         let lib = f.controller.dictation
         lib.installed.removeValue(forKey: "alpha-bf16")
@@ -470,7 +487,11 @@ final class ModelControlTests: XCTestCase {
     }
 
     @MainActor func testConfirmedGetUsesPinnedDownloadThenTheSameLoadAction() async throws {
-        let f = try fixture()
+        for pathBuilt in [false, true] { try await confirmedGet(pathBuilt: pathBuilt) }
+    }
+
+    @MainActor private func confirmedGet(pathBuilt: Bool) async throws {
+        let f = try fixture(pathBuilt: pathBuilt)
         defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
         // Remove only this disposable fixture's registry record; the app has no installed copy to overwrite.
         f.controller.dictation.installed.removeValue(forKey: "alpha-bf16")
@@ -481,6 +502,7 @@ final class ModelControlTests: XCTestCase {
         let controls = ModelControls(controller: f.controller, runtime: f.runtime)
         _ = try await controls.perform("select", id: "alpha", fields: ["precision": "bf16", "path": "Standard"])
         _ = try await controls.perform("get", id: "alpha", fields: ["yes": true])
+        XCTAssertNil(f.controller.dictation.downloadError, "path-built support dir: \(pathBuilt)")
         XCTAssertTrue(f.controller.available(f.alpha, "BF16"))
         XCTAssertEqual(f.runtime.loadedRef("alpha")?.selection?.path, .standard)
         XCTAssertNil(f.controller.pendingLoads["alpha"])

@@ -93,6 +93,27 @@ final class DownloadTests: XCTestCase {
         XCTAssertEqual(library.installed[model.id]?.path, folder.path)
         XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("model.safetensors")), contents["model.safetensors"])
     }
+    /// A fresh download (no folder yet) installs whether the support directory came from Foundation or was built from a
+    /// path string (`VELLA_SUPPORT_DIR`). The folder URL gains a trailing slash once it exists on disk; comparing the
+    /// downloaded folder as a URL only matched when Foundation re-checked the disk, so the second root ended
+    /// "download cancelled; partial files removed" after every byte had arrived.
+    @MainActor func testFreshDownloadInstallsForFoundationAndPathBuiltSupportDirs() async throws {
+        let (base, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: base) }
+        configure(model, files: contents)
+        let pathBuilt = URL(fileURLWithPath: "/tmp/vella-native-download-\(UUID())", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: pathBuilt) }
+        for support in [base.appendingPathComponent("support"), pathBuilt] {
+            let library = ModelLibrary(resources: base, registryURL: support.appendingPathComponent("models-installed.json"))
+            library.downloadConfiguration = config; library.selectedID = model.id
+            XCTAssertFalse(FileManager.default.fileExists(atPath: library.modelsDirectory.appendingPathComponent(model.id).path))
+            var completions: [Bool] = []
+            XCTAssertTrue(library.download(approval: confirmed(model.id), calibrate: false) { completions.append($0) })
+            for _ in 0..<300 where completions.isEmpty { try await Task.sleep(nanoseconds: 20_000_000) }
+            XCTAssertEqual(completions, [true], "\(support.path): \(library.downloadError ?? "")")
+            XCTAssertNil(library.downloadError)
+            XCTAssertEqual(library.installed[model.id]?.path, library.modelsDirectory.appendingPathComponent(model.id).path)
+        }
+    }
     @MainActor func testBadHashAndRemoteCodeNeverRegister() async throws {
         for (badHash, code) in [(true, false), (false, true)] {
             let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
