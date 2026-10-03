@@ -215,11 +215,24 @@ public final class NativeInstaller {
             let recovery =
                 kept.map {
                     " Your previous version is kept at \($0.path). To go back, quit Vella and run:\n"
-                        + "app=\(Self.shellQuote(destination.path)); rm -rf -- \"$app\" && mv -- \(Self.shellQuote($0.path)) \"$app\""
+                        + Self.rollbackCommand(app: destination, backup: $0)
                 } ?? ""
             throw NativeInstallError.message(message + recovery)
         }
         return kept
+    }
+
+    /// A repeat paste is harmless. Refuse a running app (or an unverifiable process check),
+    /// and retain both bundles: no deletion and no overwriting an existing move target.
+    private static func rollbackCommand(app: URL, backup: URL) -> String {
+        "(app=\(shellQuote(app.path)); backup=\(shellQuote(backup.path)); "
+            + "[ -d \"$backup\" ] || { printf '%s\\n' 'Rollback not performed: previous app backup is missing; nothing changed.' >&2; exit 1; }; "
+            + "pgrep -x Vella >/dev/null 2>&1; case $? in 1) ;; 0) printf '%s\\n' 'Rollback not performed: Vella is running. Quit Vella and try again.' >&2; exit 1 ;; "
+            + "*) printf '%s\\n' 'Rollback not performed: could not check whether Vella is running; nothing changed.' >&2; exit 1 ;; esac; "
+            + "stamp=$(date +%Y%m%d-%H%M%S) || exit 1; failed=\"${app%.app}.failed.$stamp.$$.app\"; "
+            + "[ ! -e \"$failed\" ] && [ ! -L \"$failed\" ] && mv -n -- \"$app\" \"$failed\" && [ ! -e \"$app\" ] && [ ! -L \"$app\" ] "
+            + "&& mv -n -- \"$backup\" \"$app\" && [ ! -e \"$backup\" ] "
+            + "|| { printf '%s\\n' 'Rollback stopped: bundles were kept; check the app and backup paths before retrying.' >&2; exit 1; })"
     }
 
     /// POSIX shell single-quoting keeps spaces, quotes and metacharacters literal in recovery commands.

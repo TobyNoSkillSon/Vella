@@ -192,7 +192,7 @@ final class NativeInstallerTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: app.appendingPathComponent("old")), "old")
     }
     func testLaunchFailureReportsTheCommittedDestinationAndPreservedRollbackPath() throws {
-        let (installer, root, app, _) = try fixture(pathSuffix: " quote's space"); defer { try? FileManager.default.removeItem(at: root) }
+        let (installer, root, app, _) = try fixture(pathSuffix: " quote's \"space\" $literal; untouched"); defer { try? FileManager.default.removeItem(at: root) }
         try existingApp(app, marker: "old")
         installer.keepPrevious = true
         installer.launch = { _ in throw NativeInstallError.message("fixture launch failed") }
@@ -202,22 +202,89 @@ final class NativeInstallerTests: XCTestCase {
             let message = error.localizedDescription
             let body = "Vella 2.0 was installed but didn't start (fixture launch failed). Your previous version is kept at \(previous.path). To go back, quit Vella and run:"
             let quote: (String) -> String = { "'" + $0.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
-            let command = "app=\(quote(app.path)); rm -rf -- \"$app\" && mv -- \(quote(previous.path)) \"$app\""
+            let command =
+                "(app=\(quote(app.path)); backup=\(quote(previous.path)); "
+                + "[ -d \"$backup\" ] || { printf '%s\\n' 'Rollback not performed: previous app backup is missing; nothing changed.' >&2; exit 1; }; "
+                + "pgrep -x Vella >/dev/null 2>&1; case $? in 1) ;; 0) printf '%s\\n' 'Rollback not performed: Vella is running. Quit Vella and try again.' >&2; exit 1 ;; "
+                + "*) printf '%s\\n' 'Rollback not performed: could not check whether Vella is running; nothing changed.' >&2; exit 1 ;; esac; "
+                + "stamp=$(date +%Y%m%d-%H%M%S) || exit 1; failed=\"${app%.app}.failed.$stamp.$$.app\"; "
+                + "[ ! -e \"$failed\" ] && [ ! -L \"$failed\" ] && mv -n -- \"$app\" \"$failed\" && [ ! -e \"$app\" ] && [ ! -L \"$app\" ] "
+                + "&& mv -n -- \"$backup\" \"$app\" && [ ! -e \"$backup\" ] "
+                + "|| { printf '%s\\n' 'Rollback stopped: bundles were kept; check the app and backup paths before retrying.' >&2; exit 1; })"
             XCTAssertEqual(message, body + "\n" + command)
             XCTAssertFalse(message.contains("previous:"))
-            rollback = command
+            rollback = message.components(separatedBy: "\n").last
             if let directory = ProcessInfo.processInfo.environment["VELLA_RENDER_EXACT_TEXT_DIR"] {
                 try? (message + "\n").write(to: URL(fileURLWithPath: directory).appendingPathComponent("installer-launch-failure.txt"), atomically: true, encoding: .utf8)
             }
             XCTAssertEqual(try? Data(contentsOf: previous.appendingPathComponent("old")), Data("old".utf8))
             XCTAssertTrue(FileManager.default.fileExists(atPath: app.appendingPathComponent("Contents/MacOS/Vella").path))
         }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash"); process.arguments = ["-c", try XCTUnwrap(rollback)]
-        try process.run(); process.waitUntilExit()
-        XCTAssertEqual(process.terminationStatus, 0, "The printed command must restore the previous app, with quotes and spaces intact")
+        let command = try XCTUnwrap(rollback)
+        XCTAssertFalse(command.contains("\n"), "One raw copy-pasteable line")
+        let installed = try bundleSnapshot(app)
+        let first = try executeRollback(command)
+        XCTAssertEqual(first.status, 0, first.output)
         XCTAssertEqual(try Data(contentsOf: app.appendingPathComponent("old")), Data("old".utf8))
         XCTAssertFalse(FileManager.default.fileExists(atPath: try XCTUnwrap(installer.previousApp).path))
+        let failed = try FileManager.default.contentsOfDirectory(at: app.deletingLastPathComponent(), includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix("Vella.failed.") }
+        XCTAssertEqual(failed.count, 1)
+        let retained = try XCTUnwrap(failed.first)
+        XCTAssertNotNil(retained.lastPathComponent.range(of: #"^Vella\.failed\.\d{8}-\d{6}\.\d+\.app$"#, options: .regularExpression))
+        XCTAssertEqual(try bundleSnapshot(retained), installed, "Keep every byte of the failed 2.0 app beside the restored app")
+        let restored = try bundleSnapshot(app)
+        let second = try executeRollback(command)
+        XCTAssertEqual(second.status, 1)
+        XCTAssertEqual(second.output, "Rollback not performed: previous app backup is missing; nothing changed.\n")
+        XCTAssertEqual(try bundleSnapshot(app), restored, "A second paste must leave the restored app intact")
+        XCTAssertEqual(try bundleSnapshot(retained), installed)
+    }
+
+    /// Inject only the read-only process check. All printed moves run against disposable bundles;
+    /// no real Vella process is queried, launched, stopped or touched.
+    private func executeRollback(_ command: String, processStatus: Int = 1) throws -> (status: Int32, output: String) {
+        let process = Process(), output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", "pgrep() { [ \"$*\" = '-x Vella' ] || return 2; return \(processStatus); }; rm() { exit 99; }; " + command]
+        process.standardOutput = output; process.standardError = output
+        try process.run(); process.waitUntilExit()
+        return (process.terminationStatus, String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self))
+    }
+
+    private func bundleSnapshot(_ bundle: URL) throws -> [String: Data] {
+        var result: [String: Data] = [:]
+        let enumerator = try XCTUnwrap(FileManager.default.enumerator(atPath: bundle.path))
+        for case let relative as String in enumerator {
+            let path = bundle.appendingPathComponent(relative)
+            if try path.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true { result[relative] = try Data(contentsOf: path) }
+        }
+        return result
+    }
+
+    func testPrintedRollbackRefusesMissingBackupRunningAppAndProcessCheckFailureWithoutMovingAnything() throws {
+        for cause in ["missing", "running", "process-check"] {
+            let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            try existingApp(app, marker: "old"); installer.keepPrevious = true
+            installer.launch = { _ in throw NativeInstallError.message("fixture launch failed") }
+            var command: String?
+            XCTAssertThrowsError(try installer.install()) { error in command = error.localizedDescription.components(separatedBy: "\n").last }
+            let previous = try XCTUnwrap(installer.previousApp)
+            let old = try bundleSnapshot(previous), installed = try bundleSnapshot(app)
+            // Preserve the fixture backup elsewhere to model absence without deleting it.
+            if cause == "missing" { try FileManager.default.moveItem(at: previous, to: root.appendingPathComponent("preserved-backup")) }
+            let names = try FileManager.default.contentsOfDirectory(atPath: app.deletingLastPathComponent().path)
+            let result = try executeRollback(try XCTUnwrap(command), processStatus: cause == "running" ? 0 : (cause == "process-check" ? 2 : 1))
+            XCTAssertEqual(result.status, 1, cause)
+            let reason =
+                cause == "missing"
+                ? "previous app backup is missing; nothing changed."
+                : (cause == "running" ? "Vella is running. Quit Vella and try again." : "could not check whether Vella is running; nothing changed.")
+            XCTAssertEqual(result.output, "Rollback not performed: " + reason + "\n")
+            XCTAssertEqual(try bundleSnapshot(app), installed, cause)
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: app.deletingLastPathComponent().path), names, "No moves on refusal")
+            XCTAssertEqual(try bundleSnapshot(cause == "missing" ? root.appendingPathComponent("preserved-backup") : previous), old)
+        }
     }
 
     func testSigningMismatchAndMalformedConfigArePreserved() throws {

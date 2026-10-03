@@ -156,6 +156,16 @@ import ServiceManagement
         }
     }
 
+    func testRenderInstallerLaunchFailureOnly() throws {
+        guard let path = ProcessInfo.processInfo.environment["VELLA_RENDER_EXACT_TEXT_DIR"] else { throw XCTSkip("Installer launch failure render is opt-in") }
+        let directory = URL(fileURLWithPath: path)
+        _ = NSApplication.shared; NSApp.appearance = NSAppearance(named: .darkAqua)
+        let text = try String(contentsOf: directory.appendingPathComponent("installer-launch-failure.txt"), encoding: .utf8)
+        let done = expectation(description: "installer-launch-failure")
+        MenuMock.capture(CLIOutputView(text), to: directory.appendingPathComponent("installer-launch-failure.png")) { done.fulfill() }
+        wait(for: [done], timeout: 8)
+    }
+
     /// Opt-in offscreen renders of just R1–R7. Native controls are drawn, never clicked or driven.
     func testRenderAffectedStates() throws {
         guard let path = ProcessInfo.processInfo.environment["VELLA_RENDER_REVIEW_DIR"] else { throw XCTSkip("Offscreen review renders are opt-in") }
