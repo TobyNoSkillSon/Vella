@@ -128,24 +128,28 @@ final class ModelDocsTests: XCTestCase {
         XCTAssertTrue(source.contains("qtileRevision = \"qtile-1\"") && parakeet.contains("qtile-1"), "SmallMGEMM.qtileRevision")
     }
 
-    /// The Default column of each kept lever matches the code: the opt-in levers are off, the NAX kernel and the shared
-    /// keep-cache are on, and the dictation keep-cache is switched off only by `=0`.
+    /// The Default column names the checkpoint/recipe defaults; runtime wiring uses the same resolved policy.
+    /// The worker's Defaults suite independently exercises every cell and override.
     func testReadmeLeverDefaultsMatchTheCode() throws {
         func source(_ path: String) throws -> String { try text("Worker/Sources/MLXAudioSTT/\(path)") }
         let int8 = try source("Parakeet/FastParakeetInt8.swift")
-        XCTAssertTrue(int8.contains("static let enabledByDefault = false") && int8.contains("static let int4EnabledByDefault = false"))
+        XCTAssertTrue(int8.contains("levers.contains(\"VELLA_PARAKEET_INT8\")") && int8.contains("levers.contains(\"VELLA_PARAKEET_INT4\")"))
         let nax = try source("Parakeet/FastParakeetNAX.swift")
         XCTAssertTrue(nax.contains("static let enabledByDefault = true"))
-        let tail = try source("Parakeet/FastParakeetDecodeOptions.swift")
-        XCTAssertTrue(tail.contains("[\"VELLA_PARAKEET_TAILBLOCK\"] == \"1\""))
-        let nemotron = try source("NemotronASR/VellaNemotronOptions.swift")
-        XCTAssertTrue(nemotron.contains("keepCache: optIn(\"KEEPCACHE\")") && nemotron.contains("jointBatch: optIn(\"JOINTBATCH\") && !exactOnly"))
+        let tail = try source("Parakeet/FastParakeetTDT.swift")
+        XCTAssertTrue(tail.contains("model.keptLevers.contains(\"VELLA_PARAKEET_TAILBLOCK\")"))
+        let nemotron = try source("NemotronASR/VellaNemotronSession.swift")
+        XCTAssertTrue(nemotron.contains("model.keptLevers.contains(\"VELLA_NEMO_KEEPCACHE\")"))
+        XCTAssertTrue(nemotron.contains("model.keptLevers.contains(\"VELLA_NEMO_JOINTBATCH\")"))
+        let policy = try source("Gate/KeptLevers.swift")
+        XCTAssertTrue(policy.contains("if family == \"parakeet-v3-ultra\"") && policy.contains("recipe == .optimized_fast"))
+        XCTAssertTrue(policy.contains("if recipe == .optimized_exact") && policy.contains("recipe == .standard"))
         let service = try text("Worker/Sources/VellaWorker/DictationService.swift")
         XCTAssertTrue(service.contains("environment[\"VELLA_DICTATION_KEEP_CACHE\"] != \"0\""))
         let rows: [(folder: String, switchName: String, state: String)] = [
-            ("Parakeet", "VELLA_PARAKEET_INT8=1", "off"), ("Parakeet", "VELLA_PARAKEET_INT4=1", "off"),
-            ("Parakeet", "VELLA_PARAKEET_TAILBLOCK=1", "off"), ("Parakeet", "VELLA_DICTATION_KEEP_CACHE=0", "on"),
-            ("NemotronASR", "VELLA_NEMO_KEEPCACHE=1", "off"), ("NemotronASR", "VELLA_NEMO_JOINTBATCH=1", "off"),
+            ("Parakeet", "VELLA_PARAKEET_INT8=1", "Fast 8-bit, v3 and Ultra"), ("Parakeet", "VELLA_PARAKEET_INT4=1", "Fast 4-bit, v3 and Ultra"),
+            ("Parakeet", "VELLA_PARAKEET_TAILBLOCK=1", "Ultra BF16/8/4, Fast and Exact"), ("Parakeet", "VELLA_DICTATION_KEEP_CACHE=0", "on"),
+            ("NemotronASR", "VELLA_NEMO_KEEPCACHE=1", "BF16/8/4, Fast and Exact"), ("NemotronASR", "VELLA_NEMO_JOINTBATCH=1", "BF16 Fast only"),
             ("Whisper", "VELLA_DICTATION_KEEP_CACHE=0", "on")
         ]
         for row in rows {

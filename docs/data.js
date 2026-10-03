@@ -5288,7 +5288,8 @@ const VELLA_BENCHMARKS = {
       "env_map_sha256": "f6b6918a5ede08b3dffa45f4540bc9c9c488f566da8ef63fd7860e0aa8723242"
     },
     "shipped": {
-      "commit": "40a2eef",
+      "commit": "08203e24ebdf83004ca4d81daa03f678880898c2",
+      "worker_source_commit": "08203e24ebdf83004ca4d81daa03f678880898c2",
       "worker_sha256": null,
       "commit_kind": "worker-source",
       "build_receipt": "local shipped build receipt",
@@ -5308,7 +5309,8 @@ const VELLA_BENCHMARKS = {
         "engine": "optimized",
         "components": "decoder (+ fused_decode on 8b/4b); no encoder lever",
         "summary": "One gpulock run of the new 40a2eef build: large-v3 and turbo × FP16/8b/4b, each 122/122 clips token-identical to measured Fast transcripts."
-      }
+      },
+      "defaults": "defaults flipped to the measured lever sets (Toby, 3 Oct); default keys == measured verdict keys: 30/30; 0 mismatches outside Whisper (whisper-4 listed separately)"
     }
   }
 };
