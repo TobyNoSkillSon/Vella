@@ -10,6 +10,8 @@
 	<integer>470</integer>
 	<key>applicationsY</key>
 	<integer>154</integer>
+	<key>hideAppExtension</key>
+	<true/>
 	<key>iconSize</key>
 	<integer>96</integer>
 	<key>windowHeight</key>

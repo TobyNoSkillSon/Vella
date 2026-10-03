@@ -97,9 +97,12 @@ import ServiceManagement
     func testDMGIconLocationsMatchTheSealedContentLayout() throws {
         let root = ModelLibrary.resourceDirectory().appendingPathComponent("DMG")
         let layout = try XCTUnwrap(try PropertyListSerialization.propertyList(from: Data(contentsOf: root.appendingPathComponent("Layout.plist")), format: nil) as? [String: Any])
+        XCTAssertEqual(layout["hideAppExtension"] as? Bool, true)
         let store = try Data(contentsOf: root.appendingPathComponent("FinderLayout"))
         let positions = store.indices.filter { store[$0...].starts(with: Data("Ilocblob".utf8)) }
         XCTAssertEqual(positions.count, 2)
+        let hidden = Data("Vella.app".utf16.flatMap { [UInt8($0 >> 8), UInt8($0 & 255)] }) + Data("hiexbool".utf8) + Data([1])
+        XCTAssertNotNil(store.range(of: hidden), "Extension hiding belongs to DS_Store, not signature-invalidating app FinderInfo")
         for position in positions {
             let y = store[(position + 16)..<(position + 20)].reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
             XCTAssertEqual(Int(y), layout["appY"] as? Int)

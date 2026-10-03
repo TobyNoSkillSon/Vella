@@ -34,8 +34,6 @@ APP="$STAGE/unpacked/Vella.app"
 }
 codesign --verify --deep --strict "$APP"
 ditto --noqtn "$APP" "$STAGE/image/Vella.app"
-# Finder display metadata only, outside the app's signed contents. Preserve the actual Vella.app filename.
-xcrun SetFile -a E "$STAGE/image/Vella.app"
 codesign --verify --deep --strict "$STAGE/image/Vella.app"
 ln -s /Applications "$STAGE/image/Applications"
 cp "$PROJECT/Resources/DMG/FinderLayout" "$STAGE/image/.DS_Store"
