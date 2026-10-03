@@ -6,7 +6,10 @@ BASE_WORKER_TREE=528e719d0956b012f181cdf70cd3baa8f250275f
 WORKER_TREE=af976137fbcd3cb0346fb187aced20cd82f9cc86
 PACKAGES_TREE=093375e515b30db74a5803abfdd6c1c0d28e29e2
 # Exhaustive documentation-only delta from 08203e2; Worker/Package.swift excludes this README from its target.
-WORKER_DOC_CHANGES=Sources/MLXAudioSTT/Whisper/README.md
+WORKER_DOC_CHANGES="Sources/MLXAudioSTT/NemotronASR/README.md
+Sources/MLXAudioSTT/Parakeet/README.md
+Sources/MLXAudioSTT/Qwen3ASR/README.md
+Sources/MLXAudioSTT/Whisper/README.md"
 # The bridge also depends on the packaging/toolchain path, not only Worker/Packages.
 build_paths=(
   scripts/build.sh
@@ -29,7 +32,7 @@ verify_source_trees() {
   [[ "$changes" == "$WORKER_DOC_CHANGES" ]] || { echo 'Worker documentation delta differs from its exhaustive receipt' >&2; return 1; }
   while IFS= read -r path; do
     [[ "${path##*/}" == README.md ]] || { echo 'Worker code changed from measured defaults' >&2; return 1; }
-    git -C "$repo" show "$ref:Worker/Package.swift" | grep -Fq '"Whisper/README.md"' || return 1
+    git -C "$repo" show "$ref:Worker/Package.swift" | grep -Fq "\"${path#Sources/MLXAudioSTT/}\"" || return 1
   done <<<"$changes"
   actual="$(for path in "${build_paths[@]}"; do
     hash="$(git -C "$repo" show "$ref:$path" | shasum -a 256 | awk '{print $1}')" || return 1

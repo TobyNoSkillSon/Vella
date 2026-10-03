@@ -5406,10 +5406,13 @@
       },
       "build_scripts_sha256": "a4a1fbcbdec5ecc7ade7ea8bf0b241cc5fec78a1e368aa1b2d3b5f7c9db463b1",
       "worker_documentation_changes": [
+        "Worker/Sources/MLXAudioSTT/NemotronASR/README.md",
+        "Worker/Sources/MLXAudioSTT/Parakeet/README.md",
+        "Worker/Sources/MLXAudioSTT/Qwen3ASR/README.md",
         "Worker/Sources/MLXAudioSTT/Whisper/README.md"
       ],
       "build_receipt": "verified CI artifact receipt (filled at publish)",
-      "note": "Worker/Packages tree hashes and build-script bytes are authoritative. Relative to 08203e2, ALL changed Worker files are: Worker/Sources/MLXAudioSTT/Whisper/README.md (excluded by Worker/Package.swift); every other Worker file and all Packages bytes are identical. The commit is informational. Worker source is pinned; worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate. Bundled pre-fill data records source only."
+      "note": "Worker/Packages tree hashes and build-script bytes are authoritative. Relative to 08203e2, ALL changed Worker files are: Worker/Sources/MLXAudioSTT/NemotronASR/README.md, Worker/Sources/MLXAudioSTT/Parakeet/README.md, Worker/Sources/MLXAudioSTT/Qwen3ASR/README.md, Worker/Sources/MLXAudioSTT/Whisper/README.md (excluded by Worker/Package.swift); every other Worker file and all Packages bytes are identical. The commit is informational. Worker source is pinned; worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate. Bundled pre-fill data records source only."
     },
     "bridge": {
       "evidence": "scoped CPU source/key/verdict bridge receipt (3 Oct 2026)",
