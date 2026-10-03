@@ -64,7 +64,7 @@ final class InstallerTests: XCTestCase {
     func assertRolledBack(_ text: String, _ body: () throws -> Void, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertThrowsError(try body(), file: file, line: line) { error in
             XCTAssertTrue(error.localizedDescription.contains(text), error.localizedDescription, file: file, line: line)
-            XCTAssertTrue(error.localizedDescription.hasSuffix("Vella 1.0.0 was restored"), error.localizedDescription, file: file, line: line)
+            XCTAssertTrue(error.localizedDescription.hasSuffix("Vella 1.0.0 was restored."), error.localizedDescription, file: file, line: line)
         }
         XCTAssertEqual(installedVersion, "1.0.0", file: file, line: line); XCTAssertTrue(hasOldMarker, file: file, line: line)
         XCTAssertEqual(launched, ["1.0.1", "1.0.0"], "the new version, then the restored one", file: file, line: line)
