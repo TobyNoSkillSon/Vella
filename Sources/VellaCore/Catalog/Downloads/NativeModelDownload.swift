@@ -14,7 +14,29 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     }
     enum DownloadError: LocalizedError {
         case invalid(String)
-        var errorDescription: String? { if case .invalid(let message) = self { return message }; return nil }
+        /// The Hub answered a request with this HTTP status instead of the data (`refusal(status:)` words it).
+        case refused(Int)
+        var errorDescription: String? {
+            switch self {
+            case .invalid(let message): return message
+            case .refused(let status): return NativeModelDownload.refusal(status: status)
+            }
+        }
+    }
+    /// Whether retrying the same download can help: false when the Hub says the pinned file is gone or not allowed.
+    public static func isRetryable(_ error: Error) -> Bool {
+        guard case .refused(let status) = error as? DownloadError else { return true }
+        return ![401, 403, 404, 410].contains(status)
+    }
+    /// A Hub refusal in the footer's words: what happened and what to do.
+    static func refusal(status: Int) -> String {
+        switch status {
+        case 404, 410: return "the pinned model file is no longer available on Hugging Face (HTTP \(status)). Update Vella or report the problem"
+        case 401, 403: return "Hugging Face refused the download (HTTP \(status)). Update Vella or report the problem"
+        case 429: return "Hugging Face is limiting downloads right now (HTTP 429). Wait a few minutes"
+        case 500...599: return "Hugging Face had a server error (HTTP \(status)). Wait a few minutes"
+        default: return "Hugging Face answered with HTTP \(status) instead of the model file"
+        }
     }
     private let baseURL: URL
     private let configuration: URLSessionConfiguration
@@ -24,7 +46,8 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     private var task: URLSessionDataTask?
     private var session: URLSession?
     private var cancelled = false
-    /// Why the current transfer stopped writing (a full disk): reported instead of the cancellation it causes.
+    /// Why the current transfer stopped writing (a full disk) or was refused (an HTTP status other than 200/206):
+    /// reported instead of the cancellation it causes.
     private var writeFailure: Error?
     private var lastReport = Date.distantPast
     private let progress: (String, Int64?, Int64?) -> Void
@@ -76,6 +99,7 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         defer { metadataSession.invalidateAndCancel() }
         let (data, response) = try await metadataSession.data(for: request)
         try checkCancellation()
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 { throw DownloadError.refused(http.statusCode) }
         guard let http = response as? HTTPURLResponse, http.statusCode == 200,
             let document = try JSONSerialization.jsonObject(with: data) as? [String: Any],
             document["sha"] as? String == revision,
@@ -231,14 +255,21 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         _ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
     ) {
         lock.lock(); defer { lock.unlock() }
-        guard var state = transfer, let http = response as? HTTPURLResponse,
-            http.statusCode == 200 || http.statusCode == 206
-        else { completionHandler(.cancel); return }
+        guard var state = transfer else { completionHandler(.cancel); return }
+        // Every rejection records its reason: the cancellation it causes must not read as the person cancelling.
+        guard let http = response as? HTTPURLResponse else {
+            writeFailure = DownloadError.invalid("Hugging Face did not answer with an HTTP response"); completionHandler(.cancel); return
+        }
+        guard http.statusCode == 200 || http.statusCode == 206 else {
+            writeFailure = DownloadError.refused(http.statusCode); completionHandler(.cancel); return
+        }
         if http.statusCode == 206 {
-            guard state.offset > 0, http.value(forHTTPHeaderField: "Content-Range")?.hasPrefix("bytes \(state.offset)-") == true else { completionHandler(.cancel); return }
-            do { try state.handle.seekToEnd() } catch { completionHandler(.cancel); return }
+            guard state.offset > 0, http.value(forHTTPHeaderField: "Content-Range")?.hasPrefix("bytes \(state.offset)-") == true else {
+                writeFailure = DownloadError.invalid("Hugging Face answered the resumed download with the wrong byte range"); completionHandler(.cancel); return
+            }
+            do { try state.handle.seekToEnd() } catch { writeFailure = error; completionHandler(.cancel); return }
         } else {
-            do { try state.handle.truncate(atOffset: 0); try state.handle.seek(toOffset: 0) } catch { completionHandler(.cancel); return }
+            do { try state.handle.truncate(atOffset: 0); try state.handle.seek(toOffset: 0) } catch { writeFailure = error; completionHandler(.cancel); return }
             state.received = 0
         }
         state.responseAccepted = true; transfer = state; completionHandler(.allow)
@@ -266,8 +297,8 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         if cancelled {
             state.continuation.resume(throwing: CancellationError())
         } else if let failure {
-            // The write failed and cancelled the task: report the write, not "cancelled".
-            state.continuation.resume(throwing: Self.writeError(failure))
+            // The write failed or the response was refused, which cancelled the task: report that, not "cancelled".
+            state.continuation.resume(throwing: failure is DownloadError ? failure : Self.writeError(failure))
         } else if let error {
             state.continuation.resume(throwing: error)
         } else if !state.responseAccepted || state.received != state.expected {

@@ -66,6 +66,8 @@ import VellaUpdate
         var config: Configuration?
         var lastError: String?
         var downloadError: String?
+        /// The download failure can be fixed by another Get (the footer adds "Click Get to try again.").
+        var downloadRetryable = true
         var downloading: (id: String, progress: Double)?
         var benchmarks: BenchmarkFile?
         /// Switch flips after the previews (family id → position), as a click would make them.
@@ -192,6 +194,19 @@ import VellaUpdate
         var failed = State(name: "footer-download-failed")
         failed.downloadError = "Parakeet v3 Ultra download failed: it stalled (no data from Hugging Face for 2 minutes). Partial files removed."
         states.append(failed)
+        var rateLimited = State(name: "footer-download-rate-limited")
+        rateLimited.downloadError =
+            "Parakeet v3 Ultra BF16 download failed: Hugging Face is limiting downloads right now (HTTP 429). Wait a few minutes. Partial files removed."
+        states.append(rateLimited)
+        var gone = State(name: "footer-download-file-gone")
+        gone.downloadError =
+            "Parakeet v3 Ultra BF16 download failed: the pinned model file is no longer available on Hugging Face (HTTP 404). Update Vella or report the problem. Partial files removed."
+        gone.downloadRetryable = false
+        states.append(gone)
+        var conversion = State(name: "footer-conversion-failed")
+        conversion.downloadError =
+            "Could not convert Parakeet v3 to BF16: the downloaded weights are incomplete or damaged. Partial files removed; your recordings are kept."
+        states.append(conversion)
         var refusedLong = State(name: "footer-error-long")
         refusedLong.runtime.loaded = loaded.runtime.loaded
         refusedLong.runtime.refusal = TableRefusal(
@@ -216,7 +231,7 @@ import VellaUpdate
         controller.previewHover = state.hover
         controller.previewInUse = state.inUse
         controller.lastError = state.lastError
-        controller.dictation.downloadError = state.downloadError
+        if let error = state.downloadError { controller.dictation.reportDownloadFailure(error, retryable: state.downloadRetryable) }
         if let d = state.downloading, let library = [controller.dictation, controller.streaming].first(where: { $0.models.contains { $0.id == d.id } }) {
             library.downloadingID = d.id; library.busy = true; library.progress = d.progress
             let total = library.models.first { $0.id == d.id }?.downloadBytes ?? 0

@@ -248,6 +248,9 @@ final class ModelControlTests: XCTestCase {
             do { _ = try await job.value; XCTFail("Stalled Get must fail") } catch {
                 if !cancel {
                     XCTAssertTrue(lib.downloadError?.contains("stalled (no new bytes for 1.5 seconds)") == true, lib.downloadError ?? "")
+                    XCTAssertEqual(lib.downloadFooter, (lib.downloadError ?? "") + " Click Get to try again.", "a stall offers another Get")
+                } else {
+                    XCTAssertEqual(lib.downloadFooter, lib.downloadError, "a cancel is not a failure to retry")
                 }
             }
             try await waitUntil { StalledControlHub.transportStopped && !FileManager.default.fileExists(atPath: lib.modelsDirectory.appendingPathComponent("alpha-bf16").path) }
