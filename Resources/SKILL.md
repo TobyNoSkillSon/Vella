@@ -25,15 +25,17 @@ Get prints download byte progress on stderr while it waits; a progressing downlo
 
 `vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per catalog model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Commands start Vella if it is not running, except `vella diagnose`, `vella --help` and `vella --version`.
 
+`verbose_json.language` echoes the requested language code, or `unknown` when none is given; detected language is not reported in 2.0.
+
 ## Commands
 
 ```sh
 vella transcribe talk.m4a                      # the transcript as plain text
 vella transcribe talk.m4a --srt > talk.srt     # subtitles; --vtt, --json, --verbose-json (segments) also work
 vella transcribe talk.m4a --model parakeet-v3  # a specific model
-vella transcribe talk.m4a --language pl        # a language hint
+vella transcribe talk.m4a --language pl        # echoed in verbose JSON, not a detection result
 vella models                                   # parakeet-v3-ultra  Parakeet v3 Ultra · 16 · Optimized Fast · loaded · current dictation model   (one line per model on this Mac)
-vella status                                   # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra 16 loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:63080/v1
+vella status                                   # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra 16 · Optimized Fast loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:63080/v1
 vella url                                      # http://127.0.0.1:63080/v1
 vella diagnose                                 # a bug report for the user; its last line is a prefilled GitHub issue link
 ```

@@ -7,8 +7,7 @@ public enum TranscriptFormat: String, CaseIterable {
 }
 
 /// The fields of `POST /v1/audio/transcriptions` Vella uses. `temperature` is validated and ignored (decoding is
-/// greedy); `prompt` is accepted and ignored; verbose_json reports detected language if supplied by the worker,
-/// otherwise the requested `language`, or `unknown` when neither is known.
+/// greedy); `prompt` is accepted and ignored; verbose_json echoes the requested language, or `unknown` when omitted.
 public struct TranscriptionOptions: Equatable {
     /// Empty: the current dictation model.
     public var model: String

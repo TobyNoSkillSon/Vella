@@ -391,7 +391,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(tipped["Open Saved Recordings"], AppDelegate.privacyHelp)
         let survivors: Set<String> = [
             "Copy Skill for Your Agent", "Keep Hot → Manually loaded", "Keep Hot → Loaded on demand", "Keep Hot → Always",
-            "Memory → Fit in free memory", "Memory → Allow swap (slower)", "Open Saved Recordings"
+            "Memory → Fit in free memory", "Memory → Allow swap (slower)", "Open Saved Recordings", "Microphone → MacBook fallback when recording starts"
         ]
         // The header (first item) has one only while it reports an error or permission (menuHeaderToolTip, below).
         let header = delegate.menu.items[0]
@@ -406,6 +406,10 @@ final class ModelsTests: XCTestCase {
         }
         for sub in ["Mode", "Microphone", "Shortcuts"] {
             for item in delegate.menu.item(withTitle: sub)?.submenu?.items ?? [] where item.identifier != ShortcutMenuFactory.errorID {
+                if item.title == "MacBook fallback when recording starts" {
+                    XCTAssertEqual(item.toolTip, "Losing the microphone during recording stops capture, keeps the audio and offers Retry.")
+                    continue
+                }
                 XCTAssertNil(item.toolTip, "\(sub) → \(item.title)")
             }
         }

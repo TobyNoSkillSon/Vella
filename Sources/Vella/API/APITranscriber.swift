@@ -112,7 +112,6 @@ struct APITranscript {
     var segments: [TranscriptSegment]
     var duration: Double
     var model: APIModel
-    var language: String?
 }
 
 /// Runs API transcriptions on the dictation runtime without ever getting in dictation's way: one file at a time
@@ -197,7 +196,6 @@ struct APITranscript {
         do { try await retryingDictationStops { try await ready() } } catch is WorkerExited {
             do { try await retryingDictationStops { try await ready() } } catch is WorkerExited { throw APIError(500, Self.workerExited, code: "worker_exited") }
         }
-        var detectedLanguages = Set<String>()
         let runner = SessionTranscriber { [weak self] url, config in
             guard let self else { throw CancellationError() }
             return try await self.retryingDictationStops {
@@ -205,11 +203,7 @@ struct APITranscript {
                 while true {
                     try await ready()
                     var segment = config; segment.model = model.path
-                    do {
-                        let text = try await self.backend.transcribe(url, config: segment, lane: .api)
-                        if let language = self.backend.lastLanguage { detectedLanguages.insert(language) }
-                        return text
-                    } catch is Backend.ModelNotReady {
+                    do { return try await self.backend.transcribe(url, config: segment, lane: .api) } catch is Backend.ModelNotReady {
                         // Unloaded between the check and the call: load it again, outside the lane.
                         attempts += 1
                         if attempts >= 3 { throw APIError(500, "\(model.name) did not stay loaded; try again.", code: "model_load_failed") }
@@ -226,7 +220,7 @@ struct APITranscript {
         completed += 1
         let (text, segments) = APIAudio.segments(session)
         var used = model; used.loaded = true
-        return APITranscript(text: text, segments: segments, duration: duration, model: used, language: detectedLanguages.count == 1 ? detectedLanguages.first : nil)
+        return APITranscript(text: text, segments: segments, duration: duration, model: used)
     }
 
     /// Waits while a dictation is active, another request is in the worker, or a model is loading or being selected

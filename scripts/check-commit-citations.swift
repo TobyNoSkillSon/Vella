@@ -20,11 +20,19 @@ func citations(_ text: String) -> Set<String> {
     var result = Set<String>()
     for line in text.components(separatedBy: "\n") {
         // Remote model/dataset revisions are not commits in Vella's history.
-        if line.contains("\"revision\"") || line.contains("huggingface.co/datasets/") { continue }
+        if line.contains("\"revision\"") || line.contains("huggingface.co/datasets/") || line.hasPrefix("- package: ") { continue }
+        if line.hasPrefix("- source: https://github.com/") && !line.lowercased().contains("github.com/tobynoskillson/vella") { continue }
         for match in pattern.matches(in: line, range: NSRange(line.startIndex..., in: line)) {
             guard let range = Range(match.range, in: line) else { continue }
             let sha = String(line[range])
+            let prefix = String(line[..<range.lowerBound])
+            if !prefix.lowercased().contains("github.com/tobynoskillson/vella"),
+                prefix.range(of: #"github\.com/[^/ ]+/[^/ ]+/(blob|commit|tree)/$"#, options: .regularExpression) != nil
+            {
+                continue
+            }
             if trees.contains(sha) || sha.allSatisfy(\.isNumber) { continue }
+            if line[..<range.lowerBound].hasSuffix("@") { continue } // explicitly cited remote revision
             if line[..<range.lowerBound].hasSuffix("full-") { continue } // measurement tag, not a commit
             result.insert(sha)
         }
@@ -35,14 +43,17 @@ if CommandLine.arguments.contains("--selftest") {
     let head = git(["rev-parse", "HEAD"]).1.trimmingCharacters(in: .whitespacesAndNewlines)
     guard citations("commit `\(head.prefix(7))`; worker SHA-256 `\(String(repeating: "a", count: 64))`") == [String(head.prefix(7))],
         citations("commit `deadbee`") == ["deadbee"], git(["rev-parse", "--verify", "deadbee^{commit}"]).0 != 0,
-        citations(#""revision": "deadbee""#).isEmpty
+        citations(#""revision": "deadbee""#).isEmpty,
+        citations("- package: fixture revision (deadbee)").isEmpty,
+        citations("https://github.com/vendor/fixture/blob/deadbee/LICENSE").isEmpty,
+        citations("https://github.com/TobyNoSkillSon/Vella/commit/deadbee") == ["deadbee"]
     else { fputs("commit citation fixture failed\n", stderr); exit(1) }
     print("commit citations: short/full SHA extraction and non-commit exclusions tested")
     exit(0)
 }
 let files =
     ["README.md", "CHANGELOG.md", "Resources/benchmarks.json", "Resources/diagnose-reference.json", "Resources/SKILL.md", "docs/data.js", "scripts/worker-source-identity.sh"]
-    + git(["ls-files", "docs/*.md", ".github/*.md"]).1.split(separator: "\n").map(String.init)
+    + git(["ls-files", "*.md"]).1.split(separator: "\n").map(String.init).filter { !$0.hasPrefix("Worker/") && !$0.hasPrefix("Packages/") }
 var failures: [String] = []
 var checked = Set<String>()
 for file in files {

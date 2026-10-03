@@ -37,9 +37,7 @@ enum APIFakeWorker {
             if 'slow' in name: time.sleep(0.3)
             frames=(os.path.getsize(r['audio'])-44)//2
             note('end',name)
-            reply={'id':r['id'],'text':'%s heard %.2f s.'%(name,frames/16000.0),'metrics':{}}
-            if name=='language-pl': reply['language']='pl'
-            print(json.dumps(reply),flush=True)
+            print(json.dumps({'id':r['id'],'text':'%s heard %.2f s.'%(name,frames/16000.0),'metrics':{}}),flush=True)
         """#
 }
 
@@ -191,10 +189,10 @@ func writeTestWAV(_ url: URL, bursts: [Double] = [6, 7, 4], gap: Double = 0.8, r
 }
 
 final class APITests: XCTestCase {
-    @MainActor func testVerboseLanguageUsesDetectedThenRequestedThenUnknown() async throws {
-        let api = try await APIFixture(models: ["language-pl", "fake-a"])
+    @MainActor func testVerboseLanguageEchoesRequestedOrUnknown() async throws {
+        let api = try await APIFixture()
         defer { api.close() }
-        for (model, request, expected) in [("language-pl", "en", "pl"), ("fake-a", "en", "en"), ("fake-a", "", "unknown")] {
+        for (model, request, expected) in [("fake-a", "en", "en"), ("fake-a", "", "unknown")] {
             var fields = ["model": model, "response_format": "verbose_json"]
             if !request.isEmpty { fields["language"] = request }
             let (code, _, data) = try await api.post(fields: fields, file: audio)

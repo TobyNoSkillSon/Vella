@@ -124,7 +124,7 @@ final class APIClientTests: XCTestCase {
         api.runtime.resolver = { path, mode in
             ModelRef(id: "fake-a", precision: "8b", path: path, mode: mode, selection: selection)
         }
-        _ = try await api.backend.transcribe(audio, config: Configuration(model: api.models.list[0].path))
+        try await api.backend.preload(api.runtime.resolve(api.models.list[0].path, mode: .dictation), residency: .manual)
         let (code, status, _) = try await vella(api, ["status"])
         XCTAssertEqual(code, 0)
         XCTAssertTrue(status.contains("fake-a 8 · Standard (Optimized Fast asked) loaded"), status)

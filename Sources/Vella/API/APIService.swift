@@ -212,7 +212,7 @@ import VellaCore
             }, current: { [weak self] in (self?.models?.models() ?? []).first(where: \.current)?.id })
         let rendered = TranscriptFormatter.render(
             options.format, text: result.text, segments: result.segments,
-            duration: result.duration, language: result.language ?? options.language)
+            duration: result.duration, language: options.language)
         return APIResponse(status: 200, contentType: rendered.contentType, body: rendered.body)
     }
     private func model(for options: TranscriptionOptions) throws -> APIModel {
