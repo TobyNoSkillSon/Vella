@@ -327,7 +327,9 @@ final class CatalogTests: XCTestCase {
         ]
         for (id, bench) in file.models {
             let family = try XCTUnwrap(catalog.family(id))
-            XCTAssertEqual(ModelTier.allCases.filter { cellPresent(bench, tier: $0, segment: .standard) }, offered[id], id)
+            for recipe in Recipe.allCases {
+                XCTAssertEqual(ModelTier.allCases.filter { cellPresent(bench, tier: $0, segment: recipe) }, offered[id], "\(id) \(recipe)")
+            }
             XCTAssertEqual(family.tiersOffered, offered[id]?.map(\.rawValue), "\(id): models.json tiers_offered agrees with the presence")
             XCTAssertFalse(bench.precisions.keys.contains("FP32"), "\(id): fp32 is never a tier")
             for (tier, t) in bench.tiers {
@@ -346,7 +348,7 @@ final class CatalogTests: XCTestCase {
                 XCTAssertEqual(t.cells[.standard]?.recipe.gate_revision, "stock")
             }
         }
-        // Whisper's Fast is exact in the shipped recipe, but its separate Exact measurement was withdrawn.
+        // The faithful Whisper refresh measures the shared Exact/Fast recipe together.
         for id in ["qwen3-asr-1.7b", "qwen3-asr-0.6b", "whisper-large-v3", "whisper-large-v3-turbo"] {
             XCTAssertFalse(fastDiffersFromExact(file.models[id]), id)
         }
@@ -576,7 +578,7 @@ final class CatalogTests: XCTestCase {
             docs[0].contains("Choosing a cell previews its figures") && docs[1].contains("Every other cell is clickable and shows its own figures"),
             "both rows clickable")
         XCTAssertTrue(docs[1].contains("`Exact: bf16 only, was int8`") && docs[0].contains("Fast and Exact select the Optimized recipe"), "Exact coupling documented")
-        XCTAssertTrue(docs[1].contains("`figures_pending`") && docs[0].contains("Standard and Exact for Whisper are not measured yet"), "pending figures documented")
+        XCTAssertTrue(docs[1].contains("`figures_pending`") && docs[0].contains("Whisper Standard runs faithful fp16"), "pending schema and faithful Whisper documented")
         for stale in ["字", "Chinese, Japanese and Korean)", "Europe globe", "| Memory | Loaded", "Two rows of segments `16 8 4`"] {
             XCTAssertFalse(all.contains(stale), "retired table v2 wording: \(stale)")
         }

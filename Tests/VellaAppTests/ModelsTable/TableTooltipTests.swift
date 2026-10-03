@@ -55,7 +55,8 @@ final class TableTooltipTests: XCTestCase {
     private static let deltaPattern =
         #"^(vs Standard (bf16|fp16): Speed: (same|[0-9.]+% (faster|slower)|[0-9.]+× faster)( · Energy: (same|[0-9.]+% (less|more)))?( · WER (−|\+)[0-9.]+ pt| · same WER)? · M5 Max, \d+ (Sep|Oct)|Reference for the deltas · M5 Max, \d+ (Sep|Oct)|No Standard (bf16|fp16) measurement to compare with yet · M5 Max, \d+ (Sep|Oct)|Not measured yet(: [^\n]+)?)$"#
     /// A greyed cell's one line: why it cannot be chosen.
-    private static let greyedPattern = #"^(Not measured yet(: [^\n]+)?|Not offered: [^\n]+|Not offered for this model|No Exact recipe at int[48]; Fast offers it)$"#
+    private static let greyedPattern =
+        #"^(Not measured yet(: [^\n]+)?|Not offered: [^\n]+|Not offered for this model|No Exact recipe at (bf16|fp16|int[48]); Fast offers it|No Optimized path for this model)$"#
 
     /// Checks every cell of one row's tooltips against the format, and that each cell has one.
     @MainActor private func checkRow(_ table: ModelTable, _ family: ModelFamily, loaded: LoadedFamily?, state: String) {
@@ -141,7 +142,8 @@ final class TableTooltipTests: XCTestCase {
             ["Path \(row.title)"] + ModelTier.allCases.map { "Precision \(row.title) \(tierDTypeLabel(family, $0))" }
         }
         let expected =
-            ["Model"] + (loaded?.engine != nil && table.controller.couplingNote(family) == nil ? ["Engine"] : []) + precisionColumns + ["Exact/Fast"]
+            ["Model"] + (loaded?.engine != nil && table.controller.couplingNote(family) == nil ? ["Engine"] : []) + precisionColumns
+            + (table.controller.hasOptimizedPath(family) ? ["Exact/Fast"] : [])
             + ["WER", "Format", "Speed", "J / min", "Peak RAM", "Action"]
         XCTAssertEqual(columns, expected, "\(family.id) \(state)")
     }
@@ -149,6 +151,12 @@ final class TableTooltipTests: XCTestCase {
     @MainActor func testLoadedWithdrawnWhisperFigureTooltipsRetainTheirReason() throws {
         let c = try shippedController()
         let family = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
+        // A synthetic withdrawal still explains its reason; the corrected bundled Standard cell is measured.
+        var benchmark = try XCTUnwrap(c.benchmarks.models[family.id])
+        benchmark.tiers[.t16]?.cells[.standard]?.measured = nil
+        benchmark.tiers[.t16]?.cells[.standard]?.result = PrecisionResult()
+        benchmark.tiers[.t16]?.cells[.standard]?.notMeasuredReason = "fixture: Standard measurement withdrawn"
+        c.benchmarks.models[family.id] = benchmark
         let standard = ModelSelection(tier: .t16, path: .standard, mode: .fast)
         c.runtime = TableRuntime(loaded: [family.id: LoadedFamily(precision: "FP16", engine: "mlx", selection: standard)], chip: "M5 Max")
         let table = ModelTable(controller: c)
@@ -339,10 +347,9 @@ final class TableTooltipTests: XCTestCase {
             "Not downloaded\nAsks, then downloads the BF16 (bfloat16) weights (\(formatBytes(ultra.variants["BF16"]!.downloadBytes))) it is made from; then loads it for dictation. The quantized weights are made in memory each time this precision loads."
         )
         let nemotron = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
-        XCTAssertEqual(
-            speedHelp(nemotron.mode, c.result(nemotron, "8b"), suites: c.benchmarks.suites),
-            "Streaming replay speed in × real time on the v2 quick benchmark (22.5 min), not microphone-to-text latency: higher is faster\n" + by
-                + "\nStandard on M5 Max: 15.1× · 112 J · 1.19 GB (measured 2026-10-01)")
+        XCTAssertNotNil(c.result(nemotron, "8b"), "corrected int8 cells supply measured shipping figures despite recommendation failure")
+        XCTAssertTrue(speedHelp(nemotron.mode, c.result(nemotron, "8b"), suites: c.benchmarks.suites).hasPrefix("Streaming replay speed"))
+        XCTAssertTrue(speedHelp(nemotron.mode, c.result(nemotron, "BF16"), suites: c.benchmarks.suites).hasPrefix("Streaming replay speed"))
     }
 
     /// Cloud rows: estimated, from which board and when; nothing to download; nothing runs on this Mac.

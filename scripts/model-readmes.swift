@@ -263,7 +263,10 @@ func renderFamily(_ family: JSON, _ bench: JSON, keys: [MeasureKey] = []) -> [St
             }
             let entry = (((bench["models"] as? JSON)?[id] as? JSON)?["tiers"] as? JSON)?[tier] as? JSON
             let pending = ((entry?[path] as? JSON)?["not_measured_reason"] as? String) != nil
-            lines.append("| \(tier) (\(dtypeLabel(family, tier))) | \(title)\(mark)\(pending ? " — Not measured yet" : "") | " + row.joined(separator: " | ") + " |")
+            let gate = (entry?[path] as? JSON)?["gate"] as? JSON
+            let refused = (gate?["presence"] as? JSON)?["offered"] as? Bool == false
+            let status = refused ? " — \(gate?["status"] as? String == "not_gated" ? "Not gated (no same-layout baseline)" : "Not offered")" : ""
+            lines.append("| \(tier) (\(dtypeLabel(family, tier))) | \(title)\(mark)\(pending ? " — Not measured yet" : "")\(status) | " + row.joined(separator: " | ") + " |")
         }
     }
     return lines

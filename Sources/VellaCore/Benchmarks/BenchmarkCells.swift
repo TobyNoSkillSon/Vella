@@ -20,7 +20,10 @@ public struct TierPresence: Codable, Equatable {
     }
 }
 
-public enum GateStatus: String, Codable, Equatable { case pass, fail, borderline }
+public enum GateStatus: String, Codable, Equatable {
+    case pass, fail, borderline
+    case notGated = "not_gated"
+}
 
 /// The recommendation gate's verdict for a tier (vs 16) or a cell. `loss`: the failed checks as bare losses vs 16
 /// (`multilingual mean +0.55 pt`), stated in an offered-but-worse tier's tooltip.
@@ -28,12 +31,16 @@ public struct SegmentGate: Codable, Equatable {
     public var status: GateStatus
     public var reasons: [String]
     public var loss: [String]
-    public init(status: GateStatus, reasons: [String] = [], loss: [String] = []) { self.status = status; self.reasons = reasons; self.loss = loss }
+    public var presence: TierPresence?
+    public init(status: GateStatus, reasons: [String] = [], loss: [String] = [], presence: TierPresence? = nil) {
+        self.status = status; self.reasons = reasons; self.loss = loss; self.presence = presence
+    }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         status = (try? c.decode(GateStatus.self, forKey: .status)) ?? .fail
         reasons = (try? c.decodeIfPresent([String].self, forKey: .reasons)) ?? []
         loss = (try? c.decodeIfPresent([String].self, forKey: .loss)) ?? []
+        presence = try? c.decodeIfPresent(TierPresence.self, forKey: .presence)
     }
 }
 
@@ -99,21 +106,22 @@ public struct TierBenchmark: Equatable {
     public func cell(_ key: Recipe) -> BenchmarkCell? { cells[key] }
 }
 
-/// THE presence rule of the Models table (one function, data-driven; ROUND file, family-wide): a cell shows when its
-/// tier's `presence.offered` is true and the file has that cell (its recipe exists). A tier that breaks against 16 is
-/// absent on both rows; absent cells are omitted, never greyed. A family the file does not describe at all (no tiers:
-/// an unmeasured build) shows every cell as pending.
+/// THE presence rule: a cell's gate owns its presence. Only a cell with no gate inherits tier presence.
+/// An existing gate without a readable presence verdict fails closed. An unmeasured family shows pending cells.
 public func cellPresent(_ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe) -> Bool {
     guard let benchmark, !benchmark.tiers.isEmpty else { return true }
-    guard let t = benchmark.tiers[tier], t.presence.offered else { return false }
-    return t.cells[segment] != nil
+    guard let t = benchmark.tiers[tier], let cell = t.cells[segment] else { return false }
+    if let gate = cell.gate { return gate.presence?.offered ?? false }
+    return t.presence.offered
 }
 
 /// Fast differs from Exact for this family: some offered tier's Fast recipe runs an inexact component. False greys the
 /// Exact/Fast switch ("Fast measures the same as Exact").
 public func fastDiffersFromExact(_ benchmark: FamilyBenchmark?) -> Bool {
     guard let benchmark else { return false }
-    return benchmark.tiers.values.contains { $0.presence.offered && !($0.cells[.optimized_fast]?.recipe.inexact.isEmpty ?? true) }
+    return benchmark.tiers.contains { tier, value in
+        cellPresent(benchmark, tier: tier, segment: .optimized_fast) && !(value.cells[.optimized_fast]?.recipe.inexact.isEmpty ?? true)
+    }
 }
 
 /// The cell a selection shows: its segment's cell; Fast without an inexact component is the Exact cell (the same recipe).
@@ -160,8 +168,11 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
 /// `stock` and the tier gate as `gate`.
 func legacyPrecisions(_ tiers: [ModelTier: TierBenchmark]) -> [String: PrecisionResult] {
     var out: [String: PrecisionResult] = [:]
-    for tier in tiers.values where tier.presence.offered {
-        let shipping = [Recipe.optimized_fast, .optimized_exact, .standard].compactMap { tier.cells[tier.displayCells[$0] ?? $0] }.first { !$0.isPending }
+    for (key, tier) in tiers {
+        let family = FamilyBenchmark(precisions: [:], tiers: tiers)
+        let shipping = [Recipe.optimized_fast, .optimized_exact, .standard]
+            .filter { cellPresent(family, tier: key, segment: $0) }
+            .compactMap { tier.cells[tier.displayCells[$0] ?? $0] }.first { !$0.isPending }
         guard var r = shipping?.result else { continue }
         r.gate = GateResult(pass: tier.gate.status == .pass, reasons: tier.gate.reasons)
         if let s = tier.cells[.standard], !s.isPending {

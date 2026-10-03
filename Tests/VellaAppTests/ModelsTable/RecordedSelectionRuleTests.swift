@@ -46,13 +46,14 @@ import XCTest
         controller.reloadConfig()
     }
 
-    func testShippedWhisperStandardAndExactAreGreyedButLoadedStandardStaysSelectable() throws {
+    func testCorrectedWhisperStandardAndExactAreAvailableAndLoadedStandardStaysSelected() throws {
         for id in ["whisper-large-v3", "whisper-large-v3-turbo"] {
             let whisper = try family(id)
             let standard = ModelSelection(tier: .t16, path: .standard, mode: .fast)
-            XCTAssertFalse(controller.measured(whisper, standard))
-            XCTAssertFalse(controller.exactAvailable(whisper))
-            XCTAssertTrue(controller.rules(whisper).cellRefusal(standard, loaded: controller.loadedSelection(whisper))?.hasPrefix("Not measured yet: Standard") == true)
+            XCTAssertTrue(controller.measured(whisper, standard))
+            XCTAssertTrue(controller.exactAvailable(whisper))
+            XCTAssertTrue(controller.rules(whisper).isPresent(standard))
+            XCTAssertNil(controller.rules(whisper).cellRefusal(standard, loaded: controller.loadedSelection(whisper)))
             let path = try install(try XCTUnwrap(whisper.variants["FP16"]?.id))
             let loaded = bridge.ref(whisper, "FP16", path: path, selection: standard)
             runtime.register(loaded, residency: .manual) {}

@@ -215,8 +215,8 @@ final class DiagnoseFormatTests: XCTestCase {
         XCTAssertNotNil(bundled.run(model: "parakeet-v3-ultra", precision: "BF16", engine: "optimized", selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast)))
         for model in ["whisper-large-v3", "whisper-large-v3-turbo"] {
             for precision in ["FP16", "8b"] {
-                XCTAssertNil(bundled.run(model: model, precision: precision, engine: "mlx"))
-                XCTAssertNil(bundled.run(model: model, precision: precision, engine: "optimized", selection: ModelSelection(tier: .t16, path: .optimized, mode: .exact)))
+                XCTAssertNotNil(bundled.run(model: model, precision: precision, engine: "mlx"))
+                XCTAssertNotNil(bundled.run(model: model, precision: precision, engine: "optimized", selection: ModelSelection(tier: .t16, path: .optimized, mode: .exact)))
             }
         }
         XCTAssertNil(DiagnoseReference.decode(Data(#"{"schema": 1, "models": {}}"#.utf8)))

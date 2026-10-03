@@ -170,6 +170,45 @@ struct ModelDeletionPlan {
         var cleared: [String] = []
         var notices: [String] = []
         var changed = false
+        for (id, saved) in edited.selections.sorted(by: { $0.key < $1.key }) {
+            guard let family = catalog.family(id), !rules(family).isPresent(saved) else { continue }
+            let replacement = rules(family).valid(saved)
+            guard replacement != saved, rules(family).isPresent(replacement), rules(family).measured(replacement) else { continue }
+            let mode = family.mode
+            let selectedPath = mode == .dictation ? edited.model : edited.streamingModel
+            var missingReplacement = false
+            let selected = identify(path: selectedPath, mode: mode)
+            let derived = selectedPath.isEmpty ? nil : derivedModelManifest(at: URL(fileURLWithPath: selectedPath))
+            let selectedPrecision = selected?.family.id == id ? selected?.precision : derived?.family == id ? derived?.precision : nil
+            if let selectedPrecision, modelTier(ofPrecision: selectedPrecision) != replacement.tier,
+                let precision = rules(family).precision(of: replacement)
+            {
+                let lib = library(mode)
+                do {
+                    if let path = try precisionLoadPath(family, precision, installedPath: { lib.installed[$0]?.path }, modelsDirectory: lib.modelsDirectory) {
+                        edited.selectModel(path, for: mode)
+                    } else {
+                        edited.selectModel("", for: mode)
+                        cleared.append(selectedPath)
+                        missingReplacement = true
+                    }
+                } catch {
+                    lastError =
+                        "Could not prepare the offered replacement for \(family.name): \(error.localizedDescription) The current selection is unchanged. Try Load again in Models…."
+                    continue
+                }
+            }
+            edited.selections[id] = replacement
+            changed = true
+            let path = replacement.path == .standard ? "Standard" : "Optimized \(replacement.mode == .fast ? "Fast" : "Exact")"
+            let notice =
+                missingReplacement
+                ? "\(mode.title)'s earlier cell is no longer offered. Its files are kept. Get or Load \(family.name) at \(tierDTypeLabel(family, replacement.tier)) · \(path) in Models…."
+                : "\(mode.title) now uses \(family.name) at \(tierDTypeLabel(family, replacement.tier)) · \(path) because the earlier cell is no longer offered. Model files are kept."
+            if missingReplacement { edited.clearedSelectionReasons[mode.rawValue] = notice }
+            notices.append(notice)
+            lastError = notice
+        }
         for mode in RecognitionMode.allCases {
             let path = mode == .dictation ? edited.model : edited.streamingModel
             guard !path.isEmpty, identify(path: path, mode: mode) == nil else { continue }
@@ -178,12 +217,13 @@ struct ModelDeletionPlan {
                 let found = catalog.locate(variant: id), found.family.mode == mode,
                 found.family.variants[found.precision]?.isDerived == true
             {
-                let precision = options(found.family).contains(found.precision) ? found.precision : (precisionLabel(found.family, tier: .t16) ?? found.family.native)
+                var previous = edited.selections[found.family.id] ?? ModelSelection(tier: .t16, path: .optimized, mode: .fast)
+                previous.tier = modelTier(ofPrecision: found.precision) ?? .t16
+                let selection = rules(found.family).valid(previous)
+                let precision = rules(found.family).precision(of: selection) ?? (precisionLabel(found.family, tier: .t16) ?? found.family.native)
                 do {
                     if let derived = try precisionLoadPath(found.family, precision, installedPath: { lib.installed[$0]?.path }, modelsDirectory: lib.modelsDirectory) {
                         edited.selectModel(derived, for: mode)
-                        var selection = edited.selections[found.family.id] ?? ModelSelection(tier: .t16, path: .optimized, mode: .fast)
-                        selection.tier = modelTier(ofPrecision: precision) ?? .t16
                         edited.selections[found.family.id] = selection
                         changed = true
                         let notice =

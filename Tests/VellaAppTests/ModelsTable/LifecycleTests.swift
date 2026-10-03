@@ -16,11 +16,13 @@ import VellaCore
         XCTAssertEqual(controller.shownResult(family)?.speed_x ?? 0, 257.7, accuracy: 0.2)
         XCTAssertFalse(controller.showsDeltas(family))
         XCTAssertTrue(modelHelp(family, loaded: controller.loaded(family)).contains("Reload Optimized Fast"))
-        // Unmeasured Whisper Standard never borrows Fast figures.
+        // Corrected Whisper Standard uses its own faithful measurement, never Fast figures.
         state.runtime.loaded = ["whisper-large-v3": LoadedFamily(precision: "FP16", engine: "mlx", selection: requested)]
         let whisperController = TableRenderDelegate.controller(state)
         let whisper = try XCTUnwrap(whisperController.catalog.family("whisper-large-v3"))
-        XCTAssertNil(whisperController.shownResult(whisper)?.speed_x)
+        let standard = ModelSelection(tier: .t16, path: .standard, mode: .fast)
+        XCTAssertNotNil(whisperController.shownResult(whisper)?.speed_x)
+        XCTAssertEqual(whisperController.shownResult(whisper)?.speed_x, benchmarkCell(whisperController.benchmark(whisper), standard)?.result.speed_x)
     }
     func testFreshControllerHasReachableRecoveryAndDatedSessionChoices() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-recovery-choice-\(UUID())")

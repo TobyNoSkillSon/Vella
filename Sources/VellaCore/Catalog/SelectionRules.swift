@@ -15,6 +15,11 @@ public struct SelectionRules {
     public func cellRefusal(_ s: ModelSelection, loaded: ModelSelection? = nil) -> String? {
         if s.path == .optimized, !hasOptimizedPath { return noOptimizedPathHelp }
         if !isPresent(s) {
+            if let presence = benchmark?.tiers[s.tier]?.cells[s.segmentKey]?.gate?.presence,
+                !presence.offered, let reason = presence.reasons.first, !reason.isEmpty
+            {
+                return "Not offered: " + reason
+            }
             if s.path == .optimized, s.mode == .exact, precisions(.fast).contains(s.tier) {
                 return exactRecipeMissingHelp(tierDTypeLabel(family, s.tier))
             }
@@ -52,7 +57,13 @@ public struct SelectionRules {
         offeredTiers.contains { tier in [Recipe.optimized_exact, .optimized_fast].contains { cellPresent(benchmark, tier: tier, segment: $0) } }
     }
     public func isPresent(_ s: ModelSelection) -> Bool {
-        s.path == .standard || !hasOptimizedPath ? tiers(.standard).contains(s.tier) : precisions(s.mode).contains(s.tier)
+        if benchmark?.tiers[s.tier]?.cells[s.segmentKey]?.gate != nil,
+            !cellPresent(benchmark, tier: s.tier, segment: s.segmentKey)
+        {
+            return false
+        }
+        if s.path == .standard { return tiers(.standard).contains(s.tier) }
+        return hasOptimizedPath && precisions(s.mode).contains(s.tier)
     }
     /// The Exact/Fast switch is live: some offered tier's Fast recipe runs an inexact component. Unmeasured families
     /// (no tiers in the file) keep it live.
@@ -89,7 +100,11 @@ public struct SelectionRules {
             let cell = valid(probe)
             if cell.tier == tier, let label = self.precision(of: cell), available(label) { return cell }
         }
-        if let precision, available(precision), modelTier(ofPrecision: precision) == candidate.tier { return candidate }
+        if let precision, available(precision), modelTier(ofPrecision: precision) == candidate.tier,
+            isPresent(candidate), measured(candidate)
+        {
+            return candidate
+        }
         return chosen
     }
     /// The catalog precision label that runs a selection (nil when its tier has no offered variant).

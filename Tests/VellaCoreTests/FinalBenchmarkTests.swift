@@ -159,21 +159,21 @@ final class FinalBenchmarkTests: XCTestCase {
         check(raw)
     }
 
-    func testWhisperTierAndWithdrawnCellProvenance() throws {
+    func testWhisperTierAndFaithfulCellProvenance() throws {
         let data = try Data(contentsOf: Repository.root.appendingPathComponent("Resources/benchmarks.json"))
         let raw = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let models = try XCTUnwrap(raw["models"] as? [String: [String: Any]])
         for id in ["whisper-large-v3", "whisper-large-v3-turbo"] {
             let tiers = try XCTUnwrap(models[id]?["tiers"] as? [String: [String: Any]])
             for tier in tiers.values {
-                XCTAssertEqual((tier["gate"] as? [String: Any])?["baseline"] as? String, "tier16 Optimized Fast (measured)")
-                XCTAssertEqual((tier["presence"] as? [String: Any])?["baseline"] as? String, "tier16 Optimized Fast (measured)")
-                for path in ["standard", "optimized_exact"] {
+                XCTAssertEqual((tier["gate"] as? [String: Any])?["baseline"] as? String, "tier16 Standard fp16 on same faithful build")
+                XCTAssertEqual((tier["presence"] as? [String: Any])?["baseline"] as? String, "tier16 Standard fp16 on same faithful build")
+                for path in ["standard", "optimized_exact", "optimized_fast"] {
                     let cell = try XCTUnwrap(tier[path] as? [String: Any])
-                    XCTAssertEqual((cell["gate"] as? [String: Any])?["status"] as? String, "withdrawn")
-                    for (key, value) in cell where !["recipe", "gate", "build_provenance", "not_measured_reason"].contains(key) {
-                        XCTAssertTrue(value is NSNull, "withdrawn figure \(key) retained: \(value)")
-                    }
+                    let gate = try XCTUnwrap(cell["gate"] as? [String: Any])
+                    XCTAssertEqual(gate["baseline"] as? String, "tier16 Standard fp16 on same faithful build")
+                    XCTAssertNotNil(cell["measured"] as? [String: Any])
+                    XCTAssertNotNil(gate["presence"] as? [String: Any])
                 }
             }
         }
@@ -192,30 +192,30 @@ final class FinalBenchmarkTests: XCTestCase {
             XCTAssertFalse(rules.switchAvailable, "Whisper Fast and Exact run the same exact recipe")
             for tier in ModelTier.allCases {
                 let entry = try XCTUnwrap(benchmark.tiers[tier])
-                for recipe in [Recipe.standard, .optimized_exact] {
+                for recipe in Recipe.allCases {
                     let cell = try XCTUnwrap(entry.cells[recipe])
-                    XCTAssertTrue(cell.isPending)
-                    XCTAssertNotNil(cell.notMeasuredReason)
-                    XCTAssertNil(cell.result.wer); XCTAssertNil(cell.result.format); XCTAssertNil(cell.result.multilingual)
-                    XCTAssertNil(cell.result.speed_x); XCTAssertNil(cell.result.j_per_min); XCTAssertNil(cell.result.memory_mb)
-                    XCTAssertNil(cell.result.disk_mb); XCTAssertNil(cell.result.latency_ms)
-                    XCTAssertTrue(tierDeltaLine(cell, base: nil, isBase: false).hasPrefix("Not measured yet: "))
+                    XCTAssertFalse(cell.isPending)
+                    XCTAssertNil(cell.notMeasuredReason)
+                    XCTAssertNotNil(cell.result.wer); XCTAssertNotNil(cell.result.format); XCTAssertNotNil(cell.result.multilingual)
+                    XCTAssertNotNil(cell.result.speed_x); XCTAssertNotNil(cell.result.j_per_min); XCTAssertNotNil(cell.result.memory_mb)
                 }
                 let fast = ModelSelection(tier: tier, path: .optimized, mode: .fast)
-                XCTAssertTrue(rules.measured(fast), "Fast must not resolve to the withdrawn Exact measurement")
+                XCTAssertTrue(rules.measured(fast), "Fast resolves to the faithful canonical Exact measurement")
                 let fastCell = try XCTUnwrap(benchmarkCell(benchmark, fast))
                 XCTAssertEqual(fastCell.recipe.gate_revision, "whisper-4")
                 XCTAssertFalse(fastCell.recipe.kernels.contains("encoder")); XCTAssertTrue(fastCell.recipe.inexact.isEmpty)
                 if entry.presence.offered {
                     let standard = ModelSelection(tier: tier, path: .standard, mode: .fast)
                     let exact = ModelSelection(tier: tier, path: .optimized, mode: .exact)
-                    XCTAssertTrue(rules.cellRefusal(standard)?.hasPrefix("Not measured yet: Standard") == true)
-                    XCTAssertTrue(rules.cellRefusal(exact)?.hasPrefix("Not measured yet: Exact") == true)
-                    XCTAssertNil(rules.cellRefusal(standard, loaded: standard), "Loaded Standard remains selectable")
+                    XCTAssertTrue(rules.isPresent(standard))
+                    XCTAssertTrue(rules.isPresent(exact))
+                    XCTAssertNil(rules.cellRefusal(standard))
+                    XCTAssertNil(rules.cellRefusal(exact))
+                    XCTAssertNil(rules.cellRefusal(standard, loaded: standard))
                     XCTAssertNil(rules.cellRefusal(fast))
-                    XCTAssertEqual(rules.valid(standard), fast)
-                    XCTAssertEqual(rules.valid(exact), fast)
-                    XCTAssertFalse(tierCellHelp(family, benchmark, tier: tier, segment: .optimized_fast).contains("vs Standard fp16:"))
+                    XCTAssertEqual(rules.valid(standard), standard)
+                    XCTAssertEqual(rules.valid(exact), exact)
+                    XCTAssertTrue(tierCellHelp(family, benchmark, tier: tier, segment: .optimized_fast).contains("vs Standard fp16:"))
                 }
             }
         }
