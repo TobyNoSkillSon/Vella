@@ -130,7 +130,7 @@ final class DocsTests: XCTestCase {
             ["**Models…**", "**Keep Hot**", "**Memory**"],
             ["**Start Dictation**", "**Mode**", "**Microphone**", "**Shortcuts**", "**Copy Last Transcript**", "**Open Saved Recordings**"],
             ["**Copy Skill for Your Agent**", "**Open Vella Files**", "**Restart Worker**", "**Start Worker**", "**Launch at Login**"],
-            ["**Support the developer…**", "**Update to X…**", "**Quit Vella**"]
+            ["**Support the Developer…**", "**Update to X…**", "**Quit Vella**"]
         ]
         for (block, titles) in zip(blocks, expected) {
             let positions = titles.map { block.range(of: $0)?.lowerBound }

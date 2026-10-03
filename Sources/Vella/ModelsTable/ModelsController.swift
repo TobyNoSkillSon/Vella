@@ -35,8 +35,14 @@ struct ModelDeletionPlan {
     let wasInstalled: Bool
     let bytes: Int64
     let title: String
+    var earlierDownload = false
     var body: String {
-        "Moves its downloaded weights to the Trash. If it is loaded it is unloaded first. You can download it again later. Recordings and transcripts are kept. "
+        if earlierDownload {
+            return
+                "Moves these unused earlier weights to the Trash. They cannot be downloaded again from Vella’s catalog. No recipe files depend on them. Recordings and transcripts are kept. Size: "
+                + formatBytes(bytes) + " (" + formatExactBytes(bytes) + ")."
+        }
+        return "Moves its downloaded weights to the Trash. If it is loaded it is unloaded first. You can download it again later. Recordings and transcripts are kept. "
             + "Size: " + formatBytes(bytes) + " (" + formatExactBytes(bytes) + "). Precisions made from these weights lose their recipe files too."
     }
 }
@@ -47,9 +53,11 @@ struct ModelDeletionPlan {
 /// ONE state per model (Toby, 26 Sep 2026): a row shows what is loaded (tier × Standard/Optimized × Exact/Fast); a
 /// cell the user picks or a switch flip is a transient preview (its numbers, deltas vs Standard 16 and the green
 /// Reload) that closing the menu discards; an unloaded row shows what it was last loaded with (config.json
-/// `selections`), else Standard 16. Only Load/Reload changes what dictation uses, and only while the model is not in
+/// `selections`), else Optimized 16 Fast. Only Load/Reload changes what dictation uses, and only while the model is not in
 /// use. Every download asks first (`confirmDownload`).
 @MainActor final class ModelsController: ObservableObject {
+    var previousModelNames: [String: String] = [:]
+    var benchmarkHardware = HostInfo.benchmarkHardware
     let dictation: ModelLibrary
     let streaming: ModelLibrary
     @Published var catalog: ModelCatalog
@@ -187,13 +195,17 @@ struct ModelDeletionPlan {
                         continue
                     }
                 } catch {
-                    lastError = "Could not prepare the local replacement for \(found.family.name): \(error). Selection kept; retry Load in Models."
+                    lastError =
+                        "Could not prepare the local replacement for \(found.family.name): \(error.localizedDescription) The current selection is unchanged. Check the model folder and try Load again in Models…."
                     continue
                 }
                 lastError =
                     "\(found.family.name)'s legacy published quantization is kept on disk but no longer used. Get its 16-bit source in Models \(options(found.family).contains(found.precision) ? "to prepare the measured local tier" : "(this precision is no longer offered)")."
             } else {
-                lastError = "The saved model is no longer an offered catalog tier. Its files are kept; select a model in Models."
+                let oldName = previousModelNames[path] ?? lib.installed.values.first { $0.path == path }?.name
+                lastError =
+                    (oldName.map { "\(mode.title) no longer supports \($0)." } ?? "The previous \(mode.title) model is no longer supported.")
+                    + " Its files are kept. Open Models… and choose Get or Load for a \(mode.title) model."
             }
             edited.clearedSelectionReasons[mode.rawValue] = lastError
             notices.append("\(mode.title): " + (lastError ?? "Choose a model in Models."))
@@ -260,7 +272,7 @@ struct ModelDeletionPlan {
     /// last-used precision whose tier is no longer offered marks none).
     func shownCell(_ f: ModelFamily) -> ModelSelection? {
         let s = currentSelection(f)
-        return precisionLabel(f, tier: s.tier) == selected(f) && isPresent(f, s) ? s : nil
+        return precisionLabel(f, tier: s.tier) == selected(f) && (isPresent(f, s) || s == loadedSelection(f)) ? s : nil
     }
     func isPreviewing(_ f: ModelFamily) -> Bool { previews[f.id] != nil }
 
@@ -297,7 +309,7 @@ struct ModelDeletionPlan {
     /// remembered switch, default Fast; anything else → Standard) at the loaded tier.
     func loadedSelection(_ f: ModelFamily) -> ModelSelection? {
         guard let loaded = loaded(f) else { return nil }
-        if let s = loaded.selection { return s }
+        if let s = loaded.selection { return effectiveSelection(s, engine: loaded.engine) }
         let tier = modelTier(ofPrecision: loaded.precision) ?? .t16
         let stored = config?.selections[f.id]
         let optimized = loaded.engine == nil || loaded.engine == Engine.optimized.rawValue
@@ -373,8 +385,9 @@ struct ModelDeletionPlan {
     }
     /// The shown cell's figures: schema 2 → the selection's cell; a schema-1 file → the precision's result.
     func shownResult(_ f: ModelFamily) -> PrecisionResult? {
-        guard let b = benchmark(f), !b.tiers.isEmpty, let cell = shownCell(f) else { return result(f, selected(f)) }
-        return benchmarkCell(b, cell)?.result
+        guard let b = benchmark(f), !b.tiers.isEmpty else { return result(f, selected(f)) }
+        guard let cell = shownCell(f), let measured = benchmarkCell(b, cell), !measured.isPending else { return nil }
+        return measured.result
     }
     /// The deltas' base: Standard 16 (schema 2); the recommended precision in a schema-1 file.
     func baseResult(_ f: ModelFamily) -> PrecisionResult? {
@@ -423,12 +436,12 @@ struct ModelDeletionPlan {
         if let (family, precision) = identify(path: lib.activeModelPath, mode: mode) {
             // Unloaded at a precision no longer offered: what its next load runs (`SelectionRules.runnable`).
             let runs = loaded(family) != nil || options(family).contains(precision) ? precision : committed(family)
-            return "\(family.name) \(precisionInProse(runs))"
+            return "\(family.name) \(humanDType(precision: runs, familyID: family.id))"
         }
         guard let (id, loaded) = runtime?.loaded.filter({ catalog.family($0.key)?.mode == mode }).sorted(by: { $0.key < $1.key }).first,
             let family = catalog.family(id)
         else { return lib.activeModelLabel }
-        return "\(family.name) \(precisionInProse(loaded.precision))"
+        return "\(family.name) \(humanDType(precision: loaded.precision, familyID: family.id))"
     }
     func isLoading(_ f: ModelFamily) -> Bool {
         runtime?.loading == f.id || f.variants.values.contains { library(f.mode).downloadingID == $0.id }
@@ -542,7 +555,7 @@ struct ModelDeletionPlan {
         do {
             guard let resolved = try precisionLoadPath(f, precision, installedPath: { lib.installed[$0]?.path }, modelsDirectory: lib.modelsDirectory) else { return }
             path = resolved
-        } catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error)"; return }
+        } catch { lastError = "Could not prepare \(f.name) at \(precisionFormatName(precision)): \(error.localizedDescription)"; return }
         if let actions {
             if action == .reload {
                 actions.reload(family: f, precision: precision, variant: variant, path: path, selection: selection)
@@ -667,7 +680,8 @@ struct ModelDeletionPlan {
         let earlierDownload = installed && variant.isDerived && registeredCheckpoint(f, precision, installedPath: { lib.installed[$0]?.path }) == nil
         return ModelDeletionPlan(
             familyID: f.id, precision: precision, variantID: variant.id, path: path, wasInstalled: installed,
-            bytes: bytes, title: installed ? "Delete " + name + (earlierDownload ? " earlier download (not used)?" : "?") : "Delete unfinished " + name + " download?")
+            bytes: bytes, title: installed ? "Delete " + name + (earlierDownload ? " earlier download (not used)?" : "?") : "Delete unfinished " + name + " download?",
+            earlierDownload: earlierDownload)
     }
 
     func performDeletion(_ f: ModelFamily, plan: ModelDeletionPlan) async throws {

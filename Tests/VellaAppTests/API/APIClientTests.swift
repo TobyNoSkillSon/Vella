@@ -63,7 +63,7 @@ final class APIClientTests: XCTestCase {
 
         let (sAfter, statusLine, _) = try await vella(api, ["status"])
         XCTAssertEqual(sAfter, 0)
-        XCTAssertTrue(statusLine.contains("fake-a 8, fake-b 8 loaded"), statusLine)
+        XCTAssertTrue(statusLine.contains("fake-a int8, fake-b int8 loaded"), statusLine)
 
         let (uCode, url, _) = try await vella(api, ["url"])
         XCTAssertEqual(uCode, 0); XCTAssertEqual(url, "http://127.0.0.1:\(api.port)/v1\n")

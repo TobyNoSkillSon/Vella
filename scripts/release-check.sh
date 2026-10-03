@@ -23,20 +23,27 @@ for a in "$@"; do
   case "$a" in
     --ci) MODE=ci ;;
     --signed) SIGNED=1 ;;
+    --step-fixture|--selftest-step) MODE="$a" ;;
     -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option $a; see $0 --help" >&2; exit 2 ;;
   esac
 done
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
-WORK="$PROJECT/.build/release-check/$(date +%Y%m%d-%H%M%S)"
+WORK="$PROJECT/.build/release-check/$(date +%Y%m%d-%H%M%S)-$$"
 mkdir -p "$WORK"
 echo "release-check $VERSION ($MODE$([[ $SIGNED == 1 ]] && echo ', signed')) · log $WORK"
 
 step() {  # step NAME FUNCTION: run, log, print one line; stop on the first failure
   local name="$1"; shift
   local log="$WORK/$(tr -c 'A-Za-z0-9.\n' '-' <<<"$name").log" start=$SECONDS
-  if "$@" >"$log" 2>&1; then
+  # A function invoked as an if condition inherits errexit suppression, even in a subshell.
+  # Run the body as a standalone subshell with its own errexit, then inspect its status.
+  set +e
+  ( set -euo pipefail; "$@" ) >"$log" 2>&1
+  local result=$?
+  set -e
+  if [[ $result == 0 ]]; then
     echo "ok    $name ($((SECONDS - start)) s)"
   else
     echo "FAIL  $name ($((SECONDS - start)) s): $(grep -v '^[[:space:]]*$' "$log" | tail -1)"
@@ -152,6 +159,36 @@ tests() {
   if [[ $MODE == ci ]]; then CI=true NSUnbufferedIO=YES scripts/test-unit.sh; else NSUnbufferedIO=YES scripts/test-unit.sh; fi
 }
 
+if [[ $MODE == --step-fixture ]]; then
+  case "${VELLA_STEP_FIXTURE:?}" in
+    archive)
+      zipinfo() { printf '%s\n' 'Vella.app/Contents/MacOS/Vella'; }
+      mkdir -p "$WORK/release"
+      echo 'planted invalid zip' >"$WORK/release/Vella-$VERSION-arm64.zip"
+      step "archive fixture" release_archive_no_lab ;;
+    signature)
+      mkdir -p "$WORK/fixture/Vella.app/Contents/MacOS" "$WORK/release"
+      ln -s VellaWorker "$WORK/fixture/Vella.app/Contents/MacOS/VellaStreamingWorker"
+      (cd "$WORK/fixture" && /usr/bin/zip -qry "$WORK/release/Vella-$VERSION-arm64.zip" Vella.app)
+      codesign() {
+        if [[ $1 == --verify ]]; then echo 'planted codesign verify failure'; return 72; fi
+        echo 'designated => identifier "dev.vella.dictation" and certificate leaf = H"2ca2587c8b85ef687e68950e405ec58ce31fc1c7"'
+        echo 'Authority=Vella Release Signing'
+      }
+      step "signature fixture" signature ;;
+  esac
+  echo 'ERROR: planted failure passed'; exit 1
+fi
+if [[ $MODE == --selftest-step ]]; then
+  for fixture in archive signature; do
+    output="$(VELLA_STEP_FIXTURE="$fixture" "$0" --step-fixture 2>&1)" && { echo "$fixture failure was accepted"; exit 1; }
+    grep -q "FAIL  $fixture fixture" <<<"$output" || { echo "$output"; exit 1; }
+    if grep -q '^ok ' <<<"$output"; then echo "$output"; exit 1; fi
+  done
+  echo 'release step selftest: unzip and codesign verification fail closed'; exit 0
+fi
+
+step "release step planted failures" "$0" --selftest-step
 step "source only in git" source_only
 step "source archive excludes lab" source_archive_no_lab
 step "published-history commit citations" xcrun swift scripts/check-commit-citations.swift
@@ -176,6 +213,7 @@ step "SHA256SUMS" checksums
 step "release identity (nothing development-signed is uploadable)" upload_identity_guard
 if [[ $SIGNED == 1 ]]; then step "release signature" signature; fi
 step "swift test ($([[ $MODE == ci ]] && echo unit || echo 'unit and integration'))" tests
+step "documented CLI examples" scripts/check-cli-examples.sh
 step "worker unit tests" scripts/test-worker.sh
 step "VellaWire tests" scripts/test-unit.sh --package-path Packages/VellaWire
 

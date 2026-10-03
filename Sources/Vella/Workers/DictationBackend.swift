@@ -7,7 +7,7 @@ extension Backend {
     /// A model the worker could not load. For a catalog model that is almost always its files (a truncated or damaged
     /// download): trying again cannot help, getting it again does.
     nonisolated static func loadFailed(_ name: String) -> String {
-        "\(name) failed to load: its files may be damaged. Delete it in Models\u{2026} and Get it again."
+        "\(name) failed to load: its files may be damaged. Load another model for this mode first, then delete these weights in Models… and Get them again. If no other model is installed, Get one first. Saved recordings are kept."
     }
 }
 
@@ -110,7 +110,7 @@ struct WorkerExited: LocalizedError {
             while activeCall != nil, ProcessInfo.processInfo.systemUptime < until { try await Task.sleep(nanoseconds: 5_000_000) }
         }
         guard activeCall == nil else { throw VellaError.message("Vella is already processing another segment.") }
-        guard !config.model.isEmpty else { throw VellaError.message("Install a model and choose Use first.") }
+        guard !config.model.isEmpty else { throw VellaError.message("Open Vella → Models… and choose Get or Load for a Dictation model first.") }
         guard let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 2_000_000 else {
             throw VellaError.message("Audio exceeds the bounded segment size. Saved audio is retained.")
         }

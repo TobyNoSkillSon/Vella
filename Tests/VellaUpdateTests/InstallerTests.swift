@@ -96,7 +96,7 @@ final class InstallerTests: XCTestCase {
     }
 
     func testNoAnswerRollsBack() {
-        assertRolledBack("Vella 1.0.1 did not start (no answer after 120 s)") { try makeInstaller { _ in nil }.run() }
+        assertRolledBack("Vella 1.0.1 did not become ready: no answer after 120 s.") { try makeInstaller { _ in nil }.run() }
     }
 
     func testStatusFromTheOldAppIsNoAnswer() {

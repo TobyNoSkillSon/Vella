@@ -15,6 +15,7 @@ import VellaWire
     private(set) var hotRef: ModelRef?
     private var sessionActive = false
     private let timeout: TimeInterval
+    private let scheduleDeadline: (DispatchWorkItem, TimeInterval) -> Void
     private var process: Process?
     private var retired: [Process] = []
     private var input: FileHandle?
@@ -33,10 +34,11 @@ import VellaWire
     var onUpdate: (() throws -> Void)?
     // Fixed-size worker deltas: the live path never rescans all earlier speech.
     var onEvent: ((String, String, Bool) throws -> Void)?
-    init(helper: URL? = nil, timeout: TimeInterval = 120, runtime: Runtime? = nil) {
+    init(helper: URL? = nil, timeout: TimeInterval = 120, runtime: Runtime? = nil, scheduleDeadline: ((DispatchWorkItem, TimeInterval) -> Void)? = nil) {
         // Memory pressure is the runtime's single policy: a live stream is pinned and never stopped;
         // an idle hot streaming model is shed like any other idle model.
         self.helperOverride = helper; self.timeout = timeout; self.runtime = runtime ?? .shared
+        self.scheduleDeadline = scheduleDeadline ?? { work, interval in DispatchQueue.main.asyncAfter(deadline: .now() + interval, execute: work) }
     }
     deinit { if let process, process.isRunning { kill(process.processIdentifier, SIGKILL) } }
     /// Bumped by stop(), releaseAndWait() and shutdown(): a start/preload that began before it must not go on to
@@ -184,7 +186,7 @@ import VellaWire
                     let work = DispatchWorkItem { [weak self] in
                         guard self?.pending?.0 == id else { return }; self?.fail(URLError(.timedOut))
                     }
-                    deadline = work; DispatchQueue.main.asyncAfter(deadline: .now() + timeout, execute: work)
+                    deadline = work; scheduleDeadline(work, timeout)
                     do {
                         guard let input, process?.isRunning == true else { throw VellaError.message("Streaming worker disconnected. Saved audio is retained.") }
                         var request = fields; request["id"] = id.uuidString

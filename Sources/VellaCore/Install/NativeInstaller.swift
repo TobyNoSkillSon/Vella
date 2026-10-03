@@ -3,8 +3,12 @@ import Darwin
 import Foundation
 
 public enum NativeInstallError: LocalizedError {
-    case message(String)
-    public var errorDescription: String? { if case .message(let text) = self { return text }; return nil }
+    case message(String), signingMigrationRequired(String)
+    public var errorDescription: String? {
+        switch self {
+        case .message(let text), .signingMigrationRequired(let text): return text
+        }
+    }
 }
 
 /// Owns one transactional Vella app replacement. Nothing is downloaded or loaded: a fresh
@@ -23,6 +27,16 @@ public final class NativeInstaller {
     public var afterSwap: () throws -> Void = {}
     /// Previous app, kept beside the destination until the caller has checked readiness.
     public var keepPrevious = false
+    /// Explicit installer-only transition: verified ad-hoc source build -> pinned Vella release signature.
+    public var allowSigningMigration = false
+    public private(set) var didMigrateSigning = false
+    public var verifyMigrationTarget: (URL) throws -> Void = { app in
+        _ = try NativeInstaller.run(["--verify", "--deep", "--strict", "-R", NativeInstaller.releaseRequirement, app.path])
+    }
+    public static let releaseRequirement = "identifier \"dev.vella.dictation\" and certificate leaf = H\"2ca2587c8b85ef687e68950e405ec58ce31fc1c7\""
+    public static let migrationExplanation =
+        "This changes your old self-built signature to Vella’s release signature. macOS will ask for Microphone and Accessibility access again. Settings, history, recordings and models are kept. The old app is kept for rollback."
+
     /// Lab installs of a separately identified candidate use another id; releases never do.
     public var bundleIdentifier = "dev.vella.dictation"
     public var now: () -> Date = Date.init
@@ -106,14 +120,23 @@ public final class NativeInstaller {
             throw NativeInstallError.message("Destination is not an existing Vella installation.")
         }
         let current = try verify(destination)
-        guard current == replacement else {
-            throw NativeInstallError.message("The existing signing identity differs; installation left unchanged. An explicit signing migration is required.")
+        guard current != replacement else { return }
+        let target = replacement.kind.replacingOccurrences(of: "designated => ", with: "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard current.kind == "adhoc", target == Self.releaseRequirement.lowercased() else {
+            throw NativeInstallError.message(
+                "The existing signing identity differs; installation left unchanged. Only an ad-hoc source build can migrate to Vella’s pinned release signature.")
         }
+        try verifyMigrationTarget(preparedApp)
+        guard allowSigningMigration else {
+            throw NativeInstallError.signingMigrationRequired(Self.migrationExplanation + " Nothing changed. To opt in, run: scripts/install.sh --migrate-signing")
+        }
+        keepPrevious = true; didMigrateSigning = true
     }
     /// Installs the prepared app and launches it. Returns where the previous app was kept when
     /// `keepPrevious` is set (delete it after readiness; restore it by moving it back), else nil.
     @discardableResult
     public func install() throws -> URL? {
+        didMigrateSigning = false
         let manager = FileManager.default
         // The common owner root is HOME in production and a disposable fixture
         // root in isolated tests. System aliases above it (such as /var) are not ours.

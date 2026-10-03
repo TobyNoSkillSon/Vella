@@ -23,6 +23,7 @@ import VellaUpdate
         let streaming = ModelLibrary(mode: .streaming, resources: resources, registryURL: registry)
         let controller = ModelsController(dictation: dictation, streaming: streaming)
         controller.previewing = true
+        controller.benchmarkHardware = BenchmarkHardware(chip: chip, gpuCores: chip == "M5 Max" ? 40 : 18)
         controller.actions = previewActions // buttons render enabled, as with a running runtime; perform() is a no-op in preview
         setInstalled(controller, installed)
         return controller
@@ -74,6 +75,7 @@ import VellaUpdate
         var hover: String?
         /// Override of benchmarks.json `figures_pending` (nil: as shipped).
         var figuresPending: Bool?
+        var gpuCores: Int?
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -194,12 +196,26 @@ import VellaUpdate
         states.append(failed)
         var refusedLong = State(name: "footer-error-long")
         refusedLong.runtime.loaded = loaded.runtime.loaded
-        refusedLong.runtime.refusal = TableRefusal(
-            message: "Qwen3 ASR 1.7B at BF16 needs ~4.2 GB; ~0.9 GB free without swapping. Unload Parakeet v3, pick 8, or allow swap in Vella → Memory.", at: now)
+        let qwenController = RenderFixture.controller()
+        if let family = qwenController.catalog.family("qwen3-asr-1.7b") {
+            let ref = ModelRef(
+                id: family.id, precision: "BF16", path: "/render/qwen", name: family.name,
+                memoryMB: qwenController.benchmark(family)?.tiers[.t16]?.cells[.optimized_fast]?.result.memory_mb,
+                precisionOptions: precisionOptions(family))
+            refusedLong.runtime.refusal = TableRefusal(
+                message: refusalMessage(
+                    ref, needMB: memoryEstimateMB(ref) + MemoryProbe.headroomMB,
+                    freeMB: 900, loaded: ["Parakeet v3"]), at: now)
+        }
         states.append(refusedLong)
         var otherChip = State(name: "other-chip-M3-Pro")
         otherChip.runtime.chip = chip == "M3 Pro" ? "M5 Max" : "M3 Pro"
         states.append(otherChip)
+        for (name, cores) in [("M5 Max", 32), ("M5 Pro", 20), ("M5", 10), ("M4", 10)] {
+            var other = State(name: "reference-label-" + name.replacingOccurrences(of: " ", with: "-") + "-\(cores)")
+            other.runtime.chip = name; other.gpuCores = cores
+            states.append(other)
+        }
         states.append(State(name: "unmeasured-no-benchmarks", benchmarks: BenchmarkFile()))
         return states
     }
@@ -210,6 +226,7 @@ import VellaUpdate
         if let b = state.benchmarks { controller.benchmarks = b }
         if let pending = state.figuresPending { controller.benchmarks.figuresPending = pending }
         controller.runtime = state.runtime
+        controller.benchmarkHardware = BenchmarkHardware(chip: state.runtime.chip, gpuCores: state.gpuCores ?? (state.runtime.chip == "M5 Max" ? 40 : 18))
         controller.previewConfig(state.config)
         controller.previewSelections(state.selections)
         for (id, mode) in state.flips { if let f = controller.catalog.family(id) { controller.setMode(f, mode) } }

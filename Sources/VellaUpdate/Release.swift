@@ -57,8 +57,14 @@ public struct ReleaseInfo: Equatable, Sendable {
     /// word, with `…`), for the confirmation popup. Markdown emphasis, code marks, headings, code blocks and link targets
     /// are dropped.
     public func shortNotes(maxCharacters: Int = 360) -> String {
-        var lines: [String] = []
+        var lines: [String] = [], inFence = false, inComment = false
         for raw in body.replacingOccurrences(of: "\r\n", with: "\n").split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") { inFence.toggle(); continue }
+            if inFence { continue }
+            if trimmed.contains("<!--") { inComment = true }
+            if inComment { if trimmed.contains("-->") { inComment = false }; continue }
+            if trimmed.hasPrefix("<") { continue }
             if raw.hasPrefix("#") { if lines.isEmpty { continue } else { break } }
             if raw.hasPrefix("    ") || raw.hasPrefix("\t") || raw.hasPrefix("```") { continue }
             let line = Self.plain(String(raw)).trimmingCharacters(in: .whitespaces)
@@ -77,6 +83,7 @@ public struct ReleaseInfo: Equatable, Sendable {
 
     static func plain(_ line: String) -> String {
         var s = line
+        if let regex = try? NSRegularExpression(pattern: "<[^>]+>") { s = regex.stringByReplacingMatches(in: s, range: NSRange(s.startIndex..., in: s), withTemplate: "") }
         while s.hasPrefix("#") { s.removeFirst() }
         if s.hasPrefix(">") { s.removeFirst() }
         // [text](url) -> text

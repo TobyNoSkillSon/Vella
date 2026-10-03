@@ -11,6 +11,6 @@
 <key>CFBundleVersion</key><string>35</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>LSUIElement</key><true/>
-<key>NSMicrophoneUsageDescription</key><string>Vella records your voice only when you start dictation, then transcribes it locally on your Mac.</string>
+<key>NSMicrophoneUsageDescription</key><string>Vella records your voice only when you start Dictation or Streaming. Speech recognition runs locally on your Mac.</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>

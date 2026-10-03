@@ -17,7 +17,7 @@ enum ShortcutMenuFactory {
             if item.identifier == permissionNoteID || item.identifier == settingsID {
                 item.isHidden = !manager.requiresEventTap
             } else if item.identifier == errorID {
-                item.title = String((manager.lastError ?? "").prefix(96))
+                item.title = compactText(manager.lastError ?? "", limit: 96)
                 item.toolTip = manager.lastError
                 item.isHidden = manager.lastError == nil
             }

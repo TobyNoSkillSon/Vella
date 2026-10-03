@@ -53,7 +53,7 @@ final class TableTooltipTests: XCTestCase {
     private static let provenance = #"^Measured by Vella · M5 Max · 20\d\d-\d\d-\d\d$"#
     /// Line 2 of a tier cell: the delta vs Standard 16 with its basis, the reference itself, or pending.
     private static let deltaPattern =
-        #"^(vs Standard (bf16|fp16): (\+[0-9.]+× speed|[0-9.]+× speed|same speed)( · (−|\+)[0-9]+ % energy| · same energy)?( · WER (−|\+)[0-9.]+| · same WER)? · M5 Max, \d+ (Sep|Oct)|Reference for the deltas · M5 Max, \d+ (Sep|Oct)|No Standard (bf16|fp16) measurement to compare with yet · M5 Max, \d+ (Sep|Oct)|Not measured yet(: [^\n]+)?)$"#
+        #"^(vs Standard (bf16|fp16): Speed: (same|[0-9.]+% (faster|slower)|[0-9.]+× as fast)( · Energy: (same|[0-9.]+% (less|more)|[0-9.]+× the energy))?( · WER (−|\+)[0-9.]+ pt| · same WER)? · M5 Max, \d+ (Sep|Oct)|Reference for the deltas · M5 Max, \d+ (Sep|Oct)|No Standard (bf16|fp16) measurement to compare with yet · M5 Max, \d+ (Sep|Oct)|Not measured yet(: [^\n]+)?)$"#
     /// A greyed cell's one line: why it cannot be chosen.
     private static let greyedPattern = #"^(Not measured yet(: [^\n]+)?|Not offered: [^\n]+|Not offered for this model|No Exact recipe at int[48]; Fast offers it)$"#
 
@@ -73,7 +73,7 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertTrue(l.contains { $0.hasSuffix("parameters · native \(precisionInProse(family.native))") }, label)
                 XCTAssertFalse(text.contains(" · ") && l.contains { $0.components(separatedBy: " · ").count > 2 }, "\(label): no · chains")
                 if let loaded {
-                    XCTAssertTrue(l.last?.hasPrefix("Loaded at \(precisionInProse(loaded.precision))") ?? false, label)
+                    XCTAssertTrue(l.last?.hasPrefix("Loaded at \(humanDType(precision: loaded.precision, familyID: family.id))") ?? false, label)
                 } else {
                     XCTAssertFalse(text.contains("Loaded"), label)
                 }
@@ -342,7 +342,7 @@ final class TableTooltipTests: XCTestCase {
         XCTAssertEqual(
             speedHelp(nemotron.mode, c.result(nemotron, "8b"), suites: c.benchmarks.suites),
             "Streaming replay speed in × real time on the v2 quick benchmark (22.5 min), not microphone-to-text latency: higher is faster\n" + by
-                + "\nStock MLX on any Mac: 15.1× · 112 J · 1.19 GB")
+                + "\nStandard reference measurements: 15.1× · 112 J · 1.19 GB")
     }
 
     /// Cloud rows: estimated, from which board and when; nothing to download; nothing runs on this Mac.

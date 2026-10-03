@@ -11,7 +11,7 @@ import VellaCore
     @Published var phase = Phase.idle
     @Published private(set) var mode: RecognitionMode = .dictation
     @Published var message = "Your voice, right where you need it."
-    @Published var microphone = "Shure → MacBook at start"
+    @Published var microphone = "Microphone selected at recording start"
     @Published var elapsed = 0
     @Published var audioLevel = 0.0
     @Published var hudVisible = false
@@ -38,14 +38,17 @@ import VellaCore
     private var streamingBuffer: StreamingPCMBuffer?
     private var streamingTask: Task<String, Error>?
     private var streamingJournal: StreamingJournal?
-    private var liveInsertion: LiveInsertion?
+    private(set) var liveInsertion: LiveInsertion?
+    private var hardwareEvents: HardwareEvents?
+    private var interruptedForSleep = false
     var captureIsFinalizing: Bool { finishingCapture }
     init(
         insertionPermission: InsertionPermission? = nil, pasteboard: NSPasteboard = .general,
         stopCapture: ((Recorder) async throws -> Void)? = nil,
         transcriptionRequest: SessionTranscriber.Request? = nil, configurationURL: URL? = nil,
         streamingBackend: StreamingBackend? = nil,
-        captureDestination: (() -> DestinationCheck)? = nil, backend: Backend? = nil
+        captureDestination: (() -> DestinationCheck)? = nil, backend: Backend? = nil,
+        workspaceNotifications: NotificationCenter? = nil, captureNotifications: NotificationCenter = .default, monitorDefaultInput: Bool = true
     ) {
         self.backend = backend ?? Backend()
         self.captureDestination = captureDestination ?? { Self.captureNativeDestination(NSWorkspace.shared.frontmostApplication) }
@@ -59,6 +62,11 @@ import VellaCore
         // This model's backends serve the runtime's residency, Keep Hot and memory decisions.
         self.backend.runtime.dictation = self.backend
         self.streamingBackend.runtime.streaming = self.streamingBackend
+        hardwareEvents = HardwareEvents(
+            workspace: workspaceNotifications ?? NSWorkspace.shared.notificationCenter,
+            capture: captureNotifications, matchesCapture: { [weak self] in self?.recorder.matchesCapture($0) == true },
+            matchesDevice: { [weak self] in self?.recorder.matchesDevice($0) == true }, monitorDefaultInput: monitorDefaultInput,
+            receive: { [weak self] in self?.hardwareEvent($0) })
     }
     /// A model the first dictation without one can get in one click (fresh installs load and download nothing).
     struct ModelOffer: Equatable {
@@ -167,7 +175,7 @@ import VellaCore
         case .preparing: return "Getting ready"
         case .recording: return "Listening · \(elapsed / 60):\(String(format: "%02d", elapsed % 60))"
         case .transcribing: return "Transcribing locally"
-        case .success: return insertionWasAutomatic ? "Paste sent" : "Copied—paste with ⌘V"
+        case .success: return insertionWasAutomatic ? (mode == .streaming ? "Text sent" : "Paste sent") : "Copied—press ⌘V"
         case .failed: return "Needs attention"
         }
     }
@@ -265,16 +273,49 @@ import VellaCore
             } catch is CancellationError {} catch { if self.operation == operation { update(.failed, error.localizedDescription) } }
         }
     }
+    func hardwareEvent(_ event: HardwareEvents.Event) {
+        switch event {
+        case .willSleep:
+            guard phase == .recording || phase == .preparing else { return }
+            interruptedForSleep = true
+            if phase == .preparing { cancel(); update(.failed, "Recording did not start because the Mac went to sleep. Start again after waking."); return }
+            recordingTick(error: "Recording ended because the Mac went to sleep.")
+        case .didWake:
+            if phase == .recording {
+                recordingTick(error: "Recording ended after the Mac woke; capture was interrupted.")
+            } else if interruptedForSleep {
+                update(.failed, "Mac woke. Recording ended for sleep; audio and recognized text are saved. Retry copies only. Start a new recording to continue.")
+            }
+            interruptedForSleep = false
+        case .microphoneChanged:
+            guard phase == .recording else { return }
+            recordingTick(error: "Recording ended because the microphone disconnected, switched or capture was interrupted.")
+        }
+    }
+    func checkStreamingInsertionPermission() {
+        guard mode == .streaming, phase == .recording || phase == .transcribing, !insertionPermission.granted else { return }
+        liveInsertion?.pause("Accessibility access was revoked. Re-enable Vella in System Settings → Privacy & Security → Accessibility. Audio and the transcript are still saved.")
+    }
     func recordingTick(error: String?) {
         guard phase == .recording else { return }
         elapsed += 1
+        checkStreamingInsertionPermission()
         // No duration cutoff. A hardware/storage failure preserves already captured audio.
         if let error {
+            operation = UUID(); captureGeneration &+= 1
+            task?.cancel(); task = nil
             liveInsertion?.pause("Microphone capture stopped.")
+            meterTimer?.invalidate(); meterTimer = nil
             streamingTask?.cancel(); streamingBuffer?.abort(); streamingBackend.stop()
             timer?.invalidate(); timer = nil
             _ = try? recorder.stop(userStopped: false)
             savedSession = recorder.recordingSession; allowAutomaticInsertion = false
+            streamingBackend.onEvent = nil; streamingJournal?.close(); streamingJournal = nil
+            if let session = savedSession {
+                try? session.saveStreamingPartial(streamingBackend.text)
+                session.manifest.state = "interrupted"; session.manifest.failureCode = "capture_interrupted"; try? session.save()
+                if let text = try? session.savePartialTranscript() { lastText = text; lastTranscriptIncomplete = true }
+            }
             update(.failed, error + " Saved audio is retained; Retry processes it without automatic insertion.")
         }
     }
@@ -326,6 +367,7 @@ import VellaCore
             if incomplete {
                 self.liveInsertion?.pause("The streaming worker reported incomplete execution. Live insertion stopped; audio is still saved.")
             } else {
+                self.checkStreamingInsertionPermission()
                 self.liveInsertion?.offer(committed: committed, partial: partial)
             }
             if self.phase == .recording {
@@ -559,6 +601,14 @@ import VellaCore
         else { return nil }
         return selected
     }
+    var attentionTitle: String {
+        let lower = message.lowercased()
+        if lower.contains("microphone") { return "Microphone unavailable — choose one under Microphone" }
+        if lower.contains("accessibility") { return "Accessibility is off — allow Vella in Settings" }
+        if savedSession != nil { return "Recording stopped — Retry Saved Recording" }
+        if lower.contains("model") || lower.contains("recipe") { return "Model unavailable — check Models…" }
+        return compactText(message, limit: 96)
+    }
     func retry() {
         guard phase == .failed, let savedSession else { return }
         recover(savedSession.directory)
@@ -678,14 +728,14 @@ import VellaCore
         guard let destinationCheck else { return "No Dictation destination was selected at Finish." }
         return destinationCheck()
     }
-    private func prepareLiveInsertion() {
+    func prepareLiveInsertion(send: ((String) throws -> Void)? = nil) {
         let insertion = LiveInsertion(
             targetIsCurrent: { [weak self] in
                 guard let self, self.phase == .recording || self.phase == .transcribing else { return false }
                 // Explicit roaming mode: the OS routes text to current keyboard focus.
                 // Delayed words may cross fields; the user controls speech/navigation.
-                return AXIsProcessTrusted()
-            }, send: LiveInsertion.nativeSend)
+                return self.insertionPermission.granted
+            }, send: send ?? LiveInsertion.nativeSend)
         insertion.onBlocked = { [weak self] reason in
             guard let self, self.phase == .recording else { return }
             self.message = "Live insertion paused: \(reason) Microphone capture continues."
@@ -732,13 +782,14 @@ import VellaCore
     func copyLast() { pasteboard.clearContents(); pasteboard.setString(lastText, forType: .string) }
     func accessibility() { insertionPermission.openSettings() }
     func chooseMicrophone(_ name: String) {
+        if phase == .recording { hardwareEvent(.microphoneChanged) }
         do {
             var config = try backend.configuration(requiresModel: false); config.preferredMicrophone = name
-            try JSONEncoder().encode(config).write(to: Backend.configURL, options: .atomic)
-            microphone = name + " → MacBook fallback at start"
+            try JSONEncoder().encode(config).write(to: configurationURL, options: .atomic)
+            microphone = name + " · fallback checked at recording start"
         } catch { update(.failed, error.localizedDescription) }
     }
-    func shutdown() { cancel(); backend.shutdown(); streamingBackend.shutdown() }
+    func shutdown() { hardwareEvents?.stop(); hardwareEvents = nil; cancel(); backend.shutdown(); streamingBackend.shutdown() }
     func shutdownAfterCaptureDrain() async {
         cancel()
         if finishingCapture {

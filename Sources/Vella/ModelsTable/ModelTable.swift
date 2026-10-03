@@ -104,7 +104,7 @@ struct ModelTable: View {
         "Finished-text errors: share of characters wrong, capitals and punctuation included. Lower is better.\n" + deltaHeaderLine
     static let speedHeaderHelp = "Seconds of audio transcribed per second. Higher is faster.\n" + deltaHeaderLine
     static let energyHeaderHelp = "Energy per minute of audio, whole chip, idle subtracted. Lower is better.\n" + deltaHeaderLine
-    static let memoryHeaderHelp = "Most memory the model used while transcribing. Lower is better."
+    static let memoryHeaderHelp = "Peak memory of the model worker during loading and transcription. Lower is better."
     static let modelHeaderHelp = "The speech model. Hover a name for its languages and details."
     static let paramsHeaderHelp = "Model size in parameters."
     /// The small figures' base, one shared line.
@@ -220,15 +220,22 @@ struct ModelTable: View {
                 .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, werHelp(bench, suites: suites)))
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
                 .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, formatHelp(bench, suites: suites)))
-            metric(formatSpeed(bench?.speed_x), compare ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, W.speed, hot: hot)
-                .overlay(alignment: .leading) {
-                    if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
-                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: size(9))).foregroundStyle(.orange).accessibilityLabel("very slow")
-                    }
+            metric(
+                controller.benchmarkHardware.speedText(bench?.speed_x),
+                compare && controller.benchmarkHardware.isMeasuredConfiguration ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, W.speed, hot: hot,
+                referenceLabel: bench?.speed_x == nil ? nil : controller.benchmarkHardware.speedReferenceLabel
+            )
+            .overlay(alignment: .leading) {
+                if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: size(9))).foregroundStyle(.orange).accessibilityLabel("very slow")
                 }
-                .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, speedHelp(family.mode, bench, suites: suites)))
-            metric(formatEnergy(bench?.j_per_min), compare ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot)
-                .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, energyHelp(bench, suites: suites)))
+            }
+            .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, speedHelp(family.mode, bench, suites: suites)))
+            metric(
+                controller.benchmarkHardware.energyText(bench?.j_per_min),
+                compare && controller.benchmarkHardware.isMeasuredConfiguration ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot
+            )
+            .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, energyHelp(bench, suites: suites)))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
                 .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, memoryHelp(bench, suites: suites)))
             rowAction(family, action: action, loading: loading, downloading: downloading, variant: variant, library: library, hot: hot, precision: precision, loaded: loaded)
@@ -325,11 +332,11 @@ struct ModelTable: View {
     private func actionHelp(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?) -> String {
         let mode = family.mode.title.lowercased()
         let derived = controller.derivedSource(family, precision) != nil
-        let make = derived ? " The first load makes the \(precisionFormatName(precision)) weights on this Mac." : ""
+        let make = derived ? " The quantized weights are made in memory each time this precision loads." : ""
         switch action {
         case .get: return downloadText(family, precision) + "; then loads it for \(mode)." + make
         case .load: return "Load it for \(mode) and keep it loaded; manually loaded models load again when Vella starts." + make
-        case .unload: return "Free its memory; it stays downloaded and does not load at next launch. Dictation loads it again when needed."
+        case .unload: return "Free its memory; it stays downloaded and does not load at next launch. Its next use loads it again."
         case .reload:
             let swap = "load it at \(precisionFormatName(precision)) for \(mode) in place of the loaded \(precisionFormatName(loaded ?? family.native))."
             return (controller.available(family, precision) ? "Unload the loaded precision and " + swap : downloadText(family, precision) + ", then " + swap) + make
@@ -337,9 +344,10 @@ struct ModelTable: View {
     }
 
     /// Value on top, delta vs Standard 16 beneath it in small type; centred under the column's label.
-    @ViewBuilder private func metric(_ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool) -> some View {
+    @ViewBuilder private func metric(_ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool, referenceLabel: String? = nil) -> some View {
         VStack(alignment: .center, spacing: W.lineGap) {
-            Text(value ?? "—").lineLimit(1)
+            Text(value ?? "—").lineLimit(1).foregroundStyle(referenceLabel == nil ? Color.primary : Color.secondary)
+            if let referenceLabel { Text(referenceLabel).font(Self.deltaFont).foregroundStyle(.secondary) }
             if let delta {
                 Text(delta.text).font(Self.deltaFont).lineLimit(1).fixedSize()
                     .foregroundStyle(Self.tone(delta.tone, hot: hot))
@@ -450,7 +458,7 @@ struct ModelTable: View {
     /// Retained loaded selections can point at a withdrawn cell; its reason still belongs on every figure.
     private func figureHelp(_ family: ModelFamily, _ measuredHelp: String) -> String {
         let cell = controller.shownCell(family).flatMap { benchmarkCell(controller.benchmark(family), $0) }
-        return cell?.isPending == true ? unmeasuredReasonHelp(cell) : measuredHelp
+        return cell?.isPending == true ? unmeasuredReasonHelp(cell) : [measuredHelp, controller.benchmarkHardware.caveat].compactMap { $0 }.joined(separator: "\n")
     }
 
     /// A reference row's tooltips as (column, text); Params and the controls have none (nothing is known).
@@ -499,7 +507,8 @@ struct ModelTable: View {
                         ProgressView().controlSize(.mini)
                         Text("Loading \(controller.catalog.family(loading)?.name ?? loading)…").font(.system(size: Self.footerSize)).foregroundStyle(.secondary)
                     } else if !controller.benchmarks.figuresPending,
-                        let note = hardwareNote(thisChip: runtime?.chip ?? Self.localChip, measuredOn: measurementChip(controller.benchmarks))
+                        let note = hardwareNote(
+                            thisChip: controller.benchmarkHardware.chip, measuredOn: measurementChip(controller.benchmarks), gpuCores: controller.benchmarkHardware.gpuCores)
                     {
                         Text(note.text).font(.system(size: Self.footerSize)).foregroundStyle(.secondary).lineLimit(1)
                             .padding(.leading, pt(8)).appKitTooltip(note.help)

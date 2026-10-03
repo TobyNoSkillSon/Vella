@@ -228,6 +228,6 @@ struct DiagnoseCollector {
         let family = device?.supportsFamily(.apple9) == true ? "apple9" : device?.supportsFamily(.apple8) == true ? "apple8" : "unsupported"
         return Diagnosis.Host(
             chip: sysctlString("machdep.cpu.brand_string"), hardware: sysctlString("hw.model"), memoryGB: gb,
-            macos: macos, osBuild: sysctlString("kern.osversion"), gpuFamily: family)
+            macos: macos, osBuild: sysctlString("kern.osversion"), gpuFamily: family, gpuCores: HostInfo.gpuCoreCount)
     }
 }

@@ -140,15 +140,15 @@ public struct Delta: Equatable {
 private let minus = "\u{2212}"
 private func signed(_ value: Double, _ format: String) -> String { (value < 0 ? minus : "+") + String(format: format, abs(value)) }
 
-/// An error rate in percent (WER or format CER) → `+0.4 pt`; lower is better. Under 0.05 points reads `±0.0 pt`.
+/// An error rate in percent (WER or format CER) → `+0.4 pt`; lower is better. Under 0.05 points reads `same`.
 public func errorRateDelta(_ value: Double?, base: Double?) -> Delta? {
     guard let value, let base else { return nil }
     let points = value - base
-    if abs(points) < 0.05 { return Delta("±0.0 pt", .neutral) }
+    if abs(points) < 0.05 { return Delta("same", .neutral) }
     return Delta(signed(points, "%.1f") + " pt", points < 0 ? .better : .worse)
 }
 
-/// Speed in × real time → `35% faster` / `20% slower`; from 2× on `2.4× faster`. Under 1 % reads `same`.
+/// Speed in × real time → `35% faster` / `20% slower`; from 2× on `2.4× as fast`. Under 1 % reads `same`.
 public func speedDelta(_ value: Double?, base: Double?) -> Delta? {
     guard let value, let base, value > 0, base > 0 else { return nil }
     let faster = value > base
@@ -156,20 +156,24 @@ public func speedDelta(_ value: Double?, base: Double?) -> Delta? {
     if ratio - 1 < 0.01 { return Delta("same", .neutral) }
     let amount = ratio >= 2 ? String(format: "%.1f×", ratio) : String(format: "%.0f%%", (ratio - 1) * 100)
     if amount == "0%" { return Delta("same", .neutral) }
-    return Delta("\(amount) \(faster ? "faster" : "slower")", faster ? .better : .worse)
+    if ratio >= 2 { return Delta(String(format: "%.1f× as fast", value / base), faster ? .better : .worse) }
+    let percent = abs(value / base - 1) * 100
+    return Delta(String(format: "%.0f%%", percent) + (faster ? " faster" : " slower"), faster ? .better : .worse)
 }
 
-/// Energy per audio minute → `20% less` / `15% more`; from 2× the base on `2.9× more`. Under 0.5 % reads `same`.
+/// Energy per audio minute → `20% less` / `15% more`; from 2× the base on `2.9× the energy`. Under 0.5 % reads `same`.
 public func energyDelta(_ value: Double?, base: Double?) -> Delta? {
     guard let value, let base, base > 0 else { return nil }
     let change = value / base - 1
     if abs(change) < 0.005 { return Delta("same", .neutral) }
-    if change >= 1 { return Delta(String(format: "%.1f× more", value / base), .worse) }
+    if max(value / base, base / max(value, 0.000001)) >= 2 { return Delta(String(format: "%.1f× the energy", value / base), change < 0 ? .better : .worse) }
     return Delta(String(format: "%.0f%%", abs(change) * 100) + (change < 0 ? " less" : " more"), change < 0 ? .better : .worse)
 }
 
 /// Memory → `40% less` / `1.8× more`, like energy.
-public func memoryDelta(_ value: Double?, base: Double?) -> Delta? { energyDelta(value, base: base) }
+public func memoryDelta(_ value: Double?, base: Double?) -> Delta? {
+    energyDelta(value, base: base).map { Delta($0.text.replacingOccurrences(of: "the energy", with: "the memory"), $0.tone) }
+}
 
 // MARK: Formatters (en_US everywhere)
 
@@ -194,7 +198,7 @@ public let slowSpeedFloor = 20.0
 
 // MARK: Engine label
 
-/// `Optimized · M5 Max` on the optimized path (self-tested at load, no runtime fallback), else `MLX`.
+/// The loaded recipe’s label, with its chip on the optimized path.
 /// With the loaded selection: `Standard` on stock MLX as chosen, `Optimized Exact \u{00b7} M5 Max` / `Optimized Fast \u{00b7} M5 Max`.
 public func engineLabel(engine: String?, chip: String?, selection: ModelSelection? = nil) -> String {
     guard engine == Engine.optimized.rawValue else { return selection?.path == .standard ? "Standard" : "MLX" }
@@ -251,15 +255,11 @@ public func measurementChip(_ file: BenchmarkFile) -> String? {
     if let top = counts.sorted(by: { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }).first { return top.key }
     return file.hardware.flatMap { displayChip($0.split(separator: ",").first.map(String.init)) }.flatMap { chipGeneration($0) != nil ? $0 : nil }
 }
-/// The footer note when this Mac is not in the measurement chip's generation (M5 Pro and M5 Max count as the same).
-public func hardwareNote(thisChip: String?, measuredOn: String?) -> (text: String, help: String)? {
-    guard let this = displayChip(thisChip), let measured = displayChip(measuredOn),
-        let a = chipGeneration(this), let b = chipGeneration(measured), a != b
-    else { return nil }
-    return (
-        "Benchmarks measured on \(measured)",
-        "Speed, energy and memory were measured on \(measured); they differ on this Mac (\(this)). Component fallbacks can change transcripts and error rates."
-    )
+/// The footer note for every Mac outside the measured chip and GPU-core configuration.
+public func hardwareNote(thisChip: String?, measuredOn: String?, gpuCores: Int? = nil) -> (text: String, help: String)? {
+    let hardware = BenchmarkHardware(chip: thisChip, gpuCores: gpuCores)
+    guard let help = hardware.caveat else { return nil }
+    return ("Measured on M5 Max · J / min not known", help)
 }
 
 // MARK: Runtime state the table shows

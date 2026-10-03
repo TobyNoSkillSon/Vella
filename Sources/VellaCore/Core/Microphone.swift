@@ -5,9 +5,9 @@ public struct Microphone: Equatable {
     public let name: String
     public init(id: UInt32, name: String) { self.id = id; self.name = name }
 }
-public func selectMicrophone(_ devices: [Microphone], preferred: String, fallback: String) -> Microphone? {
-    devices.first { $0.name == preferred } ?? devices.first { $0.name == fallback }
-        ?? devices.first { $0.name.contains("MacBook") && $0.name.contains("Microphone") }
+public func selectMicrophone(_ devices: [Microphone], preferred: String, fallback: String, systemDefaultID: UInt32? = nil) -> Microphone? {
+    devices.first { !$0.name.isEmpty && $0.name == preferred } ?? devices.first { !$0.name.isEmpty && $0.name == fallback }
+        ?? devices.first { $0.id == systemDefaultID } ?? devices.first
 }
 /// Map microphone RMS to a visible, bounded level. Silence stays still.
 public func visualLevel(rms: Double) -> Double {

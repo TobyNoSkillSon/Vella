@@ -11,7 +11,7 @@ import VellaUpdate
 //          update-result.json, which the relaunched app reports.
 @main struct VellaInstallTool {
     static let usage = """
-        Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> [--keep-previous]
+        Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> [--keep-previous] [--migrate-signing]
                VellaInstallTool ready --app <installed Vella.app> --support <Vella support> [--timeout seconds] [--interval seconds] [--settle seconds]
                VellaInstallTool update --plan <plan.json>
 
@@ -22,6 +22,18 @@ import VellaUpdate
     }
     static func url(_ key: String, in args: [String]) -> URL? { value(key, in: args).map { URL(fileURLWithPath: $0) } }
 
+    static func signingAnswer() -> String? {
+        guard let terminal = FileHandle(forReadingAtPath: "/dev/tty") else { return nil }
+        defer { try? terminal.close() }
+        var bytes = Data()
+        while bytes.count < 16 {
+            guard let byte = try? terminal.read(upToCount: 1), !byte.isEmpty else { return nil }
+            if byte.first == 10 || byte.first == 13 { return String(data: bytes, encoding: .utf8) }
+            bytes.append(byte)
+        }
+        return nil
+    }
+
     static func main() {
         let args = Array(CommandLine.arguments.dropFirst())
         switch args.first {
@@ -31,11 +43,30 @@ import VellaUpdate
             else { fputs(usage, stderr); exit(2) }
             let installer = NativeInstaller(preparedApp: app, destination: destination, support: support)
             installer.keepPrevious = args.contains("--keep-previous")
+            installer.allowSigningMigration = false // the flag authorizes a retry only after the migration disclosure
             if let id = value("--bundle-id", in: args) { installer.bundleIdentifier = id } // lab candidates only
             do {
                 _ = try NativeInstaller.verifySignedBundle(app)
                 try Updater.removeQuarantine(app)
-                let previous = try installer.install()
+                let previous: URL?
+                do { previous = try installer.install() } catch NativeInstallError.signingMigrationRequired(let explanation) {
+                    guard args.contains("--migrate-signing") else { throw NativeInstallError.signingMigrationRequired(explanation) }
+                    fputs(NativeInstaller.migrationExplanation + "\n", stderr)
+                    if isatty(STDERR_FILENO) == 0 {
+                        installer.allowSigningMigration = true
+                        previous = try installer.install()
+                    } else {
+                        fputs("Migrate the signing identity now? [y/N] ", stderr)
+                        // /dev/tty keeps confirmation interactive even when curl pipes the script into bash.
+                        let answer = signingAnswer()
+                        guard ["y", "yes"].contains(answer?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "") else {
+                            throw NativeInstallError.message("Signing migration declined; existing app and data unchanged. Re-run: scripts/install.sh --migrate-signing")
+                        }
+                        installer.allowSigningMigration = true
+                        previous = try installer.install()
+                    }
+                }
+                if installer.didMigrateSigning { print("signing-migrated: previous app kept; permissions must be re-granted") }
                 print("installed \(destination.path)")
                 if let previous { print("previous: \(previous.path)") }
             } catch {

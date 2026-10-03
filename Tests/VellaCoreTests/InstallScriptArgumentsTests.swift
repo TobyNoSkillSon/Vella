@@ -4,6 +4,36 @@ import VellaTestSupport
 
 /// The primary installer forwards verification-only mode instead of silently performing an installation.
 final class InstallScriptArgumentsTests: XCTestCase {
+    func testSourceDryRunAndUnknownArgumentsRefuseBeforeBuilding() throws {
+        for argument in ["--dry-run", "--unknown"] {
+            let process = Process(), output = Pipe()
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = [Repository.root.appendingPathComponent("scripts/install.sh").path, argument]
+            process.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "VELLA_BUILD": "source"]
+            process.standardOutput = output; process.standardError = output
+            try process.run(); let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self); process.waitUntilExit()
+            XCTAssertEqual(process.terminationStatus, 2)
+            XCTAssertTrue(text.contains("nothing built or installed")); XCTAssertFalse(text.contains("building Vella"))
+        }
+    }
+
+    func testInstallersCheckHardwareNotRosettaProcessArchitecture() throws {
+        for path in ["scripts/install.sh", "scripts/install-release.sh", "docs/install.sh"] {
+            let text = try String(contentsOf: Repository.root.appendingPathComponent(path), encoding: .utf8)
+            let guardLine = try XCTUnwrap(text.components(separatedBy: "\n").first { $0.contains("hw.optional.arm64") })
+            for (hardware, expected) in [("1", Int32(0)), ("0", Int32(1))] {
+                let process = Process(), output = Pipe()
+                process.executableURL = URL(fileURLWithPath: "/bin/bash")
+                process.arguments = [
+                    "-c", "uname() { [[ $1 == -s ]] && echo Darwin || echo x86_64; }; sysctl() { echo " + hardware + "; }; fail() { exit 1; }; " + guardLine + "; echo accepted"
+                ]
+                process.standardOutput = output; process.standardError = output
+                try process.run(); _ = output.fileHandleForReading.readDataToEndOfFile(); process.waitUntilExit()
+                XCTAssertEqual(process.terminationStatus, expected, path)
+            }
+        }
+    }
+
     func testReleaseArgumentsAreForwarded() throws {
         try Integration.require()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-install-args-\(UUID())")
@@ -21,7 +51,8 @@ final class InstallScriptArgumentsTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: stub.path)
         let cases: [([String], String)] = [
             ([], "<2.0.0>\n"), (["--dry-run"], "<2.0.0>\n<--dry-run>\n"),
-            (["2.0.0", "--dry-run"], "<2.0.0>\n<--dry-run>\n")
+            (["2.0.0", "--dry-run"], "<2.0.0>\n<--dry-run>\n"),
+            (["--migrate-signing"], "<2.0.0>\n<--migrate-signing>\n")
         ]
         for (args, expected) in cases {
             let process = Process(), output = Pipe()

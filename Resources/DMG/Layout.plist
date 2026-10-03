@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>appX</key>
+	<integer>170</integer>
+	<key>appY</key>
+	<integer>160</integer>
+	<key>applicationsX</key>
+	<integer>470</integer>
+	<key>applicationsY</key>
+	<integer>160</integer>
+	<key>iconSize</key>
+	<integer>96</integer>
+	<key>windowHeight</key>
+	<integer>360</integer>
+	<key>windowTitle</key>
+	<string>Vella — Drag to Applications</string>
+	<key>windowWidth</key>
+	<integer>640</integer>
+</dict>
+</plist>

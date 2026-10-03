@@ -13,7 +13,7 @@ final class SponsorshipTests: XCTestCase {
         let quit = try XCTUnwrap(items.firstIndex { $0.title == "Quit Vella" })
         XCTAssertGreaterThan(quit, 0)
         let support = items[quit - 1]
-        XCTAssertEqual(support.title, "Support the developer…")
+        XCTAssertEqual(support.title, "Support the Developer…")
         XCTAssertEqual(support.keyEquivalent, "")
         XCTAssertNotNil(support.image)
         let opened = expectation(description: "Sponsors opened after menu tracking")

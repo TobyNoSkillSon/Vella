@@ -63,7 +63,7 @@ struct TierControl: View {
     /// The column header and its tooltip.
     static let title = "Precision"
     static let headerHelp =
-        "The number format the weights run in: bf16 or fp16 as released; int8 and int4 compressed on your Mac \u{2014} smaller, faster, slightly less accurate."
+        "The running weight format: bf16 or fp16 from the checkpoint; int8 and int4 are quantized on your Mac to reduce weight size. Speed, peak RAM and accuracy depend on the model and path."
     /// The selected cell's fill on a loaded row.
     static let hotSelection = NSColor(white: 0.1, alpha: 0.85)
     /// The one interlock line, shared by the Precision segments and the Exact/Fast switch in every app.

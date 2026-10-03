@@ -5,7 +5,17 @@ final class CoreTests: XCTestCase {
     let shure = Microphone(id: 2, name: "Shure MV7i")
     func testPreferred() { XCTAssertEqual(selectMicrophone([mac, shure], preferred: shure.name, fallback: mac.name), shure) }
     func testFallback() { XCTAssertEqual(selectMicrophone([mac], preferred: shure.name, fallback: mac.name), mac) }
-    func testNoUnrelatedDevice() { XCTAssertNil(selectMicrophone([Microphone(id: 3, name: "iPhone Microphone")], preferred: shure.name, fallback: mac.name)) }
+    func testAnyAvailableInputIsTheLastFallback() {
+        let input = Microphone(id: 3, name: "USB input")
+        XCTAssertEqual(selectMicrophone([input], preferred: shure.name, fallback: mac.name), input)
+    }
+    func testFreshDesktopPrefersSystemInputWithoutAssumingMacBook() {
+        let usb = Microphone(id: 3, name: "USB input"), display = Microphone(id: 4, name: "Display input")
+        XCTAssertEqual(Configuration(model: "").preferredMicrophone, "")
+        XCTAssertEqual(selectMicrophone([usb, display], preferred: "", fallback: "", systemDefaultID: 4), display)
+        XCTAssertEqual(selectMicrophone([usb], preferred: "", fallback: "", systemDefaultID: 4), usb)
+        XCTAssertNil(selectMicrophone([], preferred: "", fallback: "", systemDefaultID: 4))
+    }
     func testModelValidation() { XCTAssertThrowsError(try Configuration(model: "").validate()); XCTAssertNoThrow(try Configuration(model: "").validate(requiresModel: false)) }
     func testMeterSilenceAndInvalidSamples() {
         XCTAssertEqual(visualLevel(rms: 0), 0)

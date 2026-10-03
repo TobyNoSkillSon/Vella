@@ -189,6 +189,10 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(try c.deletionPlan(absent, precision: "4b").path, models.appendingPathComponent(names[2]).path)
         let streamingFamily = try XCTUnwrap(c.catalog.family(manifest.family))
         XCTAssertTrue(try c.deletionPlan(streamingFamily, precision: "8b").title.contains("earlier download (not used)"))
+        let legacyPlan = try c.deletionPlan(streamingFamily, precision: "8b")
+        XCTAssertTrue(legacyPlan.body.contains("cannot be downloaded again"))
+        XCTAssertTrue(legacyPlan.body.contains("No recipe files depend"))
+        XCTAssertFalse(legacyPlan.body.contains("You can download it again"))
         let menu = try XCTUnwrap(ModelsMenu(controller: c).modelItem().submenu)
         XCTAssertTrue(menu.items.contains { $0.title == "Delete Parakeet v3 4-bit…" })
         let bytes = try Data(contentsOf: configURL)
@@ -196,6 +200,11 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: configURL), bytes, "idempotent")
         let runtime = try Runtime.isolated(root.appendingPathComponent("api-fixture"))
         let controls = ModelControls(controller: c, runtime: runtime)
+        let legacyFiles = try XCTUnwrap(controls.object(streamingFamily)["local_files"] as? [[String: Any]])
+        let oldFile = try XCTUnwrap(legacyFiles.first { $0["legacy"] as? Bool == true })
+        XCTAssertEqual(oldFile["precision"] as? String, "legacy published quantization")
+        XCTAssertEqual(oldFile["catalog_precision"] as? String, "int8")
+        XCTAssertEqual(oldFile["offered"] as? Bool, false); XCTAssertEqual(oldFile["used"] as? Bool, false)
         do {
             _ = try await controls.perform("delete", id: absent.id, fields: ["precision": "int4"])
             XCTFail("unoffered legacy Delete needs consent")
@@ -229,6 +238,37 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, p.stored)
         XCTAssertTrue(c.lastError?.contains("no longer offered") == true)
         XCTAssertEqual(try Data(contentsOf: legacy.appendingPathComponent("model.safetensors")), Data("keep".utf8))
+    }
+
+    @MainActor func testFailedRecipePreparationDoesNotClaimTheSourceIsMissing() throws {
+        let (c, paths) = try controller()
+        let f = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        let derived = URL(fileURLWithPath: paths.derived)
+        try FileManager.default.removeItem(at: derived)
+        try Data("blocks directory creation".utf8).write(to: derived)
+        let runtime = try Runtime.isolated(root.appendingPathComponent("derive-refusal"))
+        let model = DictationController(configurationURL: runtime.configURL, monitorDefaultInput: false); defer { model.shutdown() }
+        let bridge = RuntimeBridge(runtime: runtime); bridge.attach(controller: c, model: model)
+        // An unused published int8 file identifies the requested precision; the current recipe cannot be written.
+        let id = try XCTUnwrap(f.variants["8b"]?.id)
+        let old = support.appendingPathComponent("Models/legacy-ultra-int8")
+        try FileManager.default.createDirectory(at: old, withIntermediateDirectories: true)
+        c.dictation.installed[id] = InstalledModel(path: old.path)
+        let reason = try XCTUnwrap(bridge.recipeRefusal(path: old.path, mode: .dictation))
+        XCTAssertTrue(reason.contains("Could not prepare")); XCTAssertTrue(reason.contains("Existing weights are kept"))
+        XCTAssertFalse(reason.contains("not on this Mac")); XCTAssertFalse(reason.contains("Get it"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: paths.ultra + "/config.json"))
+    }
+
+    @MainActor func testImportedPublishedQuantIsNotTheMeasuredTier() throws {
+        let (c, _) = try controller()
+        let f = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
+        let runtime = try Runtime.isolated(root.appendingPathComponent("legacy-json"))
+        let files = try XCTUnwrap(ModelControls(controller: c, runtime: runtime).object(f)["local_files"] as? [[String: Any]])
+        let old = try XCTUnwrap(files.first)
+        XCTAssertEqual(old["precision"] as? String, "legacy published quantization")
+        XCTAssertEqual(old["offered"] as? Bool, false); XCTAssertEqual(old["used"] as? Bool, false)
+        XCTAssertEqual(old["legacy"] as? Bool, true)
     }
 
     @MainActor func testExternalModelJSONAgreesWithDeleteRefusal() throws {

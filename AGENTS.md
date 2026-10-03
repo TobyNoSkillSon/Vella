@@ -14,4 +14,4 @@ Building from source instead: `VELLA_BUILD=source scripts/install.sh` (needs Com
 
 Problems: run `vella diagnose` and give the user its output and the issue link on its last line (a prefilled GitHub bug report; they decide whether to file it). It never starts Vella and loads nothing; `--load` loads the dictation model first, `--json` gives the data as JSON.
 
-Uninstall: quit Vella, delete `~/Applications/Vella.app` and `~/.local/bin/vella`, and, only if the user wants their models and recordings gone too, `~/Library/Application Support/Vella`.
+Uninstall: turn off Launch at Login, then quit. Delete the installed Vella.app (`~/Applications` for the installer, `/Applications` for the DMG), Vella’s `~/.local/bin/vella` link if it targets that app, and `~/.local/share/vella/app-path`. Only with the user’s deletion consent, remove `~/Library/Application Support/Vella`; for a complete reset, `defaults delete dev.vella.dictation` and remove its `~/Library/Caches/dev.vella.dictation` and `~/Library/HTTPStorages/dev.vella.dictation` if present. Preserve unrelated parent folders and shared model caches.

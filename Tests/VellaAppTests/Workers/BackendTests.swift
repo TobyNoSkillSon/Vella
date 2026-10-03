@@ -91,7 +91,7 @@ final class BackendTests: XCTestCase {
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Start Dictation" })
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Quit Vella" })
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Microphone" && $0.submenu != nil })
-        let fallback = delegate.menu.item(withTitle: "Microphone")?.submenu?.item(withTitle: "MacBook fallback when recording starts")
+        let fallback = delegate.menu.item(withTitle: "Microphone")?.submenu?.item(withTitle: "Fallback checked when recording starts")
         XCTAssertNotNil(fallback)
         XCTAssertEqual(fallback?.toolTip, "Losing the microphone during recording stops capture, keeps the audio and offers Retry.")
     }

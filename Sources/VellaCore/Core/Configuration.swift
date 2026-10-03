@@ -24,7 +24,7 @@ public struct Configuration: Codable {
     public var clearedSelectionReasons: [String: String] = [:]
     public init(
         model: String,
-        preferredMicrophone: String = "MacBook Pro Microphone", fallbackMicrophone: String = "MacBook Pro Microphone",
+        preferredMicrophone: String = "", fallbackMicrophone: String = "",
         mode: RecognitionMode = .dictation, streamingModel: String = ""
     ) {
         self.model = model
@@ -40,8 +40,8 @@ public struct Configuration: Codable {
         model = try values.decodeIfPresent(String.self, forKey: .model) ?? ""
         mode = try values.decodeIfPresent(RecognitionMode.self, forKey: .mode) ?? .dictation
         streamingModel = try values.decodeIfPresent(String.self, forKey: .streamingModel) ?? ""
-        preferredMicrophone = try values.decodeIfPresent(String.self, forKey: .preferredMicrophone) ?? "MacBook Pro Microphone"
-        fallbackMicrophone = try values.decodeIfPresent(String.self, forKey: .fallbackMicrophone) ?? "MacBook Pro Microphone"
+        preferredMicrophone = try values.decodeIfPresent(String.self, forKey: .preferredMicrophone) ?? ""
+        fallbackMicrophone = try values.decodeIfPresent(String.self, forKey: .fallbackMicrophone) ?? ""
         residency = (try? values.decodeIfPresent(ResidencySettings.self, forKey: .residency)) ?? ResidencySettings()
         lastLoaded = (try? values.decodeIfPresent([String: String].self, forKey: .lastLoaded)) ?? [:]
         clearedSelectionReasons = (try? values.decodeIfPresent([String: String].self, forKey: .clearedSelectionReasons)) ?? [:]
@@ -67,7 +67,7 @@ public struct Configuration: Codable {
     }
     public func validate(requiresModel: Bool = true) throws {
         guard !requiresModel || !selectedModel.isEmpty else {
-            throw VellaError.message("Install a \(mode.title.lowercased()) model and choose Use.")
+            throw VellaError.message("Open Vella → Models… and choose Get or Load for a \(mode.title) model.")
         }
     }
 }

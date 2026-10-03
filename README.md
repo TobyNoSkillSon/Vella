@@ -33,7 +33,7 @@ Measured 1–2 October 2026 on Apple M5 Max, macOS 26.6. English WER on the 167 
 
 <!-- RELEASE_SHORT_TABLE_END -->
 
-Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
+Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far.
 
 Each model downloads one pinned checkpoint at its published 16-bit precision, except Parakeet v3, whose pinned source is FP32 (2.51 GB) and which Vella converts once to BF16 when you choose **Get**. `int8` and `int4` are made on your Mac from the 16-bit weights; the download prompt names the exact size first. The table shows the dtype actually running (`bf16`/`fp16`, `int8`, `int4`). Choose Standard or Optimized; Optimized has Exact and Fast recipes. Missing figures show `—`, never a sibling model's score. Models and weights retain their own licences in [`Resources/models.json`](Resources/models.json).
 
@@ -48,45 +48,45 @@ Measured 1–2 October 2026 on Apple M5 Max, macOS 26.6. English WER on the 167 
 
 | Model | Mode | Precision | Path | English WER % | Format % | Languages | Speed | J / min | Peak RAM | Suite |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Parakeet v3 Ultra | Dictation | 16 | Standard | 15.46 | 5.80 | 5/9 | 261.4× | 6.33 | 1,796 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 16 | Optimized · Exact | 15.49 | 5.74 | 5/9 | 474.5× | 4.71 | 1,808 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 16 | Optimized · Fast | 15.51 | 5.79 | 5/9 | 507.1× | 4.58 | 1,792 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 8 | Standard | 15.46 | 5.76 | 5/9 | 244.8× | 8.99 | 1,280 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 8 | Optimized · Exact | 15.46 | 5.77 | 5/9 | 369.0× | 8.62 | 1,888 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 8 | Optimized · Fast | 15.46 | 5.81 | 5/9 | 515.0× | 5.35 | 1,352 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 4 | Standard | 15.62 | 5.81 | 5/9 | 246.7× | 8.75 | 1,024 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 4 | Optimized · Exact | 15.65 | 5.84 | 5/9 | 370.6× | 8.41 | 1,640 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 4 | Optimized · Fast | 15.58 | 5.80 | 5/9 | 522.5× | 5.13 | 1,094 MB | v2 |
-| Parakeet v3 | Dictation | 16 | Standard | 16.37 | 7.84 | 5/9 | 257.7× | 6.35 | 1,794 MB | v2 |
-| Parakeet v3 | Dictation | 16 | Optimized · Exact | 16.42 | 7.92 | 5/9 | 463.9× | 4.81 | 1,777 MB | v2 |
-| Parakeet v3 | Dictation | 16 | Optimized · Fast | 16.42 | 7.92 | 5/9 | 494.3× | 4.70 | 1,765 MB | v2 |
-| Parakeet v3 | Dictation | 8 | Standard | 16.40 | 7.92 | 5/9 | 241.2× | 9.05 | 1,279 MB | v2 |
-| Parakeet v3 | Dictation | 8 | Optimized · Exact | 16.35 | 7.81 | 5/9 | 363.3× | 8.68 | 1,883 MB | v2 |
-| Parakeet v3 | Dictation | 8 | Optimized · Fast | 16.30 | 7.85 | 5/9 | 504.4× | 5.41 | 1,342 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 16 | Standard | 15.00 | 6.67 | 9/9 | 26.6× | 81.03 | 4,624 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 16 | Optimized (Exact = Fast) | 15.00 | 6.67 | 9/9 | 29.6× | 72.73 | 5,118 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 16 | Standard | 15.89 | 7.16 | 9/9 | 51.7× | 36.82 | 2,142 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 16 | Optimized (Exact = Fast) | 15.89 | 7.16 | 9/9 | 64.4× | 34.07 | 2,406 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 8 | Standard | 16.04 | 7.17 | 9/9 | 60.7× | 33.58 | 1,639 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 8 | Optimized (Exact = Fast) | 16.04 | 7.17 | 9/9 | 82.0× | 30.05 | 1,920 MB | v2 |
-| Whisper large-v3 | Dictation | 16 | Standard | — | — | — | — | — | — | Not measured yet |
-| Whisper large-v3 | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
-| Whisper large-v3 | Dictation | 16 | Optimized · Fast | 17.06 | 8.17 | 9/9 | 34.8× | 83.50 | 3,915 MB | v2 |
-| Whisper large-v3 | Dictation | 8 | Standard | — | — | — | — | — | — | Not measured yet |
-| Whisper large-v3 | Dictation | 8 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
-| Whisper large-v3 | Dictation | 8 | Optimized · Fast | 17.27 | 8.18 | 9/9 | 42.9× | 75.22 | 3,104 MB | v2 |
-| Whisper large-v3 turbo | Dictation | 16 | Standard | — | — | — | — | — | — | Not measured yet |
-| Whisper large-v3 turbo | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
-| Whisper large-v3 turbo | Dictation | 16 | Optimized · Fast | 16.57 | 7.43 | 9/9 | 113.7× | 37.18 | 2,522 MB | v2 |
-| Whisper large-v3 turbo | Dictation | 8 | Standard | — | — | — | — | — | — | Not measured yet |
-| Whisper large-v3 turbo | Dictation | 8 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
-| Whisper large-v3 turbo | Dictation | 8 | Optimized · Fast | 16.52 | 7.46 | 9/9 | 128.9× | 35.56 | 2,574 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 16 | Standard | 23.50 | 10.89 | 9/9 | 7.3× | 188.25 | 2,253 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 16 | Optimized · Exact | 23.39 | 10.57 | 9/9 | 19.3× | 80.33 | 2,725 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 16 | Optimized · Fast | 23.35 | 10.58 | 9/9 | 34.9× | 50.03 | 1,655 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 8 | Standard | 23.42 | 10.54 | 9/9 | 15.1× | 112.00 | 1,191 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 8 | Optimized · Exact | 23.42 | 10.54 | 9/9 | 29.8× | 58.71 | 1,251 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 8 | Optimized · Fast | 23.44 | 10.55 | 9/9 | 38.4× | 43.07 | 1,114 MB | v2 |
+| Parakeet v3 Ultra | Dictation | bf16 | Standard | 15.46 | 5.80 | 5/9 | 261.4× | 6.33 | 1,796 MB | v2 |
+| Parakeet v3 Ultra | Dictation | bf16 | Optimized · Exact | 15.49 | 5.74 | 5/9 | 474.5× | 4.71 | 1,808 MB | v2 |
+| Parakeet v3 Ultra | Dictation | bf16 | Optimized · Fast | 15.51 | 5.79 | 5/9 | 507.1× | 4.58 | 1,792 MB | v2 |
+| Parakeet v3 Ultra | Dictation | int8 | Standard | 15.46 | 5.76 | 5/9 | 244.8× | 8.99 | 1,280 MB | v2 |
+| Parakeet v3 Ultra | Dictation | int8 | Optimized · Exact | 15.46 | 5.77 | 5/9 | 369.0× | 8.62 | 1,888 MB | v2 |
+| Parakeet v3 Ultra | Dictation | int8 | Optimized · Fast | 15.46 | 5.81 | 5/9 | 515.0× | 5.35 | 1,352 MB | v2 |
+| Parakeet v3 Ultra | Dictation | int4 | Standard | 15.62 | 5.81 | 5/9 | 246.7× | 8.75 | 1,024 MB | v2 |
+| Parakeet v3 Ultra | Dictation | int4 | Optimized · Exact | 15.65 | 5.84 | 5/9 | 370.6× | 8.41 | 1,640 MB | v2 |
+| Parakeet v3 Ultra | Dictation | int4 | Optimized · Fast | 15.58 | 5.80 | 5/9 | 522.5× | 5.13 | 1,094 MB | v2 |
+| Parakeet v3 | Dictation | bf16 | Standard | 16.37 | 7.84 | 5/9 | 257.7× | 6.35 | 1,794 MB | v2 |
+| Parakeet v3 | Dictation | bf16 | Optimized · Exact | 16.42 | 7.92 | 5/9 | 463.9× | 4.81 | 1,777 MB | v2 |
+| Parakeet v3 | Dictation | bf16 | Optimized · Fast | 16.42 | 7.92 | 5/9 | 494.3× | 4.70 | 1,765 MB | v2 |
+| Parakeet v3 | Dictation | int8 | Standard | 16.40 | 7.92 | 5/9 | 241.2× | 9.05 | 1,279 MB | v2 |
+| Parakeet v3 | Dictation | int8 | Optimized · Exact | 16.35 | 7.81 | 5/9 | 363.3× | 8.68 | 1,883 MB | v2 |
+| Parakeet v3 | Dictation | int8 | Optimized · Fast | 16.30 | 7.85 | 5/9 | 504.4× | 5.41 | 1,342 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | bf16 | Standard | 15.00 | 6.67 | 9/9 | 26.6× | 81.03 | 4,624 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | bf16 | Optimized (Exact = Fast) | 15.00 | 6.67 | 9/9 | 29.6× | 72.73 | 5,118 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | bf16 | Standard | 15.89 | 7.16 | 9/9 | 51.7× | 36.82 | 2,142 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | bf16 | Optimized (Exact = Fast) | 15.89 | 7.16 | 9/9 | 64.4× | 34.07 | 2,406 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | int8 | Standard | 16.04 | 7.17 | 9/9 | 60.7× | 33.58 | 1,639 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | int8 | Optimized (Exact = Fast) | 16.04 | 7.17 | 9/9 | 82.0× | 30.05 | 1,920 MB | v2 |
+| Whisper large-v3 | Dictation | fp16 | Standard | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 | Dictation | fp16 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 | Dictation | fp16 | Optimized · Fast | 17.06 | 8.17 | 9/9 | 34.8× | 83.50 | 3,915 MB | v2 |
+| Whisper large-v3 | Dictation | int8 | Standard | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 | Dictation | int8 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 | Dictation | int8 | Optimized · Fast | 17.27 | 8.18 | 9/9 | 42.9× | 75.22 | 3,104 MB | v2 |
+| Whisper large-v3 turbo | Dictation | fp16 | Standard | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 turbo | Dictation | fp16 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 turbo | Dictation | fp16 | Optimized · Fast | 16.57 | 7.43 | 9/9 | 113.7× | 37.18 | 2,522 MB | v2 |
+| Whisper large-v3 turbo | Dictation | int8 | Standard | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 turbo | Dictation | int8 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 turbo | Dictation | int8 | Optimized · Fast | 16.52 | 7.46 | 9/9 | 128.9× | 35.56 | 2,574 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | bf16 | Standard | 23.50 | 10.89 | 9/9 | 7.3× | 188.25 | 2,253 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | bf16 | Optimized · Exact | 23.39 | 10.57 | 9/9 | 19.3× | 80.33 | 2,725 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | bf16 | Optimized · Fast | 23.35 | 10.58 | 9/9 | 34.9× | 50.03 | 1,655 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | int8 | Standard | 23.42 | 10.54 | 9/9 | 15.1× | 112.00 | 1,191 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | int8 | Optimized · Exact | 23.42 | 10.54 | 9/9 | 29.8× | 58.71 | 1,251 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | int8 | Optimized · Fast | 23.44 | 10.55 | 9/9 | 38.4× | 43.07 | 1,114 MB | v2 |
 | ElevenLabs Scribe v2 (cloud API) | Dictation | — | — | ~13.4 (estimated, 11.8–13.9) | — | — | — | — | — | estimated |
 | Microsoft Azure Speech (cloud API) | Dictation | — | — | ~12.9 (estimated, 11.3–13.3) | — | — | — | — | — | estimated |
 
@@ -100,11 +100,11 @@ Commit SHAs are those of the published history (rewritten 3 Oct to remove the wi
 
 <!-- BENCHMARK_TABLE_END -->
 
-- **Precision** is bits per weight: 16 is the checkpoint as published (Parakeet v3's FP32 release is converted once to BF16 at Get), 8 and 4 are affine-quantized on your Mac from it. **Standard** and **Optimized** are the two ways to run a precision; **Exact** and **Fast** are Optimized's two recipes.
+- **Precision** is the running weight format: bf16 or fp16 for the 16-bit checkpoint, and int8 or int4 for affine quantization made on your Mac. Parakeet v3’s fp32 download is converted once to bf16 at Get. **Standard** and **Optimized** are the two ways to run a precision; **Exact** and **Fast** are Optimized's two recipes.
 - **WER** is English word error rate on the 167 English minutes of the 239.7-minute v2 suite: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. The nine other languages are scored separately and never pooled into this figure. It is the industry-standard metric, as on the Hugging Face Open ASR Leaderboard; our v2 set is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. **Format** is our own measure, with no industry standard: character error rate with case and punctuation kept, i.e. how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
 - **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Peak RAM** is the peak footprint of the model worker, including loading.
 - **Which tiers are offered.** A tier is offered unless it breaks against 16: a clip it leaves empty or cuts short, a request error, English or average word error rate 5 points worse, or one language 10 points worse. A tier that is merely worse is offered with its loss in the figures and the tooltip; Vella's quality gate (English word error rate within 0.1 points of 16, up to 0.2 points for a model whose measured run-to-run noise is larger, the other languages within a similar limit, no dropped or cut-off segments) says whether a tier loses nothing measurable. No tier is recommended: you choose.
-- Figures were measured on an Apple M5 Max. On other Macs, speed, energy, memory and transcripts can differ when components fall back. The table says so on other chips.
+- Measured and qualified on an M5 Max; other Apple Silicon chips run the fallback paths qualified by self-test. Only M5 Max with 40 GPU cores matches the measured configuration. On every other Mac (including M5, M5 Pro and other M5 Max core counts), Speed stays the **M5 Max measurement**, lighter grey with a small **M5 Max** label; it is not an estimate for that Mac. J / min is `not known`. WER, Format and Peak RAM stay as measured. Tooltip: “Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it.”
 
 Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); a sortable table is at https://tobynoskillson.github.io/Vella/.
 
@@ -118,7 +118,7 @@ curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
 
 Or from a checkout: `git clone https://github.com/TobyNoSkillSon/Vella && cd Vella && scripts/install.sh`. Either way the installer downloads the prebuilt app for this version with curl, checks its SHA-256 and code signature, clears quarantine, installs it in `~/Applications`, starts it and ends with `ready: …`. Coding agents can follow [AGENTS.md](AGENTS.md).
 
-**Optional DMG.** An optional disk image is planned to accompany the 2.0.0 release; the ZIP remains the primary asset. Once available, open the image and drag Vella to Applications. The app is self-signed and not notarized: after macOS blocks its first launch, use **System Settings → Privacy & Security → Open Anyway**, then confirm. The command-line installer above needs no Gatekeeper step.
+**Optional DMG.** An optional disk image is planned to accompany the 2.0.0 release; the ZIP remains the primary asset. Once available, open the image and drag Vella to Applications. For Terminal and agents, use `/Applications/Vella.app/Contents/Helpers/vella`, or use the command-line installer, which links `vella`. The app is self-signed and not notarized: after macOS blocks its first launch, use **System Settings → Privacy & Security → Open Anyway**, then confirm. The command-line installer above needs no Gatekeeper step.
 
 Open Vella from the menu bar, approve Microphone and Accessibility access, and press **Control + Command + N**. The first dictation without a model keeps the recording and offers **Get <model> (<size>)**; after the download it transcribes the waiting recording.
 
@@ -127,9 +127,21 @@ Open Vella from the menu bar, approve Microphone and Accessibility access, and p
 
 **Updating.** `git pull && scripts/install.sh`. Models, recordings and settings are kept. The installer refuses while Vella is recording, transcribing or loading a model ("try again in a moment"); otherwise it quits Vella, swaps the app in place and restarts it. The previous app is kept until the new one reports ready, and restored if the swap fails. A certificate-signed installation is only replaced by an app with the same signing identity, so macOS privacy permissions carry over.
 
+### Upgrading from 0.8
+
+**From 0.8.x.** The old **Update available** item only opens the GitHub release page. For a self-built ad-hoc installation, update with `scripts/install.sh --migrate-signing` from a current checkout, or use the public installer with `bash -s -- --migrate-signing`. Confirm the signing change interactively. Settings, history, recordings and models are kept; macOS will ask for Microphone and Accessibility access again. The installer keeps the old app and prints its rollback path, including after a successful update. Manual ZIP/DMG replacement also keeps Application Support data, but browser downloads may require Privacy & Security → Open Anyway and the manual route does not create a rollback backup. See the 2.0.0 release notes for the full steps and model-selection migration.
+
+A self-built 0.8 app has an ad-hoc signature, not Vella’s release signature. The installer refuses that identity change by default. Opt in with the flag below. In a terminal the installer also explains the change and asks **y/N**:
+
+```sh
+scripts/install.sh --migrate-signing
+```
+
+For the public installer: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing`. This permits only a verified ad-hoc Vella app → Vella’s pinned release signature, never an arbitrary certificate change. macOS will ask for **Microphone** and **Accessibility** again; re-enable Vella under System Settings → Privacy & Security. Settings, history, recordings and models are kept. The previous app stays at the printed path even after readiness; to roll back, quit Vella and move that app back to the printed destination. No upgrade proceeds while recording, transcribing or loading.
+
 **Verification.** `scripts/install-release.sh <version> --dry-run` downloads and verifies a release without installing it. The SHA-256 detects a corrupted download; it comes from the same release, so it is not a signature. Download releases with the installer, not a browser: a browser adds the quarantine flag, and Gatekeeper then blocks the app.
 
-**Uninstalling.** Quit Vella and move `~/Applications/Vella.app` to the Trash. Models, settings and recordings stay in `~/Library/Application Support/Vella`; delete that folder too if you want them gone.
+**Uninstalling.** Turn off Launch at Login in Vella, then quit. Trash the installed app (`~/Applications/Vella.app` for the shell installer, `/Applications/Vella.app` for the DMG). Remove `~/.local/bin/vella` only if it points into that app, and `~/.local/share/vella/app-path` if present. Models, recordings and settings remain in `~/Library/Application Support/Vella`; delete them only if you want them gone. The detailed [uninstall guide](docs/USAGE.md#uninstall) covers Vella’s preferences and caches.
 
 </details>
 
@@ -142,7 +154,7 @@ scripts/build.sh                         # build dist/Vella.app only
 scripts/release-check.sh                 # what CI and the release workflow check, run locally
 ```
 
-A source build needs the Command Line Tools Swift (`xcode-select --install`), full Xcode and its Metal Toolchain (`xcodebuild -downloadComponent MetalToolchain`); the installer checks each and prints the command that fixes a missing one. Swift compiles with the Command Line Tools and the MLX shaders with Xcode's Metal compiler. The app is a Swift menu-bar process (`Sources/Vella`) that supervises the recognition helpers (`Worker/`), one process per loaded model; the app itself downloads the models. `xcrun swift test` runs the unit tests. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest.
+A source build needs the Command Line Tools Swift (`xcode-select --install`), full Xcode and its Metal Toolchain (`xcodebuild -downloadComponent MetalToolchain`); the installer checks each and prints the command that fixes a missing one. Swift compiles with the Command Line Tools and the MLX shaders with Xcode's Metal compiler. The app is a Swift menu-bar process (`Sources/Vella`) that supervises the recognition helpers (`Worker/`), one process per loaded model; the app itself downloads the models. `scripts/test-unit.sh` builds and runs the app, core and update tests with the shipping Swift compiler and Xcode’s XCTest host. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest.
 
 </details>
 
@@ -164,13 +176,19 @@ A source build needs the Command Line Tools Swift (`xcode-select --install`), fu
 <details>
 <summary>The menu, the Models table, Keep Hot and Memory</summary>
 
-Everything lives in the menu: the status line, then **Models… · Keep Hot · Memory**, then **Start Dictation** with **Mode · Microphone · Shortcuts**, your last transcript and saved recordings, then the agent skill, diagnostics, files, the worker and **Launch at Login**.
+Everything lives in the menu: the status line, then **Models… · Keep Hot · Memory**, then **Start Dictation** with **Mode · Microphone · Shortcuts**, your last transcript and saved recordings, then the agent skill, files and **Launch at Login**.
 
 <p align="center">
   <img src="docs/images/menu-current.png" alt="Vella's menu: status, Models, Keep Hot, Memory, Start Dictation, Mode, Microphone, Shortcuts, Copy Last Transcript, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Start Worker, Launch at Login, Support and Quit" width="340">
 </p>
 
-**Models…** opens one table with Dictation and Streaming sections, one line per model; a thick line divides the two. Hover a model's name for what it is, its licence and its languages. **Precision** has two rows of three equal cells named by the format that runs (`bf16`, or `fp16` for Whisper, as released; `int8` and `int4` compressed on your Mac): **Optimized** (a bolt), Vella's kernels for your chip, above **Standard** (the MLX logo), plain MLX; every row shows all six cells, and a cell the model cannot run is greyed in place with the reason in its tooltip, so the grid never shifts. Every other cell is clickable and shows its own figures. Beside both rows a switch as tall as the pair chooses up **Fast** or down **Exact** for the Optimized row; click anywhere on it to flip it. It is greyed and pinned up where Fast measures the same as Exact. Exact: exact-only components that must match Standard on the load-time self-test. Full-suite figures can differ slightly. It offers only the precisions that have such a recipe, so flipping to Exact can move the precision to 16, and the line under the model's name says so. The small line under each figure is its difference from Standard bf16 when a baseline is measured. Whisper has no Standard baseline or multiplier; its measured Fast figures remain visible and withdrawn Standard/Exact cells show `—`. Rows keep their place when you switch: each column sorts by the model's best value across its precisions. A loaded model shows what it is loaded with; clicking another cell or flipping the switch previews it and, on a loaded model, shows a green **Reload**, which loads it; closing the menu discards the preview. While a model is recording, transcribing, streaming or loading, its segments and switch are locked; a change applies at the next load. What was last loaded is what dictation uses; a model never loaded starts on Optimized 16 · Fast. The last column is the row's button: **Get** downloads and loads (for a precision made on your Mac, it downloads the weights it is made from), **Load** keeps a model ready, **Unload** frees its memory; under the pointer a trash icon beside it deletes the weights. Every download first asks in a popup that names the model, precision, source and exact size; nothing downloads without **Download**.
+**Choose.** In Models…, choose a precision on Standard or Optimized. Fast and Exact select the Optimized recipe; unavailable cells explain why in their tooltip.
+
+**Preview.** Choosing a cell previews its figures. Load, Reload or Get applies it; closing the menu discards the preview.
+
+**Load.** Get asks before downloading. Unload frees memory without deleting weights; the trash button removes weights after confirmation.
+
+**Figures.** Hover for the measurement source and differences from Standard. Other Macs show M5 Max measured speed with an M5 Max label, not their own speed.
 
 **Engine.** Under a loaded model's name, **Optimized Fast · <your chip>** or **Optimized Exact · <your chip>** means Vella's kernels passed a self-test against the stock path on this Mac when the model loaded. **Standard** means the stock MLX path: the same model, slower. If the optimized path fails during a transcription, Vella redoes that transcription on the stock path and keeps the model there until it is reloaded.
 
@@ -192,7 +210,7 @@ The [user guide](docs/USAGE.md) covers every menu item, recovery and troubleshoo
 Install: follow [AGENTS.md](AGENTS.md), then `vella skill --install <skills directory>` writes `transcribe/SKILL.md`. **Copy Skill for Your Agent** in the menu copies the same text.
 
 ```sh
-vella status                      # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra 16 loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:63080/v1
+vella status                      # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra bf16 · Optimized Fast loaded · dictation model Parakeet v3 Ultra (bf16, Optimized Fast) · API http://127.0.0.1:63080/v1
 vella transcribe talk.m4a         # the transcript as plain text
 vella transcribe talk.m4a --srt   # SRT subtitles; also --vtt, --json, --verbose-json
 vella models --json                # all catalog rows, cells, reasons, source and download size
@@ -229,3 +247,5 @@ Your audio and transcripts never leave your Mac. The recognition helpers run in 
 ## Licence
 
 Vella 2.0 is [MIT-licensed](LICENSE). Published 0.x releases remain Apache-2.0; this does not change their licence retroactively. Keep the copyright and permission notice in [LICENSE](LICENSE), and the applicable [third-party notices](THIRD_PARTY_NOTICES.md), when you redistribute. Vella ships no model weights; each model's licence is in its tooltip in the app and in [`Resources/models.json`](Resources/models.json). The helpers include code adapted from mlx-audio-swift, mlx-audio and mlx-whisper (MIT) and link MLX and swift-transformers; [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) has each licence, and Vella.app carries it with LICENSE and NOTICE in `Contents/Resources`.
+
+Figure differences use percentages below a 2× ratio, total ratios at 2× or above (2.4× as fast, 0.3× the energy); noise-level WER/Format differences read same.

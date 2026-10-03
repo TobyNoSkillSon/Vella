@@ -20,7 +20,7 @@ final class MenuMock: NSView {
     static func capture(_ view: NSView, to url: URL, done: @escaping () -> Void) {
         let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
         window.backgroundColor = .clear; window.contentView = view; window.appearance = NSAppearance(named: .darkAqua)
-        window.orderFrontRegardless(); window.setFrameOrigin(NSPoint(x: -5000, y: -5000))
+        window.setFrameOrigin(NSPoint(x: -5000, y: -5000)); window.orderFrontRegardless()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
                 view.cacheDisplay(in: view.bounds, to: rep)

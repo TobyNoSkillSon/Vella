@@ -5,6 +5,7 @@ import ServiceManagement
 import VellaCore
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    var loginStatus: () -> SMAppService.Status = { SMAppService.mainApp.status }
     let model: DictationController
     var openExternalURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     /// In-app updates: the orange "Update to X…" item under Support and its popup.
@@ -275,17 +276,18 @@ import VellaCore
         menu.removeAllItems()
         var summary: String
         switch model.phase {
-        case .idle: summary = model.insertionPermission.granted ? "\(model.mode.title): ready" : "\(model.mode.title): Accessibility required"
+        case .idle: summary = model.insertionPermission.granted ? "\(model.mode.title): ready" : "Accessibility is off — allow Vella in Settings"
         case .preparing: summary = "\(model.mode.title): preparing…"
         case .recording: summary = "\(model.mode.title): listening"
         case .transcribing: summary = model.processingProgress.isEmpty ? "\(model.mode.title): transcribing…" : "\(model.mode.title): " + model.processingProgress
-        case .success: summary = model.insertionWasAutomatic ? "\(model.mode.title): paste sent" : "\(model.mode.title): copied—press ⌘V"
-        case .failed: summary = "\(model.mode.title): needs attention…"
+        case .success:
+            summary = model.insertionWasAutomatic ? "\(model.mode.title): \(model.mode == .streaming ? "text sent" : "paste sent")" : "\(model.mode.title): copied—press ⌘V"
+        case .failed: summary = model.attentionTitle
         }
         // The loaded model is the fact most worth knowing before opening Models.
         if let activeModel = modelsMenu.controller.activeLabel(model.mode) { summary += " · \(activeModel)" }
         let pending = pendingModelRow()
-        if pending != nil, model.phase == .idle || model.phase == .failed { summary = "\(model.mode.title): recording kept, needs a model" }
+        if pending != nil, model.phase == .idle || model.phase == .failed { summary = "Recording saved. Get a model to transcribe it." }
         let needsPermission = !model.insertionPermission.granted
         let header = NSMenuItem(title: summary, action: needsPermission ? #selector(accessibility) : model.phase == .failed ? #selector(showCaptureError) : nil, keyEquivalent: "")
         header.target = self
@@ -336,6 +338,10 @@ import VellaCore
         let microphones = NSMenuItem(title: "Microphone", action: nil, keyEquivalent: "")
         microphones.image = NSImage(systemSymbolName: "mic", accessibilityDescription: nil)
         let devices = NSMenu(); devices.autoenablesItems = false
+        let system = SettingsMenuItem(title: "System Default Input", target: self, action: #selector(selectMicrophone(_:)))
+        system.representedObject = ""; system.isEnabled = canChangeMode
+        system.state = ((try? model.backend.configuration(requiresModel: false).preferredMicrophone) ?? "").isEmpty ? .on : .off
+        system.synchronize(); devices.addItem(system)
         let selected = try? model.backend.configuration(requiresModel: false).preferredMicrophone
         for device in Recorder.devices() {
             let entry = SettingsMenuItem(title: device.name, target: self, action: #selector(selectMicrophone(_:)))
@@ -345,7 +351,7 @@ import VellaCore
             devices.addItem(entry)
         }
         devices.addItem(.separator())
-        let fallback = NSMenuItem(title: "MacBook fallback when recording starts", action: nil, keyEquivalent: "")
+        let fallback = NSMenuItem(title: "Fallback checked when recording starts", action: nil, keyEquivalent: "")
         fallback.toolTip = "Losing the microphone during recording stops capture, keeps the audio and offers Retry."
         fallback.isEnabled = false; devices.addItem(fallback)
         microphones.submenu = devices; menu.addItem(microphones)
@@ -358,21 +364,20 @@ import VellaCore
                 selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
                 openSettings: #selector(accessibility)))
         if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast)) }
+        item("Recover Saved Recording…", "arrow.clockwise", #selector(recoverSaved), enabled: !model.busy && model.phase != .recording)
         item("Open Saved Recordings", "folder", #selector(savedRecordings), help: Self.privacyHelp)
         menu.addItem(.separator())
         // Agent, support files and the worker.
         item("Copy Skill for Your Agent", "doc.on.doc", #selector(copySkill), help: copySkillHelp)
         item("Open Vella Files", "folder", #selector(files))
-        let running = workersRunning()
-        item(
-            workerItemTitle(running: running), running ? "arrow.clockwise" : "play.circle", #selector(restartWorker),
-            enabled: model.phase != .recording && !model.busy)
-        let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
+        let login = NSMenuItem(
+            title: loginStatus() == .requiresApproval ? "Launch at Login — Approval Required…" : "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
         login.target = self; login.image = NSImage(systemSymbolName: "power.circle", accessibilityDescription: nil)
-        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        login.state = loginStatus() == .enabled ? .on : .off
+        login.toolTip = loginStatus() == .requiresApproval ? "Allow Vella in System Settings → General → Login Items & Extensions." : nil
         menu.addItem(login)
         menu.addItem(.separator())
-        item("Support the developer…", "heart", #selector(supportDeveloper))
+        item("Support the Developer…", "heart", #selector(supportDeveloper))
         if let update = updates.menuItem() { menu.addItem(update) }
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
     }
@@ -398,6 +403,25 @@ import VellaCore
         model.cancel()
     }
     @objc private func retry() { DispatchQueue.main.async { self.model.retry() } }
+    @objc private func recoverSaved() {
+        DispatchQueue.main.async {
+            let choices = SavedRecordingChoice.list(root: RecordingSession.root)
+            guard !choices.isEmpty else { self.model.update(.idle, "No saved recordings to recover."); return }
+            let alert = Self.savedRecordingAlert(choices)
+            guard alert.runModal() == .alertSecondButtonReturn,
+                let popup = alert.accessoryView as? NSPopUpButton, choices.indices.contains(popup.indexOfSelectedItem)
+            else { return }
+            self.model.recover(choices[popup.indexOfSelectedItem].directory)
+        }
+    }
+    static func savedRecordingAlert(_ choices: [SavedRecordingChoice]) -> NSAlert {
+        let alert = NSAlert(); alert.messageText = "Transcribe a saved recording?"
+        alert.informativeText = "The result will be copied, not inserted into another app. Previously streamed text is never replayed automatically."
+        alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Transcribe")
+        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 460, height: 28))
+        popup.addItems(withTitles: choices.map(\.title)); alert.accessoryView = popup
+        return alert
+    }
     @objc private func savedRecordings() {
         DispatchQueue.main.async {
             do {
@@ -616,8 +640,18 @@ import VellaCore
     @objc private func files() { NSWorkspace.shared.open(Backend.support) }
     @objc private func toggleLogin() {
         do {
-            if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() } else { try SMAppService.mainApp.register() }
-        } catch { NSAlert(error: error).runModal() }
+            if loginStatus() == .requiresApproval {
+                SMAppService.openSystemSettingsLoginItems()
+            } else if loginStatus() == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            let alert = NSAlert(); alert.messageText = "Could not change Launch at Login"
+            alert.informativeText = sentence(error.localizedDescription) + " Check System Settings → General → Login Items & Extensions."
+            alert.addButton(withTitle: "OK"); alert.runModal()
+        }
         rebuildMenu()
     }
     /// Why an update cannot start now (completes "Vella is …"), or nil when Vella is idle: a dictation that is not
@@ -711,9 +745,12 @@ import VellaCore
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard model.phase == .recording || model.busy || librariesBusy else { return .terminateNow }
-        let alert = NSAlert(); alert.messageText = "Stop dictation and quit?"
-        alert.informativeText = "Saved audio and completed text will be kept. Unfinished text will not be inserted."
-        alert.addButton(withTitle: "Keep Dictating"); alert.addButton(withTitle: "Stop and Quit")
+        let alert = NSAlert(); alert.messageText = "Quit Vella?"
+        alert.informativeText =
+            librariesBusy && model.phase != .recording && !model.busy
+            ? "The model download will stop and its partial files will be removed. Saved recordings and installed models are kept."
+            : "Saved audio and completed text will be kept. Unfinished text will not be inserted."
+        alert.addButton(withTitle: "Keep Vella Open"); alert.addButton(withTitle: "Quit")
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         if model.captureIsFinalizing {
             Task {

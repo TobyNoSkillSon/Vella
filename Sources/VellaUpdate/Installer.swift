@@ -169,7 +169,7 @@ public final class UpdateInstaller {
     }
 
     private func rollBack(previous: URL?, reason: String) throws {
-        let failure = "Vella \(plan.staged.version) did not start (\(reason))"
+        let failure = "Vella \(plan.staged.version) did not become ready: " + sentence(reason)
         log("\(failure); restoring \(plan.from)")
         terminate(destination)
         guard let previous, fm.fileExists(atPath: previous.path) else {

@@ -58,8 +58,13 @@ public struct TranscriptionOptions: Equatable {
             options.temperature = value
         }
         let granularities = (fields["timestamp_granularities[]"] ?? []) + (fields["timestamp_granularities"] ?? [])
-        for value in granularities where !["word", "segment"].contains(value) {
-            throw APIError(400, "timestamp_granularities must be word or segment", param: "timestamp_granularities")
+        if granularities.contains("word") {
+            throw APIError(
+                400, "Word timestamps are not supported. Use timestamp_granularities[]=segment with response_format=verbose_json (JSON: timestamp_granularities: [\"segment\"]).",
+                param: "timestamp_granularities")
+        }
+        for value in granularities where value != "segment" {
+            throw APIError(400, "Only segment timestamps are supported.", param: "timestamp_granularities")
         }
         options.granularities = granularities
         if !granularities.isEmpty, options.format != .verbose_json {

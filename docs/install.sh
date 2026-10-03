@@ -9,10 +9,16 @@ set -euo pipefail
 # Everything runs from main, so a download cut short executes nothing.
 main() {
   local VERSION="${VELLA_VERSION:-2.0.0}" DRY_RUN=0
-  [[ "${1:-}" == '--dry-run' ]] && DRY_RUN=1
-  [[ $# -eq 0 || ( $# -eq 1 && "$DRY_RUN" == 1 ) ]] || fail 'Usage: install.sh [--dry-run]' 2
+  MIGRATE=()
+  for option in "$@"; do
+    case "$option" in
+      --dry-run) DRY_RUN=1 ;;
+      --migrate-signing) MIGRATE=(--migrate-signing) ;;
+      *) fail 'Usage: install.sh [--dry-run] [--migrate-signing]' 2 ;;
+    esac
+  done
   [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VELLA_VERSION must be a release version, e.g. 2.0.0' 2
-  [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || fail 'Vella requires an Apple Silicon Mac'
+  [[ "$(uname -s)" == Darwin && "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" == 1 ]] || fail 'Vella requires an Apple Silicon Mac'
   local OS; OS="$(sw_vers -productVersion)"
   [[ "${OS%%.*}" -ge 26 ]] || fail "Vella requires macOS 26 or newer ($OS)"
 
@@ -22,7 +28,7 @@ main() {
   local ZIP="Vella-$VERSION-arm64.zip"
   TEMP="$(mktemp -d "${TMPDIR:-/tmp}/vella-release.XXXXXX")"
   trap 'rm -rf "$TEMP"' EXIT
-  echo "downloading Vella ${VERSION}…"
+  echo "Downloading Vella ${VERSION}…"
   fetch "$BASE" SHA256SUMS
   fetch "$BASE" "$ZIP"
   local EXPECTED ACTUAL
@@ -54,10 +60,17 @@ main() {
   install_prepared "$APP" "$DEST"
 }
 
-fail() { echo "Vella: $1" >&2; exit "${2:-1}"; }
+fail() { echo "$1" >&2; exit "${2:-1}"; }
 
-fetch() { curl --fail --location --silent --show-error --proto '=https,file' --proto-redir '=https' --tlsv1.2 \
-  --connect-timeout 20 --max-time 1800 "$1/$2" -o "$TEMP/$2"; }
+fetch() {
+  local http result=0
+  http="$(curl --fail --location --silent --show-error --proto '=https,file' --proto-redir '=https' --tlsv1.2 \
+    --connect-timeout 20 --max-time 1800 --write-out '%{http_code}' "$1/$2" -o "$TEMP/$2" 2>"$TEMP/curl-error")" || result=$?
+  [[ $result == 0 ]] && return 0
+  [[ ! -s "$TEMP/curl-error" ]] || head -1 "$TEMP/curl-error" >&2
+  if [[ "$http" == 404 ]]; then fail "Vella ${VELLA_VERSION:-2.0.0} is not available at the release URL; nothing was installed."
+  else fail 'Vella could not download the release. Check your connection and try again; the installed app is unchanged.'; fi
+}
 
 # Staged swap with rollback, never mid-dictation or mid-load; the previous app is removed only after the new one
 # reports ready (scripts/install-prepared.sh).
@@ -67,7 +80,8 @@ install_prepared() {
   local TOOL="$APP/Contents/Helpers/VellaInstallTool" OUTPUT PREVIOUS STATUS=0
   [[ -x "$TOOL" ]] || fail 'Prepared app lacks its installer tool; nothing installed.'
   mkdir -p "$(dirname "$DEST")"
-  OUTPUT="$("$TOOL" install --app "$APP" --destination "$DEST" --support "$SUPPORT" --keep-previous)"
+  echo 'For a 0.8 self-built signing migration, re-run: curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing'
+  OUTPUT="$("$TOOL" install --app "$APP" --destination "$DEST" --support "$SUPPORT" --keep-previous ${MIGRATE[@]+"${MIGRATE[@]}"})"
   PREVIOUS="$(sed -n 's/^previous: //p' <<<"$OUTPUT")"
   echo "installed $DEST; starting…"
   # The `vella` command for agents and scripts: a link into the app, so updates carry it along.
@@ -85,7 +99,11 @@ install_prepared() {
     [[ $STATUS -eq 3 && "${VELLA_ACCEPT_DEGRADED:-0}" == 1 ]] && return 0
     exit 1
   fi
-  [[ -z "$PREVIOUS" ]] || rm -rf "$PREVIOUS"
+  if [[ ${#MIGRATE[@]} -gt 0 || "$OUTPUT" == *'signing-migrated:'* ]]; then
+    [[ -z "$PREVIOUS" ]] || echo "Previous self-built app kept at $PREVIOUS; to roll back, quit Vella and move it to $DEST."
+  else
+    [[ -z "$PREVIOUS" ]] || rm -rf "$PREVIOUS"
+  fi
 }
 
 main "$@"

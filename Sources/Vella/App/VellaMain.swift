@@ -28,11 +28,12 @@ import VellaCore
         #endif
         let application = NSApplication.shared
         // Render harness (Models table and menu states to PNGs; no worker, no settings written).
-        if CommandLine.arguments.count == 3, ["--render-table", "--render-menu"].contains(CommandLine.arguments[1]) {
+        if CommandLine.arguments.count == 3, ["--render-table", "--render-menu", "--render-lifecycle"].contains(CommandLine.arguments[1]) {
             let directory = URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true)
             let delegate: NSApplicationDelegate =
                 CommandLine.arguments[1] == "--render-table"
-                ? TableRenderDelegate(directory: directory) : MenuRenderDelegate(directory: directory)
+                ? TableRenderDelegate(directory: directory)
+                : CommandLine.arguments[1] == "--render-lifecycle" ? LifecycleRenderDelegate(directory: directory) : MenuRenderDelegate(directory: directory)
             application.delegate = delegate
             withExtendedLifetime(delegate) { application.run() }
             return

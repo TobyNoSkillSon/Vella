@@ -5,7 +5,7 @@ description: Transcribe audio files offline with Vella, the local speech-to-text
 
 # Transcribe audio with Vella
 
-Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
+Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far.
 
 Vella runs speech-recognition models on this Mac (Apple Silicon); the user's audio and transcripts never leave the machine. Vella checks GitHub's releases API for a newer version at most once a day (at launch when due; failed checks retry about hourly), and downloads models or updates only when asked; it has no telemetry and uploads no audio. The models the user dictates with also transcribe your files. The user's own dictation always goes first, so a file may wait a moment while they speak.
 
@@ -17,13 +17,13 @@ Use another tool to translate, to identify speakers or for word-level timestamps
 
 ## Install
 
-`vella status` prints one line when Vella is installed. If `vella` is missing, try `~/.local/bin/vella`; if that is missing too, ask the user before installing: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` (Apple Silicon, macOS 26 or newer; it ends with `ready: …`). A fresh install has no model. List cells and the pinned source/size with `vella models --json`; ask consent before `vella get ID --yes`.
+`vella status` prints one line when Vella is installed. If `vella` is missing, try `~/.local/bin/vella`; if that is missing too, check `/Applications/Vella.app/Contents/Helpers/vella` (the DMG does not link a command); otherwise ask the user before installing: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` (Apple Silicon, macOS 26 or newer; it ends with `ready: …`). A fresh install has no model. List cells and the pinned source/size with `vella models --json`; ask consent before `vella get ID --yes`.
 
 ## Results
 
 Get prints download byte progress on stderr while it waits; a progressing download has no total-duration limit.
 
-`vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per catalog model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Commands start Vella if it is not running, except `vella diagnose`, `vella --help` and `vella --version`.
+`vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per catalog model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Status, Models, URL, transcription and model/settings controls start Vella if needed. Help, Version, Skill and Diagnose do not.
 
 `--language` does not change recognition in 2.0; it only sets `verbose_json.language`, which echoes the requested code, or `unknown` when none is given. Detected language is not reported.
 
@@ -33,16 +33,16 @@ Get prints download byte progress on stderr while it waits; a progressing downlo
 vella transcribe talk.m4a                      # the transcript as plain text
 vella transcribe talk.m4a --srt > talk.srt     # subtitles; --vtt, --json, --verbose-json (segments) also work
 vella transcribe talk.m4a --model parakeet-v3  # a specific model
-vella transcribe talk.m4a --language pl        # echoed in verbose JSON, not a detection result
-vella models                                   # parakeet-v3-ultra  Parakeet v3 Ultra · 16 · Optimized Fast · loaded · current dictation model   (one line per model on this Mac)
-vella status                                   # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra 16 · Optimized Fast loaded · dictation model Parakeet v3 Ultra (16, Optimized Fast) · API http://127.0.0.1:63080/v1
+vella transcribe talk.m4a --verbose-json --language pl        # echoed in verbose JSON, not a detection result
+vella models                                   # parakeet-v3-ultra  Parakeet v3 Ultra · bf16 · Optimized Fast · loaded · current dictation model · Unload   (one line per catalog model)
+vella status                                   # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra bf16 · Optimized Fast loaded · dictation model Parakeet v3 Ultra (bf16, Optimized Fast) · API http://127.0.0.1:63080/v1
 vella url                                      # http://127.0.0.1:63080/v1
 vella diagnose                                 # a bug report for the user; its last line is a prefilled GitHub issue link
 ```
 
 ## Pick and get a model
 
-Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast: best for English and 24 other European languages; for other languages choose `whisper-large-v3-turbo`. Choose a larger model only for a specific accuracy need.
+Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast: fastest, with near-best English accuracy, and supports 24 other European languages; for other languages choose `whisper-large-v3-turbo`. Choose a larger model only for a specific accuracy need.
 
 <!-- MODELS_START -->
 <!-- Generated by scripts/agent-docs.swift from Resources/models.json and Resources/benchmarks.json. Do not edit between the markers; run the script. -->
@@ -57,7 +57,7 @@ Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast: best for English and 2
 | `whisper-large-v3-turbo` | dictation | Whisper large-v3 with 4 decoder layers instead of 32: the same languages, much faster, a little less accurate outside English | 100 | 0.8B | MIT | fp16, int8 | 16.57 | 113.7× | 37.18 | 2522 |
 | `nemotron-3.5-streaming-0.6b` | streaming | Transcribes 28 languages as the audio arrives, so Streaming mode types while you speak; not used for Dictation | 28 | 0.6B | OpenMDW-1.1 (MLX conversion: NVIDIA Open Model License) | bf16, int8 | 23.35 | 34.9× | 50.03 | 1655 |
 
-English WER is on the 167 English minutes of v2 (239.7 min total); nine other languages are scored separately. Figures are the Optimized · Fast cell of the 16-bit tier, the cell a model first loads on. Speed is × real time and energy is joules per minute of audio on the reference Mac (Apple M5 Max, macOS 26.6); they are not measurements of this Mac. Fast enables every kept lever for that model and precision; Exact enables only exact kept levers; Standard enables none. Streaming models do not transcribe files. `vella models --json` lists every cell, its measured English WER, speed, energy, peak RAM, measurement provenance or refusal reason, and the source and size. Equal recipes use the canonical measured cell named in `cells[].provenance.display_cell` (`display_cells` in the benchmark file).
+English WER is on the 167 English minutes of v2 (239.7 min total); nine other languages are scored separately. Figures are the Optimized · Fast cell of the 16-bit tier, the cell a model first loads on. Speed is × real time and energy is joules per minute of audio on the reference Mac (Apple M5 Max, macOS 26.6); they are reference measurements, qualified only on M5 Max with 40 GPU cores. On any other configuration, WER/Format/Peak RAM remain reference measurements; Speed remains the M5 Max measured speed, lighter grey with a small M5 Max label; J/min is not known. Tooltip: Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it. Fast enables every kept lever for that model and precision; Exact enables only exact kept levers; Standard enables none. Streaming models do not transcribe files. `vella models --json` lists every cell, its reference English WER and peak RAM, M5 Max measured speed labelled by hardware and chip-qualified energy, measurement provenance or refusal reason, and the source and size. Equal recipes use the canonical measured cell named in `cells[].provenance.display_cell` (`display_cells` in the benchmark file).
 <!-- MODELS_END -->
 
 Whisper Standard and Optimized Exact are not measured yet after the Standard FP16 correction; choose measured Fast for an unloaded model. A loaded Standard cell remains selectable until unload. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
@@ -117,4 +117,6 @@ curl -s "$(vella url)/audio/transcriptions" -F file=@talk.m4a -F response_format
 
 ## Measure on another Mac
 
-For community measurement, follow https://github.com/TobyNoSkillSon/Vella/blob/main/CONTRIBUTING.md#community-measurement. One model at a time is enough. The shipped `diagnose` clips are diagnostic evidence, not the full benchmark suite; label the dataset and chip. Use Opus 5.5 / Sol 6.1 or better for an unattended run, and ask consent before scheduling, downloading or submitting an issue/PR. Energy needs `powermetrics` and admin consent; otherwise leave energy unmeasured.
+For community measurement, follow https://github.com/TobyNoSkillSon/Vella/blob/main/CONTRIBUTING.md#community-measurement. One model at a time is enough. The shipped `diagnose` clips are diagnostic evidence, not the full benchmark suite; label the dataset and chip. Use an agent capable of running the benchmark commands, checking their results and reporting failures for an unattended run, and ask consent before scheduling, downloading or submitting an issue/PR. Energy needs `powermetrics` and admin consent; otherwise leave energy unmeasured.
+
+Speed and energy differences use percent below a 2× ratio, total ratios at 2× or above (for example 2.4× as fast or 0.3× the energy). A noise-level WER/Format difference reads same.

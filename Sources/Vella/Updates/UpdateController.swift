@@ -176,7 +176,7 @@ import VellaUpdate
             if let staged { try? FileManager.default.removeItem(atPath: staged.directory) }
             let reason = (error as? UpdateError)?.message ?? error.localizedDescription
             machine.handle(.failed(reason)); onChange?()
-            showAlert(title: "Update to \(release.version) failed", reason + ". Vella \(current) is unchanged.")
+            showAlert(title: "Update to \(release.version) failed", sentence(reason) + " Vella \(current) is unchanged.")
         }
     }
 

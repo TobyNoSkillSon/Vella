@@ -34,8 +34,9 @@ public func validFloatModules(_ list: [String]) -> Bool {
         }
 }
 
-public enum DerivationError: Error, Equatable, CustomStringConvertible {
+public enum DerivationError: Error, Equatable, CustomStringConvertible, LocalizedError {
     case notDerived(String), missingSource(String), cycle(String), invalid(String)
+    public var errorDescription: String? { description }
     public var description: String {
         switch self {
         case .notDerived(let s): return "\(s) is not a derived precision."

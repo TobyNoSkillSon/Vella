@@ -9,7 +9,8 @@ SUPPORT="${VELLA_SUPPORT_DIR:-$HOME/Library/Application Support/Vella}"
 TOOL="$APP/Contents/Helpers/VellaInstallTool"
 [[ -x "$TOOL" ]] || { echo 'Prepared app lacks its installer tool; nothing installed.' >&2; exit 1; }
 EXTRA=()
-[[ -z "${VELLA_LAB_BUNDLE_ID:-}" ]] || EXTRA=(--bundle-id "$VELLA_LAB_BUNDLE_ID")  # lab candidates only
+[[ "${2:-}" == --migrate-signing ]] && EXTRA+=(--migrate-signing)
+[[ -z "${VELLA_LAB_BUNDLE_ID:-}" ]] || EXTRA+=(--bundle-id "$VELLA_LAB_BUNDLE_ID")  # lab candidates only
 OUTPUT="$("$TOOL" install --app "$APP" --destination "$DEST" --support "$SUPPORT" --keep-previous ${EXTRA[@]+"${EXTRA[@]}"})"
 PREVIOUS="$(sed -n 's/^previous: //p' <<<"$OUTPUT")"
 echo "installed $DEST; starting…"
@@ -31,4 +32,8 @@ if [[ $STATUS -ne 0 ]]; then
   exit 1
 fi
 # Ready: the previous app is no longer needed as a rollback.
-[[ -z "$PREVIOUS" ]] || rm -rf "$PREVIOUS"
+if [[ "${2:-}" == --migrate-signing || "$OUTPUT" == *'signing-migrated:'* ]]; then
+  [[ -z "$PREVIOUS" ]] || echo "Previous self-built app kept at $PREVIOUS; to roll back, quit Vella and move it to $DEST."
+else
+  [[ -z "$PREVIOUS" ]] || rm -rf "$PREVIOUS"
+fi

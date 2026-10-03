@@ -18,7 +18,7 @@ import VellaCore
         return f
     }
     func object(_ f: ModelFamily) -> [String: Any] {
-        let asked = controller.committedSelection(f)
+        let asked = controller.loaded(f)?.selection ?? controller.committedSelection(f)
         let running = effectiveSelection(asked, engine: runtime.status.models[f.id]?.engine)
         let precision = controller.committed(f)
         var o: [String: Any] = [
@@ -43,10 +43,18 @@ import VellaCore
         if let chosen = controller.rules(f).precision(of: controller.currentSelection(f)), let source = f.acquisition(of: chosen) {
             o["download"] = ["bytes": source.download.downloadBytes, "source": source.download.repository, "revision": source.download.revision]
         }
+        o["hardware"] = [
+            "chip": controller.benchmarkHardware.chip ?? "unknown", "gpu_cores": controller.benchmarkHardware.gpuCores as Any? ?? NSNull(),
+            "matches_measurement": controller.benchmarkHardware.isMeasuredConfiguration
+        ]
+        if let caveat = controller.benchmarkHardware.caveat { o["hardware_note"] = caveat }
         o["local_files"] = f.variants.keys.sorted().compactMap { precision -> [String: Any]? in
             guard controller.localPath(f, precision) != nil else { return nil }
+            let legacy = f.variants[precision]?.isDerived == true && registeredCheckpoint(f, precision, installedPath: { library.installed[$0]?.path }) == nil
             return [
-                "precision": tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16), "offered": controller.options(f).contains(precision),
+                "precision": legacy ? "legacy published quantization" : tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16),
+                "catalog_precision": tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16),
+                "legacy": legacy, "used": !legacy, "offered": !legacy && controller.options(f).contains(precision),
                 "deletable": f.variants[precision].map { library.deletionBlockReason($0.id) == nil } ?? false
             ]
         }
@@ -58,7 +66,7 @@ import VellaCore
                     cell["precision"] = tierDTypeLabel(f, tier)
                     if let reason = controller.rules(f).cellRefusal(s, loaded: controller.loadedSelection(f)) { cell["reason"] = reason }
                     if !controller.benchmarks.figuresPending, let measured = benchmarkCell(controller.benchmark(f), s), !measured.isPending {
-                        cell["figures"] = jsonObject(measured.result)
+                        cell["figures"] = controller.benchmarkHardware.figures(measured.result)
                         cell["measurement"] = jsonObject(measured.measured)
                         cell["components"] = jsonObject(measured.recipe)
                         cell["provenance"] = benchmarkProvenance(f.id, s)
@@ -81,7 +89,7 @@ import VellaCore
         else { return [:] }
         let canonical = (tier["display_cells"] as? [String: String])?[selection.segmentKey.rawValue] ?? selection.segmentKey.rawValue
         let raw = tier[canonical] as? [String: Any] ?? [:]
-        return ["display_cell": canonical, "builds": file["builds"] ?? [:], "build_provenance": raw["build_provenance"] ?? [:]]
+        return ["reference_figures": raw, "display_cell": canonical, "builds": file["builds"] ?? [:], "build_provenance": raw["build_provenance"] ?? [:]]
     }
 
     func selection(_ fields: [String: Any], family: ModelFamily) throws -> ModelSelection {
@@ -114,7 +122,7 @@ import VellaCore
         let allowed: Set<String> = action == "select" ? ["precision", "path", "mode"] : action == "delete" ? ["precision", "yes"] : ["yes"]
         guard Set(fields.keys).isSubset(of: allowed) else { throw APIError(400, "Unknown model control field") }
         if action == "select" {
-            guard !fields.isEmpty else { throw APIError(400, "Select needs Precision, path or Fast/Exact") }
+            guard !fields.isEmpty else { throw APIError(400, "Select needs at least one JSON field: precision, path or mode.") }
             let chosen = try selection(fields, family: f)
             if Set(fields.keys) == ["mode"] { try controller.setModeForControl(f, mode: chosen.mode) } else { try controller.selectForControl(f, selection: chosen) }
         } else {
@@ -125,10 +133,10 @@ import VellaCore
             }
             if action == "delete" {
                 guard fields["precision"] != nil, let precision = precisionLabel(f, tier: try selection(fields, family: f).tier) else {
-                    throw APIError(400, "Delete requires --precision bf16/fp16/int8/int4")
+                    throw APIError(400, "Delete needs precision (bf16/fp16/int8/int4).")
                 }
                 let plan = try controller.deletionPlan(f, precision: precision)
-                guard yes else { throw APIError(409, plan.title + " " + plan.body + " Delete requires explicit consent (--yes).", code: "deletion_consent_required") }
+                guard yes else { throw APIError(409, plan.title + " " + plan.body + " Deletion needs explicit consent: yes=true (CLI: --yes).", code: "deletion_consent_required") }
                 try await controller.performDeletion(f, plan: plan)
                 return object(f)
             }

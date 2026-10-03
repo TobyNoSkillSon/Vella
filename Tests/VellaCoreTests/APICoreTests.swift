@@ -5,6 +5,18 @@ final class APICoreTests: XCTestCase {
     private func head(_ text: String) -> HTTPHead { HTTPHead.parse(Data(text.utf8))! }
     private let port = 5555
 
+    func testWordTimestampsRefuseWithAnActionable400ForFormAndJSON() throws {
+        for fields in [["timestamp_granularities[]": ["word"], "response_format": ["verbose_json"]], ["timestamp_granularities": ["word"], "response_format": ["verbose_json"]]] {
+            XCTAssertThrowsError(try TranscriptionOptions.validate(fields)) { error in
+                let api = error as? APIError
+                XCTAssertEqual(api?.status, 400); XCTAssertTrue(api?.message.contains("Word timestamps are not supported") == true)
+                XCTAssertTrue(api?.message.contains("segment") == true)
+            }
+        }
+        let json = Data(#"{"path":"/fixture.wav","timestamp_granularities":["word"],"response_format":"verbose_json"}"#.utf8)
+        XCTAssertThrowsError(try TranscriptionOptions.validate(json: json))
+    }
+
     func testHeadParsingRecordsDuplicatesAndRejectsGarbage() {
         let h = head("POST /v1/audio/transcriptions?x=1 HTTP/1.1\r\nHost: 127.0.0.1:5555\r\nContent-Type: a\r\ncontent-type: b")
         XCTAssertEqual(h.method, "POST"); XCTAssertEqual(h.path, "/v1/audio/transcriptions")
@@ -72,10 +84,10 @@ final class APICoreTests: XCTestCase {
     func testTranscriptionOptionsValidation() throws {
         let o = try TranscriptionOptions.validate([
             "model": ["parakeet-v3"], "response_format": ["verbose_json"], "language": ["PL"],
-            "temperature": ["0.2"], "timestamp_granularities[]": ["segment", "word"], "include[]": ["logprobs"]
+            "temperature": ["0.2"], "timestamp_granularities[]": ["segment"], "include[]": ["logprobs"]
         ])
         XCTAssertEqual(o.model, "parakeet-v3"); XCTAssertEqual(o.format, .verbose_json); XCTAssertEqual(o.language, "pl")
-        XCTAssertEqual(o.granularities, ["segment", "word"])
+        XCTAssertEqual(o.granularities, ["segment"])
         XCTAssertEqual(try TranscriptionOptions.validate([:]), TranscriptionOptions())
         func param(_ fields: [String: [String]]) -> String? {
             do { _ = try TranscriptionOptions.validate(fields); return "accepted" } catch let e as APIError { return e.param } catch { return "other" }

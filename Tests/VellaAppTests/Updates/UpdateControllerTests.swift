@@ -67,7 +67,7 @@ final class UpdateControllerTests: XCTestCase {
         let delegate = AppDelegate(model: DictationController(configurationURL: root.appendingPathComponent("config.json")), updates: updates)
         delegate.rebuildMenu()
         let items = delegate.menu.items
-        let support = try XCTUnwrap(items.firstIndex { $0.title == "Support the developer…" })
+        let support = try XCTUnwrap(items.firstIndex { $0.title == "Support the Developer…" })
         let item = items[support + 1]
         XCTAssertEqual(item.title, "Update to 1.0.1…")
         XCTAssertEqual(item.attributedTitle?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor, .systemOrange)

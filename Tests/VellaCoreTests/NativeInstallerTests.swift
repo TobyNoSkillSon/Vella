@@ -142,6 +142,55 @@ final class NativeInstallerTests: XCTestCase {
         for key in ["model", "streamingModel", "custom", "preferredMicrophone"] { XCTAssertEqual(String(describing: config[key]!), String(describing: saved[key]!)) }
         XCTAssertNil(config["port"])
     }
+    func testVerifiedAdHocUpgradeRequiresConsentPreservesDataAndBackup() throws {
+        let (installer, root, app, support) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let prepared = installer.preparedApp
+        try FileManager.default.createDirectory(at: app.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: prepared, to: app)
+        let oldExecutable = app.appendingPathComponent("Contents/MacOS/Vella")
+        try FileManager.default.removeItem(at: oldExecutable)
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: "/usr/bin/true"), to: oldExecutable)
+        let plist = ["CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": "0.8.8"]
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: app.appendingPathComponent("Contents/Info.plist"))
+        XCTAssertEqual(try runTool("/usr/bin/codesign", ["--force", "--sign", "-", "--deep", app.path]).status, 0)
+        XCTAssertEqual(try NativeInstaller.verifySignedBundle(app), .init("adhoc"))
+        try FileManager.default.createDirectory(at: support.appendingPathComponent("Models"), withIntermediateDirectories: true)
+        let kept = [
+            "config.json": Data(#"{"model":"/fixture","custom":42}"#.utf8), "models-installed.json": Data("{}".utf8), "Models/weights": Data("weights".utf8),
+            "history.json": Data("history".utf8)
+        ]
+        for (name, bytes) in kept { try bytes.write(to: support.appendingPathComponent(name)) }
+        // The old app is genuinely ad-hoc signed; the replacement certificate identity is injected, never taken from a user's keychain.
+        installer.verify = { url in
+            url == app && !installer.didMigrateSigning ? try NativeInstaller.verifySignedBundle(url) : .init("designated => " + NativeInstaller.releaseRequirement)
+        }
+        installer.verifyMigrationTarget = { _ in } // actual release certificate is qualified by CI, not manufactured here
+        var stopped = 0
+        installer.stop = { _ in
+            stopped += 1; return false
+        }; installer.launch = { _ in }
+        XCTAssertThrowsError(try installer.install()) { error in
+            XCTAssertTrue(error.localizedDescription.contains("--migrate-signing"))
+            XCTAssertTrue(error.localizedDescription.contains("Microphone and Accessibility"))
+        }
+        XCTAssertEqual(stopped, 0)
+        for (name, bytes) in kept { XCTAssertEqual(try Data(contentsOf: support.appendingPathComponent(name)), bytes) }
+        installer.allowSigningMigration = true
+        let previous = try XCTUnwrap(installer.install())
+        XCTAssertTrue(installer.didMigrateSigning); XCTAssertEqual(stopped, 1)
+        XCTAssertEqual(try NativeInstaller.verifySignedBundle(previous), .init("adhoc"))
+        for (name, bytes) in kept { XCTAssertEqual(try Data(contentsOf: support.appendingPathComponent(name)), bytes) }
+    }
+    func testSigningMigrationFlagCannotReplaceOtherCertificates() throws {
+        let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try existingApp(app, marker: "old")
+        installer.allowSigningMigration = true
+        installer.verify = { url in .init(url == app ? "another certificate" : "designated => " + NativeInstaller.releaseRequirement) }
+        XCTAssertThrowsError(try installer.install())
+        installer.verify = { url in .init(url == app ? "adhoc" : "designated => arbitrary replacement") }
+        XCTAssertThrowsError(try installer.install())
+        XCTAssertEqual(try String(contentsOf: app.appendingPathComponent("old")), "old")
+    }
     func testSigningMismatchAndMalformedConfigArePreserved() throws {
         for cause in ["signature", "config"] {
             let (installer, root, app, support) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }

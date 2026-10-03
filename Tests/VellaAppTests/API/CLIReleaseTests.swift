@@ -3,6 +3,25 @@ import VellaTestSupport
 @testable import VellaCLI
 
 final class CLIReleaseTests: XCTestCase {
+    func testEachSubcommandHelpDoesNotUseTheAPI() async {
+        for command in ["transcribe", "status", "models", "select", "get", "load", "reload", "unload", "delete", "url", "skill", "diagnose", "memory", "keep-hot"] {
+            for flag in ["-h", "--help"] {
+                var lines: [String] = []
+                let cli = VellaCLI(environment: ["VELLA_NO_LAUNCH": "1", "VELLA_SUPPORT_DIR": "/nonexistent-vella-help"], write: { lines.append($0) }, warn: { _ in })
+                let code = await cli.run([command, flag])
+                XCTAssertEqual(code, 0, command); XCTAssertTrue(lines.first?.hasPrefix("Usage: vella " + command) == true)
+            }
+        }
+    }
+    func testExtraReadAndSkillArgumentsFailBeforeAPIOrWriting() async {
+        for command in ["status", "models", "url", "skill"] {
+            let cli = VellaCLI(
+                environment: ["VELLA_NO_LAUNCH": "1", "VELLA_SUPPORT_DIR": "/nonexistent-vella-extra"], write: { _ in XCTFail("unexpected success") }, warn: { _ in })
+            let code = await cli.run([command, "nonsense"])
+            XCTAssertEqual(code, 1)
+        }
+    }
+
     func testCatalogLinesUseTheTableDTypeAndCorrectMode() {
         let model: [String: Any] = [
             "id": "stream", "name": "Stream", "dtype": "bf16", "mode": "Streaming", "current": true, "action": "Load",
@@ -15,7 +34,7 @@ final class CLIReleaseTests: XCTestCase {
         XCTAssertTrue(usage.components(separatedBy: "\n")[1].hasPrefix("vella:"))
         XCTAssertEqual(
             usage.components(separatedBy: "\n")[0],
-            "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far")
+            "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far.")
     }
 
     func testVersionNeedsNoAppOrAPI() async {
@@ -27,7 +46,7 @@ final class CLIReleaseTests: XCTestCase {
     }
 
     func testAgentDocumentsPinTheSameChipLine() throws {
-        let claim = "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far"
+        let claim = "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far."
         for path in ["Resources/SKILL.md", "Resources/AGENT_GUIDE.md"] {
             let text = try String(contentsOf: Repository.root.appendingPathComponent(path), encoding: .utf8)
             XCTAssertTrue(text.components(separatedBy: "\n").contains(claim), path)
@@ -37,7 +56,7 @@ final class CLIReleaseTests: XCTestCase {
     func testSkillNamesTheEuropeanLanguageDefaultAndGetProgress() throws {
         let text = try String(contentsOf: Repository.root.appendingPathComponent("Resources/SKILL.md"), encoding: .utf8)
         XCTAssertTrue(text.contains("Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast"))
-        XCTAssertTrue(text.contains("best for English and 24 other European languages; for other languages choose `whisper-large-v3-turbo`"))
+        XCTAssertTrue(text.contains("fastest, with near-best English accuracy, and supports 24 other European languages; for other languages choose `whisper-large-v3-turbo`"))
         let data = try Data(contentsOf: Repository.root.appendingPathComponent("Resources/models.json"))
         let catalog = try JSONSerialization.jsonObject(with: data) as! [String: Any]
         let families = catalog["families"] as! [[String: Any]]

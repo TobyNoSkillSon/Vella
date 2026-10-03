@@ -7,10 +7,16 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 VERSION="${1:-}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Pass a release version, e.g. 2.0.0' >&2; exit 2; }
-DRY_RUN=0
-[[ "${2:-}" == '--dry-run' ]] && DRY_RUN=1
-[[ $# -le 2 && ( $# -lt 2 || "$DRY_RUN" == 1 ) ]] || { echo 'Usage: install-release.sh VERSION [--dry-run]' >&2; exit 2; }
-[[ "$(uname -m)" == arm64 ]] || { echo 'Vella requires an Apple Silicon Mac' >&2; exit 1; }
+DRY_RUN=0 MIGRATE=()
+shift
+for option in "$@"; do
+  case "$option" in
+    --dry-run) DRY_RUN=1 ;;
+    --migrate-signing) MIGRATE=(--migrate-signing) ;;
+    *) echo 'Usage: install-release.sh VERSION [--dry-run] [--migrate-signing]' >&2; exit 2 ;;
+  esac
+done
+[[ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" == 1 ]] || { echo 'Vella requires an Apple Silicon Mac' >&2; exit 1; }
 OS="$(sw_vers -productVersion)"
 [[ "${OS%%.*}" -ge 26 ]] || { echo "Vella requires macOS 26 or newer ($OS)" >&2; exit 1; }
 BASE="${VELLA_RELEASE_BASE_URL:-https://github.com/TobyNoSkillSon/Vella/releases/download/v$VERSION}"
@@ -19,8 +25,17 @@ BASE="${VELLA_RELEASE_BASE_URL:-https://github.com/TobyNoSkillSon/Vella/releases
 ZIP="Vella-$VERSION-arm64.zip"
 TEMP="$(mktemp -d "${TMPDIR:-/tmp}/vella-release.XXXXXX")"
 trap 'rm -rf "$TEMP"' EXIT
-fetch() { curl --fail --location --silent --show-error --proto '=https,file' --proto-redir '=https' --tlsv1.2 \
-  --connect-timeout 20 --max-time 1800 "$BASE/$1" -o "$TEMP/$1"; }
+echo "Downloading Vella $VERSION…"
+fetch() {
+  local http result=0
+  http="$(curl --fail --location --silent --show-error --proto '=https,file' --proto-redir '=https' --tlsv1.2 \
+    --connect-timeout 20 --max-time 1800 --write-out '%{http_code}' "$BASE/$1" -o "$TEMP/$1" 2>"$TEMP/curl-error")" || result=$?
+  [[ $result == 0 ]] && return 0
+  if [[ "$http" == 404 ]]; then echo "Vella $VERSION is not available at the release URL; nothing was installed." >&2
+  else echo "Vella could not download the release. Check your connection and try again; the installed app is unchanged." >&2; fi
+  [[ ! -s "$TEMP/curl-error" ]] || head -1 "$TEMP/curl-error" >&2
+  return 1
+}
 fetch SHA256SUMS
 fetch "$ZIP"
 EXPECTED="$(awk -v name="$ZIP" '$2 == name { print $1 }' "$TEMP/SHA256SUMS")"
@@ -50,4 +65,4 @@ if [[ "$DRY_RUN" == 1 ]]; then
   echo "dry run: would install to ${VELLA_DESTINATION_APP:-$HOME/Applications/Vella.app}; nothing installed"
   exit 0
 fi
-"$HERE/install-prepared.sh" "$APP"
+"$HERE/install-prepared.sh" "$APP" ${MIGRATE[@]+"${MIGRATE[@]}"}

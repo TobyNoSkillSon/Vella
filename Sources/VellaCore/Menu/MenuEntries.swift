@@ -26,7 +26,7 @@ public enum SettingsAction: Equatable {
 }
 
 public let manualLoadHelp = "Models you loaded yourself with Load in Models…; they load again when Vella starts."
-public let onDemandLoadHelp = "Models a dictation needed, so Vella loaded them; they do not load again when Vella starts."
+public let onDemandLoadHelp = "Models loaded when Dictation, Streaming or an audio-file request needed them; they do not load again at launch."
 public let keepHotAlwaysHelp = "Never unloaded for being idle; only Unload, or Memory making room for another model, unloads them."
 public let fitInFreeMemoryTitle = "Fit in free memory"
 public let fitInFreeMemoryHelp =
@@ -62,7 +62,7 @@ public func keepHotEntries(manualIdle: Int, onDemandIdle: Int) -> [SettingsEntry
     entries += choices(.manual, manualIdle)
     entries += [.separator, .header("Loaded on demand", help: onDemandLoadHelp)]
     entries += choices(.onDemand, onDemandIdle)
-    entries += [.separator, .caption("Unloaded models reload on the next dictation")]
+    entries += [.separator, .caption("Unloaded models load again when needed")]
     return entries
 }
 

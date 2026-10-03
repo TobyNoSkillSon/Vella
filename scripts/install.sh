@@ -8,15 +8,20 @@ cd "$(dirname "$0")/.."
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
 case "${VELLA_BUILD:-release}" in
   release)
-    if [[ "${1:-}" == --dry-run ]]; then
+    if [[ "${1:-}" == --* ]]; then
       exec scripts/install-release.sh "$VERSION" "$@"
     fi
     exec scripts/install-release.sh "${1:-$VERSION}" "${@:2}"
     ;;
-  source) ;;
+  source)
+    if [[ $# -gt 0 ]]; then
+      [[ "$1" != --dry-run ]] || { echo '--dry-run is available for release installs only; nothing built or installed.' >&2; exit 2; }
+      echo 'Source install accepts no arguments; nothing built or installed. Usage: VELLA_BUILD=source scripts/install.sh' >&2; exit 2
+    fi
+    ;;
   *) echo 'VELLA_BUILD must be release or source' >&2; exit 2 ;;
 esac
-[[ "$(uname -m)" == arm64 ]] || { echo 'Vella requires an Apple Silicon Mac' >&2; exit 1; }
+[[ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" == 1 ]] || { echo 'Vella requires an Apple Silicon Mac' >&2; exit 1; }
 OS="$(sw_vers -productVersion)"; [[ "${OS%%.*}" -ge 26 ]] || { echo "Vella requires macOS 26 or newer ($OS)" >&2; exit 1; }
 [[ -x /Library/Developer/CommandLineTools/usr/bin/swift ]] || { echo 'Command Line Tools Swift is required. Fix: xcode-select --install' >&2; exit 1; }
 xcodebuild -version >/dev/null 2>&1 || {

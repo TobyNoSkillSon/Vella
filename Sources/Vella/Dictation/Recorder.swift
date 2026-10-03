@@ -185,6 +185,9 @@ private struct CaptureDrain: @unchecked Sendable {
     private var sink: CaptureSink?
     private let queue = DispatchQueue(label: "dev.vella.capture")
     private var captureDevice = ""
+    private var captureDeviceID: String?
+    func matchesCapture(_ object: Any?) -> Bool { (object as? AVCaptureSession) === session && session != nil }
+    func matchesDevice(_ object: Any?) -> Bool { (object as? AVCaptureDevice)?.uniqueID == captureDeviceID && captureDeviceID != nil }
     private(set) var url: URL?
     private(set) var recordingSession: RecordingSession?
     #if DEBUG
@@ -217,6 +220,12 @@ private struct CaptureDrain: @unchecked Sendable {
             try? data.write(to: Backend.support.appendingPathComponent("capture-status.json"), options: .atomic)
         }
     }
+    static func systemDefaultInputID() -> UInt32? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var id: AudioDeviceID = 0, size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        return AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &id) == noErr && id != 0 ? id : nil
+    }
     static func devices() -> [Microphone] {
         var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var size: UInt32 = 0
@@ -239,8 +248,10 @@ private struct CaptureDrain: @unchecked Sendable {
     func start(config: Configuration, recordingsRoot: URL? = nil, onPCM: ((Data) -> Void)? = nil) throws -> String {
         guard !isStopping else { throw VellaError.message("Capture is still being saved.") }
         discard()
-        guard let chosen = selectMicrophone(Self.devices(), preferred: config.preferredMicrophone, fallback: config.fallbackMicrophone) else {
-            throw VellaError.message("Neither the preferred microphone nor a MacBook microphone is available.")
+        guard
+            let chosen = selectMicrophone(Self.devices(), preferred: config.preferredMicrophone, fallback: config.fallbackMicrophone, systemDefaultID: Self.systemDefaultInputID())
+        else {
+            throw VellaError.message("No microphone is available. Connect one and choose it in Vella → Microphone, then start again.")
         }
         var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyDeviceUID, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var uid: Unmanaged<CFString>?
@@ -272,10 +283,10 @@ private struct CaptureDrain: @unchecked Sendable {
         }
         session.beginConfiguration(); session.addInput(input); session.addOutput(output); session.commitConfiguration()
         output.setSampleBufferDelegate(sink, queue: queue)
-        self.sink = sink; self.session = session; captureDevice = chosen.name
+        self.sink = sink; self.session = session; captureDevice = chosen.name; captureDeviceID = device.uniqueID
         session.startRunning()
         guard session.isRunning else { discard(); throw VellaError.message("Microphone capture did not start.") }
-        return chosen.name
+        return !config.preferredMicrophone.isEmpty && chosen.name != config.preferredMicrophone ? chosen.name + " (fallback; choose an input in Vella → Microphone)" : chosen.name
     }
     /// Caller retains exclusive ownership until completion (including cancellation).
     /// AVCaptureSession.stopRunning and disk flushes must not freeze the HUD.
@@ -302,14 +313,14 @@ private struct CaptureDrain: @unchecked Sendable {
         writeDiagnostics()
         let frames = sink?.frames ?? 0
         let error = sink?.error
-        session = nil; sink = nil
+        session = nil; sink = nil; captureDeviceID = nil
         if let error { throw error }
         guard frames > 0, let url else { throw VellaError.message("The microphone produced no audio. Check the selected microphone and its connection.") }
         return url
     }
     func discard() {
         guard !isStopping else { return } // The in-flight drain still owns these objects.
-        session?.stopRunning(); queue.sync {}; session = nil; sink = nil
+        session?.stopRunning(); queue.sync {}; session = nil; sink = nil; captureDeviceID = nil
         // Session audio is never removed here: new recording, failure and quit are not deletion consent.
         url = nil; recordingSession = nil
     }

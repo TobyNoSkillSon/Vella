@@ -60,6 +60,22 @@ final class ReleaseTests: XCTestCase {
         XCTAssertEqual(r.zipName, "Vella-0.3.1-arm64.zip")
     }
 
+    func testShortNotesSkipEntireCodeBlocksAndHTMLComments() throws {
+        let release = ReleaseInfo(
+            tag: "v2.0.1", version: SemanticVersion("2.0.1")!,
+            body: """
+                # Vella 2.0.1
+
+                ```sh
+                curl fixture
+                ```
+                <!-- private prose
+                not for the alert -->
+                Fixes microphone recovery.
+                """)
+        XCTAssertEqual(release.shortNotes(), "Fixes microphone recovery.")
+    }
+
     func testShortNotesArePlainText() throws {
         let r = try ReleaseInfo.parse(Data(latest.utf8))
         XCTAssertEqual(r.shortNotes(), "Faster loads. Models load in half the time; see the notes.\n• Fixes a crash at quit.")

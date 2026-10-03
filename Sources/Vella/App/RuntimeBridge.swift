@@ -70,6 +70,8 @@ import VellaCore
     /// Then a mode's model outside the catalog is cleared from config.json (ModelsController, files untouched).
     func migrateRegistry() {
         guard let controller, !controller.previewing else { return }
+        controller.previousModelNames = Dictionary(
+            controller.dictation.installed.values.compactMap { entry in entry.name.map { (entry.path, $0) } }, uniquingKeysWith: { first, _ in first })
         let result = controller.dictation.migrateRegistry(catalog: controller.catalog)
         if !result.rekeyed.isEmpty || !result.dropped.isEmpty {
             controller.streaming.reload()
@@ -154,7 +156,14 @@ import VellaCore
         }
         guard let (family, precision) = named else { return nil }
         let name = "\(family.name) at \(precisionFormatName(precision))"
-        guard let files = runnablePath(family, precision) else {
+        let files: String?
+        do {
+            files = try precisionLoadPath(family, precision, installedPath: { library.installed[$0]?.path }, modelsDirectory: library.modelsDirectory)
+        } catch {
+            return
+                "Could not prepare \(name)’s recipe: \(error.localizedDescription) Existing weights are kept. Load it again in Vella → Models… after fixing the local file error."
+        }
+        guard let files else {
             let root = family.downloadSource(of: precision)?.label ?? precision
             return "\(name) is made from its \(precisionFormatName(root)) weights, which are not on this Mac: Get it in Vella → Models…"
         }

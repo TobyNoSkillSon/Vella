@@ -397,21 +397,21 @@ final class CatalogTests: XCTestCase {
     func testErrorRateDelta() {
         XCTAssertEqual(errorRateDelta(5.5, base: 5.1), Delta("+0.4 pt", .worse))
         XCTAssertEqual(errorRateDelta(4.7, base: 5.1), Delta("\u{2212}0.4 pt", .better))
-        XCTAssertEqual(errorRateDelta(5.14, base: 5.1), Delta("±0.0 pt", .neutral))
+        XCTAssertEqual(errorRateDelta(5.14, base: 5.1), Delta("same", .neutral))
         XCTAssertNil(errorRateDelta(nil, base: 5.1)); XCTAssertNil(errorRateDelta(5, base: nil))
     }
     func testSpeedDelta() {
         XCTAssertEqual(speedDelta(135, base: 100), Delta("35% faster", .better))
-        XCTAssertEqual(speedDelta(80, base: 100), Delta("25% slower", .worse))
-        XCTAssertEqual(speedDelta(240, base: 100), Delta("2.4× faster", .better))
-        XCTAssertEqual(speedDelta(40, base: 100), Delta("2.5× slower", .worse))
+        XCTAssertEqual(speedDelta(80, base: 100), Delta("20% slower", .worse))
+        XCTAssertEqual(speedDelta(240, base: 100), Delta("2.4× as fast", .better))
+        XCTAssertEqual(speedDelta(40, base: 100), Delta("0.4× as fast", .worse))
         XCTAssertEqual(speedDelta(100.5, base: 100), Delta("same", .neutral))
         XCTAssertNil(speedDelta(0, base: 100)); XCTAssertNil(speedDelta(10, base: nil))
     }
     func testEnergyDelta() {
         XCTAssertEqual(energyDelta(0.8, base: 1), Delta("20% less", .better))
         XCTAssertEqual(energyDelta(1.15, base: 1), Delta("15% more", .worse))
-        XCTAssertEqual(energyDelta(2.9, base: 1), Delta("2.9× more", .worse))
+        XCTAssertEqual(energyDelta(2.9, base: 1), Delta("2.9× the energy", .worse))
         XCTAssertEqual(energyDelta(1.004, base: 1), Delta("same", .neutral))
         XCTAssertNil(energyDelta(1, base: 0)); XCTAssertNil(energyDelta(nil, base: 1))
         XCTAssertEqual(memoryDelta(600, base: 1000), Delta("40% less", .better))
@@ -442,9 +442,27 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(measurementChip(file), "M5 Max")
     }
     func testHardwareNote() {
-        XCTAssertNil(hardwareNote(thisChip: "Apple M5 Pro", measuredOn: "M5 Max"), "same generation")
-        XCTAssertEqual(hardwareNote(thisChip: "Apple M3 Pro", measuredOn: "Apple M5 Max")?.text, "Benchmarks measured on M5 Max")
-        XCTAssertNil(hardwareNote(thisChip: nil, measuredOn: "M5 Max"))
+        XCTAssertNil(hardwareNote(thisChip: "Apple M5 Max", measuredOn: "M5 Max", gpuCores: 40))
+        for hardware in [
+            BenchmarkHardware(chip: "M5 Max", gpuCores: 32), BenchmarkHardware(chip: "M5 Pro", gpuCores: 20),
+            BenchmarkHardware(chip: "M5", gpuCores: 10), BenchmarkHardware(chip: "M4", gpuCores: 10),
+            BenchmarkHardware(chip: "M5 Max", gpuCores: nil), BenchmarkHardware(chip: nil, gpuCores: nil)
+        ] {
+            XCTAssertFalse(hardware.isMeasuredConfiguration)
+            XCTAssertEqual(hardware.speedReferenceLabel, "M5 Max")
+            XCTAssertEqual(hardware.speedText(507), "507×")
+            XCTAssertEqual(hardware.energyText(4.6), "not known")
+            XCTAssertEqual(hardwareNote(thisChip: hardware.chip, measuredOn: "M5 Max", gpuCores: hardware.gpuCores)?.text, "Measured on M5 Max · J / min not known")
+            let figures = hardware.figures(PrecisionResult(wer: 5, format: 9, speed_x: 507, j_per_min: 4.6, memory_mb: 1000))
+            XCTAssertEqual(figures["speed_x"] as? Double, 507); XCTAssertTrue(figures["j_per_min"] is NSNull)
+            XCTAssertEqual(figures["wer"] as? Double, 5); XCTAssertEqual(figures["format"] as? Double, 9)
+            XCTAssertEqual(figures["memory_mb"] as? Double, 1000)
+            XCTAssertEqual(hardware.caveat, "Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it.")
+            XCTAssertEqual(figures["measured_on_this_mac"] as? Bool, false)
+        }
+        XCTAssertNil(BenchmarkHardware.measured.speedReferenceLabel)
+        XCTAssertEqual(BenchmarkHardware.measured.speedText(507), "507×")
+        XCTAssertEqual(BenchmarkHardware.measured.energyText(4.6), "4.6 J")
         XCTAssertEqual(chipGeneration("Apple M5 Pro"), "M5"); XCTAssertEqual(displayChip("Apple M5 Max"), "M5 Max")
     }
     func testEngineLabelAndHelp() {
@@ -458,13 +476,13 @@ final class CatalogTests: XCTestCase {
         let stock = engineHelp(engine: "mlx", reason: nil, optimizations: nil, chip: nil, precision: "4b")
         XCTAssertTrue(stock.hasPrefix("Stock MLX path")); XCTAssertFalse(stock.contains("Why"), "never invents a cause")
         let baseline = PrecisionResult(speed_x: 364.6, stock: StockBaseline(speed_x: 58.04, j_per_min: 95.2, memory_mb: 2412))
-        XCTAssertEqual(stockLine(baseline), "Stock MLX on any Mac: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
+        XCTAssertEqual(stockLine(baseline), "Standard reference measurements: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
         XCTAssertEqual(
-            stockLine(PrecisionResult(stock: StockBaseline(speed_x: 228.8, memory_mb: 1732))), "Stock MLX on any Mac: 229\u{00d7} \u{00b7} 1.73 GB",
+            stockLine(PrecisionResult(stock: StockBaseline(speed_x: 228.8, memory_mb: 1732))), "Standard reference measurements: 229\u{00d7} \u{00b7} 1.73 GB",
             "an unmeasured figure is left out")
         XCTAssertNil(stockLine(PrecisionResult(speed_x: 364.6))); XCTAssertNil(stockLine(nil))
         let loaded = engineHelp(engine: "optimized", reason: nil, optimizations: nil, chip: "M5 Max", precision: "BF16", stock: stockLine(baseline))
-        XCTAssertEqual(loaded.components(separatedBy: "\n").last, "Stock MLX on any Mac: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
+        XCTAssertEqual(loaded.components(separatedBy: "\n").last, "Standard reference measurements: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
     }
     func testStockBaselineDecodes() throws {
         let json =

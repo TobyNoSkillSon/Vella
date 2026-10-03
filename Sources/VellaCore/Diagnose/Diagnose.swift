@@ -71,8 +71,11 @@ public struct Diagnosis: Equatable {
         public var osBuild: String?
         /// Metal GPU family the optimized kernels are gated on ("apple9"); never a chip name.
         public var gpuFamily: String?
-        public init(chip: String? = nil, hardware: String? = nil, memoryGB: Int? = nil, macos: String? = nil, osBuild: String? = nil, gpuFamily: String? = nil) {
-            self.chip = chip; self.hardware = hardware; self.memoryGB = memoryGB; self.macos = macos; self.osBuild = osBuild; self.gpuFamily = gpuFamily
+        public var gpuCores: Int?
+        public init(
+            chip: String? = nil, hardware: String? = nil, memoryGB: Int? = nil, macos: String? = nil, osBuild: String? = nil, gpuFamily: String? = nil, gpuCores: Int? = nil
+        ) {
+            self.chip = chip; self.hardware = hardware; self.memoryGB = memoryGB; self.macos = macos; self.osBuild = osBuild; self.gpuFamily = gpuFamily; self.gpuCores = gpuCores
         }
     }
     /// One clip of the timed run: the model's text and, with a reference, how many words differ from it.
@@ -273,12 +276,13 @@ public enum Diagnose {
         ]
         .compactMap { $0 }.joined(separator: " · ")
         var out = ["vella diagnose", versions, "Mac: " + mac]
+        if let caveat = BenchmarkHardware(chip: h.chip, gpuCores: h.gpuCores).caveat { out.append(caveat + " Timed clip speed below is measured on this Mac.") }
         if !d.running {
             out.append("Vella is not running: start it from Applications and run `vella diagnose` again.")
         } else {
             if let loaded = d.loadedForDiagnosis { out.append("loaded \(loaded) for this diagnosis (--load)") }
             if let state = d.dictation, state != "idle" { out.append("dictation: \(state)") }
-            for m in d.models { out += modelLines(m, chip: h.chip) }
+            for m in d.models { out += modelLines(m, chip: h.chip, gpuCores: h.gpuCores) }
             if d.models.isEmpty {
                 out.append(
                     "no model loaded: nothing timed. `vella diagnose --load` loads the dictation model"
@@ -297,7 +301,7 @@ public enum Diagnose {
         return out
     }
 
-    static func modelLines(_ m: Diagnosis.Model, chip: String?) -> [String] {
+    static func modelLines(_ m: Diagnosis.Model, chip: String?, gpuCores: Int? = nil) -> [String] {
         // No engine and no precision: the model is not loaded (a --load that failed), not running on MLX.
         let loaded = m.engine != nil || m.precision != nil
         var head = "\(m.id): " + (loaded ? engineLabel(engine: m.engine, chip: chip) : "not loaded")
@@ -330,7 +334,9 @@ public enum Diagnose {
             if let s = run.speedX {
                 line += " · \(fixed(run.audioSeconds, 1)) s of audio at \(speed(s))× real time"
                 if let r = run.referenceSpeedX, let label = run.reference {
-                    line += " (\(label.components(separatedBy: ",").first ?? label): \(speed(r))×)"
+                    line +=
+                        BenchmarkHardware(chip: chip, gpuCores: gpuCores).isMeasuredConfiguration
+                        ? " (\(label.components(separatedBy: ",").first ?? label): \(speed(r))× reference)" : " (M5 Max measured: \(speed(r))×; not this Mac)"
                 }
             }
             out.append(line)
@@ -385,7 +391,8 @@ public enum Diagnose {
         let h = d.host
         let host: [String: Any] = [
             "chip": v(h.chip), "hardware": v(h.hardware), "memory_gb": v(h.memoryGB), "macos": v(h.macos),
-            "os_build": v(h.osBuild), "gpu_family": v(h.gpuFamily)
+            "os_build": v(h.osBuild), "gpu_family": v(h.gpuFamily), "gpu_cores": v(h.gpuCores),
+            "hardware_note": v(BenchmarkHardware(chip: h.chip, gpuCores: h.gpuCores).caveat)
         ]
         let models: [[String: Any]] = d.models.map { m in
             var o: [String: Any] = [
@@ -404,7 +411,12 @@ public enum Diagnose {
                     [
                         "clips": clips, "identical": run.reference == nil ? NSNull() as Any : run.identical as Any,
                         "pass_s": run.passSeconds.map { ($0 * 10000).rounded() / 10000 }, "audio_s": r2(run.audioSeconds),
-                        "speed_x": r2(run.speedX), "reference": v(run.reference), "reference_speed_x": r2(run.referenceSpeedX)
+                        "speed_x": r2(run.speedX), "speed_kind": "measured on this Mac", "reference": v(run.reference),
+                        "reference_speed_x": r2(run.referenceSpeedX),
+                        "reference_measurement_speed_x": r2(run.referenceSpeedX),
+                        "reference_speed_kind": BenchmarkHardware(chip: h.chip, gpuCores: h.gpuCores).isMeasuredConfiguration ? "measured" : "measured on M5 Max, not this Mac",
+                        "j_per_min": NSNull(),
+                        "energy_kind": "not known"
                     ] as [String: Any]
             } else {
                 o["run"] = NSNull()

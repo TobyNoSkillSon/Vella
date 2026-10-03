@@ -33,7 +33,10 @@ public func modelHelp(_ f: ModelFamily, loaded: LoadedFamily? = nil) -> String {
     lines.append((f.params.isEmpty ? "" : "\(f.params) parameters \u{00b7} ") + "native \(precisionInProse(f.native))")
     if let loaded {
         let how = loaded.residency == "on_demand" ? ", on demand" : loaded.residency == "manual" ? ", kept hot" : ""
-        lines.append("Loaded at \(precisionInProse(loaded.precision))" + how)
+        lines.append("Loaded at \(humanDType(precision: loaded.precision, familyID: f.id))" + how)
+        if let requested = loaded.selection, effectiveSelection(requested, engine: loaded.engine) != requested {
+            lines.append("\(recipeLabel(requested)) was requested, but the worker is using Standard. Reload \(recipeLabel(requested)) to retry its self-test.")
+        }
     }
     return lines.joined(separator: "\n")
 }
@@ -62,13 +65,14 @@ private func figure(_ what: String, on suite: String?, _ detail: String? = nil, 
         + ((stock ? stockLine(r) : nil).map { "\n" + $0 } ?? "")
 }
 
-/// The stock-MLX baseline in one line: `Stock MLX on any Mac: 58× · 95 J · 2.4 GB` (speed, joules per audio minute, peak
+/// The Standard reference in one line, named by its measurement hardware and date (speed, joules per audio minute, peak
 /// memory; a figure that was not measured is left out). Nil when the precision has no stock baseline.
 public func stockLine(_ r: PrecisionResult?) -> String? {
     guard let s = r?.stock else { return nil }
     let parts = [formatSpeed(s.speed_x), formatEnergy(s.j_per_min), formatMemory(s.memory_mb)].compactMap { $0 }
     guard !parts.isEmpty else { return nil }
-    return "Stock MLX on any Mac: " + parts.joined(separator: " \u{00b7} ") + (s.note == nil ? "" : " (remeasure pending)")
+    return "Standard " + (s.hardware.flatMap { displayChip($0.components(separatedBy: ",").first) }.map { "on " + $0 } ?? "reference measurements") + ": "
+        + parts.joined(separator: " \u{00b7} ") + (s.date.map { " (measured " + $0 + ")" } ?? "") + (s.note == nil ? "" : " (remeasure pending)")
 }
 
 public func werHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
@@ -191,17 +195,11 @@ public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: 
     }
     var parts: [String] = []
     let r = cell.result, b = base.result
-    if let x = r.speed_x, let y = b.speed_x, y > 0 {
-        let ratio = x / y
-        parts.append(abs(ratio - 1) < 0.05 ? "same speed" : ratio >= 1 ? String(format: "+%.1f\u{00d7} speed", ratio) : String(format: "%.1f\u{00d7} speed", ratio))
-    }
-    if let x = r.j_per_min, let y = b.j_per_min, y > 0 {
-        let change = (x / y - 1) * 100
-        parts.append(abs(change) < 1 ? "same energy" : (change < 0 ? "\u{2212}" : "+") + String(format: "%.0f %% energy", abs(change)))
-    }
+    if let delta = speedDelta(r.speed_x, base: b.speed_x) { parts.append("Speed: " + delta.text) }
+    if let delta = energyDelta(r.j_per_min, base: b.j_per_min) { parts.append("Energy: " + delta.text) }
     if let x = r.wer, let y = b.wer {
         let d = x - y
-        parts.append(abs(d) < 0.005 ? "same WER" : "WER " + (d < 0 ? "\u{2212}" : "+") + String(format: "%.2f", abs(d)))
+        parts.append(abs(d) < 0.005 ? "same WER" : "WER " + (d < 0 ? "\u{2212}" : "+") + String(format: "%.2f pt", abs(d)))
     }
     return "vs Standard \(baseName): " + (parts + [basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
 }

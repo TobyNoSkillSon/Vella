@@ -342,7 +342,7 @@ final class ModelsTests: XCTestCase {
         c.dictation.installed["whisper-large-v3-turbo-asr-fp16"] = InstalledModel(path: "/fixture/t16")
         c.dictation.activeModelPath = "/fixture/t16"
         XCTAssertEqual(c.loaded(turbo)?.precision, "FP16")
-        XCTAssertEqual(c.activeLabel(.dictation), "\(turbo.name) FP16", "no 4b wording in the menu header")
+        XCTAssertEqual(c.activeLabel(.dictation), "\(turbo.name) fp16", "no 4b wording in the menu header")
         XCTAssertEqual(c.action(turbo), .unload)
     }
 
@@ -367,9 +367,9 @@ final class ModelsTests: XCTestCase {
             Array(blocks.dropFirst()),
             [
                 ["Models…", "Keep Hot", "Memory"],
-                ["Start Dictation", "Mode", "Microphone", "Shortcuts", "Copy Last Transcript", "Open Saved Recordings"],
-                ["Copy Skill for Your Agent", "Open Vella Files", "Restart Worker", "Launch at Login"],
-                ["Support the developer…", "Quit Vella"]
+                ["Start Dictation", "Mode", "Microphone", "Shortcuts", "Copy Last Transcript", "Recover Saved Recording…", "Open Saved Recordings"],
+                ["Copy Skill for Your Agent", "Open Vella Files", "Launch at Login"],
+                ["Support the Developer…", "Quit Vella"]
             ])
         XCTAssertFalse(delegate.menu.items.contains { $0.title.contains("Diagnostics") }, "no Copy Diagnostics (the vella diagnose command stays)")
         // Tooltips only where the title cannot carry the meaning (Toby, 29 Sep 20:50): here only Copy Skill for Your Agent.
@@ -391,7 +391,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(tipped["Open Saved Recordings"], AppDelegate.privacyHelp)
         let survivors: Set<String> = [
             "Copy Skill for Your Agent", "Keep Hot → Manually loaded", "Keep Hot → Loaded on demand", "Keep Hot → Always",
-            "Memory → Fit in free memory", "Memory → Allow swap (slower)", "Open Saved Recordings", "Microphone → MacBook fallback when recording starts"
+            "Memory → Fit in free memory", "Memory → Allow swap (slower)", "Open Saved Recordings", "Microphone → Fallback checked when recording starts"
         ]
         // The header (first item) has one only while it reports an error or permission (menuHeaderToolTip, below).
         let header = delegate.menu.items[0]
@@ -399,14 +399,14 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(Set(tipped.keys.filter { !$0.hasPrefix("Models…") && $0 != header.title }), survivors, "every other item says what it does in its title")
         for title in [
             "Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Last Transcript",
-            "Open Vella Files", "Restart Worker", "Launch at Login", "Support the developer…", "Quit Vella", "Start Dictation"
+            "Open Vella Files", "Launch at Login", "Support the Developer…", "Quit Vella", "Start Dictation"
         ] {
             let item = try XCTUnwrap(delegate.menu.item(withTitle: title), title)
             XCTAssertNil(item.toolTip, title)
         }
         for sub in ["Mode", "Microphone", "Shortcuts"] {
             for item in delegate.menu.item(withTitle: sub)?.submenu?.items ?? [] where item.identifier != ShortcutMenuFactory.errorID {
-                if item.title == "MacBook fallback when recording starts" {
+                if item.title == "Fallback checked when recording starts" {
                     XCTAssertEqual(item.toolTip, "Losing the microphone during recording stops capture, keeps the audio and offers Retry.")
                     continue
                 }
@@ -427,16 +427,10 @@ final class ModelsTests: XCTestCase {
                 XCTAssertFalse(text.contains(stale), "\(stale) in: \(text)")
             }
         }
-        // No worker running: the same item reads Start Worker, in the same place, and starts one.
-        var started = 0
-        delegate.workersRunning = { false }; delegate.startWorkers = { started += 1 }
-        delegate.rebuildMenu()
+        // Loading belongs to Models; internal Start/Restart Worker actions never appear.
+        delegate.workersRunning = { false }; delegate.rebuildMenu()
+        XCTAssertNil(delegate.menu.item(withTitle: "Start Worker"))
         XCTAssertNil(delegate.menu.item(withTitle: "Restart Worker"))
-        let start = try XCTUnwrap(delegate.menu.item(withTitle: "Start Worker"))
-        XCTAssertNil(start.toolTip, "Start Worker says what it does")
-        XCTAssertEqual(delegate.menu.items[delegate.menu.index(of: start) + 1].title, "Launch at Login")
-        _ = start.target?.perform(start.action, with: start)
-        XCTAssertEqual(started, 1)
         // The header keeps the loaded model and has a tooltip only when it adds something.
         XCTAssertNil(menuHeaderToolTip(failed: false, message: "Your voice, right where you need it.", needsPermission: false, idle: true, pending: nil))
         XCTAssertNil(menuHeaderToolTip(failed: false, message: "Transcribing 2/5", needsPermission: false, idle: false, pending: "why"))

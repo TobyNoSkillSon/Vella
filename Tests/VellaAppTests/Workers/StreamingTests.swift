@@ -13,7 +13,9 @@ final class StreamingTests: XCTestCase {
     private func config() -> Configuration {
         Configuration(model: "/fixture/dictation", mode: .streaming, streamingModel: "/fixture/stream")
     }
-    @MainActor private func worker(_ body: String = "", timeout: Double = 1, afterLoop: String = "") throws -> StreamingBackend {
+    @MainActor private func worker(
+        _ body: String = "", timeout: Double = 1, afterLoop: String = "", scheduleDeadline: @escaping (DispatchWorkItem, TimeInterval) -> Void = { _, _ in }
+    ) throws -> StreamingBackend {
         let script = try root().appendingPathComponent("worker.py")
         try """
         #!/usr/bin/env python3
@@ -31,7 +33,7 @@ final class StreamingTests: XCTestCase {
         \(afterLoop)
         """.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
-        return StreamingBackend(helper: script, timeout: timeout, runtime: try Runtime.isolated(script.deletingLastPathComponent()))
+        return StreamingBackend(helper: script, timeout: timeout, runtime: try Runtime.isolated(script.deletingLastPathComponent()), scheduleDeadline: scheduleDeadline)
     }
     func testCaptureQueueBoundAndFinalShortPacket() throws {
         let queue = StreamingPCMBuffer(capacity: 10_000)
@@ -137,16 +139,23 @@ final class StreamingTests: XCTestCase {
         XCTAssertEqual(backend.committed, "hello world", "Recognized words remain recoverable")
     }
     @MainActor func testTimeoutAndCancellationRetireChild() async throws {
-        let backend = try worker("if q['op']=='audio': time.sleep(3)", timeout: 0.8)
+        var deadline: DispatchWorkItem?
+        // No wall-clock race with Python startup or the actor's scheduling. Trigger only an outstanding audio request.
+        let backend = try worker("if q['op']=='audio': time.sleep(3)", scheduleDeadline: { work, _ in deadline = work })
         defer { backend.shutdown() }
         try await backend.start(config: config().forRecording())
         let pid = try XCTUnwrap(backend.processID)
-        do { try await backend.feed(Data(repeating: 0, count: 4)); XCTFail("Missing deadline") } catch { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
+        deadline = nil
+        let timed = Task { try await backend.feed(Data(repeating: 0, count: 4)) }
+        while deadline == nil { await Task.yield() }
+        deadline?.perform()
+        do { try await timed.value; XCTFail("Missing deadline") } catch { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
         try await backend.releaseAndWait()
         XCTAssertNotEqual(kill(pid, 0), 0)
         try await backend.start(config: config().forRecording())
+        deadline = nil
         let pending = Task { try await backend.feed(Data(repeating: 0, count: 4)) }
-        try await Task.sleep(nanoseconds: 20_000_000)
+        while deadline == nil { await Task.yield() }
         pending.cancel()
         do { try await pending.value; XCTFail("Cancellation was ignored") } catch {}
         try await backend.releaseAndWait(); XCTAssertNil(backend.processID)
