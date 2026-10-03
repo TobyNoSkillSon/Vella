@@ -112,6 +112,9 @@ final class DownloadTests: XCTestCase {
             XCTAssertEqual(completions, [true], "\(support.path): \(library.downloadError ?? "")")
             XCTAssertNil(library.downloadError)
             XCTAssertEqual(library.installed[model.id]?.path, library.modelsDirectory.appendingPathComponent(model.id).path)
+            // Its own folder stays deletable there too (Delete compares the same folders).
+            library.currentModelPath = { "" }
+            XCTAssertNil(library.deletionBlockReason(model.id), support.path)
         }
     }
     /// A Hub refusal (any status but 200/206) keeps its status and remedy instead of reading "cancelled"; the Models
