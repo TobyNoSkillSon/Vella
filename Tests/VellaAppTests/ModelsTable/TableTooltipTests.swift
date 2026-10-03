@@ -246,7 +246,7 @@ final class TableTooltipTests: XCTestCase {
         "parakeet-v3-ultra": """
         Parakeet v3 Ultra
         Moondream, 2026 · CC BY 4.0
-        NVIDIA's Parakeet v3, post-trained for dictation in 25 European languages; none from outside Europe
+        Moondream's post-training of NVIDIA Parakeet v3 for dictation in 25 European languages; none from outside Europe
         0.6B parameters · native BF16
         """,
         "parakeet-v3": """

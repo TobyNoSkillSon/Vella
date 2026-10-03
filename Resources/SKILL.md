@@ -51,7 +51,7 @@ Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast: fastest, with near-bes
 
 | Model id | Mode | What it is | Language count | Params | Licence | Tiers offered | English WER % | Speed | J / audio min | Peak RAM MB |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `parakeet-v3-ultra` | dictation | NVIDIA's Parakeet v3, post-trained for dictation in 25 European languages; none from outside Europe | 25 | 0.6B | CC BY 4.0 | bf16, int8, int4 | 15.51 | 507.1× | 4.58 | 1792 |
+| `parakeet-v3-ultra` | dictation | Moondream's post-training of NVIDIA Parakeet v3 for dictation in 25 European languages; none from outside Europe | 25 | 0.6B | CC BY 4.0 | bf16, int8, int4 | 15.51 | 507.1× | 4.58 | 1792 |
 | `parakeet-v3` | dictation | The unmodified Parakeet v3 that Ultra is post-trained from: the same 25 European languages, no others | 25 | 0.6B | CC BY 4.0 | bf16, int8 | 16.42 | 494.3× | 4.70 | 1765 |
 | `qwen3-asr-1.7b` | dictation | Dictation in 30 languages, including Chinese, Japanese and Korean, which Parakeet lacks; slower than Parakeet | 30 | 1.7B | Apache-2.0 | bf16 | 15.00 | 29.6× | 72.73 | 5118 |
 | `qwen3-asr-0.6b` | dictation | The smaller Qwen3 ASR: the same 30 languages in less memory, a little less accurate than the 1.7B | 30 | 0.6B | Apache-2.0 | bf16, int8 | 15.89 | 64.4× | 34.07 | 2406 |

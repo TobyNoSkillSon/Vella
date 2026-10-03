@@ -87,7 +87,7 @@
       "publisher": "Moondream",
       "released": 2026,
       "licence": "CC BY 4.0",
-      "summary": "NVIDIA's Parakeet v3, post-trained for dictation in 25 European languages; none from outside Europe",
+      "summary": "Moondream's post-training of NVIDIA Parakeet v3 for dictation in 25 European languages; none from outside Europe",
       "notes": "Moondream's post-trained version of NVIDIA's Parakeet v3, released in September 2026: the same 0.6B architecture and 25 European languages. In Vella: dictation in those languages, and the model offered for your first dictation. MLX conversion by selcukkubur, tensor-identical to moondream/parakeet-ultra @73175eb; 8b and 4b are made on this Mac from BF16."
     },
     {

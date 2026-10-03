@@ -98,6 +98,17 @@ final class ModelDocsTests: XCTestCase {
         }
     }
 
+    func testUltraCreditsNamePostTrainerBaseConverterAndLicence() throws {
+        for path in ["README.md", "Resources/models.json", "Resources/SKILL.md", "Resources/AGENT_GUIDE.md", "docs/USAGE.md"] {
+            let contents = try text(path)
+            XCTAssertTrue(contents.contains("Moondream's post-training of NVIDIA Parakeet v3"), path)
+            XCTAssertTrue(contents.contains("CC BY 4.0"), path)
+        }
+        for path in ["README.md", "Resources/models.json", "Resources/AGENT_GUIDE.md"] {
+            XCTAssertTrue(try text(path).contains("selcukkubur/parakeet-ultra-mlx"), path)
+        }
+    }
+
     /// The switches and revision strings a README names for its kept levers exist in the code.
     func testReadmeSwitchesAndRevisionsExistInTheSource() throws {
         var source = ""

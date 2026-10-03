@@ -35,6 +35,8 @@ Measured 1–2 October 2026 on Apple M5 Max, macOS 26.6. English WER on the 167 
 
 Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far.
 
+Parakeet v3 Ultra is Moondream's post-training of NVIDIA Parakeet v3 (CC BY 4.0), converted to MLX by `selcukkubur/parakeet-ultra-mlx`. Publishers, source models, MLX converters and licences for every model are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md#model-weights-downloaded-not-included).
+
 Each model downloads one pinned checkpoint at its published 16-bit precision, except Parakeet v3, whose pinned source is FP32 (2.51 GB) and which Vella converts once to BF16 when you choose **Get**. `int8` and `int4` are made on your Mac from the 16-bit weights; the download prompt names the exact size first. The table shows the dtype actually running (`bf16`/`fp16`, `int8`, `int4`). Choose Standard or Optimized; Optimized has Exact and Fast recipes. Missing figures show `—`, never a sibling model's score. Models and weights retain their own licences in [`Resources/models.json`](Resources/models.json).
 
 <details>
