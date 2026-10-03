@@ -319,7 +319,7 @@ Measured hardware: Apple M5 Max, macOS 26.6, 40 GPU cores. Measurement dates: 20
 Authoritative shipped source identities:
 
 - Packages Git tree: `6851d8c101f507aea8980af93fd877aa0e84a20c`.
-- Worker Git tree: `7640d1d1e0953f58d894ee89711a2f0f74ab7083`.
+- Worker Git tree: `6b3891fdc61cf62b5a7ade9518b7c04b1189f81f`.
 - Build-script SHA-256: `025547b32840d30e6b1065dcd8322640a0bdcf9d6f972d5c09bfd5b47b76b56b`.
 - Build-script change: 4 Oct: build.sh identity, existing-signature and runtime-symbol probes now drain producer output under pipefail. The measured build used the old build.sh text. This is non-functional for compilation: compiler, flags, build commands, workers and shader inputs are unchanged. The prior shipped build-script pin was 1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90.
 - CI worker SHA-256: pending verified publication artifact; no local binary is substituted.

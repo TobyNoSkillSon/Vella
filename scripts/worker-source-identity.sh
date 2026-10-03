@@ -17,7 +17,10 @@ PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
+WORKER_FULL_TREE=6b3891fdc61cf62b5a7ade9518b7c04b1189f81f   # 4 Oct: night-regenerated model READMEs (Whisper same-window data, Nemotron gates); code tree unchanged
+# Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
+# Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files only (checked below).
+REFERENCE_WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
 # Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 843a434
 # (BASE_WORKER_TREE, full tree including READMEs). The history scrub of 3 Oct rewrote that commit's Whisper README, so this
 # is the rewritten tree; the pre-scrub tree survives only in the local backup (see its receipt). Package.swift excludes each of
@@ -62,6 +65,11 @@ verify_index() {
   tree="$(g write-tree)" || return 1
   [[ "$(g rev-parse "$tree:Worker")" == "$WORKER_FULL_TREE" ]] && full=identical || full='differs in README.md content only (not gated)'
   echo "worker source: published full Worker tree (README.md included) $full"
+  if g cat-file -e "$REFERENCE_WORKER_FULL_TREE^{tree}" 2>/dev/null; then
+    refdiff="$(g diff --name-only "$REFERENCE_WORKER_FULL_TREE" "$WORKER_FULL_TREE")" || return 1
+    [[ -z "$(grep -Ev '(^|/)README\.md$' <<<"$refdiff" || true)" ]] || { echo 'reference capture tree differs from the shipped Worker tree beyond README.md files' >&2; return 1; }
+    echo "worker source: diagnose reference capture tree differs from the shipped tree in README.md files only"
+  fi
   while IFS= read -r path; do g update-index --force-remove -- "$path" || return 1; done <<<"$readmes"
   tree="$(g write-tree)" || return 1
   [[ "$(g rev-parse "$tree:Worker")" == "$WORKER_CODE_TREE" ]] || { echo 'Worker code differs from the pinned source (README.md files excluded)' >&2; return 1; }

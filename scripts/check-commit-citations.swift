@@ -17,7 +17,7 @@ func isAncestorOfHead(_ sha: String) -> Bool { git(["merge-base", "--is-ancestor
 let pattern = try NSRegularExpression(pattern: #"\b[0-9a-f]{7,40}\b"#)
 // Content identities, not commits. These remain valid in a shallow or history-free source export.
 func pinnedTrees(_ text: String) -> Set<String> {
-    let assignment = try! NSRegularExpression(pattern: #"^(?:WORKER_CODE_TREE|WORKER_FULL_TREE|PACKAGES_TREE|BASE_WORKER_TREE)=([0-9a-f]{40})\b"#, options: .anchorsMatchLines)
+    let assignment = try! NSRegularExpression(pattern: #"^(?:WORKER_CODE_TREE|WORKER_FULL_TREE|PACKAGES_TREE|BASE_WORKER_TREE|REFERENCE_WORKER_FULL_TREE)=([0-9a-f]{40})\b"#, options: .anchorsMatchLines)
     return Set(
         assignment.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap {
             Range($0.range(at: 1), in: text).map { String(text[$0]) }
@@ -87,7 +87,7 @@ if CommandLine.arguments.contains("--selftest") {
         citations("https://github.com/vendor/fixture/blob/deadbee/LICENSE").isEmpty,
         citations("https://github.com/TobyNoSkillSon/Vella/commit/deadbee") == ["deadbee"],
         pinnedTrees("WORKER_FULL_TREE=\(String(repeating: "b", count: 40)) # source\nSOURCE=\(String(repeating: "c", count: 40))") == [String(repeating: "b", count: 40)],
-        pinnedTrees(sourcePins).count == 4,
+        pinnedTrees(sourcePins).count == 5,
         pinnedTrees(sourcePins).allSatisfy({ citations("source tree `\($0)`").isEmpty }),
         citations("unknown tree `\(String(repeating: "d", count: 40))`") == [String(repeating: "d", count: 40)],
         !currentTreesMatchPins(
