@@ -9,13 +9,13 @@
 # under Worker/ is pinned byte for byte (content and exec bit), and so is all of Packages/.
 set -euo pipefail
 SOURCE=843a43444659dbd7f2de507b1e2da11453efb31b # informational measured-defaults commit, never a reachability gate
-WORKER_CODE_TREE=98378da5eaf576d46a677917e1f4dc26cd20bc72   # git tree of Worker/ with its README.md files removed
+WORKER_CODE_TREE=53bde5329b1828bb286071a4d871c0a3cd9a2908   # git tree of Worker/ with its README.md files removed
 PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
 # 3 Oct chip-safety delta: macOS 26.2 tensor preflight; GPU architecture/name in gate keys and optional verdict metadata.
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
 # Reported, never gated: README content is outside the pin.
-WORKER_FULL_TREE=3b5e11b6f7335eafe03f7dacb6c30b897e10a592
+WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
 # Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 843a434
 # (BASE_WORKER_TREE, full tree including READMEs). The history scrub of 3 Oct rewrote that commit's Whisper README, so this
 # is the rewritten tree; the pre-scrub tree survives only in the local backup (see its receipt). Package.swift excludes each of
@@ -61,7 +61,7 @@ verify_index() {
   while IFS= read -r path; do g update-index --force-remove -- "$path" || return 1; done <<<"$readmes"
   tree="$(g write-tree)" || return 1
   [[ "$(g rev-parse "$tree:Worker")" == "$WORKER_CODE_TREE" ]] || { echo 'Worker code differs from the pinned source (README.md files excluded)' >&2; return 1; }
-  [[ "$(g rev-parse "$tree:Packages")" == "$PACKAGES_TREE" ]] || { echo 'Packages tree differs from measured source' >&2; return 1; }
+  [[ "$(g rev-parse "$tree:Packages")" == "$PACKAGES_TREE" ]] || { echo 'Packages tree differs from pinned source' >&2; return 1; }
   actual="$(for path in "${build_paths[@]}"; do
     hash="$(g cat-file blob ":$path" | shasum -a 256 | awk '{print $1}')" || return 1
     printf '%s  %s\n' "$hash" "$path"

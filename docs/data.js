@@ -5402,7 +5402,7 @@ const VELLA_BENCHMARKS = {
       "worker_sha256": null,
       "commit_kind": "informational measured-defaults commit (may change in a history rewrite)",
       "worker_source_trees": {
-        "Worker": "3b5e11b6f7335eafe03f7dacb6c30b897e10a592",
+        "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
         "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
       },
       "build_scripts_sha256": "1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90",
@@ -5417,7 +5417,7 @@ const VELLA_BENCHMARKS = {
     },
     "bridge": {
       "evidence": "scoped CPU source/key/verdict bridge receipt (3 Oct 2026)",
-      "summary": "Scoped source bridge: 83 protected paths, with 3 comment-only hunks allowed; separate source diff confirms Nemotron; gate keys 24/24 identical; measured-worker verdicts 24/24 match. Builds are not bit-reproducible; metallib identical.",
+      "summary": "Historical, before GPU-identity keys: scoped source bridge: 83 protected paths, with 3 comment-only hunks allowed; separate source diff confirms Nemotron; gate keys 24/24 identical; measured-worker verdicts 24/24 match. Builds are not bit-reproducible; metallib identical.",
       "whisper_fast_token_identity": {
         "status": "pass",
         "evidence": "Whisper Fast token-identity receipt (3 Oct 2026)",
@@ -5430,7 +5430,7 @@ const VELLA_BENCHMARKS = {
         "components": "decoder (+ fused_decode on 8b/4b); no encoder lever",
         "summary": "One gpulock run of the new 4d5e996 build: large-v3 and turbo × FP16/8b/4b, each 122/122 clips token-identical to measured Fast transcripts."
       },
-      "defaults": "defaults flipped to the measured lever sets (Toby, 3 Oct); default keys == measured verdict keys: 30/30; 0 mismatches outside Whisper (whisper-4 listed separately)"
+      "defaults": "Historical, before GPU-identity keys: defaults flipped to the measured lever sets (Toby, 3 Oct); default keys == measured verdict keys: 30/30; 0 mismatches outside Whisper (whisper-4 listed separately); current default and explicit measured lever configurations still agree; current keys differ from historical verdict keys and require local requalification."
     }
   }
 };

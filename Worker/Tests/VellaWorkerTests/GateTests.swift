@@ -111,10 +111,20 @@ extension WorkerTests {
                 #expect(FastPathGate.status(try url(migrated)) == nil)
                 // Historical keys/files survive for diagnose, but never qualify the new host key.
                 let old = scratch.url.appendingPathComponent("fe9f3f82e7f5f2708a3fa0869935f9e0fd9c2accb51fe2e1d31024bcb493a4e7.json")
-                FastPathGate.persist("fast", to: old)
+                let legacy = """
+                    {"status":"fast","workerVersion":"native-kernels-10","gpuFamily":"apple9","osBuild":"25A123",
+                     "disabled.nax_gemm":"self-test: word edits 3 > 1"}
+                    """
+                try Data(legacy.utf8).write(to: old)
+                let object = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: old)) as? [String: Any])
+                let record = try #require(GateRecord(json: object))
+                #expect(record.gpuArchitecture == nil && record.gpuName == nil)
+                #expect(record.disabled == ["nax_gemm": "self-test: word edits 3 > 1"])
                 try FileManager.default.removeItem(at: qualified)
                 #expect(FastPathGate.status(try url(Self.host)) == nil)
+                #expect(FastPathGate.disabledComponents(try url(Self.host)).isEmpty)
                 #expect(FastPathGate.status(old) == "fast")
+                #expect(FastPathGate.disabledComponents(old) == record.disabled)
             }
         }
 

@@ -102,6 +102,13 @@ final class FinalBenchmarkTests: XCTestCase {
         let builds = try XCTUnwrap(raw["builds"] as? [String: [String: Any]])
         XCTAssertEqual(builds["measured"]?["commit"] as? String, "53d1bf3")
         XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "843a43444659dbd7f2de507b1e2da11453efb31b")
+        for field in ["summary", "defaults"] {
+            let claim = try XCTUnwrap(builds["bridge"]?[field] as? String)
+            XCTAssertTrue(claim.hasPrefix("Historical, before GPU-identity keys:"), field)
+        }
+        let defaults = try XCTUnwrap(builds["bridge"]?["defaults"] as? String)
+        XCTAssertTrue(defaults.contains("current default and explicit measured lever configurations still agree"))
+        XCTAssertTrue(defaults.contains("current keys differ from historical verdict keys and require local requalification"))
         let bridge = try XCTUnwrap(builds["bridge"]?["whisper_fast_token_identity"] as? [String: Any])
         XCTAssertEqual(bridge["status"] as? String, "pass")
         XCTAssertEqual(bridge["cells"] as? Int, 6)
