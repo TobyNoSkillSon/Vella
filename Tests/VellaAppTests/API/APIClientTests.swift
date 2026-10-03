@@ -40,7 +40,7 @@ final class APIClientTests: XCTestCase {
         defer { api.close() }
         let (code, out, _) = try await vella(api, ["status"])
         XCTAssertEqual(code, 0)
-        XCTAssertEqual(out, "Vella test running (pid \(getpid())), no model loaded · dictation model FAKE-A (8) · API http://127.0.0.1:\(api.port)/v1\n")
+        XCTAssertEqual(out, "Vella test running (pid \(getpid())), no model loaded · dictation model FAKE-A (int8) · API http://127.0.0.1:\(api.port)/v1\n")
 
         let (mCode, models, _) = try await vella(api, ["models"])
         XCTAssertEqual(mCode, 0)
@@ -71,7 +71,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(hCode, 0)
         // Measured-chip line first, then the synopsis (CLIReleaseTests pins the same order).
         XCTAssertTrue(help.components(separatedBy: "\n")[1].hasPrefix("vella:"), help)
-        XCTAssertEqual(help.components(separatedBy: "\n")[0], "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far")
+        XCTAssertEqual(help.components(separatedBy: "\n")[0], "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far.")
         XCTAssertTrue(help.contains("vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]"), help)
 
         // Errors: one line on stderr, exit 1, no stdout.
@@ -127,11 +127,11 @@ final class APIClientTests: XCTestCase {
         try await api.backend.preload(api.runtime.resolve(api.models.list[0].path, mode: .dictation), residency: .manual)
         let (code, status, _) = try await vella(api, ["status"])
         XCTAssertEqual(code, 0)
-        XCTAssertTrue(status.contains("fake-a 8 · Standard (Optimized Fast asked) loaded"), status)
+        XCTAssertTrue(status.contains("fake-a int8 · Standard (Optimized Fast asked) loaded"), status)
         let worker = HelperStatus(json: ["worker": "dictation", "pid": 123, "event": "load", "engine": "optimized", "optimizations": [String: Bool]()])
         api.runtime.update("fake-a", worker: worker)
         let (_, optimized, _) = try await vella(api, ["status"])
-        XCTAssertTrue(optimized.contains("fake-a 8 · Optimized Fast loaded"), optimized)
+        XCTAssertTrue(optimized.contains("fake-a int8 · Optimized Fast loaded"), optimized)
     }
 
     /// The official OpenAI Python SDK, unchanged, against the stub (opt-in: a venv with `openai` installed).
