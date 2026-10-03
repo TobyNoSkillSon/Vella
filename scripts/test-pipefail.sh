@@ -36,6 +36,9 @@ if not ref:
                                     text=True, timeout=10).splitlines()
     early = re.compile(r'(?<!\|)\|(?!\|)\s*(?:grep\s+-[A-Za-z]*q\b|head\b)')
     for path in paths:
+        # This embedded-Python fixture contains the detection regex, not a shell pipeline.
+        if path == 'scripts/test-pipefail.sh':
+            continue
         for number, line in enumerate(Path(path).read_text().splitlines(), 1):
             if early.search(line):
                 failures.append(f'{path}:{number}: early-exit pipeline consumer')
