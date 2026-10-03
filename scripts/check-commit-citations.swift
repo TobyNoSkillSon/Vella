@@ -16,9 +16,43 @@ func isAncestorOfHead(_ sha: String) -> Bool { git(["merge-base", "--is-ancestor
 
 let pattern = try NSRegularExpression(pattern: #"\b[0-9a-f]{7,40}\b"#)
 // Content identities, not commits. These remain valid in a shallow or history-free source export.
-let trees: Set<String> = [
+func pinnedTrees(_ text: String) -> Set<String> {
+    let assignment = try! NSRegularExpression(pattern: #"^(?:WORKER_CODE_TREE|WORKER_FULL_TREE|PACKAGES_TREE|BASE_WORKER_TREE)=([0-9a-f]{40})\b"#, options: .anchorsMatchLines)
+    return Set(
+        assignment.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap {
+            Range($0.range(at: 1), in: text).map { String(text[$0]) }
+        })
+}
+func currentTreesMatchPins(_ text: String) -> Bool {
+    for (name, path) in [("WORKER_FULL_TREE", "Worker"), ("PACKAGES_TREE", "Packages")] {
+        let assignment = try! NSRegularExpression(pattern: "^\(name)=([0-9a-f]{40})\\b", options: .anchorsMatchLines)
+        guard let match = assignment.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+            let range = Range(match.range(at: 1), in: text)
+        else { return false }
+        let actual = git(["rev-parse", "HEAD:\(path)"])
+        guard actual.0 == 0, actual.1.trimmingCharacters(in: .whitespacesAndNewlines) == String(text[range]) else { return false }
+    }
+    return true
+}
+/// Recompute the README-stripped Worker code tree and Packages tree from both HEAD and disk; pins alone are not evidence.
+func sourceIdentityPasses() -> Bool {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/bash")
+    process.arguments = [root.appendingPathComponent("scripts/worker-source-identity.sh").path]
+    process.currentDirectoryURL = root
+    process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+    do { try process.run() } catch { return false }
+    process.waitUntilExit()
+    return process.terminationStatus == 0
+}
+let historicalTrees: Set<String> = [
     "af976137fbcd3cb0346fb187aced20cd82f9cc86", "ce8b527583b37c77274eb242b58025b85f35b6fc", "093375e515b30db74a5803abfdd6c1c0d28e29e2", "53e0cd3fce3cb0b11646dd3b085c0328e51fc5aa"
 ]
+let sourcePins = try String(contentsOf: root.appendingPathComponent("scripts/worker-source-identity.sh"), encoding: .utf8)
+guard currentTreesMatchPins(sourcePins), sourceIdentityPasses() else {
+    fputs("commit citations: source tree pins differ from HEAD or checkout\n", stderr); exit(1)
+}
+let trees = historicalTrees.union(pinnedTrees(sourcePins))
 func citations(_ text: String) -> Set<String> {
     var result = Set<String>()
     for line in text.components(separatedBy: "\n") {
@@ -50,6 +84,14 @@ if CommandLine.arguments.contains("--selftest") {
         citations("- package: fixture revision (deadbee)").isEmpty,
         citations("https://github.com/vendor/fixture/blob/deadbee/LICENSE").isEmpty,
         citations("https://github.com/TobyNoSkillSon/Vella/commit/deadbee") == ["deadbee"],
+        pinnedTrees("WORKER_FULL_TREE=\(String(repeating: "b", count: 40)) # source\nSOURCE=\(String(repeating: "c", count: 40))") == [String(repeating: "b", count: 40)],
+        pinnedTrees(sourcePins).count == 4,
+        pinnedTrees(sourcePins).allSatisfy({ citations("source tree `\($0)`").isEmpty }),
+        citations("unknown tree `\(String(repeating: "d", count: 40))`") == [String(repeating: "d", count: 40)],
+        !currentTreesMatchPins(
+            sourcePins.replacingOccurrences(of: #"(?m)^WORKER_FULL_TREE=[0-9a-f]{40}"#, with: "WORKER_FULL_TREE=" + String(repeating: "e", count: 40), options: .regularExpression)),
+        !currentTreesMatchPins(
+            sourcePins.replacingOccurrences(of: #"(?m)^PACKAGES_TREE=[0-9a-f]{40}"#, with: "PACKAGES_TREE=" + String(repeating: "e", count: 40), options: .regularExpression)),
         isAncestorOfHead(String(head.prefix(7))), isAncestorOfHead("HEAD~1"), !isAncestorOfHead("deadbee")
     else { fputs("commit citation fixture failed\n", stderr); exit(1) }
     print("commit citations: short/full SHA extraction, non-commit exclusions and ancestor check tested")
