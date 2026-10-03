@@ -221,6 +221,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "8": {
@@ -336,8 +341,7 @@ const VELLA_BENCHMARKS = {
               },
               "kernels": [
                 "decoder",
-                "encoder",
-                "int8_gemm"
+                "encoder"
               ],
               "inexact": [],
               "gate_revision": "native-kernels-10",
@@ -403,7 +407,9 @@ const VELLA_BENCHMARKS = {
                 "encoder",
                 "int8_gemm"
               ],
-              "inexact": [],
+              "inexact": [
+                "int8_gemm"
+              ],
               "gate_revision": "native-kernels-10",
               "env": {
                 "VELLA_PARAKEET_INT8": "1"
@@ -423,6 +429,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "4": {
@@ -553,8 +564,7 @@ const VELLA_BENCHMARKS = {
               },
               "kernels": [
                 "decoder",
-                "encoder",
-                "int4_gemm"
+                "encoder"
               ],
               "inexact": [],
               "gate_revision": "native-kernels-10",
@@ -626,7 +636,9 @@ const VELLA_BENCHMARKS = {
                 "encoder",
                 "int4_gemm"
               ],
-              "inexact": [],
+              "inexact": [
+                "int4_gemm"
+              ],
               "gate_revision": "native-kernels-10",
               "env": {
                 "VELLA_PARAKEET_INT4": "1"
@@ -652,6 +664,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         }
       }
@@ -867,6 +884,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_exact"
           }
         },
         "8": {
@@ -1107,6 +1129,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_exact"
           }
         },
         "4": {
@@ -1358,6 +1385,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_exact"
           }
         }
       }
@@ -1491,7 +1523,6 @@ const VELLA_BENCHMARKS = {
                 "batched_decode",
                 "coalesce",
                 "f32_weights",
-                "joint_batch",
                 "keep_cache",
                 "kv_cache",
                 "mel_batch",
@@ -1582,7 +1613,8 @@ const VELLA_BENCHMARKS = {
               ],
               "inexact": [
                 "bf16_linears",
-                "fused_layer"
+                "fused_layer",
+                "joint_batch"
               ],
               "gate_revision": "native-kernels-10",
               "env": {
@@ -1609,6 +1641,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "8": {
@@ -1860,6 +1897,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "4": {
@@ -2194,6 +2236,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         }
       }
@@ -2404,6 +2451,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "8": {
@@ -2525,8 +2577,7 @@ const VELLA_BENCHMARKS = {
               },
               "kernels": [
                 "decoder",
-                "encoder",
-                "int8_gemm"
+                "encoder"
               ],
               "inexact": [],
               "gate_revision": "native-kernels-10",
@@ -2596,7 +2647,9 @@ const VELLA_BENCHMARKS = {
                 "encoder",
                 "int8_gemm"
               ],
-              "inexact": [],
+              "inexact": [
+                "int8_gemm"
+              ],
               "gate_revision": "native-kernels-10",
               "env": {
                 "VELLA_PARAKEET_INT8": "1",
@@ -2619,6 +2672,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "4": {
@@ -2744,8 +2802,7 @@ const VELLA_BENCHMARKS = {
               },
               "kernels": [
                 "decoder",
-                "encoder",
-                "int4_gemm"
+                "encoder"
               ],
               "inexact": [],
               "gate_revision": "native-kernels-10",
@@ -2817,7 +2874,9 @@ const VELLA_BENCHMARKS = {
                 "encoder",
                 "int4_gemm"
               ],
-              "inexact": [],
+              "inexact": [
+                "int4_gemm"
+              ],
               "gate_revision": "native-kernels-10",
               "env": {
                 "VELLA_PARAKEET_INT4": "1",
@@ -2842,6 +2901,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         }
       }
@@ -3057,6 +3121,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_exact"
           }
         },
         "8": {
@@ -3276,6 +3345,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_exact"
           }
         },
         "4": {
@@ -3552,6 +3626,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_exact"
           }
         }
       }
@@ -3711,6 +3790,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "8": {
@@ -3872,6 +3956,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "4": {
@@ -4033,6 +4122,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         }
       }
@@ -4194,6 +4288,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "8": {
@@ -4349,6 +4448,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         },
         "4": {
@@ -4522,6 +4626,11 @@ const VELLA_BENCHMARKS = {
               "recipe": "builds.shipped",
               "bridge": "builds.bridge"
             }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
           }
         }
       }

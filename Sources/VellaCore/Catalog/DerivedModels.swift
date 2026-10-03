@@ -9,8 +9,8 @@ import Foundation
 // quantizations read. A quantization is one stored manifest per precision: Load hands the worker a small directory
 // holding `vella-derived.json` (source path + recipe) and the worker quantizes tensor by tensor at load. The model
 // path therefore differs per precision, so the worker's identity, fast-path gate key and residency stay per precision.
-// A checkpoint of the variant's exact format already registered under the variant's own id (an earlier download of
-// the published quantization) counts as installed and loads directly (`precisionLoadPath`).
+// Earlier published quantizations are imports, not tier checkpoints: only the catalog's local recipe receives its
+// measured identity. Their weights are preserved; the tier derives from its high-precision root.
 
 /// The composed recipe from the downloadable root to a derived precision: an optional float cast, then an optional
 /// affine quantization (always last; never twice).
@@ -243,11 +243,10 @@ public func migrateDerivedManifests(catalog: ModelCatalog, modelsDirectory: URL)
     }
 }
 
-/// The registered checkpoint that loads as a precision, if any: its own registered weights. Never for a mixed recipe
-/// (float-kept modules): it has no published form, so a checkpoint registered under its id (an imported uniform
-/// quantization re-keyed by `legacyIDs`) is a different recipe and is never presented as this one.
+/// Only a downloaded/stored high-precision root is a registered tier checkpoint. Published low-bit imports are not
+/// the measured local derivation, even with the same bits/group size. Preserve them without assigning tier identity.
 public func registeredCheckpoint(_ family: ModelFamily, _ precision: String, installedPath: (String) -> String?) -> String? {
-    guard let variant = family.variants[precision], variant.floatModules == nil else { return nil }
+    guard let variant = family.variants[precision], !variant.isDerived || variant.isStored else { return nil }
     return installedPath(variant.id)
 }
 

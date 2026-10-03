@@ -123,20 +123,17 @@ import XCTest
         XCTAssertEqual(apiLoaded.precision, "8b"); XCTAssertTrue(apiLoaded.loaded)
     }
 
-    /// The one exception: when no offered precision's weights are on this Mac but the recorded one's are (an earlier
-    /// version's 4-bit download, nothing else), that precision keeps working everywhere rather than needing a download
-    /// in the table while dictation still ran it.
-    func testWithdrawnPrecisionWithNoOfferedWeightsKeepsWorkingAndEveryoneSaysSo() throws {
-        // A uniform 4-bit tier that is not offered (Parakeet v3's 4 tier, the original case, is now a mixed recipe).
+    /// Legacy published quants remain files, never measured tier identities. Without the high-precision root,
+    /// table and API offer Get; with it, requests resolve through the offered local recipe.
+    func testLegacyPublishedQuantWithoutOfferedWeightsNeedsGetAndNeverRunsAsAMeasuredTier() throws {
         let parakeet = try family("whisper-large-v3-turbo")
         let four = try install("whisper-large-v3-turbo-asr-4bit")
         try record(model: four, family: parakeet.id, precision: "4b", ModelSelection(tier: .t4, path: .optimized, mode: .fast))
-        XCTAssertEqual(controller.committed(parakeet), "4b")
-        XCTAssertEqual(controller.committedSelection(parakeet).tier, .t4)
-        let api = try XCTUnwrap(source.models().first { $0.id == parakeet.id })
-        XCTAssertEqual(api.precision, "4b"); XCTAssertEqual(api.path, four); XCTAssertEqual(api.selection?.tier, .t4)
-        let request = try XCTUnwrap(bridge.ref(path: four, mode: .dictation))
-        XCTAssertEqual(request.precision, "4b"); XCTAssertEqual(request.path, four)
+        XCTAssertEqual(controller.committed(parakeet), "FP16")
+        XCTAssertEqual(controller.committedSelection(parakeet).tier, .t16)
+        XCTAssertNil(source.models().first { $0.id == parakeet.id })
+        XCTAssertNil(bridge.ref(path: four, mode: .dictation))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: four + "/config.json"))
         // Once the offered 16 is downloaded, the 4-bit files stop being used.
         let bf16 = try install("whisper-large-v3-turbo-asr-fp16")
         XCTAssertEqual(controller.committed(parakeet), "FP16")

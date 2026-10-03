@@ -4,6 +4,47 @@ import VellaWire
 @testable import VellaCore
 
 final class FinalBenchmarkTests: XCTestCase {
+    func testCanonicalFastFiguresAndInexactClassification() throws {
+        let file = decodeBenchmarks(try Data(contentsOf: Repository.root.appendingPathComponent("Resources/benchmarks.json")))
+        let ultra = try XCTUnwrap(file.models["parakeet-v3-ultra"])
+        let fast = try XCTUnwrap(benchmarkCell(ultra, ModelSelection(tier: .t8, path: .optimized, mode: .fast)))
+        XCTAssertEqual(fast.result.speed_x ?? 0, 515.0, accuracy: 0.1)
+        XCTAssertTrue(fast.recipe.inexact.contains("int8_gemm"))
+        for (id, family) in file.models {
+            for tier in family.tiers.values {
+                XCTAssertTrue(tier.cells[.optimized_exact]?.recipe.inexact.isEmpty ?? true, id)
+                XCTAssertFalse(tier.cells[.optimized_exact]?.recipe.kernels.contains("joint_batch") ?? false, id)
+                if tier.cells[.optimized_fast]?.recipe.inexact.isEmpty == true, tier.cells[.optimized_exact]?.isPending == false {
+                    XCTAssertEqual(tier.displayCells[.optimized_fast], .optimized_exact, id)
+                }
+            }
+        }
+        let qwen = try XCTUnwrap(file.models["qwen3-asr-1.7b"])
+        XCTAssertEqual(benchmarkCell(qwen, ModelSelection(tier: .t16, path: .optimized, mode: .fast)), qwen.tiers[.t16]?.cells[.optimized_exact])
+    }
+
+    func testCompetitorWarmServerAndDecodingLabels() throws {
+        let raw = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: Repository.root.appendingPathComponent("Resources/benchmarks.json"))) as? [String: Any])
+        var serverCount = 0
+        func inspect(_ value: Any) {
+            if let object = value as? [String: Any] {
+                if let name = object["name"] as? String, name.hasPrefix("wcpp-") {
+                    XCTAssertEqual(object["decoding"] as? String, "whisper.cpp default beam search (beam 5); Vella greedy")
+                    if name.hasSuffix("server") {
+                        serverCount += 1
+                        XCTAssertEqual(object["energy_protocol"] as? String, "warm resident server; model loaded before requests")
+                        if let latency = object["latency_ms"] as? [String: Any] { XCTAssertEqual(latency["kind"] as? String, "warm resident server request to response") }
+                    }
+                }
+                object.values.forEach(inspect)
+            } else if let list = value as? [Any] {
+                list.forEach(inspect)
+            }
+        }
+        inspect(raw["competitor_comparisons"] as Any)
+        XCTAssertGreaterThan(serverCount, 0)
+    }
+
     func testReasonDecodesAndDefaultsForOldAndMalformedData() throws {
         for (field, expected) in [(#", "not_measured_reason":"Standard changed""#, "Standard changed"), ("", nil), (#", "not_measured_reason":42"#, nil)] {
             let data = Data(

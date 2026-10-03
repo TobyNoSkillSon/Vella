@@ -50,12 +50,33 @@ import VellaCore
                     var cell = selectionObject(s)
                     cell["precision"] = tierDTypeLabel(f, tier)
                     if let reason = controller.rules(f).cellRefusal(s, loaded: controller.loadedSelection(f)) { cell["reason"] = reason }
+                    if !controller.benchmarks.figuresPending, let measured = benchmarkCell(controller.benchmark(f), s), !measured.isPending {
+                        cell["figures"] = jsonObject(measured.result)
+                        cell["measurement"] = jsonObject(measured.measured)
+                        cell["components"] = jsonObject(measured.recipe)
+                        cell["provenance"] = benchmarkProvenance(f.id, s)
+                    }
                     return cell
                 }
             }
         }
         return o
     }
+    private func jsonObject<T: Encodable>(_ value: T) -> Any {
+        guard let data = try? JSONEncoder().encode(value), let object = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed) else { return NSNull() }
+        return object
+    }
+    private func benchmarkProvenance(_ family: String, _ selection: ModelSelection) -> [String: Any] {
+        guard let data = try? Data(contentsOf: controller.dictation.resources.appendingPathComponent("benchmarks.json")),
+            let file = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let models = file["models"] as? [String: [String: Any]],
+            let tiers = models[family]?["tiers"] as? [String: [String: Any]], let tier = tiers[selection.tier.rawValue]
+        else { return [:] }
+        let canonical = (tier["display_cells"] as? [String: String])?[selection.segmentKey.rawValue] ?? selection.segmentKey.rawValue
+        let raw = tier[canonical] as? [String: Any] ?? [:]
+        return ["display_cell": canonical, "builds": file["builds"] ?? [:], "build_provenance": raw["build_provenance"] ?? [:]]
+    }
+
     func selection(_ fields: [String: Any], family: ModelFamily) throws -> ModelSelection {
         let existing = controller.currentSelection(family)
         var s = existing

@@ -34,7 +34,7 @@ Loss vs bf16: multilingual mean +0.79 pt, Swedish +2.37 pt
 
 [Parakeet v3 Ultra · Exact/Fast]
 Sets the Optimized row only
-Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
 
 [Parakeet v3 Ultra · Precision Optimized bf16 · Fast]
 bf16, as published
@@ -42,12 +42,12 @@ vs Standard bf16: +1.9× speed · −28 % energy · WER +0.05 · M5 Max, 1 Oct
 
 [Parakeet v3 Ultra · Precision Optimized int8 · Fast]
 16-bit decoder, 16-bit joint (affine-8 g64)
-vs Standard bf16: +1.4× speed · +36 % energy · same WER · M5 Max, 1 Oct
+vs Standard bf16: +2.0× speed · −15 % energy · same WER · M5 Max, 1 Oct
 Loss vs bf16: multilingual mean +0.23 pt
 
 [Parakeet v3 Ultra · Precision Optimized int4 · Fast]
 16-bit decoder, 16-bit joint (affine-4 g64)
-vs Standard bf16: +1.4× speed · +33 % energy · WER +0.19 · M5 Max, 1 Oct
+vs Standard bf16: +2.0× speed · −19 % energy · WER +0.12 · M5 Max, 1 Oct
 Loss vs bf16: multilingual mean +0.79 pt, Swedish +2.37 pt
 
 [Parakeet v3 · Path Optimized]
@@ -80,7 +80,7 @@ Not offered: 3 clips empty or cut short where 16 had the words
 
 [Parakeet v3 · Exact/Fast]
 Sets the Optimized row only
-Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
 
 [Parakeet v3 · Precision Optimized bf16 · Fast]
 bf16, converted once from the published fp32
@@ -88,7 +88,7 @@ vs Standard bf16: +1.9× speed · −26 % energy · WER +0.05 · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Optimized int8 · Fast]
 16-bit decoder, 16-bit joint (affine-8 g64)
-vs Standard bf16: +1.4× speed · +37 % energy · WER −0.02 · M5 Max, 1 Oct
+vs Standard bf16: +2.0× speed · −15 % energy · WER −0.07 · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Optimized int4 · Fast]
 Not offered: 3 clips empty or cut short where 16 had the words
@@ -121,7 +121,7 @@ Not offered: 1 clip empty or cut short where 16 had the words
 
 [Qwen3 ASR 1.7B · Exact/Fast]
 Sets the Optimized row only
-Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
 Always on: Fast runs the same recipe as Exact for this model
 
 [Qwen3 ASR 1.7B · Precision Optimized bf16 · Fast]
@@ -166,7 +166,7 @@ Not offered: 2 clips empty or cut short where 16 had the words
 
 [Qwen3 ASR 0.6B · Exact/Fast]
 Sets the Optimized row only
-Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
 Always on: Fast runs the same recipe as Exact for this model
 
 [Qwen3 ASR 0.6B · Precision Optimized bf16 · Fast]
@@ -207,7 +207,7 @@ Not offered: 2 clips empty or cut short where 16 had the words
 
 [Whisper large-v3 · Exact/Fast]
 Sets the Optimized row only
-Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
 Fast is pinned on; Exact has no separate measurement
 Exact: not measured yet
 
@@ -249,7 +249,7 @@ Not offered: 1 clip empty or cut short where 16 had the words
 
 [Whisper large-v3 turbo · Exact/Fast]
 Sets the Optimized row only
-Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
 Fast is pinned on; Exact has no separate measurement
 Exact: not measured yet
 
@@ -296,7 +296,7 @@ Not offered: 22 clips empty or cut short where 16 had the words
 
 [Nemotron 3.5 Streaming · Exact/Fast]
 Sets the Optimized row only
-Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
 
 [Nemotron 3.5 Streaming · Precision Optimized bf16 · Fast]
 bf16, as published

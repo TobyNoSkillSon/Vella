@@ -21,14 +21,16 @@ Apple Silicon, macOS 26 or newer. No Xcode, Python or developer account.
 Seven open models; nothing downloads until you choose **Get**. Four starting points:
 
 <!-- RELEASE_SHORT_TABLE_START -->
-Measurement date: 2026-10-01 to 2026-10-02 · Apple M5 Max, macOS 26.6. Accuracy: v2 (239.7 min); speed, energy and Peak RAM: v2-quick (22.5 min).
 
-| Model | Use it for | Tier / path | WER % | Speed | J / audio min | Peak RAM MB |
+Measured 1–3 October 2026 on Apple M5 Max, macOS 26.6. English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately. Speed, energy and peak RAM: v2-quick (22.5 min).
+
+| Model | Use it for | Tier / path | English WER % | Speed | J / audio min | Peak RAM MB |
 |---|---|---|---|---|---|---|
 | Parakeet v3 Ultra | Dictation in 25 European languages | bf16 · Optimized Fast | 15.51 | 507.1× | 4.58 | 1792 |
 | Whisper large-v3 turbo | About 100 languages, faster Whisper | fp16 · Optimized Fast | 16.57 | 113.7× | 37.18 | 2522 |
 | Whisper large-v3 | About 100 languages | fp16 · Optimized Fast | 17.06 | 34.8× | 83.50 | 3915 |
-| Qwen3 ASR 1.7B | 30 languages, including Chinese, Japanese and Korean | bf16 · Optimized Fast | 15.00 | 28.3× | 72.32 | 5101 |
+| Qwen3 ASR 1.7B | 30 languages, including Chinese, Japanese and Korean | bf16 · Optimized Fast | 15.00 | 29.6× | 72.73 | 5118 |
+
 <!-- RELEASE_SHORT_TABLE_END -->
 
 Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
@@ -40,11 +42,11 @@ Only the checkpoint's native 16-bit weights are downloaded; `int8` and `int4` ar
 
 <!-- BENCHMARK_TABLE_START -->
 
-Measured 1–2 October 2026 on Apple M5 Max, macOS 26.6. Accuracy: v2 (239.7 min); speed, energy and Peak RAM: v2-quick (22.5 min). Languages are supported benchmark languages, out of 9.
+Measured 1–3 October 2026 on Apple M5 Max, macOS 26.6. English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately; speed, energy and peak RAM: v2-quick (22.5 min). Languages are supported benchmark languages, out of 9.
 
-**Standard** is plain MLX; **Optimized** adds custom kernels. Exact and Fast can share a recipe but retain separate measurement status. Standard and Exact for Whisper are not measured yet: their earlier Float32-baseline figures were withdrawn. Fast remains measured. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
+**Standard** is plain MLX; **Optimized** adds custom kernels. Exact and Fast can share a recipe but retain separate measurement status. Standard and Exact for Whisper are not measured yet: their earlier Float32-baseline figures were withdrawn. Fast remains measured. Gates and presence for Whisper were judged against the withdrawn Float32 Standard, not shipped FP16 Standard.
 
-| Model | Mode | Precision | Path | WER % | Format % | Languages | Speed | J / min | Peak RAM | Suite |
+| Model | Mode | Precision | Path | English WER % | Format % | Languages | Speed | J / min | Memory | Suite |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Parakeet v3 Ultra | Dictation | 16 | Standard | 15.46 | 5.80 | 5/9 | 261.4× | 6.33 | 1,796 MB | v2 |
 | Parakeet v3 Ultra | Dictation | 16 | Optimized · Exact | 15.49 | 5.74 | 5/9 | 474.5× | 4.71 | 1,808 MB | v2 |
@@ -63,13 +65,13 @@ Measured 1–2 October 2026 on Apple M5 Max, macOS 26.6. Accuracy: v2 (239.7 min
 | Parakeet v3 | Dictation | 8 | Optimized · Fast | 16.30 | 7.85 | 5/9 | 504.4× | 5.41 | 1,342 MB | v2 |
 | Qwen3 ASR 1.7B | Dictation | 16 | Standard | 15.00 | 6.67 | 9/9 | 26.6× | 81.03 | 4,624 MB | v2 |
 | Qwen3 ASR 1.7B | Dictation | 16 | Optimized · Exact | 15.00 | 6.67 | 9/9 | 29.6× | 72.73 | 5,118 MB | v2 |
-| Qwen3 ASR 1.7B | Dictation | 16 | Optimized · Fast | 15.00 | 6.67 | 9/9 | 28.3× | 72.32 | 5,101 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 16 | Optimized · Fast | 15.00 | 6.67 | 9/9 | 29.6× | 72.73 | 5,118 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 16 | Standard | 15.89 | 7.16 | 9/9 | 51.7× | 36.82 | 2,142 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 16 | Optimized · Exact | 15.89 | 7.16 | 9/9 | 64.4× | 34.07 | 2,406 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 16 | Optimized · Fast | 15.89 | 7.16 | 9/9 | 63.2× | 34.72 | 2,352 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 16 | Optimized · Fast | 15.89 | 7.16 | 9/9 | 64.4× | 34.07 | 2,406 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 8 | Standard | 16.04 | 7.17 | 9/9 | 60.7× | 33.58 | 1,639 MB | v2 |
 | Qwen3 ASR 0.6B | Dictation | 8 | Optimized · Exact | 16.04 | 7.17 | 9/9 | 82.0× | 30.05 | 1,920 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 8 | Optimized · Fast | 16.04 | 7.17 | 9/9 | 82.0× | 30.08 | 1,934 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 8 | Optimized · Fast | 16.04 | 7.17 | 9/9 | 82.0× | 30.05 | 1,920 MB | v2 |
 | Whisper large-v3 | Dictation | 16 | Standard | — | — | — | — | — | — | Not measured yet |
 | Whisper large-v3 | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
 | Whisper large-v3 | Dictation | 16 | Optimized · Fast | 17.06 | 8.17 | 9/9 | 34.8× | 83.50 | 3,915 MB | v2 |
@@ -93,9 +95,9 @@ Measured 1–2 October 2026 on Apple M5 Max, macOS 26.6. Accuracy: v2 (239.7 min
 
 Not offered: Parakeet v3 4 (3 clips empty or cut short where 16 had the words); Qwen3 ASR 1.7B 8 (1 clip empty or cut short where 16 had the words; Turkish +42.64 pt vs 16 (presence limit +10.0)); Qwen3 ASR 1.7B 4 (1 clip empty or cut short where 16 had the words); Qwen3 ASR 0.6B 4 (2 clips empty or cut short where 16 had the words); Whisper large-v3 4 (2 clips empty or cut short where 16 had the words); Whisper large-v3 turbo 4 (1 clip empty or cut short where 16 had the words); Nemotron 3.5 Streaming 4 (22 clips empty or cut short where 16 had the words; English WER +9.44 pt vs 16 (presence limit +5.0); multilingual mean +8.85 pt vs 16 (presence limit +5.0); Swedish +13.55 pt vs 16 (presence limit +10.0); Polish +13.09 pt vs 16 (presence limit +10.0); Turkish +12.29 pt vs 16 (presence limit +10.0); Japanese +10.46 pt vs 16 (presence limit +10.0); Chinese +10.23 pt vs 16 (presence limit +10.0)).
 
-Cloud rows are estimates, not measurements; no audio was sent to them. They retain their dated 26 Sep scaling anchors, not final-build model measurements. Sources, ranges and arithmetic are in `references` in [`Resources/benchmarks.json`](Resources/benchmarks.json).
+Cloud rows are estimates, not measurements; no audio was sent to them. Sources, ranges and arithmetic are in `references` in [`Resources/benchmarks.json`](Resources/benchmarks.json).
 
-Build provenance (3 October 2026): measured build `55cb080`, built from `77be9f2`, worker SHA-256 `8a215e827e5972ef9afb4db7cf57ea8f068006f40ef1510ccd66e6977546b99d`, tag `full-8a215e827e59`. Shipped worker source `08203e2`; its final enclosing commit and built worker SHA-256 are recorded in the local build receipt. The scoped CPU source/key/verdict bridge receipt is retained locally. The `builds` block in [`Resources/benchmarks.json`](Resources/benchmarks.json) names both builds and the bridge: 83 protected paths checked with 3 comment-only hunks allowed; Nemotron confirmed by a separate source diff, gate keys 24/24 identical and measured-worker verdicts 24/24 matching. Builds are not bit-reproducible; the metallib is identical. Defaults flipped to the measured lever sets (Toby, 3 Oct); default keys == measured verdict keys: 30/30; 0 mismatches outside Whisper (whisper-4 listed separately). Historical Whisper Fast (worker source 40a2eef) passed a short GPU identity check: all six cells, each 122/122 clips token-identical (token-identity receipt retained locally).
+Build provenance (3 October 2026): measured build `55cb080`, built from `77be9f2`, worker SHA-256 `8a215e827e5972ef9afb4db7cf57ea8f068006f40ef1510ccd66e6977546b99d`, tag `full-8a215e827e59`. Shipped worker source `08203e24ebdf83004ca4d81daa03f678880898c2`; worker SHA-256: pending final candidate build. The [`Resources/benchmarks.json`](Resources/benchmarks.json) `builds` block records measured and shipped identities and the scoped bridge. Kept levers are on by default: Exact runs exact-only components, Fast runs all kept components, Standard runs none. Whisper Fast passed the recorded token-identity check (six cells, each 122/122 public clips).
 
 <!-- BENCHMARK_TABLE_END -->
 

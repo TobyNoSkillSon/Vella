@@ -7,8 +7,8 @@ const columns = [
  ['name', 'Model'],
  ['mode', 'Mode'],
  ['tier', 'Tier', 'Precision kept: 16 is the checkpoint as published (bf16 or fp16), 8 and 4 are affine 8- and 4-bit (group 64) made on the Mac from it.'],
- ['path', 'Path', 'Standard: stock MLX, what any Apple-silicon Mac runs. Optimized: Vella\'s kernels for this chip; Exact uses only kernels whose output is identical to Standard, Fast adds chip-specific kernels within the model\'s own noise.'],
- ['wer', 'WER', 'Word error rate: the percentage of words wrong (substituted, missed or added), ignoring case and punctuation. Lower is better. Per-language rates are in the tooltip.'],
+ ['path', 'Path', 'Standard: stock MLX, what any Apple-silicon Mac runs. Optimized: Vella\'s kernels for this chip; Exact uses only kernels that must match Standard on the load-time self-test, Fast adds chip-specific kernels within the model\'s own noise.'],
+ ['wer', 'English WER', 'English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately. Word error rate: the percentage of words wrong (substituted, missed or added), ignoring case and punctuation. Lower is better. Per-language rates are in the tooltip.'],
  ['format', 'Format', 'Character error rate with case and punctuation kept: how much editing the finished text needs. Lower is better.'],
  ['languages', 'Languages', 'Benchmark languages besides English that the model supports, of 9.'],
  ['speed', 'Speed', 'Audio seconds per processing second (RTFx), after the model is loaded. 100× is a minute of audio in 0.6 s. Higher is better.'],
@@ -26,9 +26,10 @@ const flavour = (tier, recipe) => {
  return `${tier}-bit weights throughout (affine-${tier} g64)`;
 };
 // Standard, then Optimized: one Optimized row where Fast runs no inexact kernel (Exact = Fast), as in the README.
+const displayCell = (t, path) => t[(t.display_cells || {})[path] || path];
 const pathRows = t => t.optimized_fast.recipe.inexact.length || Boolean(t.optimized_exact.measured) !== Boolean(t.optimized_fast.measured)
- ? [['Standard', t.standard], ['Optimized · Exact', t.optimized_exact], ['Optimized · Fast', t.optimized_fast]]
- : [['Standard', t.standard], ['Optimized (Exact = Fast)', t.optimized_fast]];
+ ? [['Standard', displayCell(t, 'standard')], ['Optimized · Exact', displayCell(t, 'optimized_exact')], ['Optimized · Fast', displayCell(t, 'optimized_fast')]]
+ : [['Standard', displayCell(t, 'standard')], ['Optimized (Exact = Fast)', displayCell(t, 'optimized_fast')]];
 
 const absent = [];
 function modelRows() {

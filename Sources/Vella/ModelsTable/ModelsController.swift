@@ -360,7 +360,7 @@ struct ModelDeletionPlan {
     func result(_ f: ModelFamily, _ precision: String) -> PrecisionResult? { benchmarks.models[f.id]?.result(precision) }
     /// The registered checkpoint that loads as this precision (`registeredCheckpoint`: never one for a mixed recipe).
     func installed(_ f: ModelFamily, _ precision: String) -> InstalledModel? {
-        guard let variant = f.variants[precision], variant.floatModules == nil else { return nil }
+        guard let variant = f.variants[precision], !variant.isDerived || variant.isStored else { return nil }
         return library(f.mode).installed[variant.id]
     }
     /// The downloadable precision a derived one resolves to (itself when published).

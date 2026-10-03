@@ -357,7 +357,7 @@ import VellaCore
                 selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
                 openSettings: #selector(accessibility)))
         if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast)) }
-        item("Open Saved Recordings", "folder", #selector(savedRecordings))
+        item("Open Saved Recordings", "folder", #selector(savedRecordings), help: Self.privacyHelp)
         menu.addItem(.separator())
         // Agent, support files and the worker.
         item("Copy Skill for Your Agent", "doc.on.doc", #selector(copySkill), help: copySkillHelp)
@@ -375,6 +375,9 @@ import VellaCore
         if let update = updates.menuItem() { menu.addItem(update) }
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
     }
+    static let privacyHelp =
+        "Your audio and transcripts never leave your Mac. Vella checks the GitHub releases API at launch and then daily. Models and updates download only when you ask. No telemetry."
+
     private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = [], help: String? = nil) {
         let entry = NSMenuItem(title: title, action: action, keyEquivalent: key)
         entry.target = self; entry.isEnabled = enabled; entry.keyEquivalentModifierMask = modifiers; entry.toolTip = help

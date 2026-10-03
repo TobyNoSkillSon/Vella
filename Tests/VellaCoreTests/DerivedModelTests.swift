@@ -229,9 +229,20 @@ final class DerivedModelTests: XCTestCase {
         XCTAssertNil(try precisionLoadPath(large, "8b", installedPath: { registered[$0] }, modelsDirectory: models))
         let both = registered.merging(["whisper-large-v3-asr-fp16": source.path]) { $1 }
         XCTAssertEqual(try precisionLoadPath(large, "8b", installedPath: { both[$0] }, modelsDirectory: models), path)
-        // A uniform tier keeps its registered checkpoint.
-        XCTAssertEqual(registeredCheckpoint(large, "4b", installedPath: { ["whisper-large-v3-asr-4bit": "/x/q4"][$0] }), "/x/q4")
+        // Published uniform quants also remain non-tier imports.
+        XCTAssertNil(registeredCheckpoint(large, "4b", installedPath: { ["whisper-large-v3-asr-4bit": "/x/q4"][$0] }))
     }
+
+    func testLegacyNemotronPublishedInt8DoesNotAcquireMeasuredTierIdentity() throws {
+        let catalog = try decodeCatalog(Data(contentsOf: Repository.root.appendingPathComponent("Resources/models.json")))
+        let nemo = try XCTUnwrap(catalog.family("nemotron-3.5-streaming-0.6b"))
+        let variant = try XCTUnwrap(nemo.variants["8b"])
+        XCTAssertEqual(variant.id, "nemotron-3.5-asr-streaming-0.6b-8bit")
+        let installed = [variant.id: "/upgrade/nemotron-3.5-asr-streaming-0.6b-8bit"]
+        XCTAssertNil(registeredCheckpoint(nemo, "8b", installedPath: { installed[$0] }))
+        XCTAssertFalse(precisionAvailable(nemo, "8b", installedPath: { installed[$0] }))
+    }
+
 }
 
 private enum FamilyTestHelper {

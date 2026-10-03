@@ -250,7 +250,9 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(tierFlavour(parakeet, tier: .t16, cell: nil), "bf16, converted once from the published fp32")
         let per = BenchmarkCell(recipe: CellRecipe(layers: ["decoder": "affine-8 g64", "encoder": "bf16"]))
         XCTAssertEqual(tierFlavour(qwen, tier: .t8, cell: per), "8-bit decoder, 16-bit encoder (affine-8 g64)")
-        XCTAssertEqual(ExactFastSwitch.help, "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.")
+        XCTAssertEqual(
+            ExactFastSwitch.help, "Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise."
+        )
         XCTAssertEqual(ExactFastSwitch.rowHelp, "Sets the Optimized row only")
         XCTAssertEqual(ExactFastSwitch.tooltip(available: true, enabled: true), ExactFastSwitch.rowHelp + "\n" + ExactFastSwitch.help)
         XCTAssertEqual(
@@ -335,12 +337,12 @@ final class ModelsTests: XCTestCase {
 
     @MainActor func testWithoutRuntimeTheModeSelectionReadsAsLoaded() throws {
         let c = try controller()
-        // A registered uniform 4-bit checkpoint (Parakeet v3's 4 tier is now a mixed recipe, never a registered one).
+        // A native checkpoint selected for the mode reads as loaded even without a runtime snapshot.
         let turbo = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
-        c.dictation.installed["whisper-large-v3-turbo-asr-4bit"] = InstalledModel(path: "/fixture/t4")
-        c.dictation.activeModelPath = "/fixture/t4"
-        XCTAssertEqual(c.loaded(turbo)?.precision, "4b")
-        XCTAssertEqual(c.activeLabel(.dictation), "\(turbo.name) 4-bit", "no 4b wording in the menu header")
+        c.dictation.installed["whisper-large-v3-turbo-asr-fp16"] = InstalledModel(path: "/fixture/t16")
+        c.dictation.activeModelPath = "/fixture/t16"
+        XCTAssertEqual(c.loaded(turbo)?.precision, "FP16")
+        XCTAssertEqual(c.activeLabel(.dictation), "\(turbo.name) FP16", "no 4b wording in the menu header")
         XCTAssertEqual(c.action(turbo), .unload)
     }
 
@@ -386,16 +388,17 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(tipped["Keep Hot → Always"], keepHotAlwaysHelp)
         XCTAssertEqual(tipped["Memory → Fit in free memory"], fitInFreeMemoryHelp)
         XCTAssertEqual(tipped["Memory → Allow swap (slower)"], allowSwapHelp)
+        XCTAssertEqual(tipped["Open Saved Recordings"], AppDelegate.privacyHelp)
         let survivors: Set<String> = [
             "Copy Skill for Your Agent", "Keep Hot → Manually loaded", "Keep Hot → Loaded on demand", "Keep Hot → Always",
-            "Memory → Fit in free memory", "Memory → Allow swap (slower)"
+            "Memory → Fit in free memory", "Memory → Allow swap (slower)", "Open Saved Recordings"
         ]
         // The header (first item) has one only while it reports an error or permission (menuHeaderToolTip, below).
         let header = delegate.menu.items[0]
         XCTAssertEqual(header.toolTip, menuHeaderToolTip(failed: false, message: "", needsPermission: !model.insertionPermission.granted, idle: true, pending: nil))
         XCTAssertEqual(Set(tipped.keys.filter { !$0.hasPrefix("Models…") && $0 != header.title }), survivors, "every other item says what it does in its title")
         for title in [
-            "Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Last Transcript", "Open Saved Recordings",
+            "Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Last Transcript",
             "Open Vella Files", "Restart Worker", "Launch at Login", "Support the developer…", "Quit Vella", "Start Dictation"
         ] {
             let item = try XCTUnwrap(delegate.menu.item(withTitle: title), title)

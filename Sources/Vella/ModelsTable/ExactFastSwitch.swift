@@ -23,7 +23,7 @@ struct ExactFastSwitch: View {
     /// The column header: none beside the words (they name the positions), else the two positions, top first.
     static var title: String { showsWords ? "" : "Fast/Exact" }
     /// The switch's tooltip (Toby, 29 Sep), after `rowHelp`; state lines follow it on their own lines.
-    static let help = "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise."
+    static let help = "Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise."
     /// The tooltip's first line: the switch spans both rows but sets only the Optimized one (Toby, 30 Sep).
     static let rowHelp = "Sets the Optimized row only"
     static let pinnedUnmeasuredHelp = "Fast is pinned on; Exact has no separate measurement"

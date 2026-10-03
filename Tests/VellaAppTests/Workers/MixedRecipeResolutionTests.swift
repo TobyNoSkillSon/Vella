@@ -17,7 +17,7 @@ final class MixedRecipeResolutionTests: XCTestCase {
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: root) }
 
-    private let beta: ModelFamily = {
+    private var beta: ModelFamily = {
         var eight = CatalogVariant(id: "beta-8bit", architecture: "whisper", derivedFrom: "FP16", bits: 8, groupSize: 64)
         eight.floatModules = ["model.encoder"]; eight.floatShare = 0.4
         return ModelFamily(
@@ -59,6 +59,23 @@ final class MixedRecipeResolutionTests: XCTestCase {
         let bridge = RuntimeBridge(runtime: runtime)
         bridge.attach(controller: controller, model: model)
         return (controller, bridge, runtime, model, imported.standardizedFileURL.path)
+    }
+
+    @MainActor func testUpgraderPublishedUniformQuantIsNotATierAndDerivesBesidePreservedWeights() throws {
+        beta.variants["8b"]?.floatModules = nil; beta.variants["8b"]?.floatShare = nil
+        let (controller, bridge, runtime, model, imported) = try setUp(rootInstalled: true)
+        defer { model.shutdown() }
+        XCTAssertNil(controller.identify(path: imported, mode: .dictation))
+        XCTAssertNil(controller.installed(beta, "8b"))
+        let path = try XCTUnwrap(tableLoadPath(controller))
+        XCTAssertTrue(path.hasSuffix("beta-8bit.derived"))
+        XCTAssertEqual(bridge.ref(path: imported, mode: .dictation)?.path, path)
+        XCTAssertEqual(runtime.resolve(imported, mode: .dictation).path, path)
+        XCTAssertNil(derivedModelManifest(at: URL(fileURLWithPath: path))?.floatModules)
+        XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: imported + "/model.safetensors"), encoding: .utf8), "weights")
+        controller.dictation.installed.removeValue(forKey: "beta-fp16")
+        XCTAssertFalse(controller.available(beta, "8b"))
+        XCTAssertNil(try tableLoadPath(controller))
     }
 
     @MainActor private func tableLoadPath(_ controller: ModelsController) throws -> String? {

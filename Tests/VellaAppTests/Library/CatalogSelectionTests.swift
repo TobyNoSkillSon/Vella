@@ -18,7 +18,7 @@ final class CatalogSelectionTests: XCTestCase {
 
     struct Paths { var plain, stored, derived, outside, ultra: String }
 
-    /// Qwen3 ASR 0.6B 4b (a download), Parakeet v3 BF16 (a stored conversion), Parakeet v3 Ultra 8b (derived from
+    /// Qwen3 ASR 0.6B 4b (a legacy published import), Parakeet v3 BF16 (a stored conversion), Parakeet v3 Ultra 8b (derived from
     /// the installed BF16), an unregistered folder outside the catalog, and a registry entry for a non-catalog id.
     @MainActor private func controller() throws -> (ModelsController, Paths) {
         let models = support.appendingPathComponent("Models")
@@ -56,7 +56,7 @@ final class CatalogSelectionTests: XCTestCase {
 
     @MainActor func testCatalogPathsAreIdentifiedAndOthersAreNot() throws {
         let (c, p) = try controller()
-        XCTAssertEqual(c.identify(path: p.plain, mode: .dictation).map { "\($0.family.id) \($0.precision)" }, "qwen3-asr-0.6b 4b")
+        XCTAssertNil(c.identify(path: p.plain, mode: .dictation), "published low-bit imports are not locally derived tiers")
         XCTAssertEqual(c.identify(path: p.stored, mode: .dictation).map { "\($0.family.id) \($0.precision)" }, "parakeet-v3 BF16")
         XCTAssertEqual(c.identify(path: p.derived, mode: .dictation).map { "\($0.family.id) \($0.precision)" }, "parakeet-v3-ultra 8b")
         XCTAssertNil(c.identify(path: p.outside, mode: .dictation))
@@ -84,7 +84,7 @@ final class CatalogSelectionTests: XCTestCase {
     /// its files stay; catalog paths (a download, a stored conversion, a derived precision) are untouched.
     @MainActor func testSelectionsOutsideTheCatalogAreClearedAtLaunch() throws {
         let (c, p) = try controller()
-        for kept in [p.plain, p.stored, p.derived] {
+        for kept in [p.stored, p.derived] {
             var config = Configuration(model: kept)
             config.lastLoaded = ["parakeet-v3-ultra": "8b"]
             try JSONEncoder().encode(config).write(to: configURL)
@@ -103,6 +103,14 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(c.config?.model, "", "the table rereads config.json")
         XCTAssertTrue(FileManager.default.fileExists(atPath: p.outside + "/model.safetensors"), "files are never touched")
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [], "nothing left to clear")
+    }
+
+    @MainActor func testLegacyPublishedQuantSelectionClearsButKeepsItsWeights() throws {
+        let (c, p) = try controller()
+        try JSONEncoder().encode(Configuration(model: p.plain)).write(to: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [p.plain])
+        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, "")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: p.plain + "/model.safetensors"))
     }
 
     /// With an unreadable (corrupt) registry nothing can be identified, so nothing is cleared.

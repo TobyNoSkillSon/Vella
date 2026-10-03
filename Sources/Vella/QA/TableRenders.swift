@@ -482,16 +482,16 @@ import VellaUpdate
     let directory: URL
 
     static let sampleRelease = ReleaseInfo(
-        tag: "v1.0.1", version: SemanticVersion("1.0.1")!, name: "Vella 1.0.1",
+        tag: "v2.0.1", version: SemanticVersion("2.0.1")!, name: "Vella 2.0.1",
         body: """
-            ## 1.0.1
+            ## 2.0.1
 
             **Faster first load.** Models load in about half the time.
             - Fixes the menu staying open after a paste.
 
             ## Verify
 
-                gh attestation verify Vella-1.0.1-arm64.zip --repo TobyNoSkillSon/Vella
+                gh attestation verify Vella-2.0.1-arm64.zip --repo TobyNoSkillSon/Vella
             """)
 
     /// `update-menu.png` (a newer release offered under Support) and `update-popup.png` (the confirmation).

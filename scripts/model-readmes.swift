@@ -84,7 +84,7 @@ func readmeFolder(_ family: JSON) -> String {
 /// The measured cell for a family, tier and path, or nil.
 func cell(_ bench: JSON, _ id: String, _ tier: String, _ path: String) -> JSON? {
     let tierEntry = ((bench["models"] as? JSON)?[id] as? JSON).flatMap { ($0["tiers"] as? JSON)?[tier] as? JSON }
-    guard let value = tierEntry?[path] as? JSON, value["measured"] as? JSON != nil else { return nil }
+    guard let value = tierEntry?[(tierEntry?["display_cells"] as? [String: String])?[path] ?? path] as? JSON, value["measured"] as? JSON != nil else { return nil }
     return value
 }
 
@@ -130,7 +130,7 @@ func measuredLine(_ bench: JSON, families ids: [String]) -> String {
     let sorted = dates.sorted()
     let when = sorted.isEmpty ? dash : (sorted.count == 1 ? sorted[0] : "\(sorted[0]) to \(sorted[sorted.count - 1])")
     let hardware = machines.isEmpty ? dash : machines.sorted().joined(separator: "; ")
-    return "Measured \(when) on \(hardware). Accuracy: \(list(accuracy)); speed, energy and peak RAM: \(list(performance))."
+    return "Measured \(when) on \(hardware). English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately. Accuracy: \(list(accuracy)); speed, energy and peak RAM: \(list(performance))."
 }
 
 /// Where one measured cell comes from: date, machine, accuracy suite and speed/energy/RAM suite.
@@ -237,7 +237,7 @@ func renderFamily(_ family: JSON, _ bench: JSON, keys: [MeasureKey] = []) -> [St
             "| \(tier) (\(dtypeLabel(family, tier))) | \(recipeText(family, tier)) | \(offered.contains(tier) ? "yes" : "no") | \(gateText(bench, id, tier)) |")
     }
     lines += [
-        "", "| Tier | Path | WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |",
+        "", "| Tier | Path | English WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |",
         "|---|---|---|---|---|---|---|---|---|---|"
     ]
     for tier in tiers {
@@ -369,7 +369,7 @@ func selfTest() {
         "| 16 (fp16) | Standard | 17.20 | 7.70 | 21.80 | 10.0× | 100.00 | 3346 | — | — |",
         "| 8 (int8) | affine group 64", "`model.encoder` kept at fp16 (40.8 % of the source checkpoint's weight bytes)", "| 4 (int4) |", "fail; absent: 1 clip lost",
         "Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.04 pt; not remeasured on this build), multilingual mean ≤ 0.20 pt.",
-        "Measured 2026-10-02 on Test Mac. Accuracy: v2 (239.7 min); speed, energy and peak RAM: v2-quick (22.5 min)."
+        "Measured 2026-10-02 on Test Mac. English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately. Accuracy: v2 (239.7 min); speed, energy and peak RAM: v2-quick (22.5 min)."
     ] where !block.contains(expected) { fail("selftest: missing \(expected)") }
     if block.contains("Measured 2026-09-28") || block.contains("Test Mac. Accuracy: v2-quick") { fail("selftest: another family's date or suite labels this README") }
     // Mixed suites, dates and machines inside one README are all listed, in sorted order, and the text is the same every time.
@@ -387,7 +387,7 @@ func selfTest() {
     mixedDemo["tiers"] = mixedTiers
     mixedModels["demo"] = mixedDemo
     mixed["models"] = mixedModels
-    let mixedLine = "Measured 2026-10-02 to 2026-10-04 on Other Mac; Test Mac. Accuracy: v2 (239.7 min), v2-quick (22.5 min); "
+    let mixedLine = "Measured 2026-10-02 to 2026-10-04 on Other Mac; Test Mac. English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately. Accuracy: v2 (239.7 min), v2-quick (22.5 min); "
         + "speed, energy and peak RAM: v2 (239.7 min), v2-quick (22.5 min)."
     // Each measured row carries the number of its run, so swapping two runs' metadata changes the rows: Standard and Optimized Fast
     // are one run (¹), Optimized Exact is another (²), and a speed comparison across machines is withheld.

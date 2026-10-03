@@ -438,6 +438,37 @@ final class ModelControlTests: XCTestCase {
         XCTAssertFalse(f.runtime.isLoaded("alpha"))
         XCTAssertEqual(controls.catalog().count, 2, "Catalog includes not-downloaded models")
     }
+    @MainActor func testCatalogJSONIncludesCanonicalMeasuredFiguresAndBuildProvenance() throws {
+        let f = try fixture()
+        defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
+        let data = try Data(contentsOf: Repository.root.appendingPathComponent("Resources/benchmarks.json"))
+        var raw = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let original = try XCTUnwrap(raw["models"] as? [String: Any])
+        raw["models"] = ["alpha": original["qwen3-asr-1.7b"] as Any]
+        let fixtureData = try JSONSerialization.data(withJSONObject: raw)
+        try fixtureData.write(to: f.controller.dictation.resources.appendingPathComponent("benchmarks.json"))
+        f.controller.benchmarks = decodeBenchmarks(fixtureData)
+        let controls = ModelControls(controller: f.controller, runtime: f.runtime)
+        let row = controls.object(f.alpha)
+        let cells = try XCTUnwrap(row["cells"] as? [[String: Any]])
+        let cell = try XCTUnwrap(cells.first { $0["recipe"] as? String == "optimized_fast" && $0["tier"] as? String == "16" })
+        let figures = try XCTUnwrap(cell["figures"] as? [String: Any])
+        let shown = try XCTUnwrap(benchmarkCell(f.controller.benchmark(f.alpha), ModelSelection(tier: .t16, path: .optimized, mode: .fast)))
+        XCTAssertEqual(figures["speed_x"] as? Double, shown.result.speed_x)
+        XCTAssertEqual(figures["wer"] as? Double, shown.result.wer)
+        XCTAssertEqual(figures["j_per_min"] as? Double, shown.result.j_per_min)
+        XCTAssertEqual(figures["memory_mb"] as? Double, shown.result.memory_mb)
+        let provenance = try XCTUnwrap(cell["provenance"] as? [String: Any])
+        XCTAssertEqual(provenance["display_cell"] as? String, "optimized_exact")
+        let builds = try XCTUnwrap(provenance["builds"] as? [String: [String: Any]])
+        XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "08203e24ebdf83004ca4d81daa03f678880898c2")
+        XCTAssertNotNil(cell["measurement"])
+        XCTAssertTrue(JSONSerialization.isValidJSONObject(controls.catalog()))
+        f.controller.benchmarks.figuresPending = true
+        let pendingCells = try XCTUnwrap(controls.object(f.alpha)["cells"] as? [[String: Any]])
+        XCTAssertTrue(pendingCells.allSatisfy { $0["figures"] == nil })
+    }
+
     @MainActor func testConfirmedGetUsesPinnedDownloadThenTheSameLoadAction() async throws {
         let f = try fixture()
         defer { f.close(); try? FileManager.default.removeItem(at: f.root) }

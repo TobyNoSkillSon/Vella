@@ -89,6 +89,7 @@ public struct TierBenchmark: Equatable {
     public var presence: TierPresence
     public var gate: SegmentGate
     public var cells: [Recipe: BenchmarkCell]
+    public var displayCells: [Recipe: Recipe] = [:]
     public init(
         precision: String, presence: TierPresence = TierPresence(offered: true), gate: SegmentGate = SegmentGate(status: .pass),
         cells: [Recipe: BenchmarkCell]
@@ -118,6 +119,7 @@ public func fastDiffersFromExact(_ benchmark: FamilyBenchmark?) -> Bool {
 /// The cell a selection shows: its segment's cell; Fast without an inexact component is the Exact cell (the same recipe).
 public func benchmarkCell(_ benchmark: FamilyBenchmark?, _ selection: ModelSelection) -> BenchmarkCell? {
     guard let tier = benchmark?.tiers[selection.tier] else { return nil }
+    if let canonical = tier.displayCells[selection.segmentKey] { return tier.cells[canonical] }
     if selection.segmentKey == .optimized_fast, let fast = tier.cells[.optimized_fast], fast.recipe.inexact.isEmpty {
         // Equal recipes need not have equal measurement status (Whisper 2.0 withdrew Exact only).
         if let exact = tier.cells[.optimized_exact], !exact.isPending { return exact }
@@ -144,9 +146,13 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
             result: result, recipe: decode(CellRecipe.self, c["recipe"]) ?? CellRecipe(layers: [:]),
             measured: measured, gate: decode(SegmentGate.self, c["gate"]), notMeasuredReason: c["not_measured_reason"] as? String)
     }
-    return TierBenchmark(
+    var tier = TierBenchmark(
         precision: precision, presence: decode(TierPresence.self, object["presence"]) ?? TierPresence(offered: true),
         gate: decode(SegmentGate.self, object["gate"]) ?? SegmentGate(status: .pass), cells: cells)
+    for (requested, canonical) in object["display_cells"] as? [String: String] ?? [:] {
+        if let from = Recipe(rawValue: requested), let to = Recipe(rawValue: canonical), cells[to] != nil { tier.displayCells[from] = to }
+    }
+    return tier
 }
 
 /// The per-precision view older consumers read (recommendation, sort keys, API, diagnostics): each offered tier's
@@ -155,7 +161,7 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
 func legacyPrecisions(_ tiers: [ModelTier: TierBenchmark]) -> [String: PrecisionResult] {
     var out: [String: PrecisionResult] = [:]
     for tier in tiers.values where tier.presence.offered {
-        let shipping = [Recipe.optimized_fast, .optimized_exact, .standard].compactMap { tier.cells[$0] }.first { !$0.isPending }
+        let shipping = [Recipe.optimized_fast, .optimized_exact, .standard].compactMap { tier.cells[tier.displayCells[$0] ?? $0] }.first { !$0.isPending }
         guard var r = shipping?.result else { continue }
         r.gate = GateResult(pass: tier.gate.status == .pass, reasons: tier.gate.reasons)
         if let s = tier.cells[.standard], !s.isPending {

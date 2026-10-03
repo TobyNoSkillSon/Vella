@@ -127,17 +127,17 @@ final class OneStateTests: XCTestCase {
         XCTAssertEqual(c.selected(parakeet), "4b")
         XCTAssertEqual(c.action(parakeet), .unload)
         XCTAssertFalse(c.needsDownload(parakeet))
-        // Unloaded: the row shows what dictation will load (config.json's model), with Load.
+        // Unloaded legacy published quants are non-tier imports: the row offers the native Get.
         c.runtime = TableRuntime()
-        XCTAssertEqual(c.selected(parakeet), "4b")
-        XCTAssertEqual(c.action(parakeet), .load)
+        XCTAssertEqual(c.selected(parakeet), "FP16")
+        XCTAssertEqual(c.action(parakeet), .get)
         let qwen06 = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
         XCTAssertEqual(c.selected(qwen06), "8b", "the last-loaded precision")
         XCTAssertEqual(c.currentSelection(qwen06), ModelSelection(tier: .t8, path: .optimized, mode: .fast), "used before selections existed: Optimized Fast")
-        // Streaming the same way, with its own model: the stored BF16 never overrides streaming's 8-bit model.
+        // The old published Nemotron int8 likewise must not acquire the measured local tier identity.
         let nemotron = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
-        XCTAssertEqual(c.selected(nemotron), "8b")
-        XCTAssertEqual(c.action(nemotron), .load)
+        XCTAssertEqual(c.selected(nemotron), "BF16")
+        XCTAssertEqual(c.action(nemotron), .get)
         // Loaded at another precision: loaded wins over the record.
         c.runtime = TableRuntime(loaded: ["qwen3-asr-1.7b": LoadedFamily(precision: "4b")])
         XCTAssertEqual(c.selected(qwen), "4b")

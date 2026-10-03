@@ -2,8 +2,8 @@ import Foundation
 import VellaCore
 
 let usage = """
-    vella: transcribe audio files offline with the models loaded in Vella on this Mac.
     Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
+    vella: transcribe audio files offline with the models loaded in Vella on this Mac.
 
         vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]
             prints the transcript (--text, the default); --json/--verbose-json print OpenAI's JSON response, --srt/--vtt
@@ -11,7 +11,7 @@ let usage = """
             FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
             `vella models`; without it the current dictation model is used. Dictation always goes first.
         vella status                 one line: running, dictation model, loaded models, API address
-        vella models [--json]        all local Models table rows, including not downloaded; --json includes each cell and refusal
+        vella models [--json]        all local Models table rows, including not downloaded; --json includes per-cell measured figures, provenance and refusals
         vella select ID [--precision bf16|fp16|int8|int4] [--path Standard|Optimized] [--mode Fast|Exact]
             previews a cell under the table's rules; Load / Reload / Get commits it. An unavailable cell says why.
         vella get ID [--yes]         Get and Load; --yes consents to the displayed source/size; without it nothing downloads

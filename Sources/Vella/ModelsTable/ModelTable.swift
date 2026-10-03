@@ -198,7 +198,7 @@ struct ModelTable: View {
                     if let note = controller.couplingNote(family) {
                         Text(note).font(.system(size: Self.deltaSize, weight: .medium)).lineLimit(1)
                             .foregroundStyle(hot ? Self.hotText.opacity(0.8) : .secondary)
-                            .appKitTooltip("Exact offers only the precisions whose kernels give output identical to Standard")
+                            .appKitTooltip("Exact offers exact-only components that must match Standard on the load-time self-test")
                     } else if let loaded, loaded.engine != nil {
                         Text(engineLabel(engine: loaded.engine, chip: runtime?.chip, selection: shownEngineSelection(family, engine: loaded.engine)))
                             .font(.system(size: Self.deltaSize, weight: .medium))

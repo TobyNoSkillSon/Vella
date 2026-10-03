@@ -133,9 +133,9 @@ final class TierCatalogTests: XCTestCase {
         XCTAssertEqual(try precisionLoadPath(fixture, "BF16", installedPath: { installed[$0] }, modelsDirectory: models), installed["p-bf16"])
         let eight = try XCTUnwrap(try precisionLoadPath(fixture, "8b", installedPath: { installed[$0] }, modelsDirectory: models))
         XCTAssertEqual(derivedModelManifest(at: URL(fileURLWithPath: eight))?.source, URL(fileURLWithPath: installed["p-bf16"]!).standardizedFileURL.path)
-        // An earlier checkpoint registered under the 8b id itself loads as is (no manifest).
+        // An earlier published quant remains an import; use the local recipe beside it.
         installed["p-8bit"] = try folder("published-8bit")
-        XCTAssertEqual(try precisionLoadPath(fixture, "8b", installedPath: { installed[$0] }, modelsDirectory: models), installed["p-8bit"])
+        XCTAssertEqual(try precisionLoadPath(fixture, "8b", installedPath: { installed[$0] }, modelsDirectory: models), eight)
     }
 
     func testNeverQuantizeFromAQuantizedSource() {

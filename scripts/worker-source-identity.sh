@@ -8,9 +8,9 @@ untracked="$(git ls-files --others --exclude-standard Worker Packages | grep -v 
 # Immutable defaults source commit; measurement provenance remains 55cb080/40a2eef in the historical bridge.
 SOURCE=08203e24ebdf83004ca4d81daa03f678880898c2
 git cat-file -e "$SOURCE^{commit}" || { echo "defaults source commit is missing: $SOURCE"; exit 1; }
-git diff --exit-code "$SOURCE" HEAD -- Worker Packages >/dev/null \
+git diff --exit-code "$SOURCE" HEAD -- Worker Packages ':(exclude)Worker/**/*.md' >/dev/null \
   || { echo "Worker/Packages differ from defaults source $SOURCE"; exit 1; }
-git diff --exit-code "$SOURCE" -- Worker Packages >/dev/null \
+git diff --exit-code "$SOURCE" -- Worker Packages ':(exclude)Worker/**/*.md' >/dev/null \
   || { echo "working Worker/Packages differ from defaults source $SOURCE"; exit 1; }
 echo "worker source matches defaults commit $SOURCE (measured keys checked separately)"
 

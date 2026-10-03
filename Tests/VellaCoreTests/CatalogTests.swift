@@ -291,7 +291,7 @@ final class CatalogTests: XCTestCase {
                 }
                 let paths: [(String, BenchmarkCell?)] = [
                     ("Standard", t.cells[.standard]), ("Optimized · Exact", t.cells[.optimized_exact]),
-                    ("Optimized · Fast", t.cells[.optimized_fast])
+                    ("Optimized · Fast", benchmarkCell(bench, ModelSelection(tier: tier, path: .optimized, mode: .fast)))
                 ]
                 XCTAssertEqual(mine.count, paths.count, "\(family.id) \(tier.rawValue)")
                 for (path, cell) in paths {
@@ -305,7 +305,7 @@ final class CatalogTests: XCTestCase {
             }
         }
         XCTAssertEqual(lines.filter { $0.hasPrefix("| ") && !$0.hasPrefix("| Model") && !$0.contains("(cloud API)") }.count, rows, "no other model rows")
-        XCTAssertTrue(table.contains("Shipped worker source `08203e2`"), "both builds and the source bridge are documented")
+        XCTAssertTrue(table.contains("Shipped worker source `08203e24ebdf83004ca4d81daa03f678880898c2`"), "both builds and the source bridge are documented")
     }
 
     /// The shipped benchmarks.json (schema 2): every catalog family, tiers 16/8/4 only (never fp32), all three cells per
