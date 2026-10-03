@@ -269,8 +269,7 @@ extension WorkerTests {
         @Test func parakeet() {
             #expect(ParakeetModel.fastPathRevision == "parakeet-r2-dense-encoder+nax2+smallm-tile-1")
             #expect(ParakeetModel.inputDType == .bfloat16)
-            // The opt-in tail-block lever is off unless its switch is set; tail blocks cover the expected steps.
-            #expect(FastParakeetDecodeOptions.revisionSuffix.isEmpty)
+            // Tail blocks cover the expected steps; checkpoint-resolved defaults are covered in Defaults.
             #expect([0, 16, 17, 32, 33, 64, 65, 400].map { FastParakeetDecodeOptions.blockSteps(remainingFrames: $0) } == [8, 8, 16, 16, 32, 32, 32, 32])
         }
         /// The registry maps each dictation architecture to its runtime, whose gate revision is the model's own.

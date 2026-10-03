@@ -59,13 +59,12 @@ on the Mac (revision `nemotron-stream-5`; the self-test is described under Quali
 
 Their effect is the Optimized rows against the Standard rows in the generated block below.
 
-Levers kept from the kernel rounds (opt-in; with none set every gate key is byte-identical; "default" is the state in the
-code at this commit, and the release defaults are set after the measurement):
+Kept levers default to the measured cells (Toby, 3 Oct). Fast includes every kept lever; Exact includes only exact levers; Standard includes none. Lab `=1`/`=0` overrides enable/disable a lever (Exact still excludes inexact components). Gate keys use the effective lever set.
 
 | Lever | Switch | Revision | Exact? | Screening result | Default |
 |---|---|---|---|---|---|
-| Keep MLX's buffer cache between streaming requests (requests last about 100 ms, so allocation is a large share) | `VELLA_NEMO_KEEPCACHE=1` | `keepcache-1` | exact | BF16 (30 Sep): speed +18.0 % (28.3 → 33.4×), energy −10.9 % (55.48 → 49.43 J/min), 21 of 21 identical. Long-stream check (1 Oct): +28 MB warm maximum over the baseline against a limit of 80 MB, committed text identical | off |
-| Joint output projection batched: a chunk's remaining frames in one BF16 small-M pass | `VELLA_NEMO_JOINTBATCH=1` | `jointbatch-1` | inexact, borderline; off under Exact by code | BF16 (30 Sep, two pairs): speed +3.0 % and +3.3 %, energy −7.8 % and −3.3 %, 21 of 21 identical | off |
+| Keep MLX's buffer cache between streaming requests (requests last about 100 ms, so allocation is a large share) | `VELLA_NEMO_KEEPCACHE=1` | `keepcache-1` | exact | BF16 (30 Sep): speed +18.0 % (28.3 → 33.4×), energy −10.9 % (55.48 → 49.43 J/min), 21 of 21 identical. Long-stream check (1 Oct): +28 MB warm maximum over the baseline against a limit of 80 MB, committed text identical | BF16/8/4, Fast and Exact |
+| Joint output projection batched: a chunk's remaining frames in one BF16 small-M pass | `VELLA_NEMO_JOINTBATCH=1` | `jointbatch-1` | inexact, borderline; off under Exact by code | BF16 (30 Sep, two pairs): speed +3.0 % and +3.3 %, energy −7.8 % and −3.3 %, 21 of 21 identical | BF16 Fast only |
 
 Both together against the previous default (30 Sep): 28.3 → 34.1× (+20.5 %), 55.48 → 48.1 J/min (−13 %), chunk latency
 p50/p95 9.2/11.6 → 7.4/9.7 ms, peak memory +55 MB. Joint batching is admitted only on dense (BF16) checkpoints and
@@ -144,3 +143,4 @@ Gate limits: English ≤ 0.10 pt, multilingual mean ≤ 0.10 pt.
 | 4 (int4) | Optimized Exact | 32.78 | 16.20 | 36.08 | 30.4× | 55.57 | 980 | +99 % | −50 % |
 | 4 (int4) | Optimized Fast | 32.80 | 16.18 | 36.07 | 39.7× | 39.77 | 847 | +159 % | −64 % |
 <!-- MEASURED_END -->
+

@@ -133,7 +133,7 @@ final class FastParakeetTDT {
             let result: [MLXArray]
             do {
                 result = try MLX.withError {
-                    let block = FastParakeetDecodeOptions.tailBlocks ? FastParakeetDecodeOptions.blockSteps(remainingFrames: length - frame) : 32
+                    let block = model.keptLevers.contains("VELLA_PARAKEET_TAILBLOCK") ? FastParakeetDecodeOptions.blockSteps(remainingFrames: length - frame) : 32
                     let arrays = (block == 8 ? run8 : block == 16 ? run16 : run)([enc, n, time, last, syms] + state + weights)
                     MLX.eval(arrays)
                     return arrays

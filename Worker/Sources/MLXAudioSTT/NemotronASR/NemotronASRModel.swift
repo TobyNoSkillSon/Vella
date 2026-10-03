@@ -5,6 +5,7 @@ import MLXAudioCore
 import MLXLMCommon
 
 public final class NemotronASRModel: Module {
+    public var keptLevers = KeptLevers(family: "", precision: "", recipe: .standard)
     public let config: NemotronASRConfig
     public let preprocessConfig: NemotronASRPreprocessConfig
     public let encoderConfig: NemotronASRConformerConfig
@@ -139,6 +140,7 @@ public extension NemotronASRModel {
         let quantConfig = try JSONDecoder().decode(NemotronASRQuantizationConfig.self, from: configData)
 
         let model = NemotronASRModel(config)
+        model.keptLevers = try KeptLevers.resolve(modelDir, derived: derived)
         var weights: [String: MLXArray] = [:]
         let files = try FileManager.default.contentsOfDirectory(at: modelDir, includingPropertiesForKeys: nil)
         let safetensors = files.filter { $0.pathExtension == "safetensors" }

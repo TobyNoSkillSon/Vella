@@ -14,7 +14,7 @@ public enum VellaNemotronOptions {
         /// Fused layer only, BF16 checkpoints: the dense encoder Linears stay BF16 (no Float32 copy) and run through
         /// the small-M BF16 kernel (not bit-identical: within the fused layer's self-test tolerance).
         public var bf16Linears: Bool
-        /// L3 opt-in levers (`VELLA_NEMO_<NAME>=1`, off by default). Keep-cache: MLX's buffer cache is kept between
+        /// Checkpoint-resolved kept levers (the no-model switch parser below is for lab tests). Keep-cache: MLX's buffer cache is kept between
         /// requests (exact). Joint batch: the joint's output projection for a chunk's remaining frames in one small-M
         /// pass (`VellaNemotronJointBatch`; inexact, so off under Optimized · Exact like the fused layer).
         public var keepCache, jointBatch: Bool
@@ -36,12 +36,12 @@ public enum VellaNemotronOptions {
         }
         /// The joint batch runs only with batched decoding, and only when its BF16 copy was built for this checkpoint.
         public func jointBatchActive(prepared: Bool = true) -> Bool { jointBatch && batchedDecode && prepared }
-        /// The opt-in levers' gate-key revisions, in a fixed order (empty when none is on).
+        /// The kept levers' gate-key revisions, in a fixed order (empty when none is on).
         public var labLevers: [String] { (keepCache ? ["keepcache-1"] : []) + (jointBatch ? ["jointbatch-1"] : []) }
         /// The fused layer runs only on the K/V-cache path, and only when its encoder could be built for this checkpoint.
         public func fusedActive(prepared: Bool = true) -> Bool { fusedLayer && keyValueCache && prepared }
         /// Status `optimizations`: every component as it actually runs.
-        /// An opt-in lever appears only when it is on (so the default dictionary is unchanged).
+        /// A kept lever appears only when it is on.
         public func effective(fusedPrepared: Bool = true, jointPrepared: Bool = true) -> [String: Bool] {
             var components = [
                 "f32_weights": f32Weights, "coalesce": coalesce, "batched_decode": batchedDecode,
@@ -71,10 +71,16 @@ public enum VellaNemotronOptions {
     /// Per-request mel frontend (the session only defers the mel when the worker coalesces requests).
     public static let melBatch = requested.melBatch && requested.coalesce
     /// Bumped whenever an optimization or its self-test changes, so a persisted self-test verdict is not reused.
-    /// L3 opt-in levers (`VELLA_NEMO_<NAME>=1`, off by default) each append their own revision when they run (the joint
-    /// batch not under Optimized · Exact); with none set the revision (and every existing gate key) is unchanged.
+    /// Legacy no-model lab parsing; production resolves kept levers per checkpoint with `forModel`.
     public static let labLevers: [String] = requested.labLevers
-    public static let revision = (["nemotron-stream-5"] + labLevers).joined(separator: "+")
+    public static let revision = "nemotron-stream-5"
+    /// Kept levers belong to the loaded checkpoint, not a process-wide static switch.
+    public static func forModel(_ levers: KeptLevers?) -> Switches {
+        var switches = requested
+        switches.keepCache = levers?.contains("VELLA_NEMO_KEEPCACHE") ?? false
+        switches.jointBatch = levers?.contains("VELLA_NEMO_JOINTBATCH") ?? false
+        return switches
+    }
     public static var anyEnabled: Bool { requested.anyEnabled }
     /// The requested components with their dependencies applied (before the fused encoder is built).
     public static var active: [String: Bool] { requested.effective() }

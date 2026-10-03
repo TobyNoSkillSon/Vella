@@ -2,6 +2,8 @@
 
 ## 2.0.0 (3 October 2026)
 
+- Kept performance levers are now on by default for their measured model/precision cells: native INT8/INT4 in Parakeet Fast; tail blocks in Ultra Fast and Exact; keep-cache in Nemotron Fast and Exact, plus joint batching in BF16 Fast. Standard uses none. Lab `=1`/`=0` overrides remain; effective gate keys match measured verdicts.
+
 ### Added
 
 - **Prebuilt install.** `scripts/install.sh` downloads the release zip with curl, verifies its SHA-256, contents, version and code signature before touching anything, swaps the app in place and waits until it is ready (`ready: …`). `scripts/install-release.sh <version> --dry-run` verifies without installing. No Xcode or Python needed; `VELLA_BUILD=source` builds the checkout instead.

@@ -33,6 +33,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
     @ModuleInfo(key: "joint") var joint: ParakeetJointNetwork?
 
     var tdtTraceEmitter: (@Sendable (TDTTraceStep) -> Void)?
+    var keptLevers = KeptLevers(family: "", precision: "", recipe: .standard)
     private var fastEncoder: FastParakeetEncoder?
     private var fastDecoder: FastParakeetTDT?
     private var fastTokenSink: ((Int) -> Void)?
@@ -44,16 +45,14 @@ public final class ParakeetModel: Module, STTGenerationModel {
     }()
 
     // FastPathCapable (worker gate + runtime fallback). The revision is hashed into the gate key:
-    // bump it whenever kernels, the default component set or the clip set change.
+    // bump it whenever kernels or the clip set change; kept lever suffixes are resolved in FastPathGate.key.
     /// The NAX GEMM kernel (FastParakeetNAX) adds its own suffix when enabled (nax2: tolerance self-test, two-stage),
-    /// with the shared SmallMGEMM package's tile revision since the kernel moved there. The opt-in integer encoders add
+    /// with the shared SmallMGEMM package's tile revision since the kernel moved there. The checkpoint-resolved integer encoders add
     /// theirs (int8-2/int4-2: native tile rows only, each self-testing its own bit width's classes).
     public static var fastPathRevision: String {
         "parakeet-r2-dense-encoder"
             + (FastParakeetNAX.enabled ? "+nax2+smallm-" + SmallMGEMM.tileRevision : "")
-            + (FastParakeetInt8.enabled ? "+int8-2+smallm-" + SmallMGEMM.qtileRevision : "")
-            + (FastParakeetInt8.int4Enabled ? "+int4-2+smallm-" + SmallMGEMM.qtileRevision : "")
-            + FastParakeetDecodeOptions.revisionSuffix
+
     }
     /// The dtype the worker converts request samples to before `generate`: the log-mel is computed in it (BF16,
     /// matching mlx-audio's rounding).
@@ -72,7 +71,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
     /// its switch on, an 8/4-bit affine group-64 encoder with BF16 scales, a GPU with tensor ops.
     var integerComponent: String? {
         guard FastParakeetInt8.available, let q = encoder.layers.first?.relSelfAttn?.linearQ as? QuantizedLinear else { return nil }
-        return FastParakeetInt8.component(bits: q.bits, groupSize: q.groupSize, mode: q.mode, scales: q.scales)
+        return FastParakeetInt8.component(bits: q.bits, groupSize: q.groupSize, mode: q.mode, scales: q.scales, levers: keptLevers)
     }
     /// NAX would run on this checkpoint and Mac: enabled, a dense BF16 encoder, a GPU with tensor ops.
     var naxEligible: Bool {
@@ -684,6 +683,7 @@ public extension ParakeetModel {
             jointConfig: cfg.joint
         )
 
+        model.keptLevers = try KeptLevers.resolve(modelDir, derived: derived)
         var weights: [String: MLXArray] = [:]
         let files = try FileManager.default.contentsOfDirectory(at: modelDir, includingPropertiesForKeys: nil)
         let safetensors = files.filter { $0.pathExtension == "safetensors" }

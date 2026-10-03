@@ -9,7 +9,7 @@ public struct EnvironmentSwitch: Equatable, Sendable {
     public let isPrefix: Bool
     public let owner: Owner
     /// Its effective value joins the fast-path gate key (it changes which optimized components run or what they
-    /// compute), so a verdict qualified under it is never reused for the defaults.
+    /// compute); overrides equal to the effective defaults share the same verdict.
     public let gateKey: Bool
     /// Reported in a helper's status `test_hooks` when set.
     public let workerReported: Bool
@@ -32,11 +32,11 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         .init("VELLA_PARAKEET_NAX", .lab, gateKey: true, worker: true),
         .init("VELLA_PARAKEET_INT8", .lab, gateKey: true, worker: true),
         .init("VELLA_PARAKEET_INT4", .lab, gateKey: true, worker: true),
-        // Parakeet TDT decoder tail-block sizing (exact, opt-in; appends +tailblock-1 when "1").
+        // Parakeet TDT decoder tail-block sizing (exact, Ultra Fast/Exact default; effective on appends +tailblock-1).
         .init("VELLA_PARAKEET_TAILBLOCK", .lab, gateKey: true, worker: true),
         .init("VELLA_TEST_TOLERANT_FAULT", .test, gateKey: true, worker: true),
         .init("VELLA_NEMO_", prefix: true, .lab, gateKey: true, worker: true),
-        // Nemotron L3 opt-in levers (also matched by the prefix above; each appends its own gate revision when "1").
+        // Nemotron kept levers (also matched by the prefix above; each appends its own gate revision when effectively on).
         .init("VELLA_NEMO_KEEPCACHE", .lab, gateKey: true, worker: true),
         .init("VELLA_NEMO_JOINTBATCH", .lab, gateKey: true, worker: true),
         // The user's selection: set by the app for every helper, reported as the status's `recipe`.

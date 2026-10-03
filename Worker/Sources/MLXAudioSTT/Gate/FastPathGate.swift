@@ -3,6 +3,7 @@ import Foundation
 import Metal
 import MLX
 import VellaWire
+import SmallMGEMM
 
 public enum FastPathGateError: Error { case invalid }
 
@@ -20,6 +21,7 @@ public enum FastPathGate {
     /// been qualified under a diagnostic component override, so every model requalifies once.
     /// 9: two-stage gate with tolerance self-tests for inexact components (GATE-REVISION.md).
     /// 10: Parakeet NAX GEMMs on by default; Qwen3-ASR's BF16 audio encoder off by default (removed since).
+    /// Kept-lever defaults reuse the measured effective configurations: no kernel or self-test changed.
     public static let version = "native-kernels-10"
     /// Child exit status when the self-test could not start (not a verdict on the kernels).
     public static let inconclusive: Int32 = 3
@@ -123,7 +125,30 @@ public enum FastPathGate {
         public static var current: Host { Host(gpuFamily: FastPathGate.gpuFamily, osBuild: FastPathGate.osBuild) }
     }
 
+    /// Encode resolved kept levers in the historical measured-key format. Off is absence, on is NAME=1;
+    /// explicit lab switches and production defaults for the same cell therefore share a verdict.
+    public static func effectiveConfiguration(_ levers: KeptLevers, environment: [String: String]) -> String {
+        var effective = environment.filter { !KeptLevers.switches.contains($0.key) }
+        for name in levers.enabled { effective[name] = "1" }
+        return componentConfiguration(effective)
+    }
+    public static func effectiveRevision(_ base: String, levers: KeptLevers) -> String {
+        var revision = base
+        if base.hasPrefix("parakeet-") {
+            if levers.contains("VELLA_PARAKEET_INT8") { revision += "+int8-2+smallm-" + SmallMGEMM.qtileRevision }
+            if levers.contains("VELLA_PARAKEET_INT4") { revision += "+int4-2+smallm-" + SmallMGEMM.qtileRevision }
+            if levers.contains("VELLA_PARAKEET_TAILBLOCK") { revision += "+tailblock-1" }
+        }
+        if base.hasPrefix("nemotron-") {
+            if levers.contains("VELLA_NEMO_KEEPCACHE") { revision += "+keepcache-1" }
+            if levers.contains("VELLA_NEMO_JOINTBATCH") { revision += "+jointbatch-1" }
+        }
+        return revision
+    }
+
     public static func key(_ path: URL, revision: String, host: Host = .current) throws -> String {
+        let levers = try KeptLevers.resolve(path)
+        let revision = effectiveRevision(revision, levers: levers)
         let gpuFamily = host.gpuFamily, osBuild = host.osBuild
         var digest = SHA256()
         // A locally derived precision: its recipe plus its source's files (one key per derived precision).
@@ -147,7 +172,7 @@ public enum FastPathGate {
         }
         digest.update(data: Data("\(gpuFamily):\(osBuild):\(version)".utf8))
         if !revision.isEmpty { digest.update(data: Data(":\(revision)".utf8)) }
-        let components = componentConfiguration()
+        let components = effectiveConfiguration(levers, environment: ProcessInfo.processInfo.environment)
         if !components.isEmpty { digest.update(data: Data(":components=\(components)".utf8)) }
         // Optimized · Exact runs other components (no inexact ones): its own verdict, never the Fast one's.
         if exactOnly { digest.update(data: Data(":recipe=exact".utf8)) }

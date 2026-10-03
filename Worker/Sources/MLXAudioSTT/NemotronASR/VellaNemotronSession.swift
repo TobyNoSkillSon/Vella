@@ -28,7 +28,7 @@ public final class VellaNemotronSession {
     private var melFrame = 0
     /// Optimized session: every encoder chunk is finite-checked, whether or not decoding is batched.
     private let checksFinite: Bool
-    /// `VELLA_NEMO_KEEPCACHE=1` (optimized, opt-in; exact): keep MLX's buffer cache between requests (see `advance`).
+    /// `VELLA_NEMO_KEEPCACHE=1` (optimized; exact, default on for supported tiers): keep MLX's buffer cache between requests (see `advance`).
     private let keepCache: Bool
     /// `VELLA_NEMO_JOINTBATCH=1` (optimized, batched decode, dense joint): see `VellaNemotronJointBatch`.
     private let jointBatch: VellaNemotronSmallLinear?
@@ -52,11 +52,11 @@ public final class VellaNemotronSession {
         batchedDecode = optimized && VellaNemotronOptions.batchedDecode
         batchedMel = optimized && VellaNemotronOptions.melBatch
         checksFinite = optimized
-        keepCache = optimized && VellaNemotronOptions.labLevers.contains("keepcache-1")
-        if optimized && batchedDecode && VellaNemotronJointBatch.enabled && model.jointBatch == nil {
+        keepCache = optimized && model.keptLevers.contains("VELLA_NEMO_KEEPCACHE")
+        if optimized && batchedDecode && model.keptLevers.contains("VELLA_NEMO_JOINTBATCH") && model.jointBatch == nil {
             model.jointBatch = VellaNemotronJointBatch.make(model.joint.outputProj)
         }
-        jointBatch = optimized && batchedDecode && VellaNemotronJointBatch.enabled ? model.jointBatch : nil
+        jointBatch = optimized && batchedDecode && model.keptLevers.contains("VELLA_NEMO_JOINTBATCH") ? model.jointBatch : nil
         last = model.blankTokenID
     }
     public func push(_ chunk: [Float], final: Bool) throws -> String {

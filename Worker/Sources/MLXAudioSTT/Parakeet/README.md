@@ -71,15 +71,13 @@ Always on once the load-time self-test passed on the Mac (revision `parakeet-r2-
 
 Their effect is the Optimized rows against the Standard rows in the generated block below.
 
-Levers kept from the kernel rounds (switches are read once at launch; a lever that is off leaves every gate key
-byte-identical; "default" is the state in the code at this commit, and the release defaults are set after the
-measurement):
+Kept levers are on by default for the cells below (Toby, 3 Oct). Fast includes inexact levers; Exact includes only exact levers; Standard includes none. Lab overrides use `=1` to enable and `=0` to disable. Gate keys use the effective lever set, matching the measured cells.
 
 | Lever | Switch | Revision | Exact? | Screening result | Default |
 |---|---|---|---|---|---|
-| Native int8 encoder GEMM: SmallMGEMM `qtile-1` reads MLX's affine g64 codes (no dequantizing) | `VELLA_PARAKEET_INT8=1` | `+int8-2+smallm-qtile-1` | inexact (tolerant component `int8_gemm`) | Ultra 8 (30 Sep): speed +37.4 % (338.1 → 464.5×), energy −39.2 % (8.343 → 5.069 J/min), memory −506 MB, gate pass, 4 clips changed (ja, ko, zh). v3 8 with BF16 decoder/joint (1 Oct): +35.3 %, −37.6 %, −532 MB, 2 of 21 clips changed | off |
-| Native int4 encoder GEMM, group scales applied after the matmul | `VELLA_PARAKEET_INT4=1` | `+int4-2+smallm-qtile-1` | inexact (`int4_gemm`) | Ultra 4 (30 Sep): +44.7 % (346.6 → 501.4×), −40.0 % (8.126 → 4.872 J/min), −553 MB, gate pass vs stock 4, 3 clips changed. v3 4 with BF16 decoder/joint (1 Oct): +35.9 %, −39.6 %, −526 MB, on a tier that stays absent | off |
-| Tail block sizing: compiled decoder blocks of 8, 16 or 32 steps sized to the segment's remaining frames (segments need 14–94 decisions; a fixed 32 wastes up to half the last block) | `VELLA_PARAKEET_TAILBLOCK=1` | `+tailblock-1` | exact | Ultra 16 (1 Oct): speed −0.4 %, energy −3.1 %, memory −15 MB, 0 of 21 changed. Borderline, just over the 3 % bar; kept for Ultra only | off |
+| Native int8 encoder GEMM: SmallMGEMM `qtile-1` reads MLX's affine g64 codes (no dequantizing) | `VELLA_PARAKEET_INT8=1` | `+int8-2+smallm-qtile-1` | inexact (tolerant component `int8_gemm`) | Ultra 8 (30 Sep): speed +37.4 % (338.1 → 464.5×), energy −39.2 % (8.343 → 5.069 J/min), memory −506 MB, gate pass, 4 clips changed (ja, ko, zh). v3 8 with BF16 decoder/joint (1 Oct): +35.3 %, −37.6 %, −532 MB, 2 of 21 clips changed | Fast 8-bit, v3 and Ultra |
+| Native int4 encoder GEMM, group scales applied after the matmul | `VELLA_PARAKEET_INT4=1` | `+int4-2+smallm-qtile-1` | inexact (`int4_gemm`) | Ultra 4 (30 Sep): +44.7 % (346.6 → 501.4×), −40.0 % (8.126 → 4.872 J/min), −553 MB, gate pass vs stock 4, 3 clips changed. v3 4 with BF16 decoder/joint (1 Oct): +35.9 %, −39.6 %, −526 MB, on a tier that stays absent | Fast 4-bit, v3 and Ultra |
+| Tail block sizing: compiled decoder blocks of 8, 16 or 32 steps sized to the segment's remaining frames (segments need 14–94 decisions; a fixed 32 wastes up to half the last block) | `VELLA_PARAKEET_TAILBLOCK=1` | `+tailblock-1` | exact | Ultra 16 (1 Oct): speed −0.4 %, energy −3.1 %, memory −15 MB, 0 of 21 changed. Borderline, just over the 3 % bar; kept for Ultra only | Ultra BF16/8/4, Fast and Exact |
 | Keep MLX's buffer cache between dictation requests (shared dictation service, every dictation model) | `VELLA_DICTATION_KEEP_CACHE=0` restores the per-request clear | — | exact | Ultra 16 (30 Sep): +4.6 % (464.2 → 485.4×), energy +2.4 % (GPU joules equal), memory −36 MB, 21 of 21 identical | on |
 | Which modules are quantized: decoder and joint stay BF16 on the 8 and 4 tiers | catalog `floatModules` | recipe `:float=…` | n/a (a recipe) | restores v3's 8 tier (table above) | on |
 

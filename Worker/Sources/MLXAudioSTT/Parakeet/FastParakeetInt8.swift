@@ -15,32 +15,12 @@ import SmallMGEMM
 enum FastParakeetInt8 {
     static var available: Bool { SmallMGEMM.tensorOpsAvailable }
 
-    /// Off until the lever is kept (lab/models/Parakeet/L3-RESULTS.md); flipping it needs a FastPathGate.version bump.
-    static let enabledByDefault = false
-    /// `VELLA_PARAKEET_INT8=1` / `=0` overrides the default (part of the gate key).
-    static let enabled: Bool = {
-        switch ProcessInfo.processInfo.environment["VELLA_PARAKEET_INT8"] {
-        case "1": return true
-        case "0": return false
-        default: return enabledByDefault
-        }
-    }()
-    /// The 4-bit checkpoints' switch (L3 lever 2): `VELLA_PARAKEET_INT4=1` / `=0` (part of the gate key), off by default.
-    static let int4EnabledByDefault = false
-    static let int4Enabled: Bool = {
-        switch ProcessInfo.processInfo.environment["VELLA_PARAKEET_INT4"] {
-        case "1": return true
-        case "0": return false
-        default: return int4EnabledByDefault
-        }
-    }()
-
     /// The gate component for a checkpoint's bit width, or nil when the kernel does not take it or its switch is off:
     /// MLX affine 8- or 4-bit, group 64, scales and biases in BF16 (the activation dtype).
-    static func component(bits: Int, groupSize: Int, mode: QuantizationMode, scales: MLXArray?) -> String? {
+    static func component(bits: Int, groupSize: Int, mode: QuantizationMode, scales: MLXArray?, levers: KeptLevers) -> String? {
         guard groupSize == 64, mode == .affine, scales?.dtype == .bfloat16 else { return nil }
-        if bits == 8 && enabled { return "int8_gemm" }
-        if bits == 4 && int4Enabled { return "int4_gemm" }
+        if bits == 8 && levers.contains("VELLA_PARAKEET_INT8") { return "int8_gemm" }
+        if bits == 4 && levers.contains("VELLA_PARAKEET_INT4") { return "int4_gemm" }
         return nil
     }
 

@@ -64,7 +64,6 @@ final class VellaNemotronSmallLinear {
 enum VellaNemotronJointBatch {
     /// Dense Linears only: a quantized joint keeps the per-frame path.
     static func admits(_ linear: Linear) -> Bool { !(linear is QuantizedLinear) }
-    static var enabled: Bool { VellaNemotronOptions.labLevers.contains("jointbatch-1") }
     /// K 640 = 2.5 x 256: one simdgroup walks all of K, 4 output columns per threadgroup.
     static func make(_ linear: Linear) -> VellaNemotronSmallLinear? {
         guard admits(linear) else { return nil }

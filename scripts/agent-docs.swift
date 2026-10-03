@@ -84,6 +84,7 @@ func render(_ models: JSON, _ bench: JSON) -> String {
     var note =
         "Figures are the Optimized · Fast cell of the 16-bit tier, the cell a model first loads on. Speed is × real time and energy is joules "
         + "per minute of audio on the reference Mac (\(bench["hardware"] as? String ?? dash)); they are not measurements of this Mac. "
+        + "Fast enables every kept lever for that model and precision; Exact enables only exact kept levers; Standard enables none. "
         + "Streaming models do not transcribe files. `vella models --json` lists every cell, its figures or refusal reason, and the source and size."
     if isPending(bench) {
         note =

@@ -75,7 +75,8 @@ final class NemotronNative: StreamingNative {
     /// The components that actually run, not the requested ones.
     var engine: (String, String, [String: Bool]) {
         VellaNemotronOptions.report(
-            optimized: optimized, fusedPrepared: fusedPrepared, jointPrepared: model?.jointBatchPrepared ?? false, stockReason: stockReason)
+            optimized: optimized, fusedPrepared: fusedPrepared, jointPrepared: model?.jointBatchPrepared ?? false, stockReason: stockReason,
+            switches: VellaNemotronOptions.forModel(model?.keptLevers))
     }
     var nonFinite: Bool { session?.nonFinite ?? false }
     /// Self-test: fused vs unfused chunk-encoder deviation on `audio` (nil when the fused layer is not active).

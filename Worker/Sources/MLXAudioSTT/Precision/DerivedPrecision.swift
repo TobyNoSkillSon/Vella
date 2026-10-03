@@ -15,6 +15,7 @@ public struct DerivedPrecision: Equatable, Sendable {
     public static let manifestName = "vella-derived.json"
     public let source: URL
     public let precision: String
+    public let family: String?
     public let dtype: DType?
     public let bits: Int?
     public let groupSize: Int?
@@ -23,9 +24,9 @@ public struct DerivedPrecision: Equatable, Sendable {
     /// quantized. Empty = the uniform recipe. Stock and optimized paths load the same derived weights.
     public let floatModules: [String]
 
-    public init(source: URL, precision: String, dtype: DType?, bits: Int?, groupSize: Int?, floatModules: [String] = []) {
+    public init(source: URL, precision: String, dtype: DType?, bits: Int?, groupSize: Int?, floatModules: [String] = [], family: String? = nil) {
         self.source = source; self.precision = precision; self.dtype = dtype; self.bits = bits; self.groupSize = groupSize
-        self.floatModules = floatModules
+        self.floatModules = floatModules; self.family = family
     }
 
     /// Recipe identity for the fast-path gate key (the source files are hashed separately). A mixed recipe appends
@@ -86,7 +87,7 @@ public struct DerivedPrecision: Equatable, Sendable {
             floatModules = list
         }
         return DerivedPrecision(source: source, precision: precision, dtype: dtype, bits: bits, groupSize: groupSize,
-                                floatModules: floatModules)
+                                floatModules: floatModules, family: object["family"] as? String)
     }
 
     /// The quantization the loader installs, as a checkpoint config would declare it.
