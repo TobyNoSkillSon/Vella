@@ -20,13 +20,16 @@ TREE="$(git -C "$TMP/good.git" rev-parse 'HEAD^{tree}')"
 ORPHAN="$(echo 'Fixture unrelated root' | git -C "$TMP/good.git" -c user.name=Fixture -c user.email=fixture@example.invalid commit-tree "$TREE")"
 git -C "$TMP/good.git" update-ref refs/heads/orphan "$ORPHAN"
 "$ROOT/scripts/check-rewritten-worker-source.sh" "$TMP/good.git" orphan
-# Reachable source with altered worker bytes must fail.
+# Exact identity refuses changes to Worker code, Packages code and pinned build scripts.
 INDEX="$TMP/index"
-GIT_INDEX_FILE="$INDEX" git -C "$TMP/good.git" read-tree HEAD
-BLOB="$(echo 'wrong worker fixture' | git -C "$TMP/good.git" hash-object -w --stdin)"
-GIT_INDEX_FILE="$INDEX" git -C "$TMP/good.git" update-index --add --cacheinfo "100644,$BLOB,Worker/pin-fixture.swift"
-TREE="$(GIT_INDEX_FILE="$INDEX" git -C "$TMP/good.git" write-tree)"
-BAD="$(echo 'Fixture worker mismatch' | git -C "$TMP/good.git" -c user.name=Fixture -c user.email=fixture@example.invalid commit-tree "$TREE" -p HEAD)"
-git -C "$TMP/good.git" update-ref refs/heads/bad "$BAD"
-if "$ROOT/scripts/check-rewritten-worker-source.sh" "$TMP/good.git" bad >/dev/null 2>&1; then echo 'worker mismatch accepted'; exit 1; fi
-echo 'rewritten source regression: present/missing/history-independent root/mismatch pass'
+for changed in Worker/pin-fixture.swift Packages/pin-fixture.swift scripts/build.sh; do
+  rm -f "$INDEX"
+  GIT_INDEX_FILE="$INDEX" git -C "$TMP/good.git" read-tree HEAD
+  BLOB="$(echo 'wrong source fixture' | git -C "$TMP/good.git" hash-object -w --stdin)"
+  GIT_INDEX_FILE="$INDEX" git -C "$TMP/good.git" update-index --add --cacheinfo "100644,$BLOB,$changed"
+  TREE="$(GIT_INDEX_FILE="$INDEX" git -C "$TMP/good.git" write-tree)"
+  BAD="$(echo 'Fixture source mismatch' | git -C "$TMP/good.git" -c user.name=Fixture -c user.email=fixture@example.invalid commit-tree "$TREE" -p HEAD)"
+  git -C "$TMP/good.git" update-ref refs/heads/bad "$BAD"
+  if "$ROOT/scripts/check-rewritten-worker-source.sh" "$TMP/good.git" bad >/dev/null 2>&1; then echo "$changed mismatch accepted"; exit 1; fi
+done
+echo 'rewritten source regression: present/missing/history-independent root/Worker/Packages/build mismatch pass'
