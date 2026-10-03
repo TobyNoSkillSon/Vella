@@ -17,8 +17,13 @@ enum APIAudio {
         return Double(audio.length) / rate
     }
 
-    /// Decodes `file` into a new session under `root` (its own directory; never Recordings). The caller removes it.
-    static func segment(_ file: URL, root: URL, config: Configuration, maxSeconds: Double = apiMaxAudioSeconds) throws -> (RecordingSession, Double) {
+    /// Decodes `file` into a transient session under `root` (its own directory; never Recordings). Exact Float32
+    /// segments are collected for comparison, or handed to a bounded consumer by `onSegment`; only request WAVs reach
+    /// disk. The caller removes the directory. Production uses `overlapping`, not the whole-file collection.
+    static func segment(
+        _ file: URL, root: URL, config: Configuration, maxSeconds: Double = apiMaxAudioSeconds,
+        onSegment: ((RecordingSession, RecordingSession.Segment) throws -> Void)? = nil
+    ) throws -> (RecordingSession, Double) {
         let audio: AVAudioFile
         do { audio = try AVAudioFile(forReading: file) } catch { throw APIError(400, unreadable, param: "file", code: "invalid_audio") }
         let format = audio.processingFormat
@@ -39,9 +44,10 @@ enum APIAudio {
         }
         converter.downmix = true
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        let session = try RecordingSession(root: root, config: config)
+        let session = try RecordingSession(root: root, config: config, transient: true)
         do {
             let writer = try SegmentedPCMWriter(session: session)
+            writer.onFinalized = { segment in try onSegment?(session, segment) }
             var ended = false, readFailure: Error?
             while true {
                 try Task.checkCancellation()
@@ -150,10 +156,6 @@ struct APITranscript {
 
         var model = try resolve()
         let config = Configuration(model: model.path)
-        let root = self.root
-        let decode = Task.detached(priority: .utility) { try APIAudio.segment(file, root: root, config: config) }
-        let (session, duration) = try await withTaskCancellationHandler(operation: { try await decode.value }, onCancel: { decode.cancel() })
-        defer { try? FileManager.default.removeItem(at: session.directory) }
 
         let runtime = backend.runtime
         var shielded: String?
@@ -192,10 +194,6 @@ struct APITranscript {
                 }
             }
         }
-        // A worker that dies while the model loads gets one fresh start, as a segment does (SessionTranscriber).
-        do { try await retryingDictationStops { try await ready() } } catch is WorkerExited {
-            do { try await retryingDictationStops { try await ready() } } catch is WorkerExited { throw APIError(500, Self.workerExited, code: "worker_exited") }
-        }
         let runner = SessionTranscriber { [weak self] url, config in
             guard let self else { throw CancellationError() }
             return try await self.retryingDictationStops {
@@ -211,12 +209,24 @@ struct APITranscript {
                 }
             }
         }
-        do { _ = try await runner.run(session) } catch let error as VellaError {
+        let result: (RecordingSession, Double)
+        do {
+            result = try await APIAudio.overlapping(file, root: root, config: config, runner: runner) {
+                // Preserve the initial load's separate one-retry allowance while the decoder runs ahead.
+                do { try await retryingDictationStops { try await ready() } } catch is WorkerExited {
+                    do { try await retryingDictationStops { try await ready() } } catch is WorkerExited {
+                        throw APIError(500, Self.workerExited, code: "worker_exited")
+                    }
+                }
+            }
+        } catch let error as VellaError {
             throw APIError(500, error.localizedDescription, code: "transcription_failed")
         } catch is WorkerExited {
             // Its text ("Saved audio is retained") is the dictation's; the API keeps nothing.
             throw APIError(500, Self.workerExited, code: "worker_exited")
         }
+        let (session, duration) = result
+        defer { try? FileManager.default.removeItem(at: session.directory) }
         completed += 1
         let (text, segments) = APIAudio.segments(session)
         var used = model; used.loaded = true
