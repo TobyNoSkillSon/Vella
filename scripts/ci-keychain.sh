@@ -36,7 +36,7 @@ case "${1:-}" in
     EXISTING=()
     while IFS= read -r line; do line="${line#"${line%%[![:space:]]*}"}"; EXISTING+=("${line//\"/}"); done < <(security list-keychains -d user)
     security list-keychains -d user -s "$KEYCHAIN" "${EXISTING[@]}"
-    security find-identity -p codesigning "$KEYCHAIN" | grep -q "$VELLA_SIGNING_SHA1" || {
+    security find-identity -p codesigning "$KEYCHAIN" | grep "$VELLA_SIGNING_SHA1" >/dev/null || {
       echo "No code-signing identity $VELLA_SIGNING_SHA1 in the imported p12" >&2; exit 1; }
     echo "Release signing identity $VELLA_SIGNING_SHA1 imported into a temporary keychain"
     ;;

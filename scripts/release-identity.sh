@@ -23,7 +23,7 @@ classify_text() {
   local text leaf
   text="$(cat)"
   if grep -q '^Signature=adhoc' <<<"$text"; then echo adhoc; return; fi
-  leaf="$(sed -n 's/^Authority=//p' <<<"$text" | head -1)"
+  leaf="$(sed -n 's/^Authority=//p' <<<"$text" | sed -n '1p')"
   case "$leaf" in
     "") echo unsigned ;;
     "Vella Release Signing") echo release ;;
@@ -54,7 +54,7 @@ classify_app() {
 unpack() {
   local zip="$1" dir="$2" app
   /usr/bin/unzip -q "$zip" -d "$dir" || die "cannot unzip $zip"
-  app="$(find "$dir" -maxdepth 1 -name '*.app' -print | head -1)"
+  app="$(find "$dir" -maxdepth 1 -name '*.app' -print | sed -n '1p')"
   [[ -n "$app" ]] || die "no .app at the top of $zip"
   echo "$app"
 }
@@ -129,7 +129,7 @@ case "${1:-}" in
   text-class) [[ $# -eq 2 ]] || die "usage: text-class FILE"; classify_text <"$2" ;;
   mark-local)
     [[ $# -eq 2 && -d "$2" ]] || die "usage: mark-local DIR"
-    zip="$(find "$2" -maxdepth 1 -name 'Vella-*-arm64.zip' ! -name '*-symbols.zip' -print | head -1)"
+    zip="$(find "$2" -maxdepth 1 -name 'Vella-*-arm64.zip' ! -name '*-symbols.zip' -print | sed -n '1p')"
     [[ -n "$zip" ]] || die "no Vella-*-arm64.zip in $2"
     class="$(classify_path "$zip")"
     if [[ "$class" != release ]]; then

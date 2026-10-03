@@ -6,6 +6,7 @@
 # The derived Worker/Sources/MLXAudioCore and MLXAudioSTT are not linted.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+scripts/test-pipefail.sh
 SWIFT_FORMAT=/Library/Developer/CommandLineTools/usr/bin/swift-format
 [[ -x "$SWIFT_FORMAT" ]] || SWIFT_FORMAT="$(xcrun --find swift-format)"
 command -v swiftlint >/dev/null || { echo "swiftlint is not installed (brew install swiftlint)"; exit 1; }
