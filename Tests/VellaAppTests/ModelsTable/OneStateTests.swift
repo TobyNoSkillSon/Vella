@@ -310,6 +310,62 @@ final class OneStateTests: XCTestCase {
         XCTAssertNil(c.dictation.calibratingID, "no calibration run in front of the load")
     }
 
+    /// The table's Get button and a Load of a cell whose source is missing, with the support directory built from a
+    /// path string as `VELLA_SUPPORT_DIR` is: both install and load (they ended "download cancelled" before).
+    @MainActor func testTableGetAndMissingCellLoadInstallInAPathBuiltSupportDir() async throws {
+        for precision in ["BF16", "4b"] {
+            try? FileManager.default.removeItem(at: root)
+            root = URL(fileURLWithPath: "/tmp/vella-one-state-\(UUID())", isDirectory: true)
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let c = try alphaController(installed: false)
+            let spy = ActionSpy(); c.actions = spy
+            c.runtime = TableRuntime()
+            c.confirmDownload = { prompt, answer in answer(DownloadGate.ask(prompt) { _ in true }) }
+            if precision != "BF16" { c.preview(alpha, precision) }
+            XCTAssertEqual(c.action(alpha), .get)
+            c.perform(alpha)
+            XCTAssertEqual(c.dictation.downloadingID, "alpha-bf16")
+            try await waitUntil { !spy.calls.isEmpty || c.dictation.downloadError != nil }
+            XCTAssertNil(c.dictation.downloadError, precision)
+            XCTAssertNotNil(c.dictation.installed["alpha-bf16"], precision)
+            XCTAssertEqual(spy.calls.count, 1, precision)
+            XCTAssertTrue(spy.calls.first?.hasPrefix("load alpha \(precision) ") == true, spy.calls.description)
+        }
+    }
+
+    /// Opt-in real download (`VELLA_REAL_TABLE_GET=<model id>`, e.g. whisper-large-v3): the Models table's Get, its
+    /// popup answered Download, fetches the pinned weights from Hugging Face into a `/tmp` support dir built from a
+    /// path as `VELLA_SUPPORT_DIR` is, and hands the table's Load to the runtime (a spy: nothing loads). The directory
+    /// is removed afterwards.
+    @MainActor func testRealTableGetInAPathBuiltSupportDir() async throws {
+        guard let id = ProcessInfo.processInfo.environment["VELLA_REAL_TABLE_GET"] else { throw XCTSkip("Opt-in real table Get") }
+        try? FileManager.default.removeItem(at: root)
+        root = URL(fileURLWithPath: "/tmp/vella-real-table-get-\(UUID())", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let c = try shipped()
+        let f = try XCTUnwrap(c.catalog.family(id))
+        let spy = ActionSpy(); c.actions = spy
+        c.runtime = TableRuntime()
+        c.confirmDownload = { prompt, answer in answer(DownloadGate.ask(prompt) { _ in true }) }
+        XCTAssertEqual(c.action(f), .get)
+        c.perform(f)
+        let lib = c.library(f.mode)
+        let variant = try XCTUnwrap(lib.downloadingID)
+        let started = Date()
+        var reported = Date.distantPast
+        while lib.downloadingID != nil {
+            if Date().timeIntervalSince(reported) > 15 { print(lib.message); reported = Date() }
+            try await Task.sleep(nanoseconds: 500_000_000)
+        }
+        try await waitUntil(10) { !spy.calls.isEmpty || lib.downloadError != nil }
+        XCTAssertNil(lib.downloadError)
+        let installed = try XCTUnwrap(lib.installed[variant])
+        XCTAssertEqual(spy.calls.count, 1, spy.calls.description)
+        let bytes = (FileManager.default.enumerator(at: URL(fileURLWithPath: installed.path), includingPropertiesForKeys: [.fileSizeKey])?.allObjects as? [URL] ?? [])
+            .reduce(0) { $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+        print("table Get \(variant): \(lib.message) \(bytes) bytes in \(Int(Date().timeIntervalSince(started))) s at \(installed.path); \(spy.calls[0])")
+    }
+
     /// A recording that starts while a confirmed download runs keeps its model: the download's load (and the new
     /// selection) waits until the dictation is idle.
     @MainActor func testConfirmedDownloadLoadsOnlyAfterARecordingThatStartedMeanwhile() async throws {

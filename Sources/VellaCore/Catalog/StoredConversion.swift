@@ -5,9 +5,11 @@ import Foundation
 // the verified download (ModelLibrary.download), tensor by tensor: every F32 tensor becomes BF16 with round-to-nearest-even (the rounding of MLX's `astype(bfloat16)`), every
 // other tensor is copied unchanged. The folder then records what was done in `vella-converted.json`.
 
-public enum StoredConversionError: Error, Equatable, CustomStringConvertible {
+/// `description` keeps the technical detail (for the log); `errorDescription` is the user-facing reason.
+public enum StoredConversionError: LocalizedError, Equatable, CustomStringConvertible {
     case invalid(String)
     public var description: String { if case .invalid(let s) = self { return s }; return "invalid" }
+    public var errorDescription: String? { "the downloaded weights are incomplete or damaged" }
 }
 
 /// Provenance of a stored conversion, written beside the converted weights.

@@ -420,7 +420,10 @@ import VellaCore
             throw VellaError.message(library.downloadError ?? "\(offer.name) did not start downloading.")
         }
         while library.downloadingID == offer.id || (library.busy && library.calibratingID == nil && library.installed[offer.id] == nil) {
-            try Task.checkCancellation()
+            if Task.isCancelled {
+                ModelLibrary.downloadLog.notice("First-dictation Get \(offer.id, privacy: .public) stopped waiting: its task was cancelled")
+                throw CancellationError()
+            }
             try await Task.sleep(nanoseconds: 200_000_000)
         }
         guard let local = library.installed[offer.id] else {

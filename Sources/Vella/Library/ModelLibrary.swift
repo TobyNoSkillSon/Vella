@@ -21,6 +21,18 @@ import VellaCore
     @Published private(set) var downloadTotalBytes: Int64?
     @Published var downloadingID: String?
     @Published var downloadError: String?
+    /// The `downloadError` of a failed download that another Get can fix; the Models footer then adds the retry step.
+    private(set) var retryableFailure: String?
+    /// The Models footer's error line: the failure and, when another Get can help, "Click Get to try again."
+    var downloadFooter: String? {
+        guard let error = downloadError else { return nil }
+        // A reason that already says how to retry (a full disk) is not repeated.
+        return error == retryableFailure && !error.contains("try again") ? error + " Click Get to try again." : error
+    }
+    /// Reports a failed download (footer, API and CLI): `retryable` adds the footer's retry step.
+    func reportDownloadFailure(_ text: String, retryable: Bool) {
+        message = text; downloadError = text; retryableFailure = retryable ? text : nil
+    }
     @Published var activeModelPath = ""
     /// False when the installed-model registry exists but could not be read or decoded: `installed` is then not a
     /// complete record of which Models folders are Vella's, and nothing may be deleted on its strength.
@@ -34,6 +46,11 @@ import VellaCore
     private var downloadTask: Task<Void, Never>?
     private var downloadTimeout: Task<Void, Never>?
     private var downloadToken: UUID?
+    /// Why the running download was last asked to stop (cancel source), for the log line of its task's exit.
+    private var cancelSource: String?
+    /// Every download cancellation and every cancelled exit is logged with its origin (`log show --predicate
+    /// 'subsystem == "dev.vella.dictation" AND category == "download"'`), so no download ends "cancelled" unexplained.
+    nonisolated static let downloadLog = Logger(subsystem: "dev.vella.dictation", category: "download")
     /// Network inactivity bound, reset by new bytes, never by the total duration. Tests shorten it.
     var downloadTimeoutSeconds: Double = 120
     var mayChangeModel: () -> Bool = { true }
@@ -271,7 +288,7 @@ import VellaCore
         busy = true; progress = nil; message = "\(label) \u{00b7} Starting…"
         downloadReceivedBytes = nil; downloadTotalBytes = nil
         downloadCompletion = completion
-        let token = UUID(); downloadToken = token
+        let token = UUID(); downloadToken = token; cancelSource = nil
         let client = NativeModelDownload(
             baseURL: downloadBaseURL, configuration: downloadConfiguration,
             catalogURL: resources.appendingPathComponent(catalogName)
@@ -293,20 +310,41 @@ import VellaCore
         }
         downloadClient = client
         armDownloadTimeout(token: token, label: label)
+        Self.downloadLog.notice("Download \(selected.id, privacy: .public) started")
         downloadTask = Task { [weak self] in
+            // Set by this task's own checks when they end it as cancelled; logged on exit.
+            var origin: String?
             do {
                 guard let self else { return }
                 let folder = try await client.download(selected, modelsDirectory: self.modelsDirectory)
                 self.downloadTimeout?.cancel(); self.downloadTimeout = nil
-                guard self.downloadToken == token, !Task.isCancelled,
-                    selected.id == self.downloadingID, folder.standardizedFileURL == self.modelsDirectory.appendingPathComponent(selected.id).standardizedFileURL
-                else { throw CancellationError() }
+                if let stale = self.staleDownloadReason(token: token, id: selected.id) {
+                    origin = "after the transfer: " + stale; throw CancellationError()
+                }
+                // Compared as paths: a folder URL gains a trailing slash once the folder exists on disk, and only
+                // URLs Foundation handed out re-check the disk when standardized; a support directory built from a
+                // path (VELLA_SUPPORT_DIR) kept the slash difference and every fresh download ended "cancelled".
+                let expected = self.modelsDirectory.appendingPathComponent(selected.id)
+                guard Self.sameFolder(folder, expected) else {
+                    throw VellaError.message("the files landed in \(folder.path), not in \(expected.path)")
+                }
                 try NativeModelDownload.validate(folder, expected: selected)
                 // A stored conversion (Parakeet v3: the FP32 download becomes BF16 once, only BF16 is kept).
                 if let (family, precision) = self.catalog?.locate(variant: selected.id), let variant = family.variants[precision], variant.isStored {
                     self.message = "\(label) \u{00b7} Converting to \(precisionInProse(precision))\u{2026}"
-                    try await Self.convertStored(folder, family: family, precision: precision, repository: selected.repository, revision: selected.revision)
-                    guard self.downloadToken == token, !Task.isCancelled else { throw CancellationError() }
+                    do {
+                        try await Self.convertStored(folder, family: family, precision: precision, repository: selected.repository, revision: selected.revision)
+                    } catch let error as StoredConversionError {
+                        // The technical detail goes to the log; the footer says what failed and what to do.
+                        Self.downloadLog.error("Conversion of \(selected.id, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+                        throw ConversionFailure(
+                            text:
+                                "Could not convert \(family.name) to \(precisionInProse(precision)): \(error.localizedDescription). Partial files removed; your recordings are kept."
+                        )
+                    }
+                    if let stale = self.staleDownloadReason(token: token, id: selected.id) {
+                        origin = "after the conversion: " + stale; throw CancellationError()
+                    }
                     try NativeModelDownload.validate(folder, expected: selected)
                 }
                 let previous = self.installed[selected.id]
@@ -314,6 +352,7 @@ import VellaCore
                     self.installed[selected.id] = InstalledModel(path: folder.path, revision: selected.revision, name: selected.name, quantization: selected.quantization)
                     try self.saveRegistry(updating: selected.id)
                     self.reload(); self.progress = 1; self.message = "\(label) downloaded."
+                    Self.downloadLog.notice("Download \(selected.id, privacy: .public) installed")
                     self.downloadTimeout?.cancel(); self.downloadTimeout = nil
                     self.downloadToken = nil; self.downloadTask = nil; self.downloadClient = nil; self.downloadingID = nil; self.busy = false
                     if calibrate { self.beginCalibration(id: selected.id, path: folder.path) }
@@ -326,18 +365,36 @@ import VellaCore
                     self.downloadTimeout?.cancel(); self.downloadTimeout = nil
                     self.downloadingID = nil; self.busy = false; self.downloadToken = nil; self.downloadTask = nil; self.downloadClient = nil
                 }
+                if error is CancellationError {
+                    let why = origin ?? (current ? "the downloader stopped without a cancel request (unattributed)" : "cancel requested by \(self.cancelSource ?? "unknown")")
+                    Self.downloadLog.notice("Download \(selected.id, privacy: .public) ended cancelled: \(why, privacy: .public)")
+                } else {
+                    Self.downloadLog.error("Download \(selected.id, privacy: .public) failed: \(Self.reason(error), privacy: .public)")
+                }
                 // A cancelled or failed download leaves no partial files (unless a newer download of it is running).
                 self.removePartialDownload(selected.id)
                 guard current else { return }
-                self.message =
-                    error is CancellationError
-                    ? "\(label) download cancelled; partial files removed."
-                    : "\(label) download failed: \(Self.reason(error)) Partial files removed."
-                self.downloadError = self.message
+                if error is CancellationError {
+                    self.reportDownloadFailure("\(label) download cancelled; partial files removed.", retryable: false)
+                } else if let conversion = error as? ConversionFailure {
+                    self.reportDownloadFailure(conversion.text, retryable: true)
+                } else {
+                    self.reportDownloadFailure(
+                        "\(label) download failed: \(Self.reason(error)) Partial files removed.", retryable: NativeModelDownload.isRetryable(error))
+                }
                 self.finishDownload(false)
             }
         }
         return true
+    }
+    /// Whether two folder URLs name the same folder, ignoring a trailing slash and `.`/`..` components.
+    nonisolated static func sameFolder(_ a: URL, _ b: URL) -> Bool { a.standardizedFileURL.path == b.standardizedFileURL.path }
+    /// Why a finished transfer no longer belongs to the running download (nil = it does): it was cancelled or replaced.
+    private func staleDownloadReason(token: UUID, id: String) -> String? {
+        if downloadToken != token { return "cancelled or replaced (cancel requested by \(cancelSource ?? "unknown"))" }
+        if Task.isCancelled { return "its task was cancelled" }
+        if downloadingID != id { return "the running download changed to \(downloadingID ?? "none")" }
+        return nil
     }
     private func armDownloadTimeout(token: UUID, label: String) {
         downloadTimeout?.cancel()
@@ -369,6 +426,8 @@ import VellaCore
         let trimmed = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.hasSuffix(".") || trimmed.hasSuffix("!") || trimmed.hasSuffix("?") ? trimmed : trimmed + "."
     }
+    /// A stored conversion that failed after a verified download, in the footer's words.
+    private struct ConversionFailure: Error { let text: String }
     /// The running download's completion, so cancel() can end it.
     private var downloadCompletion: ((Bool) -> Void)?
     func validateModel(_ folder: URL, expected: ModelRecommendation) throws {
@@ -380,7 +439,7 @@ import VellaCore
             downloadError = "Finish dictation or the current download before switching models."; return false
         }
         guard let selected, let local = installed[selected.id] else {
-            downloadError = "Download this model before choosing Use."; return false
+            downloadError = "Get this model in Models\u{2026} before loading it."; return false
         }
         do {
             try validateModel(URL(fileURLWithPath: local.path), expected: selected)
@@ -418,6 +477,7 @@ import VellaCore
     }
     func cancel(source: String = "user") {
         if calibratingID != nil {
+            Self.downloadLog.notice("Cancelling calibration \(self.calibratingID ?? "", privacy: .public): \(source, privacy: .public)")
             calibrationLaunch?.cancel(); calibrationLaunch = nil; calibration.cancel()
             if !calibration.isRunning { calibratingID = nil; busy = false }
             return
@@ -427,20 +487,22 @@ import VellaCore
     private func cancelDownload(source: String, message override: String?) {
         guard busy else { return }
         let id = downloadingID
-        Logger(subsystem: "dev.vella.dictation", category: "download").notice("Cancelling download \(id ?? "unknown", privacy: .public): \(source, privacy: .public)")
+        Self.downloadLog.notice("Cancelling download \(id ?? "unknown", privacy: .public): \(source, privacy: .public)")
+        cancelSource = source
         let label = models.first { $0.id == id }.map(downloadLabel) ?? "Model"
         downloadToken = nil; downloadTimeout?.cancel(); downloadTimeout = nil
         downloadClient?.cancel(); downloadTask?.cancel(); downloadTask = nil; downloadClient = nil
         downloadingID = nil; busy = false
         // Its partial files go now; the download task removes anything it wrote while stopping.
         if let id { removePartialDownload(id) }
-        message = override ?? "\(label) download cancelled; partial files removed."; downloadError = message
+        // A stall is a failure another Get can fix; a cancel is the person's (or the request's) choice.
+        reportDownloadFailure(override ?? "\(label) download cancelled; partial files removed.", retryable: override != nil)
         finishDownload(false)
     }
     private func beginCalibration(id: String, path: String) {
         guard automaticallyCalibrates else { return }
         guard mayChangeModel() else {
-            message = "Installed. Local calibration deferred while dictation is active. Choose Use when ready."
+            message = "Installed. Calibration is deferred while dictation is active. Load the model in Models\u{2026} to use it for \(mode.title)."
             return
         }
         busy = true; calibratingID = id
@@ -454,7 +516,7 @@ import VellaCore
                     modelPath: path, status: { [weak self] in self?.message = $0 },
                     completion: { [weak self] error in
                         self?.calibratingID = nil; self?.busy = false; self?.downloadError = error
-                        self?.message = error ?? "Installed and calibrated. Choose Use to select it for dictation."
+                        self?.message = error ?? "Calibration complete. Load the model in Models\u{2026} to use it for \(self?.mode.title ?? "Dictation")."
                     })
                 if !started { calibratingID = nil; busy = false }
             } catch {
@@ -469,6 +531,10 @@ import VellaCore
         cancel(source: "shutdown")
         calibrationLaunch?.cancel(); calibrationLaunch = nil
         calibration.shutdown()
+        if downloadTask != nil {
+            Self.downloadLog.notice("Cancelling download \(self.downloadingID ?? "unknown", privacy: .public): shutdown")
+            cancelSource = "shutdown"
+        }
         downloadToken = nil; downloadTimeout?.cancel(); downloadTimeout = nil
         downloadClient?.cancel(); downloadTask?.cancel(); downloadTask = nil; downloadClient = nil
         downloadingID = nil; busy = false; finishDownload(false)

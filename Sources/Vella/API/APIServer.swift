@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import OSLog
 import VellaCore
 
 /// One validated request: its head and body (none, small JSON in memory, or an upload spooled to a file).
@@ -28,8 +29,17 @@ final class APIJobCancellation: @unchecked Sendable {
     @TaskLocal static var current: APIJobCancellation?
     private let lock = NSLock()
     private var reason = "request task"
+    private var finished = false
     var source: String { lock.withLock { reason } }
-    func mark(_ source: String) { lock.withLock { reason = source } }
+    /// Records why the request is being cancelled; false once its handler has returned (nothing left to cancel).
+    func mark(_ source: String) -> Bool {
+        lock.withLock {
+            guard !finished else { return false }
+            reason = source
+            return true
+        }
+    }
+    func finish() { lock.withLock { finished = true } }
 }
 
 /// The loopback HTTP listener, hosted in the app process (the inference workers stay offline). IPv4 loopback only,
@@ -50,9 +60,12 @@ final class APIServer: @unchecked Sendable {
     private struct Job {
         let task: Task<APIResponse, Never>
         let origin: APIJobCancellation
+        let path: String
         func cancel(_ source: String) {
-            guard !task.isCancelled else { return }
-            origin.mark(source); task.cancel()
+            // A client closing after its response arrived is not a cancellation.
+            guard !task.isCancelled, origin.mark(source) else { return }
+            Logger(subsystem: "dev.vella.dictation", category: "download").notice("API request \(path, privacy: .public) cancelled: \(source, privacy: .public)")
+            task.cancel()
         }
     }
     private var jobs: [ObjectIdentifier: Job] = [:]
@@ -234,12 +247,13 @@ final class APIServer: @unchecked Sendable {
                 return await handler.handle(request)
             }
         }
-        let job = Job(task: task, origin: origin)
+        let job = Job(task: task, origin: origin, path: request.head.path)
         jobs[ObjectIdentifier(connection)] = job
         // A client EOF cancels its job: stop transcription and remove unfinished downloads/uploads.
         watchDisconnect(connection, job)
         Task {
             let response = await job.task.value
+            origin.finish()
             if let cleanup { try? FileManager.default.removeItem(at: cleanup) }
             reservation?.end()
             queue.async { [self] in

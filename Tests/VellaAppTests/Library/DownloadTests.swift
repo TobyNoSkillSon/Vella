@@ -93,6 +93,76 @@ final class DownloadTests: XCTestCase {
         XCTAssertEqual(library.installed[model.id]?.path, folder.path)
         XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("model.safetensors")), contents["model.safetensors"])
     }
+    /// A fresh download (no folder yet) installs whether the support directory came from Foundation or was built from a
+    /// path string (`VELLA_SUPPORT_DIR`). The folder URL gains a trailing slash once it exists on disk; comparing the
+    /// downloaded folder as a URL only matched when Foundation re-checked the disk, so the second root ended
+    /// "download cancelled; partial files removed" after every byte had arrived.
+    @MainActor func testFreshDownloadInstallsForFoundationAndPathBuiltSupportDirs() async throws {
+        let (base, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: base) }
+        configure(model, files: contents)
+        let pathBuilt = URL(fileURLWithPath: "/tmp/vella-native-download-\(UUID())", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: pathBuilt) }
+        for support in [base.appendingPathComponent("support"), pathBuilt] {
+            let library = ModelLibrary(resources: base, registryURL: support.appendingPathComponent("models-installed.json"))
+            library.downloadConfiguration = config; library.selectedID = model.id
+            XCTAssertFalse(FileManager.default.fileExists(atPath: library.modelsDirectory.appendingPathComponent(model.id).path))
+            var completions: [Bool] = []
+            XCTAssertTrue(library.download(approval: confirmed(model.id), calibrate: false) { completions.append($0) })
+            for _ in 0..<300 where completions.isEmpty { try await Task.sleep(nanoseconds: 20_000_000) }
+            XCTAssertEqual(completions, [true], "\(support.path): \(library.downloadError ?? "")")
+            XCTAssertNil(library.downloadError)
+            XCTAssertEqual(library.installed[model.id]?.path, library.modelsDirectory.appendingPathComponent(model.id).path)
+            // Its own folder stays deletable there too (Delete compares the same folders).
+            library.currentModelPath = { "" }
+            XCTAssertNil(library.deletionBlockReason(model.id), support.path)
+        }
+    }
+    /// A Hub refusal (any status but 200/206) keeps its status and remedy instead of reading "cancelled"; the Models
+    /// footer adds the retry step only when another Get can help.
+    @MainActor func testHubRefusalNamesTheStatusAndOnlyRetryableOnesOfferGetAgain() async throws {
+        for (status, retry) in [(429, true), (503, true), (404, false), (403, false)] {
+            let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            configure(model, files: contents)
+            let serve = HubStub.handler!
+            HubStub.handler = { request in request.url!.lastPathComponent == "model.safetensors" ? (status, [:], Data()) : try serve(request) }
+            let library = ModelLibrary(resources: root, registryURL: root.appendingPathComponent("registry.json"))
+            library.downloadConfiguration = config; library.selectedID = model.id
+            var completions: [Bool] = []
+            library.download(approval: confirmed(model.id), calibrate: false) { completions.append($0) }
+            for _ in 0..<300 where completions.isEmpty { try await Task.sleep(nanoseconds: 20_000_000) }
+            let error = try XCTUnwrap(library.downloadError)
+            XCTAssertEqual(completions, [false])
+            XCTAssertTrue(error.hasPrefix("Fixture 4-bit download failed: ") && error.contains("(HTTP \(status))"), error)
+            XCTAssertFalse(error.contains("cancelled"), error)
+            XCTAssertTrue(error.hasSuffix("Partial files removed."), error)
+            XCTAssertEqual(library.downloadFooter, retry ? error + " Click Get to try again." : error)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: library.modelsDirectory.appendingPathComponent(model.id).path))
+        }
+    }
+    /// A stored conversion (Parakeet v3: FP32 downloaded, kept as BF16) whose weights cannot be read says so in words,
+    /// not as a Swift error dump, and the footer offers another Get. The technical detail goes to the log.
+    @MainActor func testFailedStoredConversionExplainsAndOffersGetAgain() async throws {
+        let (root, _, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var stored = CatalogVariant(id: "conv-bf16-local", architecture: "parakeet", derivedFrom: "FP32", dtype: "bfloat16")
+        stored.stored = true
+        let source = CatalogVariant(id: "conv-fp32", repository: "org/conv", revision: String(repeating: "a", count: 40), downloadBytes: 100, architecture: "parakeet")
+        let family = ModelFamily(
+            id: "conv", name: "Conv", mode: .dictation, languages: ["en"], params: "0.6B", license: "test", native: "FP32",
+            variants: ["FP32": source, "BF16": stored])
+        try JSONEncoder().encode(ModelCatalog(schema: 2, families: [family])).write(to: root.appendingPathComponent("models.json"))
+        let library = ModelLibrary(resources: root, registryURL: root.appendingPathComponent("registry.json"))
+        let model = try XCTUnwrap(library.models.first { $0.id == stored.id })
+        configure(model, files: ["config.json": Data(#"{"model_type":"parakeet"}"#.utf8), "model.safetensors": Data(repeating: 9, count: 64)])
+        library.downloadConfiguration = config; library.selectedID = stored.id
+        var completions: [Bool] = []
+        library.download(approval: confirmed(stored.id), calibrate: false) { completions.append($0) }
+        for _ in 0..<300 where completions.isEmpty { try await Task.sleep(nanoseconds: 20_000_000) }
+        XCTAssertEqual(completions, [false])
+        let expected = "Could not convert Conv to BF16: the downloaded weights are incomplete or damaged. Partial files removed; your recordings are kept."
+        XCTAssertEqual(library.downloadError, expected)
+        XCTAssertEqual(library.downloadFooter, expected + " Click Get to try again.")
+        XCTAssertNil(library.installed[stored.id])
+    }
     @MainActor func testBadHashAndRemoteCodeNeverRegister() async throws {
         for (badHash, code) in [(true, false), (false, true)] {
             let (root, model, config) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }

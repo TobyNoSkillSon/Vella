@@ -478,7 +478,7 @@ struct ModelTable: View {
     @ViewBuilder private var footer: some View {
         let busyLibrary = [controller.dictation, controller.streaming].first { $0.busy }
         Group {
-            let appError = controller.lastError ?? (busyLibrary == nil ? [controller.dictation, controller.streaming].compactMap(\.downloadError).first : nil)
+            let appError = controller.lastError ?? (busyLibrary == nil ? [controller.dictation, controller.streaming].compactMap(\.downloadFooter).first : nil)
             if let error = footerNotice(lastError: appError, workerError: runtime?.workerError, refusal: runtime?.refusal, now: Date().timeIntervalSince1970) {
                 let text = Text(error).font(.system(size: Self.footerSize)).foregroundStyle(.red).lineLimit(1).appKitTooltip(error)
                 ViewThatFits(in: .horizontal) {

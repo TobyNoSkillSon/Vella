@@ -33,6 +33,18 @@ final class RuntimeRegressionTests: XCTestCase {
     // MARK: first-dictation Get through the real download permission hook
 
     @MainActor func testGetDownloadsThroughRealPermissionHookThenTranscribesClipboardOnly() async throws {
+        try await firstDictationGet()
+    }
+
+    /// The same first-dictation Get with the support directory built from a path string, as `VELLA_SUPPORT_DIR` is.
+    @MainActor func testFirstDictationGetInstallsInAPathBuiltSupportDir() async throws {
+        try? FileManager.default.removeItem(at: root)
+        root = URL(fileURLWithPath: "/tmp/vella-runtime-regression-\(UUID())", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try await firstDictationGet()
+    }
+
+    @MainActor private func firstDictationGet() async throws {
         _ = NSApplication.shared
         // Catalog: one offered dictation family, one pinned 4b variant served by the mocked Hub.
         let resources = root.appendingPathComponent("resources", isDirectory: true)
