@@ -132,7 +132,7 @@ signature() {  # release.yml "Check the signature in the zip"
 }
 
 tests() {
-  if [[ $MODE == ci ]]; then CI=true NSUnbufferedIO=YES xcrun swift test; else NSUnbufferedIO=YES xcrun swift test; fi
+  if [[ $MODE == ci ]]; then CI=true NSUnbufferedIO=YES scripts/test-unit.sh; else NSUnbufferedIO=YES scripts/test-unit.sh; fi
 }
 
 step "source only in git" source_only
@@ -152,7 +152,7 @@ step "SHA256SUMS" checksums
 if [[ $SIGNED == 1 ]]; then step "release signature" signature; fi
 step "swift test ($([[ $MODE == ci ]] && echo unit || echo 'unit and integration'))" tests
 step "worker unit tests" scripts/test-worker.sh
-step "VellaWire tests" xcrun swift test --package-path Packages/VellaWire
+step "VellaWire tests" scripts/test-unit.sh --package-path Packages/VellaWire
 
 ZIP="$WORK/release/Vella-$VERSION-arm64.zip"
 echo "passed: $ZIP · sha256 $(awk -v name="$(basename "$ZIP")" '$2 == name {print $1}' "$WORK/release/SHA256SUMS") · $(du -h "$ZIP" | cut -f1 | xargs)"
