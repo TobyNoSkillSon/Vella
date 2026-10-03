@@ -180,8 +180,8 @@ struct ModelDeletionPlan {
                         changed = true
                         let notice =
                             precision != found.precision
-                            ? "\(mode.title) now uses \(found.family.name) at \(precisionInProse(precision)) from its installed source because the earlier precision is no longer offered; earlier files are kept."
-                            : "\(mode.title) now uses \(found.family.name) at \(precisionInProse(precision)) made on this Mac from its 16-bit source; the earlier download is kept."
+                            ? "\(mode.title) now uses \(found.family.name) at \(tierDTypeLabel(found.family, modelTier(ofPrecision: precision) ?? .t16)) from its installed source because the earlier precision is no longer offered; earlier files are kept."
+                            : "\(mode.title) now uses \(found.family.name) at \(tierDTypeLabel(found.family, modelTier(ofPrecision: precision) ?? .t16)) made on this Mac from its \(precisionInProse(found.family.downloadSource(of: precision)?.label ?? "16-bit")) source; the earlier download is kept."
                         notices.append(notice)
                         lastError = notice
                         continue

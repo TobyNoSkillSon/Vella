@@ -90,6 +90,11 @@ final class WorkerSwitchReportingTests: XCTestCase {
         let gate = try source(Self.gate)
         let version = try XCTUnwrap(matches(#"static let version = "([a-z0-9-]+)""#, in: gate).first)
         let data = try Data(contentsOf: Self.root.appendingPathComponent("Resources/diagnose-reference.json"))
-        XCTAssertEqual(DiagnoseReference.decode(data)?.gate_version, version)
+        let schema = (try JSONSerialization.jsonObject(with: data) as? [String: Any])?["schema"] as? Int ?? 0
+        if schema < 2 {
+            XCTAssertNil(DiagnoseReference.decode(data), "stale reference cannot identify this build's gate")
+        } else {
+            XCTAssertEqual(DiagnoseReference.decode(data)?.gate_version, version)
+        }
     }
 }

@@ -93,10 +93,14 @@ final class APIWiringTests: XCTestCase {
         delegate.modelsMenu = delegate.makeModelsMenu(controller: controller)
         let bridge = RuntimeBridge(runtime: runtime)
         bridge.attach(delegate)
+        var migrationNotices: [String] = []
+        bridge.migrationNotice = { migrationNotices.append($0) }
         // Launch migration (29 Sep 2026): the removed Voxtral leaves the registry; the imported Whisper q8 (affine-8 g64)
         // is re-keyed to Whisper large-v3's 8 tier id. That tier is now a mixed recipe (encoder FP16) made from the FP16,
         // so the import is never presented as it: without the FP16 Whisper large-v3 needs a Get (files kept).
         bridge.migrateRegistry()
+        XCTAssertEqual(migrationNotices.count, 1, "launch discloses selection changes in one notice")
+        XCTAssertTrue(migrationNotices[0].contains("Streaming"))
         let registered = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: runtime.support.appendingPathComponent("models-installed.json")))
         XCTAssertNil(registered["Voxtral-Mini-4B-Realtime-2602-4bit"])
         XCTAssertNil(registered["imported-whisper-large-v3-q8"])

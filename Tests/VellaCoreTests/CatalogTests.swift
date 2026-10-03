@@ -308,7 +308,9 @@ final class CatalogTests: XCTestCase {
             }
         }
         XCTAssertEqual(lines.filter { $0.hasPrefix("| ") && !$0.hasPrefix("| Model") && !$0.contains("(cloud API)") }.count, rows, "no other model rows")
-        XCTAssertTrue(table.contains("Shipped worker source `08203e24ebdf83004ca4d81daa03f678880898c2`"), "both builds and the source bridge are documented")
+        XCTAssertTrue(
+            table.contains("Shipped source trees: Worker `af976137fbcd3cb0346fb187aced20cd82f9cc86`, Packages `093375e515b30db74a5803abfdd6c1c0d28e29e2`"),
+            "both builds and the source bridge are documented")
     }
 
     /// The shipped benchmarks.json (schema 2): every catalog family, tiers 16/8/4 only (never fp32), all three cells per
