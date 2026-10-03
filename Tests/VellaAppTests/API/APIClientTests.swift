@@ -128,7 +128,7 @@ final class APIClientTests: XCTestCase {
         let (code, status, _) = try await vella(api, ["status"])
         XCTAssertEqual(code, 0)
         XCTAssertTrue(status.contains("fake-a 8 · Standard (Optimized Fast asked) loaded"), status)
-        let worker = try JSONDecoder().decode(HelperStatus.self, from: Data(#"{"worker":"dictation","pid":123,"event":"load","engine":"optimized","optimizations":{}}"#.utf8))
+        let worker = HelperStatus(json: ["worker": "dictation", "pid": 123, "event": "load", "engine": "optimized", "optimizations": [String: Bool]()])
         api.runtime.update("fake-a", worker: worker)
         let (_, optimized, _) = try await vella(api, ["status"])
         XCTAssertTrue(optimized.contains("fake-a 8 · Optimized Fast loaded"), optimized)

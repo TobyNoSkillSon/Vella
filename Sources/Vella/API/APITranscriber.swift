@@ -112,7 +112,7 @@ struct APITranscript {
     var segments: [TranscriptSegment]
     var duration: Double
     var model: APIModel
-    var language: String? = nil
+    var language: String?
 }
 
 /// Runs API transcriptions on the dictation runtime without ever getting in dictation's way: one file at a time
