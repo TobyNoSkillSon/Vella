@@ -2,8 +2,8 @@ import Foundation
 import CryptoKit
 import VellaCore
 
-/// Private, durable PCM + atomic metadata. Raw float PCM remains recoverable even
-/// if the process dies before a WAV header or the current segment is finalized.
+/// Private PCM + metadata. Microphone sessions are durable: raw float PCM remains recoverable even if the process
+/// dies before a WAV header or the current segment is finalized. API uploads opt into transient in-memory storage.
 final class RecordingSession {
     struct Segment: Codable, Equatable {
         var index: Int
@@ -30,12 +30,17 @@ final class RecordingSession {
     }
     let directory: URL
     var manifest: Manifest
+    /// API uploads are not recoverable recordings: their caller owns and removes the directory.
+    /// Keep their exact Float32 segments in memory, using the same writer and request assembly.
+    private var transientPCM: [Int: Data]?
+    var isTransient: Bool { transientPCM != nil }
     static var root: URL { Backend.support.appendingPathComponent("Recordings", isDirectory: true) }
     var seconds: Double { manifest.segments.reduce(0) { $0 + $1.seconds } }
     var transcriptURL: URL { directory.appendingPathComponent("transcript.txt") }
-    init(root: URL, config: Configuration) throws {
+    init(root: URL, config: Configuration, transient: Bool = false) throws {
         directory = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         manifest = Manifest(config: config)
+        transientPCM = transient ? [:] : nil
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try save()
     }
@@ -86,7 +91,7 @@ final class RecordingSession {
     func verifyRedundantTail(at i: Int) throws {
         let segment = manifest.segments[i]
         guard segment.frames == segment.overlapFrames else { return }
-        let raw = try Data(contentsOf: directory.appendingPathComponent(segment.filename))
+        let raw = try pcm(for: segment)
         guard raw.count == segment.frames * 4,
             segment.sha256.map({ $0 == Self.digest(raw) }) ?? true
         else {
@@ -95,7 +100,7 @@ final class RecordingSession {
         if raw.isEmpty { return }
         guard i > 0 else { throw VellaError.message("Saved overlap has no predecessor. Audio is retained.") }
         let previous = manifest.segments[i - 1]
-        let left = try Data(contentsOf: directory.appendingPathComponent(previous.filename))
+        let left = try pcm(for: previous)
         guard previous.index + 1 == segment.index, left.count == previous.frames * 4,
             previous.sha256.map({ $0 == Self.digest(left) }) ?? true,
             left.count >= raw.count, left.suffix(raw.count) == raw
@@ -110,6 +115,7 @@ final class RecordingSession {
         }
     }
     func save() throws {
+        guard !isTransient else { return }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         try durableWrite(encoder.encode(manifest), to: directory.appendingPathComponent("session.json"))
     }
@@ -169,7 +175,7 @@ final class RecordingSession {
         return text
     }
     func finalizeTranscript(_ text: String) throws -> String {
-        try durableWrite(Data(text.utf8), to: transcriptURL)
+        if !isTransient { try durableWrite(Data(text.utf8), to: transcriptURL) }
         manifest.state = "transcribed"; try save(); return text
     }
     // These methods use immutable directory only: capture still owns the manifest.
@@ -210,7 +216,7 @@ final class RecordingSession {
     func wav(for segment: Segment) throws -> URL { try wav(samples: samples(for: segment)[...]) }
     /// A segment's verified Float32 samples, overlap included, exactly as saved.
     func samples(for segment: Segment) throws -> [Float] {
-        let raw = try Data(contentsOf: directory.appendingPathComponent(segment.filename))
+        let raw = try pcm(for: segment)
         try Self.validatePCMByteCount(raw.count)
         guard raw.count / 4 == segment.frames, raw.count < 16_000 * 4 * 31 else {
             throw VellaError.message("Saved audio segment has an unexpected size. Original audio is preserved.")
@@ -218,6 +224,17 @@ final class RecordingSession {
         if let hash = segment.sha256, Self.digest(raw) != hash { throw VellaError.message("Audio changed before transcription. Saved files were retained.") }
         guard segment.frames > 0 else { throw VellaError.message("Saved audio segment is empty. Original audio is retained.") }
         return raw.withUnsafeBytes { bytes in (0..<segment.frames).map { bytes.loadUnaligned(fromByteOffset: $0 * 4, as: Float.self) } }
+    }
+    fileprivate func pcm(for segment: Segment) throws -> Data {
+        if let transientPCM {
+            guard let raw = transientPCM[segment.index] else { throw VellaError.message("Audio segment is missing.") }
+            return raw
+        }
+        return try Data(contentsOf: directory.appendingPathComponent(segment.filename))
+    }
+    fileprivate func openTransientSegment(_ index: Int) { transientPCM?[index] = Data() }
+    fileprivate func appendTransient(_ block: [Float], index: Int) {
+        block.withUnsafeBytes { transientPCM?[index, default: Data()].append(contentsOf: $0) }
     }
     /// The request file for one recognition: saved samples of one segment, or of a merged final pair (`TailMerge`).
     func wav(samples: ArraySlice<Float>) throws -> URL {
@@ -372,11 +389,15 @@ final class SegmentedPCMWriter {
         let segment = RecordingSession.Segment(index: index, overlapFrames: overlap.count)
         session.manifest.segments.append(segment)
         try session.save() // Metadata first: an interrupted creation is recoverable.
-        let url = session.directory.appendingPathComponent(segment.filename)
-        guard FileManager.default.createFile(atPath: url.path, contents: nil, attributes: [.posixPermissions: 0o600]) else {
-            throw VellaError.message("Could not create the next audio segment. Existing audio is retained.")
+        if session.isTransient {
+            session.openTransientSegment(index)
+        } else {
+            let url = session.directory.appendingPathComponent(segment.filename)
+            guard FileManager.default.createFile(atPath: url.path, contents: nil, attributes: [.posixPermissions: 0o600]) else {
+                throw VellaError.message("Could not create the next audio segment. Existing audio is retained.")
+            }
+            handle = try FileHandle(forWritingTo: url)
         }
-        handle = try FileHandle(forWritingTo: url)
         if !overlap.isEmpty { try write(overlap) }
         quietFrames = 0
     }
@@ -389,15 +410,22 @@ final class SegmentedPCMWriter {
         }
     }
     private func write(_ block: [Float]) throws {
-        guard let handle else { throw VellaError.message("Audio segment is not open.") }
-        try block.withUnsafeBytes { try writeBytes(handle, Data($0)) }
         let i = session.manifest.segments.count - 1
+        if session.isTransient {
+            session.appendTransient(block, index: session.manifest.segments[i].index)
+        } else {
+            guard let handle else { throw VellaError.message("Audio segment is not open.") }
+            try block.withUnsafeBytes { try writeBytes(handle, Data($0)) }
+        }
         session.manifest.segments[i].frames += block.count
         let rms = sqrt(block.reduce(0.0) { $0 + Double($1) * Double($1) } / Double(max(1, block.count)))
         session.manifest.segments[i].peakRMS = max(session.manifest.segments[i].peakRMS, rms)
     }
     private func process(_ block: [Float]) throws {
-        if sinceSync >= 16_000 { try checkSpace(); try handle?.synchronize(); sinceSync = 0 }
+        if sinceSync >= 16_000 {
+            if !session.isTransient { try checkSpace(); try handle?.synchronize() }
+            sinceSync = 0
+        }
         try write(block); totalFrames += block.count; sinceSync += block.count
         let rms = sqrt(block.reduce(0.0) { $0 + Double($1) * Double($1) } / Double(max(1, block.count)))
         quietFrames = rms <= policy.silenceRMS ? quietFrames + block.count : 0
@@ -415,7 +443,7 @@ final class SegmentedPCMWriter {
         try handle?.synchronize(); try handle?.close(); handle = nil
         if !session.manifest.segments.isEmpty {
             let i = session.manifest.segments.count - 1
-            let raw = try Data(contentsOf: session.directory.appendingPathComponent(session.manifest.segments[i].filename))
+            let raw = try session.pcm(for: session.manifest.segments[i])
             try RecordingSession.validatePCMByteCount(raw.count)
             // A failed write may still have persisted complete samples. Disk is authoritative.
             session.manifest.segments[i].frames = raw.count / 4

@@ -17,7 +17,8 @@ enum APIAudio {
         return Double(audio.length) / rate
     }
 
-    /// Decodes `file` into a new session under `root` (its own directory; never Recordings). The caller removes it.
+    /// Decodes `file` into a transient session under `root` (its own directory; never Recordings). Exact Float32
+    /// segments stay in memory for the request; only request WAVs reach disk. The caller removes the directory.
     static func segment(_ file: URL, root: URL, config: Configuration, maxSeconds: Double = apiMaxAudioSeconds) throws -> (RecordingSession, Double) {
         let audio: AVAudioFile
         do { audio = try AVAudioFile(forReading: file) } catch { throw APIError(400, unreadable, param: "file", code: "invalid_audio") }
@@ -39,7 +40,7 @@ enum APIAudio {
         }
         converter.downmix = true
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        let session = try RecordingSession(root: root, config: config)
+        let session = try RecordingSession(root: root, config: config, transient: true)
         do {
             let writer = try SegmentedPCMWriter(session: session)
             var ended = false, readFailure: Error?
@@ -151,7 +152,7 @@ struct APITranscript {
         var model = try resolve()
         let config = Configuration(model: model.path)
         let root = self.root
-        let decode = Task.detached(priority: .utility) { try APIAudio.segment(file, root: root, config: config) }
+        let decode = Task.detached(priority: .userInitiated) { try APIAudio.segment(file, root: root, config: config) }
         let (session, duration) = try await withTaskCancellationHandler(operation: { try await decode.value }, onCancel: { decode.cancel() })
         defer { try? FileManager.default.removeItem(at: session.directory) }
 
