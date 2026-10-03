@@ -50,11 +50,13 @@ import VellaCore
         if let caveat = controller.benchmarkHardware.caveat { o["hardware_note"] = caveat }
         o["local_files"] = f.variants.keys.sorted().compactMap { precision -> [String: Any]? in
             guard controller.localPath(f, precision) != nil else { return nil }
-            let legacy = f.variants[precision]?.isDerived == true && registeredCheckpoint(f, precision, installedPath: { library.installed[$0]?.path }) == nil
+            let legacy =
+                f.variants[precision]?.isDerived == true && f.variants[precision]?.isStored != true
+                && registeredCheckpoint(f, precision, installedPath: { library.installed[$0]?.path }) == nil
             return [
                 "precision": legacy ? "legacy published quantization" : tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16),
                 "catalog_precision": tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16),
-                "legacy": legacy, "used": !legacy, "offered": !legacy && controller.options(f).contains(precision),
+                "legacy": legacy, "used": !legacy && controller.available(f, precision), "offered": !legacy && controller.options(f).contains(precision),
                 "deletable": f.variants[precision].map { library.deletionBlockReason($0.id) == nil } ?? false
             ]
         }

@@ -112,7 +112,7 @@ import XCTest
         let request = try XCTUnwrap(bridge.ref(path: eight, mode: .dictation), "a dictation recorded with the 8-bit files")
         XCTAssertEqual(request.precision, "BF16"); XCTAssertEqual(request.path, bf16); XCTAssertEqual(request.selection, expected)
         controller.dictation.activeModelPath = eight
-        XCTAssertEqual(controller.activeLabel(.dictation), "\(parakeet.name) \(precisionInProse("BF16"))")
+        XCTAssertEqual(controller.activeLabel(.dictation), "\(parakeet.name) bf16")
 
         // Loaded at 8 (an earlier version's launch set): that cell is what runs and what everyone reports.
         let loaded = bridge.ref(parakeet, "8b", path: eight, selection: recorded)
