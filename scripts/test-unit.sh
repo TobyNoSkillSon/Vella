@@ -26,5 +26,5 @@ BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build --package-path "$PACKAGE"
 BUNDLES=()
 while IFS= read -r bundle; do BUNDLES+=("$bundle"); done < <(find "$BIN" -maxdepth 1 -name '*PackageTests.xctest')
 [[ ${#BUNDLES[@]} == 1 ]] || { echo 'Expected exactly one XCTest bundle'; exit 1; }
-DEVELOPER_DIR="$XCODE" xcrun xctest "${BUNDLES[0]}" | tee "$LOG"
+DEVELOPER_DIR="$XCODE" xcrun xctest "${BUNDLES[0]}" 2>&1 | tee "$LOG"
 grep -Eq 'Executed [1-9][0-9]* tests?' "$LOG" || { echo 'No XCTest tests executed'; exit 1; }
