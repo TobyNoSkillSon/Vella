@@ -4,6 +4,39 @@ import VellaTestSupport
 
 /// The primary installer forwards verification-only mode instead of silently performing an installation.
 final class InstallScriptArgumentsTests: XCTestCase {
+    func testReleaseDownloadFailureHasValidUTF8AndLeavesTheAppUnchanged() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-installer-offline-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bin = root.appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        for (name, body) in ["curl": "echo fixture-offline >&2; printf 000; exit 7", "sysctl": "echo 1", "uname": "echo Darwin", "sw_vers": "echo 26.6"] {
+            let file = bin.appendingPathComponent(name)
+            try Data(("#!/bin/bash\n" + body + "\n").utf8).write(to: file)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
+        }
+        for (path, args) in [("scripts/install-release.sh", ["2.0.0", "--dry-run"]), ("docs/install.sh", ["--dry-run"])] {
+            let process = Process(), output = Pipe()
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = [Repository.root.appendingPathComponent(path).path] + args
+            process.environment = [
+                "PATH": bin.path + ":/usr/bin:/bin:/usr/sbin:/sbin", "HOME": root.path,
+                "TMPDIR": root.path + "/", "VELLA_RELEASE_BASE_URL": "https://fixture.invalid",
+                "VELLA_DESTINATION_APP": root.appendingPathComponent("Vella.app").path,
+                "VELLA_SUPPORT_DIR": root.appendingPathComponent("support").path
+            ]
+            process.standardOutput = output; process.standardError = output
+            try process.run(); let bytes = output.fileHandleForReading.readDataToEndOfFile(); process.waitUntilExit()
+            let text = try XCTUnwrap(String(data: bytes, encoding: .utf8), "installer output must be valid UTF-8")
+            XCTAssertNotEqual(process.terminationStatus, 0)
+            XCTAssertTrue(text.contains("Downloading Vella 2.0.0…"), path)
+            XCTAssertTrue(text.contains("the installed app is unchanged"), text)
+            XCTAssertFalse(text.contains("unbound variable"), text)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Vella.app").path))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("support").path))
+        }
+    }
+
     func testSourceDryRunAndUnknownArgumentsRefuseBeforeBuilding() throws {
         for argument in ["--dry-run", "--unknown"] {
             let process = Process(), output = Pipe()

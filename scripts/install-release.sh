@@ -25,7 +25,7 @@ BASE="${VELLA_RELEASE_BASE_URL:-https://github.com/TobyNoSkillSon/Vella/releases
 ZIP="Vella-$VERSION-arm64.zip"
 TEMP="$(mktemp -d "${TMPDIR:-/tmp}/vella-release.XXXXXX")"
 trap 'rm -rf "$TEMP"' EXIT
-echo "Downloading Vella $VERSION…"
+echo "Downloading Vella ${VERSION}…"
 fetch() {
   local http result=0
   http="$(curl --fail --location --silent --show-error --proto '=https,file' --proto-redir '=https' --tlsv1.2 \
