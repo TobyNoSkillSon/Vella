@@ -127,18 +127,13 @@ extension WorkerTests {
                 let nax = FastParakeetNAX.available(architecture: "applegpu_g17s", osVersion: version)
                 let int8 = FastParakeetInt8.available(architecture: "applegpu_g17s", osVersion: version)
                 #expect(!nax && !int8)
-                Device.withDefaultDevice(Device(.cpu)) {
-                    // No evaluation or kernel dispatch: nil is the production caller's stock-MLX branch.
-                    let x = MLXArray([Float](repeating: 1, count: 9 * 64), [9, 64]).asType(.bfloat16)
-                    let w = MLXArray([Float](repeating: 1, count: 32 * 64), [32, 64]).asType(.bfloat16)
-                    let codes = MLXArray([UInt32](repeating: 1, count: 32 * 16), [32, 16])
-                    let scales = MLXArray([Float](repeating: 1, count: 32), [32, 1]).asType(.bfloat16)
-                    #expect(FastParakeetNAX.matmul(x, w, tensorOpsAvailable: nax) == nil)
-                    #expect(
-                        FastParakeetInt8.matmul(
-                            x, weight: codes, scales: scales, biases: scales, bits: 8,
-                            groupSize: 64, bias: nil, tensorOpsAvailable: int8) == nil)
-                }
+                // A null sentinel must not be inspected when unavailable. No arrays, streams, evaluation or GPU work.
+                let x = MLXArray.mlxNone
+                #expect(FastParakeetNAX.matmul(x, x, tensorOpsAvailable: nax) == nil)
+                #expect(
+                    FastParakeetInt8.matmul(
+                        x, weight: x, scales: x, biases: x, bits: 8,
+                        groupSize: 64, bias: nil, tensorOpsAvailable: int8) == nil)
             }
             for version in [os(26, 2), os(26, 6), os(27, 0)] {
                 #expect(SmallMGEMM.tensorOpsAvailable(architecture: "applegpu_g17s", osVersion: version))
