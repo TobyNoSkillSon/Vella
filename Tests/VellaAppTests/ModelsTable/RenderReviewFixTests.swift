@@ -142,7 +142,7 @@ import ServiceManagement
         let controller = TableRenderDelegate.controller(state)
         let family = try XCTUnwrap(controller.catalog.family("nemotron-3.5-streaming-0.6b"))
         let expected =
-            "Vella's optimized path didn't pass its self-test on this Mac (its output didn't match Standard (fused conformer)), so this model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
+            "Vella's optimized path didn't pass its self-test on this Mac: its output didn't match Standard (fused conformer). This model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
         XCTAssertEqual(controller.loadedEngineHelp(family), expected)
         let views: [(String, NSView)] =
             [("fallback-tooltip", TooltipSheet(pairs: [("Fell back to Standard", expected)], width: 620))]

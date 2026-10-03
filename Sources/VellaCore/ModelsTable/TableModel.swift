@@ -232,7 +232,7 @@ public func fallbackEngineHelp(reason: String?) -> String {
         plain = plain.replacingOccurrences(of: upper, with: lower)
     }
     return
-        "Vella's optimized path didn't pass its self-test on this Mac (\(plain)), so this model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
+        "Vella's optimized path didn't pass its self-test on this Mac: \(plain). This model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
 }
 
 // MARK: Hardware note

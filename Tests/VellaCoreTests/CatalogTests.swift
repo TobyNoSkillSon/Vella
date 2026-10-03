@@ -473,7 +473,7 @@ final class CatalogTests: XCTestCase {
     func testFallbackTooltipUsesPlainReasonWithoutRepeatingPrecision() {
         XCTAssertEqual(
             fallbackEngineHelp(reason: "fused conformer self-test failed: streamed text did not match Standard"),
-            "Vella's optimized path didn't pass its self-test on this Mac (its output didn't match Standard (fused conformer)), so this model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
+            "Vella's optimized path didn't pass its self-test on this Mac: its output didn't match Standard (fused conformer). This model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
         )
         XCTAssertTrue(fallbackEngineHelp(reason: "decoder self-test failed: BF16 output was non-finite").contains("bf16 output was non-finite (decoder)"))
         XCTAssertFalse(fallbackEngineHelp(reason: nil).contains("Precision:"))
