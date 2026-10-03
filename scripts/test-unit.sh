@@ -6,6 +6,8 @@ cd "$(dirname "$0")/.."
 CLT=/Library/Developer/CommandLineTools
 XCODE="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 PLATFORM="$XCODE/Platforms/MacOSX.platform/Developer"
+LOG="$(mktemp -t vella-unit-tests)"
+trap 'rm -f "$LOG"' EXIT
 DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" test --build-system native --enable-xctest --disable-swift-testing \
   -Xswiftc -F -Xswiftc "$PLATFORM/Library/Frameworks" \
   -Xswiftc -I -Xswiftc "$PLATFORM/usr/lib" \
@@ -13,4 +15,6 @@ DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" test --build-system native --enable-xc
   -Xlinker -L -Xlinker "$PLATFORM/usr/lib" \
   -Xlinker -rpath -Xlinker "$PLATFORM/Library/Frameworks" \
   -Xlinker -rpath -Xlinker "$PLATFORM/usr/lib" \
-  -Xlinker -rpath -Xlinker "$CLT/Library/Developer/usr/lib" "$@"
+  -Xlinker -rpath -Xlinker "$CLT/Library/Developer/usr/lib" "$@" | tee "$LOG"
+# CLT's default can build an XCTest bundle without running it; an empty run is not a pass.
+grep -Eq 'Executed [1-9][0-9]* tests?' "$LOG" || { echo 'No XCTest tests executed'; exit 1; }
