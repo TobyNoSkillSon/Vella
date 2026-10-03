@@ -19,7 +19,9 @@ import CryptoKit
     private func recording(seconds: Double, model: String = "/qa/model", userStopped: Bool = true) throws -> RecordingSession {
         let session = try RecordingSession(root: root.appendingPathComponent("Recordings"), config: Configuration(model: model))
         let writer = try SegmentedPCMWriter(session: session)
-        let samples = (0..<Int(seconds * 16_000)).map { Float(0.1 * sin(Double($0) * 2 * .pi * 440 / 16_000)) }
+        let count = Int(seconds * 16_000)
+        let radiansPerSample = 2.0 * Double.pi * 440.0 / 16_000.0
+        let samples = (0..<count).map { Float(0.1 * sin(Double($0) * radiansPerSample)) }
         try samples.withUnsafeBufferPointer { try writer.append($0) }
         try writer.finish(userStopped: userStopped)
         return session
