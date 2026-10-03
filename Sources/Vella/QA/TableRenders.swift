@@ -592,7 +592,7 @@ import VellaUpdate
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: RenderFixture.root, withIntermediateDirectories: true)
         let permission = InsertionPermission(isTrusted: { true }, prompt: {}, history: PermissionPromptHistory(read: { true }, write: {}))
-        guard let runtime = try? Runtime.isolated(RenderFixture.root) else { fputs("Could not create isolated render support.\n", stderr); exit(1) }
+        let runtime = Runtime(support: RenderFixture.root, environment: [:])
         let model = DictationController(insertionPermission: permission, configurationURL: runtime.configURL, backend: Backend(runtime: runtime), monitorDefaultInput: false)
         app = AppDelegate(model: model)
         let controller = RenderFixture.controller(installed: RenderFixture.downloaded)
