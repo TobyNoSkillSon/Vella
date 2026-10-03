@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import VellaCore
+import VellaWire
 import VellaUpdate
 
 // Render harness for the Models table and the menu (documentation and review images).
