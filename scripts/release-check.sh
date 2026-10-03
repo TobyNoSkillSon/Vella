@@ -109,8 +109,24 @@ package() {
     identity=$VELLA_SIGNING_SHA1
   fi
   DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
-    VELLA_SIGN_IDENTITY="$identity" VELLA_RELEASE_OUTPUT_DIR="$WORK/release" scripts/package-release.sh "$VERSION" || return
+    VELLA_PACKAGE_LOCAL_CHECK=1 VELLA_SIGN_IDENTITY="$identity" VELLA_RELEASE_OUTPUT_DIR="$WORK/release" scripts/package-release.sh "$VERSION" || return
   cat Worker/.build/split-build-provenance.txt
+}
+
+# A development-signed (or ad hoc) zip is staged for these local checks only: it must be marked local-only and refused
+# for upload; only a zip signed by Vella Release Signing with the pinned requirement passes `for-upload`.
+upload_identity_guard() {
+  local zip="$WORK/release/Vella-$VERSION-arm64.zip" class
+  class="$(scripts/release-identity.sh classify "$zip")"
+  echo "signed as: $class"
+  if [[ $class == release ]]; then
+    scripts/release-identity.sh for-upload "$WORK/release"
+  else
+    [[ -e "$WORK/release/LOCAL-ONLY-NOT-FOR-UPLOAD.txt" ]] || { echo "a $class-signed package is not marked local-only"; return 1; }
+    if scripts/release-identity.sh for-upload "$WORK/release"; then echo "a $class-signed package was accepted for upload"; return 1; fi
+    echo "refused for upload, as required: only the CI build (Vella Release Signing) may be uploaded"
+  fi
+  [[ $SIGNED == 0 || $class == release ]] || { echo "--signed must produce a release-signed package"; return 1; }
 }
 
 checksums() { (cd "$WORK/release" && shasum -a 256 -c SHA256SUMS); }
@@ -143,6 +159,9 @@ step "public data privacy" xcrun swift scripts/public-data-guard.swift
 step "toolchains" toolchains
 step "changelog $VERSION" changelog
 step "doc links" doc_links
+step "public prose claims" scripts/check-doc-claims.sh
+step "public prose claims fixture" scripts/check-doc-claims.sh --selftest
+step "release identity fixture" scripts/test-release-identity.sh
 step "model READMEs match the benchmarks" xcrun swift scripts/model-readmes.swift --check
 step "skill and user guide model lists" xcrun swift scripts/agent-docs.swift --check
 step "lint (swift-format, SwiftLint)" scripts/lint.sh
@@ -150,6 +169,7 @@ step "symbol retention fixture" scripts/test-release-symbols.sh
 step "build and package" package
 step "release archive and tree exclude lab" release_archive_no_lab
 step "SHA256SUMS" checksums
+step "release identity (nothing development-signed is uploadable)" upload_identity_guard
 if [[ $SIGNED == 1 ]]; then step "release signature" signature; fi
 step "swift test ($([[ $MODE == ci ]] && echo unit || echo 'unit and integration'))" tests
 step "worker unit tests" scripts/test-worker.sh

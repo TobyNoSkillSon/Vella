@@ -19,6 +19,9 @@ VELLA_APP_PATH="$STAGE/Vella.app" VELLA_REGISTER_APP=0 VELLA_BUILD_VERSION="$VER
   "$PROJECT/scripts/build.sh" >/dev/null
 APP="$STAGE/Vella.app"
 codesign --verify --deep --strict "$APP"
+# Never stage a build signed with a developer's own identity: it exposes the developer's email and breaks CI-signed
+# updates. Local checks may stage one with VELLA_PACKAGE_LOCAL_CHECK=1; the output is then marked as not uploadable.
+SIGNED_AS="$("$PROJECT/scripts/release-identity.sh" assert-stageable "$APP")"
 [[ "$(readlink "$APP/Contents/MacOS/VellaStreamingWorker")" == VellaWorker ]] || { echo 'Invalid streaming alias target' >&2; exit 1; }
 ZIP="Vella-$VERSION-arm64.zip"
 "$PROJECT/scripts/release-zip.sh" "$APP" "$STAGE/$ZIP"
@@ -40,7 +43,11 @@ ditto -x -k "$STAGE/$SYMBOLS_ZIP" "$STAGE/symbols-check"
 (cd "$STAGE" && shasum -a 256 "$ZIP" "$SYMBOLS_ZIP") > "$STAGE/SHA256SUMS"
 mkdir -p "$(dirname "$OUT")"
 mkdir "$OUT"
+if [[ "$SIGNED_AS" != release ]]; then
+  echo "Signed as '$SIGNED_AS', not Vella Release Signing: for local checks only. Never upload this build; release only the CI build (.github/workflows/release.yml)." > "$OUT/LOCAL-ONLY-NOT-FOR-UPLOAD.txt"
+fi
 mv "$STAGE/$ZIP" "$OUT/$ZIP"
 mv "$STAGE/$SYMBOLS_ZIP" "$OUT/$SYMBOLS_ZIP"
 mv "$STAGE/SHA256SUMS" "$OUT/SHA256SUMS"
-echo "Packaged locally: $OUT/$ZIP, $OUT/$SYMBOLS_ZIP and $OUT/SHA256SUMS (version $VERSION build $BUILD; not published or installed)"
+echo "Packaged locally: $OUT/$ZIP, $OUT/$SYMBOLS_ZIP and $OUT/SHA256SUMS (version $VERSION build $BUILD; signed as $SIGNED_AS; not published or installed)"
+[[ "$SIGNED_AS" == release ]] || echo "Marked local-only (LOCAL-ONLY-NOT-FOR-UPLOAD.txt): not for upload."
