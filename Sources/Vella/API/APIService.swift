@@ -63,6 +63,8 @@ import VellaCore
         } catch let error as APIError {
             return .error(error)
         } catch is CancellationError {
+            ModelLibrary.downloadLog.notice(
+                "API \(request.head.method, privacy: .public) \(request.head.path, privacy: .public) ended cancelled: \(APIJobCancellation.current?.source ?? "request task", privacy: .public)")
             return .error(APIError(499, "request cancelled"))
         } catch {
             return .error(APIError(500, error.localizedDescription))

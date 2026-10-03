@@ -622,15 +622,28 @@ struct ModelDeletionPlan {
             pendingLoads[f.id] = precision; pendingSelections[f.id] = selection
             defer { pendingLoads[f.id] = nil; pendingSelections[f.id] = nil }
             let cancellation = APIJobCancellation.current
+            let variant = approval.variantID
             let downloaded: Bool = await withTaskCancellationHandler(
                 operation: {
                     await withCheckedContinuation { continuation in
-                        if Task.isCancelled { continuation.resume(returning: false); return }
+                        if Task.isCancelled {
+                            ModelLibrary.downloadLog.notice(
+                                "Get \(variant, privacy: .public) not started: request cancelled (\(cancellation?.source ?? "request task", privacy: .public))")
+                            continuation.resume(returning: false); return
+                        }
                         lib.download(approval: approval, calibrate: false) { continuation.resume(returning: $0) }
                     }
                 },
-                onCancel: { Task { @MainActor in lib.cancel(source: cancellation?.source ?? "request task") } })
-            try Task.checkCancellation()
+                onCancel: {
+                    let source = cancellation?.source ?? "request task"
+                    ModelLibrary.downloadLog.notice("Get \(variant, privacy: .public) request cancelled: \(source, privacy: .public)")
+                    Task { @MainActor in lib.cancel(source: source) }
+                })
+            if Task.isCancelled {
+                ModelLibrary.downloadLog.notice(
+                    "Get \(variant, privacy: .public) ends cancelled after the download: \(cancellation?.source ?? "request task", privacy: .public)")
+                throw CancellationError()
+            }
             pendingLoads[f.id] = nil; pendingSelections[f.id] = nil
             guard downloaded, available(f, precision) else { throw APIError(500, lib.downloadError ?? "Model download failed") }
             let deadline = Date().addingTimeInterval(900)
@@ -688,5 +701,5 @@ struct ModelDeletionPlan {
         previews[f.id] = nil; couplingNotes[f.id] = nil; reload()
     }
 
-    func cancelDownloads() { dictation.cancel(); streaming.cancel() }
+    func cancelDownloads() { dictation.cancel(source: "Models table Cancel"); streaming.cancel(source: "Models table Cancel") }
 }
