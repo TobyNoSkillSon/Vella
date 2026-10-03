@@ -5,6 +5,7 @@
 set -euo pipefail
 PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
 PLIST="$PROJECT/Resources/Info.plist"
+xcrun swift "$PROJECT/scripts/check-diagnose-reference.swift" "$PROJECT/Resources/diagnose-reference.json"
 VERSION="${1:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")}"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $VERSION" >&2; exit 2; }

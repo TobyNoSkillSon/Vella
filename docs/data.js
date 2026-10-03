@@ -3678,7 +3678,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -3716,7 +3716,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Exact now equals Fast for Whisper; not measured separately yet."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -3783,7 +3783,7 @@ const VELLA_BENCHMARKS = {
                 "offered": true,
                 "reasons": []
               },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -3840,7 +3840,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -3879,7 +3879,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Exact now equals Fast for Whisper; not measured separately yet."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -3949,7 +3949,7 @@ const VELLA_BENCHMARKS = {
                 "offered": true,
                 "reasons": []
               },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -4005,7 +4005,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -4043,7 +4043,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Exact now equals Fast for Whisper; not measured separately yet."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -4115,7 +4115,7 @@ const VELLA_BENCHMARKS = {
                   "2 clips empty or cut short where 16 had the words"
                 ]
               },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -4176,7 +4176,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -4214,7 +4214,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Exact now equals Fast for Whisper; not measured separately yet."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -4281,7 +4281,7 @@ const VELLA_BENCHMARKS = {
                 "offered": true,
                 "reasons": []
               },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -4334,7 +4334,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -4373,7 +4373,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Exact now equals Fast for Whisper; not measured separately yet."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -4441,7 +4441,7 @@ const VELLA_BENCHMARKS = {
                 "offered": true,
                 "reasons": []
               },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -4506,7 +4506,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -4544,7 +4544,7 @@ const VELLA_BENCHMARKS = {
               "reasons": [
                 "Exact now equals Fast for Whisper; not measured separately yet."
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": null,
@@ -4619,7 +4619,7 @@ const VELLA_BENCHMARKS = {
                   "1 clip empty or cut short where 16 had the words"
                 ]
               },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 55cb080, built from 77be9f2); not the shipped FP16 Standard"
+              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -5384,8 +5384,8 @@ const VELLA_BENCHMARKS = {
   },
   "builds": {
     "measured": {
-      "commit": "55cb080",
-      "built_from": "77be9f2",
+      "commit": "53d1bf3",
+      "built_from": "932136f",
       "worker_sha256": "8a215e827e5972ef9afb4db7cf57ea8f068006f40ef1510ccd66e6977546b99d",
       "tag": "full-8a215e827e59",
       "dates": [
@@ -5397,15 +5397,15 @@ const VELLA_BENCHMARKS = {
       "env_map_sha256": "f6b6918a5ede08b3dffa45f4540bc9c9c488f566da8ef63fd7860e0aa8723242"
     },
     "shipped": {
-      "commit": "08203e24ebdf83004ca4d81daa03f678880898c2",
-      "worker_source_commit": "08203e24ebdf83004ca4d81daa03f678880898c2",
+      "commit": "843a43444659dbd7f2de507b1e2da11453efb31b",
+      "worker_source_commit": "843a43444659dbd7f2de507b1e2da11453efb31b",
       "worker_sha256": null,
       "commit_kind": "informational measured-defaults commit (may change in a history rewrite)",
       "worker_source_trees": {
         "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
         "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
       },
-      "build_scripts_sha256": "a4a1fbcbdec5ecc7ade7ea8bf0b241cc5fec78a1e368aa1b2d3b5f7c9db463b1",
+      "build_scripts_sha256": "f86c4e07a26e9f2655779c3118a61b7cce3df57fa3cac38da7faad02a2f1b142",
       "worker_documentation_changes": [
         "Worker/Sources/MLXAudioSTT/NemotronASR/README.md",
         "Worker/Sources/MLXAudioSTT/Parakeet/README.md",
@@ -5413,7 +5413,7 @@ const VELLA_BENCHMARKS = {
         "Worker/Sources/MLXAudioSTT/Whisper/README.md"
       ],
       "build_receipt": "verified CI artifact receipt (filled at publish)",
-      "note": "Worker/Packages tree hashes and build-script bytes are authoritative. Relative to 08203e2, ALL changed Worker files are: Worker/Sources/MLXAudioSTT/NemotronASR/README.md, Worker/Sources/MLXAudioSTT/Parakeet/README.md, Worker/Sources/MLXAudioSTT/Qwen3ASR/README.md, Worker/Sources/MLXAudioSTT/Whisper/README.md (excluded by Worker/Package.swift); every other Worker file and all Packages bytes are identical. The commit is informational. Worker source is pinned; worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate. Bundled pre-fill data records source only."
+      "note": "Worker/Packages tree hashes and build-script bytes are authoritative. Relative to 843a434, ALL changed Worker files are: Worker/Sources/MLXAudioSTT/NemotronASR/README.md, Worker/Sources/MLXAudioSTT/Parakeet/README.md, Worker/Sources/MLXAudioSTT/Qwen3ASR/README.md, Worker/Sources/MLXAudioSTT/Whisper/README.md (excluded by Worker/Package.swift); every other Worker file and all Packages bytes are identical. The commit is informational. Packaging now adds the metadata-only diagnose-reference qualification guard (3 Oct); inference/build compilation is unchanged. Worker source is pinned; worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate. Bundled pre-fill data records source only."
     },
     "bridge": {
       "evidence": "scoped CPU source/key/verdict bridge receipt (3 Oct 2026)",
@@ -5421,14 +5421,14 @@ const VELLA_BENCHMARKS = {
       "whisper_fast_token_identity": {
         "status": "pass",
         "evidence": "Whisper Fast token-identity receipt (3 Oct 2026)",
-        "worker_source": "40a2eef",
+        "worker_source": "4d5e996",
         "suite": "v2-quick",
         "cells": 6,
         "clips_per_cell": 122,
         "token_identical_per_cell": 122,
         "engine": "optimized",
         "components": "decoder (+ fused_decode on 8b/4b); no encoder lever",
-        "summary": "One gpulock run of the new 40a2eef build: large-v3 and turbo × FP16/8b/4b, each 122/122 clips token-identical to measured Fast transcripts."
+        "summary": "One gpulock run of the new 4d5e996 build: large-v3 and turbo × FP16/8b/4b, each 122/122 clips token-identical to measured Fast transcripts."
       },
       "defaults": "defaults flipped to the measured lever sets (Toby, 3 Oct); default keys == measured verdict keys: 30/30; 0 mismatches outside Whisper (whisper-4 listed separately)"
     }

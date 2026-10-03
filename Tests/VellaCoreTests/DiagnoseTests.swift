@@ -195,6 +195,14 @@ final class DiagnoseFormatTests: XCTestCase {
         let raw = try Data(contentsOf: url)
         let schema = (try JSONSerialization.jsonObject(with: raw) as? [String: Any])?["schema"] as? Int ?? 0
         if schema < 2 { XCTAssertNil(DiagnoseReference.decode(raw), "do not compare the stale bundled reference") }
+        let bundled = try XCTUnwrap(DiagnoseReference.decode(raw), "local schema-2 reference must be readable by app and CLI")
+        XCTAssertNotNil(bundled.run(model: "parakeet-v3-ultra", precision: "BF16", engine: "optimized", selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast)))
+        for model in ["whisper-large-v3", "whisper-large-v3-turbo"] {
+            for precision in ["FP16", "8b"] {
+                XCTAssertNil(bundled.run(model: model, precision: precision, engine: "mlx"))
+                XCTAssertNil(bundled.run(model: model, precision: precision, engine: "optimized", selection: ModelSelection(tier: .t16, path: .optimized, mode: .exact)))
+            }
+        }
         XCTAssertNil(DiagnoseReference.decode(Data(#"{"schema": 1, "models": {}}"#.utf8)))
     }
 

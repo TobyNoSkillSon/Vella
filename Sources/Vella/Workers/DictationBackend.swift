@@ -59,6 +59,8 @@ struct WorkerExited: LocalizedError {
     }
     private var lastSlot: String?
     private(set) var lastMetrics: [String: Double] = [:]
+    /// Detected language only when the worker explicitly supplies it; never inferred from transcript text.
+    private(set) var lastLanguage: String?
     private(set) var ownership = "Vella runtime unloaded"
     /// The worker that served the latest request (tests, diagnostics).
     var processID: Int32? { lastSlot.flatMap { slots[$0]?.pid } ?? slots.values.lazy.compactMap(\.pid).first }
@@ -131,6 +133,7 @@ struct WorkerExited: LocalizedError {
                 activeSlot = slot; lastSlot = ref.id
                 let object = try await send(slot, ["audio": file.path, "model": slot.ref.path], timeout: requestTimeout)
                 lastMetrics = (object["metrics"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? NSNumber)?.doubleValue }
+                lastLanguage = (object["language"] as? String).flatMap { $0.isEmpty || $0 == "unknown" ? nil : $0 }
                 if let error = object["error"] as? [String: Any] {
                     retire(slot)
                     throw VellaError.message(

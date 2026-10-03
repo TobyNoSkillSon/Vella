@@ -2,6 +2,11 @@
 
 ## 2.0.0 (3 October 2026)
 
+- `vella status` names each loaded model's tier and effective Standard/Optimized Fast/Optimized Exact path; stock fallbacks retain the requested recipe in parentheses.
+- The Microphone menu now states that the MacBook fallback applies when recording starts. Losing the mic mid-recording stops capture, keeps the audio and offers Retry.
+- Local builds include a provisional schema-2 diagnose reference with recorded conditions. Release checking and packaging refuse it until a qualified reference replaces it.
+- Known limitation: the pinned worker does not return its detected language. `verbose_json.language` reports a supplied worker language when available, otherwise the requested code or `unknown`; a requested code is not detected-language evidence.
+
 - Kept performance levers are now on by default for their measured model/precision cells: native INT8/INT4 in Parakeet Fast; tail blocks in Ultra Fast and Exact; keep-cache in Nemotron Fast and Exact, plus joint batching in BF16 Fast. Standard uses none. Lab `=1`/`=0` overrides remain; effective gate keys match measured verdicts.
 
 ### Added
@@ -22,7 +27,7 @@
 
 - **Parakeet v3 int8 is offered.** The final presence gate passed; int4 remains unavailable.
 
-- On Apple M5 Max, macOS 26.6, 1–2 October 2026: Parakeet v3 Ultra bf16 · Optimized Fast is 15.51% English WER, 507.1× real time, 4.58 J per audio minute and 1,792 MB peak RAM. Accuracy uses v2 (239.7 min); speed, energy and peak RAM use v2-quick (22.5 min). Measured build 55cb080 was built from 77be9f2; the final figures carry the source bridge and build provenance in `Resources/benchmarks.json`.
+- On Apple M5 Max, macOS 26.6, 1–2 October 2026: Parakeet v3 Ultra bf16 · Optimized Fast is 15.51% English WER, 507.1× real time, 4.58 J per audio minute and 1,792 MB peak RAM. Accuracy uses v2 (239.7 min); speed, energy and peak RAM use v2-quick (22.5 min). Measured build 53d1bf3 was built from 932136f; the final figures carry the source bridge and build provenance in `Resources/benchmarks.json`.
 - Whisper Fast figures remain measured. Standard and Exact figures are withdrawn and not measured yet; no Whisper speed multiplier against Standard is claimed. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
 
 ### Changed

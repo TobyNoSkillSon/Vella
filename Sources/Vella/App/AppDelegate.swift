@@ -345,7 +345,8 @@ import VellaCore
             devices.addItem(entry)
         }
         devices.addItem(.separator())
-        let fallback = NSMenuItem(title: "Falls back to MacBook microphone", action: nil, keyEquivalent: "")
+        let fallback = NSMenuItem(title: "MacBook fallback when recording starts", action: nil, keyEquivalent: "")
+        fallback.toolTip = "Losing the microphone during recording stops capture, keeps the audio and offers Retry."
         fallback.isEnabled = false; devices.addItem(fallback)
         microphones.submenu = devices; menu.addItem(microphones)
         // Activation customization lives immediately below Microphone (compact native menu preserved).

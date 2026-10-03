@@ -154,6 +154,10 @@ tests() {
 
 step "source only in git" source_only
 step "source archive excludes lab" source_archive_no_lab
+step "published-history commit citations" xcrun swift scripts/check-commit-citations.swift
+step "commit citation guard fixture" xcrun swift scripts/check-commit-citations.swift --selftest
+step "diagnose reference guard fixture" xcrun swift scripts/check-diagnose-reference.swift --selftest
+step "qualified diagnose reference" xcrun swift scripts/check-diagnose-reference.swift
 step "shipped defaults worker-source receipt" scripts/worker-source-identity.sh
 step "public data privacy" xcrun swift scripts/public-data-guard.swift
 step "toolchains" toolchains

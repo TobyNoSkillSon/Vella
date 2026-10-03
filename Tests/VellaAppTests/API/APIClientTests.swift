@@ -3,6 +3,7 @@ import Foundation
 @testable import Vella
 @testable import VellaCore
 import VellaTestSupport
+import VellaWire
 
 /// The `vella` command and the OpenAI Python SDK against a stub API (fake worker, isolated support dir).
 final class APIClientTests: XCTestCase {
@@ -114,6 +115,23 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(iCode, 0)
         XCTAssertEqual(wrote, "wrote \(empty.path)/transcribe/SKILL.md\n")
         XCTAssertEqual(try String(contentsOf: empty.appendingPathComponent("transcribe/SKILL.md"), encoding: .utf8), try String(contentsOf: source, encoding: .utf8))
+    }
+
+    @MainActor func testStatusNamesLoadedTierAndEffectiveRecipe() async throws {
+        let api = try await APIFixture()
+        defer { api.close() }
+        let selection = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+        api.runtime.resolver = { path, mode in
+            ModelRef(id: "fake-a", precision: "8b", path: path, mode: mode, selection: selection)
+        }
+        _ = try await api.backend.transcribe(audio, config: Configuration(model: api.models.list[0].path))
+        let (code, status, _) = try await vella(api, ["status"])
+        XCTAssertEqual(code, 0)
+        XCTAssertTrue(status.contains("fake-a 8 · Standard (Optimized Fast asked) loaded"), status)
+        let worker = try JSONDecoder().decode(HelperStatus.self, from: Data(#"{"worker":"dictation","pid":123,"event":"load","engine":"optimized","optimizations":{}}"#.utf8))
+        api.runtime.update("fake-a", worker: worker)
+        let (_, optimized, _) = try await vella(api, ["status"])
+        XCTAssertTrue(optimized.contains("fake-a 8 · Optimized Fast loaded"), optimized)
     }
 
     /// The official OpenAI Python SDK, unchanged, against the stub (opt-in: a venv with `openai` installed).

@@ -250,8 +250,16 @@ struct VellaCLI {
                 + (loaded.isEmpty
                     ? "no model loaded"
                     : loaded.keys.sorted().map { id in
-                        let precision = ((loaded[id] as? [String: Any])?["precision"] as? String).flatMap { $0.isEmpty ? nil : " " + (precisionWidth($0) ?? $0) } ?? ""
-                        return id + precision
+                        let model = loaded[id] as? [String: Any] ?? [:]
+                        let selection = selectionFrom(model["selection"])
+                        let precision = selection?.tier.rawValue ?? (model["precision"] as? String).flatMap { precisionWidth($0) ?? $0 }
+                        var details = [precision].compactMap { $0 }.filter { !$0.isEmpty }
+                        if let selection {
+                            let effective = effectiveSelection(selection, engine: model["engine"] as? String)
+                            let asked = effective != selection ? " (\(recipeLabel(selection)) asked)" : ""
+                            details.append(recipeLabel(effective) + asked)
+                        }
+                        return id + (details.isEmpty ? "" : " " + details.joined(separator: " · "))
                     }.joined(separator: ", ") + " loaded")
         ]
         if let loading = s["loading"] as? String { parts.append("loading \(loading)") }

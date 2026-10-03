@@ -1,442 +1,1119 @@
 {
- "app_version": "1.0.0 (35)",
- "chip": "Apple M5 Max",
- "date": "2026-09-28",
- "gate_version": "native-kernels-10",
- "gpu_family": "apple9",
- "hardware": "Apple M5 Max, macOS 26.6",
- "method": "api",
  "models": {
-  "parakeet-v3": {
-   "4b": {
-    "mlx": {
-     "speed_x": 124.8,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    },
-    "optimized": {
-     "speed_x": 181.6,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    }
-   },
-   "8b": {
-    "mlx": {
-     "speed_x": 126.4,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    },
-    "optimized": {
-     "speed_x": 179.9,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    }
-   },
-   "BF16": {
-    "mlx": {
-     "speed_x": 165.4,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    },
-    "optimized": {
-     "speed_x": 251.7,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    }
-   },
-   "FP32": {
-    "mlx": {
-     "speed_x": 154.1,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    },
-    "optimized": {
-     "speed_x": 209.8,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    }
-   }
-  },
   "parakeet-v3-ultra": {
-   "4b": {
-    "mlx": {
-     "speed_x": 160.6,
+   "BF16": {
+    "optimized_fast": {
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
       "clip-c": "surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was,"
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 150.9,
+     "pass_s": [
+      0.1516,
+      0.1515,
+      0.1485
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1669,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true,
+      "nax_gemm": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     },
-    "optimized": {
-     "speed_x": 182.8,
+    "optimized_exact": {
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply",
       "clip-c": "surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was,"
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 143.7,
+     "pass_s": [
+      0.1591,
+      0.1605,
+      0.1573
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1677,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true,
+      "nax_gemm": false
+     },
+     "fallbacks": [
+      "stock: nax_gemm"
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents,",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 115.24,
+     "pass_s": [
+      0.1983,
+      0.199,
+      0.1961
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 600,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": false,
+      "encoder": false,
+      "nax_gemm": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    },
    "8b": {
-    "mlx": {
-     "speed_x": 160.1,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concorde returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    },
-    "optimized": {
-     "speed_x": 181.8,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply",
-      "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concorde returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    }
-   },
-   "BF16": {
-    "mlx": {
-     "speed_x": 171.9,
+    "optimized_fast": {
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply",
       "clip-c": "surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents,",
+      "clip-d": "Concorde returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 167.32,
+     "pass_s": [
+      0.1348,
+      0.1366,
+      0.1425
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1928,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true,
+      "int8_gemm": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     },
-    "optimized": {
-     "speed_x": 256.8,
+    "optimized_exact": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concorde returned to its place amidst the tents,",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 123.92,
+     "pass_s": [
+      0.1995,
+      0.1844,
+      0.182
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1969,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concorde returned to its place amidst the tents,",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 118.37,
+     "pass_s": [
+      0.1926,
+      0.1931,
+      0.1998
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 795,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": false,
+      "encoder": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    }
+   },
+   "4b": {
+    "optimized_fast": {
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
       "clip-c": "surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents,",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was,"
+     },
+     "speed_x": 160.25,
+     "pass_s": [
+      0.1426,
+      0.1423,
+      0.1438
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 2047,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "4"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true,
+      "int4_gemm": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    },
+    "optimized_exact": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents,",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was,"
+     },
+     "speed_x": 131.06,
+     "pass_s": [
+      0.1756,
+      0.1741,
+      0.1744
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1836,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "4"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the elder,",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents,",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was,"
+     },
+     "speed_x": 116.26,
+     "pass_s": [
+      0.1985,
+      0.1966,
+      0.1955
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 789,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "4"
+     },
+     "optimizations": {
+      "decoder": false,
+      "encoder": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    }
   },
-  "qwen3-asr-0.6b": {
-   "4b": {
-    "mlx": {
-     "speed_x": 56.1,
+  "parakeet-v3": {
+   "BF16": {
+    "optimized_fast": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 96.47,
+     "pass_s": [
+      0.235,
+      0.2369,
+      0.2563
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1771,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true,
+      "nax_gemm": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     },
-    "optimized": {
-     "speed_x": 76.0,
+    "optimized_exact": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 84.86,
+     "pass_s": [
+      0.301,
+      0.2693,
+      0.2688
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1785,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true,
+      "nax_gemm": false
+     },
+     "fallbacks": [
+      "stock: nax_gemm"
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents,",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 65.73,
+     "pass_s": [
+      0.3084,
+      0.3643,
+      0.3477
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 693,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": false,
+      "encoder": false,
+      "nax_gemm": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    },
    "8b": {
-    "mlx": {
-     "speed_x": 50.3,
+    "optimized_fast": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 107.01,
+     "pass_s": [
+      0.2138,
+      0.2136,
+      0.2105
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 2770,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true,
+      "int8_gemm": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     },
-    "optimized": {
-     "speed_x": 65.4,
+    "optimized_exact": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    }
-   },
-   "BF16": {
-    "mlx": {
-     "speed_x": 42.4,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 102.18,
+     "pass_s": [
+      0.2232,
+      0.2378,
+      0.2237
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 2126,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     },
-    "optimized": {
-     "speed_x": 52.2,
+    "standard": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder,",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-c": "surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 94.18,
+     "pass_s": [
+      0.2427,
+      0.2384,
+      0.2464
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 805,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": false,
+      "encoder": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    }
   },
   "qwen3-asr-1.7b": {
-   "4b": {
-    "mlx": {
-     "speed_x": 37.5,
+   "BF16": {
+    "optimized_fast": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of De Mau the Elder.",
+      "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
       "clip-c": "Surely, we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 20.5,
+     "pass_s": [
+      1.1748,
+      1.1149,
+      1.011
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 6149,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     },
-    "optimized": {
-     "speed_x": 48.7,
+    "optimized_exact": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of De Mau the Elder.",
+      "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
       "clip-c": "Surely, we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 23.63,
+     "pass_s": [
+      0.9798,
+      0.967,
+      0.9665
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 6537,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely, we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 21.29,
+     "pass_s": [
+      1.0735,
+      1.0699,
+      1.0872
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1956,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": false,
+      "encoder": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    }
+   }
+  },
+  "qwen3-asr-0.6b": {
+   "BF16": {
+    "optimized_fast": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 50.67,
+     "pass_s": [
+      0.4541,
+      0.4511,
+      0.4505
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 3229,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    },
+    "optimized_exact": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 49.39,
+     "pass_s": [
+      0.4628,
+      0.4627,
+      0.459
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 3167,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 37.5,
+     "pass_s": [
+      0.6095,
+      0.5902,
+      0.6389
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1123,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": false,
+      "encoder": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    },
    "8b": {
-    "mlx": {
-     "speed_x": 29.9,
+    "optimized_fast": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely, we can submit with good grace.",
+      "clip-c": "Surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 60,
+     "pass_s": [
+      0.3809,
+      0.3823,
+      0.3788
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 3313,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     },
-    "optimized": {
-     "speed_x": 36.4,
+    "optimized_exact": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely, we can submit with good grace.",
+      "clip-c": "Surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    }
-   },
-   "BF16": {
-    "mlx": {
-     "speed_x": 22.3,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely, we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 60.33,
+     "pass_s": [
+      0.3767,
+      0.3788,
+      0.387
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 3184,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "encoder": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     },
-    "optimized": {
-     "speed_x": 24.9,
+    "standard": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of De Mau, the elder.",
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely, we can submit with good grace.",
+      "clip-c": "Surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 45.99,
+     "pass_s": [
+      0.4969,
+      0.5042,
+      0.4951
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1132,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": false,
+      "encoder": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    }
   },
   "whisper-large-v3": {
-   "4b": {
-    "mlx": {
-     "speed_x": 17.4,
+   "FP16": {
+    "optimized_fast": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas, the elder.",
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.\"",
+      "clip-c": "Surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    },
-    "optimized": {
-     "speed_x": 35.0,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas, the elder.",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.\"",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 27.34,
+     "pass_s": [
+      0.8357,
+      0.836,
+      0.8499
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 6283,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "fused_decode": false
+     },
+     "fallbacks": [
+      "stock: fused_decode"
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    },
    "8b": {
-    "mlx": {
-     "speed_x": 17.0,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    },
-    "optimized": {
-     "speed_x": 31.9,
+    "optimized_fast": {
      "transcripts": {
       "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
       "clip-c": "Surely we can submit with good grace.\"",
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    }
-   },
-   "FP16": {
-    "mlx": {
-     "speed_x": 5.2,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    },
-    "optimized": {
-     "speed_x": 28.3,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 30.3,
+     "pass_s": [
+      0.7543,
+      0.7471,
+      0.7617
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 4930,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "fused_decode": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    }
   },
   "whisper-large-v3-turbo": {
-   "4b": {
-    "mlx": {
-     "speed_x": 35.4,
+   "FP16": {
+    "optimized_fast": {
      "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
       "clip-c": "Surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
-     }
-    },
-    "optimized": {
-     "speed_x": 64.4,
-     "transcripts": {
-      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
+     },
+     "speed_x": 54.2,
+     "pass_s": [
+      0.4223,
+      0.4217,
+      0.4177
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 2425,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "fused_decode": false
+     },
+     "fallbacks": [
+      "stock: fused_decode"
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    },
    "8b": {
-    "mlx": {
-     "speed_x": 33.9,
+    "optimized_fast": {
      "transcripts": {
       "clip-a": "it was one of the masterly and charming stories of de maw the elder",
       "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
       "clip-c": "Surely we can submit with good grace.",
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
-     }
-    },
-    "optimized": {
-     "speed_x": 60.1,
-     "transcripts": {
-      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
-     }
-    }
-   },
-   "FP16": {
-    "mlx": {
-     "speed_x": 14.8,
-     "transcripts": {
-      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
-     }
-    },
-    "optimized": {
-     "speed_x": 60.3,
-     "transcripts": {
-      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
-      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
-      "clip-c": "Surely we can submit with good grace.",
-      "clip-d": "Concord returned to its place amidst the tents.",
-      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
+     },
+     "speed_x": 55.88,
+     "pass_s": [
+      0.409,
+      0.4178,
+      0.4067
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 2366,
+     "engine": "optimized",
+     "selection": {
+      "mode": "fast",
+      "path": "optimized",
+      "recipe": "optimized_fast",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "fused_decode": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
      }
     }
    }
   }
  },
- "schema": 1
+ "schema": 2,
+ "method": "api",
+ "date": "2026-10-03",
+ "chip": "Apple M5 Max",
+ "hardware": "Apple M5 Max, macOS 26.6",
+ "macos": "26.6",
+ "os_build": "25G72",
+ "app_version": "2.0.0 (35)",
+ "worker_source_trees": {
+  "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+  "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+ },
+ "worker_source_commit": "843a43444659dbd7f2de507b1e2da11453efb31b",
+ "candidate_app_sha256": "54079d55ea631e57e134d45558850600e16b4090b91266b683319433d486a07f",
+ "candidate_worker_sha256": "0c9312a2926b88ba28464753a9a9acd6186b369b174a83e1a592ece9e1a14dc3",
+ "clips": {
+  "clip-a": 3.38,
+  "clip-b": 8.205,
+  "clip-c": 2.69,
+  "clip-d": 3.505,
+  "clip-e": 5.075
+ },
+ "gate_version": "native-kernels-10",
+ "gpu_family": "apple9",
+ "unqualified": [
+  {
+   "family": "whisper-large-v3",
+   "precision": "FP16",
+   "segment": "optimized_exact",
+   "reason": "API capture unavailable or unqualified; inspect run error"
+  },
+  {
+   "family": "whisper-large-v3",
+   "precision": "FP16",
+   "segment": "standard",
+   "reason": "API capture unavailable or unqualified; inspect run error"
+  },
+  {
+   "family": "whisper-large-v3",
+   "precision": "8b",
+   "segment": "optimized_exact",
+   "reason": "API capture unavailable or unqualified; inspect run error"
+  },
+  {
+   "family": "whisper-large-v3",
+   "precision": "8b",
+   "segment": "standard",
+   "reason": "API capture unavailable or unqualified; inspect run error"
+  },
+  {
+   "family": "whisper-large-v3-turbo",
+   "precision": "FP16",
+   "segment": "optimized_exact",
+   "reason": "API capture unavailable or unqualified; inspect run error"
+  },
+  {
+   "family": "whisper-large-v3-turbo",
+   "precision": "FP16",
+   "segment": "standard",
+   "reason": "API capture unavailable or unqualified; inspect run error"
+  },
+  {
+   "family": "whisper-large-v3-turbo",
+   "precision": "8b",
+   "segment": "optimized_exact",
+   "reason": "API capture unavailable or unqualified; inspect run error"
+  },
+  {
+   "family": "whisper-large-v3-turbo",
+   "precision": "8b",
+   "segment": "standard",
+   "reason": "API capture unavailable or unqualified; inspect run error"
+  }
+ ],
+ "provisional": true,
+ "conditions": {
+  "lock": "gpulock only (GPU exclusive per run; not a quiet measure window)",
+  "sampled": "09:38:29–09:43:10 every 10 s (29 samples)",
+  "other_cpu_pct": {
+   "median": 235,
+   "min": 46,
+   "max": 1497
+  },
+  "top_other_processes": [
+   "swiftpm-testing-helper",
+   "swift-frontend",
+   "ego Helper (Renderer)",
+   "python",
+   "cli-proxy-api",
+   "WindowServer"
+  ],
+  "note": "Provisional, for the local install only (v-family, 3 Oct). The final reference is captured in a quiet measure window; release-check refuses a provisional reference."
+ },
+ "omitted_segments_note": "Whisper large-v3 and turbo Standard/Exact are not selectable (Not measured yet): the app refuses them (HTTP 409), so they need no reference."
 }

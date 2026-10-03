@@ -8,13 +8,13 @@
 # never reaches a binary and is not pinned. Which README.md files may exist is pinned (the set below); everything else
 # under Worker/ is pinned byte for byte (content and exec bit), and so is all of Packages/.
 set -euo pipefail
-SOURCE=08203e24ebdf83004ca4d81daa03f678880898c2 # informational measured-defaults commit, never a reachability gate
+SOURCE=843a43444659dbd7f2de507b1e2da11453efb31b # informational measured-defaults commit, never a reachability gate
 WORKER_CODE_TREE=ce8b527583b37c77274eb242b58025b85f35b6fc   # git tree of Worker/ with its README.md files removed
 PACKAGES_TREE=093375e515b30db74a5803abfdd6c1c0d28e29e2
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
 # Reported, never gated: README content is outside the pin.
 WORKER_FULL_TREE=af976137fbcd3cb0346fb187aced20cd82f9cc86
-# Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 08203e2
+# Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 843a434
 # (BASE_WORKER_TREE, full tree including READMEs). Package.swift excludes each of these from its target. They are the
 # only README.md files besides Worker/README.md that may exist; verified against the files, never against history.
 BASE_WORKER_TREE=528e719d0956b012f181cdf70cd3baa8f250275f
@@ -23,9 +23,11 @@ Sources/MLXAudioSTT/Parakeet/README.md
 Sources/MLXAudioSTT/Qwen3ASR/README.md
 Sources/MLXAudioSTT/Whisper/README.md"
 # The bridge also depends on the packaging/toolchain path, not only Worker/Packages.
+# 3 Oct: package-release adds a metadata-only reference qualification guard; build/inference paths are unchanged.
 build_paths=(
   scripts/build.sh
   scripts/check-helpers.swift
+  scripts/check-diagnose-reference.swift
   scripts/icon.swift
   scripts/package-release.sh
   scripts/prepare-build.swift
@@ -34,7 +36,7 @@ build_paths=(
   scripts/test-worker.sh
   scripts/verify-release-symbols.sh
 )
-BUILD_EXPECTED=a4a1fbcbdec5ecc7ade7ea8bf0b241cc5fec78a1e368aa1b2d3b5f7c9db463b1
+BUILD_EXPECTED=f86c4e07a26e9f2655779c3118a61b7cce3df57fa3cac38da7faad02a2f1b142
 
 # git with the user's configuration (autocrlf, excludes, hooks) out of the hash.
 g() { git -c core.autocrlf=false -c core.excludesFile=/dev/null "$@"; }

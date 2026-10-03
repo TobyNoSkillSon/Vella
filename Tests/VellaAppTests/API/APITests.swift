@@ -37,7 +37,9 @@ enum APIFakeWorker {
             if 'slow' in name: time.sleep(0.3)
             frames=(os.path.getsize(r['audio'])-44)//2
             note('end',name)
-            print(json.dumps({'id':r['id'],'text':'%s heard %.2f s.'%(name,frames/16000.0),'metrics':{}}),flush=True)
+            reply={'id':r['id'],'text':'%s heard %.2f s.'%(name,frames/16000.0),'metrics':{}}
+            if name=='language-pl': reply['language']='pl'
+            print(json.dumps(reply),flush=True)
         """#
 }
 
@@ -189,6 +191,18 @@ func writeTestWAV(_ url: URL, bursts: [Double] = [6, 7, 4], gap: Double = 0.8, r
 }
 
 final class APITests: XCTestCase {
+    @MainActor func testVerboseLanguageUsesDetectedThenRequestedThenUnknown() async throws {
+        let api = try await APIFixture(models: ["language-pl", "fake-a"])
+        defer { api.close() }
+        for (model, request, expected) in [("language-pl", "en", "pl"), ("fake-a", "en", "en"), ("fake-a", "", "unknown")] {
+            var fields = ["model": model, "response_format": "verbose_json"]
+            if !request.isEmpty { fields["language"] = request }
+            let (code, _, data) = try await api.post(fields: fields, file: audio)
+            XCTAssertEqual(code, 200)
+            let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            XCTAssertEqual(object["language"] as? String, expected)
+        }
+    }
     private var audio: URL!
     override func setUpWithError() throws {
         audio = FileManager.default.temporaryDirectory.appendingPathComponent("vella-api-\(UUID().uuidString).wav")

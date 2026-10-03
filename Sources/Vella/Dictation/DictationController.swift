@@ -11,7 +11,7 @@ import VellaCore
     @Published var phase = Phase.idle
     @Published private(set) var mode: RecognitionMode = .dictation
     @Published var message = "Your voice, right where you need it."
-    @Published var microphone = "Shure → MacBook"
+    @Published var microphone = "Shure → MacBook at start"
     @Published var elapsed = 0
     @Published var audioLevel = 0.0
     @Published var hudVisible = false
@@ -735,7 +735,7 @@ import VellaCore
         do {
             var config = try backend.configuration(requiresModel: false); config.preferredMicrophone = name
             try JSONEncoder().encode(config).write(to: Backend.configURL, options: .atomic)
-            microphone = name + " → MacBook fallback"
+            microphone = name + " → MacBook fallback at start"
         } catch { update(.failed, error.localizedDescription) }
     }
     func shutdown() { cancel(); backend.shutdown(); streamingBackend.shutdown() }

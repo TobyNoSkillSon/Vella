@@ -461,7 +461,7 @@ final class ModelControlTests: XCTestCase {
         let provenance = try XCTUnwrap(cell["provenance"] as? [String: Any])
         XCTAssertEqual(provenance["display_cell"] as? String, "optimized_exact")
         let builds = try XCTUnwrap(provenance["builds"] as? [String: [String: Any]])
-        XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "08203e24ebdf83004ca4d81daa03f678880898c2")
+        XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "843a43444659dbd7f2de507b1e2da11453efb31b")
         XCTAssertNotNil(cell["measurement"])
         XCTAssertTrue(JSONSerialization.isValidJSONObject(controls.catalog()))
         f.controller.benchmarks.figuresPending = true
