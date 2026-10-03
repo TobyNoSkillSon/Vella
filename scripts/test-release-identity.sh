@@ -83,6 +83,26 @@ ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "$DEV_APP" "$ROOT/
 PIN_SHA1=0000000000000000000000000000000000000000
 if designated_pinned "$DEV_APP"; then fail "real wrong certificate pin accepted"; fi
 PIN_SHA1="$DEV_PIN"
+# Prove the two old implementations fail on these real signatures.
+sed 's/-R "=$expected"/-R "$expected"/' "$GUARD" >"$ROOT/old-syntax.sh"
+if bash -c 'source "$1"; PIN_SHA1="$2"; designated_pinned "$3"' _ "$ROOT/old-syntax.sh" "$DEV_PIN" "$DEV_APP"; then
+  fail "old -R file-path syntax unexpectedly passed real codesign"
+fi
+sed '/requirement="$(sed -E/d; /expected="$(sed -E/d' "$GUARD" >"$ROOT/old-quotes.sh"
+if bash -c 'source "$1"; PIN_SHA1="$2"; designated_pinned "$3"' _ "$ROOT/old-quotes.sh" "$DEV_PIN" "$DEV_APP"; then
+  fail "old quoted-helper comparison unexpectedly passed real codesign"
+fi
+# Real wrong-pin helper and resource bundles, with the outer app re-sealed correctly.
+for relative in Helpers/vella Resources/mlx-swift_Cmlx.bundle; do
+  BAD="$ROOT/bad-${relative##*/}/Vella.app"
+  mkdir -p "$(dirname "$BAD")"; ditto "$DEV_APP" "$BAD"
+  codesign --force --sign - "$BAD/Contents/$relative" 2>/dev/null
+  codesign --force --sign "$DEV_PIN" -r "=designated => identifier \"dev.vella.dictation\" and certificate leaf = H\"$(tr '[:upper:]' '[:lower:]' <<<"$DEV_PIN")\"" "$BAD" 2>/dev/null
+  if designated_pinned "$BAD"; then fail "real wrong-pin $relative accepted"; fi
+done
+# Cryptographically invalid code must fail too.
+printf '\0' >>"$DEV_APP/Contents/MacOS/VellaWorker"
+if designated_pinned "$DEV_APP"; then fail "real invalid worker signature accepted"; fi
 echo 'PASS: real codesign ad hoc/development fixtures; custom pinned requirements and unquoted helper identifiers'
 
 # Release-identity positive case ONLY is shimmed: no access to the release private key.
@@ -133,15 +153,7 @@ shimmed "$GUARD" for-upload "$FAKE" >/dev/null || fail "a release-signed app wit
 shimmed "$GUARD" for-upload "$ROOT/fake-out" >/dev/null || fail "a release-signed zip with the pinned requirement was refused"
 [[ "$(shimmed "$GUARD" mark-local "$ROOT/fake-out")" == release ]] || fail "release-signed zip reported as local-only"
 [[ ! -e "$ROOT/fake-out/LOCAL-ONLY-NOT-FOR-UPLOAD.txt" ]] || fail "a release-signed zip was marked local-only"
-export FAKE_WRONG_PIN_PATH="Helpers/vella"
-if shimmed "$GUARD" for-upload "$FAKE" 2>/dev/null; then fail "a release-signed app with another requirement was accepted"; fi
-
-export FAKE_WRONG_PIN_PATH="Resources/mlx-swift_Cmlx.bundle"
-if shimmed "$GUARD" for-upload "$FAKE" 2>/dev/null; then fail "wrong-pin MLX resource accepted"; fi
-export FAKE_WRONG_PIN_PATH="" FAKE_INVALID_PATH="MacOS/VellaWorker"
-if shimmed "$GUARD" for-upload "$FAKE" 2>/dev/null; then fail "invalid worker signature accepted"; fi
-export FAKE_INVALID_PATH=""
 cp "$ROOT/fake-out/Vella-9.9.9-arm64.zip" "$ROOT/fake-out/Vella-9.9.8-arm64.zip"
-if shimmed "$GUARD" for-upload "$ROOT/fake-out" 2>/dev/null; then fail "ambiguous package directory accepted"; fi
+if "$GUARD" for-upload "$ROOT/fake-out" 2>/dev/null; then fail "ambiguous package directory accepted"; fi
 
 echo "PASS: development signatures refused for upload (no email printed), ad hoc and marked builds refused for upload, only the pinned release identity accepted"
