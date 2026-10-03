@@ -1,4 +1,5 @@
 import AppKit
+import VellaCore
 import ApplicationServices
 
 // Explicit CLI-only QA. The sole paste target is a newly created disposable document.

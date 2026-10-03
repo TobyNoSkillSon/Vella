@@ -66,6 +66,17 @@ import VellaCore
         ]
         actions.append { [self] in MenuMock.capture(TooltipSheet(pairs: pairs, width: 640), to: directory.appendingPathComponent("changed-tooltips.png"), done: next) }
         actions.append { [self] in MenuMock.capture(DMGLayoutView(), to: directory.appendingPathComponent("dmg-window-settings.png"), done: next) }
+        if let output = ProcessInfo.processInfo.environment["VELLA_DOC_EXAMPLE_OUTPUTS"] {
+            let files = ((try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: output), includingPropertiesForKeys: nil)) ?? []).filter {
+                $0.pathExtension == "txt"
+            }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+            for file in files {
+                guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
+                actions.append { [self] in
+                    MenuMock.capture(CLIOutputView(text), to: directory.appendingPathComponent(file.deletingPathExtension().lastPathComponent + ".png"), done: next)
+                }
+            }
+        }
         next()
     }
     private func alert(_ name: String, _ alert: NSAlert) {
@@ -103,5 +114,20 @@ final class DMGLayoutView: NSView {
             let text = NSAttributedString(string: label, attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor])
             text.draw(at: NSPoint(x: x - text.size().width / 2, y: 216))
         }
+    }
+}
+
+final class CLIOutputView: NSView {
+    let text: NSAttributedString
+    init(_ output: String) {
+        text = NSAttributedString(string: output, attributes: [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: NSColor.labelColor])
+        let height = ceil(text.boundingRect(with: NSSize(width: 980, height: 20000), options: [.usesLineFragmentOrigin]).height) + 36
+        super.init(frame: NSRect(x: 0, y: 0, width: 1016, height: height))
+    }
+    required init?(coder: NSCoder) { nil }
+    override var isFlipped: Bool { true }
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.textBackgroundColor.setFill(); bounds.fill()
+        text.draw(with: bounds.insetBy(dx: 18, dy: 18), options: [.usesLineFragmentOrigin])
     }
 }

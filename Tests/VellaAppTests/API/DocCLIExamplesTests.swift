@@ -113,6 +113,12 @@ final class DocCLIExamplesTests: XCTestCase {
                 case "transcribe": XCTAssertTrue(output[0].contains("Fixture words."), location)
                 default: XCTFail("Documented command lacks output-shape assertion: " + location)
                 }
+                if let capture = ProcessInfo.processInfo.environment["VELLA_DOC_EXAMPLE_OUTPUTS"] {
+                    let directory = URL(fileURLWithPath: capture)
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                    let name = "cli-" + (args.first ?? "unknown") + (args.contains("--json") ? "-json" : args.contains("--verbose-json") ? "-verbose-json" : "")
+                    try (command + "\n\n" + output.joined(separator: "\n")).write(to: directory.appendingPathComponent(name + ".txt"), atomically: true, encoding: .utf8)
+                }
                 count += 1
             }
         }

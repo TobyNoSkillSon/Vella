@@ -97,6 +97,19 @@ import VellaUpdate
         func sel(_ tier: ModelTier, _ path: EnginePath, _ mode: OptimizedMode = .exact) -> ModelSelection { ModelSelection(tier: tier, path: path, mode: mode) }
         let fast = RenderFixture.optimized
         states.append(State(name: "fresh-nothing-downloaded", installed: []))
+        let catalog = RenderFixture.controller()
+        for family in catalog.catalog.families {
+            guard let benchmark = catalog.benchmark(family) else { continue }
+            for tier in ModelTier.allCases {
+                guard benchmark.tiers[tier]?.presence.offered == true else { continue }
+                for segment in [Recipe.standard, .optimized_exact, .optimized_fast] {
+                    let selection = ModelSelection(tier: tier, path: segment == .standard ? .standard : .optimized, mode: segment == .optimized_exact ? .exact : .fast)
+                    guard let cell = benchmarkCell(benchmark, selection), !cell.isPending else { continue }
+                    var state = State(name: "cell-\(family.id)-\(tier.rawValue)-\(segment.rawValue)")
+                    state.selections[family.id] = selection; states.append(state)
+                }
+            }
+        }
         // Downloaded, nothing loaded, nothing chosen yet: every row shows Standard 16.
         states.append(State(name: "downloaded-nothing-loaded"))
         // Nothing loaded: each row shows the cell it was last loaded with (config.json selections).
