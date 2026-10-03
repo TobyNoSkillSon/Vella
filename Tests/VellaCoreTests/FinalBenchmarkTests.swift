@@ -33,9 +33,8 @@ final class FinalBenchmarkTests: XCTestCase {
         var files = ["README.md", "CHANGELOG.md", "docs/USAGE.md"]
         for folder in ["Resources", "docs"] {
             let base = Repository.root.appendingPathComponent(folder)
-            for relative in FileManager.default.enumerator(atPath: base.path)?.allObjects as? [String] ?? [] {
-                if ["json", "md", "js", "html", "plist"].contains((relative as NSString).pathExtension) { files.append(folder + "/" + relative) }
-            }
+            let found = FileManager.default.enumerator(atPath: base.path)?.allObjects as? [String] ?? []
+            files += found.filter { ["json", "md", "js", "html", "plist"].contains(($0 as NSString).pathExtension) }.map { folder + "/" + $0 }
         }
         XCTAssertTrue(files.contains("Resources/benchmarks.json") && files.contains("docs/data.js") && files.contains("Resources/AGENT_GUIDE.md"))
         for relative in Set(files) {
@@ -64,7 +63,12 @@ final class FinalBenchmarkTests: XCTestCase {
             return (process.terminationStatus, text)
         }
         XCTAssertEqual(try run().0, 0)
-        for (relative, planted) in [("README.md", "whisper.cpp Metal CLI"), ("Resources/AGENT_GUIDE.md", "compared with MacWhisper"), ("docs/data.js", "\"competitor_comparisons\": {}")] {
+        let plants = [
+            ("README.md", "whisper.cpp Metal CLI"),
+            ("Resources/AGENT_GUIDE.md", "compared with MacWhisper"),
+            ("docs/data.js", "\"competitor_comparisons\": {}")
+        ]
+        for (relative, planted) in plants {
             let url = fixture.appendingPathComponent(relative)
             let original = try? Data(contentsOf: url)
             try Data(planted.utf8).write(to: url)
