@@ -343,6 +343,8 @@ Clean rebuild receipt: Swift driver/compiler `1.168.6 Apple Swift version 6.4 (s
 | Whisper large-v3 | `stock`, `whisper-4` |
 | Whisper large-v3 turbo | `stock`, `whisper-4` |
 
+Refreshed same-build cells: source `7ccd67c790bb52ec15c344474ee0dc6872e7d0a4`, worker SHA-256 `b49faa52236c39ab210c3a11d993b396517b8483a1859953acccdd7af68bf119`. Per-cell `measured` and `build_provenance` fields identify their own date and build; older figures do not silently acquire the refresh date.
+
 ## Modes and gates
 
 **Standard** runs no kept optimization levers. **Optimized Exact** runs exact kept levers only. **Optimized Fast** runs every kept lever, including inexact ones. Kept levers ship on by default in their mode; benchmark environment switches are A/B controls, not user setup requirements. Exact components match the stock path on the load-time self-test, not a universal transcript-identity guarantee. Identical recipes can share a canonical measured cell through `display_cells`; separate recipes or missing measurements must not borrow a sibling's figure.
@@ -379,8 +381,7 @@ Gate baselines are retained in the data, not inferred from the mode name. For th
 
 ## Not measured yet
 
-- Whisper large-v3 · tier 16 · Optimized Exact; Whisper large-v3 · tier 8 · Optimized Exact; Whisper large-v3 turbo · tier 16 · Optimized Exact; Whisper large-v3 turbo · tier 8 · Optimized Exact: Exact now equals Fast for Whisper; not measured separately yet.
-- Whisper large-v3 · tier 16 · Standard; Whisper large-v3 · tier 8 · Standard; Whisper large-v3 turbo · tier 16 · Standard; Whisper large-v3 turbo · tier 8 · Standard: Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0.
+No offered cells currently have missing measurement status. Per-cell dates/builds still apply.
 
 The original Whisper loader made a Float32 positional table that promoted activations away from checkpoint dtype. The shipped loader fixes this and removes the encoder-dtype lever. Earlier Standard/Exact figures were withdrawn rather than relabeled as faithful fp16 measurements. Fast's identity receipt supports its carry-over only; it does not create Standard/Exact speed or energy measurements. Unoffered tiers are a gate decision, not missing measurements.
 

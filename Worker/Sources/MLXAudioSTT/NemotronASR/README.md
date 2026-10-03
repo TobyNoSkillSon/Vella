@@ -128,19 +128,19 @@ Gate limits: English ≤ 0.10 pt, multilingual mean ≤ 0.10 pt.
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (bf16) | the checkpoint as published | yes | — |
-| 8 (int8) | affine group 64 from the bf16 weights | yes | fail; present; gate: multilingual mean +0.16 pt vs 16 (limit 0.10) |
-| 4 (int4) | affine group 64 from the bf16 weights | no | fail; absent: 22 clips empty or cut short where 16 had the words; English WER +9.44 pt vs 16 (presence limit +5.0); multilingual mean +8.85 pt vs 16 (presence limit +5.0); Swedish +13.55 pt vs 16 (presence limit +10.0); Polish +13.09 pt vs 16 (presence limit +10.0); Turkish +12.29 pt vs 16 (presence limit +10.0); Japanese +10.46 pt vs 16 (presence limit +10.0); Chinese +10.23 pt vs 16 (presence limit +10.0) |
+| 8 (int8) | affine group 64 from the bf16 weights | yes | fail; present; gate: multilingual mean +0.19 pt vs same-layout Standard 16 (limit 0.10) |
+| 4 (int4) | affine group 64 from the bf16 weights | no | fail; absent: 21 clips empty or cut short where 16 had the words; Chinese +10.70 pt vs 16 (absent from +10.0); Chinese +10.99 pt vs 16 (absent from +10.0); English WER +9.40 pt vs 16 (absent from +5.0); English WER +9.41 pt vs 16 (absent from +5.0); Japanese +10.34 pt vs 16 (absent from +10.0); Japanese +10.46 pt vs 16 (absent from +10.0); Polish +13.15 pt vs 16 (absent from +10.0); Swedish +13.33 pt vs 16 (absent from +10.0); Turkish +12.29 pt vs 16 (absent from +10.0); multilingual mean +8.88 pt vs 16 (absent from +5.0); multilingual mean +8.89 pt vs 16 (absent from +5.0) |
 
 | Tier | Path | English WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
-| 16 (bf16) | Standard | 23.50 | 10.89 | 27.05 | 7.3× | 188.25 | 2253 | — | — |
+| 16 (bf16) | Standard | 23.39 | 10.57 | 27.18 | 7.3× | 188.25 | 2253 | — | — |
 | 16 (bf16) | Optimized Exact | 23.39 | 10.57 | 27.18 | 19.3× | 80.33 | 2725 | +164 % | −57 % |
 | 16 (bf16) | Optimized Fast | 23.35 | 10.58 | 27.21 | 34.9× | 50.03 | 1655 | +378 % | −73 % |
 | 8 (int8) | Standard | 23.42 | 10.54 | 27.34 | 15.1× | 112.00 | 1191 | — | — |
 | 8 (int8) | Optimized Exact | 23.42 | 10.54 | 27.34 | 29.8× | 58.71 | 1251 | +97 % | −48 % |
 | 8 (int8) | Optimized Fast | 23.44 | 10.55 | 27.37 | 38.4× | 43.07 | 1114 | +154 % | −62 % |
-| 4 (int4) | Standard | 32.78 | 16.20 | 36.08 | 15.3× | 110.17 | 927 | — | — |
-| 4 (int4) | Optimized Exact | 32.78 | 16.20 | 36.08 | 30.4× | 55.57 | 980 | +99 % | −50 % |
-| 4 (int4) | Optimized Fast | 32.80 | 16.18 | 36.07 | 39.7× | 39.77 | 847 | +159 % | −64 % |
+| 4 (int4) | Standard — Not offered | 32.78 | 16.20 | 36.08 | 15.3× | 110.17 | 927 | — | — |
+| 4 (int4) | Optimized Exact — Not offered | 32.78 | 16.20 | 36.08 | 30.4× | 55.57 | 980 | +99 % | −50 % |
+| 4 (int4) | Optimized Fast — Not offered | 32.80 | 16.18 | 36.07 | 39.7× | 39.77 | 847 | +159 % | −64 % |
 <!-- MEASURED_END -->
 

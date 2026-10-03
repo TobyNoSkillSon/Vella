@@ -1402,31 +1402,35 @@ const VELLA_BENCHMARKS = {
           "precision": "BF16",
           "presence": {
             "offered": true,
-            "reasons": []
+            "reasons": [],
+            "baseline": "tier16 Standard, identical streaming session layout",
+            "rule": "union of per-cell presence"
           },
           "gate": {
             "status": "pass",
             "reasons": [],
-            "loss": []
+            "loss": [],
+            "baseline": "tier16 Standard, identical streaming session layout",
+            "layout": null
           },
           "standard": {
-            "wer": 23.5,
-            "format": 10.89,
+            "wer": 23.39,
+            "format": 10.57,
             "multilingual": {
-              "mean": 27.05,
-              "macro_wer": 28.09,
-              "macro_cer": 24.99,
+              "mean": 27.18,
+              "macro_wer": 28.56,
+              "macro_cer": 24.43,
               "coverage": 9,
               "by_language": {
-                "pl": 25.33,
-                "de": 17.99,
+                "de": 19.51,
+                "es": 16.25,
                 "fr": 17.82,
-                "es": 15.99,
-                "sv": 40.22,
-                "tr": 51.16,
-                "ja": 15.47,
-                "zh": 29.01,
-                "ko": 30.49
+                "ja": 14.27,
+                "ko": 30.07,
+                "pl": 23.69,
+                "sv": 41.94,
+                "tr": 52.16,
+                "zh": 28.95
               }
             },
             "speed_x": 7.3,
@@ -1447,7 +1451,10 @@ const VELLA_BENCHMARKS = {
               "date": "2026-10-01",
               "suite": "v2",
               "audio_min": null,
-              "performance_suite": "v2-quick"
+              "performance_suite": "v2-quick",
+              "accuracy_dates": [
+                "2026-10-03"
+              ]
             },
             "engine": "mlx",
             "recipe": {
@@ -1462,17 +1469,21 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "pass",
               "reasons": [],
+              "loss": [],
               "presence": {
                 "offered": true,
                 "reasons": []
               },
-              "baseline": "tier16 Standard (same final build)"
+              "baseline": "tier16 Standard, identical streaming session layout",
+              "layout": null
             },
             "build_provenance": {
               "measured": "builds.measured",
               "recipe": "builds.shipped",
-              "bridge": "builds.bridge"
-            }
+              "bridge": "builds.bridge",
+              "accuracy": "builds.nemotron_gate"
+            },
+            "note": "Accuracy: same-layout three-shard Standard control. Speed/energy retain their dated Standard measurements."
           },
           "optimized_exact": {
             "wer": 23.39,
@@ -1535,18 +1546,15 @@ const VELLA_BENCHMARKS = {
               }
             },
             "gate": {
-              "status": "fail",
-              "reasons": [
-                "multilingual mean +0.13 pt vs 16 (limit 0.10)",
-                "5 clips empty or cut short where 16 had the words (limit 0)"
-              ],
+              "status": "pass",
+              "reasons": [],
+              "loss": [],
               "presence": {
-                "offered": false,
-                "reasons": [
-                  "5 clips empty or cut short where 16 had the words"
-                ]
+                "offered": true,
+                "reasons": []
               },
-              "baseline": "tier16 Standard (same final build)"
+              "baseline": "tier16 Standard, identical streaming session layout",
+              "layout": null
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -1623,18 +1631,15 @@ const VELLA_BENCHMARKS = {
               }
             },
             "gate": {
-              "status": "fail",
-              "reasons": [
-                "multilingual mean +0.16 pt vs 16 (limit 0.10)",
-                "5 clips empty or cut short where 16 had the words (limit 0)"
-              ],
+              "status": "pass",
+              "reasons": [],
+              "loss": [],
               "presence": {
-                "offered": false,
-                "reasons": [
-                  "5 clips empty or cut short where 16 had the words"
-                ]
+                "offered": true,
+                "reasons": []
               },
-              "baseline": "tier16 Standard (same final build)"
+              "baseline": "tier16 Standard, identical streaming session layout",
+              "layout": null
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -1652,16 +1657,20 @@ const VELLA_BENCHMARKS = {
           "precision": "8b",
           "presence": {
             "offered": true,
-            "reasons": []
+            "reasons": [],
+            "baseline": "tier16 Standard, identical streaming session layout",
+            "rule": "union of per-cell presence"
           },
           "gate": {
             "status": "fail",
             "reasons": [
-              "multilingual mean +0.16 pt vs 16 (limit 0.10)"
+              "multilingual mean +0.19 pt vs same-layout Standard 16 (limit 0.10)"
             ],
             "loss": [
-              "multilingual mean +0.16 pt"
-            ]
+              "multilingual mean +0.19 pt"
+            ],
+            "baseline": "tier16 Standard, identical streaming session layout",
+            "layout": null
           },
           "standard": {
             "wer": 23.42,
@@ -1715,17 +1724,17 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "fail",
               "reasons": [
-                "multilingual mean +0.29 pt vs 16 (limit 0.10)",
-                "Turkish +2.10 pt vs 16 (limit 2.0)",
-                "5 clips empty or cut short where 16 had the words (limit 0)"
+                "multilingual mean +0.16 pt vs same-layout Standard 16 (limit 0.10)"
+              ],
+              "loss": [
+                "multilingual mean +0.16 pt"
               ],
               "presence": {
-                "offered": false,
-                "reasons": [
-                  "5 clips empty or cut short where 16 had the words"
-                ]
+                "offered": true,
+                "reasons": []
               },
-              "baseline": "tier16 Standard (same final build)"
+              "baseline": "tier16 Standard, identical streaming session layout",
+              "layout": null
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -1795,17 +1804,17 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "fail",
               "reasons": [
-                "multilingual mean +0.29 pt vs 16 (limit 0.10)",
-                "Turkish +2.10 pt vs 16 (limit 2.0)",
-                "5 clips empty or cut short where 16 had the words (limit 0)"
+                "multilingual mean +0.16 pt vs same-layout Standard 16 (limit 0.10)"
+              ],
+              "loss": [
+                "multilingual mean +0.16 pt"
               ],
               "presence": {
-                "offered": false,
-                "reasons": [
-                  "5 clips empty or cut short where 16 had the words"
-                ]
+                "offered": true,
+                "reasons": []
               },
-              "baseline": "tier16 Standard (same final build)"
+              "baseline": "tier16 Standard, identical streaming session layout",
+              "layout": null
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -1880,17 +1889,17 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "fail",
               "reasons": [
-                "multilingual mean +0.32 pt vs 16 (limit 0.10)",
-                "Turkish +2.33 pt vs 16 (limit 2.0)",
-                "5 clips empty or cut short where 16 had the words (limit 0)"
+                "multilingual mean +0.19 pt vs same-layout Standard 16 (limit 0.10)"
+              ],
+              "loss": [
+                "multilingual mean +0.19 pt"
               ],
               "presence": {
-                "offered": false,
-                "reasons": [
-                  "5 clips empty or cut short where 16 had the words"
-                ]
+                "offered": true,
+                "reasons": []
               },
-              "baseline": "tier16 Standard (same final build)"
+              "baseline": "tier16 Standard, identical streaming session layout",
+              "layout": null
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -1909,47 +1918,46 @@ const VELLA_BENCHMARKS = {
           "presence": {
             "offered": false,
             "reasons": [
-              "22 clips empty or cut short where 16 had the words",
-              "English WER +9.44 pt vs 16 (presence limit +5.0)",
-              "multilingual mean +8.85 pt vs 16 (presence limit +5.0)",
-              "Swedish +13.55 pt vs 16 (presence limit +10.0)",
-              "Polish +13.09 pt vs 16 (presence limit +10.0)",
-              "Turkish +12.29 pt vs 16 (presence limit +10.0)",
-              "Japanese +10.46 pt vs 16 (presence limit +10.0)",
-              "Chinese +10.23 pt vs 16 (presence limit +10.0)"
-            ]
+              "21 clips empty or cut short where 16 had the words",
+              "Chinese +10.70 pt vs 16 (absent from +10.0)",
+              "Chinese +10.99 pt vs 16 (absent from +10.0)",
+              "English WER +9.40 pt vs 16 (absent from +5.0)",
+              "English WER +9.41 pt vs 16 (absent from +5.0)",
+              "Japanese +10.34 pt vs 16 (absent from +10.0)",
+              "Japanese +10.46 pt vs 16 (absent from +10.0)",
+              "Polish +13.15 pt vs 16 (absent from +10.0)",
+              "Swedish +13.33 pt vs 16 (absent from +10.0)",
+              "Turkish +12.29 pt vs 16 (absent from +10.0)",
+              "multilingual mean +8.88 pt vs 16 (absent from +5.0)",
+              "multilingual mean +8.89 pt vs 16 (absent from +5.0)"
+            ],
+            "baseline": "tier16 Standard, identical streaming session layout",
+            "rule": "union of per-cell presence"
           },
           "gate": {
             "status": "fail",
             "reasons": [
-              "English WER +9.44 pt vs 16 (limit 0.10)",
-              "multilingual mean +8.85 pt vs 16 (limit 0.10)",
-              "Swedish +13.55 pt vs 16 (limit 2.0)",
-              "Polish +13.09 pt vs 16 (limit 2.0)",
-              "Turkish +12.29 pt vs 16 (limit 2.0)",
-              "Japanese +10.46 pt vs 16 (limit 2.0)",
-              "Chinese +10.23 pt vs 16 (limit 2.0)",
-              "German +8.72 pt vs 16 (limit 2.0)",
-              "Korean +4.38 pt vs 16 (limit 2.0)",
-              "French +3.66 pt vs 16 (limit 2.0)",
-              "Spanish +3.27 pt vs 16 (limit 2.0)",
-              "format CER +5.60 pt vs 16 (limit 0.10)",
-              "22 clips empty or cut short where 16 had the words (limit 0)"
+              "21 clips empty or cut short where same-layout Standard 16 had the words (limit 0)",
+              "Chinese +10.70 pt vs same-layout Standard 16 (limit 2.0)",
+              "Chinese +10.99 pt vs same-layout Standard 16 (limit 2.0)",
+              "English WER +9.40 pt vs same-layout Standard 16 (limit 0.10)",
+              "English WER +9.41 pt vs same-layout Standard 16 (limit 0.10)",
+              "French +3.58 pt vs same-layout Standard 16 (limit 2.0)",
+              "French +3.66 pt vs same-layout Standard 16 (limit 2.0)",
+              "German +8.72 pt vs same-layout Standard 16 (limit 2.0)",
+              "Japanese +10.34 pt vs same-layout Standard 16 (limit 2.0)",
+              "Japanese +10.46 pt vs same-layout Standard 16 (limit 2.0)",
+              "Korean +4.34 pt vs same-layout Standard 16 (limit 2.0)",
+              "Polish +13.15 pt vs same-layout Standard 16 (limit 2.0)",
+              "Spanish +3.27 pt vs same-layout Standard 16 (limit 2.0)",
+              "Swedish +13.33 pt vs same-layout Standard 16 (limit 2.0)",
+              "Turkish +12.29 pt vs same-layout Standard 16 (limit 2.0)",
+              "format CER +5.61 pt vs same-layout Standard 16 (limit 0.10)",
+              "format CER +5.63 pt vs same-layout Standard 16 (limit 0.10)",
+              "multilingual mean +8.88 pt vs same-layout Standard 16 (limit 0.10)",
+              "multilingual mean +8.89 pt vs same-layout Standard 16 (limit 0.10)"
             ],
-            "loss": [
-              "English WER +9.44 pt",
-              "multilingual mean +8.85 pt",
-              "Swedish +13.55 pt",
-              "Polish +13.09 pt",
-              "Turkish +12.29 pt",
-              "Japanese +10.46 pt",
-              "Chinese +10.23 pt",
-              "German +8.72 pt",
-              "Korean +4.38 pt",
-              "French +3.66 pt",
-              "Spanish +3.27 pt",
-              "format CER +5.60 pt"
-            ]
+            "loss": []
           },
           "standard": {
             "wer": 32.78,
@@ -2003,34 +2011,49 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "fail",
               "reasons": [
-                "English WER +9.28 pt vs 16 (limit 0.10)",
-                "multilingual mean +9.02 pt vs 16 (limit 0.10)",
-                "Swedish +15.05 pt vs 16 (limit 2.0)",
-                "Turkish +13.29 pt vs 16 (limit 2.0)",
-                "Polish +11.51 pt vs 16 (limit 2.0)",
-                "Chinese +10.94 pt vs 16 (limit 2.0)",
-                "German +10.25 pt vs 16 (limit 2.0)",
-                "Japanese +9.13 pt vs 16 (limit 2.0)",
-                "Korean +3.93 pt vs 16 (limit 2.0)",
-                "French +3.58 pt vs 16 (limit 2.0)",
-                "Spanish +3.53 pt vs 16 (limit 2.0)",
-                "format CER +5.31 pt vs 16 (limit 0.10)",
-                "22 clips empty or cut short where 16 had the words (limit 0)"
+                "English WER +9.40 pt vs same-layout Standard 16 (limit 0.10)",
+                "multilingual mean +8.89 pt vs same-layout Standard 16 (limit 0.10)",
+                "Swedish +13.33 pt vs same-layout Standard 16 (limit 2.0)",
+                "Polish +13.15 pt vs same-layout Standard 16 (limit 2.0)",
+                "Turkish +12.29 pt vs same-layout Standard 16 (limit 2.0)",
+                "Chinese +10.99 pt vs same-layout Standard 16 (limit 2.0)",
+                "Japanese +10.34 pt vs same-layout Standard 16 (limit 2.0)",
+                "German +8.72 pt vs same-layout Standard 16 (limit 2.0)",
+                "Korean +4.34 pt vs same-layout Standard 16 (limit 2.0)",
+                "French +3.58 pt vs same-layout Standard 16 (limit 2.0)",
+                "Spanish +3.27 pt vs same-layout Standard 16 (limit 2.0)",
+                "format CER +5.63 pt vs same-layout Standard 16 (limit 0.10)",
+                "21 clips empty or cut short where same-layout Standard 16 had the words (limit 0)"
+              ],
+              "loss": [
+                "English WER +9.40 pt",
+                "multilingual mean +8.89 pt",
+                "Swedish +13.33 pt",
+                "Polish +13.15 pt",
+                "Turkish +12.29 pt",
+                "Chinese +10.99 pt",
+                "Japanese +10.34 pt",
+                "German +8.72 pt",
+                "Korean +4.34 pt",
+                "French +3.58 pt",
+                "Spanish +3.27 pt",
+                "format CER +5.63 pt"
               ],
               "presence": {
                 "offered": false,
                 "reasons": [
-                  "22 clips empty or cut short where 16 had the words",
-                  "English WER +9.28 pt vs 16 (presence limit +5.0)",
-                  "multilingual mean +9.02 pt vs 16 (presence limit +5.0)",
-                  "Swedish +15.05 pt vs 16 (presence limit +10.0)",
-                  "Turkish +13.29 pt vs 16 (presence limit +10.0)",
-                  "Polish +11.51 pt vs 16 (presence limit +10.0)",
-                  "Chinese +10.94 pt vs 16 (presence limit +10.0)",
-                  "German +10.25 pt vs 16 (presence limit +10.0)"
+                  "21 clips empty or cut short where 16 had the words",
+                  "English WER +9.40 pt vs 16 (absent from +5.0)",
+                  "multilingual mean +8.89 pt vs 16 (absent from +5.0)",
+                  "Swedish +13.33 pt vs 16 (absent from +10.0)",
+                  "Polish +13.15 pt vs 16 (absent from +10.0)",
+                  "Turkish +12.29 pt vs 16 (absent from +10.0)",
+                  "Chinese +10.99 pt vs 16 (absent from +10.0)",
+                  "Japanese +10.34 pt vs 16 (absent from +10.0)"
                 ]
               },
-              "baseline": "tier16 Standard (same final build)"
+              "baseline": "tier16 Standard, identical streaming session layout",
+              "layout": null
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -2100,34 +2123,49 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "fail",
               "reasons": [
-                "English WER +9.28 pt vs 16 (limit 0.10)",
-                "multilingual mean +9.02 pt vs 16 (limit 0.10)",
-                "Swedish +15.05 pt vs 16 (limit 2.0)",
-                "Turkish +13.29 pt vs 16 (limit 2.0)",
-                "Polish +11.51 pt vs 16 (limit 2.0)",
-                "Chinese +10.94 pt vs 16 (limit 2.0)",
-                "German +10.25 pt vs 16 (limit 2.0)",
-                "Japanese +9.13 pt vs 16 (limit 2.0)",
-                "Korean +3.93 pt vs 16 (limit 2.0)",
-                "French +3.58 pt vs 16 (limit 2.0)",
-                "Spanish +3.53 pt vs 16 (limit 2.0)",
-                "format CER +5.31 pt vs 16 (limit 0.10)",
-                "22 clips empty or cut short where 16 had the words (limit 0)"
+                "English WER +9.40 pt vs same-layout Standard 16 (limit 0.10)",
+                "multilingual mean +8.89 pt vs same-layout Standard 16 (limit 0.10)",
+                "Swedish +13.33 pt vs same-layout Standard 16 (limit 2.0)",
+                "Polish +13.15 pt vs same-layout Standard 16 (limit 2.0)",
+                "Turkish +12.29 pt vs same-layout Standard 16 (limit 2.0)",
+                "Chinese +10.99 pt vs same-layout Standard 16 (limit 2.0)",
+                "Japanese +10.34 pt vs same-layout Standard 16 (limit 2.0)",
+                "German +8.72 pt vs same-layout Standard 16 (limit 2.0)",
+                "Korean +4.34 pt vs same-layout Standard 16 (limit 2.0)",
+                "French +3.58 pt vs same-layout Standard 16 (limit 2.0)",
+                "Spanish +3.27 pt vs same-layout Standard 16 (limit 2.0)",
+                "format CER +5.63 pt vs same-layout Standard 16 (limit 0.10)",
+                "21 clips empty or cut short where same-layout Standard 16 had the words (limit 0)"
+              ],
+              "loss": [
+                "English WER +9.40 pt",
+                "multilingual mean +8.89 pt",
+                "Swedish +13.33 pt",
+                "Polish +13.15 pt",
+                "Turkish +12.29 pt",
+                "Chinese +10.99 pt",
+                "Japanese +10.34 pt",
+                "German +8.72 pt",
+                "Korean +4.34 pt",
+                "French +3.58 pt",
+                "Spanish +3.27 pt",
+                "format CER +5.63 pt"
               ],
               "presence": {
                 "offered": false,
                 "reasons": [
-                  "22 clips empty or cut short where 16 had the words",
-                  "English WER +9.28 pt vs 16 (presence limit +5.0)",
-                  "multilingual mean +9.02 pt vs 16 (presence limit +5.0)",
-                  "Swedish +15.05 pt vs 16 (presence limit +10.0)",
-                  "Turkish +13.29 pt vs 16 (presence limit +10.0)",
-                  "Polish +11.51 pt vs 16 (presence limit +10.0)",
-                  "Chinese +10.94 pt vs 16 (presence limit +10.0)",
-                  "German +10.25 pt vs 16 (presence limit +10.0)"
+                  "21 clips empty or cut short where 16 had the words",
+                  "English WER +9.40 pt vs 16 (absent from +5.0)",
+                  "multilingual mean +8.89 pt vs 16 (absent from +5.0)",
+                  "Swedish +13.33 pt vs 16 (absent from +10.0)",
+                  "Polish +13.15 pt vs 16 (absent from +10.0)",
+                  "Turkish +12.29 pt vs 16 (absent from +10.0)",
+                  "Chinese +10.99 pt vs 16 (absent from +10.0)",
+                  "Japanese +10.34 pt vs 16 (absent from +10.0)"
                 ]
               },
-              "baseline": "tier16 Standard (same final build)"
+              "baseline": "tier16 Standard, identical streaming session layout",
+              "layout": null
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -2202,34 +2240,49 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "fail",
               "reasons": [
-                "English WER +9.29 pt vs 16 (limit 0.10)",
-                "multilingual mean +9.01 pt vs 16 (limit 0.10)",
-                "Swedish +15.05 pt vs 16 (limit 2.0)",
-                "Turkish +13.29 pt vs 16 (limit 2.0)",
-                "Polish +11.51 pt vs 16 (limit 2.0)",
-                "Chinese +10.64 pt vs 16 (limit 2.0)",
-                "German +10.25 pt vs 16 (limit 2.0)",
-                "Japanese +9.26 pt vs 16 (limit 2.0)",
-                "Korean +3.93 pt vs 16 (limit 2.0)",
-                "French +3.66 pt vs 16 (limit 2.0)",
-                "Spanish +3.53 pt vs 16 (limit 2.0)",
-                "format CER +5.29 pt vs 16 (limit 0.10)",
-                "22 clips empty or cut short where 16 had the words (limit 0)"
+                "English WER +9.41 pt vs same-layout Standard 16 (limit 0.10)",
+                "multilingual mean +8.88 pt vs same-layout Standard 16 (limit 0.10)",
+                "Swedish +13.33 pt vs same-layout Standard 16 (limit 2.0)",
+                "Polish +13.15 pt vs same-layout Standard 16 (limit 2.0)",
+                "Turkish +12.29 pt vs same-layout Standard 16 (limit 2.0)",
+                "Chinese +10.70 pt vs same-layout Standard 16 (limit 2.0)",
+                "Japanese +10.46 pt vs same-layout Standard 16 (limit 2.0)",
+                "German +8.72 pt vs same-layout Standard 16 (limit 2.0)",
+                "Korean +4.34 pt vs same-layout Standard 16 (limit 2.0)",
+                "French +3.66 pt vs same-layout Standard 16 (limit 2.0)",
+                "Spanish +3.27 pt vs same-layout Standard 16 (limit 2.0)",
+                "format CER +5.61 pt vs same-layout Standard 16 (limit 0.10)",
+                "21 clips empty or cut short where same-layout Standard 16 had the words (limit 0)"
+              ],
+              "loss": [
+                "English WER +9.41 pt",
+                "multilingual mean +8.88 pt",
+                "Swedish +13.33 pt",
+                "Polish +13.15 pt",
+                "Turkish +12.29 pt",
+                "Chinese +10.70 pt",
+                "Japanese +10.46 pt",
+                "German +8.72 pt",
+                "Korean +4.34 pt",
+                "French +3.66 pt",
+                "Spanish +3.27 pt",
+                "format CER +5.61 pt"
               ],
               "presence": {
                 "offered": false,
                 "reasons": [
-                  "22 clips empty or cut short where 16 had the words",
-                  "English WER +9.29 pt vs 16 (presence limit +5.0)",
-                  "multilingual mean +9.01 pt vs 16 (presence limit +5.0)",
-                  "Swedish +15.05 pt vs 16 (presence limit +10.0)",
-                  "Turkish +13.29 pt vs 16 (presence limit +10.0)",
-                  "Polish +11.51 pt vs 16 (presence limit +10.0)",
-                  "Chinese +10.64 pt vs 16 (presence limit +10.0)",
-                  "German +10.25 pt vs 16 (presence limit +10.0)"
+                  "21 clips empty or cut short where 16 had the words",
+                  "English WER +9.41 pt vs 16 (absent from +5.0)",
+                  "multilingual mean +8.88 pt vs 16 (absent from +5.0)",
+                  "Swedish +13.33 pt vs 16 (absent from +10.0)",
+                  "Polish +13.15 pt vs 16 (absent from +10.0)",
+                  "Turkish +12.29 pt vs 16 (absent from +10.0)",
+                  "Chinese +10.70 pt vs 16 (absent from +10.0)",
+                  "Japanese +10.46 pt vs 16 (absent from +10.0)"
                 ]
               },
-              "baseline": "tier16 Standard (same final build)"
+              "baseline": "tier16 Standard, identical streaming session layout",
+              "layout": null
             },
             "build_provenance": {
               "measured": "builds.measured",
@@ -3644,26 +3697,52 @@ const VELLA_BENCHMARKS = {
           "presence": {
             "offered": true,
             "reasons": [],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "gate": {
             "status": "pass",
             "reasons": [],
             "loss": [],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "standard": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "disk_mb": null,
-            "measured": null,
-            "engine": null,
+            "wer": 17.06,
+            "format": 8.17,
+            "multilingual": {
+              "mean": 14.53,
+              "macro_wer": 13.92,
+              "macro_cer": 15.76,
+              "coverage": 9,
+              "by_language": {
+                "pl": 6.7,
+                "de": 8.18,
+                "fr": 22.04,
+                "es": 17.2,
+                "sv": 16.77,
+                "tr": 12.62,
+                "ja": 3.74,
+                "zh": 21.11,
+                "ko": 22.44
+              }
+            },
+            "speed_x": 29.5,
+            "j_per_min": 86.342,
+            "energy_note": "median of 3 clean brackets (86.311–86.672 J/min)",
+            "memory_mb": 3923,
+            "latency_ms": {
+              "p50": 263.7,
+              "p95": 593.8,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": null,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "mlx",
             "recipe": {
               "layers": {
                 "all": "fp16"
@@ -3674,32 +3753,58 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
-              "reasons": [
-                "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
-              ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "status": "pass",
+              "reasons": [],
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": true,
+                "reasons": []
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
-            },
-            "not_measured_reason": "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
+            }
           },
           "optimized_exact": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "disk_mb": null,
-            "measured": null,
-            "engine": null,
+            "wer": 17.06,
+            "format": 8.17,
+            "multilingual": {
+              "mean": 14.53,
+              "macro_wer": 13.92,
+              "macro_cer": 15.76,
+              "coverage": 9,
+              "by_language": {
+                "pl": 6.7,
+                "de": 8.18,
+                "fr": 22.04,
+                "es": 17.2,
+                "sv": 16.77,
+                "tr": 12.62,
+                "ja": 3.74,
+                "zh": 21.11,
+                "ko": 22.44
+              }
+            },
+            "speed_x": 34.9,
+            "j_per_min": 82.414,
+            "energy_note": "median of 3 clean brackets (82.125–82.670 J/min)",
+            "memory_mb": 3916,
+            "latency_ms": {
+              "p50": 222.2,
+              "p95": 482.2,
+              "n": 133,
+              "kind": "segment"
+            },
+            "disk_mb": 3088,
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
             "recipe": {
               "layers": {
                 "all": "fp16"
@@ -3712,19 +3817,19 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
-              "reasons": [
-                "Exact now equals Fast for Whisper; not measured separately yet."
-              ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "status": "pass",
+              "reasons": [],
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": true,
+                "reasons": []
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             },
-            "not_measured_reason": "Exact now equals Fast for Whisper; not measured separately yet."
+            "measurement_reuse": "Same whisper-4 recipe as Fast; exact components only; canonical shared measurement, not an independent Exact timing."
           },
           "optimized_fast": {
             "wer": 17.06,
@@ -3746,20 +3851,20 @@ const VELLA_BENCHMARKS = {
                 "ko": 22.44
               }
             },
-            "speed_x": 34.8,
-            "j_per_min": 83.501,
-            "energy_note": "median of 3 clean brackets (83.495–86.962 J/min)",
-            "memory_mb": 3915,
+            "speed_x": 34.9,
+            "j_per_min": 82.414,
+            "energy_note": "median of 3 clean brackets (82.125–82.670 J/min)",
+            "memory_mb": 3916,
             "latency_ms": {
-              "p50": 222.0,
-              "p95": 482.9,
+              "p50": 222.2,
+              "p95": 482.2,
               "n": 133,
               "kind": "segment"
             },
             "disk_mb": 3088,
             "measured": {
               "hardware": "Apple M5 Max, macOS 26.6",
-              "date": "2026-10-02",
+              "date": "2026-10-03",
               "suite": "v2",
               "audio_min": 239.7,
               "performance_suite": "v2-quick"
@@ -3779,22 +3884,21 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "pass",
               "reasons": [],
+              "baseline": "tier16 Standard fp16 on same faithful build",
               "presence": {
                 "offered": true,
                 "reasons": []
-              },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              }
             },
             "build_provenance": {
-              "measured": "builds.measured",
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             }
           },
           "display_cells": {
             "standard": "standard",
             "optimized_exact": "optimized_exact",
-            "optimized_fast": "optimized_fast"
+            "optimized_fast": "optimized_exact"
           }
         },
         "8": {
@@ -3802,7 +3906,7 @@ const VELLA_BENCHMARKS = {
           "presence": {
             "offered": true,
             "reasons": [],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "gate": {
             "status": "fail",
@@ -3812,84 +3916,9 @@ const VELLA_BENCHMARKS = {
             "loss": [
               "English WER +0.22 pt"
             ],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "standard": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "measured": null,
-            "engine": null,
-            "recipe": {
-              "layers": {
-                "all": "affine-8 g64",
-                "model.encoder": "fp16"
-              },
-              "kernels": [],
-              "inexact": [],
-              "gate_revision": "stock",
-              "env": {}
-            },
-            "gate": {
-              "status": "withdrawn",
-              "reasons": [
-                "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
-              ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
-            },
-            "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
-            },
-            "not_measured_reason": "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
-          },
-          "optimized_exact": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "measured": null,
-            "engine": null,
-            "recipe": {
-              "layers": {
-                "all": "affine-8 g64",
-                "model.encoder": "fp16"
-              },
-              "kernels": [
-                "decoder",
-                "fused_decode"
-              ],
-              "inexact": [],
-              "gate_revision": "whisper-4",
-              "env": {}
-            },
-            "gate": {
-              "status": "withdrawn",
-              "reasons": [
-                "Exact now equals Fast for Whisper; not measured separately yet."
-              ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
-            },
-            "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
-            },
-            "not_measured_reason": "Exact now equals Fast for Whisper; not measured separately yet."
-          },
-          "optimized_fast": {
             "wer": 17.27,
             "format": 8.18,
             "multilingual": {
@@ -3909,19 +3938,83 @@ const VELLA_BENCHMARKS = {
                 "ko": 22.36
               }
             },
-            "speed_x": 42.9,
-            "j_per_min": 75.222,
-            "energy_note": "median of 3 clean brackets (75.143–75.269 J/min)",
-            "memory_mb": 3104,
+            "speed_x": 34.0,
+            "j_per_min": 80.654,
+            "energy_note": "median of 3 clean brackets (80.605–81.106 J/min)",
+            "memory_mb": 3141,
             "latency_ms": {
-              "p50": 181.8,
-              "p95": 372.1,
+              "p50": 230.9,
+              "p95": 501.2,
               "n": 133,
               "kind": "segment"
             },
             "measured": {
               "hardware": "Apple M5 Max, macOS 26.6",
-              "date": "2026-10-01",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": null,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "mlx",
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64",
+                "model.encoder": "fp16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock",
+              "env": {}
+            },
+            "gate": {
+              "status": "fail",
+              "reasons": [
+                "English WER +0.22 pt vs 16 (limit 0.10)"
+              ],
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": true,
+                "reasons": []
+              }
+            },
+            "build_provenance": {
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
+            }
+          },
+          "optimized_exact": {
+            "wer": 17.27,
+            "format": 8.18,
+            "multilingual": {
+              "mean": 14.57,
+              "macro_wer": 13.92,
+              "macro_cer": 15.86,
+              "coverage": 9,
+              "by_language": {
+                "pl": 6.7,
+                "de": 8.18,
+                "fr": 22.04,
+                "es": 17.11,
+                "sv": 16.77,
+                "tr": 12.74,
+                "ja": 3.74,
+                "zh": 21.46,
+                "ko": 22.36
+              }
+            },
+            "speed_x": 43.5,
+            "j_per_min": 73.697,
+            "energy_note": "median of 3 clean brackets (73.207–73.768 J/min)",
+            "memory_mb": 3116,
+            "latency_ms": {
+              "p50": 179.5,
+              "p95": 368.4,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
               "suite": "v2",
               "audio_min": 239.7,
               "performance_suite": "v2-quick"
@@ -3943,24 +4036,91 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "fail",
               "reasons": [
-                "English WER +0.27 pt vs 16 (limit 0.10)"
+                "English WER +0.22 pt vs 16 (limit 0.10)"
               ],
+              "baseline": "tier16 Standard fp16 on same faithful build",
               "presence": {
                 "offered": true,
                 "reasons": []
-              },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              }
             },
             "build_provenance": {
-              "measured": "builds.measured",
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
+            },
+            "measurement_reuse": "Same whisper-4 recipe as Fast; exact components only; canonical shared measurement, not an independent Exact timing."
+          },
+          "optimized_fast": {
+            "wer": 17.27,
+            "format": 8.18,
+            "multilingual": {
+              "mean": 14.57,
+              "macro_wer": 13.92,
+              "macro_cer": 15.86,
+              "coverage": 9,
+              "by_language": {
+                "pl": 6.7,
+                "de": 8.18,
+                "fr": 22.04,
+                "es": 17.11,
+                "sv": 16.77,
+                "tr": 12.74,
+                "ja": 3.74,
+                "zh": 21.46,
+                "ko": 22.36
+              }
+            },
+            "speed_x": 43.5,
+            "j_per_min": 73.697,
+            "energy_note": "median of 3 clean brackets (73.207–73.768 J/min)",
+            "memory_mb": 3116,
+            "latency_ms": {
+              "p50": 179.5,
+              "p95": 368.4,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64",
+                "model.encoder": "fp16"
+              },
+              "kernels": [
+                "decoder",
+                "fused_decode"
+              ],
+              "inexact": [],
+              "gate_revision": "whisper-4",
+              "env": {}
+            },
+            "gate": {
+              "status": "fail",
+              "reasons": [
+                "English WER +0.22 pt vs 16 (limit 0.10)"
+              ],
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": true,
+                "reasons": []
+              }
+            },
+            "build_provenance": {
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             }
           },
           "display_cells": {
             "standard": "standard",
             "optimized_exact": "optimized_exact",
-            "optimized_fast": "optimized_fast"
+            "optimized_fast": "optimized_exact"
           }
         },
         "4": {
@@ -3970,7 +4130,7 @@ const VELLA_BENCHMARKS = {
             "reasons": [
               "2 clips empty or cut short where 16 had the words"
             ],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "gate": {
             "status": "fail",
@@ -3978,19 +4138,46 @@ const VELLA_BENCHMARKS = {
               "2 clips empty or cut short where 16 had the words (limit 0)"
             ],
             "loss": [],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "standard": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "measured": null,
-            "engine": null,
+            "wer": 17.1,
+            "format": 8.17,
+            "multilingual": {
+              "mean": 14.03,
+              "macro_wer": 13.34,
+              "macro_cer": 15.41,
+              "coverage": 9,
+              "by_language": {
+                "pl": 7.19,
+                "de": 8.81,
+                "fr": 21.8,
+                "es": 17.02,
+                "sv": 12.26,
+                "tr": 12.96,
+                "ja": 3.49,
+                "zh": 21.52,
+                "ko": 21.23
+              }
+            },
+            "speed_x": 40.4,
+            "j_per_min": 73.156,
+            "energy_note": "median of 3 clean brackets (72.884–73.282 J/min)",
+            "memory_mb": 2102,
+            "latency_ms": {
+              "p50": 217.7,
+              "p95": 451.5,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": null,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "mlx",
             "recipe": {
               "layers": {
                 "all": "affine-4 g64"
@@ -4001,31 +4188,61 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
+              "status": "fail",
               "reasons": [
-                "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
+                "2 clips empty or cut short where 16 had the words (limit 0)"
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": false,
+                "reasons": [
+                  "2 clips empty or cut short where 16 had the words"
+                ]
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
-            },
-            "not_measured_reason": "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
+            }
           },
           "optimized_exact": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "measured": null,
-            "engine": null,
+            "wer": 17.1,
+            "format": 8.17,
+            "multilingual": {
+              "mean": 14.03,
+              "macro_wer": 13.34,
+              "macro_cer": 15.41,
+              "coverage": 9,
+              "by_language": {
+                "pl": 7.19,
+                "de": 8.81,
+                "fr": 21.8,
+                "es": 17.02,
+                "sv": 12.26,
+                "tr": 12.96,
+                "ja": 3.49,
+                "zh": 21.52,
+                "ko": 21.23
+              }
+            },
+            "speed_x": 54.4,
+            "j_per_min": 65.962,
+            "energy_note": "median of 3 clean brackets (65.594–66.122 J/min)",
+            "memory_mb": 2097,
+            "latency_ms": {
+              "p50": 164.7,
+              "p95": 318.0,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
             "recipe": {
               "layers": {
                 "all": "affine-4 g64"
@@ -4039,19 +4256,23 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
+              "status": "fail",
               "reasons": [
-                "Exact now equals Fast for Whisper; not measured separately yet."
+                "2 clips empty or cut short where 16 had the words (limit 0)"
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": false,
+                "reasons": [
+                  "2 clips empty or cut short where 16 had the words"
+                ]
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             },
-            "not_measured_reason": "Exact now equals Fast for Whisper; not measured separately yet."
+            "measurement_reuse": "Same whisper-4 recipe as Fast; exact components only; canonical shared measurement, not an independent Exact timing."
           },
           "optimized_fast": {
             "wer": 17.1,
@@ -4074,18 +4295,18 @@ const VELLA_BENCHMARKS = {
               }
             },
             "speed_x": 54.4,
-            "j_per_min": 66.023,
-            "energy_note": "median of 3 clean brackets (66.009–66.389 J/min)",
-            "memory_mb": 2123,
+            "j_per_min": 65.962,
+            "energy_note": "median of 3 clean brackets (65.594–66.122 J/min)",
+            "memory_mb": 2097,
             "latency_ms": {
-              "p50": 164.6,
-              "p95": 318.3,
+              "p50": 164.7,
+              "p95": 318.0,
               "n": 133,
               "kind": "segment"
             },
             "measured": {
               "hardware": "Apple M5 Max, macOS 26.6",
-              "date": "2026-10-01",
+              "date": "2026-10-03",
               "suite": "v2",
               "audio_min": 239.7,
               "performance_suite": "v2-quick"
@@ -4106,27 +4327,25 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "fail",
               "reasons": [
-                "English WER +0.10 pt vs 16 (limit 0.10)",
                 "2 clips empty or cut short where 16 had the words (limit 0)"
               ],
+              "baseline": "tier16 Standard fp16 on same faithful build",
               "presence": {
                 "offered": false,
                 "reasons": [
                   "2 clips empty or cut short where 16 had the words"
                 ]
-              },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              }
             },
             "build_provenance": {
-              "measured": "builds.measured",
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             }
           },
           "display_cells": {
             "standard": "standard",
             "optimized_exact": "optimized_exact",
-            "optimized_fast": "optimized_fast"
+            "optimized_fast": "optimized_exact"
           }
         }
       }
@@ -4142,26 +4361,52 @@ const VELLA_BENCHMARKS = {
           "presence": {
             "offered": true,
             "reasons": [],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "gate": {
             "status": "pass",
             "reasons": [],
             "loss": [],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "standard": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "disk_mb": null,
-            "measured": null,
-            "engine": null,
+            "wer": 16.57,
+            "format": 7.43,
+            "multilingual": {
+              "mean": 14.83,
+              "macro_wer": 14.82,
+              "macro_cer": 14.85,
+              "coverage": 9,
+              "by_language": {
+                "pl": 7.61,
+                "de": 9.71,
+                "fr": 19.97,
+                "es": 14.27,
+                "sv": 23.87,
+                "tr": 13.51,
+                "ja": 3.49,
+                "zh": 20.88,
+                "ko": 20.17
+              }
+            },
+            "speed_x": 83.9,
+            "j_per_min": 38.224,
+            "energy_note": "median of 3 clean brackets (37.980–38.502 J/min)",
+            "memory_mb": 2499,
+            "latency_ms": {
+              "p50": 107.6,
+              "p95": 196.2,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": null,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "mlx",
             "recipe": {
               "layers": {
                 "all": "fp16"
@@ -4172,32 +4417,58 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
-              "reasons": [
-                "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
-              ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "status": "pass",
+              "reasons": [],
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": true,
+                "reasons": []
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
-            },
-            "not_measured_reason": "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
+            }
           },
           "optimized_exact": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "disk_mb": null,
-            "measured": null,
-            "engine": null,
+            "wer": 16.57,
+            "format": 7.43,
+            "multilingual": {
+              "mean": 14.83,
+              "macro_wer": 14.82,
+              "macro_cer": 14.85,
+              "coverage": 9,
+              "by_language": {
+                "pl": 7.61,
+                "de": 9.71,
+                "fr": 19.97,
+                "es": 14.27,
+                "sv": 23.87,
+                "tr": 13.51,
+                "ja": 3.49,
+                "zh": 20.88,
+                "ko": 20.17
+              }
+            },
+            "speed_x": 115.7,
+            "j_per_min": 36.561,
+            "energy_note": "median of 3 clean brackets (36.443–36.579 J/min)",
+            "memory_mb": 2516,
+            "latency_ms": {
+              "p50": 81.1,
+              "p95": 125.3,
+              "n": 133,
+              "kind": "segment"
+            },
+            "disk_mb": 1619,
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
             "recipe": {
               "layers": {
                 "all": "fp16"
@@ -4210,19 +4481,19 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
-              "reasons": [
-                "Exact now equals Fast for Whisper; not measured separately yet."
-              ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "status": "pass",
+              "reasons": [],
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": true,
+                "reasons": []
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             },
-            "not_measured_reason": "Exact now equals Fast for Whisper; not measured separately yet."
+            "measurement_reuse": "Same whisper-4 recipe as Fast; exact components only; canonical shared measurement, not an independent Exact timing."
           },
           "optimized_fast": {
             "wer": 16.57,
@@ -4244,20 +4515,20 @@ const VELLA_BENCHMARKS = {
                 "ko": 20.17
               }
             },
-            "speed_x": 113.7,
-            "j_per_min": 37.183,
-            "energy_note": "median of 3 clean brackets (37.134–37.339 J/min)",
-            "memory_mb": 2522,
+            "speed_x": 115.7,
+            "j_per_min": 36.561,
+            "energy_note": "median of 3 clean brackets (36.443–36.579 J/min)",
+            "memory_mb": 2516,
             "latency_ms": {
-              "p50": 82.6,
-              "p95": 127.1,
+              "p50": 81.1,
+              "p95": 125.3,
               "n": 133,
               "kind": "segment"
             },
             "disk_mb": 1619,
             "measured": {
               "hardware": "Apple M5 Max, macOS 26.6",
-              "date": "2026-10-01",
+              "date": "2026-10-03",
               "suite": "v2",
               "audio_min": 239.7,
               "performance_suite": "v2-quick"
@@ -4277,22 +4548,21 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "pass",
               "reasons": [],
+              "baseline": "tier16 Standard fp16 on same faithful build",
               "presence": {
                 "offered": true,
                 "reasons": []
-              },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              }
             },
             "build_provenance": {
-              "measured": "builds.measured",
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             }
           },
           "display_cells": {
             "standard": "standard",
             "optimized_exact": "optimized_exact",
-            "optimized_fast": "optimized_fast"
+            "optimized_fast": "optimized_exact"
           }
         },
         "8": {
@@ -4300,25 +4570,52 @@ const VELLA_BENCHMARKS = {
           "presence": {
             "offered": true,
             "reasons": [],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "gate": {
             "status": "pass",
             "reasons": [],
             "loss": [],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "standard": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "measured": null,
-            "engine": null,
+            "wer": 16.52,
+            "format": 7.46,
+            "multilingual": {
+              "mean": 14.8,
+              "macro_wer": 14.77,
+              "macro_cer": 14.83,
+              "coverage": 9,
+              "by_language": {
+                "pl": 7.61,
+                "de": 9.89,
+                "fr": 20.05,
+                "es": 14.36,
+                "sv": 23.23,
+                "tr": 13.51,
+                "ja": 3.49,
+                "zh": 20.88,
+                "ko": 20.14
+              }
+            },
+            "speed_x": 91.5,
+            "j_per_min": 37.059,
+            "energy_note": "median of 3 clean brackets (37.029–37.249 J/min)",
+            "memory_mb": 2419,
+            "latency_ms": {
+              "p50": 99.9,
+              "p95": 174.4,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": null,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "mlx",
             "recipe": {
               "layers": {
                 "all": "affine-8 g64",
@@ -4330,31 +4627,57 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
-              "reasons": [
-                "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
-              ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "status": "pass",
+              "reasons": [],
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": true,
+                "reasons": []
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
-            },
-            "not_measured_reason": "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
+            }
           },
           "optimized_exact": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "measured": null,
-            "engine": null,
+            "wer": 16.52,
+            "format": 7.46,
+            "multilingual": {
+              "mean": 14.8,
+              "macro_wer": 14.77,
+              "macro_cer": 14.83,
+              "coverage": 9,
+              "by_language": {
+                "pl": 7.61,
+                "de": 9.89,
+                "fr": 20.05,
+                "es": 14.36,
+                "sv": 23.23,
+                "tr": 13.51,
+                "ja": 3.49,
+                "zh": 20.88,
+                "ko": 20.14
+              }
+            },
+            "speed_x": 129.8,
+            "j_per_min": 34.636,
+            "energy_note": "median of 3 clean brackets (34.500–34.736 J/min)",
+            "memory_mb": 2363,
+            "latency_ms": {
+              "p50": 73.7,
+              "p95": 104.7,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
             "recipe": {
               "layers": {
                 "all": "affine-8 g64",
@@ -4369,19 +4692,19 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
-              "reasons": [
-                "Exact now equals Fast for Whisper; not measured separately yet."
-              ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "status": "pass",
+              "reasons": [],
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": true,
+                "reasons": []
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             },
-            "not_measured_reason": "Exact now equals Fast for Whisper; not measured separately yet."
+            "measurement_reuse": "Same whisper-4 recipe as Fast; exact components only; canonical shared measurement, not an independent Exact timing."
           },
           "optimized_fast": {
             "wer": 16.52,
@@ -4403,19 +4726,19 @@ const VELLA_BENCHMARKS = {
                 "ko": 20.14
               }
             },
-            "speed_x": 128.9,
-            "j_per_min": 35.563,
-            "energy_note": "median of 3 clean brackets (35.526–35.583 J/min)",
-            "memory_mb": 2574,
+            "speed_x": 129.8,
+            "j_per_min": 34.636,
+            "energy_note": "median of 3 clean brackets (34.500–34.736 J/min)",
+            "memory_mb": 2363,
             "latency_ms": {
-              "p50": 74.1,
-              "p95": 105.5,
+              "p50": 73.7,
+              "p95": 104.7,
               "n": 133,
               "kind": "segment"
             },
             "measured": {
               "hardware": "Apple M5 Max, macOS 26.6",
-              "date": "2026-10-02",
+              "date": "2026-10-03",
               "suite": "v2",
               "audio_min": 239.7,
               "performance_suite": "v2-quick"
@@ -4437,22 +4760,21 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "pass",
               "reasons": [],
+              "baseline": "tier16 Standard fp16 on same faithful build",
               "presence": {
                 "offered": true,
                 "reasons": []
-              },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              }
             },
             "build_provenance": {
-              "measured": "builds.measured",
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             }
           },
           "display_cells": {
             "standard": "standard",
             "optimized_exact": "optimized_exact",
-            "optimized_fast": "optimized_fast"
+            "optimized_fast": "optimized_exact"
           }
         },
         "4": {
@@ -4462,7 +4784,7 @@ const VELLA_BENCHMARKS = {
             "reasons": [
               "1 clip empty or cut short where 16 had the words"
             ],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "gate": {
             "status": "fail",
@@ -4479,19 +4801,46 @@ const VELLA_BENCHMARKS = {
               "Turkish +2.66 pt",
               "format CER +0.70 pt"
             ],
-            "baseline": "tier16 Optimized Fast (measured)"
+            "baseline": "tier16 Standard fp16 on same faithful build"
           },
           "standard": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "measured": null,
-            "engine": null,
+            "wer": 16.96,
+            "format": 8.14,
+            "multilingual": {
+              "mean": 15.06,
+              "macro_wer": 15.13,
+              "macro_cer": 14.92,
+              "coverage": 9,
+              "by_language": {
+                "pl": 7.98,
+                "de": 10.61,
+                "fr": 18.62,
+                "es": 15.48,
+                "sv": 21.94,
+                "tr": 16.17,
+                "ja": 2.92,
+                "zh": 21.81,
+                "ko": 20.02
+              }
+            },
+            "speed_x": 93.8,
+            "j_per_min": 39.807,
+            "energy_note": "median of 3 clean brackets (39.713–40.372 J/min)",
+            "memory_mb": 1723,
+            "latency_ms": {
+              "p50": 98.4,
+              "p95": 169.0,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": null,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "mlx",
             "recipe": {
               "layers": {
                 "all": "affine-4 g64"
@@ -4502,31 +4851,65 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
+              "status": "fail",
               "reasons": [
-                "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
+                "English WER +0.39 pt vs 16 (limit 0.10)",
+                "multilingual mean +0.23 pt vs 16 (limit 0.22)",
+                "Turkish +2.66 pt vs 16 (limit 2.0)",
+                "format CER +0.70 pt vs 16 (limit 0.10)",
+                "1 clip empty or cut short where 16 had the words (limit 0)"
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": false,
+                "reasons": [
+                  "1 clip empty or cut short where 16 had the words"
+                ]
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
-            },
-            "not_measured_reason": "Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0."
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
+            }
           },
           "optimized_exact": {
-            "wer": null,
-            "format": null,
-            "multilingual": null,
-            "speed_x": null,
-            "j_per_min": null,
-            "energy_note": null,
-            "memory_mb": null,
-            "latency_ms": null,
-            "measured": null,
-            "engine": null,
+            "wer": 16.96,
+            "format": 8.14,
+            "multilingual": {
+              "mean": 15.06,
+              "macro_wer": 15.13,
+              "macro_cer": 14.92,
+              "coverage": 9,
+              "by_language": {
+                "pl": 7.98,
+                "de": 10.61,
+                "fr": 18.62,
+                "es": 15.48,
+                "sv": 21.94,
+                "tr": 16.17,
+                "ja": 2.92,
+                "zh": 21.81,
+                "ko": 20.02
+              }
+            },
+            "speed_x": 134.6,
+            "j_per_min": 37.272,
+            "energy_note": "median of 3 clean brackets (37.244–37.389 J/min)",
+            "memory_mb": 1731,
+            "latency_ms": {
+              "p50": 71.6,
+              "p95": 97.8,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 26.6",
+              "date": "2026-10-03",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
             "recipe": {
               "layers": {
                 "all": "affine-4 g64"
@@ -4540,19 +4923,27 @@ const VELLA_BENCHMARKS = {
               "env": {}
             },
             "gate": {
-              "status": "withdrawn",
+              "status": "fail",
               "reasons": [
-                "Exact now equals Fast for Whisper; not measured separately yet."
+                "English WER +0.39 pt vs 16 (limit 0.10)",
+                "multilingual mean +0.23 pt vs 16 (limit 0.22)",
+                "Turkish +2.66 pt vs 16 (limit 2.0)",
+                "format CER +0.70 pt vs 16 (limit 0.10)",
+                "1 clip empty or cut short where 16 had the words (limit 0)"
               ],
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              "baseline": "tier16 Standard fp16 on same faithful build",
+              "presence": {
+                "offered": false,
+                "reasons": [
+                  "1 clip empty or cut short where 16 had the words"
+                ]
+              }
             },
             "build_provenance": {
-              "measured": null,
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge",
-              "withdrawn_from": "builds.measured"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             },
-            "not_measured_reason": "Exact now equals Fast for Whisper; not measured separately yet."
+            "measurement_reuse": "Same whisper-4 recipe as Fast; exact components only; canonical shared measurement, not an independent Exact timing."
           },
           "optimized_fast": {
             "wer": 16.96,
@@ -4574,19 +4965,19 @@ const VELLA_BENCHMARKS = {
                 "ko": 20.02
               }
             },
-            "speed_x": 132.7,
-            "j_per_min": 38.109,
-            "energy_note": "median of 3 clean brackets (38.076–38.139 J/min)",
-            "memory_mb": 1743,
+            "speed_x": 134.6,
+            "j_per_min": 37.272,
+            "energy_note": "median of 3 clean brackets (37.244–37.389 J/min)",
+            "memory_mb": 1731,
             "latency_ms": {
-              "p50": 72.7,
-              "p95": 99.2,
+              "p50": 71.6,
+              "p95": 97.8,
               "n": 133,
               "kind": "segment"
             },
             "measured": {
               "hardware": "Apple M5 Max, macOS 26.6",
-              "date": "2026-10-02",
+              "date": "2026-10-03",
               "suite": "v2",
               "audio_min": 239.7,
               "performance_suite": "v2-quick"
@@ -4607,30 +4998,29 @@ const VELLA_BENCHMARKS = {
             "gate": {
               "status": "fail",
               "reasons": [
-                "English WER +0.45 pt vs 16 (limit 0.10)",
-                "multilingual mean +0.41 pt vs 16 (limit 0.22)",
-                "Turkish +2.55 pt vs 16 (limit 2.0)",
-                "format CER +0.71 pt vs 16 (limit 0.10)",
+                "English WER +0.39 pt vs 16 (limit 0.10)",
+                "multilingual mean +0.23 pt vs 16 (limit 0.22)",
+                "Turkish +2.66 pt vs 16 (limit 2.0)",
+                "format CER +0.70 pt vs 16 (limit 0.10)",
                 "1 clip empty or cut short where 16 had the words (limit 0)"
               ],
+              "baseline": "tier16 Standard fp16 on same faithful build",
               "presence": {
                 "offered": false,
                 "reasons": [
                   "1 clip empty or cut short where 16 had the words"
                 ]
-              },
-              "baseline": "tier16 withdrawn Float32 Standard (measured build 53d1bf3, built from 932136f); not the shipped FP16 Standard"
+              }
             },
             "build_provenance": {
-              "measured": "builds.measured",
-              "recipe": "builds.shipped",
-              "bridge": "builds.bridge"
+              "measured": "builds.night",
+              "recipe": "builds.shipped"
             }
           },
           "display_cells": {
             "standard": "standard",
             "optimized_exact": "optimized_exact",
-            "optimized_fast": "optimized_fast"
+            "optimized_fast": "optimized_exact"
           }
         }
       }
@@ -5431,6 +5821,23 @@ const VELLA_BENCHMARKS = {
         "summary": "One gpulock run of the new 4d5e996 build: large-v3 and turbo × FP16/8b/4b, each 122/122 clips token-identical to measured Fast transcripts."
       },
       "defaults": "Historical, before GPU-identity keys: defaults flipped to the measured lever sets (Toby, 3 Oct); default keys == measured verdict keys: 30/30; 0 mismatches outside Whisper (whisper-4 listed separately); current default and explicit measured lever configurations still agree; current keys differ from historical verdict keys and require local requalification."
+    },
+    "nemotron_gate": {
+      "status": "layout_artifact",
+      "baseline": "same-layout native Standard",
+      "decision_rule": "all five shared Standard losses => layout artifact; retained words lost by candidate => Optimized withheld; mixed => refuse publication",
+      "layout_sha256": "16428e35ae2cb72ee865a52e3a2f6a8a6876b07248f851824a7c8e3b52628f2e",
+      "worker_sha256": "8a215e827e5972ef9afb4db7cf57ea8f068006f40ef1510ccd66e6977546b99d",
+      "result_sha256": "40b78af02d6885bd5e891c31f52c87db3d57489f825aef1981cb717d84169ea4",
+      "dates": [
+        "2026-10-03"
+      ]
+    },
+    "night": {
+      "tag": "night-faithful-whisper-4",
+      "source_commit": "7ccd67c790bb52ec15c344474ee0dc6872e7d0a4",
+      "worker_sha256": "b49faa52236c39ab210c3a11d993b396517b8483a1859953acccdd7af68bf119",
+      "note": "Faithful fp16 Whisper Standard and shared Exact/Fast measured together; remaining models retain dated measurements."
     }
   }
 };
@@ -5561,7 +5968,10 @@ const VELLA_MODELS = {
       "license": "cc-by-4.0",
       "native": "FP32",
       "native_dtype": "float32",
-      "tiers_offered": ["16", "8"],
+      "tiers_offered": [
+        "16",
+        "8"
+      ],
       "download": {
         "repo": "animaslabs/parakeet-tdt-0.6b-v3-mlx",
         "revision": "b3f0e8a62787b5dd33ebf05be8a5db41661c5eb6",

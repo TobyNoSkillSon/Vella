@@ -125,7 +125,10 @@
       "license": "cc-by-4.0",
       "native": "FP32",
       "native_dtype": "float32",
-      "tiers_offered": ["16", "8"],
+      "tiers_offered": [
+        "16",
+        "8"
+      ],
       "download": {
         "repo": "animaslabs/parakeet-tdt-0.6b-v3-mlx",
         "revision": "b3f0e8a62787b5dd33ebf05be8a5db41661c5eb6",

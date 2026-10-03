@@ -10,14 +10,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 150.9,
+     "speed_x": 152.86,
      "pass_s": [
-      0.1516,
-      0.1515,
-      0.1485
+      0.1469,
+      0.1505,
+      0.1495
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1669,
+     "load_ms": 5220,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -33,8 +33,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "optimized_exact": {
@@ -45,14 +45,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 143.7,
+     "speed_x": 146.5,
      "pass_s": [
-      0.1591,
-      0.1605,
-      0.1573
+      0.1566,
+      0.156,
+      0.1557
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1677,
+     "load_ms": 1633,
      "engine": "optimized",
      "selection": {
       "mode": "exact",
@@ -70,8 +70,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "standard": {
@@ -82,14 +82,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 115.24,
+     "speed_x": 118.1,
      "pass_s": [
-      0.1983,
-      0.199,
-      0.1961
+      0.1935,
+      0.1928,
+      0.1938
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 600,
+     "load_ms": 573,
      "engine": "mlx",
      "selection": {
       "mode": "fast",
@@ -107,8 +107,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    },
@@ -121,14 +121,14 @@
       "clip-d": "Concorde returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 167.32,
+     "speed_x": 185.95,
      "pass_s": [
-      0.1348,
-      0.1366,
-      0.1425
+      0.1229,
+      0.1233,
+      0.121
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1928,
+     "load_ms": 3103,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -144,8 +144,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "optimized_exact": {
@@ -156,14 +156,14 @@
       "clip-d": "Concorde returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 123.92,
+     "speed_x": 153.59,
      "pass_s": [
-      0.1995,
-      0.1844,
-      0.182
+      0.1498,
+      0.1488,
+      0.1486
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1969,
+     "load_ms": 1693,
      "engine": "optimized",
      "selection": {
       "mode": "exact",
@@ -178,8 +178,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "standard": {
@@ -190,14 +190,14 @@
       "clip-d": "Concorde returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 118.37,
+     "speed_x": 134.61,
      "pass_s": [
-      0.1926,
-      0.1931,
-      0.1998
+      0.1714,
+      0.1695,
+      0.1698
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 795,
+     "load_ms": 681,
      "engine": "mlx",
      "selection": {
       "mode": "fast",
@@ -214,8 +214,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    },
@@ -228,14 +228,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was,"
      },
-     "speed_x": 160.25,
+     "speed_x": 186.44,
      "pass_s": [
-      0.1426,
-      0.1423,
-      0.1438
+      0.1226,
+      0.1204,
+      0.1227
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 2047,
+     "load_ms": 2748,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -251,8 +251,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "optimized_exact": {
@@ -263,14 +263,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was,"
      },
-     "speed_x": 131.06,
+     "speed_x": 152.77,
      "pass_s": [
-      0.1756,
-      0.1741,
-      0.1744
+      0.1496,
+      0.1504,
+      0.149
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1836,
+     "load_ms": 1677,
      "engine": "optimized",
      "selection": {
       "mode": "exact",
@@ -285,8 +285,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "standard": {
@@ -297,14 +297,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was,"
      },
-     "speed_x": 116.26,
+     "speed_x": 133.23,
      "pass_s": [
-      0.1985,
-      0.1966,
-      0.1955
+      0.1724,
+      0.171,
+      0.1715
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 789,
+     "load_ms": 680,
      "engine": "mlx",
      "selection": {
       "mode": "fast",
@@ -321,8 +321,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    }
@@ -337,14 +337,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 96.47,
+     "speed_x": 94.15,
      "pass_s": [
-      0.235,
-      0.2369,
-      0.2563
+      0.2422,
+      0.2428,
+      0.2451
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1771,
+     "load_ms": 1660,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -360,8 +360,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "optimized_exact": {
@@ -372,14 +372,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 84.86,
+     "speed_x": 93.75,
      "pass_s": [
-      0.301,
-      0.2693,
-      0.2688
+      0.2436,
+      0.2438,
+      0.2443
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1785,
+     "load_ms": 1624,
      "engine": "optimized",
      "selection": {
       "mode": "exact",
@@ -397,8 +397,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "standard": {
@@ -409,14 +409,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 65.73,
+     "speed_x": 81.15,
      "pass_s": [
-      0.3084,
-      0.3643,
-      0.3477
+      0.2821,
+      0.2795,
+      0.2816
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 693,
+     "load_ms": 583,
      "engine": "mlx",
      "selection": {
       "mode": "fast",
@@ -434,8 +434,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    },
@@ -448,14 +448,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 107.01,
+     "speed_x": 137.42,
      "pass_s": [
-      0.2138,
-      0.2136,
-      0.2105
+      0.1679,
+      0.1663,
+      0.1661
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 2770,
+     "load_ms": 1919,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -471,8 +471,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "optimized_exact": {
@@ -483,14 +483,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 102.18,
+     "speed_x": 118.1,
      "pass_s": [
-      0.2232,
-      0.2378,
-      0.2237
+      0.1961,
+      0.193,
+      0.1935
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 2126,
+     "load_ms": 1706,
      "engine": "optimized",
      "selection": {
       "mode": "exact",
@@ -505,8 +505,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "standard": {
@@ -517,14 +517,14 @@
       "clip-d": "Concord returned to its place amidst the tents,",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 94.18,
+     "speed_x": 106.09,
      "pass_s": [
-      0.2427,
-      0.2384,
-      0.2464
+      0.2183,
+      0.2154,
+      0.2137
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 805,
+     "load_ms": 697,
      "engine": "mlx",
      "selection": {
       "mode": "fast",
@@ -541,8 +541,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    }
@@ -557,14 +557,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 20.5,
+     "speed_x": 25.06,
      "pass_s": [
-      1.1748,
-      1.1149,
-      1.011
+      0.9077,
+      0.9118,
+      0.9142
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 6149,
+     "load_ms": 6798,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -579,8 +579,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "optimized_exact": {
@@ -591,14 +591,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 23.63,
+     "speed_x": 24.93,
      "pass_s": [
-      0.9798,
-      0.967,
-      0.9665
+      0.9174,
+      0.9168,
+      0.9126
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 6537,
+     "load_ms": 5739,
      "engine": "optimized",
      "selection": {
       "mode": "exact",
@@ -613,8 +613,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "standard": {
@@ -625,14 +625,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 21.29,
+     "speed_x": 22.25,
      "pass_s": [
-      1.0735,
-      1.0699,
-      1.0872
+      1.0203,
+      1.0272,
+      1.0292
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1956,
+     "load_ms": 1828,
      "engine": "mlx",
      "selection": {
       "mode": "fast",
@@ -649,8 +649,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    }
@@ -665,14 +665,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 50.67,
+     "speed_x": 52.37,
      "pass_s": [
-      0.4541,
-      0.4511,
-      0.4505
+      0.4355,
+      0.4364,
+      0.4369
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 3229,
+     "load_ms": 2991,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -687,8 +687,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "optimized_exact": {
@@ -699,14 +699,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 49.39,
+     "speed_x": 52.32,
      "pass_s": [
-      0.4628,
-      0.4627,
-      0.459
+      0.4362,
+      0.4368,
+      0.4375
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 3167,
+     "load_ms": 2965,
      "engine": "optimized",
      "selection": {
       "mode": "exact",
@@ -721,8 +721,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "standard": {
@@ -733,14 +733,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 37.5,
+     "speed_x": 41.92,
      "pass_s": [
-      0.6095,
-      0.5902,
-      0.6389
+      0.5452,
+      0.5455,
+      0.5428
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1123,
+     "load_ms": 953,
      "engine": "mlx",
      "selection": {
       "mode": "fast",
@@ -757,8 +757,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    },
@@ -771,14 +771,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 60,
+     "speed_x": 64.35,
      "pass_s": [
-      0.3809,
-      0.3823,
-      0.3788
+      0.3554,
+      0.3549,
+      0.3552
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 3313,
+     "load_ms": 3058,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -793,8 +793,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "optimized_exact": {
@@ -805,14 +805,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 60.33,
+     "speed_x": 64.36,
      "pass_s": [
-      0.3767,
-      0.3788,
-      0.387
+      0.3556,
+      0.3551,
+      0.3548
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 3184,
+     "load_ms": 2985,
      "engine": "optimized",
      "selection": {
       "mode": "exact",
@@ -827,8 +827,8 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     },
     "standard": {
@@ -839,14 +839,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 45.99,
+     "speed_x": 48.53,
      "pass_s": [
-      0.4969,
-      0.5042,
-      0.4951
+      0.4709,
+      0.4706,
+      0.4729
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 1132,
+     "load_ms": 1051,
      "engine": "mlx",
      "selection": {
       "mode": "fast",
@@ -863,8 +863,8 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    }
@@ -879,14 +879,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 27.34,
+     "speed_x": 28.62,
      "pass_s": [
-      0.8357,
-      0.836,
-      0.8499
+      0.7993,
+      0.7987,
+      0.7982
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 6283,
+     "load_ms": 4298,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -903,8 +903,80 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
+     }
+    },
+    "optimized_exact": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 28.58,
+     "pass_s": [
+      0.7998,
+      0.7992,
+      0.8007
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 4217,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "fused_decode": false
+     },
+     "fallbacks": [
+      "stock: fused_decode"
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 24.93,
+     "pass_s": [
+      0.9168,
+      0.9152,
+      0.919
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1271,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": false,
+      "fused_decode": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    },
@@ -917,14 +989,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "Well, if I don't know who she was in love with, I know who he was."
      },
-     "speed_x": 30.3,
+     "speed_x": 33.2,
      "pass_s": [
-      0.7543,
-      0.7471,
-      0.7617
+      0.6884,
+      0.6887,
+      0.6879
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 4930,
+     "load_ms": 4348,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -939,8 +1011,78 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
+     }
+    },
+    "optimized_exact": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.\"",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 33.19,
+     "pass_s": [
+      0.688,
+      0.6886,
+      0.6888
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 4338,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "fused_decode": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "It was one of the masterly and charming stories of Dumas the Elder.",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.\"",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "Well, if I don't know who she was in love with, I know who he was."
+     },
+     "speed_x": 27.12,
+     "pass_s": [
+      0.844,
+      0.8423,
+      0.8427
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 1443,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": false,
+      "fused_decode": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    }
@@ -955,14 +1097,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
      },
-     "speed_x": 54.2,
+     "speed_x": 61.01,
      "pass_s": [
-      0.4223,
-      0.4217,
-      0.4177
+      0.376,
+      0.3746,
+      0.3745
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 2425,
+     "load_ms": 2289,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -979,8 +1121,80 @@
      ],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
+     }
+    },
+    "optimized_exact": {
+     "transcripts": {
+      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
+     },
+     "speed_x": 60.63,
+     "pass_s": [
+      0.3782,
+      0.3769,
+      0.3749
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 2259,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": true,
+      "fused_decode": false
+     },
+     "fallbacks": [
+      "stock: fused_decode"
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
+     },
+     "speed_x": 50.72,
+     "pass_s": [
+      0.451,
+      0.4505,
+      0.4506
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 742,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "16"
+     },
+     "optimizations": {
+      "decoder": false,
+      "fused_decode": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    },
@@ -993,14 +1207,14 @@
       "clip-d": "Concord returned to its place amidst the tents.",
       "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
      },
-     "speed_x": 55.88,
+     "speed_x": 62.94,
      "pass_s": [
-      0.409,
-      0.4178,
-      0.4067
+      0.364,
+      0.3628,
+      0.3631
      ],
      "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
-     "load_ms": 2366,
+     "load_ms": 2292,
      "engine": "optimized",
      "selection": {
       "mode": "fast",
@@ -1015,8 +1229,78 @@
      "fallbacks": [],
      "gate_version": "native-kernels-10",
      "worker_source_trees": {
-      "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-      "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
+     }
+    },
+    "optimized_exact": {
+     "transcripts": {
+      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
+     },
+     "speed_x": 63.11,
+     "pass_s": [
+      0.3619,
+      0.3621,
+      0.3629
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 2285,
+     "engine": "optimized",
+     "selection": {
+      "mode": "exact",
+      "path": "optimized",
+      "recipe": "optimized_exact",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": true,
+      "fused_decode": true
+     },
+     "fallbacks": [],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
+     }
+    },
+    "standard": {
+     "transcripts": {
+      "clip-a": "it was one of the masterly and charming stories of de maw the elder",
+      "clip-b": "The wood flamed up splendidly under the large brewing copper, and it sighed so deeply.",
+      "clip-c": "Surely we can submit with good grace.",
+      "clip-d": "Concord returned to its place amidst the tents.",
+      "clip-e": "\"'Well, if I don't know who she was in love with, I know who he was.'"
+     },
+     "speed_x": 52.58,
+     "pass_s": [
+      0.4362,
+      0.4343,
+      0.4347
+     ],
+     "timing_collector": "candidate Contents/Helpers/vella diagnose --json (DiagnoseCollector.time)",
+     "load_ms": 781,
+     "engine": "mlx",
+     "selection": {
+      "mode": "fast",
+      "path": "standard",
+      "recipe": "standard",
+      "tier": "8"
+     },
+     "optimizations": {
+      "decoder": false,
+      "fused_decode": false
+     },
+     "fallbacks": [
+      "Standard selected: stock MLX."
+     ],
+     "gate_version": "native-kernels-10",
+     "worker_source_trees": {
+      "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+      "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
      }
     }
    }
@@ -1024,19 +1308,19 @@
  },
  "schema": 2,
  "method": "api",
- "date": "2026-10-03",
+ "date": "2026-10-04",
  "chip": "Apple M5 Max",
  "hardware": "Apple M5 Max, macOS 26.6",
  "macos": "26.6",
  "os_build": "25G72",
  "app_version": "2.0.0 (35)",
  "worker_source_trees": {
-  "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-  "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+  "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
+  "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
  },
  "worker_source_commit": "843a43444659dbd7f2de507b1e2da11453efb31b",
- "candidate_app_sha256": "54079d55ea631e57e134d45558850600e16b4090b91266b683319433d486a07f",
- "candidate_worker_sha256": "0c9312a2926b88ba28464753a9a9acd6186b369b174a83e1a592ece9e1a14dc3",
+ "candidate_app_sha256": "1b3c4b53ff14165c9c6342c0745fbe768aaee56bb44e1c235ce75a3049d3a938",
+ "candidate_worker_sha256": "b49faa52236c39ab210c3a11d993b396517b8483a1859953acccdd7af68bf119",
  "clips": {
   "clip-a": 3.38,
   "clip-b": 8.205,
@@ -1046,74 +1330,3084 @@
  },
  "gate_version": "native-kernels-10",
  "gpu_family": "apple9",
- "unqualified": [
-  {
-   "family": "whisper-large-v3",
-   "precision": "FP16",
-   "segment": "optimized_exact",
-   "reason": "API capture unavailable or unqualified; inspect run error"
-  },
-  {
-   "family": "whisper-large-v3",
-   "precision": "FP16",
-   "segment": "standard",
-   "reason": "API capture unavailable or unqualified; inspect run error"
-  },
-  {
-   "family": "whisper-large-v3",
-   "precision": "8b",
-   "segment": "optimized_exact",
-   "reason": "API capture unavailable or unqualified; inspect run error"
-  },
-  {
-   "family": "whisper-large-v3",
-   "precision": "8b",
-   "segment": "standard",
-   "reason": "API capture unavailable or unqualified; inspect run error"
-  },
-  {
-   "family": "whisper-large-v3-turbo",
-   "precision": "FP16",
-   "segment": "optimized_exact",
-   "reason": "API capture unavailable or unqualified; inspect run error"
-  },
-  {
-   "family": "whisper-large-v3-turbo",
-   "precision": "FP16",
-   "segment": "standard",
-   "reason": "API capture unavailable or unqualified; inspect run error"
-  },
-  {
-   "family": "whisper-large-v3-turbo",
-   "precision": "8b",
-   "segment": "optimized_exact",
-   "reason": "API capture unavailable or unqualified; inspect run error"
-  },
-  {
-   "family": "whisper-large-v3-turbo",
-   "precision": "8b",
-   "segment": "standard",
-   "reason": "API capture unavailable or unqualified; inspect run error"
-  }
- ],
- "provisional": true,
  "conditions": {
-  "lock": "gpulock only (GPU exclusive per run; not a quiet measure window)",
-  "sampled": "09:38:29–09:43:10 every 10 s (29 samples)",
-  "other_cpu_pct": {
-   "median": 235,
-   "min": 46,
-   "max": 1497
-  },
-  "top_other_processes": [
-   "swiftpm-testing-helper",
-   "swift-frontend",
-   "ego Helper (Renderer)",
-   "python",
-   "cli-proxy-api",
-   "WindowServer"
+  "lock": "lab/bin/measure CPU<=60; immutable NOW worker copy",
+  "samples": [
+   {
+    "epoch": 1791060215.600551,
+    "other_cpu_pct": 83.9,
+    "top": [
+     [
+      21.4,
+      "python"
+     ],
+     [
+      13.5,
+      "Vorssaint"
+     ],
+     [
+      10.1,
+      "coreaudiod"
+     ],
+     [
+      3.9,
+      "pi"
+     ],
+     [
+      3.5,
+      "mediaremoted"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060216.64026,
+    "other_cpu_pct": 82.4,
+    "top": [
+     [
+      45.2,
+      "cli-proxy-api"
+     ],
+     [
+      6.0,
+      "XprotectService"
+     ],
+     [
+      5.6,
+      "pi"
+     ],
+     [
+      3.3,
+      "fseventsd"
+     ],
+     [
+      2.2,
+      "opendirectoryd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060217.6790469,
+    "other_cpu_pct": 156.0,
+    "top": [
+     [
+      99.1,
+      "corespotlightd"
+     ],
+     [
+      6.6,
+      "spotlightknowledged.updater"
+     ],
+     [
+      4.8,
+      "Vorssaint"
+     ],
+     [
+      4.5,
+      "dasd"
+     ],
+     [
+      4.0,
+      "pi"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060218.718962,
+    "other_cpu_pct": 121.3,
+    "top": [
+     [
+      92.7,
+      "MTLCompilerService"
+     ],
+     [
+      8.4,
+      "corespotlightd"
+     ],
+     [
+      7.5,
+      "launchd"
+     ],
+     [
+      4.4,
+      "pi"
+     ],
+     [
+      3.5,
+      "Discord Helper (Renderer)"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060219.7583392,
+    "other_cpu_pct": 105.4,
+    "top": [
+     [
+      95.4,
+      "MTLCompilerService"
+     ],
+     [
+      3.9,
+      "pi"
+     ],
+     [
+      0.9,
+      "ego Helper"
+     ],
+     [
+      0.8,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060220.7979252,
+    "other_cpu_pct": 105.1,
+    "top": [
+     [
+      91.8,
+      "MTLCompilerService"
+     ],
+     [
+      4.0,
+      "pi"
+     ],
+     [
+      1.6,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.2,
+      "cli-proxy-api"
+     ],
+     [
+      0.9,
+      "ego Helper"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060221.839398,
+    "other_cpu_pct": 48.5,
+    "top": [
+     [
+      40.6,
+      "MTLCompilerService"
+     ],
+     [
+      1.2,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "pi"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060222.8803892,
+    "other_cpu_pct": 35.4,
+    "top": [
+     [
+      8.4,
+      "coreaudiod"
+     ],
+     [
+      6.7,
+      "Vorssaint"
+     ],
+     [
+      2.3,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.9,
+      "afplay"
+     ],
+     [
+      1.5,
+      "mediaremoted"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060223.919515,
+    "other_cpu_pct": 34.4,
+    "top": [
+     [
+      7.5,
+      "coreaudiod"
+     ],
+     [
+      2.1,
+      "ControlCenter"
+     ],
+     [
+      2.0,
+      "tccd"
+     ],
+     [
+      1.9,
+      "WindowServer"
+     ],
+     [
+      1.8,
+      "Vorssaint"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060224.95956,
+    "other_cpu_pct": 13.200000000000001,
+    "top": [
+     [
+      2.7,
+      "coreaudiod"
+     ],
+     [
+      1.2,
+      "Vorssaint"
+     ],
+     [
+      1.1,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.9,
+      "mediaremoted"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060225.999064,
+    "other_cpu_pct": 104.0,
+    "top": [
+     [
+      18.2,
+      "coreaudiod"
+     ],
+     [
+      12.9,
+      "Vorssaint"
+     ],
+     [
+      9.9,
+      "tccd"
+     ],
+     [
+      8.9,
+      "mediaremoted"
+     ],
+     [
+      7.7,
+      "python"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060227.040164,
+    "other_cpu_pct": 53.6,
+    "top": [
+     [
+      43.6,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "mds_stores"
+     ],
+     [
+      0.8,
+      "fseventsd"
+     ],
+     [
+      0.7,
+      "tccd"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060228.076693,
+    "other_cpu_pct": 63.0,
+    "top": [
+     [
+      9.9,
+      "Vorssaint"
+     ],
+     [
+      5.8,
+      "coreaudiod"
+     ],
+     [
+      5.2,
+      "ControlCenter"
+     ],
+     [
+      4.7,
+      "tccd"
+     ],
+     [
+      4.6,
+      "corespotlightd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060229.114058,
+    "other_cpu_pct": 88.1,
+    "top": [
+     [
+      65.5,
+      "MTLCompilerService"
+     ],
+     [
+      3.7,
+      "remotepairingd"
+     ],
+     [
+      3.4,
+      "remotepairingd"
+     ],
+     [
+      2.6,
+      "CoreDeviceService"
+     ],
+     [
+      2.6,
+      "CoreDeviceService"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060230.155623,
+    "other_cpu_pct": 45.3,
+    "top": [
+     [
+      32.9,
+      "MTLCompilerService"
+     ],
+     [
+      5.3,
+      "runningboardd"
+     ],
+     [
+      1.0,
+      "usbmuxd"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060231.195926,
+    "other_cpu_pct": 26.0,
+    "top": [
+     [
+      8.0,
+      "python"
+     ],
+     [
+      2.7,
+      "AMPDeviceDiscoveryAgent"
+     ],
+     [
+      2.5,
+      "trustevaluationagent"
+     ],
+     [
+      1.4,
+      "AppleCentauriAlpha"
+     ],
+     [
+      0.9,
+      "ghostty"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060232.234574,
+    "other_cpu_pct": 46.1,
+    "top": [
+     [
+      6.0,
+      "Vorssaint"
+     ],
+     [
+      5.8,
+      "AMPDeviceDiscoveryAgent"
+     ],
+     [
+      3.2,
+      "coreaudiod"
+     ],
+     [
+      3.0,
+      "tccd"
+     ],
+     [
+      3.0,
+      "WindowServer"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060233.276247,
+    "other_cpu_pct": 5.5,
+    "top": [
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "Discord Helper (Renderer)"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060234.317548,
+    "other_cpu_pct": 185.29999999999998,
+    "top": [
+     [
+      94.6,
+      "corespotlightd"
+     ],
+     [
+      13.7,
+      "Vorssaint"
+     ],
+     [
+      11.2,
+      "coreaudiod"
+     ],
+     [
+      10.5,
+      "PerfPowerServices"
+     ],
+     [
+      7.6,
+      "python"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060235.358349,
+    "other_cpu_pct": 147.29999999999998,
+    "top": [
+     [
+      127.1,
+      "corespotlightd"
+     ],
+     [
+      2.5,
+      "secd"
+     ],
+     [
+      2.1,
+      "tccd"
+     ],
+     [
+      1.7,
+      "bluetoothd"
+     ],
+     [
+      1.2,
+      "trustd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060236.397043,
+    "other_cpu_pct": 223.4,
+    "top": [
+     [
+      126.2,
+      "corespotlightd"
+     ],
+     [
+      19.6,
+      "Vorssaint"
+     ],
+     [
+      12.9,
+      "coreaudiod"
+     ],
+     [
+      6.9,
+      "ControlCenter"
+     ],
+     [
+      6.4,
+      "backgroundtaskmanagementd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060237.436736,
+    "other_cpu_pct": 185.3,
+    "top": [
+     [
+      118.6,
+      "corespotlightd"
+     ],
+     [
+      57.7,
+      "MTLCompilerService"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060238.47203,
+    "other_cpu_pct": 21.6,
+    "top": [
+     [
+      14.0,
+      "corespotlightd"
+     ],
+     [
+      1.4,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.2,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "coreaudiod"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060239.512176,
+    "other_cpu_pct": 22.3,
+    "top": [
+     [
+      4.7,
+      "ego Helper (Renderer)"
+     ],
+     [
+      3.0,
+      "ego lite"
+     ],
+     [
+      1.7,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.1,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.9,
+      "mds_stores"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060240.553349,
+    "other_cpu_pct": 25.3,
+    "top": [
+     [
+      7.6,
+      "loginwindow"
+     ],
+     [
+      2.5,
+      "WindowServer"
+     ],
+     [
+      1.9,
+      "Vorssaint"
+     ],
+     [
+      1.6,
+      "coreaudiod"
+     ],
+     [
+      1.1,
+      "ControlCenter"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060241.5950332,
+    "other_cpu_pct": 13.4,
+    "top": [
+     [
+      4.5,
+      "loginwindow"
+     ],
+     [
+      1.5,
+      "WindowServer"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060242.633249,
+    "other_cpu_pct": 129.2,
+    "top": [
+     [
+      24.9,
+      "Vorssaint"
+     ],
+     [
+      15.9,
+      "coreaudiod"
+     ],
+     [
+      10.1,
+      "ControlCenter"
+     ],
+     [
+      9.1,
+      "backgroundtaskmanagementd"
+     ],
+     [
+      8.6,
+      "tccd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060243.668382,
+    "other_cpu_pct": 12.1,
+    "top": [
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060244.6979892,
+    "other_cpu_pct": 42.0,
+    "top": [
+     [
+      5.8,
+      "Vorssaint"
+     ],
+     [
+      4.1,
+      "coreaudiod"
+     ],
+     [
+      3.1,
+      "WindowServer"
+     ],
+     [
+      3.1,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      2.9,
+      "tccd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060245.7308958,
+    "other_cpu_pct": 7.3,
+    "top": [
+     [
+      2.0,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060246.771414,
+    "other_cpu_pct": 11.5,
+    "top": [
+     [
+      2.0,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.5,
+      "python"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060247.810218,
+    "other_cpu_pct": 179.2,
+    "top": [
+     [
+      120.2,
+      "corespotlightd"
+     ],
+     [
+      6.5,
+      "Vorssaint"
+     ],
+     [
+      3.9,
+      "coreaudiod"
+     ],
+     [
+      2.5,
+      "tccd"
+     ],
+     [
+      2.4,
+      "contactsd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060248.854445,
+    "other_cpu_pct": 44.4,
+    "top": [
+     [
+      32.5,
+      "corespotlightd"
+     ],
+     [
+      2.9,
+      "launchd"
+     ],
+     [
+      2.3,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.0,
+      "ego Helper"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060249.8934882,
+    "other_cpu_pct": 13.1,
+    "top": [
+     [
+      2.2,
+      "ContinuityCaptureAgent"
+     ],
+     [
+      1.9,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.1,
+      "mds_stores"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060250.9359019,
+    "other_cpu_pct": 21.8,
+    "top": [
+     [
+      3.2,
+      "Vorssaint"
+     ],
+     [
+      2.1,
+      "coreaudiod"
+     ],
+     [
+      1.7,
+      "ControlCenter"
+     ],
+     [
+      1.6,
+      "WindowServer"
+     ],
+     [
+      1.6,
+      "Discord Helper (Renderer)"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060251.97614,
+    "other_cpu_pct": 6.4,
+    "top": [
+     [
+      0.9,
+      "ego Helper"
+     ],
+     [
+      0.7,
+      "mds_stores"
+     ],
+     [
+      0.7,
+      "fseventsd"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060253.016772,
+    "other_cpu_pct": 23.1,
+    "top": [
+     [
+      2.5,
+      "Vorssaint"
+     ],
+     [
+      1.8,
+      "coreaudiod"
+     ],
+     [
+      1.4,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.3,
+      "tccd"
+     ],
+     [
+      1.2,
+      "WindowServer"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060254.056134,
+    "other_cpu_pct": 5.7,
+    "top": [
+     [
+      0.9,
+      "ego Helper"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060255.09678,
+    "other_cpu_pct": 41.6,
+    "top": [
+     [
+      14.7,
+      "coreaudiod"
+     ],
+     [
+      7.8,
+      "mediaremoted"
+     ],
+     [
+      2.2,
+      "loginwindow"
+     ],
+     [
+      1.9,
+      "launchservicesd"
+     ],
+     [
+      1.8,
+      "WindowManager"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060256.1380868,
+    "other_cpu_pct": 12.3,
+    "top": [
+     [
+      1.4,
+      "Vorssaint"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060257.180192,
+    "other_cpu_pct": 11.2,
+    "top": [
+     [
+      1.8,
+      "tccd"
+     ],
+     [
+      1.0,
+      "trustd"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060258.2197602,
+    "other_cpu_pct": 90.0,
+    "top": [
+     [
+      14.4,
+      "coreaudiod"
+     ],
+     [
+      9.3,
+      "tccd"
+     ],
+     [
+      8.9,
+      "Vorssaint"
+     ],
+     [
+      6.3,
+      "WindowServer"
+     ],
+     [
+      5.8,
+      "mediaremoted"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060259.259957,
+    "other_cpu_pct": 8.5,
+    "top": [
+     [
+      0.8,
+      "tccd"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060260.298136,
+    "other_cpu_pct": 105.9,
+    "top": [
+     [
+      18.8,
+      "Vorssaint"
+     ],
+     [
+      12.1,
+      "coreaudiod"
+     ],
+     [
+      8.6,
+      "ControlCenter"
+     ],
+     [
+      8.3,
+      "tccd"
+     ],
+     [
+      5.3,
+      "mediaremoted"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060261.335923,
+    "other_cpu_pct": 23.7,
+    "top": [
+     [
+      13.8,
+      "python"
+     ],
+     [
+      3.7,
+      "ContinuityCaptureAgent"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060262.3763452,
+    "other_cpu_pct": 66.6,
+    "top": [
+     [
+      59.8,
+      "MTLCompilerService"
+     ],
+     [
+      1.0,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.8,
+      "searchpartyd"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060263.412162,
+    "other_cpu_pct": 52.4,
+    "top": [
+     [
+      45.6,
+      "MTLCompilerService"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060264.454365,
+    "other_cpu_pct": 11.700000000000001,
+    "top": [
+     [
+      2.1,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.5,
+      "launchservicesd"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060265.493103,
+    "other_cpu_pct": 7.6,
+    "top": [
+     [
+      1.2,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      1.0,
+      "coreaudiod"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060266.531287,
+    "other_cpu_pct": 12.4,
+    "top": [
+     [
+      4.9,
+      "fseventsd"
+     ],
+     [
+      1.5,
+      "launchservicesd"
+     ],
+     [
+      1.3,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      1.0,
+      "coreaudiod"
+     ],
+     [
+      0.8,
+      "Discord Helper (Renderer)"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060267.568307,
+    "other_cpu_pct": 8.3,
+    "top": [
+     [
+      1.3,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      1.2,
+      "coreaudiod"
+     ],
+     [
+      1.1,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060268.610029,
+    "other_cpu_pct": 9.0,
+    "top": [
+     [
+      1.2,
+      "coreaudiod"
+     ],
+     [
+      1.2,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060269.646366,
+    "other_cpu_pct": 18.8,
+    "top": [
+     [
+      5.5,
+      "ContinuityCaptureAgent"
+     ],
+     [
+      4.6,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "com.vorssaint.utils.fan-control"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060270.689238,
+    "other_cpu_pct": 11.4,
+    "top": [
+     [
+      4.2,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060271.727613,
+    "other_cpu_pct": 18.1,
+    "top": [
+     [
+      3.7,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      2.2,
+      "Vorssaint"
+     ],
+     [
+      1.5,
+      "coreaudiod"
+     ],
+     [
+      1.1,
+      "WindowServer"
+     ],
+     [
+      0.9,
+      "com.vorssaint.utils.fan-control"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060272.7717812,
+    "other_cpu_pct": 6.4,
+    "top": [
+     [
+      2.6,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ],
+     [
+      0.4,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060273.810339,
+    "other_cpu_pct": 6.3999999999999995,
+    "top": [
+     [
+      2.8,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ],
+     [
+      0.4,
+      "esbuild"
+     ],
+     [
+      0.4,
+      "esbuild"
+     ],
+     [
+      0.4,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060274.851116,
+    "other_cpu_pct": 6.9,
+    "top": [
+     [
+      2.1,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060275.889623,
+    "other_cpu_pct": 4.7,
+    "top": [
+     [
+      1.8,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.4,
+      "esbuild"
+     ],
+     [
+      0.4,
+      "esbuild"
+     ],
+     [
+      0.4,
+      "esbuild"
+     ],
+     [
+      0.4,
+      "com.vorssaint.utils.fan-control"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060276.926369,
+    "other_cpu_pct": 12.1,
+    "top": [
+     [
+      4.2,
+      "python"
+     ],
+     [
+      1.7,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.9,
+      "tccd"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "trustd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060277.972075,
+    "other_cpu_pct": 5.2,
+    "top": [
+     [
+      1.1,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060279.014815,
+    "other_cpu_pct": 11.3,
+    "top": [
+     [
+      2.9,
+      "launchd"
+     ],
+     [
+      2.2,
+      "ContinuityCaptureAgent"
+     ],
+     [
+      1.4,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060280.0590541,
+    "other_cpu_pct": 6.5,
+    "top": [
+     [
+      1.0,
+      "ego Helper"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060281.097172,
+    "other_cpu_pct": 59.5,
+    "top": [
+     [
+      9.8,
+      "Vorssaint"
+     ],
+     [
+      5.7,
+      "coreaudiod"
+     ],
+     [
+      4.7,
+      "ControlCenter"
+     ],
+     [
+      4.6,
+      "tccd"
+     ],
+     [
+      4.0,
+      "WindowServer"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060282.136043,
+    "other_cpu_pct": 6.7,
+    "top": [
+     [
+      1.5,
+      "ContinuityCaptureAgent"
+     ],
+     [
+      1.0,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.9,
+      "ego Helper"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060283.1727831,
+    "other_cpu_pct": 12.4,
+    "top": [
+     [
+      1.6,
+      "ControlCenter"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "powerd"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060284.2163782,
+    "other_cpu_pct": 6.4,
+    "top": [
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060285.260774,
+    "other_cpu_pct": 4.1,
+    "top": [
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "Discord Helper (Renderer)"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060286.3047822,
+    "other_cpu_pct": 4.9,
+    "top": [
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060287.344505,
+    "other_cpu_pct": 78.5,
+    "top": [
+     [
+      12.2,
+      "Vorssaint"
+     ],
+     [
+      8.2,
+      "coreaudiod"
+     ],
+     [
+      8.0,
+      "ControlCenter"
+     ],
+     [
+      5.2,
+      "WindowServer"
+     ],
+     [
+      5.0,
+      "tccd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060288.388466,
+    "other_cpu_pct": 5.6,
+    "top": [
+     [
+      0.9,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060289.4253702,
+    "other_cpu_pct": 7.3,
+    "top": [
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.9,
+      "searchpartyd"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060290.4691021,
+    "other_cpu_pct": 7.2,
+    "top": [
+     [
+      1.0,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060291.5139048,
+    "other_cpu_pct": 11.4,
+    "top": [
+     [
+      1.4,
+      "ContinuityCaptureAgent"
+     ],
+     [
+      1.2,
+      "python"
+     ],
+     [
+      1.2,
+      "esbuild"
+     ],
+     [
+      1.2,
+      "esbuild"
+     ],
+     [
+      1.2,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060292.5530298,
+    "other_cpu_pct": 75.0,
+    "top": [
+     [
+      11.6,
+      "Vorssaint"
+     ],
+     [
+      8.4,
+      "coreaudiod"
+     ],
+     [
+      6.4,
+      "ControlCenter"
+     ],
+     [
+      5.0,
+      "tccd"
+     ],
+     [
+      4.7,
+      "WindowServer"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060293.5947552,
+    "other_cpu_pct": 11.6,
+    "top": [
+     [
+      4.9,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.9,
+      "coreaudiod"
+     ],
+     [
+      0.9,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060294.628764,
+    "other_cpu_pct": 12.200000000000001,
+    "top": [
+     [
+      3.6,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.1,
+      "coreaudiod"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "launchservicesd"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060295.662514,
+    "other_cpu_pct": 12.6,
+    "top": [
+     [
+      3.8,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "coreaudiod"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060296.706302,
+    "other_cpu_pct": 10.5,
+    "top": [
+     [
+      3.5,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060297.744647,
+    "other_cpu_pct": 42.0,
+    "top": [
+     [
+      6.4,
+      "Vorssaint"
+     ],
+     [
+      4.1,
+      "coreaudiod"
+     ],
+     [
+      3.1,
+      "tccd"
+     ],
+     [
+      2.9,
+      "ControlCenter"
+     ],
+     [
+      2.6,
+      "WindowServer"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060298.786377,
+    "other_cpu_pct": 11.4,
+    "top": [
+     [
+      2.8,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.0,
+      "bluetoothd"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060299.828597,
+    "other_cpu_pct": 10.9,
+    "top": [
+     [
+      2.8,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.3,
+      "ego Helper (Renderer)"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060300.867031,
+    "other_cpu_pct": 145.4,
+    "top": [
+     [
+      26.4,
+      "Vorssaint"
+     ],
+     [
+      15.0,
+      "coreaudiod"
+     ],
+     [
+      10.7,
+      "ControlCenter"
+     ],
+     [
+      9.3,
+      "tccd"
+     ],
+     [
+      8.8,
+      "loginwindow"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060301.9085262,
+    "other_cpu_pct": 13.7,
+    "top": [
+     [
+      3.9,
+      "loginwindow"
+     ],
+     [
+      1.7,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.5,
+      "WindowServer"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060302.941167,
+    "other_cpu_pct": 6.9,
+    "top": [
+     [
+      1.1,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060303.977359,
+    "other_cpu_pct": 9.700000000000001,
+    "top": [
+     [
+      1.6,
+      "tccd"
+     ],
+     [
+      1.1,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060305.0195358,
+    "other_cpu_pct": 5.3999999999999995,
+    "top": [
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "mds_stores"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060306.058733,
+    "other_cpu_pct": 49.8,
+    "top": [
+     [
+      10.3,
+      "Vorssaint"
+     ],
+     [
+      5.4,
+      "coreaudiod"
+     ],
+     [
+      4.3,
+      "ControlCenter"
+     ],
+     [
+      3.3,
+      "tccd"
+     ],
+     [
+      3.3,
+      "WindowServer"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060307.103604,
+    "other_cpu_pct": 11.0,
+    "top": [
+     [
+      6.4,
+      "python"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060308.142823,
+    "other_cpu_pct": 4.3,
+    "top": [
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060309.17716,
+    "other_cpu_pct": 8.6,
+    "top": [
+     [
+      1.2,
+      "launchd"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "ContinuityCaptureAgent"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060310.214436,
+    "other_cpu_pct": 7.7,
+    "top": [
+     [
+      1.2,
+      "esbuild"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060311.254376,
+    "other_cpu_pct": 13.4,
+    "top": [
+     [
+      3.0,
+      "dasd"
+     ],
+     [
+      1.5,
+      "Vorssaint"
+     ],
+     [
+      1.1,
+      "ego Helper"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060312.295626,
+    "other_cpu_pct": 4.8999999999999995,
+    "top": [
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "ego Helper"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060313.336266,
+    "other_cpu_pct": 5.2,
+    "top": [
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060314.376033,
+    "other_cpu_pct": 19.8,
+    "top": [
+     [
+      4.2,
+      "Vorssaint"
+     ],
+     [
+      1.1,
+      "trustd"
+     ],
+     [
+      1.1,
+      "ego Helper"
+     ],
+     [
+      1.1,
+      "coreaudiod"
+     ],
+     [
+      1.0,
+      "tccd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060315.41897,
+    "other_cpu_pct": 4.0,
+    "top": [
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "com.vorssaint.utils.fan-control"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060316.461313,
+    "other_cpu_pct": 4.8,
+    "top": [
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "com.vorssaint.utils.fan-control"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060317.492776,
+    "other_cpu_pct": 7.2,
+    "top": [
+     [
+      1.6,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060318.534532,
+    "other_cpu_pct": 7.9,
+    "top": [
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.1,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      1.0,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "coreaudiod"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060319.578345,
+    "other_cpu_pct": 9.4,
+    "top": [
+     [
+      2.1,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.3,
+      "launchservicesd"
+     ],
+     [
+      0.9,
+      "coreaudiod"
+     ],
+     [
+      0.9,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060320.6117508,
+    "other_cpu_pct": 8.6,
+    "top": [
+     [
+      1.9,
+      "ContinuityCaptureAgent"
+     ],
+     [
+      1.0,
+      "coreaudiod"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060321.650614,
+    "other_cpu_pct": 113.89999999999999,
+    "top": [
+     [
+      18.9,
+      "Vorssaint"
+     ],
+     [
+      13.5,
+      "coreaudiod"
+     ],
+     [
+      9.1,
+      "ControlCenter"
+     ],
+     [
+      8.6,
+      "tccd"
+     ],
+     [
+      6.8,
+      "WindowServer"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060322.6900978,
+    "other_cpu_pct": 7.9,
+    "top": [
+     [
+      1.3,
+      "python"
+     ],
+     [
+      0.8,
+      "coreaudiod"
+     ],
+     [
+      0.8,
+      "com.vorssaint.utils.fan-control"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "Discord Helper (Renderer)"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060323.730001,
+    "other_cpu_pct": 8.1,
+    "top": [
+     [
+      3.3,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060324.7660742,
+    "other_cpu_pct": 7.0,
+    "top": [
+     [
+      2.7,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.6,
+      "launchservicesd"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "com.vorssaint.utils.fan-control"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060325.798861,
+    "other_cpu_pct": 5.7,
+    "top": [
+     [
+      2.0,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060326.8404732,
+    "other_cpu_pct": 8.1,
+    "top": [
+     [
+      2.3,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      1.8,
+      "fseventsd"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060327.881472,
+    "other_cpu_pct": 7.7,
+    "top": [
+     [
+      1.7,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.9,
+      "workerd"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060328.920875,
+    "other_cpu_pct": 90.5,
+    "top": [
+     [
+      19.1,
+      "coreaudiod"
+     ],
+     [
+      11.2,
+      "Vorssaint"
+     ],
+     [
+      7.8,
+      "mediaremoted"
+     ],
+     [
+      7.2,
+      "python"
+     ],
+     [
+      5.0,
+      "launchservicesd"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060329.959148,
+    "other_cpu_pct": 17.2,
+    "top": [
+     [
+      6.0,
+      "ContinuityCaptureAgent"
+     ],
+     [
+      1.6,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.9,
+      "Vorssaint"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060330.997919,
+    "other_cpu_pct": 6.0,
+    "top": [
+     [
+      1.4,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060332.0401149,
+    "other_cpu_pct": 5.3,
+    "top": [
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.6,
+      "esbuild"
+     ],
+     [
+      0.5,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060333.074205,
+    "other_cpu_pct": 79.5,
+    "top": [
+     [
+      12.9,
+      "Vorssaint"
+     ],
+     [
+      10.3,
+      "coreaudiod"
+     ],
+     [
+      8.0,
+      "python"
+     ],
+     [
+      6.4,
+      "WindowServer"
+     ],
+     [
+      6.0,
+      "mediaremoted"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060334.1134331,
+    "other_cpu_pct": 9.3,
+    "top": [
+     [
+      1.0,
+      "Vorssaint"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060335.152591,
+    "other_cpu_pct": 6.1,
+    "top": [
+     [
+      1.4,
+      "Discord Helper (Renderer)"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060336.19421,
+    "other_cpu_pct": 5.4,
+    "top": [
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.9,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.8,
+      "esbuild"
+     ],
+     [
+      0.7,
+      "esbuild"
+     ]
+    ]
+   },
+   {
+    "epoch": 1791060337.152138,
+    "other_cpu_pct": 43.199999999999996,
+    "top": [
+     [
+      15.6,
+      "python"
+     ],
+     [
+      7.8,
+      "Vorssaint"
+     ],
+     [
+      7.6,
+      "coreaudiod"
+     ],
+     [
+      2.5,
+      "mediaremoted"
+     ],
+     [
+      1.2,
+      "Discord Helper (Renderer)"
+     ]
+    ]
+   }
   ],
-  "note": "Provisional, for the local install only (v-family, 3 Oct). The final reference is captured in a quiet measure window; release-check refuses a provisional reference."
+  "worker_sha256": "b49faa52236c39ab210c3a11d993b396517b8483a1859953acccdd7af68bf119",
+  "source_commit": "7ccd67c790bb52ec15c344474ee0dc6872e7d0a4",
+  "capture_exit": 0,
+  "whisper_fill": "Same executable/worker as initial capture; new benchmark resource only; lab/bin/measure CPU<=60; targeted Whisper API captures after faithful measurement."
  },
- "omitted_segments_note": "Whisper large-v3 and turbo Standard/Exact are not selectable (Not measured yet): the app refuses them (HTTP 409), so they need no reference."
+ "resource_resigned_fill": {
+  "candidate_app_sha256": "fc4b9d962eb9074e7a3663155e39c1025ba6e08eff07e2e978adb4624b353cf7"
+ }
 }
