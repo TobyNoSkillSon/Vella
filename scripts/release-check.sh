@@ -109,15 +109,15 @@ package() {
     identity=$VELLA_SIGNING_SHA1
   fi
   DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
-    VELLA_PACKAGE_LOCAL_CHECK=1 VELLA_SIGN_IDENTITY="$identity" VELLA_RELEASE_OUTPUT_DIR="$WORK/release" scripts/package-release.sh "$VERSION" || return
+    VELLA_SIGN_IDENTITY="$identity" VELLA_RELEASE_OUTPUT_DIR="$WORK/release" scripts/package-release.sh "$VERSION" || return
   cat Worker/.build/split-build-provenance.txt
 }
 
-# A development-signed (or ad hoc) zip is staged for these local checks only: it must be marked local-only and refused
-# for upload; only a zip signed by Vella Release Signing with the pinned requirement passes `for-upload`.
+# A development-signed (or ad hoc) zip exists for these local checks only: it is marked local-only and refused for
+# upload. Only a zip signed by Vella Release Signing with the pinned requirement passes `for-upload`.
 upload_identity_guard() {
-  local zip="$WORK/release/Vella-$VERSION-arm64.zip" class
-  class="$(scripts/release-identity.sh classify "$zip")"
+  local class
+  class="$(scripts/release-identity.sh mark-local "$WORK/release")"
   echo "signed as: $class"
   if [[ $class == release ]]; then
     scripts/release-identity.sh for-upload "$WORK/release"

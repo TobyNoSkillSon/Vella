@@ -38,13 +38,13 @@ cat >"$APP/Contents/Info.plist" <<'E'
 E
 codesign --force --sign - "$APP" 2>/dev/null
 [[ "$("$GUARD" classify "$APP")" == adhoc ]] || fail "real ad hoc app not classified adhoc"
-[[ "$("$GUARD" assert-stageable "$APP")" == adhoc ]] || fail "ad hoc app is stageable for local checks"
 mkdir "$ROOT/real-out"
 ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "$APP" "$ROOT/real-out/Vella-9.9.9-arm64.zip"
 [[ "$("$GUARD" classify "$ROOT/real-out/Vella-9.9.9-arm64.zip")" == adhoc ]] || fail "real ad hoc zip not classified adhoc"
 if "$GUARD" for-upload "$ROOT/real-out" 2>"$ROOT/err"; then fail "ad hoc zip accepted for upload"; fi
 grep -q "not 'Vella Release Signing'" "$ROOT/err" || fail "upload refusal does not say why"
-echo marked >"$ROOT/real-out/LOCAL-ONLY-NOT-FOR-UPLOAD.txt"
+[[ "$("$GUARD" mark-local "$ROOT/real-out")" == adhoc ]] || fail "mark-local did not report adhoc"
+[[ -e "$ROOT/real-out/LOCAL-ONLY-NOT-FOR-UPLOAD.txt" ]] || fail "mark-local did not write the marker"
 if "$GUARD" for-upload "$ROOT/real-out" 2>"$ROOT/err"; then fail "a directory marked local-only was accepted"; fi
 grep -q "local-only" "$ROOT/err" || fail "marker refusal does not say why"
 
@@ -69,15 +69,15 @@ shimmed() { PATH="$ROOT/bin:$PATH" "$@"; }
 # development identity everywhere
 export FAKE_TEXT="$ROOT/dev.txt" FAKE_DEV_PATH=""
 [[ "$(shimmed "$GUARD" classify "$FAKE")" == development ]] || fail "development app not classified development"
-if shimmed "$GUARD" assert-stageable "$FAKE" 2>"$ROOT/err"; then fail "a development-signed app was staged"; fi
-grep -q "development identity" "$ROOT/err" || fail "staging refusal does not say why"
-grep -q "someone@example.com" "$ROOT/err" && fail "the refusal printed the developer's email"
-[[ "$(VELLA_PACKAGE_LOCAL_CHECK=1 shimmed "$GUARD" assert-stageable "$FAKE")" == development ]] || fail "local-check staging override failed"
 if shimmed "$GUARD" for-upload "$FAKE" 2>"$ROOT/err"; then fail "a development-signed app was accepted for upload"; fi
+grep -q "signed as 'development'" "$ROOT/err" || fail "upload refusal does not say why"
 grep -q "someone@example.com" "$ROOT/err" && fail "the upload refusal printed the developer's email"
 mkdir "$ROOT/fake-out"
 ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "$FAKE" "$ROOT/fake-out/Vella-9.9.9-arm64.zip"
 if shimmed "$GUARD" for-upload "$ROOT/fake-out" 2>/dev/null; then fail "a development-signed zip was accepted for upload"; fi
+[[ "$(shimmed "$GUARD" mark-local "$ROOT/fake-out")" == development ]] || fail "mark-local did not report development"
+grep -q "someone@example.com" "$ROOT/fake-out/LOCAL-ONLY-NOT-FOR-UPLOAD.txt" && fail "the marker holds the developer's email"
+rm "$ROOT/fake-out/LOCAL-ONLY-NOT-FOR-UPLOAD.txt"
 
 # one development-signed helper among release-signed code: still development
 export FAKE_TEXT="$ROOT/release.txt" FAKE_DEV_PATH="Helpers/vella"
@@ -88,8 +88,9 @@ if shimmed "$GUARD" for-upload "$FAKE" 2>/dev/null; then fail "an app with one d
 export FAKE_DEV_PATH=""
 shimmed "$GUARD" for-upload "$FAKE" >/dev/null || fail "a release-signed app with the pinned requirement was refused"
 shimmed "$GUARD" for-upload "$ROOT/fake-out" >/dev/null || fail "a release-signed zip with the pinned requirement was refused"
-[[ "$(shimmed "$GUARD" assert-stageable "$FAKE")" == release ]] || fail "release-signed app is not stageable"
+[[ "$(shimmed "$GUARD" mark-local "$ROOT/fake-out")" == release ]] || fail "release-signed zip reported as local-only"
+[[ ! -e "$ROOT/fake-out/LOCAL-ONLY-NOT-FOR-UPLOAD.txt" ]] || fail "a release-signed zip was marked local-only"
 FAKE_REQ='identifier "dev.vella.dictation" and certificate leaf = H"0000"' && export FAKE_REQ
 if shimmed "$GUARD" for-upload "$FAKE" 2>/dev/null; then fail "a release-signed app with another requirement was accepted"; fi
 
-echo "PASS: development signatures refused to stage and upload (no email printed), ad hoc and marked builds refused for upload, only the pinned release identity accepted"
+echo "PASS: development signatures refused for upload (no email printed), ad hoc and marked builds refused for upload, only the pinned release identity accepted"

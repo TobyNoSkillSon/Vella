@@ -4,8 +4,8 @@
 # later update signed with "Vella Release Signing". Such a build is for local checks only and must never be uploaded.
 #
 #   release-identity.sh classify APP|ZIP       print release | development | adhoc | unsigned | other | mixed
-#   release-identity.sh assert-stageable APP   refuse (exit 1) a development-signed app unless
-#                                              VELLA_PACKAGE_LOCAL_CHECK=1 (package-release.sh calls this)
+#   release-identity.sh mark-local DIR         write LOCAL-ONLY-NOT-FOR-UPLOAD.txt into a package directory whose zip is
+#                                              not signed by Vella Release Signing (release-check.sh calls this)
 #   release-identity.sh for-upload PATH        exit 0 only for a release-signed zip or app, or a directory whose
 #                                              Vella-*-arm64.zip is release-signed with the pinned designated requirement
 #                                              and which carries no LOCAL-ONLY marker; refuses everything else
@@ -107,11 +107,13 @@ for_upload() {
 case "${1:-}" in
   classify) [[ $# -eq 2 ]] || die "usage: classify APP|ZIP"; classify_path "$2" ;;
   text-class) [[ $# -eq 2 ]] || die "usage: text-class FILE"; classify_text <"$2" ;;
-  assert-stageable)
-    [[ $# -eq 2 ]] || die "usage: assert-stageable APP"
-    class="$(classify_app "$2")"
-    if [[ "$class" == development && "${VELLA_PACKAGE_LOCAL_CHECK:-}" != 1 ]]; then
-      die "the build is signed with a development identity, which exposes its owner's email and would break CI-signed updates. Refusing to stage it. For a local check only, set VELLA_PACKAGE_LOCAL_CHECK=1 (the output is then marked $MARKER); release only the CI build"
+  mark-local)
+    [[ $# -eq 2 && -d "$2" ]] || die "usage: mark-local DIR"
+    zip="$(find "$2" -maxdepth 1 -name 'Vella-*-arm64.zip' ! -name '*-symbols.zip' -print | head -1)"
+    [[ -n "$zip" ]] || die "no Vella-*-arm64.zip in $2"
+    class="$(classify_path "$zip")"
+    if [[ "$class" != release ]]; then
+      echo "Signed as '$class', not Vella Release Signing: for local checks only. Never upload this build; release only the CI build (.github/workflows/release.yml)." >"$2/$MARKER"
     fi
     echo "$class" ;;
   for-upload) [[ $# -eq 2 ]] || die "usage: for-upload PATH"; for_upload "$2" ;;
