@@ -73,6 +73,8 @@ final class HardwareEventTests: XCTestCase {
         trusted = false; model.recordingTick(error: nil)
         model.liveInsertion?.flush()
         XCTAssertEqual(writes, []); XCTAssertEqual(model.phase, .recording)
+        let app = AppDelegate(model: model); app.rebuildMenu()
+        XCTAssertEqual(app.menu.items.first?.title, "Accessibility is off — allow Vella in Settings")
         XCTAssertTrue(model.message.contains("Accessibility access was revoked")); XCTAssertTrue(model.message.contains("Microphone capture continues"))
         trusted = true; model.liveInsertion?.offer(committed: "", partial: "still do not post"); model.liveInsertion?.flush()
         XCTAssertEqual(writes, [], "Re-granting never resumes an uncertain insertion")

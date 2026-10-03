@@ -289,6 +289,7 @@ import VellaCore
         let pending = pendingModelRow()
         if pending != nil, model.phase == .idle || model.phase == .failed { summary = "Recording saved. Get a model to transcribe it." }
         let needsPermission = !model.insertionPermission.granted
+        if needsPermission { summary = "Accessibility is off — allow Vella in Settings" }
         let header = NSMenuItem(title: summary, action: needsPermission ? #selector(accessibility) : model.phase == .failed ? #selector(showCaptureError) : nil, keyEquivalent: "")
         header.target = self
         header.isEnabled = needsPermission || model.phase == .failed

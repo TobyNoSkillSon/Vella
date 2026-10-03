@@ -10,7 +10,8 @@ import VellaCore
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory); NSApp.appearance = NSAppearance(named: .darkAqua)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let permission = InsertionPermission(isTrusted: { true }, prompt: {}, history: PermissionPromptHistory(read: { true }, write: {}))
+        var trusted = true
+        let permission = InsertionPermission(isTrusted: { trusted }, prompt: {}, history: PermissionPromptHistory(read: { true }, write: {}))
         let model = DictationController(
             insertionPermission: permission, configurationURL: RenderFixture.root.appendingPathComponent("lifecycle-config.json"), monitorDefaultInput: false)
         app = AppDelegate(model: model); app.modelsMenu = ModelsMenu(controller: RenderFixture.controller(installed: RenderFixture.downloaded))
@@ -23,11 +24,25 @@ import VellaCore
         ] {
             actions.append { [self] in
                 if state.0.hasPrefix("streaming") { try? model.selectMode(.streaming) }
-                model.phase = state.1; model.message = state.2; model.insertionWasAutomatic = state.0 == "streaming-success"
+                trusted = !state.0.contains("accessibility")
+                model.phase = state.1; model.message = state.2
+                if state.0 == "sleep-wake" {
+                    #if DEBUG
+                        let session = try? RecordingSession(root: RenderFixture.root, config: Configuration(model: "/fixture"))
+                        if let session, let writer = try? SegmentedPCMWriter(session: session) {
+                            try? [Float](repeating: 0.1, count: 1600).withUnsafeBufferPointer { try writer.append($0) }
+                            try? writer.finish(userStopped: false)
+                            model.recorder.adoptForTesting(session); model.phase = .recording
+                            model.hardwareEvent(.willSleep); model.hardwareEvent(.didWake)
+                        }
+                    #endif
+                }
+                model.insertionWasAutomatic = state.0 == "streaming-success"
                 app.rebuildMenu(); MenuMock.render(app.menu.items, width: 340, to: directory.appendingPathComponent("menu-\(state.0).png"), done: next)
             }
         }
         actions.append { [self] in
+            trusted = true
             model.phase = .idle; app.loginStatus = { .requiresApproval }; app.rebuildMenu()
             MenuMock.render(app.menu.items, width: 340, to: directory.appendingPathComponent("menu-login-approval.png"), done: next)
         }
