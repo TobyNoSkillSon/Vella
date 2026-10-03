@@ -232,6 +232,17 @@ final class RecordingSession {
         }
         return try Data(contentsOf: directory.appendingPathComponent(segment.filename))
     }
+    /// API producer/consumer hand-off: only the owning task accesses this session.
+    func transientAudio(for segment: Segment) throws -> Data { try pcm(for: segment) }
+    func receiveTransient(_ segment: Segment, audio: Data) {
+        precondition(isTransient)
+        manifest.segments.append(segment)
+        transientPCM?[segment.index] = audio
+    }
+    func releaseTransient(before index: Int) {
+        guard let keys = transientPCM?.keys else { return }
+        for key in keys where key < index { transientPCM?.removeValue(forKey: key) }
+    }
     fileprivate func openTransientSegment(_ index: Int) { transientPCM?[index] = Data() }
     fileprivate func appendTransient(_ block: [Float], index: Int) {
         block.withUnsafeBytes { transientPCM?[index, default: Data()].append(contentsOf: $0) }
@@ -356,6 +367,8 @@ final class SegmentedPCMWriter {
     let policy: Policy
     var availableBytes: () throws -> Int64
     var writeBytes: (FileHandle, Data) throws -> Void = { try $0.write(contentsOf: $1) }
+    /// API-only hand-off of immutable, closed segments; the microphone leaves this unset.
+    var onFinalized: ((RecordingSession.Segment) throws -> Void)?
     private var handle: FileHandle?
     private var pending: [Float] = []
     private var tail: [Float] = []
@@ -451,6 +464,7 @@ final class SegmentedPCMWriter {
             session.manifest.segments[i].finalized = true
         }
         try session.save()
+        if let segment = session.manifest.segments.last { try onFinalized?(segment) }
     }
     func finish(userStopped: Bool) throws {
         guard !stopped else { return }; stopped = true

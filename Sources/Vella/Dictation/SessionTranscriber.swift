@@ -34,7 +34,7 @@ struct TranscriptionEstimate {
     let request: Request
     init(request: @escaping Request) { self.request = request }
 
-    func run(_ session: RecordingSession) async throws -> String {
+    func run(_ session: RecordingSession, available: Range<Int>? = nil) async throws -> String {
         guard session.manifest.state != "recording" else {
             throw VellaError.message("Finish recording before transcription. Nothing has been pasted.")
         }
@@ -67,8 +67,8 @@ struct TranscriptionEstimate {
             return text
         }
         // Cut points were decided while recording; the final segments may still be recognized as one unit.
-        let merge = try session.tailMerge(policy: .forModel(session.manifest.config.model))
-        for i in session.manifest.segments.indices {
+        let merge = available == nil ? try session.tailMerge(policy: .forModel(session.manifest.config.model)) : nil
+        for i in available ?? session.manifest.segments.indices {
             try Task.checkCancellation()
             let segment = session.manifest.segments[i]
             if segment.text != nil { continue }
@@ -111,6 +111,7 @@ struct TranscriptionEstimate {
             completed += segment.seconds
         }
         try Task.checkCancellation()
+        if available != nil { return "" }
         let segments = session.manifest.segments
         let assembly = Task.detached(priority: .userInitiated) { try RecordingSession.assemble(segments) }
         let text = try await withTaskCancellationHandler(operation: { try await assembly.value }, onCancel: { assembly.cancel() })
