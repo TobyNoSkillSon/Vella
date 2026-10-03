@@ -221,7 +221,7 @@ import CryptoKit
         XCTAssertEqual(model.message, "Copied to clipboard. Paste with ⌘V. Enable Accessibility for Vella to insert automatically.")
         XCTAssertEqual(pasteboard.string(forType: .string), "revoked mid session")
         XCTAssertFalse(model.insertionWasAutomatic)
-        XCTAssertEqual(menu(for: model).header, "Dictation: copied—press ⌘V")
+        XCTAssertEqual(menu(for: model).header, "Accessibility is off — allow Vella in Settings")
         try await settle(model) { $0.phase == .idle }
         XCTAssertEqual(menu(for: model).header, "Accessibility is off — allow Vella in Settings")
         // The next start is refused before the microphone opens; the shortcut path goes through the same check.
