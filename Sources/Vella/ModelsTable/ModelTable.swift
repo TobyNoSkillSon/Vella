@@ -217,20 +217,20 @@ struct ModelTable: View {
             pathSwitch(family)
                 .frame(width: W.path, height: TierControl.height)
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
-                .appKitTooltip(pending ? figuresPendingHelp : werHelp(bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, werHelp(bench, suites: suites)))
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
-                .appKitTooltip(pending ? figuresPendingHelp : formatHelp(bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, formatHelp(bench, suites: suites)))
             metric(formatSpeed(bench?.speed_x), compare ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, W.speed, hot: hot)
                 .overlay(alignment: .leading) {
                     if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
                         Image(systemName: "exclamationmark.triangle.fill").font(.system(size: size(9))).foregroundStyle(.orange).accessibilityLabel("very slow")
                     }
                 }
-                .appKitTooltip(pending ? figuresPendingHelp : speedHelp(family.mode, bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, speedHelp(family.mode, bench, suites: suites)))
             metric(formatEnergy(bench?.j_per_min), compare ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot)
-                .appKitTooltip(pending ? figuresPendingHelp : energyHelp(bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, energyHelp(bench, suites: suites)))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
-                .appKitTooltip(pending ? figuresPendingHelp : memoryHelp(bench, suites: suites))
+                .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, memoryHelp(bench, suites: suites)))
             rowAction(family, action: action, loading: loading, downloading: downloading, variant: variant, library: library, hot: hot, precision: precision, loaded: loaded)
         }.font(Self.valueFont)
             .padding(.horizontal, W.rowPadding).frame(height: Self.rowHeight)
@@ -440,11 +440,17 @@ struct ModelTable: View {
             controller.benchmarks.figuresPending
             ? ["WER", "Format", "Speed", "J / min", Self.memoryTitle].map { ($0, figuresPendingHelp) }
             : [
-                ("WER", werHelp(r, suites: suites)), ("Format", formatHelp(r, suites: suites)),
-                ("Speed", speedHelp(family.mode, r, suites: suites)), ("J / min", energyHelp(r, suites: suites)),
-                (Self.memoryTitle, memoryHelp(r, suites: suites))
+                ("WER", figureHelp(family, werHelp(r, suites: suites))), ("Format", figureHelp(family, formatHelp(r, suites: suites))),
+                ("Speed", figureHelp(family, speedHelp(family.mode, r, suites: suites))), ("J / min", figureHelp(family, energyHelp(r, suites: suites))),
+                (Self.memoryTitle, figureHelp(family, memoryHelp(r, suites: suites)))
             ]
         return cells + figures + [("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))]
+    }
+
+    /// Retained loaded selections can point at a withdrawn cell; its reason still belongs on every figure.
+    private func figureHelp(_ family: ModelFamily, _ measuredHelp: String) -> String {
+        let cell = controller.shownCell(family).flatMap { benchmarkCell(controller.benchmark(family), $0) }
+        return cell?.isPending == true ? unmeasuredReasonHelp(cell) : measuredHelp
     }
 
     /// A reference row's tooltips as (column, text); Params and the controls have none (nothing is known).

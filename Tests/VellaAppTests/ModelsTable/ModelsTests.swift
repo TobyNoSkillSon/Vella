@@ -245,7 +245,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(
             c.tierHelp(qwen, tier: .t8, path: .optimized),
             "8-bit weights throughout (affine-8 g64)\nvs Standard bf16: +1.9× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep\nLoss vs bf16: English WER +0.17 pt")
-        XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .standard), "8-bit weights throughout (affine-8 g64)\nMeasure pending\nLoss vs bf16: English WER +0.17 pt")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .standard), "8-bit weights throughout (affine-8 g64)\nNot measured yet\nLoss vs bf16: English WER +0.17 pt")
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         XCTAssertEqual(tierFlavour(parakeet, tier: .t16, cell: nil), "bf16, converted once from the published fp32")
         let per = BenchmarkCell(recipe: CellRecipe(layers: ["decoder": "affine-8 g64", "encoder": "bf16"]))
@@ -256,7 +256,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(
             ExactFastSwitch.tooltip(available: false, enabled: false),
             ExactFastSwitch.rowHelp + "\n" + ExactFastSwitch.help
-                + "\nAlways on: Fast measures the same as Exact for this model\nLocked while the model is in use; a change applies at the next load")
+                + "\nAlways on: Fast runs the same recipe as Exact for this model\nLocked while the model is in use; a change applies at the next load")
         XCTAssertEqual(ExactFastSwitch.inUseHelp, TierControl.inUseHelp, "one interlock line in both shared controls")
     }
 
@@ -307,7 +307,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(c.result(ultra, "4b"))
         XCTAssertNil(c.disk(ultra, "4b"))
         XCTAssertNotNil(c.disk(ultra, "BF16"))
-        XCTAssertEqual(c.tierHelp(ultra, tier: .t4, path: .standard), "4-bit weights throughout (affine-4 g64)\nMeasure pending")
+        XCTAssertEqual(c.tierHelp(ultra, tier: .t4, path: .standard), "4-bit weights throughout (affine-4 g64)\nNot measured yet")
         // Get downloads the source.
         XCTAssertEqual(c.action(ultra), .get)
         XCTAssertEqual(c.downloadRoot(ultra, "4b"), "BF16")

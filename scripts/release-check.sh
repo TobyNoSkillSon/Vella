@@ -137,6 +137,8 @@ tests() {
 
 step "source only in git" source_only
 step "source archive excludes lab" source_archive_no_lab
+step "shipped worker-source bridge 40a2eef" scripts/worker-source-identity.sh
+step "public data privacy" xcrun swift scripts/public-data-guard.swift
 step "toolchains" toolchains
 step "changelog $VERSION" changelog
 step "doc links" doc_links

@@ -32,5 +32,5 @@ let package = Package(
             dependencies: [
                 "Vella", "VellaCore", "VellaCLI", "VellaUpdate", "VellaTestSupport",
                 .product(name: "VellaWire", package: "VellaWire")
-            ], exclude: ["ModelsTable/TierTooltips.txt"])
+            ], exclude: ["ModelsTable/TierTooltips.txt", "ModelsTable/SwitchRuleFixture.json"])
     ], swiftLanguageModes: [.v5])

@@ -1,10 +1,8 @@
 # Vella
 
 <p align="center">
-  <img src="docs/images/models.png" alt="Vella Models table with Dictation and Streaming sections, six precision cells per model, Exact/Fast, Get/Load/Unload, and historical M5 Max benchmark figures" width="904">
+  <img src="docs/images/models-current.png" alt="Vella Models table with Dictation and Streaming sections, six precision cells per model, Exact/Fast, Get/Load/Unload, and final M5 Max benchmark figures" width="904">
 </p>
-
-Models table shown with the previous measurement (28 Sep 2026); the 2.0.0 screenshot and figures are pending.
 
 Offline dictation and transcription for Mac: local Whisper, Parakeet and Qwen speech-to-text, tuned for Apple Silicon. Scripts and coding agents get an OpenAI-compatible local API: `POST /v1/audio/transcriptions`.
 
@@ -23,14 +21,14 @@ Apple Silicon, macOS 26 or newer. No Xcode, Python or developer account.
 Seven open models; nothing downloads until you choose **Get**. Four starting points:
 
 <!-- RELEASE_SHORT_TABLE_START -->
-Measurement date: {{benchmark_date}} · {{benchmark_hardware}}. Accuracy: {{accuracy_suite}} ({{accuracy_minutes}} min); speed, energy and Peak RAM: {{performance_suite}} ({{performance_minutes}} min). Final 2.0.0 measurement pending; these placeholders are not results.
+Measurement date: 2026-10-01 to 2026-10-02 · Apple M5 Max, macOS 26.6. Accuracy: v2 (239.7 min); speed, energy and Peak RAM: v2-quick (22.5 min).
 
 | Model | Use it for | Tier / path | WER % | Speed | J / audio min | Peak RAM MB |
 |---|---|---|---|---|---|---|
-| Parakeet v3 Ultra | Dictation in 25 European languages | {{parakeet_selection}} | {{parakeet_wer}} | {{parakeet_speed}}× | {{parakeet_energy}} | {{parakeet_ram}} |
-| Whisper large-v3 turbo | About 100 languages, faster Whisper | {{turbo_selection}} | {{turbo_wer}} | {{turbo_speed}}× | {{turbo_energy}} | {{turbo_ram}} |
-| Whisper large-v3 | About 100 languages | {{whisper_selection}} | {{whisper_wer}} | {{whisper_speed}}× | {{whisper_energy}} | {{whisper_ram}} |
-| Qwen3 ASR 1.7B | 30 languages, including Chinese, Japanese and Korean | {{qwen_selection}} | {{qwen_wer}} | {{qwen_speed}}× | {{qwen_energy}} | {{qwen_ram}} |
+| Parakeet v3 Ultra | Dictation in 25 European languages | bf16 · Optimized Fast | 15.51 | 507.1× | 4.58 | 1792 |
+| Whisper large-v3 turbo | About 100 languages, faster Whisper | fp16 · Optimized Fast | 16.57 | 113.7× | 37.18 | 2522 |
+| Whisper large-v3 | About 100 languages | fp16 · Optimized Fast | 17.06 | 34.8× | 83.50 | 3915 |
+| Qwen3 ASR 1.7B | 30 languages, including Chinese, Japanese and Korean | bf16 · Optimized Fast | 15.00 | 28.3× | 72.32 | 5101 |
 <!-- RELEASE_SHORT_TABLE_END -->
 
 Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
@@ -38,66 +36,72 @@ Standard is optimized for your Mac through MLX; Optimized adds our custom kernel
 Only the checkpoint's native 16-bit weights are downloaded; `int8` and `int4` are made on your Mac from them. The table shows the dtype actually running (`bf16`/`fp16`, `int8`, `int4`). Choose Standard or Optimized; Optimized has Exact and Fast recipes. Missing figures show `—`, never a sibling model's score. Models and weights retain their own licences in [`Resources/models.json`](Resources/models.json).
 
 <details>
-<summary>Every model and precision: word error rate, speed, energy, memory</summary>
+<summary>Every model and precision: word error rate, speed, energy, Peak RAM</summary>
 
 <!-- BENCHMARK_TABLE_START -->
 
-The figures below are the previous build's historical measurements, not the 2.0.0 result. The full-measure writer replaces this section after the final run.
+Measured 1–2 October 2026 on Apple M5 Max, macOS 26.6. Accuracy: v2 (239.7 min); speed, energy and Peak RAM: v2-quick (22.5 min). Languages are supported benchmark languages, out of 9.
 
-Measured on Apple M5 Max, macOS 26.6, 2026-09-28. WER and Format on the 240-minute v2 benchmark (`v2`); speed, energy and memory on its 22.5-minute quick subset; Languages = benchmark languages supported, of 9.
+**Standard** is plain MLX; **Optimized** adds custom kernels. Exact and Fast can share a recipe but retain separate measurement status. Standard and Exact for Whisper are not measured yet: their earlier Float32-baseline figures were withdrawn. Fast remains measured. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
 
-Rows follow the Models table. **Precision** is bits per weight: 16 is the checkpoint as published (bf16 or fp16; Parakeet v3 is converted once from its fp32 release), 8 and 4 are affine 8- and 4-bit (group 64). **Standard** is stock MLX, what any Apple-silicon Mac runs. **Optimized** adds Vella's kernels for this chip: **Exact** only those whose output is identical to Standard, **Fast** also chip-specific kernels within the model's own noise; where no such kernel qualified, Exact and Fast are the same row. A precision that breaks against 16 (lost clips, errors, or +5 pt WER, +10 pt in one language) is not offered.
-
-| Model | Mode | Precision | Path | WER % | Format % | Languages | Speed | J / min | Memory | Suite |
+| Model | Mode | Precision | Path | WER % | Format % | Languages | Speed | J / min | Peak RAM | Suite |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Parakeet v3 Ultra ¹ | Dictation | 16 | Standard | 15.50 | 5.82 | 5/9 | 229× | 6.7 | 1,732 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | measure pending |
-| Parakeet v3 Ultra ¹ | Dictation | 16 | Optimized · Fast | 15.54 | 5.80 | 5/9 | 387× | 4.7 | 1,740 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 8 | Standard | — | — | — | — | — | — | measure pending |
-| Parakeet v3 Ultra ¹ | Dictation | 8 | Optimized (Exact = Fast) | 15.54 | 5.69 | 5/9 | 284× | 9.6 | 1,862 MB | v2 |
-| Parakeet v3 Ultra | Dictation | 4 | Standard | — | — | — | — | — | — | measure pending |
-| Parakeet v3 Ultra ¹ | Dictation | 4 | Optimized (Exact = Fast) | 15.78 | 5.94 | 5/9 | 282× | 9.4 | 1,610 MB | v2 |
-| Parakeet v3 ¹ | Dictation | 16 | Standard | 16.39 | 7.90 | 5/9 | 223× | 6.9 | 1,735 MB | v2 |
-| Parakeet v3 | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | measure pending |
-| Parakeet v3 ¹ | Dictation | 16 | Optimized · Fast | 16.45 | 7.98 | 5/9 | 404× | 5.2 | 1,735 MB | v2 |
-| Qwen3 ASR 1.7B ¹ | Dictation | 16 | Standard | 15.06 | 6.74 | 9/9 | 24× | 85.6 | 4,600 MB | v2 |
-| Qwen3 ASR 1.7B ¹ | Dictation | 16 | Optimized (Exact = Fast) | 15.06 | 6.74 | 9/9 | 27× | 75.6 | 5,092 MB | v2 |
-| Qwen3 ASR 0.6B ¹ | Dictation | 16 | Standard | 15.97 | 7.29 | 9/9 | 47× | 40.2 | 2,086 MB | v2 |
-| Qwen3 ASR 0.6B ¹ | Dictation | 16 | Optimized (Exact = Fast) | 15.97 | 7.29 | 9/9 | 59× | 35.9 | 2,364 MB | v2 |
-| Qwen3 ASR 0.6B | Dictation | 8 | Standard | — | — | — | — | — | — | measure pending |
-| Qwen3 ASR 0.6B ¹ | Dictation | 8 | Optimized (Exact = Fast) | 16.14 | 7.29 | 9/9 | 76× | 33.1 | 1,887 MB | v2 |
-| Whisper large-v3 | Dictation | 16 | Standard | — | — | — | — | — | — | measure pending |
-| Whisper large-v3 | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | measure pending |
-| Whisper large-v3 ¹ | Dictation | 16 | Optimized · Fast | 17.68 | 8.63 | 9/9 | 28× | 110.9 | 3,838 MB | v2 |
-| Whisper large-v3 ¹ | Dictation | 8 | Standard | 17.64 | 8.59 | 9/9 | 17× | 171.2 | 2,832 MB | v2 |
-| Whisper large-v3 | Dictation | 8 | Optimized · Exact | — | — | — | — | — | — | measure pending |
-| Whisper large-v3 ¹ | Dictation | 8 | Optimized · Fast | 17.78 | 8.60 | 9/9 | 33× | 109.9 | 2,653 MB | v2 |
-| Whisper large-v3 turbo ¹ | Dictation | 16 | Standard | 17.20 | 7.67 | 9/9 | 15× | 140.0 | 3,346 MB | v2 |
-| Whisper large-v3 turbo | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | measure pending |
-| Whisper large-v3 turbo ¹ | Dictation | 16 | Optimized · Fast | 17.31 | 7.69 | 9/9 | 76× | 59.2 | 2,460 MB | v2 |
-| Whisper large-v3 turbo ¹ | Dictation | 8 | Standard | 17.26 | 7.71 | 9/9 | 40× | 91.3 | 2,086 MB | v2 |
-| Whisper large-v3 turbo | Dictation | 8 | Optimized · Exact | — | — | — | — | — | — | measure pending |
-| Whisper large-v3 turbo ¹ | Dictation | 8 | Optimized · Fast | 17.21 | 7.70 | 9/9 | 78× | 64.5 | 1,925 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 16 | Standard | 23.44 | 10.56 | 9/9 | 7× | 189.3 | 2,081 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 16 | Optimized · Exact | — | — | — | — | — | — | measure pending |
-| Nemotron 3.5 Streaming | Streaming | 16 | Optimized · Fast | 23.39 | 10.55 | 9/9 | 27× | 54.4 | 1,614 MB | v2 |
-| Nemotron 3.5 Streaming | Streaming | 8 | Standard | — | — | — | — | — | — | measure pending |
-| Nemotron 3.5 Streaming | Streaming | 8 | Optimized · Exact | — | — | — | — | — | — | measure pending |
-| Nemotron 3.5 Streaming | Streaming | 8 | Optimized · Fast | 23.47 | 10.58 | 9/9 | 27× | 40.1 | 1,088 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 16 | Standard | 15.46 | 5.80 | 5/9 | 261.4× | 6.33 | 1,796 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 16 | Optimized · Exact | 15.49 | 5.74 | 5/9 | 474.5× | 4.71 | 1,808 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 16 | Optimized · Fast | 15.51 | 5.79 | 5/9 | 507.1× | 4.58 | 1,792 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 8 | Standard | 15.46 | 5.76 | 5/9 | 244.8× | 8.99 | 1,280 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 8 | Optimized · Exact | 15.46 | 5.77 | 5/9 | 369.0× | 8.62 | 1,888 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 8 | Optimized · Fast | 15.46 | 5.81 | 5/9 | 515.0× | 5.35 | 1,352 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 4 | Standard | 15.62 | 5.81 | 5/9 | 246.7× | 8.75 | 1,024 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 4 | Optimized · Exact | 15.65 | 5.84 | 5/9 | 370.6× | 8.41 | 1,640 MB | v2 |
+| Parakeet v3 Ultra | Dictation | 4 | Optimized · Fast | 15.58 | 5.80 | 5/9 | 522.5× | 5.13 | 1,094 MB | v2 |
+| Parakeet v3 | Dictation | 16 | Standard | 16.37 | 7.84 | 5/9 | 257.7× | 6.35 | 1,794 MB | v2 |
+| Parakeet v3 | Dictation | 16 | Optimized · Exact | 16.42 | 7.92 | 5/9 | 463.9× | 4.81 | 1,777 MB | v2 |
+| Parakeet v3 | Dictation | 16 | Optimized · Fast | 16.42 | 7.92 | 5/9 | 494.3× | 4.70 | 1,765 MB | v2 |
+| Parakeet v3 | Dictation | 8 | Standard | 16.40 | 7.92 | 5/9 | 241.2× | 9.05 | 1,279 MB | v2 |
+| Parakeet v3 | Dictation | 8 | Optimized · Exact | 16.35 | 7.81 | 5/9 | 363.3× | 8.68 | 1,883 MB | v2 |
+| Parakeet v3 | Dictation | 8 | Optimized · Fast | 16.30 | 7.85 | 5/9 | 504.4× | 5.41 | 1,342 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 16 | Standard | 15.00 | 6.67 | 9/9 | 26.6× | 81.03 | 4,624 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 16 | Optimized · Exact | 15.00 | 6.67 | 9/9 | 29.6× | 72.73 | 5,118 MB | v2 |
+| Qwen3 ASR 1.7B | Dictation | 16 | Optimized · Fast | 15.00 | 6.67 | 9/9 | 28.3× | 72.32 | 5,101 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 16 | Standard | 15.89 | 7.16 | 9/9 | 51.7× | 36.82 | 2,142 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 16 | Optimized · Exact | 15.89 | 7.16 | 9/9 | 64.4× | 34.07 | 2,406 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 16 | Optimized · Fast | 15.89 | 7.16 | 9/9 | 63.2× | 34.72 | 2,352 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 8 | Standard | 16.04 | 7.17 | 9/9 | 60.7× | 33.58 | 1,639 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 8 | Optimized · Exact | 16.04 | 7.17 | 9/9 | 82.0× | 30.05 | 1,920 MB | v2 |
+| Qwen3 ASR 0.6B | Dictation | 8 | Optimized · Fast | 16.04 | 7.17 | 9/9 | 82.0× | 30.08 | 1,934 MB | v2 |
+| Whisper large-v3 | Dictation | 16 | Standard | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 | Dictation | 16 | Optimized · Fast | 17.06 | 8.17 | 9/9 | 34.8× | 83.50 | 3,915 MB | v2 |
+| Whisper large-v3 | Dictation | 8 | Standard | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 | Dictation | 8 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 | Dictation | 8 | Optimized · Fast | 17.27 | 8.18 | 9/9 | 42.9× | 75.22 | 3,104 MB | v2 |
+| Whisper large-v3 turbo | Dictation | 16 | Standard | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 turbo | Dictation | 16 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 turbo | Dictation | 16 | Optimized · Fast | 16.57 | 7.43 | 9/9 | 113.7× | 37.18 | 2,522 MB | v2 |
+| Whisper large-v3 turbo | Dictation | 8 | Standard | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 turbo | Dictation | 8 | Optimized · Exact | — | — | — | — | — | — | Not measured yet |
+| Whisper large-v3 turbo | Dictation | 8 | Optimized · Fast | 16.52 | 7.46 | 9/9 | 128.9× | 35.56 | 2,574 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 16 | Standard | 23.50 | 10.89 | 9/9 | 7.3× | 188.25 | 2,253 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 16 | Optimized · Exact | 23.39 | 10.57 | 9/9 | 19.3× | 80.33 | 2,725 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 16 | Optimized · Fast | 23.35 | 10.58 | 9/9 | 34.9× | 50.03 | 1,655 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 8 | Standard | 23.42 | 10.54 | 9/9 | 15.1× | 112.00 | 1,191 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 8 | Optimized · Exact | 23.42 | 10.54 | 9/9 | 29.8× | 58.71 | 1,251 MB | v2 |
+| Nemotron 3.5 Streaming | Streaming | 8 | Optimized · Fast | 23.44 | 10.55 | 9/9 | 38.4× | 43.07 | 1,114 MB | v2 |
 | ElevenLabs Scribe v2 (cloud API) | Dictation | — | — | ~13.4 (estimated, 11.8–13.9) | — | — | — | — | — | estimated |
 | Microsoft Azure Speech (cloud API) | Dictation | — | — | ~12.9 (estimated, 11.3–13.3) | — | — | — | — | — | estimated |
 
-Not offered: Parakeet v3 8 (1 clip empty or cut short where 16 had the words); Parakeet v3 4 (3 clips empty or cut short where 16 had the words); Qwen3 ASR 1.7B 8 (1 clip empty or cut short where 16 had the words); Qwen3 ASR 1.7B 4 (1 clip empty or cut short where 16 had the words); Qwen3 ASR 0.6B 4 (multilingual mean +6.22 pt vs 16); Whisper large-v3 4 (1 clip empty or cut short where 16 had the words); Whisper large-v3 turbo 4 (2 clips empty or cut short where 16 had the words); Nemotron 3.5 Streaming 4 (15 clips empty or cut short where 16 had the words).
+Not offered: Parakeet v3 4 (3 clips empty or cut short where 16 had the words); Qwen3 ASR 1.7B 8 (1 clip empty or cut short where 16 had the words; Turkish +42.64 pt vs 16 (presence limit +10.0)); Qwen3 ASR 1.7B 4 (1 clip empty or cut short where 16 had the words); Qwen3 ASR 0.6B 4 (2 clips empty or cut short where 16 had the words); Whisper large-v3 4 (2 clips empty or cut short where 16 had the words); Whisper large-v3 turbo 4 (1 clip empty or cut short where 16 had the words); Nemotron 3.5 Streaming 4 (22 clips empty or cut short where 16 had the words; English WER +9.44 pt vs 16 (presence limit +5.0); multilingual mean +8.85 pt vs 16 (presence limit +5.0); Swedish +13.55 pt vs 16 (presence limit +10.0); Polish +13.09 pt vs 16 (presence limit +10.0); Turkish +12.29 pt vs 16 (presence limit +10.0); Japanese +10.46 pt vs 16 (presence limit +10.0); Chinese +10.23 pt vs 16 (presence limit +10.0)).
 
-Cloud API rows are **estimates, not measurements**: we sent no audio to them. Each is the provider's WER on the Hugging Face Open ASR Leaderboard times the median ratio between our v2 WER and the leaderboard WER of the models we measured on both (Parakeet v3, Qwen3 ASR 1.7B, Nemotron 3.5 Streaming); the range uses the lowest and highest ratio. Leaderboard: https://huggingface.co/spaces/hf-audio/open_asr_leaderboard. Sources, anchors and arithmetic are in `references` in [`Resources/benchmarks.json`](Resources/benchmarks.json).
+Cloud rows are estimates, not measurements; no audio was sent to them. They retain their dated 26 Sep scaling anchors, not final-build model measurements. Sources, ranges and arithmetic are in `references` in [`Resources/benchmarks.json`](Resources/benchmarks.json).
 
-¹ Segmentation fixed on 2026-09-29; accuracy re-measure pending.
+Build provenance (3 October 2026): measured build `55cb080`, built from `77be9f2`, worker SHA-256 `8a215e827e5972ef9afb4db7cf57ea8f068006f40ef1510ccd66e6977546b99d`, tag `full-8a215e827e59`. Shipped worker source `40a2eef`; its final enclosing commit and built worker SHA-256 are recorded in the local build receipt. The scoped CPU source/key/verdict bridge receipt is retained locally. The `builds` block in [`Resources/benchmarks.json`](Resources/benchmarks.json) names both builds and the bridge: 83 protected paths checked with 3 comment-only hunks allowed; Nemotron confirmed by a separate source diff, gate keys 24/24 identical and measured-worker verdicts 24/24 matching. Builds are not bit-reproducible; the metallib is identical. Whisper Fast passed a short GPU identity check: all six cells, each 122/122 clips token-identical (token-identity receipt retained locally).
 
 <!-- BENCHMARK_TABLE_END -->
 
 - **Precision** is bits per weight: 16 is the checkpoint as published, 8 and 4 are affine-quantized on your Mac from it. **Standard** and **Optimized** are the two ways to run a precision; **Exact** and **Fast** are Optimized's two recipes.
 - **WER** is word error rate: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. It is the industry-standard metric, as on the Hugging Face Open ASR Leaderboard; our v2 set is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. **Format** is our own measure, with no industry standard: character error rate with case and punctuation kept, i.e. how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
-- **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Memory** is the loaded model's footprint.
+- **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Peak RAM** is the peak footprint of the model worker, including loading.
 - **Which tiers are offered.** A tier is offered unless it breaks against 16: a clip it leaves empty or cuts short, a request error, English or average word error rate 5 points worse, or one language 10 points worse. A tier that is merely worse is offered with its loss in the figures and the tooltip; Vella's quality gate (English word error rate within 0.1 points of 16, up to 0.2 points for a model whose measured run-to-run noise is larger, the other languages within a similar limit, no dropped or cut-off segments) says whether a tier loses nothing measurable. No tier is recommended: you choose.
 - Figures were measured on an Apple M5 Max. On other Macs, speed, energy and memory differ; accuracy does not. The table says so on other chips.
 
@@ -162,10 +166,10 @@ A source build needs the Command Line Tools Swift (`xcode-select --install`), fu
 Everything lives in the menu: the status line, then **Models… · Keep Hot · Memory**, then **Start Dictation** with **Mode · Microphone · Shortcuts**, your last transcript and saved recordings, then the agent skill, diagnostics, files, the worker and **Launch at Login**.
 
 <p align="center">
-  <img src="docs/images/menu.png" alt="Vella's menu: status, Models, Keep Hot, Memory, Start Dictation, Mode, Microphone, Shortcuts, Copy Last Transcript, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Restart Worker, Launch at Login, Support and Quit" width="340">
+  <img src="docs/images/menu-current.png" alt="Vella's menu: status, Models, Keep Hot, Memory, Start Dictation, Mode, Microphone, Shortcuts, Copy Last Transcript, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Start Worker, Launch at Login, Support and Quit" width="340">
 </p>
 
-**Models…** opens one table with Dictation and Streaming sections, one line per model; a thick line divides the two. Hover a model's name for what it is, its licence and its languages. **Precision** has two rows of three equal cells named by the format that runs (`bf16`, or `fp16` for Whisper, as released; `int8` and `int4` compressed on your Mac): **Optimized** (a bolt), Vella's kernels for your chip, above **Standard** (the MLX logo), plain MLX; every row shows all six cells, and a cell the model cannot run is greyed in place with the reason in its tooltip, so the grid never shifts. Every other cell is clickable and shows its own figures. Beside both rows a switch as tall as the pair chooses up **Fast** or down **Exact** for the Optimized row; click anywhere on it to flip it. It is greyed and pinned up where Fast measures the same as Exact. Exact offers only the precisions whose kernels give output identical to Standard, so flipping to Exact can move the precision to 16, and the line under the model's name says so. The small line under each figure is its difference from Standard bf16 (fp16 for Whisper); until the build that ships is measured, the figure columns show `—`. Rows keep their place when you switch: each column sorts by the model's best value across its precisions. A loaded model shows what it is loaded with; clicking another cell or flipping the switch previews it and, on a loaded model, shows a green **Reload**, which loads it; closing the menu discards the preview. While a model is recording, transcribing, streaming or loading, its segments and switch are locked; a change applies at the next load. What was last loaded is what dictation uses; a model never loaded starts on Optimized 16 · Fast. The last column is the row's button: **Get** downloads and loads (for a precision made on your Mac, it downloads the weights it is made from), **Load** keeps a model ready, **Unload** frees its memory; under the pointer a trash icon beside it deletes the weights. Every download first asks in a popup that names the model, precision, source and exact size; nothing downloads without **Download**.
+**Models…** opens one table with Dictation and Streaming sections, one line per model; a thick line divides the two. Hover a model's name for what it is, its licence and its languages. **Precision** has two rows of three equal cells named by the format that runs (`bf16`, or `fp16` for Whisper, as released; `int8` and `int4` compressed on your Mac): **Optimized** (a bolt), Vella's kernels for your chip, above **Standard** (the MLX logo), plain MLX; every row shows all six cells, and a cell the model cannot run is greyed in place with the reason in its tooltip, so the grid never shifts. Every other cell is clickable and shows its own figures. Beside both rows a switch as tall as the pair chooses up **Fast** or down **Exact** for the Optimized row; click anywhere on it to flip it. It is greyed and pinned up where Fast measures the same as Exact. Exact offers only the precisions whose kernels give output identical to Standard, so flipping to Exact can move the precision to 16, and the line under the model's name says so. The small line under each figure is its difference from Standard bf16 when a baseline is measured. Whisper has no Standard baseline or multiplier; its measured Fast figures remain visible and withdrawn Standard/Exact cells show `—`. Rows keep their place when you switch: each column sorts by the model's best value across its precisions. A loaded model shows what it is loaded with; clicking another cell or flipping the switch previews it and, on a loaded model, shows a green **Reload**, which loads it; closing the menu discards the preview. While a model is recording, transcribing, streaming or loading, its segments and switch are locked; a change applies at the next load. What was last loaded is what dictation uses; a model never loaded starts on Optimized 16 · Fast. The last column is the row's button: **Get** downloads and loads (for a precision made on your Mac, it downloads the weights it is made from), **Load** keeps a model ready, **Unload** frees its memory; under the pointer a trash icon beside it deletes the weights. Every download first asks in a popup that names the model, precision, source and exact size; nothing downloads without **Download**.
 
 **Engine.** Under a loaded model's name, **Optimized Fast · <your chip>** or **Optimized Exact · <your chip>** means Vella's kernels passed a self-test against the stock path on this Mac when the model loaded. **Standard** means the stock MLX path: the same model, slower. If the optimized path fails during a transcription, Vella redoes that transcription on the stock path and keeps the model there until it is reloaded.
 

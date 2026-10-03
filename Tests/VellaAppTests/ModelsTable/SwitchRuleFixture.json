@@ -1,0 +1,1840 @@
+{
+  "schema": 2,
+  "figures_pending": true,
+  "hardware": "Fixture Mac",
+  "models": {
+    "parakeet-v3": {
+      "tiers": {
+        "16": {
+          "precision": "BF16",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "converted_from": "fp32",
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 10,
+            "format": 2.0,
+            "speed_x": 10,
+            "j_per_min": 30,
+            "memory_mb": 100
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "converted_from": "fp32",
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "converted_from": "fp32",
+              "kernels": [
+                "decoder",
+                "encoder",
+                "nax_gemm"
+              ],
+              "inexact": [
+                "nax_gemm"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 10,
+            "format": 2.0,
+            "speed_x": 30,
+            "j_per_min": 20,
+            "memory_mb": 102
+          }
+        },
+        "8": {
+          "precision": "8b",
+          "presence": {
+            "offered": false,
+            "reasons": [
+              "1 clip empty or cut short where 16 had the words"
+            ]
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "English WER +0.11 pt vs 16 (limit 0.10)",
+              "1 clip empty or cut short where 16 had the words (limit 0)",
+              "verdict for the uniform affine-8 g64 recipe; the Optimized 8 recipe (decoder affine-8, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "English WER +0.11 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 10,
+            "format": 2.0,
+            "speed_x": 20,
+            "j_per_min": 25,
+            "memory_mb": 101
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 10,
+            "format": 2.0,
+            "speed_x": 30,
+            "j_per_min": 20,
+            "memory_mb": 102
+          }
+        },
+        "4": {
+          "precision": "4b",
+          "presence": {
+            "offered": false,
+            "reasons": [
+              "3 clips empty or cut short where 16 had the words"
+            ]
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "English WER +1.40 pt vs 16 (limit 0.10)",
+              "multilingual mean +0.29 pt vs 16 (limit 0.20)",
+              "Swedish +3.01 pt vs 16 (limit 2.0)",
+              "format CER +1.26 pt vs 16 (limit 0.10)",
+              "3 clips empty or cut short where 16 had the words (limit 0)",
+              "verdict for the uniform affine-4 g64 recipe; the Optimized 4 recipe (decoder affine-4, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "English WER +1.40 pt",
+              "multilingual mean +0.29 pt",
+              "Swedish +3.01 pt",
+              "format CER +1.26 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 10,
+            "format": 2.0,
+            "speed_x": 20,
+            "j_per_min": 25,
+            "memory_mb": 101
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 10,
+            "format": 2.0,
+            "speed_x": 30,
+            "j_per_min": 20,
+            "memory_mb": 102
+          }
+        }
+      }
+    },
+    "qwen3-asr-1.7b": {
+      "tiers": {
+        "16": {
+          "precision": "BF16",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 11,
+            "format": 2.1,
+            "speed_x": 11,
+            "j_per_min": 29,
+            "memory_mb": 101
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 11,
+            "format": 2.1,
+            "speed_x": 21,
+            "j_per_min": 24,
+            "memory_mb": 102
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 11,
+            "format": 2.1,
+            "speed_x": 31,
+            "j_per_min": 19,
+            "memory_mb": 103
+          }
+        },
+        "8": {
+          "precision": "8b",
+          "presence": {
+            "offered": false,
+            "reasons": [
+              "1 clip empty or cut short where 16 had the words"
+            ]
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "multilingual mean +0.38 pt vs 16 (limit 0.10)",
+              "Turkish +2.55 pt vs 16 (limit 2.0)",
+              "1 clip empty or cut short where 16 had the words (limit 0)",
+              "verdict for the uniform affine-8 g64 recipe; the Optimized 8 recipe (decoder affine-8, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "multilingual mean +0.38 pt",
+              "Turkish +2.55 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 11,
+            "format": 2.1,
+            "speed_x": 21,
+            "j_per_min": 24,
+            "memory_mb": 102
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 11,
+            "format": 2.1,
+            "speed_x": 31,
+            "j_per_min": 19,
+            "memory_mb": 103
+          }
+        },
+        "4": {
+          "precision": "4b",
+          "presence": {
+            "offered": false,
+            "reasons": [
+              "1 clip empty or cut short where 16 had the words"
+            ]
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "English WER +3.35 pt vs 16 (limit 0.10)",
+              "multilingual mean +2.54 pt vs 16 (limit 0.10)",
+              "Swedish +7.74 pt vs 16 (limit 2.0)",
+              "Korean +3.40 pt vs 16 (limit 2.0)",
+              "Turkish +3.32 pt vs 16 (limit 2.0)",
+              "Chinese +3.27 pt vs 16 (limit 2.0)",
+              "Polish +2.68 pt vs 16 (limit 2.0)",
+              "format CER +0.45 pt vs 16 (limit 0.10)",
+              "1 clip empty or cut short where 16 had the words (limit 0)",
+              "verdict for the uniform affine-4 g64 recipe; the Optimized 4 recipe (decoder affine-4, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "English WER +3.35 pt",
+              "multilingual mean +2.54 pt",
+              "Swedish +7.74 pt",
+              "Korean +3.40 pt",
+              "Turkish +3.32 pt",
+              "Chinese +3.27 pt",
+              "Polish +2.68 pt",
+              "format CER +0.45 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 11,
+            "format": 2.1,
+            "speed_x": 21,
+            "j_per_min": 24,
+            "memory_mb": 102
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 11,
+            "format": 2.1,
+            "speed_x": 31,
+            "j_per_min": 19,
+            "memory_mb": 103
+          }
+        }
+      }
+    },
+    "nemotron-3.5-streaming-0.6b": {
+      "tiers": {
+        "16": {
+          "precision": "BF16",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 12,
+            "format": 2.2,
+            "speed_x": 12,
+            "j_per_min": 28,
+            "memory_mb": 102
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "batched_decode",
+                "coalesce",
+                "f32_weights",
+                "kv_cache",
+                "mel_batch",
+                "position_cache"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "batched_decode",
+                "bf16_linears",
+                "coalesce",
+                "f32_weights",
+                "fused_layer",
+                "kv_cache",
+                "mel_batch",
+                "position_cache"
+              ],
+              "inexact": [
+                "bf16_linears",
+                "fused_layer"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 12,
+            "format": 2.2,
+            "speed_x": 32,
+            "j_per_min": 18,
+            "memory_mb": 104
+          }
+        },
+        "8": {
+          "precision": "8b",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "multilingual mean +0.55 pt vs 16 (limit 0.10)",
+              "verdict for the uniform affine-8 g64 recipe; the Optimized 8 recipe (decoder affine-8, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "multilingual mean +0.55 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "batched_decode",
+                "coalesce",
+                "f32_weights",
+                "kv_cache",
+                "mel_batch",
+                "position_cache"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "batched_decode",
+                "bf16_linears",
+                "coalesce",
+                "f32_weights",
+                "fused_layer",
+                "kv_cache",
+                "mel_batch",
+                "position_cache"
+              ],
+              "inexact": [
+                "bf16_linears",
+                "fused_layer"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 12,
+            "format": 2.2,
+            "speed_x": 32,
+            "j_per_min": 18,
+            "memory_mb": 104
+          }
+        },
+        "4": {
+          "precision": "4b",
+          "presence": {
+            "offered": false,
+            "reasons": [
+              "15 clips empty or cut short where 16 had the words",
+              "English WER +9.59 pt vs 16 (absent from +5.0)",
+              "multilingual mean +9.25 pt vs 16 (absent from +5.0)",
+              "Turkish +15.28 pt vs 16 (absent from +10.0)",
+              "Swedish +14.41 pt vs 16 (absent from +10.0)",
+              "Polish +12.06 pt vs 16 (absent from +10.0)",
+              "Chinese +10.99 pt vs 16 (absent from +10.0)",
+              "German +10.34 pt vs 16 (absent from +10.0)"
+            ]
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "English WER +9.59 pt vs 16 (limit 0.10)",
+              "multilingual mean +9.25 pt vs 16 (limit 0.10)",
+              "Turkish +15.28 pt vs 16 (limit 2.0)",
+              "Swedish +14.41 pt vs 16 (limit 2.0)",
+              "Polish +12.06 pt vs 16 (limit 2.0)",
+              "Chinese +10.99 pt vs 16 (limit 2.0)",
+              "German +10.34 pt vs 16 (limit 2.0)",
+              "Japanese +8.94 pt vs 16 (limit 2.0)",
+              "Korean +5.86 pt vs 16 (limit 2.0)",
+              "French +3.34 pt vs 16 (limit 2.0)",
+              "Spanish +2.06 pt vs 16 (limit 2.0)",
+              "format CER +5.63 pt vs 16 (limit 0.10)",
+              "15 clips empty or cut short where 16 had the words (limit 0)",
+              "verdict for the uniform affine-4 g64 recipe; the Optimized 4 recipe (decoder affine-4, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "English WER +9.59 pt",
+              "multilingual mean +9.25 pt",
+              "Turkish +15.28 pt",
+              "Swedish +14.41 pt",
+              "Polish +12.06 pt",
+              "Chinese +10.99 pt",
+              "German +10.34 pt",
+              "Japanese +8.94 pt",
+              "Korean +5.86 pt",
+              "French +3.34 pt",
+              "Spanish +2.06 pt",
+              "format CER +5.63 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "batched_decode",
+                "coalesce",
+                "f32_weights",
+                "kv_cache",
+                "mel_batch",
+                "position_cache"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "batched_decode",
+                "bf16_linears",
+                "coalesce",
+                "f32_weights",
+                "fused_layer",
+                "kv_cache",
+                "mel_batch",
+                "position_cache"
+              ],
+              "inexact": [
+                "bf16_linears",
+                "fused_layer"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 12,
+            "format": 2.2,
+            "speed_x": 32,
+            "j_per_min": 18,
+            "memory_mb": 104
+          }
+        }
+      }
+    },
+    "parakeet-v3-ultra": {
+      "tiers": {
+        "16": {
+          "precision": "BF16",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 13,
+            "format": 2.3,
+            "speed_x": 13,
+            "j_per_min": 27,
+            "memory_mb": 103
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "decoder",
+                "encoder",
+                "nax_gemm"
+              ],
+              "inexact": [
+                "nax_gemm"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 13,
+            "format": 2.3,
+            "speed_x": 33,
+            "j_per_min": 17,
+            "memory_mb": 105
+          }
+        },
+        "8": {
+          "precision": "8b",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "multilingual mean +0.17 pt vs 16 (limit 0.10)",
+              "verdict for the uniform affine-8 g64 recipe; the Optimized 8 recipe (decoder affine-8, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "multilingual mean +0.17 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 13,
+            "format": 2.3,
+            "speed_x": 23,
+            "j_per_min": 22,
+            "memory_mb": 104
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 13,
+            "format": 2.3,
+            "speed_x": 33,
+            "j_per_min": 17,
+            "memory_mb": 105
+          }
+        },
+        "4": {
+          "precision": "4b",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "English WER +0.23 pt vs 16 (limit 0.10)",
+              "multilingual mean +0.92 pt vs 16 (limit 0.10)",
+              "format CER +0.14 pt vs 16 (limit 0.10)",
+              "verdict for the uniform affine-4 g64 recipe; the Optimized 4 recipe (decoder affine-4, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "English WER +0.23 pt",
+              "multilingual mean +0.92 pt",
+              "format CER +0.14 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 13,
+            "format": 2.3,
+            "speed_x": 23,
+            "j_per_min": 22,
+            "memory_mb": 104
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 13,
+            "format": 2.3,
+            "speed_x": 33,
+            "j_per_min": 17,
+            "memory_mb": 105
+          }
+        }
+      }
+    },
+    "qwen3-asr-0.6b": {
+      "tiers": {
+        "16": {
+          "precision": "BF16",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 14,
+            "format": 2.4,
+            "speed_x": 14,
+            "j_per_min": 26,
+            "memory_mb": 104
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 14,
+            "format": 2.4,
+            "speed_x": 24,
+            "j_per_min": 21,
+            "memory_mb": 105
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 14,
+            "format": 2.4,
+            "speed_x": 34,
+            "j_per_min": 16,
+            "memory_mb": 106
+          }
+        },
+        "8": {
+          "precision": "8b",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "English WER +0.17 pt vs 16 (limit 0.10)",
+              "multilingual mean +0.21 pt vs 16 (limit 0.10)",
+              "verdict for the uniform affine-8 g64 recipe; the Optimized 8 recipe (decoder affine-8, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "English WER +0.17 pt",
+              "multilingual mean +0.21 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 14,
+            "format": 2.4,
+            "speed_x": 24,
+            "j_per_min": 21,
+            "memory_mb": 105
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 14,
+            "format": 2.4,
+            "speed_x": 34,
+            "j_per_min": 16,
+            "memory_mb": 106
+          }
+        },
+        "4": {
+          "precision": "4b",
+          "presence": {
+            "offered": false,
+            "reasons": [
+              "multilingual mean +6.22 pt vs 16 (absent from +5.0)"
+            ]
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "English WER +1.75 pt vs 16 (limit 0.10)",
+              "multilingual mean +6.22 pt vs 16 (limit 0.10)",
+              "Swedish +9.03 pt vs 16 (limit 2.0)",
+              "Polish +8.59 pt vs 16 (limit 2.0)",
+              "Japanese +8.43 pt vs 16 (limit 2.0)",
+              "Turkish +8.08 pt vs 16 (limit 2.0)",
+              "Spanish +7.91 pt vs 16 (limit 2.0)",
+              "French +5.57 pt vs 16 (limit 2.0)",
+              "Korean +3.70 pt vs 16 (limit 2.0)",
+              "Chinese +2.63 pt vs 16 (limit 2.0)",
+              "German +2.07 pt vs 16 (limit 2.0)",
+              "format CER +1.14 pt vs 16 (limit 0.10)",
+              "verdict for the uniform affine-4 g64 recipe; the Optimized 4 recipe (decoder affine-4, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "English WER +1.75 pt",
+              "multilingual mean +6.22 pt",
+              "Swedish +9.03 pt",
+              "Polish +8.59 pt",
+              "Japanese +8.43 pt",
+              "Turkish +8.08 pt",
+              "Spanish +7.91 pt",
+              "French +5.57 pt",
+              "Korean +3.70 pt",
+              "Chinese +2.63 pt",
+              "German +2.07 pt",
+              "format CER +1.14 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 14,
+            "format": 2.4,
+            "speed_x": 24,
+            "j_per_min": 21,
+            "memory_mb": 105
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 14,
+            "format": 2.4,
+            "speed_x": 34,
+            "j_per_min": 16,
+            "memory_mb": 106
+          }
+        }
+      }
+    },
+    "whisper-large-v3": {
+      "tiers": {
+        "16": {
+          "precision": "FP16",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "fp16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "fp16"
+              },
+              "kernels": [
+                "decoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "fp16"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [
+                "encoder"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 15,
+            "format": 2.5,
+            "speed_x": 35,
+            "j_per_min": 15,
+            "memory_mb": 107
+          }
+        },
+        "8": {
+          "precision": "8b",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 15,
+            "format": 2.5,
+            "speed_x": 15,
+            "j_per_min": 25,
+            "memory_mb": 105
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "fused_decode"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder",
+                "fused_decode"
+              ],
+              "inexact": [
+                "encoder"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 15,
+            "format": 2.5,
+            "speed_x": 35,
+            "j_per_min": 15,
+            "memory_mb": 107
+          }
+        },
+        "4": {
+          "precision": "4b",
+          "presence": {
+            "offered": false,
+            "reasons": [
+              "1 clip empty or cut short where 16 had the words"
+            ]
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "Japanese +2.09 pt vs 16 (limit 2.0)",
+              "format CER +0.18 pt vs 16 (limit 0.10)",
+              "1 clip empty or cut short where 16 had the words (limit 0)",
+              "verdict for the uniform affine-4 g64 recipe; the Optimized 4 recipe (decoder affine-4, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "Japanese +2.09 pt",
+              "format CER +0.18 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "fused_decode"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder",
+                "fused_decode"
+              ],
+              "inexact": [
+                "encoder"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 15,
+            "format": 2.5,
+            "speed_x": 35,
+            "j_per_min": 15,
+            "memory_mb": 107
+          }
+        }
+      }
+    },
+    "whisper-large-v3-turbo": {
+      "tiers": {
+        "16": {
+          "precision": "FP16",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "fp16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 16,
+            "format": 2.6,
+            "speed_x": 16,
+            "j_per_min": 24,
+            "memory_mb": 106
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "fp16"
+              },
+              "kernels": [
+                "decoder"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "fp16"
+              },
+              "kernels": [
+                "decoder",
+                "encoder"
+              ],
+              "inexact": [
+                "encoder"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 16,
+            "format": 2.6,
+            "speed_x": 36,
+            "j_per_min": 14,
+            "memory_mb": 108
+          }
+        },
+        "8": {
+          "precision": "8b",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 16,
+            "format": 2.6,
+            "speed_x": 16,
+            "j_per_min": 24,
+            "memory_mb": 106
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "fused_decode"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-8 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder",
+                "fused_decode"
+              ],
+              "inexact": [
+                "encoder"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 16,
+            "format": 2.6,
+            "speed_x": 36,
+            "j_per_min": 14,
+            "memory_mb": 108
+          }
+        },
+        "4": {
+          "precision": "4b",
+          "presence": {
+            "offered": false,
+            "reasons": [
+              "2 clips empty or cut short where 16 had the words"
+            ]
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "English WER +0.49 pt vs 16 (limit 0.10)",
+              "Turkish +2.44 pt vs 16 (limit 2.0)",
+              "format CER +0.74 pt vs 16 (limit 0.10)",
+              "2 clips empty or cut short where 16 had the words (limit 0)",
+              "verdict for the uniform affine-4 g64 recipe; the Optimized 4 recipe (decoder affine-4, encoder 16-bit / native int8 later) is not built or gated yet"
+            ],
+            "loss": [
+              "English WER +0.49 pt",
+              "Turkish +2.44 pt",
+              "format CER +0.74 pt"
+            ]
+          },
+          "standard": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock"
+            },
+            "measured": null
+          },
+          "optimized_exact": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "fused_decode"
+              ],
+              "inexact": [],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": null
+          },
+          "optimized_fast": {
+            "recipe": {
+              "layers": {
+                "all": "affine-4 g64"
+              },
+              "kernels": [
+                "decoder",
+                "encoder",
+                "fused_decode"
+              ],
+              "inexact": [
+                "encoder"
+              ],
+              "gate_revision": "native-kernels-10"
+            },
+            "measured": {
+              "hardware": "Fixture Mac",
+              "date": "2026-01-01",
+              "suite": "fixture",
+              "performance_suite": "fixture"
+            },
+            "wer": 16,
+            "format": 2.6,
+            "speed_x": 36,
+            "j_per_min": 14,
+            "memory_mb": 108
+          }
+        }
+      }
+    }
+  },
+  "references": {
+    "elevenlabs-scribe-v2": {
+      "reference": true,
+      "estimated": true,
+      "name": "ElevenLabs Scribe v2",
+      "provider": "ElevenLabs",
+      "mode": "dictation",
+      "wer": 13.4,
+      "range": [
+        11.8,
+        13.9
+      ],
+      "multilingual": {
+        "by_language": {
+          "de": 5.8,
+          "fr": 8.2,
+          "es": 7.8
+        },
+        "range": {
+          "de": [
+            4.5,
+            6.7
+          ],
+          "fr": [
+            6.2,
+            22.9
+          ],
+          "es": [
+            7.0,
+            17.8
+          ]
+        },
+        "coverage": 3
+      },
+      "source": "Hugging Face Open ASR Leaderboard, English short-form average 3.97% for elevenlabs/scribe_v2 (https://huggingface.co/spaces/hf-audio/open_asr_leaderboard; results https://huggingface.co/datasets/hf-audio/open-asr-leaderboard-results @d2c5b38)",
+      "method": "3.97% \u00d7 3.38, the median ratio of our v2 WER to the leaderboard WER for the models we measured on both: Parakeet v3 3.38, Qwen3 ASR 1.7B 3.49, Nemotron 3.5 Streaming 2.98. The range uses the lowest and highest ratio.",
+      "public_wer": 3.969,
+      "ratio": 3.382,
+      "anchors": {
+        "parakeet-v3": {
+          "v2": 16.43,
+          "public": 4.85875,
+          "ratio": 3.382
+        },
+        "qwen3-asr-1.7b": {
+          "v2": 15.06,
+          "public": 4.31125,
+          "ratio": 3.493
+        },
+        "nemotron-3.5-streaming-0.6b": {
+          "v2": 23.44,
+          "public": 7.8775,
+          "ratio": 2.976
+        }
+      },
+      "date": "2026-09-26"
+    },
+    "azure-speech": {
+      "reference": true,
+      "estimated": true,
+      "name": "Microsoft Azure Speech",
+      "provider": "Microsoft",
+      "mode": "dictation",
+      "wer": 12.9,
+      "range": [
+        11.3,
+        13.3
+      ],
+      "multilingual": {
+        "by_language": {
+          "de": 5.0,
+          "fr": 7.8,
+          "es": 7.7
+        },
+        "range": {
+          "de": [
+            3.8,
+            5.7
+          ],
+          "fr": [
+            5.9,
+            21.9
+          ],
+          "es": [
+            7.0,
+            17.7
+          ]
+        },
+        "coverage": 3
+      },
+      "source": "Hugging Face Open ASR Leaderboard, English short-form average 3.81% for microsoft/azure-speech-07-2026 (https://huggingface.co/spaces/hf-audio/open_asr_leaderboard; results https://huggingface.co/datasets/hf-audio/open-asr-leaderboard-results @d2c5b38)",
+      "method": "3.81% \u00d7 3.38, the median ratio of our v2 WER to the leaderboard WER for the models we measured on both: Parakeet v3 3.38, Qwen3 ASR 1.7B 3.49, Nemotron 3.5 Streaming 2.98. The range uses the lowest and highest ratio.",
+      "public_wer": 3.811,
+      "ratio": 3.382,
+      "anchors": {
+        "parakeet-v3": {
+          "v2": 16.43,
+          "public": 4.85875,
+          "ratio": 3.382
+        },
+        "qwen3-asr-1.7b": {
+          "v2": 15.06,
+          "public": 4.31125,
+          "ratio": 3.493
+        },
+        "nemotron-3.5-streaming-0.6b": {
+          "v2": 23.44,
+          "public": 7.8775,
+          "ratio": 2.976
+        }
+      },
+      "date": "2026-09-26"
+    }
+  }
+}

@@ -6,7 +6,7 @@ encoder, the decoder, the tokenizer, the decoding loop and the optimized path; t
 
 **Screening numbers.** Every speed, energy and memory figure in the text below is a screening number: a v2-mini A/B
 (21 clips, 3.6 min of audio) on an M5 Max, macOS 26.6, dated 28 Sep to 1 Oct 2026, one clean pair per lever unless noted. The
-1 Oct spread results (`lab/notes/KERNEL-MATRIX-2026-09-30.md`, Whisper results) used two symmetric cycles, four clean
+1 Oct spread results (`local KERNEL-MATRIX-2026-09-30.md`, Whisper results) used two symmetric cycles, four clean
 samples per arm. Screening picks levers; it is not the release measurement. The release figures
 are the generated block at the end.
 
@@ -27,7 +27,7 @@ Pinned revisions and download sizes are in `Resources/models.json`.
 
 ## Tiers offered, and why
 
-A tier is offered unless it breaks against 16 (the presence rule, `lab/bench/gate_check.py`): more clips empty or cut short
+A tier is offered unless it breaks against 16 (the presence rule, `local gate_check.py`): more clips empty or cut short
 where 16 had the words than the base's seed allowance, a request error or worker exit, English WER or the multilingual mean
 5 points worse, or any supported language 10 points worse. Whisper has a seed allowance because its temperature fallback
 samples: a clip lost within it is sampling noise, not a rejected tier. Lower tiers are made on the Mac from the FP16
@@ -42,11 +42,9 @@ bias-aware recipe is used (Toby, 30 Sep 2026: calibration is training on the 16-
   uniform 8-bit recipe and transcribes the same 21 clips identically (screening below). Memory is higher than the uniform
   recipe's, by about 390–400 MB. An imported uniform 8-bit checkpoint no longer counts as this tier; Get makes it from
   the FP16 download.
-- **4 (int4): absent.** Plain affine 4-bit loses clips on both models, which is what makes a tier absent (the presence
-  rule). The shipped verdict in `Resources/benchmarks.json` (the 29 Sep models-table round,
-  `lab/notes/models-table-ROUND.md`; the 2.0.0 measurement replaces it): large-v3 one clip empty or cut short where 16 had
-  the words, turbo two; both also fail the recommendation gate (large-v3 Japanese +2.09, format CER +0.18; turbo English
-  +0.49, Turkish +2.44, format CER +0.74).
+- **4 (int4): absent.** The final 1–2 Oct measurement loses two clips on large-v3 and one on turbo
+  where Optimized Fast fp16 had the words. Tier verdicts compare Fast with Fast; the generated tables below
+  carry the numerical gate loss. The 29 Sep screen is historical, not the shipped verdict.
 
 `tiers_offered` in `Resources/models.json` is what the app offers.
 
@@ -56,12 +54,14 @@ Standard (stock MLX) is activation-dtype-faithful to mlx-whisper on the shipped 
 (`sinusoids(...).astype(dtype)`). The checkpoints omit the encoder's positional table and the loader synthesises it in
 that dtype; until 3 Oct 2026 it was Float32, which promoted the whole encoder and decoder to Float32 with every FP16
 weight re-cast per call, and running in FP16 was counted as an optimized `encoder` component
-(`lab/notes/STANDARD-FAITHFULNESS-2026-10-03.md`). Vella keeps its pre-existing Double-trig sinusoid values:
+(`local STANDARD-FAITHFULNESS-2026-10-03.md`). Vella keeps its pre-existing Double-trig sinusoid values:
 about 1.85% of table entries differ from mlx-whisper's Float32-trig values by one FP16 ulp, so this is not bitwise
 reference equivalence. Mel is always rounded to FP16; arbitrary FP32/BF16 sources are not proven reference-equivalent.
 
-Always on once the load-time self-test passed on the Mac (revision `whisper-4`, the same under Optimized · Fast and
-Optimized · Exact, because every component is exact; stock MLX is the fallback):
+Always on once the load-time self-test passed on the Mac (revision `whisper-4`; stock MLX is the fallback).
+Standard now computes in FP16 like mlx-whisper. Exact and Fast use the same exact decoder components;
+there is no encoder lever or inexact component. Fast retains its measured figures; Standard and Exact
+figures are withdrawn pending separate measurements.
 
 - **GPU-side decoder** (component `decoder`, exact): the greedy decode loop runs on the GPU, with a finite check on every logit tensor it uses.
 - **Fused decode step** (listed as `fused_decode` in a quantized tier's recipe, exact, quantized checkpoints only): a
@@ -71,7 +71,7 @@ Optimized · Exact, because every component is exact; stock MLX is the fallback)
   within noise, so dense checkpoints keep the plain step. Screening, 28 Sep, large-v3 int4: 36.5 → 38.1× and
   104.7 → 95.9 J/min.
 
-Their effect is the Optimized rows against the Standard rows in the generated block below.
+The generated block below retains measured Fast rows. No comparison with Standard is available until the FP16 Standard path is measured.
 
 Levers kept from the kernel rounds:
 
@@ -97,7 +97,7 @@ Numbers are speed / energy against the arm without the lever, v2-mini.
 
 ## Quality gate
 
-**Release gate** (offline, full v2, `lab/bench/gate_check.py`). The gate decides whether a lever or a tier loses anything
+**Release gate** (offline, full v2, `local gate_check.py`). The gate decides whether a lever or a tier loses anything
 measurable. Against the base (the stock path at the same precision for a lever; the 16 tier for a tier), all of these must
 hold: English WER and format CER each within the model's tolerance T (0.1 pt, up to 0.2 pt where the model's own run-to-run
 noise plus 0.05 is larger; Whisper's noise pair is two sampling seeds); the multilingual mean within its own noise-based
@@ -120,47 +120,60 @@ logits. The runtime fallback now reruns the same FP16 encoder, like mlx-whisper;
 <!-- MEASURED_START -->
 <!-- Generated by scripts/model-readmes.swift from Resources/benchmarks.json and Resources/models.json. Do not edit between the markers; run the script. -->
 
-Figures pending: the 2.0.0 measurement has not been written into `Resources/benchmarks.json` yet (`figures_pending` is true), so no figure is shown. A figure that is not measured is —.
+Measured 2026-10-01 to 2026-10-02 on Apple M5 Max, macOS 26.6. Accuracy: v2 (239.7 min); speed, energy and peak RAM: v2-quick (22.5 min).
+
+The measured rows come from different runs; the mark after a path names the run:
+- ¹ accuracy v2, speed, energy and peak RAM v2-quick, Apple M5 Max, macOS 26.6, 2026-10-01
+- ² accuracy v2, speed, energy and peak RAM v2-quick, Apple M5 Max, macOS 26.6, 2026-10-02
+"vs Standard" is — where the two cells were measured on different hardware or a different speed suite.
 
 Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "vs Standard" compares the same tier's Optimized cell with its Standard cell. "Offered" is `tiers_offered` in `Resources/models.json`; "Gate vs 16" is the quality gate and presence verdict in `Resources/benchmarks.json`. A quantized tier rounds only the Linear and Embedding layers whose input width the group size divides; every other tensor and every kept module stays at the source dtype.
 
 #### Whisper large-v3 (`whisper-large-v3`)
 
+Gate limits: English ≤ 0.10 pt, multilingual mean ≤ 0.10 pt.
+
+Standard figures were withdrawn: the shipped Standard now computes in FP16. Exact equals Fast but has not been measured separately. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
+
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (fp16) | the checkpoint as published | yes | — |
-| 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (40.8 % of the source checkpoint's weight bytes) | yes | — |
-| 4 (int4) | affine group 64 from the fp16 weights | no | — |
+| 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (40.8 % of the source checkpoint's weight bytes) | yes | fail; present; gate: English WER +0.22 pt vs 16 (limit 0.10) |
+| 4 (int4) | affine group 64 from the fp16 weights | no | fail; absent: 2 clips empty or cut short where 16 had the words |
 
 | Tier | Path | WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
-| 16 (fp16) | Standard | — | — | — | — | — | — | — | — |
-| 16 (fp16) | Optimized Exact | — | — | — | — | — | — | — | — |
-| 16 (fp16) | Optimized Fast | — | — | — | — | — | — | — | — |
-| 8 (int8) | Standard | — | — | — | — | — | — | — | — |
-| 8 (int8) | Optimized Exact | — | — | — | — | — | — | — | — |
-| 8 (int8) | Optimized Fast | — | — | — | — | — | — | — | — |
-| 4 (int4) | Standard | — | — | — | — | — | — | — | — |
-| 4 (int4) | Optimized Exact | — | — | — | — | — | — | — | — |
-| 4 (int4) | Optimized Fast | — | — | — | — | — | — | — | — |
+| 16 (fp16) | Standard — Not measured yet | — | — | — | — | — | — | — | — |
+| 16 (fp16) | Optimized Exact — Not measured yet | — | — | — | — | — | — | — | — |
+| 16 (fp16) | Optimized Fast² | 17.06 | 8.17 | 14.53 | 34.8× | 83.50 | 3915 | — | — |
+| 8 (int8) | Standard — Not measured yet | — | — | — | — | — | — | — | — |
+| 8 (int8) | Optimized Exact — Not measured yet | — | — | — | — | — | — | — | — |
+| 8 (int8) | Optimized Fast¹ | 17.27 | 8.18 | 14.57 | 42.9× | 75.22 | 3104 | — | — |
+| 4 (int4) | Standard — Not measured yet | — | — | — | — | — | — | — | — |
+| 4 (int4) | Optimized Exact — Not measured yet | — | — | — | — | — | — | — | — |
+| 4 (int4) | Optimized Fast¹ | 17.10 | 8.17 | 14.03 | 54.4× | 66.02 | 2123 | — | — |
 
 #### Whisper large-v3 turbo (`whisper-large-v3-turbo`)
 
+Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.02 pt; not remeasured on this build), multilingual mean ≤ 0.22 pt (noise measured 2026-09-28: 0.17 pt; not remeasured on this build).
+
+Standard figures were withdrawn: the shipped Standard now computes in FP16. Exact equals Fast but has not been measured separately. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
+
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (fp16) | the checkpoint as published | yes | — |
-| 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (78.0 % of the source checkpoint's weight bytes) | yes | — |
-| 4 (int4) | affine group 64 from the fp16 weights | no | — |
+| 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (78.0 % of the source checkpoint's weight bytes) | yes | pass; present |
+| 4 (int4) | affine group 64 from the fp16 weights | no | fail; absent: 1 clip empty or cut short where 16 had the words |
 
 | Tier | Path | WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
-| 16 (fp16) | Standard | — | — | — | — | — | — | — | — |
-| 16 (fp16) | Optimized Exact | — | — | — | — | — | — | — | — |
-| 16 (fp16) | Optimized Fast | — | — | — | — | — | — | — | — |
-| 8 (int8) | Standard | — | — | — | — | — | — | — | — |
-| 8 (int8) | Optimized Exact | — | — | — | — | — | — | — | — |
-| 8 (int8) | Optimized Fast | — | — | — | — | — | — | — | — |
-| 4 (int4) | Standard | — | — | — | — | — | — | — | — |
-| 4 (int4) | Optimized Exact | — | — | — | — | — | — | — | — |
-| 4 (int4) | Optimized Fast | — | — | — | — | — | — | — | — |
+| 16 (fp16) | Standard — Not measured yet | — | — | — | — | — | — | — | — |
+| 16 (fp16) | Optimized Exact — Not measured yet | — | — | — | — | — | — | — | — |
+| 16 (fp16) | Optimized Fast¹ | 16.57 | 7.43 | 14.83 | 113.7× | 37.18 | 2522 | — | — |
+| 8 (int8) | Standard — Not measured yet | — | — | — | — | — | — | — | — |
+| 8 (int8) | Optimized Exact — Not measured yet | — | — | — | — | — | — | — | — |
+| 8 (int8) | Optimized Fast² | 16.52 | 7.46 | 14.80 | 128.9× | 35.56 | 2574 | — | — |
+| 4 (int4) | Standard — Not measured yet | — | — | — | — | — | — | — | — |
+| 4 (int4) | Optimized Exact — Not measured yet | — | — | — | — | — | — | — | — |
+| 4 (int4) | Optimized Fast² | 16.96 | 8.14 | 15.06 | 132.7× | 38.11 | 1743 | — | — |
 <!-- MEASURED_END -->

@@ -18,11 +18,11 @@ final class TierCatalogTests: XCTestCase {
         XCTAssertEqual(
             tiers,
             [
-                "parakeet-v3-ultra": ["16", "8", "4"], "parakeet-v3": ["16"], "qwen3-asr-1.7b": ["16"],
+                "parakeet-v3-ultra": ["16", "8", "4"], "parakeet-v3": ["16", "8"], "qwen3-asr-1.7b": ["16"],
                 "qwen3-asr-0.6b": ["16", "8"], "whisper-large-v3": ["16", "8"], "whisper-large-v3-turbo": ["16", "8"],
                 "nemotron-3.5-streaming-0.6b": ["16", "8"]
             ])
-        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("parakeet-v3"))), ["BF16"], "fp32 is never a tier")
+        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("parakeet-v3"))), ["BF16", "8b"], "fp32 is never a tier")
         XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("parakeet-v3-ultra"))), ["BF16", "8b", "4b"])
         XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("whisper-large-v3"))), ["FP16", "8b"])
         XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("qwen3-asr-1.7b"))), ["BF16"])
@@ -186,7 +186,7 @@ final class TierCatalogTests: XCTestCase {
         XCTAssertTrue(sixteen.body.contains("Download: 3.09 GB (3,087,748,437 bytes). Stored: 3.09 GB; 100 bytes free. Not enough free disk space."), sixteen.body)
         // An absent tier is never offered, and fp32 is never a tier.
         XCTAssertNil(downloadPrompt(family: whisper, precision: "4b", followUp: .load, freeBytes: nil))
-        XCTAssertNil(downloadPrompt(family: v3, precision: "8b", followUp: .load, freeBytes: nil))
+        XCTAssertNil(downloadPrompt(family: v3, precision: "4b", followUp: .load, freeBytes: nil))
         XCTAssertNil(downloadPrompt(family: v3, precision: "FP32", followUp: .load, freeBytes: nil))
     }
 }

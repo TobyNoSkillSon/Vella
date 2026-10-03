@@ -48,7 +48,7 @@ final class DerivedModelTests: XCTestCase {
         for f in catalog.families { XCTAssertEqual(f.derivationProblems(), [], f.id) }
         // Precision options follow tiers_offered (presence); fp32 is never a tier.
         XCTAssertEqual(precisionOptions(ultra), ["BF16", "8b", "4b"])
-        XCTAssertEqual(precisionOptions(v3), ["BF16"])
+        XCTAssertEqual(precisionOptions(v3), ["BF16", "8b"])
     }
 
     func testDerivedVariantRoundTripsWithoutDownloadFields() throws {

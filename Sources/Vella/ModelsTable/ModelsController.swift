@@ -248,7 +248,7 @@ struct ModelDeletionPlan {
         precisions(f, mode).filter { measured(f, ModelSelection(tier: $0, path: .optimized, mode: mode)) }
     }
     /// The Exact position can be chosen: some Exact recipe is measured (where Fast = Exact the switch is pinned anyway).
-    func exactAvailable(_ f: ModelFamily) -> Bool { !switchAvailable(f) || !measuredPrecisions(f, .exact).isEmpty }
+    func exactAvailable(_ f: ModelFamily) -> Bool { !measuredPrecisions(f, .exact).isEmpty }
     /// The Optimized row's segments as the row shows them (the current switch position).
     func precisions(_ f: ModelFamily) -> [ModelTier] { precisions(f, currentSelection(f).mode) }
     /// The model has an Optimized row (and so the Exact/Fast switch); every shipped Vella model does.

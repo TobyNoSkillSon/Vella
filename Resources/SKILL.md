@@ -47,16 +47,18 @@ Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast: best for English and 2
 
 | Model id | Mode | What it is | Language count | Params | Licence | Tiers offered | WER % | Speed | J / audio min | Peak RAM MB |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `parakeet-v3-ultra` | dictation | NVIDIA's Parakeet v3, post-trained for dictation in 25 European languages; none from outside Europe | 25 | 0.6B | CC BY 4.0 | bf16, int8, int4 | — | — | — | — |
-| `parakeet-v3` | dictation | The unmodified Parakeet v3 that Ultra is post-trained from: the same 25 European languages, no others | 25 | 0.6B | CC BY 4.0 | bf16 | — | — | — | — |
-| `qwen3-asr-1.7b` | dictation | Dictation in 30 languages, including Chinese, Japanese and Korean, which Parakeet lacks; slower than Parakeet | 30 | 1.7B | Apache-2.0 | bf16 | — | — | — | — |
-| `qwen3-asr-0.6b` | dictation | The smaller Qwen3 ASR: the same 30 languages in less memory, a little less accurate than the 1.7B | 30 | 0.6B | Apache-2.0 | bf16, int8 | — | — | — | — |
-| `whisper-large-v3` | dictation | Dictation in about 100 languages, the most of any model here, from a family other than Parakeet and Qwen | 100 | 1.55B | Apache-2.0 | fp16, int8 | — | — | — | — |
-| `whisper-large-v3-turbo` | dictation | Whisper large-v3 with 4 decoder layers instead of 32: the same languages, much faster, a little less accurate outside English | 100 | 0.8B | MIT | fp16, int8 | — | — | — | — |
-| `nemotron-3.5-streaming-0.6b` | streaming | Transcribes 28 languages as the audio arrives, so Streaming mode types while you speak; not used for Dictation | 28 | 0.6B | OpenMDW-1.1 (MLX conversion: NVIDIA Open Model License) | bf16, int8 | — | — | — | — |
+| `parakeet-v3-ultra` | dictation | NVIDIA's Parakeet v3, post-trained for dictation in 25 European languages; none from outside Europe | 25 | 0.6B | CC BY 4.0 | bf16, int8, int4 | 15.51 | 507.1× | 4.58 | 1792 |
+| `parakeet-v3` | dictation | The unmodified Parakeet v3 that Ultra is post-trained from: the same 25 European languages, no others | 25 | 0.6B | CC BY 4.0 | bf16, int8 | 16.42 | 494.3× | 4.70 | 1765 |
+| `qwen3-asr-1.7b` | dictation | Dictation in 30 languages, including Chinese, Japanese and Korean, which Parakeet lacks; slower than Parakeet | 30 | 1.7B | Apache-2.0 | bf16 | 15.00 | 28.3× | 72.32 | 5101 |
+| `qwen3-asr-0.6b` | dictation | The smaller Qwen3 ASR: the same 30 languages in less memory, a little less accurate than the 1.7B | 30 | 0.6B | Apache-2.0 | bf16, int8 | 15.89 | 63.2× | 34.72 | 2352 |
+| `whisper-large-v3` | dictation | Dictation in about 100 languages, the most of any model here, from a family other than Parakeet and Qwen | 100 | 1.55B | Apache-2.0 | fp16, int8 | 17.06 | 34.8× | 83.50 | 3915 |
+| `whisper-large-v3-turbo` | dictation | Whisper large-v3 with 4 decoder layers instead of 32: the same languages, much faster, a little less accurate outside English | 100 | 0.8B | MIT | fp16, int8 | 16.57 | 113.7× | 37.18 | 2522 |
+| `nemotron-3.5-streaming-0.6b` | streaming | Transcribes 28 languages as the audio arrives, so Streaming mode types while you speak; not used for Dictation | 28 | 0.6B | OpenMDW-1.1 (MLX conversion: NVIDIA Open Model License) | bf16, int8 | 23.35 | 34.9× | 50.03 | 1655 |
 
-Figures pending: the 2.0.0 measurement has not been written into `Resources/benchmarks.json` yet (`figures_pending` is true), so no figure is shown. A figure that is not measured is —. Figures are the Optimized · Fast cell of the 16-bit tier, the cell a model first loads on. Speed is × real time and energy is joules per minute of audio on the reference Mac (Apple M5 Max, macOS 26.6); they are not measurements of this Mac. Streaming models do not transcribe files. `vella models --json` lists every cell, its figures or refusal reason, and the source and size.
+Figures are the Optimized · Fast cell of the 16-bit tier, the cell a model first loads on. Speed is × real time and energy is joules per minute of audio on the reference Mac (Apple M5 Max, macOS 26.6); they are not measurements of this Mac. Streaming models do not transcribe files. `vella models --json` lists every cell, its figures or refusal reason, and the source and size.
 <!-- MODELS_END -->
+
+Whisper Standard and Optimized Exact are not measured yet after the Standard FP16 correction; choose measured Fast for an unloaded model. A loaded Standard cell remains selectable until unload. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
 
 Use one call per step, without probing or retries:
 

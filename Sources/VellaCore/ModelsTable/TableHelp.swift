@@ -159,7 +159,7 @@ public func tierFlavour(_ family: ModelFamily, tier: ModelTier, cell: BenchmarkC
     // Per-layer recipe: quantized groups first, then the 16-bit ones, each as "<bits> <group>".
     func bits(_ format: String) -> String { format.hasPrefix("affine-") ? String(format.dropFirst(7).prefix { $0.isNumber }) + "-bit" : "16-bit" }
     let parts = groups.sorted { ($0.value.hasPrefix("affine") ? 0 : 1, $0.key) < ($1.value.hasPrefix("affine") ? 0 : 1, $1.key) }
-        .map { "\(bits($0.value)) \($0.key)" }
+        .map { "\(bits($0.value)) \($0.key == "model.encoder" ? "encoder" : $0.key)" }
     return parts.joined(separator: ", ") + " (\(affine))"
 }
 
@@ -183,7 +183,7 @@ public func cellBasis(_ cell: BenchmarkCell?) -> String? {
 /// or `fp16`) with its basis, `vs Standard bf16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep`. The Standard
 /// 16-bit cell itself is the reference.
 public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: Bool, baseName: String = "16") -> String {
-    guard let cell, !cell.isPending else { return "Measure pending" }
+    guard let cell, !cell.isPending else { return unmeasuredReasonHelp(cell) }
     let basis = cellBasis(cell)
     if isBase { return (["Reference for the deltas", basis].compactMap { $0 }).joined(separator: " \u{00b7} ") }
     guard let base, !base.isPending else {
@@ -229,6 +229,10 @@ public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, t
 /// Every figure cell's tooltip while benchmarks.json says `figures_pending` (its figures predate the final build).
 public let figuresPendingHelp = "Figures pending the final measurement"
 public let unmeasuredCellHelp = "Not measured yet"
+public func unmeasuredReasonHelp(_ cell: BenchmarkCell?) -> String {
+    guard let reason = cell?.notMeasuredReason, !reason.isEmpty else { return unmeasuredCellHelp }
+    return unmeasuredCellHelp + ": " + reason
+}
 public let modelDeletionBusyHelp = "Finish dictation, downloading or calibration before deleting a model."
 
 /// A greyed Precision cell of a tier the presence gate removed (or the catalog does not offer), in one line: why.

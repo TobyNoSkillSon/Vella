@@ -289,25 +289,23 @@ final class CatalogTests: XCTestCase {
                     XCTAssertTrue(notOffered.contains("\(family.name) \(tier.rawValue) ("), "\(family.id) \(tier.rawValue) listed as not offered")
                     continue
                 }
-                var paths: [(String, BenchmarkCell?)] = [("Standard", t.cells[.standard])]
-                if t.cells[.optimized_fast]?.recipe.inexact.isEmpty ?? true {
-                    paths.append(("Optimized (Exact = Fast)", t.cells[.optimized_fast]))
-                } else {
-                    paths += [("Optimized · Exact", t.cells[.optimized_exact]), ("Optimized · Fast", t.cells[.optimized_fast])]
-                }
+                let paths: [(String, BenchmarkCell?)] = [
+                    ("Standard", t.cells[.standard]), ("Optimized · Exact", t.cells[.optimized_exact]),
+                    ("Optimized · Fast", t.cells[.optimized_fast])
+                ]
                 XCTAssertEqual(mine.count, paths.count, "\(family.id) \(tier.rawValue)")
                 for (path, cell) in paths {
                     let c = try XCTUnwrap(cell)
                     let expected = " | \(mode) | \(tier.rawValue) | \(path) | \(fmt(c.result.wer)) | \(fmt(c.result.format)) | "
                     let row = mine.first { $0.contains(expected) }
                     XCTAssertNotNil(row, "\(family.id) \(tier.rawValue) \(path): \(expected)")
-                    if c.isPending { XCTAssertTrue(row?.hasSuffix("| measure pending |") ?? false, "\(family.id) \(tier.rawValue) \(path) pending") }
+                    if c.isPending { XCTAssertTrue(row?.hasSuffix("| Not measured yet |") ?? false, "\(family.id) \(tier.rawValue) \(path) pending") }
                     rows += 1
                 }
             }
         }
         XCTAssertEqual(lines.filter { $0.hasPrefix("| ") && !$0.hasPrefix("| Model") && !$0.contains("(cloud API)") }.count, rows, "no other model rows")
-        XCTAssertTrue(table.contains("Segmentation fixed on 2026-09-29; accuracy re-measure pending."), "the re-measure footnote stays")
+        XCTAssertTrue(table.contains("Shipped worker source `40a2eef`"), "both builds and the source bridge are documented")
     }
 
     /// The shipped benchmarks.json (schema 2): every catalog family, tiers 16/8/4 only (never fp32), all three cells per
@@ -319,7 +317,7 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(file.schema, 2)
         XCTAssertEqual(Set(file.models.keys), Set(catalog.families.map(\.id)), "a benchmark row for every catalog family, none for removed ones")
         let offered: [String: [ModelTier]] = [
-            "parakeet-v3": [.t16], "parakeet-v3-ultra": [.t16, .t8, .t4], "qwen3-asr-1.7b": [.t16], "qwen3-asr-0.6b": [.t16, .t8],
+            "parakeet-v3": [.t16, .t8], "parakeet-v3-ultra": [.t16, .t8, .t4], "qwen3-asr-1.7b": [.t16], "qwen3-asr-0.6b": [.t16, .t8],
             "nemotron-3.5-streaming-0.6b": [.t16, .t8], "whisper-large-v3": [.t16, .t8], "whisper-large-v3-turbo": [.t16, .t8]
         ]
         for (id, bench) in file.models {
@@ -332,8 +330,8 @@ final class CatalogTests: XCTestCase {
                 XCTAssertEqual(Set(t.cells.keys), Set(Recipe.allCases), "\(id) \(tier.rawValue)")
                 if !t.presence.offered { XCTAssertFalse(t.presence.reasons.isEmpty, "\(id) \(tier.rawValue): absent says why") }
                 if t.gate.status == .fail && tier != .t16 {
-                    XCTAssertTrue(
-                        t.gate.reasons.contains { $0.contains("uniform affine-\(tier.rawValue) g64 recipe") }, "\(id) \(tier.rawValue): the verdict names the uniform recipe")
+                    XCTAssertFalse(t.gate.reasons.isEmpty, "\(id) \(tier.rawValue): failed gates retain their measured reasons")
+                    XCTAssertFalse(t.gate.reasons.contains { $0.contains("not built or gated yet") }, "\(id) \(tier.rawValue): no obsolete uniform-recipe caveat")
                 }
                 for (key, cell) in t.cells where !cell.isPending {
                     XCTAssertNotNil(cell.measured?.hardware, "\(id) \(tier.rawValue) \(key)"); XCTAssertNotNil(cell.measured?.date, "\(id) \(tier.rawValue) \(key)")
@@ -343,19 +341,18 @@ final class CatalogTests: XCTestCase {
                 XCTAssertEqual(t.cells[.standard]?.recipe.gate_revision, "stock")
             }
         }
-        // Mapping of the 28 Sep numbers: Qwen and Ultra 8/4 have no inexact kernel (Exact = Fast, the switch greyed for
-        // Qwen); Parakeet's NAX, Nemotron's fused layer and Whisper's half encoder are inexact (Exact pending).
-        XCTAssertFalse(fastDiffersFromExact(file.models["qwen3-asr-1.7b"]))
-        XCTAssertFalse(fastDiffersFromExact(file.models["qwen3-asr-0.6b"]))
-        for id in ["parakeet-v3", "parakeet-v3-ultra", "nemotron-3.5-streaming-0.6b", "whisper-large-v3", "whisper-large-v3-turbo"] {
+        // Whisper's Fast is exact in the shipped recipe, but its separate Exact measurement was withdrawn.
+        for id in ["qwen3-asr-1.7b", "qwen3-asr-0.6b", "whisper-large-v3", "whisper-large-v3-turbo"] {
+            XCTAssertFalse(fastDiffersFromExact(file.models[id]), id)
+        }
+        for id in ["parakeet-v3", "parakeet-v3-ultra", "nemotron-3.5-streaming-0.6b"] {
             XCTAssertTrue(fastDiffersFromExact(file.models[id]), id)
-            XCTAssertTrue(file.models[id]?.tiers[.t16]?.cells[.optimized_exact]?.isPending ?? false, "\(id): Exact 16 measure pending")
+            XCTAssertFalse(file.models[id]?.tiers[.t16]?.cells[.optimized_exact]?.isPending ?? true, "\(id): Exact 16 measured")
         }
         XCTAssertEqual(file.models["parakeet-v3"]?.tiers[.t16]?.cells[.optimized_fast]?.recipe.inexact, ["nax_gemm"])
         XCTAssertEqual(file.models["parakeet-v3"]?.tiers[.t16]?.cells[.standard]?.recipe.converted_from, "fp32")
-        XCTAssertEqual(
-            file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_exact]?.result.speed_x,
-            file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_fast]?.result.speed_x)
+        XCTAssertNotNil(file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_exact]?.measured)
+        XCTAssertNotNil(file.models["parakeet-v3-ultra"]?.tiers[.t8]?.cells[.optimized_fast]?.measured)
     }
 
     // MARK: Selection and load action
@@ -541,7 +538,7 @@ final class CatalogTests: XCTestCase {
             docs[0].contains("Every other cell is clickable and shows its own figures") && docs[1].contains("Every other cell is clickable and shows its own figures"),
             "both rows clickable")
         XCTAssertTrue(docs[1].contains("`Exact: bf16 only, was int8`") && docs[0].contains("flipping to Exact can move the precision to 16"), "Exact coupling documented")
-        XCTAssertTrue(docs[1].contains("`figures_pending`") && docs[0].contains("the figure columns show `—`"), "pending figures documented")
+        XCTAssertTrue(docs[1].contains("`figures_pending`") && docs[0].contains("withdrawn Standard/Exact cells show `—`"), "pending figures documented")
         for stale in ["字", "Chinese, Japanese and Korean)", "Europe globe", "| Memory | Loaded", "Two rows of segments `16 8 4`"] {
             XCTAssertFalse(all.contains(stale), "retired table v2 wording: \(stale)")
         }

@@ -210,11 +210,13 @@ func gateText(_ bench: JSON, _ id: String, _ tier: String) -> String {
 /// The family's gate limits (English and multilingual tolerance, measured noise floors), or nil.
 func limitsText(_ bench: JSON, _ id: String) -> String? {
     guard let entry = (bench["models"] as? JSON)?[id] as? JSON else { return nil }
+    let noiseFamily = ((bench["noise_floor"] as? JSON)?["families"] as? JSON)?[id] as? JSON
+    let noiseDate = noiseFamily?["noise_date"] as? String
     var parts: [String] = []
     for (label, tolerance, noise) in [("English", "tolerance_pt", "noise_pt"), ("multilingual mean", "tolerance_ml_pt", "noise_ml_pt")] {
         guard let limit = double(entry[tolerance]) else { continue }
         var text = "\(label) ≤ \(number(limit, 2)) pt"
-        if let floor = double(entry[noise]) { text += " (measured noise \(number(floor, 2)) pt)" }
+        if let floor = double(entry[noise]), let noiseDate { text += " (noise measured \(noiseDate): \(number(floor, 2)) pt; not remeasured on this build)" }
         parts.append(text)
     }
     return parts.isEmpty ? nil : "Gate limits: " + parts.joined(separator: ", ") + "."
@@ -225,6 +227,9 @@ func renderFamily(_ family: JSON, _ bench: JSON, keys: [MeasureKey] = []) -> [St
     let hide = isPending(bench)
     var lines = ["#### \(family["name"] as? String ?? id) (`\(id)`)", ""]
     if !hide, let limits = limitsText(bench, id) { lines += [limits, ""] }
+    if id.hasPrefix("whisper-") {
+        lines += ["Standard figures were withdrawn: the shipped Standard now computes in FP16. Exact equals Fast but has not been measured separately. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.", ""]
+    }
     lines += ["| Tier | Runs as | Offered | Gate vs 16 |", "|---|---|---|---|"]
     let offered = family["tiers_offered"] as? [String] ?? []
     for tier in tiers {
@@ -256,7 +261,9 @@ func renderFamily(_ family: JSON, _ bench: JSON, keys: [MeasureKey] = []) -> [St
                     compared ? percentChange(joules, double(standard?["j_per_min"])) : dash
                 ]
             }
-            lines.append("| \(tier) (\(dtypeLabel(family, tier))) | \(title)\(mark) | " + row.joined(separator: " | ") + " |")
+            let entry = (((bench["models"] as? JSON)?[id] as? JSON)?["tiers"] as? JSON)?[tier] as? JSON
+            let pending = ((entry?[path] as? JSON)?["not_measured_reason"] as? String) != nil
+            lines.append("| \(tier) (\(dtypeLabel(family, tier))) | \(title)\(mark)\(pending ? " — Not measured yet" : "") | " + row.joined(separator: " | ") + " |")
         }
     }
     return lines
@@ -348,6 +355,7 @@ func selfTest() {
         "4": ["gate": ["status": "fail"] as JSON, "presence": ["offered": false, "reasons": ["1 clip lost"]] as JSON] as JSON
     ]
     var bench: JSON = [
+        "noise_floor": ["families": ["demo": ["noise_date": "2026-09-28"] as JSON] as JSON] as JSON,
         "figures_pending": false, "hardware": "Test Mac", "suites": ["v2": ["audio_min": 239.7], "v2-quick": ["audio_min": 22.5]] as JSON,
         "models": [
             "demo": ["tolerance_pt": 0.1, "noise_pt": 0.04, "tolerance_ml_pt": 0.2, "tiers": demoTiers] as JSON,
@@ -360,10 +368,10 @@ func selfTest() {
         "| 16 (fp16) | Optimized Fast | 17.20 | 7.70 | 21.80 | 20.0× | 80.00 | 3346 | +100 % | −20 % |",
         "| 16 (fp16) | Standard | 17.20 | 7.70 | 21.80 | 10.0× | 100.00 | 3346 | — | — |",
         "| 8 (int8) | affine group 64", "`model.encoder` kept at fp16 (40.8 % of the source checkpoint's weight bytes)", "| 4 (int4) |", "fail; absent: 1 clip lost",
-        "Gate limits: English ≤ 0.10 pt (measured noise 0.04 pt), multilingual mean ≤ 0.20 pt.",
+        "Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.04 pt; not remeasured on this build), multilingual mean ≤ 0.20 pt.",
         "Measured 2026-10-02 on Test Mac. Accuracy: v2 (239.7 min); speed, energy and peak RAM: v2-quick (22.5 min)."
     ] where !block.contains(expected) { fail("selftest: missing \(expected)") }
-    if block.contains("2026-09-28") || block.contains("Test Mac. Accuracy: v2-quick") { fail("selftest: another family's date or suite labels this README") }
+    if block.contains("Measured 2026-09-28") || block.contains("Test Mac. Accuracy: v2-quick") { fail("selftest: another family's date or suite labels this README") }
     // Mixed suites, dates and machines inside one README are all listed, in sorted order, and the text is the same every time.
     var mixed = bench
     var mixedModels = mixed["models"] as? JSON ?? [:]

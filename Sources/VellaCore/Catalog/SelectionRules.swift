@@ -20,7 +20,7 @@ public struct SelectionRules {
             }
             return tierAbsentHelp(benchmark, tier: s.tier)
         }
-        if !measured(s), s != loaded { return unmeasuredCellHelp }
+        if !measured(s), s != loaded { return unmeasuredReasonHelp(benchmarkCell(benchmark, s)) }
         return nil
     }
 

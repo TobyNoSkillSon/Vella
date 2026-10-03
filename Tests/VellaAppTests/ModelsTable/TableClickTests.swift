@@ -24,6 +24,7 @@ import SwiftUI
     private var roots: [URL] = []
     override func tearDownWithError() throws { for root in roots { try? FileManager.default.removeItem(at: root) } }
 
+    // A synthetic pre-measurement fixture keeps the selection regressions independent of release numbers.
     private func controller() throws -> ModelsController {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-click-\(UUID())")
         roots.append(root)
@@ -33,7 +34,7 @@ import SwiftUI
         let c = ModelsController(
             dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
             streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
-            benchmarksURL: resources.appendingPathComponent("benchmarks.json"))
+            benchmarksURL: URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("SwitchRuleFixture.json"))
         c.runtime = TableRuntime()
         return c
     }

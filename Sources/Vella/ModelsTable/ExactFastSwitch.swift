@@ -26,7 +26,8 @@ struct ExactFastSwitch: View {
     static let help = "Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise."
     /// The tooltip's first line: the switch spans both rows but sets only the Optimized one (Toby, 30 Sep).
     static let rowHelp = "Sets the Optimized row only"
-    static let sameHelp = "Always on: Fast measures the same as Exact for this model"
+    static let pinnedUnmeasuredHelp = "Fast is pinned on; Exact has no separate measurement"
+    static let sameHelp = "Always on: Fast runs the same recipe as Exact for this model"
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
     /// The Exact position with no measured recipe: greyed, not selectable.
     static let exactNotMeasuredHelp = "Exact: not measured yet"
@@ -49,14 +50,14 @@ struct ExactFastSwitch: View {
 
     /// The tooltip as shown for a state.
     static func tooltip(available: Bool, enabled: Bool, exactAvailable: Bool = true) -> String {
-        [rowHelp, help, available ? nil : sameHelp, available && !exactAvailable ? exactNotMeasuredHelp : nil, enabled ? nil : inUseHelp]
+        [rowHelp, help, available ? nil : (exactAvailable ? sameHelp : pinnedUnmeasuredHelp), !exactAvailable ? exactNotMeasuredHelp : nil, enabled ? nil : inUseHelp]
             .compactMap { $0 }.joined(separator: "\n")
     }
 
     var body: some View {
         SwitchRepresentable(
             position: available ? position : .fast, active: available && enabled,
-            greyed: !available, exactUnavailable: available && !exactAvailable, hot: hot,
+            greyed: !available, exactUnavailable: !exactAvailable, hot: hot,
             tooltip: Self.tooltip(available: available, enabled: enabled, exactAvailable: exactAvailable), onChange: onChange
         )
         .frame(width: Self.width, height: Self.height)

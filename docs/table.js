@@ -26,7 +26,7 @@ const flavour = (tier, recipe) => {
  return `${tier}-bit weights throughout (affine-${tier} g64)`;
 };
 // Standard, then Optimized: one Optimized row where Fast runs no inexact kernel (Exact = Fast), as in the README.
-const pathRows = t => t.optimized_fast.recipe.inexact.length
+const pathRows = t => t.optimized_fast.recipe.inexact.length || Boolean(t.optimized_exact.measured) !== Boolean(t.optimized_fast.measured)
  ? [['Standard', t.standard], ['Optimized · Exact', t.optimized_exact], ['Optimized · Fast', t.optimized_fast]]
  : [['Standard', t.standard], ['Optimized (Exact = Fast)', t.optimized_fast]];
 
@@ -47,7 +47,7 @@ function modelRows() {
      mode: family.mode, tier: Number(tier), tierLabel: tier, path, flavour: flavour(tier, c.recipe), loss: t.gate.status === 'pass' ? [] : (t.gate.loss || []),
      wer: c.wer ?? null, format: c.format ?? null, languages: ml.coverage ?? null, byLanguage: ml.by_language || null,
      speed: c.speed_x ?? null, energy: c.j_per_min ?? null, memory: c.memory_mb ?? null, disk: c.disk_mb ?? null,
-     suite: m?.suite || 'v2', date: m?.date || null, pending: !m, note: c.note || null, hardware: m?.hardware || B.hardware,
+     suite: m?.suite || 'v2', date: m?.date || null, pending: !m, notMeasuredReason: c.not_measured_reason || null, note: c.note || null, hardware: m?.hardware || B.hardware,
      kernels: c.recipe.kernels || [], inexact: c.recipe.inexact || [],
      url: root ? repoURL(root) : null
     });
@@ -78,7 +78,7 @@ function display(row, key) {
  const v = row[key];
  if (row.reference && key === 'wer') return v == null ? "—" : `~${v.toFixed(1)}%`;
  if (row.reference && key === 'suite') return 'estimated';
- if (key === 'date' && row.pending) return 'measure pending';
+ if (key === 'date' && row.pending) return 'Not measured yet';
  if (v == null) return '—';
  switch (key) {
   case 'mode': return v === 'streaming' ? 'Streaming' : 'Dictation';
@@ -92,6 +92,7 @@ function display(row, key) {
  }
 }
 function tooltip(row, key) {
+ if (row.pending && row.notMeasuredReason) return `Not measured yet: ${row.notMeasuredReason}`;
  if (row.reference) {
   if (key === 'wer' && row.wer != null) {
    let t = `Estimated, not measured by us: ~${row.wer.toFixed(1)}% on our v2 benchmark`;

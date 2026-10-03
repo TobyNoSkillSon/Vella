@@ -76,8 +76,9 @@ public struct BenchmarkCell: Equatable {
     public var recipe: CellRecipe
     public var measured: CellMeasured?
     public var gate: SegmentGate?
-    public init(result: PrecisionResult = PrecisionResult(), recipe: CellRecipe, measured: CellMeasured? = nil, gate: SegmentGate? = nil) {
-        self.result = result; self.recipe = recipe; self.measured = measured; self.gate = gate
+    public var notMeasuredReason: String?
+    public init(result: PrecisionResult = PrecisionResult(), recipe: CellRecipe, measured: CellMeasured? = nil, gate: SegmentGate? = nil, notMeasuredReason: String? = nil) {
+        self.result = result; self.recipe = recipe; self.measured = measured; self.gate = gate; self.notMeasuredReason = notMeasuredReason
     }
     public var isPending: Bool { measured == nil }
 }
@@ -118,7 +119,9 @@ public func fastDiffersFromExact(_ benchmark: FamilyBenchmark?) -> Bool {
 public func benchmarkCell(_ benchmark: FamilyBenchmark?, _ selection: ModelSelection) -> BenchmarkCell? {
     guard let tier = benchmark?.tiers[selection.tier] else { return nil }
     if selection.segmentKey == .optimized_fast, let fast = tier.cells[.optimized_fast], fast.recipe.inexact.isEmpty {
-        return tier.cells[.optimized_exact] ?? fast
+        // Equal recipes need not have equal measurement status (Whisper 2.0 withdrew Exact only).
+        if let exact = tier.cells[.optimized_exact], !exact.isPending { return exact }
+        return fast
     }
     return tier.cells[selection.segmentKey]
 }
@@ -139,7 +142,7 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
         result.gate = nil // the cell's gate has the schema-2 shape (below)
         cells[key] = BenchmarkCell(
             result: result, recipe: decode(CellRecipe.self, c["recipe"]) ?? CellRecipe(layers: [:]),
-            measured: measured, gate: decode(SegmentGate.self, c["gate"]))
+            measured: measured, gate: decode(SegmentGate.self, c["gate"]), notMeasuredReason: c["not_measured_reason"] as? String)
     }
     return TierBenchmark(
         precision: precision, presence: decode(TierPresence.self, object["presence"]) ?? TierPresence(offered: true),

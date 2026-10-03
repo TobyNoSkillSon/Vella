@@ -46,6 +46,24 @@ import XCTest
         controller.reloadConfig()
     }
 
+    func testShippedWhisperStandardAndExactAreGreyedButLoadedStandardStaysSelectable() throws {
+        for id in ["whisper-large-v3", "whisper-large-v3-turbo"] {
+            let whisper = try family(id)
+            let standard = ModelSelection(tier: .t16, path: .standard, mode: .fast)
+            XCTAssertFalse(controller.measured(whisper, standard))
+            XCTAssertFalse(controller.exactAvailable(whisper))
+            XCTAssertTrue(controller.rules(whisper).cellRefusal(standard, loaded: controller.loadedSelection(whisper))?.hasPrefix("Not measured yet: Standard") == true)
+            let path = try install(try XCTUnwrap(whisper.variants["FP16"]?.id))
+            let loaded = bridge.ref(whisper, "FP16", path: path, selection: standard)
+            runtime.register(loaded, residency: .manual) {}
+            XCTAssertNil(controller.rules(whisper).cellRefusal(standard, loaded: controller.loadedSelection(whisper)))
+            controller.select(whisper, tier: .t16, path: .standard)
+            XCTAssertEqual(controller.currentSelection(whisper).path, .standard)
+            let api = try XCTUnwrap(source.models().first { $0.id == id })
+            XCTAssertEqual(api.selection?.path, .standard)
+        }
+    }
+
     /// Qwen3-ASR 0.6B recorded at Standard 8, a cell with no measurement ("Not measured yet" in the table): the table,
     /// the API and a request for its files all run Optimized 8 Exact.
     func testUnmeasuredRecordedCellRunsTheTablesCellEverywhere() throws {
@@ -53,6 +71,8 @@ import XCTest
         let bf16 = try install("Qwen3-ASR-0.6B-bf16")
         let eight = try derived(qwen, "8b", from: bf16)
         let stored = ModelSelection(tier: .t8, path: .standard, mode: .exact)
+        // Keep the regression fixture unmeasured even after the release file measures this cell.
+        controller.benchmarks.models[qwen.id]?.tiers[.t8]?.cells[.standard]?.measured = nil
         XCTAssertFalse(controller.measured(qwen, stored), "fixture: Standard 8 is not measured")
         let expected = ModelSelection(tier: .t8, path: .optimized, mode: .exact)
         for model in ["", eight] { // not the dictation model, then the dictation model
@@ -71,7 +91,10 @@ import XCTest
     /// model, a dictation of it and the header all use 16; the 8-bit files never load. Loaded (the launch set of the
     /// earlier version, say), the 8-bit cell stays and is used as loaded.
     func testWithdrawnRecordedPrecisionRunsAnOfferedOneUntilItIsLoaded() throws {
-        let parakeet = try family("parakeet-v3")
+        var parakeet = try family("parakeet-v3")
+        // Exercise the upgrade rule independently of today's offered tiers.
+        parakeet.tiersOffered = ["16"]
+        controller.catalog.families[try XCTUnwrap(controller.catalog.families.firstIndex { $0.id == parakeet.id })] = parakeet
         XCTAssertFalse(precisionOptions(parakeet).contains("8b"), "fixture: Parakeet v3 8 is withdrawn")
         try install("parakeet-tdt-0.6b-v3-mlx-fp32")
         let bf16 = try install("parakeet-tdt-0.6b-v3-mlx-bf16-local")

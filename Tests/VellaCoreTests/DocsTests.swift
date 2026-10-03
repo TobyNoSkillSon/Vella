@@ -98,7 +98,7 @@ final class DocsTests: XCTestCase {
             XCTAssertFalse(sources.isEmpty, doc)
             for source in sources where !source.hasPrefix("http") { XCTAssertTrue(exists(base + source), "\(doc): \(source)") }
         }
-        XCTAssertTrue(try text("README.md").contains("docs/images/models.png") && text("README.md").contains("docs/images/menu.png"))
+        XCTAssertTrue(try text("README.md").contains("docs/images/models-current.png") && text("README.md").contains("docs/images/menu-current.png"))
     }
 
     /// Public documents carry no local paths or internal notes.
@@ -108,11 +108,11 @@ final class DocsTests: XCTestCase {
             "THIRD_PARTY_NOTICES.md", "docs/USAGE.md", "docs/index.html", "docs/table.js", "docs/install.sh",
             ".github/pull_request_template.md", ".github/ISSUE_TEMPLATE/bug_report.yml",
             ".github/ISSUE_TEMPLATE/feature_request.yml", ".github/ISSUE_TEMPLATE/new_model.yml",
-            "scripts/third-party-notices.sh", "scripts/pages-data.sh"
+            "scripts/third-party-notices.sh", "scripts/pages-data.sh", "Resources/benchmarks.json", "docs/data.js"
         ]
         for path in documents {
             let body = try text(path)
-            for needle in ["/Users/", "Vault/", "lab/notes"] {
+            for needle in ["/Users/", "Vault/", "lab/"] {
                 XCTAssertFalse(body.contains(needle), "\(path) mentions \(needle)")
             }
         }

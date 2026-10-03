@@ -43,7 +43,7 @@ final class TableTooltipTests: XCTestCase {
     }
     /// Fragments carry no trailing period (the recommended segment's gate sentences and the engine lines are exempt).
     private func assertNoTrailingPeriod(_ text: String, _ label: String, file: StaticString = #filePath, line: UInt = #line) {
-        for l in text.components(separatedBy: "\n") where l.hasSuffix(".") {
+        for l in text.components(separatedBy: "\n") where l.hasSuffix(".") && !l.hasPrefix("Not measured yet:") {
             XCTFail("\(label): trailing period: \(l)", file: file, line: line)
         }
     }
@@ -53,9 +53,9 @@ final class TableTooltipTests: XCTestCase {
     private static let provenance = #"^Measured by Vella · M5 Max · 20\d\d-\d\d-\d\d$"#
     /// Line 2 of a tier cell: the delta vs Standard 16 with its basis, the reference itself, or pending.
     private static let deltaPattern =
-        #"^(vs Standard (bf16|fp16): (\+[0-9.]+× speed|[0-9.]+× speed|same speed)( · (−|\+)[0-9]+ % energy| · same energy)?( · WER (−|\+)[0-9.]+| · same WER)? · M5 Max, \d+ Sep|Reference for the deltas · M5 Max, \d+ Sep|No Standard (bf16|fp16) measurement to compare with yet · M5 Max, \d+ Sep|Measure pending)$"#
+        #"^(vs Standard (bf16|fp16): (\+[0-9.]+× speed|[0-9.]+× speed|same speed)( · (−|\+)[0-9]+ % energy| · same energy)?( · WER (−|\+)[0-9.]+| · same WER)? · M5 Max, \d+ (Sep|Oct)|Reference for the deltas · M5 Max, \d+ (Sep|Oct)|No Standard (bf16|fp16) measurement to compare with yet · M5 Max, \d+ (Sep|Oct)|Not measured yet(: [^\n]+)?)$"#
     /// A greyed cell's one line: why it cannot be chosen.
-    private static let greyedPattern = #"^(Not measured yet|Not offered: [^\n]+|Not offered for this model|No Exact recipe at int[48]; Fast offers it)$"#
+    private static let greyedPattern = #"^(Not measured yet(: [^\n]+)?|Not offered: [^\n]+|Not offered for this model|No Exact recipe at int[48]; Fast offers it)$"#
 
     /// Checks every cell of one row's tooltips against the format, and that each cell has one.
     @MainActor private func checkRow(_ table: ModelTable, _ family: ModelFamily, loaded: LoadedFamily?, state: String) {
@@ -81,6 +81,12 @@ final class TableTooltipTests: XCTestCase {
             case let c where Self.figures.contains(c):
                 XCTAssertEqual(text == figuresPendingHelp, table.controller.benchmarks.figuresPending, "\(label): pending figures show none")
                 if text == notMeasuredHelp || text == figuresPendingHelp { continue }
+                if text.hasPrefix("Not measured yet:") {
+                    let cell = table.controller.shownCell(family).flatMap { benchmarkCell(table.controller.benchmark(family), $0) }
+                    XCTAssertTrue(cell?.isPending == true, label)
+                    XCTAssertEqual(text, unmeasuredReasonHelp(cell), label)
+                    continue
+                }
                 // Two lines: what it is, then who measured it; WER adds the measured languages on a third.
                 XCTAssertEqual(l.count, c == "WER" && l.count == 3 ? 3 : 2, "\(label): what it is, then where it comes from")
                 if l.count == 3 { XCTAssertTrue(l[2].hasPrefix("Word error rate by language: "), "\(label): \(l[2])") }
@@ -102,7 +108,8 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertTrue((pending ? 1...2 : 2...4).contains(l.count), "\(label): \(text)")
                 XCTAssertNotNil(
                     l[0].range(
-                        of: #"^(bf16|fp16), (as published|converted once from the published fp32)$|^[48]-bit weights throughout \(affine-[48] g64\)$"#,
+                        of:
+                            #"^(bf16|fp16), (as published|converted once from the published fp32)$|^[48]-bit weights throughout \(affine-[48] g64\)$|^(16|[48])-bit [A-Za-z._ ]+(, (16|[48])-bit [A-Za-z._ ]+)* \(affine-[48] g64\)$"#,
                         options: .regularExpression), "\(label): \(l[0])")
                 if pending {
                     XCTAssertTrue(l.dropFirst().allSatisfy { $0 == TierControl.inUseHelp }, "\(label): no delta while pending")
@@ -119,7 +126,10 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertTrue(TierControl.Row.allCases.map(\.help).contains(text), label)
             case "Exact/Fast":
                 XCTAssertEqual(Array(l.prefix(2)), [ExactFastSwitch.rowHelp, ExactFastSwitch.help], label)
-                XCTAssertTrue(l.dropFirst(2).allSatisfy { [ExactFastSwitch.sameHelp, ExactFastSwitch.inUseHelp, ExactFastSwitch.exactNotMeasuredHelp].contains($0) }, label)
+                XCTAssertTrue(
+                    l.dropFirst(2).allSatisfy {
+                        [ExactFastSwitch.sameHelp, ExactFastSwitch.pinnedUnmeasuredHelp, ExactFastSwitch.inUseHelp, ExactFastSwitch.exactNotMeasuredHelp].contains($0)
+                    }, label)
             case "Engine":
                 XCTAssertNotNil(loaded, label)
             default:
@@ -134,6 +144,18 @@ final class TableTooltipTests: XCTestCase {
             ["Model"] + (loaded?.engine != nil && table.controller.couplingNote(family) == nil ? ["Engine"] : []) + precisionColumns + ["Exact/Fast"]
             + ["WER", "Format", "Speed", "J / min", "Peak RAM", "Action"]
         XCTAssertEqual(columns, expected, "\(family.id) \(state)")
+    }
+
+    @MainActor func testLoadedWithdrawnWhisperFigureTooltipsRetainTheirReason() throws {
+        let c = try shippedController()
+        let family = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
+        let standard = ModelSelection(tier: .t16, path: .standard, mode: .fast)
+        c.runtime = TableRuntime(loaded: [family.id: LoadedFamily(precision: "FP16", engine: "mlx", selection: standard)], chip: "M5 Max")
+        let table = ModelTable(controller: c)
+        let cell = try XCTUnwrap(benchmarkCell(c.benchmark(family), standard))
+        for (column, text) in table.tooltips(family) where Self.figures.contains(column) {
+            XCTAssertEqual(text, unmeasuredReasonHelp(cell), column)
+        }
     }
 
     /// Every tooltip the table renders, for every offered row in every present cell and switch position, unloaded and
@@ -216,7 +238,7 @@ final class TableTooltipTests: XCTestCase {
         let tips = Dictionary(table.tooltips(ultra).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
         XCTAssertEqual(tips["Precision Optimized bf16"], "bf16, as published")
         XCTAssertEqual(tips["Precision Standard bf16"], "bf16, as published")
-        XCTAssertEqual(tips["Precision Standard int8"], TierControl.notMeasuredHelp)
+        XCTAssertEqual(tips["Precision Standard int8"], "16-bit decoder, 16-bit joint (affine-8 g64)")
     }
 
     /// The Model tooltip of every offered row, as the catalog's structured fields assemble it.
@@ -299,11 +321,11 @@ final class TableTooltipTests: XCTestCase {
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
         c.select(ultra, tier: .t16); c.setMode(ultra, .fast) // Optimized 16 Fast (measured 28 Sep)
         let tips = Dictionary(table.tooltips(ultra).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
-        let by = "Measured by Vella · M5 Max · 2026-09-28"
+        let by = "Measured by Vella · M5 Max · 2026-10-01"
         XCTAssertEqual(
             tips["WER"],
             "English word error rate on the v2 benchmark (240 min): lower is better\n" + by
-                + "\nWord error rate by language: French 16.1%, German 8.7%, Polish 7.0%, Spanish 13.8%, Swedish 18.9%; mean 12.9%")
+                + "\nWord error rate by language: French 16.6%, German 8.7%, Polish 6.9%, Spanish 13.7%, Swedish 17.9%; mean 12.7%")
         XCTAssertEqual(tips["Format"], "Character error rate on the v2 benchmark (240 min), with case and punctuation kept: lower is better\n" + by)
         XCTAssertEqual(tips["Speed"], "Speed in × real time on the v2 quick benchmark (22.5 min), timed after loading: higher is faster\n" + by)
         XCTAssertEqual(tips["J / min"], "Whole-chip joules per audio minute on the v2 quick benchmark (22.5 min), net of loaded idle power: lower is better\n" + by)
@@ -319,7 +341,8 @@ final class TableTooltipTests: XCTestCase {
         let nemotron = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
         XCTAssertEqual(
             speedHelp(nemotron.mode, c.result(nemotron, "8b"), suites: c.benchmarks.suites),
-            "Streaming replay speed in × real time on the v2 quick benchmark (22.5 min), not microphone-to-text latency: higher is faster\n" + by)
+            "Streaming replay speed in × real time on the v2 quick benchmark (22.5 min), not microphone-to-text latency: higher is faster\n" + by
+                + "\nStock MLX on any Mac: 15.1× · 112 J · 1.19 GB")
     }
 
     /// Cloud rows: estimated, from which board and when; nothing to download; nothing runs on this Mac.
@@ -328,6 +351,7 @@ final class TableTooltipTests: XCTestCase {
         let table = ModelTable(controller: c)
         let azure = try XCTUnwrap(c.references(.dictation).first { $0.id == "azure-speech" })
         // Scaled from the local models' measured WER: pending with them.
+        c.benchmarks.figuresPending = true
         XCTAssertEqual(table.tooltips(azure).first { $0.0 == "WER" }?.1, figuresPendingHelp)
         c.benchmarks.figuresPending = false
         let tips = Dictionary(table.tooltips(azure).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })

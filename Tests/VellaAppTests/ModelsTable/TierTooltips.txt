@@ -2,30 +2,35 @@
 Optimized: the same weights with custom kernels for this Mac's chip
 
 [Parakeet v3 Ultra · Precision Optimized bf16 · Exact]
-Not measured yet
+bf16, as published
+vs Standard bf16: +1.8× speed · −26 % energy · WER +0.03 · M5 Max, 1 Oct
 
 [Parakeet v3 Ultra · Precision Optimized int8 · Exact]
-8-bit weights throughout (affine-8 g64)
-vs Standard bf16: +1.2× speed · +44 % energy · WER +0.04 · M5 Max, 28 Sep
-Loss vs bf16: multilingual mean +0.17 pt
+16-bit decoder, 16-bit joint (affine-8 g64)
+vs Standard bf16: +1.4× speed · +36 % energy · same WER · M5 Max, 1 Oct
+Loss vs bf16: multilingual mean +0.23 pt
 
 [Parakeet v3 Ultra · Precision Optimized int4 · Exact]
-4-bit weights throughout (affine-4 g64)
-vs Standard bf16: +1.2× speed · +41 % energy · WER +0.28 · M5 Max, 28 Sep
-Loss vs bf16: English WER +0.23 pt, multilingual mean +0.92 pt, format CER +0.14 pt
+16-bit decoder, 16-bit joint (affine-4 g64)
+vs Standard bf16: +1.4× speed · +33 % energy · WER +0.19 · M5 Max, 1 Oct
+Loss vs bf16: multilingual mean +0.79 pt, Swedish +2.37 pt
 
 [Parakeet v3 Ultra · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
 
 [Parakeet v3 Ultra · Precision Standard bf16]
 bf16, as published
-Reference for the deltas · M5 Max, 28 Sep
+Reference for the deltas · M5 Max, 1 Oct
 
 [Parakeet v3 Ultra · Precision Standard int8]
-Not measured yet
+16-bit decoder, 16-bit joint (affine-8 g64)
+vs Standard bf16: 0.9× speed · +42 % energy · same WER · M5 Max, 1 Oct
+Loss vs bf16: multilingual mean +0.23 pt
 
 [Parakeet v3 Ultra · Precision Standard int4]
-Not measured yet
+16-bit decoder, 16-bit joint (affine-4 g64)
+vs Standard bf16: 0.9× speed · +38 % energy · WER +0.16 · M5 Max, 1 Oct
+Loss vs bf16: multilingual mean +0.79 pt, Swedish +2.37 pt
 
 [Parakeet v3 Ultra · Exact/Fast]
 Sets the Optimized row only
@@ -33,27 +38,28 @@ Exact: only kernels with output identical to Standard. Fast: adds chip-specific 
 
 [Parakeet v3 Ultra · Precision Optimized bf16 · Fast]
 bf16, as published
-vs Standard bf16: +1.7× speed · −30 % energy · WER +0.04 · M5 Max, 28 Sep
+vs Standard bf16: +1.9× speed · −28 % energy · WER +0.05 · M5 Max, 1 Oct
 
 [Parakeet v3 Ultra · Precision Optimized int8 · Fast]
-8-bit weights throughout (affine-8 g64)
-vs Standard bf16: +1.2× speed · +44 % energy · WER +0.04 · M5 Max, 28 Sep
-Loss vs bf16: multilingual mean +0.17 pt
+16-bit decoder, 16-bit joint (affine-8 g64)
+vs Standard bf16: +1.4× speed · +36 % energy · same WER · M5 Max, 1 Oct
+Loss vs bf16: multilingual mean +0.23 pt
 
 [Parakeet v3 Ultra · Precision Optimized int4 · Fast]
-4-bit weights throughout (affine-4 g64)
-vs Standard bf16: +1.2× speed · +41 % energy · WER +0.28 · M5 Max, 28 Sep
-Loss vs bf16: English WER +0.23 pt, multilingual mean +0.92 pt, format CER +0.14 pt
+16-bit decoder, 16-bit joint (affine-4 g64)
+vs Standard bf16: +1.4× speed · +33 % energy · WER +0.19 · M5 Max, 1 Oct
+Loss vs bf16: multilingual mean +0.79 pt, Swedish +2.37 pt
 
 [Parakeet v3 · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
 
 [Parakeet v3 · Precision Optimized bf16 · Exact]
 bf16, converted once from the published fp32
-vs Standard bf16: +1.8× speed · −24 % energy · WER +0.06 · M5 Max, 28 Sep
+vs Standard bf16: +1.8× speed · −24 % energy · WER +0.05 · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Optimized int8 · Exact]
-Not offered: 1 clip empty or cut short where 16 had the words
+16-bit decoder, 16-bit joint (affine-8 g64)
+vs Standard bf16: +1.4× speed · +37 % energy · WER −0.02 · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Optimized int4 · Exact]
 Not offered: 3 clips empty or cut short where 16 had the words
@@ -63,10 +69,11 @@ Standard: the plain MLX runtime, same weights, no custom kernels
 
 [Parakeet v3 · Precision Standard bf16]
 bf16, converted once from the published fp32
-Reference for the deltas · M5 Max, 28 Sep
+Reference for the deltas · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Standard int8]
-Not offered: 1 clip empty or cut short where 16 had the words
+16-bit decoder, 16-bit joint (affine-8 g64)
+vs Standard bf16: 0.9× speed · +43 % energy · WER +0.03 · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Standard int4]
 Not offered: 3 clips empty or cut short where 16 had the words
@@ -74,14 +81,14 @@ Not offered: 3 clips empty or cut short where 16 had the words
 [Parakeet v3 · Exact/Fast]
 Sets the Optimized row only
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
-Exact: not measured yet
 
 [Parakeet v3 · Precision Optimized bf16 · Fast]
 bf16, converted once from the published fp32
-vs Standard bf16: +1.8× speed · −24 % energy · WER +0.06 · M5 Max, 28 Sep
+vs Standard bf16: +1.9× speed · −26 % energy · WER +0.05 · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Optimized int8 · Fast]
-Not offered: 1 clip empty or cut short where 16 had the words
+16-bit decoder, 16-bit joint (affine-8 g64)
+vs Standard bf16: +1.4× speed · +37 % energy · WER −0.02 · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Optimized int4 · Fast]
 Not offered: 3 clips empty or cut short where 16 had the words
@@ -91,7 +98,7 @@ Optimized: the same weights with custom kernels for this Mac's chip
 
 [Qwen3 ASR 1.7B · Precision Optimized bf16 · Exact]
 bf16, as published
-vs Standard bf16: +1.1× speed · −12 % energy · same WER · M5 Max, 28 Sep
+vs Standard bf16: +1.1× speed · −10 % energy · same WER · M5 Max, 1 Oct
 
 [Qwen3 ASR 1.7B · Precision Optimized int8 · Exact]
 Not offered: 1 clip empty or cut short where 16 had the words
@@ -104,7 +111,7 @@ Standard: the plain MLX runtime, same weights, no custom kernels
 
 [Qwen3 ASR 1.7B · Precision Standard bf16]
 bf16, as published
-Reference for the deltas · M5 Max, 28 Sep
+Reference for the deltas · M5 Max, 1 Oct
 
 [Qwen3 ASR 1.7B · Precision Standard int8]
 Not offered: 1 clip empty or cut short where 16 had the words
@@ -115,11 +122,11 @@ Not offered: 1 clip empty or cut short where 16 had the words
 [Qwen3 ASR 1.7B · Exact/Fast]
 Sets the Optimized row only
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
-Always on: Fast measures the same as Exact for this model
+Always on: Fast runs the same recipe as Exact for this model
 
 [Qwen3 ASR 1.7B · Precision Optimized bf16 · Fast]
 bf16, as published
-vs Standard bf16: +1.1× speed · −12 % energy · same WER · M5 Max, 28 Sep
+vs Standard bf16: +1.1× speed · −10 % energy · same WER · M5 Max, 1 Oct
 
 [Qwen3 ASR 1.7B · Precision Optimized int8 · Fast]
 Not offered: 1 clip empty or cut short where 16 had the words
@@ -132,174 +139,173 @@ Optimized: the same weights with custom kernels for this Mac's chip
 
 [Qwen3 ASR 0.6B · Precision Optimized bf16 · Exact]
 bf16, as published
-vs Standard bf16: +1.3× speed · −11 % energy · same WER · M5 Max, 28 Sep
+vs Standard bf16: +1.2× speed · −7 % energy · same WER · M5 Max, 1 Oct
 
 [Qwen3 ASR 0.6B · Precision Optimized int8 · Exact]
 8-bit weights throughout (affine-8 g64)
-vs Standard bf16: +1.6× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep
-Loss vs bf16: English WER +0.17 pt, multilingual mean +0.21 pt
+vs Standard bf16: +1.6× speed · −18 % energy · WER +0.15 · M5 Max, 1 Oct
+Loss vs bf16: English WER +0.15 pt, multilingual mean +0.32 pt
 
 [Qwen3 ASR 0.6B · Precision Optimized int4 · Exact]
-Not offered: multilingual mean +6.22 pt vs 16 (absent from +5.0)
+Not offered: 2 clips empty or cut short where 16 had the words
 
 [Qwen3 ASR 0.6B · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
 
 [Qwen3 ASR 0.6B · Precision Standard bf16]
 bf16, as published
-Reference for the deltas · M5 Max, 28 Sep
+Reference for the deltas · M5 Max, 1 Oct
 
 [Qwen3 ASR 0.6B · Precision Standard int8]
-Not measured yet
+8-bit weights throughout (affine-8 g64)
+vs Standard bf16: +1.2× speed · −9 % energy · WER +0.15 · M5 Max, 1 Oct
+Loss vs bf16: English WER +0.15 pt, multilingual mean +0.32 pt
 
 [Qwen3 ASR 0.6B · Precision Standard int4]
-Not offered: multilingual mean +6.22 pt vs 16 (absent from +5.0)
+Not offered: 2 clips empty or cut short where 16 had the words
 
 [Qwen3 ASR 0.6B · Exact/Fast]
 Sets the Optimized row only
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
-Always on: Fast measures the same as Exact for this model
+Always on: Fast runs the same recipe as Exact for this model
 
 [Qwen3 ASR 0.6B · Precision Optimized bf16 · Fast]
 bf16, as published
-vs Standard bf16: +1.3× speed · −11 % energy · same WER · M5 Max, 28 Sep
+vs Standard bf16: +1.2× speed · −7 % energy · same WER · M5 Max, 1 Oct
 
 [Qwen3 ASR 0.6B · Precision Optimized int8 · Fast]
 8-bit weights throughout (affine-8 g64)
-vs Standard bf16: +1.6× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep
-Loss vs bf16: English WER +0.17 pt, multilingual mean +0.21 pt
+vs Standard bf16: +1.6× speed · −18 % energy · WER +0.15 · M5 Max, 1 Oct
+Loss vs bf16: English WER +0.15 pt, multilingual mean +0.32 pt
 
 [Qwen3 ASR 0.6B · Precision Optimized int4 · Fast]
-Not offered: multilingual mean +6.22 pt vs 16 (absent from +5.0)
+Not offered: 2 clips empty or cut short where 16 had the words
 
 [Whisper large-v3 · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
 
 [Whisper large-v3 · Precision Optimized fp16 · Exact]
-fp16, as published
-No Standard fp16 measurement to compare with yet · M5 Max, 28 Sep
+Not measured yet: Exact now equals Fast for Whisper; not measured separately yet.
 
 [Whisper large-v3 · Precision Optimized int8 · Exact]
-8-bit weights throughout (affine-8 g64)
-No Standard fp16 measurement to compare with yet · M5 Max, 28 Sep
+Not measured yet: Exact now equals Fast for Whisper; not measured separately yet.
 
 [Whisper large-v3 · Precision Optimized int4 · Exact]
-Not offered: 1 clip empty or cut short where 16 had the words
+Not offered: 2 clips empty or cut short where 16 had the words
 
 [Whisper large-v3 · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
 
 [Whisper large-v3 · Precision Standard fp16]
-Not measured yet
+Not measured yet: Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0.
 
 [Whisper large-v3 · Precision Standard int8]
-8-bit weights throughout (affine-8 g64)
-No Standard fp16 measurement to compare with yet · M5 Max, 28 Sep
+Not measured yet: Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0.
 
 [Whisper large-v3 · Precision Standard int4]
-Not offered: 1 clip empty or cut short where 16 had the words
+Not offered: 2 clips empty or cut short where 16 had the words
 
 [Whisper large-v3 · Exact/Fast]
 Sets the Optimized row only
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Fast is pinned on; Exact has no separate measurement
 Exact: not measured yet
 
 [Whisper large-v3 · Precision Optimized fp16 · Fast]
 fp16, as published
-No Standard fp16 measurement to compare with yet · M5 Max, 28 Sep
+No Standard fp16 measurement to compare with yet · M5 Max, 2 Oct
 
 [Whisper large-v3 · Precision Optimized int8 · Fast]
-8-bit weights throughout (affine-8 g64)
-No Standard fp16 measurement to compare with yet · M5 Max, 28 Sep
+16-bit encoder (affine-8 g64)
+No Standard fp16 measurement to compare with yet · M5 Max, 1 Oct
+Loss vs fp16: English WER +0.22 pt
 
 [Whisper large-v3 · Precision Optimized int4 · Fast]
-Not offered: 1 clip empty or cut short where 16 had the words
+Not offered: 2 clips empty or cut short where 16 had the words
 
 [Whisper large-v3 turbo · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
 
 [Whisper large-v3 turbo · Precision Optimized fp16 · Exact]
-fp16, as published
-vs Standard fp16: +5.2× speed · −58 % energy · WER +0.11 · M5 Max, 28 Sep
+Not measured yet: Exact now equals Fast for Whisper; not measured separately yet.
 
 [Whisper large-v3 turbo · Precision Optimized int8 · Exact]
-8-bit weights throughout (affine-8 g64)
-vs Standard fp16: +5.3× speed · −54 % energy · WER +0.01 · M5 Max, 28 Sep
+Not measured yet: Exact now equals Fast for Whisper; not measured separately yet.
 
 [Whisper large-v3 turbo · Precision Optimized int4 · Exact]
-Not offered: 2 clips empty or cut short where 16 had the words
+Not offered: 1 clip empty or cut short where 16 had the words
 
 [Whisper large-v3 turbo · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
 
 [Whisper large-v3 turbo · Precision Standard fp16]
-fp16, as published
-Reference for the deltas · M5 Max, 28 Sep
+Not measured yet: Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0.
 
 [Whisper large-v3 turbo · Precision Standard int8]
-8-bit weights throughout (affine-8 g64)
-vs Standard fp16: +2.7× speed · −35 % energy · WER +0.06 · M5 Max, 28 Sep
+Not measured yet: Standard now computes in FP16 like mlx-whisper; the earlier Float32 Standard figures were withdrawn and this cell will be measured after 2.0.
 
 [Whisper large-v3 turbo · Precision Standard int4]
-Not offered: 2 clips empty or cut short where 16 had the words
+Not offered: 1 clip empty or cut short where 16 had the words
 
 [Whisper large-v3 turbo · Exact/Fast]
 Sets the Optimized row only
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
+Fast is pinned on; Exact has no separate measurement
 Exact: not measured yet
 
 [Whisper large-v3 turbo · Precision Optimized fp16 · Fast]
 fp16, as published
-vs Standard fp16: +5.2× speed · −58 % energy · WER +0.11 · M5 Max, 28 Sep
+No Standard fp16 measurement to compare with yet · M5 Max, 1 Oct
 
 [Whisper large-v3 turbo · Precision Optimized int8 · Fast]
-8-bit weights throughout (affine-8 g64)
-vs Standard fp16: +5.3× speed · −54 % energy · WER +0.01 · M5 Max, 28 Sep
+16-bit encoder (affine-8 g64)
+No Standard fp16 measurement to compare with yet · M5 Max, 2 Oct
 
 [Whisper large-v3 turbo · Precision Optimized int4 · Fast]
-Not offered: 2 clips empty or cut short where 16 had the words
+Not offered: 1 clip empty or cut short where 16 had the words
 
 [Nemotron 3.5 Streaming · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
 
 [Nemotron 3.5 Streaming · Precision Optimized bf16 · Exact]
 bf16, as published
-vs Standard bf16: +3.7× speed · −71 % energy · WER −0.05 · M5 Max, 28 Sep
+vs Standard bf16: +2.6× speed · −57 % energy · WER −0.11 · M5 Max, 1 Oct
 
 [Nemotron 3.5 Streaming · Precision Optimized int8 · Exact]
 8-bit weights throughout (affine-8 g64)
-vs Standard bf16: +3.8× speed · −79 % energy · WER +0.03 · M5 Max, 28 Sep
-Loss vs bf16: multilingual mean +0.55 pt
+vs Standard bf16: +4.1× speed · −69 % energy · WER −0.08 · M5 Max, 1 Oct
+Loss vs bf16: multilingual mean +0.16 pt
 
 [Nemotron 3.5 Streaming · Precision Optimized int4 · Exact]
-Not offered: 15 clips empty or cut short where 16 had the words
+Not offered: 22 clips empty or cut short where 16 had the words
 
 [Nemotron 3.5 Streaming · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
 
 [Nemotron 3.5 Streaming · Precision Standard bf16]
 bf16, as published
-Reference for the deltas · M5 Max, 28 Sep
+Reference for the deltas · M5 Max, 1 Oct
 
 [Nemotron 3.5 Streaming · Precision Standard int8]
-Not measured yet
+8-bit weights throughout (affine-8 g64)
+vs Standard bf16: +2.1× speed · −41 % energy · WER −0.08 · M5 Max, 1 Oct
+Loss vs bf16: multilingual mean +0.16 pt
 
 [Nemotron 3.5 Streaming · Precision Standard int4]
-Not offered: 15 clips empty or cut short where 16 had the words
+Not offered: 22 clips empty or cut short where 16 had the words
 
 [Nemotron 3.5 Streaming · Exact/Fast]
 Sets the Optimized row only
 Exact: only kernels with output identical to Standard. Fast: adds chip-specific kernels within the model's own noise.
-Exact: not measured yet
 
 [Nemotron 3.5 Streaming · Precision Optimized bf16 · Fast]
 bf16, as published
-vs Standard bf16: +3.7× speed · −71 % energy · WER −0.05 · M5 Max, 28 Sep
+vs Standard bf16: +4.8× speed · −73 % energy · WER −0.15 · M5 Max, 1 Oct
 
 [Nemotron 3.5 Streaming · Precision Optimized int8 · Fast]
 8-bit weights throughout (affine-8 g64)
-vs Standard bf16: +3.8× speed · −79 % energy · WER +0.03 · M5 Max, 28 Sep
-Loss vs bf16: multilingual mean +0.55 pt
+vs Standard bf16: +5.3× speed · −77 % energy · WER −0.06 · M5 Max, 1 Oct
+Loss vs bf16: multilingual mean +0.16 pt
 
 [Nemotron 3.5 Streaming · Precision Optimized int4 · Fast]
-Not offered: 15 clips empty or cut short where 16 had the words
+Not offered: 22 clips empty or cut short where 16 had the words
