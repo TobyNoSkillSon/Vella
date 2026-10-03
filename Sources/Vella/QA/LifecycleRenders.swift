@@ -66,6 +66,14 @@ import VellaCore
         ]
         actions.append { [self] in MenuMock.capture(TooltipSheet(pairs: pairs, width: 640), to: directory.appendingPathComponent("changed-tooltips.png"), done: next) }
         actions.append { [self] in MenuMock.capture(DMGLayoutView(), to: directory.appendingPathComponent("dmg-window-settings.png"), done: next) }
+        let shortcutError =
+            "This shortcut could not be registered because another application uses it. Choose another shortcut in Vella’s Shortcuts menu; the current shortcut remains active."
+        actions.append { [self] in
+            let item = NSMenuItem(title: compactText(shortcutError, limit: 96), action: nil, keyEquivalent: ""); item.toolTip = shortcutError
+            MenuMock.render([item], width: 340, to: directory.appendingPathComponent("shortcut-error-truncation.png"), done: next)
+        }
+        let install = "scripts/install.sh --migrate-signing\n\n" + NativeInstaller.migrationExplanation + "\nMigrate the signing identity now? [y/N]"
+        actions.append { [self] in MenuMock.capture(CLIOutputView(install), to: directory.appendingPathComponent("installer-signing-consent.png"), done: next) }
         if let output = ProcessInfo.processInfo.environment["VELLA_DOC_EXAMPLE_OUTPUTS"] {
             let files = ((try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: output), includingPropertiesForKeys: nil)) ?? []).filter {
                 $0.pathExtension == "txt"

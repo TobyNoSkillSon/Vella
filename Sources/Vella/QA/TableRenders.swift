@@ -592,7 +592,8 @@ import VellaUpdate
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: RenderFixture.root, withIntermediateDirectories: true)
         let permission = InsertionPermission(isTrusted: { true }, prompt: {}, history: PermissionPromptHistory(read: { true }, write: {}))
-        let model = DictationController(insertionPermission: permission, configurationURL: RenderFixture.root.appendingPathComponent("config.json"))
+        let runtime = try! Runtime.isolated(RenderFixture.root)
+        let model = DictationController(insertionPermission: permission, configurationURL: runtime.configURL, backend: Backend(runtime: runtime), monitorDefaultInput: false)
         app = AppDelegate(model: model)
         let controller = RenderFixture.controller(installed: RenderFixture.downloaded)
         controller.runtime = TableRuntime(
@@ -624,9 +625,11 @@ import VellaUpdate
         app.model.lastText = state.lastText
         app.pendingModelRow = { state.pending }
         app.workersRunning = { state.worker }
+        let microphone = state.prefix == "custom-" ? (Recorder.devices().first?.name ?? "") : ""
+        try? JSONEncoder().encode(Configuration(model: "", preferredMicrophone: microphone)).write(to: app.model.backend.runtime.configURL)
         if state.pending != nil { app.modelsMenu.controller.runtime = TableRuntime(chip: RenderFixture.chip); RenderFixture.setInstalled(app.modelsMenu.controller, []) }
         app.rebuildMenu()
-        let submenus = [("Keep Hot", "keep-hot"), ("Memory", "memory"), ("Mode", "mode")]
+        let submenus = [("Keep Hot", "keep-hot"), ("Memory", "memory"), ("Microphone", "microphone"), ("Mode", "mode"), ("Shortcuts", "shortcuts")]
         MenuMock.render(app.menu.items, width: 340, to: directory.appendingPathComponent("\(state.prefix)menu.png")) { [self] in
             MenuMock.renderSubmenus(of: app.menu, titles: submenus, into: directory, prefix: state.prefix) { [self] in
                 guard state.prefix == "default-" else { render(states, index + 1); return }
