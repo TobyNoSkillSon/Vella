@@ -213,6 +213,7 @@ final class CatalogSelectionTests: XCTestCase {
     @MainActor func testUnofferedLegacyTierUsesInstalledNativeSourceInsteadOfClearing() throws {
         let (c, p) = try controller()
         let family = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        XCTAssertFalse(try c.deletionPlan(family, precision: "BF16").title.contains("earlier download"), "stored conversion is not a legacy download")
         let variant = try XCTUnwrap(family.variants["4b"])
         let legacy = support.appendingPathComponent("Models/" + variant.id)
         try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)

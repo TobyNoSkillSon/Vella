@@ -664,9 +664,10 @@ struct ModelDeletionPlan {
         guard let bytes = Runtime.folderBytes(path) else { throw APIError(409, "Cannot verify these weights' size; nothing deleted.") }
         let installed = lib.installed[variant.id] != nil
         let name = f.name + " " + legacyQuantization(precision)
+        let earlierDownload = installed && variant.isDerived && registeredCheckpoint(f, precision, installedPath: { lib.installed[$0]?.path }) == nil
         return ModelDeletionPlan(
             familyID: f.id, precision: precision, variantID: variant.id, path: path, wasInstalled: installed,
-            bytes: bytes, title: installed ? "Delete " + name + (variant.isDerived ? " earlier download (not used)?" : "?") : "Delete unfinished " + name + " download?")
+            bytes: bytes, title: installed ? "Delete " + name + (earlierDownload ? " earlier download (not used)?" : "?") : "Delete unfinished " + name + " download?")
     }
 
     func performDeletion(_ f: ModelFamily, plan: ModelDeletionPlan) async throws {
