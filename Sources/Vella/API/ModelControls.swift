@@ -43,6 +43,12 @@ import VellaCore
         if let chosen = controller.rules(f).precision(of: controller.currentSelection(f)), let source = f.acquisition(of: chosen) {
             o["download"] = ["bytes": source.download.downloadBytes, "source": source.download.repository, "revision": source.download.revision]
         }
+        o["local_files"] = f.variants.keys.sorted().compactMap { precision -> [String: Any]? in
+            guard controller.localPath(f, precision) != nil else { return nil }
+            return [
+                "precision": tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16), "offered": controller.options(f).contains(precision), "deletable": !controller.inUse(f)
+            ]
+        }
         o["cells"] = ModelTier.allCases.flatMap { tier -> [[String: Any]] in
             EnginePath.allCases.flatMap { path -> [[String: Any]] in
                 (path == .standard ? [OptimizedMode.fast] : OptimizedMode.allCases).map { mode in

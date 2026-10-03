@@ -147,11 +147,10 @@ struct ModelDeletionPlan {
         return config?.lastLoaded[f.id]
     }
 
-    /// Launch migration: a mode's model in config.json that is not a catalog precision on this Mac (a folder outside
-    /// the catalog, or one whose registry entry the registry migration dropped) is cleared, so that mode's next
-    /// session offers Get like a fresh install instead of loading a model Vella no longer supports. Files are never
-    /// touched. Needs an existing, readable registry: without one (missing or corrupt) nothing can be identified and
-    /// nothing changes. Returns the cleared paths.
+    /// Launch migration: a legacy published quant moves to its measured local tier from the installed root;
+    /// an unoffered tier moves to that root. Missing roots/unsupported selections are cleared with a reason.
+    /// No downloads or weight deletion. A preparation failure keeps the selection for retry. Requires a readable
+    /// existing registry; otherwise nothing changes. Returns only cleared paths (not migrated selections).
     @discardableResult
     func clearSelectionsOutsideTheCatalog() -> [String] {
         guard !previewing, let configURL, dictation.registryReadable,
@@ -159,13 +158,44 @@ struct ModelDeletionPlan {
             let data = try? Data(contentsOf: configURL), var edited = try? JSONDecoder().decode(Configuration.self, from: data)
         else { return [] }
         var cleared: [String] = []
+        var changed = false
         for mode in RecognitionMode.allCases {
             let path = mode == .dictation ? edited.model : edited.streamingModel
             guard !path.isEmpty, identify(path: path, mode: mode) == nil else { continue }
+            let lib = library(mode)
+            if let id = lib.installed.first(where: { $0.value.path == path })?.key,
+                let found = catalog.locate(variant: id), found.family.mode == mode,
+                found.family.variants[found.precision]?.isDerived == true
+            {
+                let precision = options(found.family).contains(found.precision) ? found.precision : (precisionLabel(found.family, tier: .t16) ?? found.family.native)
+                do {
+                    if let derived = try precisionLoadPath(found.family, precision, installedPath: { lib.installed[$0]?.path }, modelsDirectory: lib.modelsDirectory) {
+                        edited.selectModel(derived, for: mode)
+                        edited.lastLoaded[found.family.id] = precision
+                        var selection = edited.selections[found.family.id] ?? ModelSelection(tier: .t16, path: .optimized, mode: .fast)
+                        selection.tier = modelTier(ofPrecision: precision) ?? .t16
+                        edited.selections[found.family.id] = selection
+                        changed = true
+                        if precision != found.precision {
+                            lastError =
+                                "\(found.family.name)'s legacy tier is no longer offered. Its saved selection now uses \(precisionInProse(precision)) from the installed source; legacy files are kept."
+                        }
+                        continue
+                    }
+                } catch {
+                    lastError = "Could not prepare the local replacement for \(found.family.name): \(error). Selection kept; retry Load in Models."
+                    continue
+                }
+                lastError =
+                    "\(found.family.name)'s legacy published quantization is kept on disk but no longer used. Get its 16-bit source in Models to prepare the measured local tier."
+            } else {
+                lastError = "The saved model is no longer an offered catalog tier. Its files are kept; select a model in Models."
+            }
             edited.selectModel("", for: mode)
+            changed = true
             cleared.append(path)
         }
-        guard !cleared.isEmpty else { return [] }
+        guard changed else { return [] }
         do { try JSONEncoder().encode(edited).write(to: configURL, options: .atomic) } catch { return [] }
         reloadConfig()
         return cleared

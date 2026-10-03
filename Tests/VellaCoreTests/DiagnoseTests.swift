@@ -182,7 +182,7 @@ final class DiagnoseFormatTests: XCTestCase {
     }
 
     func testReferenceFileDecodes() throws {
-        XCTAssertNil(DiagnoseReference.decode(Data(#"{"schema": 2, "models": {}}"#.utf8)))
+        XCTAssertNil(DiagnoseReference.decode(Data(#"{"schema": 3, "models": {}}"#.utf8)))
         let lab = try XCTUnwrap(
             DiagnoseReference.decode(
                 Data(
@@ -198,11 +198,28 @@ final class DiagnoseFormatTests: XCTestCase {
         for (family, precisions) in bundled.models {
             for (precision, paths) in precisions {
                 for (path, run) in paths {
-                    XCTAssertTrue(["optimized", "mlx"].contains(path), "\(family) \(precision) \(path)")
+                    XCTAssertTrue(["optimized", "mlx", "optimized_fast", "optimized_exact", "standard"].contains(path), "\(family) \(precision) \(path)")
                     XCTAssertEqual(Set(run.transcripts.keys), Set(Diagnose.clips.map { $0.name }), "\(family) \(precision) \(path)")
                 }
             }
         }
+    }
+    func testSegmentedReferenceSeparatesFastExactAndStandard() throws {
+        let fast = DiagnoseReference.Run(transcripts: ["clip-a": "fast"], speed_x: 500)
+        let exact = DiagnoseReference.Run(transcripts: ["clip-a": "exact"], speed_x: 300)
+        let standard = DiagnoseReference.Run(transcripts: ["clip-a": "standard"], speed_x: 200)
+        let ref = DiagnoseReference(schema: 2, models: ["test": ["8b": ["optimized_fast": fast, "optimized_exact": exact, "standard": standard]]])
+        XCTAssertEqual(DiagnoseReference.decode(try JSONEncoder().encode(ref)), ref)
+        let selection = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+        XCTAssertEqual(ref.run(model: "test", precision: "8b", engine: "optimized", selection: selection), fast)
+        var precise = selection; precise.mode = .exact
+        XCTAssertEqual(ref.run(model: "test", precision: "8b", engine: "optimized", selection: precise), exact)
+        XCTAssertEqual(ref.run(model: "test", precision: "8b", engine: "mlx", selection: precise), standard)
+        XCTAssertNil(ref.run(model: "test", precision: "8b", engine: "optimized"), "do not guess the segment")
+        let legacy = DiagnoseReference(models: ["test": ["8b": ["optimized": fast, "mlx": standard]]])
+        XCTAssertEqual(legacy.run(model: "test", precision: "8b", engine: "optimized", selection: selection), fast)
+        XCTAssertNil(legacy.run(model: "test", precision: "8b", engine: "optimized", selection: precise))
+        XCTAssertEqual(legacy.run(model: "test", precision: "8b", engine: "mlx", selection: precise), standard)
     }
 }
 
@@ -264,4 +281,5 @@ final class IssueURLTests: XCTestCase {
         guard let text = try? String(contentsOf: form, encoding: .utf8) else { throw XCTSkip("no bug form in this checkout") }
         for id in ["diagnose", "chip", "macos", "version"] { XCTAssertTrue(text.contains("id: \(id)\n"), "the form has field \(id)") }
     }
+
 }

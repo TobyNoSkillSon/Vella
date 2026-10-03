@@ -14,7 +14,7 @@
 set -euo pipefail
 PIN_SHA1=2CA2587C8B85EF687E68950E405EC58CE31FC1C7   # "Vella Release Signing", same pin as release.yml
 MARKER=LOCAL-ONLY-NOT-FOR-UPLOAD.txt
-BINARIES=(MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool Helpers/vella)
+BINARIES=(MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool Helpers/vella Resources/mlx-swift_Cmlx.bundle)
 
 die() { echo "release-identity: $*" >&2; exit 1; }
 
@@ -69,19 +69,34 @@ classify_path() {
   else die "neither an app nor a zip: $path"; fi
 }
 
-designated_pinned() {  # APP -> 0 when its designated requirement is exactly the pinned certificate
-  local app="$1" pin expected requirement
-  pin="$(tr '[:upper:]' '[:lower:]' <<<"$PIN_SHA1")"
-  expected="identifier \"dev.vella.dictation\" and certificate leaf = H\"$pin\""
-  requirement="$(codesign -d -r- "$app" 2>&1 | sed -n 's/^designated => //p')"
-  [[ "$requirement" == "$expected" ]]
+designated_pinned() {  # App AND each signed helper/resource bundle: verify signature and exact certificate pin.
+  local app="$1" f target identifier expected requirement
+  for f in "" "${BINARIES[@]}"; do
+    case "$f" in
+      ""|MacOS/Vella) identifier=dev.vella.dictation ;;
+      MacOS/VellaWorker|MacOS/VellaStreamingWorker) identifier=VellaWorker ;;
+      MacOS/VellaModelTool) identifier=VellaModelTool ;;
+      Helpers/VellaInstallTool) identifier=VellaInstallTool ;;
+      Helpers/vella) identifier=vella ;;
+      Resources/mlx-swift_Cmlx.bundle) identifier=org.vella.mlx-swift-Cmlx ;;
+      *) return 1 ;;
+    esac
+    [[ -z "$f" ]] && target="$app" || target="$app/Contents/$f"
+    expected="identifier \"$identifier\" and certificate leaf = H\"$(tr '[:upper:]' '[:lower:]' <<<"$PIN_SHA1")\""
+    codesign --verify --strict -R "$expected" "$target" >/dev/null 2>&1 || return 1
+    requirement="$(codesign -d -r- "$target" 2>&1 | sed -n 's/^designated => //p')"
+    [[ "$requirement" == "$expected" ]] || return 1
+  done
 }
 
 for_upload() {
   local path="$1" zip tmp app class
   if [[ -d "$path" && "$path" != *.app ]]; then
     [[ ! -e "$path/$MARKER" ]] || die "refusing $path: it is marked local-only ($MARKER); only the CI-built release may be uploaded"
-    zip="$(find "$path" -maxdepth 1 -name 'Vella-*-arm64.zip' ! -name '*-symbols.zip' -print | head -1)"
+    local count
+    count="$(find "$path" -maxdepth 1 -name 'Vella-*-arm64.zip' ! -name '*-symbols.zip' -print | wc -l | tr -d ' ')"
+    [[ "$count" == 1 ]] || die "expected exactly one Vella-*-arm64.zip in $path (found $count)"
+    zip="$(find "$path" -maxdepth 1 -name 'Vella-*-arm64.zip' ! -name '*-symbols.zip' -print)"
     [[ -n "$zip" ]] || die "no Vella-*-arm64.zip in $path"
     path="$zip"
   fi

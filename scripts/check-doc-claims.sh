@@ -9,7 +9,7 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 # Files that make claims about the product. Generated blocks inside them are covered too.
 doc_files() {
   local root="$1" f
-  for f in README.md AGENTS.md CONTRIBUTING.md CHANGELOG.md SECURITY.md docs/USAGE.md Resources/SKILL.md \
+  for f in README.md AGENTS.md CONTRIBUTING.md CHANGELOG.md SECURITY.md docs/USAGE.md Resources/SKILL.md Resources/AGENT_GUIDE.md \
            Worker/Sources/MLXAudioSTT/*/README.md; do
     [[ -f "$root/$f" ]] && echo "$f"
   done
@@ -40,10 +40,11 @@ check() {
   forbid 'nothing leaves' 'say "your audio and transcripts never leave your Mac" plus the update-check and download facts'
   forbid 'check for a newer release after a transcription' 'the update check runs at launch and then daily'
   require README.md 'audio and transcripts never leave your Mac' 'README privacy sentence'
-  require README.md '(at launch|when Vella launches) and then once a day' 'README update-check cadence'
+  require README.md 'at most once a day \(at launch when due\)'  'README update-check cadence'
   require Resources/SKILL.md 'audio and transcripts never leave' 'skill privacy sentence'
   # Item 9: the Exact contract.
   forbid 'output identical to Standard|identical to Standard' 'Exact is exact-only components that match Standard on the load-time self-test, not an identity guarantee'
+  forbid 'reorder no sums|only kernels whose output equals Standard|vendor.s quantization-aware 4-bit' 'Exact is a load-time self-test contract; low-bit tiers are plain local affine derivations'
   # Item 10: WER is English WER.
   require README.md 'English word error rate on the 167 English minutes' 'README WER definition'
   require docs/USAGE.md 'English word error rate' 'user guide WER definition'
@@ -62,7 +63,7 @@ selftest() {
   cat >"$t/good/README.md" <<'E'
 Parakeet v3's pinned source is FP32; Vella converts it once to BF16 at Get.
 English word error rate on the 167 English minutes of the suite.
-Your audio and transcripts never leave your Mac. A check at launch and then once a day.
+Your audio and transcripts never leave your Mac. A check at most once a day (at launch when due).
 client = OpenAI(base_url=subprocess.check_output(["vella", "url"], text=True).strip())
 E
   echo 'English word error rate' >"$t/good/docs/USAGE.md"
@@ -74,6 +75,8 @@ E
     "nothing leaves the machine"
     "a once-a-day check for a newer release after a transcription"
     "Exact offers only kernels whose output is identical to Standard"
+    "Exact components reorder no sums"
+    "a vendor's quantization-aware 4-bit"
     'client = OpenAI(base_url="http://127.0.0.1:63080/v1")'
     "[Vireo](https://github.com/TobyNoSkillSon/Vireo)"
   )

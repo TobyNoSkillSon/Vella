@@ -6,14 +6,14 @@ const B = VELLA_BENCHMARKS, families = Object.fromEntries(VELLA_MODELS.families.
 const columns = [
  ['name', 'Model'],
  ['mode', 'Mode'],
- ['tier', 'Tier', 'Precision kept: 16 is the checkpoint as published (bf16 or fp16), 8 and 4 are affine 8- and 4-bit (group 64) made on the Mac from it.'],
+ ['tier', 'Tier', 'Precision kept: 16 is bf16 or fp16 (Parakeet v3 converts its pinned FP32 source once at Get), 8 and 4 are affine 8- and 4-bit (group 64) made on the Mac from it.'],
  ['path', 'Path', 'Standard: stock MLX, what any Apple-silicon Mac runs. Optimized: Vella\'s kernels for this chip; Exact uses only kernels that must match Standard on the load-time self-test, Fast adds chip-specific kernels within the model\'s own noise.'],
  ['wer', 'English WER', 'English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately. Word error rate: the percentage of words wrong (substituted, missed or added), ignoring case and punctuation. Lower is better. Per-language rates are in the tooltip.'],
  ['format', 'Format', 'Character error rate with case and punctuation kept: how much editing the finished text needs. Lower is better.'],
  ['languages', 'Languages', 'Benchmark languages besides English that the model supports, of 9.'],
  ['speed', 'Speed', 'Audio seconds per processing second (RTFx), after the model is loaded. 100× is a minute of audio in 0.6 s. Higher is better.'],
  ['energy', 'J / min', 'Energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. Lower is better.'],
- ['memory', 'Memory', 'The loaded model\'s footprint.'],
+ ['memory', 'Peak RAM', 'Peak resident memory during transcription, not the idle model footprint.'],
  ['disk', 'On disk', 'Download size of a published precision, else the measured size of one made on the Mac.'],
  ['suite', 'Benchmark', 'v2: the full 240-minute benchmark. v2-quick: its 22.5-minute subset.'],
  ['date', 'Measured']
@@ -23,7 +23,8 @@ const repoURL = repo => `https://huggingface.co/${repo}`;
 const flavour = (tier, recipe) => {
  const all = (recipe.layers || {}).all;
  if (tier === '16') return `${all || 'bf16'}${recipe.converted_from ? `, converted once from the published ${recipe.converted_from}` : ', as published'}`;
- return `${tier}-bit weights throughout (affine-${tier} g64)`;
+ const layers = Object.entries(recipe.layers || {});
+ return layers.length ? layers.map(([name, dtype]) => `${name}: ${dtype}`).join(', ') + ` (affine-${tier} g64 for quantized layers)` : `${tier}-bit affine weights (group 64)`;
 };
 // Standard, then Optimized: one Optimized row where Fast runs no inexact kernel (Exact = Fast), as in the README.
 const displayCell = (t, path) => t[(t.display_cells || {})[path] || path];
@@ -162,7 +163,7 @@ function render() {
 
 const dates = [...new Set(all.filter(r => !r.reference && !r.pending).map(r => r.date).filter(Boolean))].sort();
 document.querySelector('#summary').textContent =
- `Measured on ${B.hardware} · ${dates.length ? dates.at(-1) : '—'} · v2: ${B.suites?.v2?.audio_min ?? '—'} minutes of English and 9 other languages. Other Macs differ in speed, energy and memory, not accuracy.`;
+ `Measured on ${B.hardware} · ${dates.length ? dates.at(-1) : '—'} · v2: ${B.suites?.v2?.audio_min ?? '—'} minutes of English and 9 other languages. Other Macs may use component fallbacks; speed, energy, peak RAM and transcripts can differ.`;
 const referenceNote =
  'Cloud API rows are estimates, not measurements: we sent no audio to them. Each is the provider\'s WER on the Hugging Face Open ASR Leaderboard scaled by the ratio between our v2 WER and the leaderboard WER of the models measured on both. The WER tooltip gives the range and sources.';
 search.addEventListener('input', render); mode.addEventListener('change', render); suite.addEventListener('change', render);

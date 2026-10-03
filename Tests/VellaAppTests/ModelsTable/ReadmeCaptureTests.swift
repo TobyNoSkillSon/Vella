@@ -10,7 +10,7 @@ import VellaUpdate
 final class ReadmeCaptureTests: XCTestCase {
     @MainActor func testPrivacyHelpStatesTheNetworkBoundary() {
         XCTAssertTrue(AppDelegate.privacyHelp.contains("audio and transcripts never leave your Mac"))
-        XCTAssertTrue(AppDelegate.privacyHelp.contains("GitHub releases API at launch and then daily"))
+        XCTAssertTrue(AppDelegate.privacyHelp.contains("GitHub releases API at most once a day (at launch when due)"))
         XCTAssertTrue(AppDelegate.privacyHelp.contains("only when you ask"))
         XCTAssertTrue(AppDelegate.privacyHelp.contains("No telemetry"))
     }

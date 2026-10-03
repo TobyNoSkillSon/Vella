@@ -109,6 +109,7 @@ final class CatalogSelectionTests: XCTestCase {
         let (c, p) = try controller()
         try JSONEncoder().encode(Configuration(model: p.plain)).write(to: configURL)
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [p.plain])
+        XCTAssertTrue(c.lastError?.contains("16-bit source") == true)
         XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, "")
         XCTAssertTrue(FileManager.default.fileExists(atPath: p.plain + "/model.safetensors"))
     }
@@ -135,4 +136,85 @@ final class CatalogSelectionTests: XCTestCase {
         let after = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
         XCTAssertEqual(after.model, p.plain); XCTAssertEqual(after.streamingModel, p.outside)
     }
+    /// Read-only snapshot of the 3 Oct upgrader: Ultra BF16 dictation, Nemotron published int8 streaming,
+    /// BF16 Nemotron root and unoffered v3 Q4. No user paths, recordings or weights are copied.
+    @MainActor func testOctoberUpgraderKeepsStreamingAtMeasuredInt8() async throws {
+        let models = support.appendingPathComponent("Models")
+        let names = [
+            "nemotron-3.5-asr-streaming-0.6b-8bit", "nemotron-3.5-asr-streaming-0.6b-bf16",
+            "parakeet-tdt-0.6b-v3-mlx-4bit", "parakeet-ultra-mlx-bf16"
+        ]
+        var registry: [String: InstalledModel] = [:]
+        for name in names {
+            let folder = models.appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data("{}".utf8).write(to: folder.appendingPathComponent("config.json"))
+            try Data("legacy-weight-fixture".utf8).write(to: folder.appendingPathComponent("model.safetensors"))
+            registry[name] = InstalledModel(path: folder.path, name: name, quantization: name.hasSuffix("8bit") ? "8-bit" : name.hasSuffix("4bit") ? "4-bit" : "BF16")
+        }
+        let registryURL = support.appendingPathComponent("models-installed.json")
+        try JSONEncoder().encode(registry).write(to: registryURL)
+        let old = models.appendingPathComponent(names[0]).path
+        let dictation = models.appendingPathComponent(names[3]).path
+        let config = Configuration(model: dictation, streamingModel: old)
+        try JSONEncoder().encode(config).write(to: configURL)
+        let resources = ModelLibrary.resourceDirectory()
+        let c = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registryURL),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registryURL),
+            benchmarksURL: resources.appendingPathComponent("benchmarks.json"), configURL: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        let migrated = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+        XCTAssertEqual(migrated.model, dictation)
+        XCTAssertNotEqual(migrated.streamingModel, old)
+        let manifest = try XCTUnwrap(derivedModelManifest(at: URL(fileURLWithPath: migrated.streamingModel)))
+        XCTAssertEqual(manifest.family, "nemotron-3.5-streaming-0.6b")
+        XCTAssertEqual(manifest.precision, "8b")
+        XCTAssertEqual(manifest.source, models.appendingPathComponent(names[1]).path)
+        XCTAssertEqual(migrated.selections[manifest.family]?.tier, .t8)
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: old + "/model.safetensors")), Data("legacy-weight-fixture".utf8))
+        let absent = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        XCTAssertFalse(c.options(absent).contains("4b"))
+        XCTAssertEqual(try c.deletionPlan(absent, precision: "4b").path, models.appendingPathComponent(names[2]).path)
+        let menu = try XCTUnwrap(ModelsMenu(controller: c).modelItem().submenu)
+        XCTAssertTrue(menu.items.contains { $0.title == "Delete Parakeet v3 4-bit…" })
+        let bytes = try Data(contentsOf: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        XCTAssertEqual(try Data(contentsOf: configURL), bytes, "idempotent")
+        let runtime = try Runtime.isolated(root.appendingPathComponent("api-fixture"))
+        let controls = ModelControls(controller: c, runtime: runtime)
+        do {
+            _ = try await controls.perform("delete", id: absent.id, fields: ["precision": "int4"])
+            XCTFail("unoffered legacy Delete needs consent")
+        } catch let error as APIError { XCTAssertEqual(error.code, "deletion_consent_required") }
+        let trash = root.appendingPathComponent("fixture-trash")
+        c.dictation.trashModel = { item in
+            try FileManager.default.moveItem(at: item, to: trash)
+            return trash
+        }
+        _ = try await controls.perform("delete", id: absent.id, fields: ["precision": "int4", "yes": true])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: trash.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: old + "/model.safetensors"), "deleting another legacy tier preserves Streaming")
+    }
+
+    @MainActor func testUnofferedLegacyTierUsesInstalledNativeSourceInsteadOfClearing() throws {
+        let (c, p) = try controller()
+        let family = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        let variant = try XCTUnwrap(family.variants["4b"])
+        let legacy = support.appendingPathComponent("Models/" + variant.id)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: legacy.appendingPathComponent("config.json"))
+        try Data("keep".utf8).write(to: legacy.appendingPathComponent("model.safetensors"))
+        let registryURL = support.appendingPathComponent("models-installed.json")
+        var registry = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: registryURL))
+        registry[variant.id] = InstalledModel(path: legacy.path, name: family.name, quantization: "4-bit")
+        try JSONEncoder().encode(registry).write(to: registryURL)
+        c.reload()
+        try JSONEncoder().encode(Configuration(model: legacy.path)).write(to: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, p.stored)
+        XCTAssertTrue(c.lastError?.contains("no longer offered") == true)
+        XCTAssertEqual(try Data(contentsOf: legacy.appendingPathComponent("model.safetensors")), Data("keep".utf8))
+    }
+
 }

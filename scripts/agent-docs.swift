@@ -85,7 +85,7 @@ func render(_ models: JSON, _ bench: JSON) -> String {
         "English WER is on the 167 English minutes of v2 (239.7 min total); nine other languages are scored separately. Figures are the Optimized · Fast cell of the 16-bit tier, the cell a model first loads on. Speed is × real time and energy is joules "
         + "per minute of audio on the reference Mac (\(bench["hardware"] as? String ?? dash)); they are not measurements of this Mac. "
         + "Fast enables every kept lever for that model and precision; Exact enables only exact kept levers; Standard enables none. "
-        + "Streaming models do not transcribe files. `vella models --json` lists every cell, its measured English WER, speed, energy, peak RAM, measurement provenance or refusal reason, and the source and size. Equal recipes use the canonical measured cell named in `display_cells`."
+        + "Streaming models do not transcribe files. `vella models --json` lists every cell, its measured English WER, speed, energy, peak RAM, measurement provenance or refusal reason, and the source and size. Equal recipes use the canonical measured cell named in `cells[].provenance.display_cell` (`display_cells` in the benchmark file)."
     if isPending(bench) {
         note =
             "Figures pending: the 2.0.0 measurement has not been written into `Resources/benchmarks.json` yet (`figures_pending` is true), "

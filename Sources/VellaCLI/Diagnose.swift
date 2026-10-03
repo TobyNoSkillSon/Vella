@@ -88,10 +88,10 @@ struct DiagnoseCollector {
             } else if let result = runs[id] {
                 switch result {
                 case .success(let clips):
-                    let ref = bundled?.run(model: id, precision: m?.precision, engine: m?.engine)
+                    let ref = bundled?.run(model: id, precision: m?.precision, engine: m?.engine, selection: m?.selection)
                     report.run = Diagnosis.Run(
                         clips: Diagnose.compare(clips, with: ref), passSeconds: passes[id] ?? [], audioSeconds: audio,
-                        reference: ref.flatMap { _ in bundled.map { Diagnose.referenceLabel($0, engine: m?.engine) } },
+                        reference: ref.flatMap { _ in bundled.map { Diagnose.referenceLabel($0, engine: m?.engine, selection: m?.selection) } },
                         referenceSpeedX: bundled?.method == "api" ? ref?.speed_x : nil)
                 case .failure(let error): report.notTimed = error.message
                 }

@@ -7,7 +7,7 @@ import VellaWire
 // the five public self-test clips in the app bundle.
 
 /// Transcripts and speed of the bundled self-test clips on the reference Mac (Resources/diagnose-reference.json):
-/// family id → precision (as worker-status.json reports it) → path ("optimized" or "mlx") → run.
+/// family id → precision (as worker-status.json reports it) → segment ("optimized_fast", "optimized_exact", "standard") → run; legacy "optimized" / "mlx" remain readable.
 public struct DiagnoseReference: Codable, Equatable {
     public struct Run: Codable, Equatable {
         public var transcripts: [String: String]
@@ -33,13 +33,25 @@ public struct DiagnoseReference: Codable, Equatable {
         self.schema = schema; self.date = date; self.hardware = hardware; self.chip = chip; self.gpu_family = gpu_family
         self.app_version = app_version; self.gate_version = gate_version; self.method = method; self.models = models
     }
-    public func run(model: String, precision: String?, engine: String?) -> Run? {
-        guard let precision, let engine else { return nil }
-        return models[model]?[precision]?[engine == "optimized" ? "optimized" : "mlx"]
+    public func run(model: String, precision: String?, engine: String?, selection: ModelSelection? = nil) -> Run? {
+        guard let precision, let engine, let runs = models[model]?[precision] else { return nil }
+        let segment: String
+        if engine != "optimized" {
+            segment = "standard"
+        } else if let selection {
+            segment = effectiveSelection(selection, engine: engine).segmentKey.rawValue
+        } else {
+            // A new segmented reference cannot guess Fast versus Exact from the engine alone.
+            return runs["optimized"]
+        }
+        if let run = runs[segment] { return run }
+        // Never use a Fast-only legacy reference for Exact, or another segment when a new reference lacks this one.
+        guard !runs.keys.contains(where: { ["standard", "optimized_fast", "optimized_exact"].contains($0) }) else { return nil }
+        return segment == "standard" ? runs["mlx"] : segment == "optimized_fast" ? runs["optimized"] : nil
     }
-    /// Nil for anything but schema 1.
+    /// Schemas 1 (legacy paths) and 2 (per-segment recipes).
     public static func decode(_ data: Data) -> DiagnoseReference? {
-        guard let reference = try? JSONDecoder().decode(DiagnoseReference.self, from: data), reference.schema == 1 else { return nil }
+        guard let reference = try? JSONDecoder().decode(DiagnoseReference.self, from: data), [1, 2].contains(reference.schema) else { return nil }
         return reference
     }
 }
@@ -198,9 +210,10 @@ public enum Diagnose {
     }
 
     /// "M5 Max, optimized" / "M5 Max, stock MLX"
-    public static func referenceLabel(_ reference: DiagnoseReference, engine: String?) -> String {
+    public static func referenceLabel(_ reference: DiagnoseReference, engine: String?, selection: ModelSelection? = nil) -> String {
         let chip = displayChip(reference.chip) ?? displayChip(reference.hardware?.components(separatedBy: ",").first) ?? "reference Mac"
-        return chip + (engine == "optimized" ? ", optimized" : ", stock MLX")
+        let path = selection.map { recipeLabel(effectiveSelection($0, engine: engine)) } ?? (engine == "optimized" ? "optimized" : "stock MLX")
+        return chip + ", " + path
     }
 
     public static func median(_ xs: [Double]) -> Double {

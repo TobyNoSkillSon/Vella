@@ -44,12 +44,30 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         // state (ModelTable.width, from its column constants; TableWidthTests), so no column is ever clipped.
         view.frame = NSRect(x: 0, y: 0, width: ModelTable.width, height: ModelTable.height(controller))
         menu.minimumWidth = ModelTable.width
-        item.view = view; menu.addItem(item); root.submenu = menu
+        item.view = view; menu.addItem(item)
+        // Unoffered legacy tiers cannot be selected, but their retained files remain manageable.
+        let legacy = controller.catalog.families.flatMap { family in
+            family.variants.keys.sorted().filter { !controller.options(family).contains($0) && controller.localPath(family, $0) != nil }
+                .map { (family, $0) }
+        }
+        if !legacy.isEmpty {
+            menu.addItem(.separator())
+            for (family, precision) in legacy {
+                let entry = NSMenuItem(title: "Delete " + family.name + " " + legacyQuantization(precision) + "…", action: #selector(deleteLegacy(_:)), keyEquivalent: "")
+                entry.target = self; entry.representedObject = [family.id, precision]
+                menu.addItem(entry)
+            }
+        }
+        root.submenu = menu
         return root
     }
+    @objc private func deleteLegacy(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? [String], value.count == 2, let family = controller.catalog.family(value[0]) else { return }
+        confirmDeletion(family, precision: value[1])
+    }
     /// Deletes the selected precision's weights of a family, after confirmation.
-    private func confirmDeletion(_ family: ModelFamily) {
-        let precision = controller.selected(family)
+    private func confirmDeletion(_ family: ModelFamily, precision: String? = nil) {
+        let precision = precision ?? controller.selected(family)
         tableMenu?.cancelTracking()
         DispatchQueue.main.async { [self] in
             let plan: ModelDeletionPlan

@@ -289,10 +289,13 @@ final class CatalogTests: XCTestCase {
                     XCTAssertTrue(notOffered.contains("\(family.name) \(tier.rawValue) ("), "\(family.id) \(tier.rawValue) listed as not offered")
                     continue
                 }
-                let paths: [(String, BenchmarkCell?)] = [
+                var paths: [(String, BenchmarkCell?)] = [
                     ("Standard", t.cells[.standard]), ("Optimized · Exact", t.cells[.optimized_exact]),
                     ("Optimized · Fast", benchmarkCell(bench, ModelSelection(tier: tier, path: .optimized, mode: .fast)))
                 ]
+                if t.displayCells[.optimized_fast] == .optimized_exact {
+                    paths = [("Standard", t.cells[.standard]), ("Optimized (Exact = Fast)", t.cells[.optimized_exact])]
+                }
                 XCTAssertEqual(mine.count, paths.count, "\(family.id) \(tier.rawValue)")
                 for (path, cell) in paths {
                     let c = try XCTUnwrap(cell)

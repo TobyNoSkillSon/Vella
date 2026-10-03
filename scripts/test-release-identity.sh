@@ -36,6 +36,11 @@ cat >"$APP/Contents/Info.plist" <<'E'
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict><key>CFBundleIdentifier</key><string>dev.vella.dictation</string><key>CFBundleExecutable</key><string>Vella</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>
 E
+mkdir -p "$APP/Contents/Resources/mlx-swift_Cmlx.bundle/Contents"
+cat >"$APP/Contents/Resources/mlx-swift_Cmlx.bundle/Contents/Info.plist" <<'E'
+<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>org.vella.mlx-swift-Cmlx</string><key>CFBundlePackageType</key><string>BNDL</string></dict></plist>
+E
+codesign --force --sign - "$APP/Contents/Resources/mlx-swift_Cmlx.bundle" 2>/dev/null
 codesign --force --sign - "$APP" 2>/dev/null
 [[ "$("$GUARD" classify "$APP")" == adhoc ]] || fail "real ad hoc app not classified adhoc"
 mkdir "$ROOT/real-out"
@@ -52,17 +57,30 @@ grep -q "local-only" "$ROOT/err" || fail "marker refusal does not say why"
 mkdir "$ROOT/bin"
 cat >"$ROOT/bin/codesign" <<'E'
 #!/usr/bin/env bash
-# fake codesign: -dvv prints $FAKE_TEXT (or $FAKE_DEV_TEXT for paths containing $FAKE_DEV_PATH); -d -r- prints $FAKE_REQ
+# Signature and requirement shims remain per-target to expose a wrong-pin helper with the right CN.
 target="${@: -1}"
-if [[ " $* " == *" -r- "* ]]; then echo "designated => $FAKE_REQ" >&2; exit 0; fi
+if [[ " $* " == *" --verify "* ]]; then
+  [[ -z "${FAKE_INVALID_PATH:-}" || "$target" != *"$FAKE_INVALID_PATH"* ]]; exit $?
+fi
+if [[ " $* " == *" -r- "* ]]; then
+  case "$target" in
+    */MacOS/Vella|*.app) id=dev.vella.dictation ;;
+    */MacOS/VellaStreamingWorker) id=VellaWorker ;;
+    */mlx-swift_Cmlx.bundle) id=org.vella.mlx-swift-Cmlx ;;
+    *) id="$(basename "$target")" ;;
+  esac
+  pin="$FAKE_PIN"
+  [[ -z "${FAKE_WRONG_PIN_PATH:-}" || "$target" != *"$FAKE_WRONG_PIN_PATH"* ]] || pin=0000
+  echo "designated => identifier \"$id\" and certificate leaf = H\"$pin\"" >&2; exit 0
+fi
 if [[ -n "${FAKE_DEV_PATH:-}" && "$target" == *"$FAKE_DEV_PATH"* ]]; then cat "$FAKE_DEV_TEXT" >&2; else cat "$FAKE_TEXT" >&2; fi
 E
 chmod +x "$ROOT/bin/codesign"
 FAKE="$ROOT/fake/Vella.app"
-mkdir -p "$FAKE/Contents/MacOS" "$FAKE/Contents/Helpers"
+mkdir -p "$FAKE/Contents/MacOS" "$FAKE/Contents/Helpers" "$FAKE/Contents/Resources/mlx-swift_Cmlx.bundle"
 for path in MacOS/Vella MacOS/VellaWorker MacOS/VellaStreamingWorker MacOS/VellaModelTool Helpers/VellaInstallTool Helpers/vella; do : >"$FAKE/Contents/$path"; done
 PIN="$(tr '[:upper:]' '[:lower:]' <<<2CA2587C8B85EF687E68950E405EC58CE31FC1C7)"
-export FAKE_REQ="identifier \"dev.vella.dictation\" and certificate leaf = H\"$PIN\""
+export FAKE_PIN="$PIN"
 export FAKE_DEV_TEXT="$ROOT/dev.txt"
 shimmed() { PATH="$ROOT/bin:$PATH" "$@"; }
 
@@ -90,7 +108,15 @@ shimmed "$GUARD" for-upload "$FAKE" >/dev/null || fail "a release-signed app wit
 shimmed "$GUARD" for-upload "$ROOT/fake-out" >/dev/null || fail "a release-signed zip with the pinned requirement was refused"
 [[ "$(shimmed "$GUARD" mark-local "$ROOT/fake-out")" == release ]] || fail "release-signed zip reported as local-only"
 [[ ! -e "$ROOT/fake-out/LOCAL-ONLY-NOT-FOR-UPLOAD.txt" ]] || fail "a release-signed zip was marked local-only"
-FAKE_REQ='identifier "dev.vella.dictation" and certificate leaf = H"0000"' && export FAKE_REQ
+export FAKE_WRONG_PIN_PATH="Helpers/vella"
 if shimmed "$GUARD" for-upload "$FAKE" 2>/dev/null; then fail "a release-signed app with another requirement was accepted"; fi
+
+export FAKE_WRONG_PIN_PATH="Resources/mlx-swift_Cmlx.bundle"
+if shimmed "$GUARD" for-upload "$FAKE" 2>/dev/null; then fail "wrong-pin MLX resource accepted"; fi
+export FAKE_WRONG_PIN_PATH="" FAKE_INVALID_PATH="MacOS/VellaWorker"
+if shimmed "$GUARD" for-upload "$FAKE" 2>/dev/null; then fail "invalid worker signature accepted"; fi
+export FAKE_INVALID_PATH=""
+cp "$ROOT/fake-out/Vella-9.9.9-arm64.zip" "$ROOT/fake-out/Vella-9.9.8-arm64.zip"
+if shimmed "$GUARD" for-upload "$ROOT/fake-out" 2>/dev/null; then fail "ambiguous package directory accepted"; fi
 
 echo "PASS: development signatures refused for upload (no email printed), ad hoc and marked builds refused for upload, only the pinned release identity accepted"

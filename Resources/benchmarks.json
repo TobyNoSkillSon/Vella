@@ -4751,7 +4751,7 @@
   },
   "default_on_twins": {
     "table": false,
-    "note": "Default-on comparison only (Toby reserved the decision); never table rows.",
+    "note": "Historical pre-flip, levers-off comparison; not the shipped default recipe.",
     "rows": [
       {
         "cell": "parakeet-v3:8b",
@@ -5400,8 +5400,8 @@
       "worker_source_commit": "08203e24ebdf83004ca4d81daa03f678880898c2",
       "worker_sha256": null,
       "commit_kind": "worker-source",
-      "build_receipt": "local shipped build receipt",
-      "note": "The final enclosing commit and built worker SHA256 are written to the local build receipt at candidate build time."
+      "build_receipt": "verified CI artifact receipt (filled at publish)",
+      "note": "Worker source is pinned; worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate. Bundled pre-fill data records source only."
     },
     "bridge": {
       "evidence": "scoped CPU source/key/verdict bridge receipt (3 Oct 2026)",
