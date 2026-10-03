@@ -9,7 +9,7 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 # Files that make claims about the product. Generated blocks inside them are covered too.
 doc_files() {
   local root="$1" f
-  for f in README.md AGENTS.md CONTRIBUTING.md CHANGELOG.md SECURITY.md docs/USAGE.md Resources/SKILL.md Resources/AGENT_GUIDE.md Sources/VellaCore/ModelsTable/TableModel.swift \
+  for f in README.md AGENTS.md CONTRIBUTING.md CHANGELOG.md SECURITY.md docs/USAGE.md docs/BENCHMARKS.md Resources/SKILL.md Resources/AGENT_GUIDE.md Sources/VellaCore/ModelsTable/TableModel.swift \
            Worker/Sources/MLXAudioSTT/*/README.md; do
     [[ -f "$root/$f" ]] && echo "$f"
   done

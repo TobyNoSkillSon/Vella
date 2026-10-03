@@ -1,0 +1,534 @@
+{
+  "schema": 1,
+  "suites": {
+    "v2": {
+      "id": "vella-v2",
+      "manifest_sha256": "361a9b078db7e6813671f719223dfd27c50f54589a1e292239324ac17071e366",
+      "sample_rate": 16000,
+      "clips": 797,
+      "minutes": 239.655,
+      "languages": {
+        "de": {
+          "clips": 47,
+          "minutes": 7.257
+        },
+        "en": {
+          "clips": 366,
+          "minutes": 166.901
+        },
+        "es": {
+          "clips": 31,
+          "minutes": 7.508
+        },
+        "fr": {
+          "clips": 32,
+          "minutes": 7.645
+        },
+        "ja": {
+          "clips": 33,
+          "minutes": 7.641
+        },
+        "ko": {
+          "clips": 56,
+          "minutes": 7.586
+        },
+        "pl": {
+          "clips": 80,
+          "minutes": 12.208
+        },
+        "sv": {
+          "clips": 45,
+          "minutes": 7.619
+        },
+        "tr": {
+          "clips": 42,
+          "minutes": 7.696
+        },
+        "zh": {
+          "clips": 65,
+          "minutes": 7.593
+        }
+      },
+      "formatting": {
+        "clips": 75,
+        "minutes": 50.233
+      },
+      "sources": {
+        "aishell4": {
+          "clips": 42,
+          "minutes": 3.508
+        },
+        "ami": {
+          "clips": 5,
+          "minutes": 7.813
+        },
+        "apptek": {
+          "clips": 3,
+          "minutes": 22.53
+        },
+        "dipco": {
+          "clips": 3,
+          "minutes": 11.589
+        },
+        "earnings25": {
+          "clips": 4,
+          "minutes": 24.651
+        },
+        "edacc": {
+          "clips": 167,
+          "minutes": 20.014
+        },
+        "fleurs": {
+          "clips": 103,
+          "minutes": 20.133
+        },
+        "hike": {
+          "clips": 31,
+          "minutes": 3.54
+        },
+        "klang": {
+          "clips": 45,
+          "minutes": 7.619
+        },
+        "librispeech-pc": {
+          "clips": 39,
+          "minutes": 5.088
+        },
+        "mediaspeech": {
+          "clips": 85,
+          "minutes": 20.395
+        },
+        "mls": {
+          "clips": 12,
+          "minutes": 3.046
+        },
+        "monsoon": {
+          "clips": 104,
+          "minutes": 15.075
+        },
+        "muscat": {
+          "clips": 67,
+          "minutes": 9.712
+        },
+        "notsofar": {
+          "clips": 5,
+          "minutes": 14.996
+        },
+        "polish-tedx": {
+          "clips": 48,
+          "minutes": 6.044
+        },
+        "rev-earnings": {
+          "clips": 5,
+          "minutes": 19.9
+        },
+        "rev16": {
+          "clips": 4,
+          "minutes": 19.955
+        },
+        "zeroth": {
+          "clips": 25,
+          "minutes": 4.045
+        }
+      }
+    },
+    "v2-quick": {
+      "id": "vella-v2-quick",
+      "manifest_sha256": "5cbda7a5f463d4f12bc4e58982ea16e1f23f3f9361aafc42c3344b6d5fd159b8",
+      "sample_rate": 16000,
+      "clips": 122,
+      "minutes": 22.547,
+      "languages": {
+        "de": {
+          "clips": 5,
+          "minutes": 1.086
+        },
+        "en": {
+          "clips": 64,
+          "minutes": 12.429
+        },
+        "es": {
+          "clips": 4,
+          "minutes": 0.958
+        },
+        "fr": {
+          "clips": 5,
+          "minutes": 1.193
+        },
+        "ja": {
+          "clips": 4,
+          "minutes": 1.083
+        },
+        "ko": {
+          "clips": 6,
+          "minutes": 1.068
+        },
+        "pl": {
+          "clips": 11,
+          "minutes": 1.632
+        },
+        "sv": {
+          "clips": 6,
+          "minutes": 0.991
+        },
+        "tr": {
+          "clips": 7,
+          "minutes": 1.033
+        },
+        "zh": {
+          "clips": 10,
+          "minutes": 1.074
+        }
+      },
+      "formatting": {
+        "clips": 18,
+        "minutes": 6.676
+      },
+      "sources": {
+        "aishell4": {
+          "clips": 7,
+          "minutes": 0.468
+        },
+        "ami": {
+          "clips": 3,
+          "minutes": 0.345
+        },
+        "dipco": {
+          "clips": 1,
+          "minutes": 0.094
+        },
+        "edacc": {
+          "clips": 24,
+          "minutes": 2.899
+        },
+        "fleurs": {
+          "clips": 16,
+          "minutes": 3.407
+        },
+        "hike": {
+          "clips": 3,
+          "minutes": 0.469
+        },
+        "klang": {
+          "clips": 6,
+          "minutes": 0.991
+        },
+        "librispeech-pc": {
+          "clips": 10,
+          "minutes": 1.489
+        },
+        "mediaspeech": {
+          "clips": 12,
+          "minutes": 2.867
+        },
+        "mls": {
+          "clips": 2,
+          "minutes": 0.465
+        },
+        "monsoon": {
+          "clips": 16,
+          "minutes": 2.326
+        },
+        "muscat": {
+          "clips": 9,
+          "minutes": 1.404
+        },
+        "notsofar": {
+          "clips": 2,
+          "minutes": 0.09
+        },
+        "polish-tedx": {
+          "clips": 7,
+          "minutes": 0.798
+        },
+        "rev-earnings": {
+          "clips": 1,
+          "minutes": 3.837
+        },
+        "zeroth": {
+          "clips": 3,
+          "minutes": 0.598
+        }
+      },
+      "selection_seed": 20260926,
+      "frozen": "2026-09-26",
+      "excluded_allocations": [
+        "en-apptek",
+        "en-earnings22",
+        "en-earnings25",
+        "en-rev16"
+      ]
+    }
+  },
+  "sources": {
+    "apptek": {
+      "id": "apptek",
+      "name": "AppTek Call-Center Dialogues",
+      "url": "https://huggingface.co/datasets/apptek-com/apptek_callcenter_dialogues",
+      "revision": "b98967d9946f7f59f58d08624a2a00fe98fe0219",
+      "licence": "CC BY-SA 4.0",
+      "licenceUrl": "https://huggingface.co/datasets/apptek-com/apptek_callcenter_dialogues/blob/b98967d9946f7f59f58d08624a2a00fe98fe0219/README.md",
+      "redistributable": true,
+      "attribution": "AppTek, Call-Center Dialogues (2026); role-played customer-service recordings.",
+      "referenceProduction": "Manually transcribed verbatim, diarized turn-level references."
+    },
+    "monsoon": {
+      "id": "monsoon",
+      "name": "Monsoon en-IN public test",
+      "url": "https://huggingface.co/datasets/VoiceArena/MonsoonASR-Open-ASR-leaderboard-en-IN",
+      "revision": "bc1da7b42ef6e2853123c97bf6d22067e4802d11",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://huggingface.co/datasets/VoiceArena/MonsoonASR-Open-ASR-leaderboard-en-IN/blob/bc1da7b42ef6e2853123c97bf6d22067e4802d11/README.md",
+      "redistributable": true,
+      "attribution": "VoiceArena, Monsoon en-IN public test (2026).",
+      "referenceProduction": "ASR drafts corrected and independently checked by native-speaking linguists."
+    },
+    "edacc": {
+      "id": "edacc",
+      "name": "EdAcc",
+      "url": "https://huggingface.co/datasets/edinburghcstr/edacc",
+      "revision": "d9ae7bd344f0562b766ec93ee5ce8f2f9568ce66",
+      "licence": "CC BY-SA 4.0",
+      "licenceUrl": "https://huggingface.co/datasets/edinburghcstr/edacc/blob/d9ae7bd344f0562b766ec93ee5ce8f2f9568ce66/README.md",
+      "redistributable": true,
+      "attribution": "University of Edinburgh CSTR, EdAcc (2023).",
+      "referenceProduction": "Professionally transcribed speaker turns with disfluencies and non-speech annotations."
+    },
+    "notsofar": {
+      "id": "notsofar",
+      "name": "NOTSOFAR-1 eval-small with GT",
+      "url": "https://huggingface.co/datasets/microsoft/NOTSOFAR",
+      "revision": "ba8fd0f034ce185fe4d24f47e53b4b8194795f07",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://huggingface.co/datasets/microsoft/NOTSOFAR/blob/ba8fd0f034ce185fe4d24f47e53b4b8194795f07/LICENSE.txt",
+      "redistributable": true,
+      "attribution": "Microsoft, NOTSOFAR-1 dataset; CC BY 4.0.",
+      "referenceProduction": "Speaker-labelled, time-aligned human GT; lexical text is published transcription with non-speech tags removed."
+    },
+    "dipco": {
+      "id": "dipco",
+      "name": "DiPCo S06 eval",
+      "url": "https://huggingface.co/datasets/huckiyang/DiPCo",
+      "revision": "e2b29d3d0d88692c744feb15e290f7316b68014e",
+      "licence": "CDLA-Permissive-1.0",
+      "licenceUrl": "https://huggingface.co/datasets/huckiyang/DiPCo/blob/e2b29d3d0d88692c744feb15e290f7316b68014e/README.md",
+      "redistributable": true,
+      "attribution": "DiPCo corpus, Dinner Party Corpus; huckiyang/DiPCo mirror.",
+      "referenceProduction": "Manual close-talk-derived speaker transcripts, timestamped JSON. Inference uses only distant U04 CH1."
+    },
+    "ami": {
+      "id": "ami",
+      "name": "AMI ES2004a official manual annotations",
+      "url": "https://groups.inf.ed.ac.uk/ami/download/",
+      "revision": "manual-v1.6.2 SHA256:b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d; ES2004a.Array1-01.wav SHA256:6936edac5d0904fc5c4ab175546c5cc5366601fdc1b1e5183a6ea2c10f05d150",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://groups.inf.ed.ac.uk/ami/download/",
+      "redistributable": true,
+      "attribution": "AMI Corpus, University of Edinburgh; official AMI download, CC BY 4.0.",
+      "referenceProduction": "AMI manually transcribed orthographic word XML with word timestamps, speaker and original punctuation."
+    },
+    "earnings25": {
+      "id": "earnings25",
+      "name": "Earnings25 segmented Q4 2025",
+      "url": "https://huggingface.co/datasets/florencejiang/earnings25",
+      "revision": "b4864bf8f0cd1e3b153e502d45bb29cd46993f21",
+      "licence": "CC BY 4.0 transcripts/metadata; recording redistribution unclear",
+      "licenceUrl": "https://arxiv.org/html/2607.23813v1",
+      "redistributable": false,
+      "attribution": "Florence Jiang et al., Earnings25 (2026), Zenodo DOI 10.5281/zenodo.18762167.",
+      "referenceProduction": "Existing earnings-call transcripts paired to corporate audio with CTC forced alignment. Original transcriber and human review unreported; NOT Formatting gold."
+    },
+    "rev16": {
+      "id": "rev16",
+      "name": "Rev16 verbatim podcast episodes",
+      "url": "https://github.com/revdotcom/speech-datasets/tree/c05ab6fd8b4b627d123c922a22a39e993dd37635/rev16",
+      "revision": "Rev text c05ab6fd8b4b627d123c922a22a39e993dd37635; podcast mirror sanchit-gandhi/rev16_csv@acad9372c439d3d538f846e1c4df9bb9a2730ba1",
+      "licence": "CC BY-SA 4.0 text only; podcast audio rights unclear",
+      "licenceUrl": "https://raw.githubusercontent.com/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/rev16/LICENSE.md",
+      "redistributable": false,
+      "attribution": "Radford et al. (2023), Rev transcriptionists; underlying podcast creators retain media rights.",
+      "referenceProduction": "Professional human verbatim Rev transcription; case, punctuation and fillers reconstructed solely from nlp token columns. Parakeet used only for cut times, never text."
+    },
+    "rev-earnings": {
+      "id": "rev-earnings",
+      "name": "Earnings-22/21 Rev verbatim",
+      "url": "https://github.com/revdotcom/speech-datasets",
+      "revision": "c05ab6fd8b4b627d123c922a22a39e993dd37635",
+      "licence": "CC BY-SA 4.0 text only; audio rights unclear",
+      "licenceUrl": "https://raw.githubusercontent.com/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings22/LICENSE.md",
+      "redistributable": false,
+      "attribution": "Rev, Earnings-22 and Earnings-21 human verbatim transcripts.",
+      "referenceProduction": "Professional Rev verbatim transcription; case, prepunctuation and punctuation are original token columns; aligned timestamps never supply text."
+    },
+    "librispeech-pc": {
+      "id": "librispeech-pc",
+      "name": "LibriSpeech-PC test-other",
+      "url": "https://www.openslr.org/145/",
+      "revision": "OpenSLR145 manifests sha256:96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0; openslr/librispeech_asr parquet@2b9f39377850ffce6bf6358257ae9f84b2349497",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://www.openslr.org/resources/145/about.html",
+      "redistributable": true,
+      "attribution": "Mehri et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.",
+      "referenceProduction": "Printed source-book text aligned by researchers to LibriSpeech; text_raw keeps original orthography, text is ASR-normalized."
+    },
+    "fleurs": {
+      "id": "fleurs",
+      "name": "FLEURS",
+      "url": "https://huggingface.co/datasets/google/fleurs",
+      "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://huggingface.co/datasets/google/fleurs/blob/70bb2e84b976b7e960aa89f1c648e09c59f894dd/README.md",
+      "redistributable": true,
+      "attribution": "Conneau et al., FLEURS: Few-shot Learning Evaluation of Universal Representations of Speech (2022), Google.",
+      "referenceProduction": "FLoRes-101 sentences (human-written/translated prose) read aloud; raw_transcription keeps the written case and punctuation."
+    },
+    "polish-tedx": {
+      "id": "polish-tedx",
+      "name": "Polish TEDx ASR Eval",
+      "url": "https://huggingface.co/datasets/s512757/polish-tedx-asr-eval",
+      "revision": "d0826bb93d2e268dce45b078e0bae56e7d43af21",
+      "licence": "CC BY-NC-ND 4.0",
+      "licenceUrl": "https://huggingface.co/datasets/s512757/polish-tedx-asr-eval/blob/d0826bb93d2e268dce45b078e0bae56e7d43af21/README.md",
+      "redistributable": false,
+      "attribution": "s512757, Polish TEDx ASR Eval (2026); original TEDx Talks speakers/video owners.",
+      "referenceProduction": "Student-transcribed TEDx talks; only rows with verified_by populated have evidenced second-annotator verification. Raw text preserved."
+    },
+    "mls": {
+      "id": "mls",
+      "name": "Multilingual LibriSpeech",
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech",
+      "revision": "2e83e61823b4c47dcbcb1980bb88601274127609",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://www.openslr.org/94/",
+      "redistributable": true,
+      "attribution": "Pratap et al., MLS (2020); source LibriVox readers and works.",
+      "referenceProduction": "Aligned audiobook text; test transcripts were human-listened and corrected."
+    },
+    "muscat": {
+      "id": "muscat",
+      "name": "MUSCAT evaluation",
+      "url": "https://huggingface.co/datasets/goodpiku/muscat-eval",
+      "revision": "e5e477cc4aeee6b6f5ea65513914b694fb1030f3",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://huggingface.co/datasets/goodpiku/muscat-eval/blob/e5e477cc4aeee6b6f5ea65513914b694fb1030f3/README.md",
+      "redistributable": true,
+      "attribution": "MUSCAT authors, bilingual scientific conversations, LREC 2026; native speakers.",
+      "referenceProduction": "Whisper first pass, corrected by speakers; manual segment boundaries and language IDs; one Owl device per spoken event."
+    },
+    "mediaspeech": {
+      "id": "mediaspeech",
+      "name": "MediaSpeech (per-language HF mirror)",
+      "url": "https://www.openslr.org/108/",
+      "revision": "4008a968760f2187b0c5b2b2db965f1283433059",
+      "licence": "CC BY 4.0 dataset; original videos retain owners’ copyright",
+      "licenceUrl": "https://github.com/NTRLab/MediaSpeech",
+      "redistributable": false,
+      "attribution": "Kolobov et al., MediaSpeech (2021); original YouTube video owners. HF mirror ymoslem/MediaSpeech.",
+      "referenceProduction": "Two manual annotators and third disagreement resolver; postprocessed lexical sentences. HF mirror strips original video/channel identifiers."
+    },
+    "klang": {
+      "id": "klang",
+      "name": "Klang Dialects sv-clean",
+      "url": "https://huggingface.co/datasets/KlangAI/klang-dialects",
+      "revision": "4117db6f1c53f5c1ca03309ce2a8060b96653708",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://huggingface.co/datasets/KlangAI/klang-dialects/blob/4117db6f1c53f5c1ca03309ce2a8060b96653708/LICENSE",
+      "redistributable": true,
+      "attribution": "Klang AI, Klang Dialects (2026); opt-in Swedish speakers.",
+      "referenceProduction": "Prompts compared with audio; ASR ensemble/alignment and partial human correction; clean subset excludes ambiguous references."
+    },
+    "aishell4": {
+      "id": "aishell4",
+      "name": "AISHELL-4 test (utterance mirror)",
+      "url": "https://www.openslr.org/111/",
+      "revision": "df062e4993eeb9873605f8c74d6fac1db0560799",
+      "licence": "CC BY-SA 4.0",
+      "licenceUrl": "https://www.openslr.org/111/",
+      "redistributable": true,
+      "attribution": "AISHELL-4, Beijing Shell Shell Technology Co., Ltd.; OpenSLR SLR111; utterance files redistributed by shenyunhang/AISHELL-4.",
+      "referenceProduction": "Human TextGrid meeting annotation; first annotated speaker tier only; silence markup removed."
+    },
+    "zeroth": {
+      "id": "zeroth",
+      "name": "Zeroth-Korean official test",
+      "url": "https://www.openslr.org/40/",
+      "revision": "1fe937899f828af822293d05e086200946088bdf",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://www.openslr.org/40/",
+      "redistributable": true,
+      "attribution": "Zeroth-Korean, OpenSLR SLR40; test-only parquet redistributed by kresnik/zeroth_korean.",
+      "referenceProduction": "Published official read-speech transcript, unpunctuated Korean orthography."
+    },
+    "hike": {
+      "id": "hike",
+      "name": "HiKE Korean–English code-switching test",
+      "url": "https://huggingface.co/datasets/thetaone-ai/HiKE",
+      "revision": "255609b24005e1fcce3f8b3a452260aaf2872cc9",
+      "licence": "Apache-2.0",
+      "licenceUrl": "https://huggingface.co/datasets/thetaone-ai/HiKE/blob/255609b24005e1fcce3f8b3a452260aaf2872cc9/README.md",
+      "redistributable": true,
+      "attribution": "HiKE, thetaone-ai; bilingual speakers recorded reviewed, scripted Korean–English sentences.",
+      "referenceProduction": "Published punctuated text and separately supplied lexical text_normalized; no independent spontaneous transcript."
+    }
+  },
+  "scoring": {
+    "version": "vella-v2-lexical-1.0.0",
+    "scorer_sha256": "d917f5ca849a060f380f65acadfeda27022da3d6e2b99bc2115d61439b182eaa",
+    "formatting_scorer_sha256": "965470fad61e1bcb4c6a450e98baa4a7319643a3cfc937d7f2e73894fa13e2e6",
+    "normalizer_python": "import re\nimport unicodedata as ud\n\nLANGUAGES = ('pl', 'de', 'fr', 'es', 'sv', 'tr', 'ja', 'zh', 'ko')\nCJK = {'ja', 'zh', 'ko'}\nFILLERS = {'uh', 'um', 'er', 'ah', 'mm', 'hmm', 'hm', 'erm'}\n# A filler is a standalone word, optionally followed by a dangling hyphen (Rev's \"uh-\").\n# Never remove one inside a compound (\"uh-oh\") or an embedded word (\"human\").\nFILLER = re.compile(r\"(?<![\\w'-])(?:uh|um|er|ah|mm|hmm|hm|erm)(?:-(?!\\w))?(?![\\w'-])\", re.I)\nONES = ('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen').split()\nTENS = ('', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety')\nORDINAL = {'one':'first','two':'second','three':'third','four':'fourth','five':'fifth','six':'sixth','seven':'seventh','eight':'eighth','nine':'ninth','ten':'tenth','eleven':'eleventh','twelve':'twelfth','twenty':'twentieth','thirty':'thirtieth','forty':'fortieth','fifty':'fiftieth','sixty':'sixtieth','seventy':'seventieth','eighty':'eightieth','ninety':'ninetieth','hundred':'hundredth','thousand':'thousandth','million':'millionth'}\nNUMERIC = re.compile(r'(?<!\\w)([$£€])?([0-9][0-9,]*(?:\\.[0-9]+)?)(st|nd|rd|th)?(%)?(?!\\w)', re.I)\n\ndef integer_words(n):\n    if n < 20: return [ONES[n]]\n    if n < 100: return [TENS[n // 10]] + ([ONES[n % 10]] if n % 10 else [])\n    if n < 1000: return [ONES[n // 100], 'hundred'] + (integer_words(n % 100) if n % 100 else [])\n    for magnitude, name in ((1000000000, 'billion'), (1000000, 'million'), (1000, 'thousand')):\n        if n >= magnitude: return integer_words(n // magnitude) + [name] + (integer_words(n % magnitude) if n % magnitude else [])\n    raise ValueError('number outside supported range')\n\ndef numeric_words(match):\n    currency, digits, suffix, percent = match.groups()\n    integer, dot, fraction = digits.replace(',', '').partition('.')\n    if len(integer) > 12: return match.group()  # retain long IDs, do not imply numeric equivalence\n    n = int(integer)\n    words = integer_words(n)\n    if suffix:\n        words[-1] = ORDINAL.get(words[-1], words[-1] + 'th')\n    if currency:\n        if dot and len(fraction) <= 2:\n            words += ['dollar' if n == 1 else 'dollars'] if currency == '$' else ['pound' if n == 1 else 'pounds'] if currency == '£' else ['euro' if n == 1 else 'euros']\n            cents = int(fraction.ljust(2, '0'))\n            if cents: words += ['and'] + integer_words(cents) + ['cent' if cents == 1 else 'cents']\n            dot = ''\n        else:\n            words += ['dollar' if n == 1 else 'dollars'] if currency == '$' else ['pound' if n == 1 else 'pounds'] if currency == '£' else ['euro' if n == 1 else 'euros']\n    if dot: words += ['point'] + [ONES[int(d)] for d in fraction]\n    if percent: words += ['percent']\n    return ' '.join(words)\n\nFORMAT_FILLER = re.compile(r\"(?:,\\s*)?(?<![\\w'-])(uh|um|er|ah|mm|hmm|hm|erm)(?:-(?!\\w))?(?![\\w'-])(?:\\s*,)?\", re.I)\n\ndef strip_fillers_formatted(text):\n    \"\"\"Formatting-track filler rule, applied identically to reference and hypothesis.\n\n    Delete a standalone filler together with commas attached to it (\"their, uh, specific\" ->\n    \"their specific\"); if the filler was capitalised (sentence-initial \"Uh, we\"), capitalise the\n    following word so sentence case survives. Clean dictation output omits fillers.\n    \"\"\"\n    out = []; pos = 0\n    for m in FORMAT_FILLER.finditer(text):\n        out.append(text[pos:m.start()]); pos = m.end()\n        if m.group(1)[0].isupper():\n            rest = text[pos:]; k = len(rest) - len(rest.lstrip())\n            if k < len(rest) and rest[k].isalpha():\n                text = text[:pos + k] + rest[k].upper() + rest[k + 1:]\n        out.append(' ')\n    out.append(text[pos:])\n    if pos == 0:\n        return text\n    cleaned = ' '.join(''.join(out).split())\n    cleaned = re.sub(r'([.!?]) +[.!?,;:](?!\\.)', r'\\1', cleaned)   # \"error. Um.\" -> \"error.\"\n    return re.sub(r' +([.!?,;:])(?!\\.)', r'\\1', cleaned)         # \"said um.\" -> \"said.\"\n\n\ndef english_tokens(text):\n    text = ud.normalize('NFC', text).casefold().replace('’', \"'\")\n    text = FILLER.sub(' ', text)\n    text = NUMERIC.sub(numeric_words, text)\n    # Contractions remain lexical units; hyphens are word breaks (including line-wrap hyphens).\n    text = re.sub(r\"[^\\w\\s']|_\", ' ', text)\n    return [w.strip(\"'\") for w in text.split() if w.strip(\"'\")]\n\ndef multilingual_tokens(text, language):\n    if language not in LANGUAGES: raise ValueError(f'unknown language {language}')\n    text = ud.normalize('NFKC' if language in CJK else 'NFC', text)\n    if language == 'tr':\n        text = text.replace('I', 'ı').replace('İ', 'i')\n        # Unicode decomposed dotted capital I, even if input was canonicalized first.\n        text = text.replace('I\\u0307', 'i')\n    text = text.casefold()\n    if language in CJK:\n        return [c for c in text if not c.isspace() and ud.category(c)[0] not in 'PS']\n    chars=[]\n    for i,c in enumerate(text):\n        if ud.category(c)[0] in 'PS':\n            internal = c in \"'’‐‑-\" and i > 0 and i+1 < len(text) and text[i-1].isalnum() and text[i+1].isalnum()\n            chars.append(\"'\" if internal and c in \"'’\" else '-' if internal else ' ')\n        else: chars.append(c)\n    return ''.join(chars).split()",
+    "formatting_python": "import re\n\nTRANSLATION = str.maketrans({'“':'\"','”':'\"','„':'\"','’':\"'\",'‘':\"'\",'–':'-','—':'-','…':'...'})\n\ndef canonical(text):\n    return ' '.join(text.translate(TRANSLATION).split())\n\ndef formatted_pair(reference, hypothesis):\n    ref=canonical(reference);hyp=canonical(hypothesis)\n    # A clipped quotation lacks the context needed to infer its opening/closing mark.\n    positions=[i for i,c in enumerate(ref) if c=='\"']\n    quote_eligible=len(positions)%2==0 and all(i==0 or ref[i-1].isspace() or ref[i-1] in '([{' for i in positions[::2])\n    if not quote_eligible:ref=canonical(ref.replace('\"',''));hyp=canonical(hyp.replace('\"',''))\n    return ref, hyp"
+  },
+  "build_receipt": {
+    "swift": "1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
+    "os_build": "25G72",
+    "metal": "Apple metal version 32023.921 (metalfe-32023.921.6)",
+    "xcode": "Xcode 27.0",
+    "metallib_sha256": "b3bb7c969e967732920d798aee2c98fb8ee0f75419d667dfd22fb9845ad144ef"
+  },
+  "protocol": {
+    "gpu_cores": 40,
+    "energy_repeats": 3,
+    "baseline_ms": 10000,
+    "idle_poll_ms": 1000,
+    "foreign_cpu_delta_cores": 0.5,
+    "max_attempts": 6,
+    "bracket_limit_seconds": 270,
+    "stream_gap_seconds": 1.2,
+    "stream_packet_samples": 1600,
+    "segmentation_version": "app-vsseg-seg2",
+    "segmentation_policies": {
+      "default": [
+        5.0,
+        25.0,
+        0.4,
+        0.003,
+        0.5,
+        2.0,
+        2.0
+      ],
+      "whisper": [
+        20.0,
+        25.0,
+        0.4,
+        0.003,
+        0.5,
+        2.0,
+        2.0
+      ]
+    },
+    "gates": {
+      "T_FLOOR": 0.1,
+      "T_CAP": 0.2,
+      "T_MARGIN": 0.05,
+      "T_ML_FLOOR": 0.1,
+      "T_ML_CAP": 0.3,
+      "T_ML_MARGIN": 0.05,
+      "LANG_WORSE_PT": 2.0,
+      "LANG_MIN_MINUTES": 5.0,
+      "TAIL_WORDS": 3,
+      "PRESENCE_WER_PT": 5.0,
+      "PRESENCE_LANG_PT": 10.0,
+      "STREAM_SPEED_TRADE": 1.25
+    }
+  }
+}

@@ -110,7 +110,7 @@ Speed differences use “N× faster” at a ratio of 2× or above and “N% fast
 - **Which tiers are offered.** A tier is offered unless it breaks against 16: a clip it leaves empty or cuts short, a request error, English or average word error rate 5 points worse, or one language 10 points worse. A tier that is merely worse is offered with its loss in the figures and the tooltip; Vella's quality gate (English word error rate within 0.1 points of 16, up to 0.2 points for a model whose measured run-to-run noise is larger, the other languages within a similar limit, no dropped or cut-off segments) says whether a tier loses nothing measurable. No tier is recommended: you choose.
 - Measured and qualified on an M5 Max; other Apple Silicon chips run the fallback paths qualified by self-test. Only M5 Max with 40 GPU cores matches the measured configuration. On every other Mac (including M5, M5 Pro and other M5 Max core counts), Speed stays the **M5 Max measurement**, lighter grey with a small **M5 Max** label; it is not an estimate for that Mac. J / min is `not known`. WER, Format and Peak RAM stay as measured. Tooltip: “Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it.”
 
-Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); a sortable table is at https://tobynoskillson.github.io/Vella/.
+Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); the [benchmark methods](docs/BENCHMARKS.md) cover suites, scoring, timing, energy and build provenance. A sortable table is at https://tobynoskillson.github.io/Vella/.
 
 </details>
 
