@@ -85,7 +85,7 @@ toolchains() {
 
 changelog() {  # release.yml puts this section into the draft release notes
   local notes; notes="$(awk -v v="$VERSION" '$0 ~ "^## " v "( |$)" {on=1; next} on && /^## / {exit} on' CHANGELOG.md)"
-  [[ -n "${notes//[[:space:]]/}" ]] || { echo "CHANGELOG.md has no section '## $VERSION'"; return 1; }
+  grep -q "[^[:space:]]" <<<"$notes" || { echo "CHANGELOG.md has no section '## $VERSION'"; return 1; }
   printf '%s\n' "$notes"
 }
 
