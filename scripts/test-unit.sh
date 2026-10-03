@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 CLT=/Library/Developer/CommandLineTools
 XCODE="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 PLATFORM="$XCODE/Platforms/MacOSX.platform/Developer"
-DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" test --build-system native --disable-swift-testing \
+DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" test --build-system native --enable-xctest --disable-swift-testing \
   -Xswiftc -F -Xswiftc "$PLATFORM/Library/Frameworks" \
   -Xswiftc -I -Xswiftc "$PLATFORM/usr/lib" \
   -Xlinker -F -Xlinker "$PLATFORM/Library/Frameworks" \
