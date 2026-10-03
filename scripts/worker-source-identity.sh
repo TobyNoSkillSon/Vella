@@ -15,9 +15,11 @@ PACKAGES_TREE=093375e515b30db74a5803abfdd6c1c0d28e29e2
 # Reported, never gated: README content is outside the pin.
 WORKER_FULL_TREE=af976137fbcd3cb0346fb187aced20cd82f9cc86
 # Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 843a434
-# (BASE_WORKER_TREE, full tree including READMEs). Package.swift excludes each of these from its target. They are the
-# only README.md files besides Worker/README.md that may exist; verified against the files, never against history.
-BASE_WORKER_TREE=528e719d0956b012f181cdf70cd3baa8f250275f
+# (BASE_WORKER_TREE, full tree including READMEs). The history scrub of 3 Oct rewrote that commit's Whisper README, so this
+# is the rewritten tree; the pre-scrub tree survives only in the local backup (see its receipt). Package.swift excludes each of
+# these from its target. They are the only README.md files besides Worker/README.md that may exist; verified against the
+# files, never against history.
+BASE_WORKER_TREE=53e0cd3fce3cb0b11646dd3b085c0328e51fc5aa
 WORKER_DOC_CHANGES="Sources/MLXAudioSTT/NemotronASR/README.md
 Sources/MLXAudioSTT/Parakeet/README.md
 Sources/MLXAudioSTT/Qwen3ASR/README.md
@@ -36,7 +38,7 @@ build_paths=(
   scripts/test-worker.sh
   scripts/verify-release-symbols.sh
 )
-BUILD_EXPECTED=f86c4e07a26e9f2655779c3118a61b7cce3df57fa3cac38da7faad02a2f1b142
+BUILD_EXPECTED=1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90
 
 # git with the user's configuration (autocrlf, excludes, hooks) out of the hash.
 g() { git -c core.autocrlf=false -c core.excludesFile=/dev/null "$@"; }

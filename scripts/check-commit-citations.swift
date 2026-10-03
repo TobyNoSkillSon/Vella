@@ -11,10 +11,13 @@ func git(_ args: [String]) -> (Int32, String) {
     return (p.terminationStatus, String(decoding: data, as: UTF8.self))
 }
 
+/// A citation must name a commit of the history being published: reachable from HEAD, not merely present in the local object store.
+func isAncestorOfHead(_ sha: String) -> Bool { git(["merge-base", "--is-ancestor", "\(sha)^{commit}", "HEAD"]).0 == 0 }
+
 let pattern = try NSRegularExpression(pattern: #"\b[0-9a-f]{7,40}\b"#)
 // Content identities, not commits. These remain valid in a shallow or history-free source export.
 let trees: Set<String> = [
-    "af976137fbcd3cb0346fb187aced20cd82f9cc86", "ce8b527583b37c77274eb242b58025b85f35b6fc", "093375e515b30db74a5803abfdd6c1c0d28e29e2", "528e719d0956b012f181cdf70cd3baa8f250275f"
+    "af976137fbcd3cb0346fb187aced20cd82f9cc86", "ce8b527583b37c77274eb242b58025b85f35b6fc", "093375e515b30db74a5803abfdd6c1c0d28e29e2", "53e0cd3fce3cb0b11646dd3b085c0328e51fc5aa"
 ]
 func citations(_ text: String) -> Set<String> {
     var result = Set<String>()
@@ -46,9 +49,10 @@ if CommandLine.arguments.contains("--selftest") {
         citations(#""revision": "deadbee""#).isEmpty,
         citations("- package: fixture revision (deadbee)").isEmpty,
         citations("https://github.com/vendor/fixture/blob/deadbee/LICENSE").isEmpty,
-        citations("https://github.com/TobyNoSkillSon/Vella/commit/deadbee") == ["deadbee"]
+        citations("https://github.com/TobyNoSkillSon/Vella/commit/deadbee") == ["deadbee"],
+        isAncestorOfHead(String(head.prefix(7))), isAncestorOfHead("HEAD~1"), !isAncestorOfHead("deadbee")
     else { fputs("commit citation fixture failed\n", stderr); exit(1) }
-    print("commit citations: short/full SHA extraction and non-commit exclusions tested")
+    print("commit citations: short/full SHA extraction, non-commit exclusions and ancestor check tested")
     exit(0)
 }
 let files =
@@ -60,9 +64,13 @@ for file in files {
     do {
         for sha in citations(try String(contentsOf: root.appendingPathComponent(file), encoding: .utf8)) {
             checked.insert(sha)
-            if git(["rev-parse", "--verify", "\(sha)^{commit}"]).0 != 0 { failures.append("\(file): missing cited commit \(sha)") }
+            if git(["rev-parse", "--verify", "\(sha)^{commit}"]).0 != 0 {
+                failures.append("\(file): missing cited commit \(sha)")
+            } else if !isAncestorOfHead(sha) {
+                failures.append("\(file): cited commit \(sha) is not an ancestor of HEAD (not in the history to be published)")
+            }
         }
     } catch { failures.append("\(file): cannot read citation source") }
 }
 if !failures.isEmpty { fputs(failures.joined(separator: "\n") + "\n", stderr); exit(1) }
-print("commit citations: \(checked.count) published-history commits resolve (binary hashes, trees and remote revisions excluded)")
+print("commit citations: \(checked.count) published-history commits resolve and are ancestors of HEAD (binary hashes, trees and remote revisions excluded)")

@@ -25,11 +25,15 @@ public struct DiagnoseReference: Codable, Equatable {
     public var gate_version: String?
     /// "api" (measured as `vella diagnose` measures) or "worker" (the speed is indicative only).
     public var method: String?
+    /// True for a reference captured outside a quiet measurement window (local installs only).
+    public var provisional: Bool?
     public var models: [String: [String: [String: Run]]]
     public init(
         schema: Int = 2, date: String? = nil, hardware: String? = nil, chip: String? = nil, gpu_family: String? = nil,
-        app_version: String? = nil, gate_version: String? = nil, method: String? = nil, models: [String: [String: [String: Run]]] = [:]
+        app_version: String? = nil, gate_version: String? = nil, method: String? = nil, provisional: Bool? = nil,
+        models: [String: [String: [String: Run]]] = [:]
     ) {
+        self.provisional = provisional
         self.schema = schema; self.date = date; self.hardware = hardware; self.chip = chip; self.gpu_family = gpu_family
         self.app_version = app_version; self.gate_version = gate_version; self.method = method; self.models = models
     }
@@ -165,12 +169,15 @@ public struct Diagnosis: Equatable {
     public var loadedForDiagnosis: String?
     /// False when the bundled reference file was missing or unreadable.
     public var referenceAvailable: Bool
+    /// True when the bundled reference was captured under load and is not a qualified measurement.
+    public var referenceProvisional: Bool
     public init(
         cliVersion: String? = nil, appVersion: String? = nil, api: Int? = nil, host: Host, running: Bool, dictation: String? = nil,
         dictationModel: String? = nil, models: [Model] = [], gate: [GateVerdict] = [], gateVersion: String? = nil,
         statusError: String? = nil, refused: String? = nil, switches: [String] = [], loadedForDiagnosis: String? = nil,
-        referenceAvailable: Bool = true
+        referenceAvailable: Bool = true, referenceProvisional: Bool = false
     ) {
+        self.referenceProvisional = referenceProvisional
         self.cliVersion = cliVersion; self.appVersion = appVersion; self.api = api; self.host = host; self.running = running
         self.dictation = dictation; self.dictationModel = dictationModel; self.models = models; self.gate = gate
         self.gateVersion = gateVersion; self.statusError = statusError; self.refused = refused; self.switches = switches
@@ -278,7 +285,11 @@ public enum Diagnose {
                         + (d.dictationModel.map { " (\($0))" } ?? "") + " and times it.")
             }
         }
-        if !d.referenceAvailable { out.append("reference transcripts: missing for this build") }
+        if !d.referenceAvailable {
+            out.append("reference transcripts: missing for this build")
+        } else if d.referenceProvisional {
+            out.append("reference: provisional (captured under load); speed comparisons are indicative only")
+        }
         out.append(gateLine(d))
         if let e = d.statusError { out.append("last load error: \(redact(e))") }
         if let r = d.refused { out.append("last refusal: \(redact(r))") }
@@ -410,7 +421,7 @@ public enum Diagnose {
             "vella": v(d.cliVersion), "app": v(d.appVersion), "api": v(d.api), "worker_version": v(d.gateVersion), "running": d.running,
             "host": host, "dictation": v(d.dictation), "dictation_model": v(d.dictationModel), "loaded_for_diagnosis": v(d.loadedForDiagnosis),
             "models": models, "gate_verdicts": gate, "last_load_error": v(d.statusError.map(redact)), "last_refusal": v(d.refused.map(redact)),
-            "diagnostic_switches": d.switches.sorted(), "reference_available": d.referenceAvailable, "issue_url": issueURL
+            "diagnostic_switches": d.switches.sorted(), "reference_available": d.referenceAvailable, "reference_provisional": d.referenceProvisional, "issue_url": issueURL
         ]
     }
 

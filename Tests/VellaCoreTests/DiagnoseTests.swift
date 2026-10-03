@@ -115,6 +115,20 @@ final class DiagnoseFormatTests: XCTestCase {
         XCTAssertEqual(text.suffix(2), ["last refusal: Parakeet needs 1.3 GB; 0.4 GB is free.", "diagnostic switches set: VELLA_FORCE_STOCK"])
     }
 
+    func testReportStatesWhenItsReferenceIsProvisional() throws {
+        let provisional = try XCTUnwrap(DiagnoseReference.decode(Data(#"{"schema": 2, "provisional": true, "models": {}}"#.utf8)))
+        let qualified = try XCTUnwrap(DiagnoseReference.decode(Data(#"{"schema": 2, "models": {}}"#.utf8)))
+        XCTAssertEqual(provisional.provisional, true)
+        XCTAssertNotEqual(qualified.provisional, true)
+        var d = Diagnosis(host: Self.host, running: false, referenceProvisional: provisional.provisional == true)
+        let note = "reference: provisional (captured under load); speed comparisons are indicative only"
+        XCTAssertEqual(Diagnose.text(d).filter { $0.hasPrefix("reference") }, [note])
+        XCTAssertEqual(Diagnose.json(d, issueURL: "u")["reference_provisional"] as? Bool, true)
+        d.referenceProvisional = qualified.provisional == true
+        XCTAssertTrue(Diagnose.text(d).filter { $0.hasPrefix("reference") }.isEmpty)
+        XCTAssertEqual(Diagnose.json(d, issueURL: "u")["reference_provisional"] as? Bool, false)
+    }
+
     func testRunWithoutReferenceForThisPrecisionOrPath() {
         XCTAssertNil(Self.reference.run(model: "parakeet-v3-ultra", precision: "BF16", engine: "mlx"), "the stock path has its own reference")
         XCTAssertNil(Self.reference.run(model: "parakeet-v3-ultra", precision: "4b", engine: "optimized"))

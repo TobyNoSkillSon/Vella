@@ -5404,7 +5404,7 @@
         "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
         "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
       },
-      "build_scripts_sha256": "f86c4e07a26e9f2655779c3118a61b7cce3df57fa3cac38da7faad02a2f1b142",
+      "build_scripts_sha256": "1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90",
       "worker_documentation_changes": [
         "Worker/Sources/MLXAudioSTT/NemotronASR/README.md",
         "Worker/Sources/MLXAudioSTT/Parakeet/README.md",

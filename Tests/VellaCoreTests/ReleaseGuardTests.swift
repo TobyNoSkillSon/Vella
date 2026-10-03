@@ -12,7 +12,7 @@ final class ReleaseGuardTests: XCTestCase {
         let result = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         process.waitUntilExit()
         XCTAssertEqual(process.terminationStatus, 0, result)
-        XCTAssertTrue(result.contains("provisional/missing conditions refused; qualified fixture accepted"), result)
+        XCTAssertTrue(result.contains("provisional/missing/incomplete conditions refused; qualified fixture accepted"), result)
     }
 
     func testBothReleasePathsQualifyReferenceButLocalBuildDoesNot() throws {

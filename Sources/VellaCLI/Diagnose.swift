@@ -19,6 +19,7 @@ struct DiagnoseCollector {
         guard let file = client.runningStatus(), let port = file.api_port else {
             let bundled = reference(appBundle: nil)
             d.referenceAvailable = bundled != nil
+            d.referenceProvisional = bundled?.provisional == true
             d.gateVersion = bundled?.gate_version
             return d
         }
@@ -26,6 +27,7 @@ struct DiagnoseCollector {
         let app = file.app_pid.flatMap(Self.appBundle(pid:))
         let bundled = reference(appBundle: app)
         d.referenceAvailable = bundled != nil
+        d.referenceProvisional = bundled?.provisional == true
         d.appVersion = Self.version(of: app)
         let before: [String: Any]
         do { before = try await statusObject(port) } catch {

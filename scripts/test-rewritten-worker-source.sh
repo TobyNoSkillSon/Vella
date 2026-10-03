@@ -45,7 +45,7 @@ cp -R "$EXPORT/." "$TMP/solo/"
 git -C "$TMP/solo" add -A -f
 git -C "$TMP/solo" -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet -m 'Fixture sole root'
 [[ ! -e "$TMP/solo/.git/objects/info/alternates" ]] || { echo 'solo repository has alternates'; exit 1; }
-if git -C "$TMP/solo" cat-file -e 528e719d0956b012f181cdf70cd3baa8f250275f 2>/dev/null; then echo 'historical object unexpectedly present'; exit 1; fi
+if git -C "$TMP/solo" cat-file -e 53e0cd3fce3cb0b11646dd3b085c0328e51fc5aa 2>/dev/null; then echo 'historical object unexpectedly present'; exit 1; fi
 "$ROOT/scripts/check-rewritten-worker-source.sh" "$TMP/solo" HEAD >/dev/null || { echo 'history-free repository rejected'; exit 1; }
 # README.md content is outside the pin (documented rule); any other byte, the README set, and the pinned scripts are not.
 variant() { rm -rf "$TMP/variant"; cp -R "$EXPORT" "$TMP/variant"; }
