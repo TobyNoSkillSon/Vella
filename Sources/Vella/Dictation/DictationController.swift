@@ -66,6 +66,7 @@ import VellaCore
             workspace: workspaceNotifications ?? NSWorkspace.shared.notificationCenter,
             capture: captureNotifications, matchesCapture: { [weak self] in self?.recorder.matchesCapture($0) == true },
             matchesDevice: { [weak self] in self?.recorder.matchesDevice($0) == true }, monitorDefaultInput: monitorDefaultInput,
+            defaultInputMatters: { [weak self] in self?.recorder.followsSystemDefault == true },
             receive: { [weak self] in self?.hardwareEvent($0) })
     }
     /// A model the first dictation without one can get in one click (fresh installs load and download nothing).

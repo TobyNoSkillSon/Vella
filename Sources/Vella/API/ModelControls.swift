@@ -89,7 +89,7 @@ import VellaCore
         else { return [:] }
         let canonical = (tier["display_cells"] as? [String: String])?[selection.segmentKey.rawValue] ?? selection.segmentKey.rawValue
         let raw = tier[canonical] as? [String: Any] ?? [:]
-        return ["reference_figures": raw, "display_cell": canonical, "builds": file["builds"] ?? [:], "build_provenance": raw["build_provenance"] ?? [:]]
+        return ["display_cell": canonical, "builds": file["builds"] ?? [:], "build_provenance": raw["build_provenance"] ?? [:]]
     }
 
     func selection(_ fields: [String: Any], family: ModelFamily) throws -> ModelSelection {

@@ -53,7 +53,7 @@ import ApplicationServices
                 guard let document = attribute(window, kAXDocumentAttribute) as? String,
                     let documentURL = URL(string: document)
                 else { return false }
-                return documentURL.standardizedFileURL == expected.standardizedFileURL
+                return sameFiles(documentURL.path, expected.path)
             }
             for _ in 0..<20 { if ownsFocus(url) { break }; try await Task.sleep(nanoseconds: 200_000_000) }
             guard ownsFocus(url) else { report("blocked: disposable document does not own focus; nothing pasted"); return }

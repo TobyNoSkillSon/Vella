@@ -302,10 +302,10 @@ final class TableTooltipTests: XCTestCase {
         let turbo = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
         XCTAssertEqual(
             modelHelp(turbo, loaded: LoadedFamily(precision: "8b", residency: "manual")),
-            Self.modelNotes["whisper-large-v3-turbo"]! + "\nLoaded at 8-bit, kept hot")
+            Self.modelNotes["whisper-large-v3-turbo"]! + "\nLoaded at int8, kept hot")
         XCTAssertEqual(
             modelHelp(turbo, loaded: LoadedFamily(precision: "FP16", residency: "on_demand")).components(separatedBy: "\n").last,
-            "Loaded at FP16, on demand")
+            "Loaded at fp16, on demand")
         // A family without the structured fields: name, the licence's display name, size; nothing invented.
         var bare = turbo; bare.publisher = nil; bare.released = nil; bare.licence = nil; bare.summary = nil
         XCTAssertEqual(modelHelp(bare), "Whisper large-v3 turbo\nMIT\n0.8B parameters · native FP16")
@@ -336,13 +336,13 @@ final class TableTooltipTests: XCTestCase {
         c.select(ultra, tier: .t4)
         XCTAssertEqual(
             table.tooltips(ultra).first { $0.0 == "Action" }?.1,
-            "Not downloaded\nAsks, then downloads the BF16 (bfloat16) weights (\(formatBytes(ultra.variants["BF16"]!.downloadBytes))) it is made from; then loads it for dictation. The first load makes the 4-bit quantized weights on this Mac."
+            "Not downloaded\nAsks, then downloads the BF16 (bfloat16) weights (\(formatBytes(ultra.variants["BF16"]!.downloadBytes))) it is made from; then loads it for dictation. The quantized weights are made in memory each time this precision loads."
         )
         let nemotron = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
         XCTAssertEqual(
             speedHelp(nemotron.mode, c.result(nemotron, "8b"), suites: c.benchmarks.suites),
             "Streaming replay speed in × real time on the v2 quick benchmark (22.5 min), not microphone-to-text latency: higher is faster\n" + by
-                + "\nStandard reference measurements: 15.1× · 112 J · 1.19 GB")
+                + "\nStandard on M5 Max: 15.1× · 112 J · 1.19 GB (measured 2026-10-01)")
     }
 
     /// Cloud rows: estimated, from which board and when; nothing to download; nothing runs on this Mac.

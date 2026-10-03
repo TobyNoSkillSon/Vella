@@ -104,7 +104,8 @@ import SwiftUI
         XCTAssertEqual(TierControl.title, "Precision")
         XCTAssertEqual(
             TierControl.headerHelp,
-            "The number format the weights run in: bf16 or fp16 as released; int8 and int4 compressed on your Mac \u{2014} smaller, faster, slightly less accurate.")
+            "The running weight format: bf16 or fp16 from the checkpoint; int8 and int4 are quantized on your Mac to reduce weight size. Speed, peak RAM and accuracy depend on the model and path."
+        )
         XCTAssertEqual(TierControl.Row.allCases.map(\.title), ["Optimized", "Standard"], "Optimized above Standard")
         // The rows are named by icons, each with one line naming its path (Toby, 30 Sep).
         XCTAssertEqual(TierControl.Row.optimized.help, "Optimized: the same weights with custom kernels for this Mac's chip")

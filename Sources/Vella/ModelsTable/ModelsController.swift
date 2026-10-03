@@ -134,7 +134,7 @@ struct ModelDeletionPlan {
     /// directory holds only the derivation manifest).
     func identify(path: String, mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
         guard !path.isEmpty else { return nil }
-        if let id = library(mode).installed.first(where: { $0.value.path == path })?.key, let found = catalog.locate(variant: id),
+        if let id = library(mode).installed.first(where: { sameFiles($0.value.path, path) })?.key, let found = catalog.locate(variant: id),
             found.family.mode == mode
         {
             // A checkpoint registered under a mixed tier's id is not that recipe: it identifies as nothing.
@@ -174,7 +174,7 @@ struct ModelDeletionPlan {
             let path = mode == .dictation ? edited.model : edited.streamingModel
             guard !path.isEmpty, identify(path: path, mode: mode) == nil else { continue }
             let lib = library(mode)
-            if let id = lib.installed.first(where: { $0.value.path == path })?.key,
+            if let id = lib.installed.first(where: { sameFiles($0.value.path, path) })?.key,
                 let found = catalog.locate(variant: id), found.family.mode == mode,
                 found.family.variants[found.precision]?.isDerived == true
             {
@@ -202,7 +202,7 @@ struct ModelDeletionPlan {
                 lastError =
                     "\(found.family.name)'s legacy published quantization is kept on disk but no longer used. Get its 16-bit source in Models \(options(found.family).contains(found.precision) ? "to prepare the measured local tier" : "(this precision is no longer offered)")."
             } else {
-                let oldName = previousModelNames[path] ?? lib.installed.values.first { $0.path == path }?.name
+                let oldName = previousModelNames[path] ?? lib.installed.values.first { sameFiles($0.path, path) }?.name
                 lastError =
                     (oldName.map { "\(mode.title) no longer supports \($0)." } ?? "The previous \(mode.title) model is no longer supported.")
                     + " Its files are kept. Open Models… and choose Get or Load for a \(mode.title) model."

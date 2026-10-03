@@ -186,6 +186,7 @@ private struct CaptureDrain: @unchecked Sendable {
     private let queue = DispatchQueue(label: "dev.vella.capture")
     private var captureDevice = ""
     private var captureDeviceID: String?
+    private(set) var followsSystemDefault = false
     func matchesCapture(_ object: Any?) -> Bool { (object as? AVCaptureSession) === session && session != nil }
     func matchesDevice(_ object: Any?) -> Bool { (object as? AVCaptureDevice)?.uniqueID == captureDeviceID && captureDeviceID != nil }
     private(set) var url: URL?
@@ -284,6 +285,7 @@ private struct CaptureDrain: @unchecked Sendable {
         session.beginConfiguration(); session.addInput(input); session.addOutput(output); session.commitConfiguration()
         output.setSampleBufferDelegate(sink, queue: queue)
         self.sink = sink; self.session = session; captureDevice = chosen.name; captureDeviceID = device.uniqueID
+        followsSystemDefault = !Self.devices().contains { $0.name == config.preferredMicrophone || $0.name == config.fallbackMicrophone }
         session.startRunning()
         guard session.isRunning else { discard(); throw VellaError.message("Microphone capture did not start.") }
         return !config.preferredMicrophone.isEmpty && chosen.name != config.preferredMicrophone ? chosen.name + " (fallback; choose an input in Vella → Microphone)" : chosen.name

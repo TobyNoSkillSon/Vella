@@ -213,7 +213,7 @@ public final class UpdateInstaller {
     /// Its workers exit when their stdin closes.
     public static func terminateApp(_ app: URL) {
         let target = app.standardizedFileURL
-        let running = NSWorkspace.shared.runningApplications.filter { $0.bundleURL?.standardizedFileURL == target }
+        let running = NSWorkspace.shared.runningApplications.filter { $0.bundleURL.map { sameDirectory($0, target) } == true }
         running.forEach { _ = $0.terminate() }
         let deadline = Date().addingTimeInterval(15)
         while running.contains(where: { !$0.isTerminated }) && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }

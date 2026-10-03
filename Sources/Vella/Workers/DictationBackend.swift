@@ -55,7 +55,7 @@ struct WorkerExited: LocalizedError {
     /// This model's worker has these files loaded and can take a request now, without a load.
     func isReady(_ ref: ModelRef) -> Bool {
         guard let slot = slots[ref.id] else { return false }
-        return slot.loaded && !slot.retiring && slot.process.isRunning && slot.ref.path == ref.path && slot.ref.recipe == ref.recipe
+        return slot.loaded && !slot.retiring && slot.process.isRunning && sameFiles(slot.ref.path, ref.path) && slot.ref.recipe == ref.recipe
     }
     private var lastSlot: String?
     private(set) var lastMetrics: [String: Double] = [:]
@@ -169,7 +169,7 @@ struct WorkerExited: LocalizedError {
     /// or `unchanged` (their selection) no longer holds, nothing is put back, before the reload or after it.
     func restore(_ before: FamilyResidency, after used: String, while unchanged: () -> Bool = { true }) async {
         guard runtime.userChangeCount(before.id) == before.userChanges, unchanged() else { return }
-        if let now = runtime.loadedRef(before.id), now.path == used {
+        if let now = runtime.loadedRef(before.id), sameFiles(now.path, used) {
             if let loaded = before.loaded {
                 if loaded.path != used { try? await preload(loaded, residency: before.residency ?? .onDemand) }
             } else {
@@ -191,7 +191,7 @@ struct WorkerExited: LocalizedError {
     private func ensureSlot(_ ref: ModelRef, residency: ResidencyClass, generation: UUID) async throws -> DictationSlot {
         if let slot = slots[ref.id], slot.process.isRunning, !slot.retiring {
             // Same files and recipe: nothing to do. Another Standard/Exact/Fast recipe is a reload (a new worker).
-            if slot.ref.path == ref.path, slot.ref.recipe == ref.recipe {
+            if sameFiles(slot.ref.path, ref.path), slot.ref.recipe == ref.recipe {
                 if !slot.loaded { try await awaitLoaded(slot, generation: generation) }
                 return slot
             }

@@ -55,10 +55,11 @@ final class DiagnoseFormatTests: XCTestCase {
                 "vella diagnose",
                 "vella 1.0.0 (35) · app 1.0.0 (35) · API 1 · worker native-kernels-8",
                 "Mac: M4 Pro · Mac16,7 · 48 GB · macOS 15.5 (24F74) · GPU family apple9",
+                "Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it. Timed clip speed below is measured on this Mac.",
                 "parakeet-v3-ultra: Optimized · M4 Pro · BF16 · manual",
                 "  optimized: decoder, encoder",
                 "  fallbacks: none",
-                "  clips: 3/5 identical to the reference (M5 Max, optimized); clip-b 1 word off, clip-e 2 words off · 22.9 s of audio at 381× real time (M5 Max: 512×)",
+                "  clips: 3/5 identical to the reference (M5 Max, optimized); clip-b 1 word off, clip-e 2 words off · 22.9 s of audio at 381× real time (M5 Max measured: 512×; not this Mac)",
                 "qwen3-asr-1.7b: MLX · 8b · on demand",
                 "  optimized: none",
                 "  fallbacks: The optimized path failed its self-test against stock MLX on this Mac.",
@@ -103,6 +104,7 @@ final class DiagnoseFormatTests: XCTestCase {
             Diagnose.text(d),
             [
                 "vella diagnose", "vella dev", "Mac: M4 Pro · Mac16,7 · 48 GB · macOS 15.5 (24F74) · GPU family apple9",
+                "Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it. Timed clip speed below is measured on this Mac.",
                 "Vella is not running: start it from Applications and run `vella diagnose` again.",
                 "gate verdicts: none yet (a model's first load runs its self-test)"
             ])

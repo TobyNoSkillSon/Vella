@@ -85,7 +85,7 @@ import VellaCore
         // Progress estimate before local calibration: the measured speed of the selected precision (benchmarks.json).
         model.referenceSpeed = { [weak menus] path in
             guard let controller = menus?.controller,
-                let id = controller.dictation.installed.first(where: { $0.value.path == path })?.key,
+                let id = controller.dictation.installed.first(where: { sameFiles($0.value.path, path) })?.key,
                 let (family, precision) = controller.catalog.locate(variant: id),
                 let speed = controller.result(family, precision)?.speed_x, speed.isFinite, speed > 0
             else { return nil }

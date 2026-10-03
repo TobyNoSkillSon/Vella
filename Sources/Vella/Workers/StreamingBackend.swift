@@ -70,7 +70,7 @@ import VellaWire
     /// child is retired and awaited, then a new child is launched under a fresh epoch and asked to `load`. A reply,
     /// status line or EOF from an earlier child carries an old epoch and is ignored.
     private func ensureLoaded(_ ref: ModelRef, residency: ResidencyClass, token: UUID) async throws {
-        if hotRef?.path == ref.path, hotRef?.recipe == ref.recipe, loadingRef == nil, process?.isRunning == true { return }
+        if hotRef.map { sameFiles($0.path, ref.path) } == true, hotRef?.recipe == ref.recipe, loadingRef == nil, process?.isRunning == true { return }
         let previous = process?.isRunning == true && loadingRef == nil ? hotRef : nil
         let previousResidency = previous.map { runtime.residencyForRequest($0) } ?? .onDemand
         try await waitForRetired()

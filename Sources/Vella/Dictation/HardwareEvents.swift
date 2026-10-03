@@ -11,7 +11,7 @@ import CoreAudio
         mSelector: kAudioHardwarePropertyDefaultInputDevice, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
     init(
         workspace: NotificationCenter, capture: NotificationCenter, matchesCapture: @escaping (Any?) -> Bool,
-        matchesDevice: @escaping (Any?) -> Bool, monitorDefaultInput: Bool = true, receive: @escaping (Event) -> Void
+        matchesDevice: @escaping (Any?) -> Bool, monitorDefaultInput: Bool = true, defaultInputMatters: @escaping () -> Bool = { true }, receive: @escaping (Event) -> Void
     ) {
         func observe(_ center: NotificationCenter, _ name: Notification.Name, _ event: Event, matches: @escaping (Any?) -> Bool = { _ in true }) {
             let token = center.addObserver(forName: name, object: nil, queue: .main) { notification in
@@ -26,7 +26,7 @@ import CoreAudio
         observe(capture, AVCaptureSession.runtimeErrorNotification, .microphoneChanged, matches: matchesCapture)
         if monitorDefaultInput {
             let listener: AudioObjectPropertyListenerBlock = { _, _ in
-                Task { @MainActor in receive(.microphoneChanged) }
+                Task { @MainActor in if defaultInputMatters() { receive(.microphoneChanged) } }
             }
             if AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &inputAddress, .main, listener) == noErr { inputListener = listener }
         }

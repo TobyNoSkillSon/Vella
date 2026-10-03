@@ -101,7 +101,7 @@ import VellaCore
     }
     /// Menu-header label for the selected model, e.g. "Parakeet v3 4-bit"; nil when none is selected.
     var activeModelLabel: String? {
-        guard !activeModelPath.isEmpty, let model = models.first(where: { installed[$0.id]?.path == activeModelPath }) else { return nil }
+        guard !activeModelPath.isEmpty, let model = models.first(where: { installed[$0.id].map { sameFiles($0.path, activeModelPath) } == true }) else { return nil }
         return "\(model.name.replacingOccurrences(of: " ASR \u{B7}", with: "")) \(precisionInProse(precisionLabel(legacyQuantization: model.quantization)))"
     }
     var selected: ModelRecommendation? { models.first { $0.id == selectedID } }
@@ -181,10 +181,12 @@ import VellaCore
         let folder = URL(fileURLWithPath: path).standardizedFileURL
         guard let active = try? currentModelPath() else { return "Cannot verify the active model. Check configuration before deleting." }
         guard let protected = try? protectedModelPaths() else { return "Cannot verify saved model selections. Check configuration before deleting." }
-        if protected.contains(where: { !$0.isEmpty && folder.resolvingSymlinksInPath() == URL(fileURLWithPath: $0).resolvingSymlinksInPath() }) {
+        if protected.contains(where: { !$0.isEmpty && sameDirectory(folder.resolvingSymlinksInPath(), URL(fileURLWithPath: $0).resolvingSymlinksInPath()) }) {
             return "Switch to another model in that mode before deleting its saved selection."
         }
-        if (!active.isEmpty && folder.resolvingSymlinksInPath() == URL(fileURLWithPath: active).resolvingSymlinksInPath()) || path == activeModelPath {
+        if (!active.isEmpty && sameDirectory(folder.resolvingSymlinksInPath(), URL(fileURLWithPath: active).resolvingSymlinksInPath()))
+            || (!activeModelPath.isEmpty && sameFiles(path, activeModelPath))
+        {
             return "Switch to another model before deleting the one in use."
         }
         // A selected precision made on this Mac reads these weights; deleting them would leave the selection pointing
@@ -192,21 +194,21 @@ import VellaCore
         let selections = Set(([active, activeModelPath] + protected).filter { !$0.isEmpty })
         if selections.contains(where: { selection in
             derivedModelManifest(at: URL(fileURLWithPath: selection)).map {
-                URL(fileURLWithPath: $0.source).resolvingSymlinksInPath() == folder.resolvingSymlinksInPath()
+                sameDirectory(URL(fileURLWithPath: $0.source).resolvingSymlinksInPath(), folder.resolvingSymlinksInPath())
             } ?? false
         }) {
             return "Switch to another model in that mode before deleting the weights its selected precision is made from."
         }
         let root = registryURL.deletingLastPathComponent().appendingPathComponent("Models").standardizedFileURL
         guard !id.isEmpty, id != ".", id != "..", !id.contains("/"),
-            folder == root.appendingPathComponent(id).standardizedFileURL,
+            sameDirectory(folder, root.appendingPathComponent(id)),
             (try? root.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false,
-            folder.resolvingSymlinksInPath().deletingLastPathComponent() == root.resolvingSymlinksInPath(),
+            sameDirectory(folder.resolvingSymlinksInPath().deletingLastPathComponent(), root.resolvingSymlinksInPath()),
             (try? folder.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true
         else {
             return "External, shared or linked model files are protected. Only Vella's own model folders can be deleted here."
         }
-        if installed.contains(where: { $0.key != id && URL(fileURLWithPath: $0.value.path).resolvingSymlinksInPath() == folder.resolvingSymlinksInPath() }) {
+        if installed.contains(where: { $0.key != id && sameDirectory(URL(fileURLWithPath: $0.value.path).resolvingSymlinksInPath(), folder.resolvingSymlinksInPath()) }) {
             return "Another model entry shares these files; deletion is blocked."
         }
         return nil

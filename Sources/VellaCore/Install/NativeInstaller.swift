@@ -47,7 +47,7 @@ public final class NativeInstaller {
 
     private static func rejectLinkedPath(_ url: URL, until boundary: URL) throws {
         var cursor = url.standardizedFileURL
-        while cursor != boundary.standardizedFileURL {
+        while !sameDirectory(cursor, boundary) {
             if let attributes = try? FileManager.default.attributesOfItem(atPath: cursor.path),
                 (attributes[.type] as? FileAttributeType) == .typeSymbolicLink
                     || ((attributes[.type] as? FileAttributeType) == .typeRegular && (attributes[.referenceCount] as? Int ?? 1) > 1)
@@ -78,7 +78,7 @@ public final class NativeInstaller {
                 let values = try path.resourceValues(forKeys: [.isSymbolicLinkKey])
                 if values.isSymbolicLink == true {
                     let resolved = path.resolvingSymlinksInPath().standardizedFileURL
-                    guard resolved.path.hasPrefix(preparedApp.standardizedFileURL.path + "/") else {
+                    guard isWithinDirectory(resolved, root: preparedApp) else {
                         throw NativeInstallError.message("Prepared bundle contains an external link: \(path.path)")
                     }
                 }
@@ -141,7 +141,7 @@ public final class NativeInstaller {
         // The common owner root is HOME in production and a disposable fixture
         // root in isolated tests. System aliases above it (such as /var) are not ours.
         var boundary = destination.standardizedFileURL.deletingLastPathComponent()
-        while !support.standardizedFileURL.path.hasPrefix(boundary.path + "/") && boundary.path != "/" {
+        while !isWithinDirectory(support, root: boundary) && boundary.path != "/" {
             boundary.deleteLastPathComponent()
         }
         guard destination.lastPathComponent == "Vella.app" else { throw NativeInstallError.message("Choose a destination named Vella.app") }
@@ -225,7 +225,7 @@ public final class NativeInstaller {
         let workspace = NSWorkspace.shared
         func isTarget(_ other: URL?) -> Bool {
             guard let other else { return false }
-            if other.standardizedFileURL == destination.standardizedFileURL { return true }
+            if sameDirectory(other, destination) { return true }
             guard let a = try? other.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier as? NSObject,
                 let b = try? destination.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier as? NSObject
             else { return false }

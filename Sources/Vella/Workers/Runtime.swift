@@ -125,8 +125,8 @@ import VellaWire
     func resolve(_ path: String, mode: RecognitionMode) -> ModelRef {
         if let ref = resolver?(path, mode) { return ref }
         // Without a catalog identity, a recorded launch-set entry names it only when it claims no catalog precision.
-        if let ref = settings.launchSet.first(where: { $0.path == path && (resolver == nil || $0.precision.isEmpty) }) { return ref }
-        if let entry = entries.values.first(where: { $0.ref.path == path }) { return entry.ref }
+        if let ref = settings.launchSet.first(where: { sameFiles($0.path, path) && (resolver == nil || $0.precision.isEmpty) }) { return ref }
+        if let entry = entries.values.first(where: { sameFiles($0.ref.path, path) }) { return entry.ref }
         return ModelRef(id: URL(fileURLWithPath: path).lastPathComponent, path: path, mode: mode, diskBytes: Self.folderBytes(path))
     }
     nonisolated static func folderBytes(_ path: String) -> Int64? {

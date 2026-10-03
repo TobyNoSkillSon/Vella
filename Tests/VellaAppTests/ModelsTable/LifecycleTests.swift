@@ -28,7 +28,7 @@ import VellaCore
         let session = try RecordingSession(root: root, config: Configuration(model: "/fixture", mode: .streaming, streamingModel: "/fixture/stream"))
         session.manifest.state = "interrupted"; try session.save()
         let choices = SavedRecordingChoice.list(root: root)
-        XCTAssertEqual(choices.count, 1); XCTAssertEqual(choices[0].directory, session.directory)
+        XCTAssertEqual(choices.count, 1); XCTAssertTrue(sameDirectory(choices[0].directory.resolvingSymlinksInPath(), session.directory.resolvingSymlinksInPath()))
         XCTAssertTrue(choices[0].title.contains("Streaming · interrupted")); XCTAssertFalse(choices[0].title.contains(session.directory.lastPathComponent))
         let model = DictationController(monitorDefaultInput: false); defer { model.shutdown() }
         XCTAssertNil(model.savedSession)

@@ -32,7 +32,7 @@ import VellaCore
                 }
             }
             guard var precision, var path else { continue }
-            var isLoaded = loaded?.path == path
+            var isLoaded = loaded.map { sameFiles($0.path, path) } == true
             var requested: ModelSelection
             if isLoaded, let selection = loaded?.selection {
                 requested = selection

@@ -37,7 +37,7 @@ final class PermissionTests: XCTestCase {
     @MainActor func testCopyAndPasteHaveDifferentStatus() {
         let model = DictationController()
         model.phase = .success
-        XCTAssertEqual(model.title, "Copied—paste with ⌘V")
+        XCTAssertEqual(model.title, "Copied—press ⌘V")
         model.insertionWasAutomatic = true
         XCTAssertEqual(model.title, "Paste sent")
     }

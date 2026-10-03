@@ -126,10 +126,10 @@ final class DocsTests: XCTestCase {
         let blocks = section.components(separatedBy: "\n").filter { $0.first?.isNumber == true }
         XCTAssertEqual(blocks.count, 5, section)
         let expected: [[String]] = [
-            ["**Status**", "fact line"],
+            ["**Status**", "current state"],
             ["**Models…**", "**Keep Hot**", "**Memory**"],
-            ["**Start Dictation**", "**Mode**", "**Microphone**", "**Shortcuts**", "**Copy Last Transcript**", "**Open Saved Recordings**"],
-            ["**Copy Skill for Your Agent**", "**Open Vella Files**", "**Restart Worker**", "**Start Worker**", "**Launch at Login**"],
+            ["**Start Dictation**", "**Mode**", "**Microphone**", "**Shortcuts**", "**Copy Last Transcript**", "**Recover Saved Recording…**", "**Open Saved Recordings**"],
+            ["**Copy Skill for Your Agent**", "**Open Vella Files**", "**Launch at Login**"],
             ["**Support the Developer…**", "**Update to X…**", "**Quit Vella**"]
         ]
         for (block, titles) in zip(blocks, expected) {

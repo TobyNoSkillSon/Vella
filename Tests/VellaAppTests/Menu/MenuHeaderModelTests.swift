@@ -16,12 +16,12 @@ final class MenuHeaderModelTests: XCTestCase {
         try await f.load(f.alpha, "4b")
         try await f.load(f.zeta, "4b")
         XCTAssertTrue(f.runtime.isLoaded("alpha"), "Alpha stays loaded beside the current model")
-        XCTAssertEqual(f.controller.activeLabel(.dictation), "Zeta 4-bit")
+        XCTAssertEqual(f.controller.activeLabel(.dictation), "Zeta int4")
 
         // Unloaded but still selected: the header keeps naming it, not the other loaded family.
         await f.runtime.unload("zeta")
         XCTAssertFalse(f.runtime.isLoaded("zeta"))
         XCTAssertEqual(try f.config().model, f.controller.dictation.activeModelPath)
-        XCTAssertEqual(f.controller.activeLabel(.dictation), "Zeta 4-bit")
+        XCTAssertEqual(f.controller.activeLabel(.dictation), "Zeta int4")
     }
 }

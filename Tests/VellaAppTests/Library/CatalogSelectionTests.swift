@@ -18,7 +18,7 @@ final class CatalogSelectionTests: XCTestCase {
 
     struct Paths { var plain, stored, derived, outside, ultra: String }
 
-    /// Qwen3 ASR 0.6B 4b (a legacy published import), Parakeet v3 BF16 (a stored conversion), Parakeet v3 Ultra 8b (derived from
+    /// Qwen3 ASR 0.6B 4b (a legacy published import), Parakeet v3 bf16 (a stored conversion), Parakeet v3 Ultra 8b (derived from
     /// the installed BF16), an unregistered folder outside the catalog, and a registry entry for a non-catalog id.
     @MainActor private func controller() throws -> (ModelsController, Paths) {
         let models = support.appendingPathComponent("Models")
@@ -246,6 +246,8 @@ final class CatalogSelectionTests: XCTestCase {
         let derived = URL(fileURLWithPath: paths.derived)
         try FileManager.default.removeItem(at: derived)
         try Data("blocks directory creation".utf8).write(to: derived)
+        let fallback = c.dictation.modelsDirectory.appendingPathComponent(f.variants["8b"]!.id + ".derived")
+        if !sameDirectory(fallback, derived) { try Data("blocks fallback directory creation".utf8).write(to: fallback) }
         let runtime = try Runtime.isolated(root.appendingPathComponent("derive-refusal"))
         let model = DictationController(configurationURL: runtime.configURL, monitorDefaultInput: false); defer { model.shutdown() }
         let bridge = RuntimeBridge(runtime: runtime); bridge.attach(controller: c, model: model)

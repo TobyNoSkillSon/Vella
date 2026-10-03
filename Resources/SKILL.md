@@ -40,6 +40,8 @@ vella url                                      # http://127.0.0.1:63080/v1
 vella diagnose                                 # a bug report for the user; its last line is a prefilled GitHub issue link
 ```
 
+Speed and energy differences use percent below a 2× ratio, total ratios at 2× or above (for example 2.4× as fast or 0.3× the energy). A noise-level WER/Format difference reads same.
+
 ## Pick and get a model
 
 Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast: fastest, with near-best English accuracy, and supports 24 other European languages; for other languages choose `whisper-large-v3-turbo`. Choose a larger model only for a specific accuracy need.
@@ -119,4 +121,3 @@ curl -s "$(vella url)/audio/transcriptions" -F file=@talk.m4a -F response_format
 
 For community measurement, follow https://github.com/TobyNoSkillSon/Vella/blob/main/CONTRIBUTING.md#community-measurement. One model at a time is enough. The shipped `diagnose` clips are diagnostic evidence, not the full benchmark suite; label the dataset and chip. Use an agent capable of running the benchmark commands, checking their results and reporting failures for an unattended run, and ask consent before scheduling, downloading or submitting an issue/PR. Energy needs `powermetrics` and admin consent; otherwise leave energy unmeasured.
 
-Speed and energy differences use percent below a 2× ratio, total ratios at 2× or above (for example 2.4× as fast or 0.3× the energy). A noise-level WER/Format difference reads same.

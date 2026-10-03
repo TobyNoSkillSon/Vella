@@ -107,7 +107,7 @@ import CryptoKit
             model.message, "The microphone stopped delivering audio. Check its connection and start again. Saved audio is retained; Retry processes it without automatic insertion."
         )
         let failed = menu(for: model)
-        XCTAssertEqual(failed.header, "Dictation: needs attention…")
+        XCTAssertEqual(failed.header, "Microphone unavailable — choose one under Microphone")
         XCTAssertTrue(failed.titles.contains("Retry Saved Recording"))
         model.retry()
         try await settle(model) { $0.phase == .success }
@@ -117,7 +117,7 @@ import CryptoKit
 
     // MARK: Sleep / wake (seam: NSWorkspace.willSleepNotification posted in-process to the manager's observers)
 
-    func testSleepDuringRecordingCancelsOnlyAHeldCaptureAndKeepsItsAudio() async throws {
+    func testSleepDuringRecordingEndsBothActivationModesAndKeepsAudio() async throws {
         for behavior in [ShortcutBehavior.toggle, .holdToTalk] {
             let model = try model()
             var started = 0
@@ -137,14 +137,11 @@ import CryptoKit
             XCTAssertEqual(model.phase, .recording)
             NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.willSleepNotification, object: NSWorkspace.shared)
             try await Task.sleep(nanoseconds: 100_000_000)
-            if behavior == .toggle {
-                XCTAssertEqual(model.phase, .recording, "a toggle recording is not cancelled by sleep (it resumes or stalls after wake)")
-            } else {
-                XCTAssertEqual(model.phase, .idle, "a held capture is cancelled by sleep, nothing inserted")
-                XCTAssertEqual(model.message, "Stopped. Audio and completed text remain in Saved Recordings; nothing was pasted.")
-                let directory = try XCTUnwrap(model.savedSession?.directory)
-                XCTAssertEqual(try RecordingSession(directory: directory).seconds, 3, accuracy: 0.001, "its audio is kept")
-            }
+            XCTAssertEqual(model.phase, .failed, "Both toggle and held recordings end cleanly for sleep")
+            XCTAssertTrue(model.message.contains("went to sleep"))
+            XCTAssertFalse(model.insertionWasAutomatic)
+            let directory = try XCTUnwrap(model.savedSession?.directory)
+            XCTAssertEqual(try RecordingSession(directory: directory).seconds, 3, accuracy: 0.001, "its audio is kept")
             NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.didWakeNotification, object: NSWorkspace.shared)
             try await Task.sleep(nanoseconds: 50_000_000)
             XCTAssertEqual(started, 1)
@@ -197,7 +194,7 @@ import CryptoKit
         try await settle(model) { $0.phase == .failed }
         XCTAssertEqual(model.message, "Recording saved. No dictation model is selected. Choose Get Parakeet v3 Ultra (1.3 GB) in the menu to transcribe it.")
         let shown = menu(for: model)
-        XCTAssertEqual(shown.header, "Dictation: recording kept, needs a model")
+        XCTAssertEqual(shown.header, "Recording saved. Get a model to transcribe it.")
         XCTAssertTrue(shown.titles.contains("Get Parakeet v3 Ultra (1.3 GB)"))
         let saved = try RecordingSession(directory: XCTUnwrap(model.savedSession?.directory))
         XCTAssertEqual(saved.manifest.failureCode, "no_model"); XCTAssertEqual(saved.seconds, 4, accuracy: 0.001)
@@ -226,7 +223,7 @@ import CryptoKit
         XCTAssertFalse(model.insertionWasAutomatic)
         XCTAssertEqual(menu(for: model).header, "Dictation: copied—press ⌘V")
         try await settle(model) { $0.phase == .idle }
-        XCTAssertEqual(menu(for: model).header, "Dictation: Accessibility required")
+        XCTAssertEqual(menu(for: model).header, "Accessibility is off — allow Vella in Settings")
         // The next start is refused before the microphone opens; the shortcut path goes through the same check.
         XCTAssertFalse(model.ensureAutomaticInsertion())
         XCTAssertEqual(

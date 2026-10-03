@@ -116,7 +116,7 @@ import VellaCore
     func ref(path: String, mode: RecognitionMode) -> ModelRef? {
         guard let controller else { return nil }
         let library = controller.library(mode)
-        if let id = library.installed.first(where: { $0.value.path == path })?.key,
+        if let id = library.installed.first(where: { sameFiles($0.value.path, path) })?.key,
             let (family, precision) = controller.catalog.locate(variant: id)
         {
             // A registered checkpoint runs as the precision only when it IS that recipe (`registeredCheckpoint`); one

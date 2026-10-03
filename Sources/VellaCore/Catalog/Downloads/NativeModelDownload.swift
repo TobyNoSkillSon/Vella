@@ -153,7 +153,7 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     }
     private func unlinked(_ url: URL, root: URL) throws {
         var cursor = url
-        while cursor.path.hasPrefix(root.path + "/") || cursor == root {
+        while isWithinDirectory(cursor, root: root, includingRoot: true) {
             if let attributes = try? FileManager.default.attributesOfItem(atPath: cursor.path) {
                 if (attributes[.type] as? FileAttributeType) == .typeSymbolicLink
                     || ((attributes[.type] as? FileAttributeType) == .typeRegular && (attributes[.referenceCount] as? Int ?? 1) > 1)
@@ -161,7 +161,7 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
                     throw DownloadError.invalid("Linked/shared model asset preserved: \(cursor.path)")
                 }
             }
-            if cursor == root { break }; cursor.deleteLastPathComponent()
+            if sameDirectory(cursor, root) { break }; cursor.deleteLastPathComponent()
         }
     }
     public func download(_ model: ModelRecommendation, modelsDirectory: URL) async throws -> URL {

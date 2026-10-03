@@ -3,11 +3,15 @@
 ## 2.0.0 (3 October 2026)
 
 - `vella status` names each loaded model's tier and effective Standard/Optimized Fast/Optimized Exact path; stock fallbacks retain the requested recipe in parentheses.
-- The Microphone menu now states that the MacBook fallback applies when recording starts. Losing the mic mid-recording stops capture, keeps the audio and offers Retry.
+- The Microphone menu checks the system default input at recording start and can use an available fallback. Losing the mic mid-recording stops capture, keeps the audio and offers Retry.
 - Local builds include a provisional schema-2 diagnose reference with recorded conditions. Release checking and packaging refuse it until a qualified reference replaces it.
 - Known limitation: `--language` does not change recognition in 2.0; it only sets `verbose_json.language`, which echoes the requested code, or `unknown` when omitted. Detected-language reporting is deferred to 2.1.
 
 - Kept performance levers are now on by default for their measured model/precision cells: native INT8/INT4 in Parakeet Fast; tail blocks in Ultra Fast and Exact; keep-cache in Nemotron Fast and Exact, plus joint batching in BF16 Fast. Standard uses none. Lab `=1`/`=0` overrides remain; effective gate keys match measured verdicts.
+
+### Known limitations
+
+- Streaming memory: in 20-minute real-time tests Nemotron's footprint stayed bounded (peak 1.78 GB at 16-bit, 1.19 GB at 8-bit, ending below its loaded level), but slow growth of up to about 70 MB per hour can't be ruled out. Streams of an hour or more are not yet verified.
 
 ### Added
 
@@ -16,7 +20,7 @@
 - **Memory**: *Fit in free memory* (default) unloads idle models or refuses a load with the numbers and remedies; *Allow swap (slower)* skips the check.
 - **Engine label** `Optimized Fast · <chip>`, `Optimized Exact · <chip>` or `Standard` under a loaded model, backed by a self-test at load and a fallback that redoes a failed optimized transcription on the stock path.
 - **First dictation without a model** keeps the recording and offers **Get <model> (<size>)**; the recording is transcribed once the model is ready.
-- **In-app updates.** A newer release shows an orange **Update to X…** item under **Support the developer…**. **Update Now** downloads the release, verifies its SHA-256, contents, version and that it is signed like the running app, installs it when Vella is idle and restarts; if the new version does not become ready, the previous one is restored. It replaces the notice that only opened the release page.
+- **In-app updates.** A newer release shows an orange **Update to X…** item under **Support the Developer…**. **Update Now** downloads the release, verifies its SHA-256, contents, version and that it is signed like the running app, installs it when Vella is idle and restarts; if the new version does not become ready, the previous one is restored. It replaces the notice that only opened the release page.
 - **Audio files, for you and your agents.** `vella transcribe <file>` (text, `--srt`, `--vtt`, `--json`) and an OpenAI-compatible local API (`POST /v1/audio/transcriptions`, `GET /v1/models`, `GET /status`) on 127.0.0.1, so the OpenAI SDKs work with only the base URL changed. Any audio macOS decodes, up to 3 hours; dictation always goes first; nothing is pasted or kept. The installer links `vella` into `~/.local/bin`; **Copy Skill for Your Agent** and `vella skill` provide the agent skill.
 - **One-command install without git.** `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` now installs the prebuilt release with the same checks as `scripts/install.sh` (it built 0.8.8 from source with Python). `bash -s -- --dry-run` verifies without installing.
 - **Benchmark site** at https://tobynoskillson.github.io/Vella/: every measured model and precision on the v2 benchmark, sortable, with the estimated cloud API rows.

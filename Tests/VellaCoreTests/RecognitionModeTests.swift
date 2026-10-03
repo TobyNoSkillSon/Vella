@@ -17,7 +17,7 @@ final class RecognitionModeTests: XCTestCase {
         XCTAssertEqual(config.mode, .dictation)
         XCTAssertEqual(config.streamingModel, "")
         XCTAssertEqual(config.selectedModel, "/dictation")
-        XCTAssertEqual(config.preferredMicrophone, "MacBook Pro Microphone")
+        XCTAssertEqual(config.preferredMicrophone, "")
         XCTAssertNoThrow(try config.validate())
     }
     func testSlotsStayIndependentAndSnapshotDoesNotMutateSavedSelection() throws {

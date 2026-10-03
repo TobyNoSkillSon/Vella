@@ -100,7 +100,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(c.shownResult(qwen)?.speed_x, 60, "Optimized with the switch at Exact")
         c.setMode(qwen, .fast)
         XCTAssertEqual(c.shownResult(qwen)?.speed_x, 80)
-        XCTAssertEqual(speedDelta(c.shownResult(qwen)?.speed_x, base: c.baseResult(qwen)?.speed_x), Delta("2.0× faster", .better))
+        XCTAssertEqual(speedDelta(c.shownResult(qwen)?.speed_x, base: c.baseResult(qwen)?.speed_x), Delta("2.0× as fast", .better))
         XCTAssertTrue(c.showsDeltas(qwen))
         let before = c.currentSelection(qwen)
         c.select(qwen, tier: .t8, path: .standard)
@@ -230,7 +230,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(ModelTable.formatHeaderHelp, "Finished-text errors: share of characters wrong, capitals and punctuation included. Lower is better.\n" + delta)
         XCTAssertEqual(ModelTable.speedHeaderHelp, "Seconds of audio transcribed per second. Higher is faster.\n" + delta)
         XCTAssertEqual(ModelTable.energyHeaderHelp, "Energy per minute of audio, whole chip, idle subtracted. Lower is better.\n" + delta)
-        XCTAssertEqual(ModelTable.memoryHeaderHelp, "Most memory the model used while transcribing. Lower is better.")
+        XCTAssertEqual(ModelTable.memoryHeaderHelp, "Peak memory of the model worker during loading and transcription. Lower is better.")
     }
 
     /// Tier cell tooltips: flavour; delta vs Standard 16 with its basis; the loss of a worse tier; the switch's text.
@@ -239,12 +239,13 @@ final class ModelsTests: XCTestCase {
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))
         c.setMode(qwen, .exact) // the default is Fast; start from Exact
         XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .standard), "bf16, as published\nReference for the deltas · M5 Max, 28 Sep")
-        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard bf16: +1.5× speed · −25 % energy · same WER · M5 Max, 28 Sep")
+        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard bf16: Speed: 50% faster · Energy: 25% less · same WER · M5 Max, 28 Sep")
         c.setMode(qwen, .fast)
-        XCTAssertEqual(c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard bf16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep")
+        XCTAssertEqual(
+            c.tierHelp(qwen, tier: .t16, path: .optimized), "bf16, as published\nvs Standard bf16: Speed: 2.0× as fast · Energy: 35% less · WER +0.05 pt · M5 Max, 28 Sep")
         XCTAssertEqual(
             c.tierHelp(qwen, tier: .t8, path: .optimized),
-            "8-bit weights throughout (affine-8 g64)\nvs Standard bf16: +1.9× speed · −18 % energy · WER +0.17 · M5 Max, 28 Sep\nLoss vs bf16: English WER +0.17 pt")
+            "8-bit weights throughout (affine-8 g64)\nvs Standard bf16: Speed: 90% faster · Energy: 18% less · WER +0.17 pt · M5 Max, 28 Sep\nLoss vs bf16: English WER +0.17 pt")
         XCTAssertEqual(c.tierHelp(qwen, tier: .t8, path: .standard), "8-bit weights throughout (affine-8 g64)\nNot measured yet\nLoss vs bf16: English WER +0.17 pt")
         let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         XCTAssertEqual(tierFlavour(parakeet, tier: .t16, cell: nil), "bf16, converted once from the published fp32")
