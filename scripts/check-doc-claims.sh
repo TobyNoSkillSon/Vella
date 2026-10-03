@@ -15,6 +15,17 @@ doc_files() {
   done
 }
 
+# Files that ship or are published (app resources, Pages site, README, changelog, user docs). The whisper.cpp comparison was
+# withdrawn (Toby, 3 Oct 2026): none of them may name a competitor or carry its data. Worker model READMEs are not listed:
+# they credit upstream techniques by name and make no comparison.
+shipped_files() {
+  local root="$1" f
+  for f in README.md CHANGELOG.md docs/USAGE.md docs/*.js docs/*.html Resources/*.json Resources/*.md; do
+    [[ -f "$root/$f" ]] && echo "$f"
+  done
+  return 0
+}
+
 # forbid FILE-GLOB-REGEX PATTERN WHY: no matching line may exist in the matching files.
 # require FILE PATTERN WHY: the file must contain a matching line.
 check() {
@@ -53,6 +64,12 @@ check() {
   require README.md 'check_output\(\["vella", "url"\]' 'README SDK snippet must call `vella url`'
   # Item 16: the Vireo repository is private (404).
   forbid 'github\.com/TobyNoSkillSon/Vireo' 'the Vireo link returns 404'
+  # Withdrawn comparison: no competitor name or competitor_comparisons key in anything shipped or published.
+  while IFS= read -r f; do
+    if grep -n -i -E -e 'whisper\.cpp|whispercpp|whisper-cpp|wcpp|macwhisper|buzz|competitor_comparisons' "$root/$f" >"$hits" 2>/dev/null; then
+      sed "s|^|$f:|" "$hits" | cut -c1-200; echo "  -> the whisper.cpp comparison is withdrawn; no competitor name or competitor_comparisons ships"; bad=1
+    fi
+  done < <(shipped_files "$root")
   rm -f "$hits"
   return $bad
 }
@@ -79,6 +96,11 @@ E
     "a vendor's quantization-aware 4-bit"
     'client = OpenAI(base_url="http://127.0.0.1:63080/v1")'
     "[Vireo](https://github.com/TobyNoSkillSon/Vireo)"
+    "| whisper.cpp synthetic fixture | 91.23 | 2.34× |"
+    "| wcpp synthetic fixture | test-suite (1.234) |"
+    "MacWhisper and Vella compared"
+    "Buzz.app transcription rows"
+    '"competitor_comparisons": {}'
   )
   local i=0 rule
   for rule in "${rules[@]}"; do
@@ -86,10 +108,16 @@ E
     printf '%s\n' "$rule" >>"$t/bad$i/README.md"
     if check "$t/bad$i" >/dev/null; then echo "selftest: rule $i not enforced: $rule"; return 1; fi
   done
+  # a mention planted in a shipped data file or the Pages site is refused too, not only in prose
+  local planted
+  for planted in Resources/benchmarks.json docs/data.js docs/index.html Resources/AGENT_GUIDE.md; do
+    rm -rf "$t/plant"; cp -R "$t/good" "$t/plant"; printf '%s\n' 'whisper.cpp' >>"$t/plant/$planted"
+    if check "$t/plant" >/dev/null; then echo "selftest: a planted mention in $planted was accepted"; return 1; fi
+  done
   # a missing required claim is refused too
   rm -rf "$t/bare"; cp -R "$t/good" "$t/bare"; : >"$t/bare/README.md"
   if check "$t/bare" >/dev/null; then echo "selftest: missing required claims were accepted"; return 1; fi
-  echo "check-doc-claims selftest: good fixture passes; ${#rules[@]} forbidden claims and the missing-claims case are refused"
+  echo "check-doc-claims selftest: good fixture passes; ${#rules[@]} forbidden claims, planted competitor mentions in shipped files and the missing-claims case are refused"
 }
 
 case "${1:-}" in

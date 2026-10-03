@@ -23,26 +23,56 @@ final class FinalBenchmarkTests: XCTestCase {
         XCTAssertEqual(benchmarkCell(qwen, ModelSelection(tier: .t16, path: .optimized, mode: .fast)), qwen.tiers[.t16]?.cells[.optimized_exact])
     }
 
-    func testCompetitorWarmServerAndDecodingLabels() throws {
+    /// Toby withdrew the whisper.cpp comparison (3 Oct 2026): published comparisons are Vella against stock MLX plus the cloud
+    /// reference rows. No competitor name or competitor_comparisons key may ship in the app resources, the Pages site or the docs.
+    func testNoCompetitorComparisonShips() throws {
         let raw = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: Repository.root.appendingPathComponent("Resources/benchmarks.json"))) as? [String: Any])
-        var serverCount = 0
-        func inspect(_ value: Any) {
-            if let object = value as? [String: Any] {
-                if let name = object["name"] as? String, name.hasPrefix("wcpp-") {
-                    XCTAssertEqual(object["decoding"] as? String, "whisper.cpp default beam search (beam 5); Vella greedy")
-                    if name.hasSuffix("server") {
-                        serverCount += 1
-                        XCTAssertEqual(object["energy_protocol"] as? String, "warm resident server; model loaded before requests")
-                        if let latency = object["latency_ms"] as? [String: Any] { XCTAssertEqual(latency["kind"] as? String, "warm resident server request to response") }
-                    }
-                }
-                object.values.forEach(inspect)
-            } else if let list = value as? [Any] {
-                list.forEach(inspect)
+        XCTAssertNil(raw["competitor_comparisons"])
+        XCTAssertNotNil(raw["references"], "the cloud reference rows stay")
+        let tokens = ["whisper.cpp", "whispercpp", "whisper-cpp", "wcpp", "macwhisper", "buzz", "competitor_comparisons"]
+        var files = ["README.md", "CHANGELOG.md", "docs/USAGE.md"]
+        for folder in ["Resources", "docs"] {
+            let base = Repository.root.appendingPathComponent(folder)
+            for relative in FileManager.default.enumerator(atPath: base.path)?.allObjects as? [String] ?? [] {
+                if ["json", "md", "js", "html", "plist"].contains((relative as NSString).pathExtension) { files.append(folder + "/" + relative) }
             }
         }
-        inspect(raw["competitor_comparisons"] as Any)
-        XCTAssertGreaterThan(serverCount, 0)
+        XCTAssertTrue(files.contains("Resources/benchmarks.json") && files.contains("docs/data.js") && files.contains("Resources/AGENT_GUIDE.md"))
+        for relative in Set(files) {
+            let text = try String(contentsOf: Repository.root.appendingPathComponent(relative), encoding: .utf8).lowercased()
+            for token in tokens { XCTAssertFalse(text.contains(token), "\(relative) mentions the withdrawn comparison: \(token)") }
+        }
+    }
+
+    func testPublicDataGuardRefusesAPlantedCompetitorMention() throws {
+        let fixture = FileManager.default.temporaryDirectory.appendingPathComponent("vella-competitor-guard-\(UUID())")
+        try FileManager.default.createDirectory(at: fixture.appendingPathComponent("Resources"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: fixture.appendingPathComponent("docs"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: fixture) }
+        for relative in ["Resources/benchmarks.json", "Resources/models.json", "Resources/SKILL.md", "README.md", "CHANGELOG.md", "docs/data.js"] {
+            try Data("portable fixture".utf8).write(to: fixture.appendingPathComponent(relative))
+        }
+        func run() throws -> (Int32, String) {
+            let process = Process(), output = Pipe()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+            process.arguments = ["swift", Repository.root.appendingPathComponent("scripts/public-data-guard.swift").path, fixture.path]
+            process.currentDirectoryURL = Repository.root
+            process.standardOutput = output; process.standardError = output
+            try process.run()
+            let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            process.waitUntilExit()
+            return (process.terminationStatus, text)
+        }
+        XCTAssertEqual(try run().0, 0)
+        for (relative, planted) in [("README.md", "whisper.cpp Metal CLI"), ("Resources/AGENT_GUIDE.md", "compared with MacWhisper"), ("docs/data.js", "\"competitor_comparisons\": {}")] {
+            let url = fixture.appendingPathComponent(relative)
+            let original = try? Data(contentsOf: url)
+            try Data(planted.utf8).write(to: url)
+            let (status, text) = try run()
+            XCTAssertNotEqual(status, 0, "guard accepted a planted mention in \(relative)")
+            XCTAssertTrue(text.contains("withdrawn competitor comparison"), text)
+            if let original { try original.write(to: url) } else { try FileManager.default.removeItem(at: url) }
+        }
     }
 
     func testReasonDecodesAndDefaultsForOldAndMalformedData() throws {
