@@ -277,8 +277,8 @@ public enum Diagnose {
                     "no model loaded: nothing timed. `vella diagnose --load` loads the dictation model"
                         + (d.dictationModel.map { " (\($0))" } ?? "") + " and times it.")
             }
-            if !d.referenceAvailable { out.append("reference transcripts: missing for this build") }
         }
+        if !d.referenceAvailable { out.append("reference transcripts: missing for this build") }
         out.append(gateLine(d))
         if let e = d.statusError { out.append("last load error: \(redact(e))") }
         if let r = d.refused { out.append("last refusal: \(redact(r))") }

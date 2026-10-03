@@ -70,7 +70,7 @@ for f in "${BINARIES[@]}" ""; do
     Resources/mlx-swift_Cmlx.bundle) id=org.vella.mlx-swift-Cmlx ;;
   esac
   target="$DEV_APP"; [[ -z "$f" ]] || target="$DEV_APP/Contents/$f"
-  codesign --force --sign "$DEV_PIN" --identifier "$id" -r "=identifier \"$id\" and certificate leaf = H\"$(tr '[:upper:]' '[:lower:]' <<<"$DEV_PIN")\"" "$target" 2>/dev/null
+  codesign --force --sign "$DEV_PIN" --identifier "$id" -r "=designated => identifier \"$id\" and certificate leaf = H\"$(tr '[:upper:]' '[:lower:]' <<<"$DEV_PIN")\"" "$target" 2>"$ROOT/sign-error" || fail "real development fixture signing failed (no identity details printed)"
  done
 designated_pinned "$DEV_APP" || fail "real development fixture's requirements refused (syntax/quoting regression)"
 [[ "$("$GUARD" classify "$DEV_APP")" == development ]] || fail "real development app not classified development"

@@ -176,6 +176,18 @@ import CryptoKit
 
     // MARK: Recording with no model (seam: Finish on an adopted recording whose config has no model)
 
+    func testRecordingAfterClearedSelectionShowsUpgradeReason() async throws {
+        let model = try model()
+        model.missingSelectionReason = { _ in "The earlier precision is no longer offered. Get its 16-bit source; earlier files are kept." }
+        model.recorder.adoptForTesting(try recording(seconds: 4, model: ""))
+        model.phase = .recording
+        model.finish()
+        try await settle(model) { $0.phase == .failed }
+        XCTAssertTrue(model.message.contains("earlier precision is no longer offered"))
+        XCTAssertFalse(model.message.contains("installed yet"))
+        XCTAssertNotNil(model.savedSession)
+    }
+
     func testRecordingWithNoModelIsKeptAndOffersGet() async throws {
         let model = try model()
         model.offerModel = { mode in .init(id: "parakeet-ultra-mlx-bf16", name: "Parakeet v3 Ultra", downloadBytes: 1_254_840_214, mode: mode) }
@@ -183,7 +195,7 @@ import CryptoKit
         model.phase = .recording
         model.finish()
         try await settle(model) { $0.phase == .failed }
-        XCTAssertEqual(model.message, "Recording saved. No dictation model is installed yet. Choose Get Parakeet v3 Ultra (1.3 GB) in the menu to transcribe it.")
+        XCTAssertEqual(model.message, "Recording saved. No dictation model is selected. Choose Get Parakeet v3 Ultra (1.3 GB) in the menu to transcribe it.")
         let shown = menu(for: model)
         XCTAssertEqual(shown.header, "Dictation: recording kept, needs a model")
         XCTAssertTrue(shown.titles.contains("Get Parakeet v3 Ultra (1.3 GB)"))

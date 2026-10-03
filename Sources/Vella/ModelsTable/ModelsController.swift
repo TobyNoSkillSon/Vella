@@ -75,7 +75,6 @@ struct ModelDeletionPlan {
     @Published var runtime: TableRuntime?
     @Published var lastError: String?
     @Published private(set) var migrationNotices: [String] = []
-    private(set) var clearedSelectionReasons: [RecognitionMode: String] = [:]
     /// True in the render harness: nothing is written, no worker is asked.
     var previewing = false
     weak var actions: ModelRuntimeActions?
@@ -155,13 +154,13 @@ struct ModelDeletionPlan {
     /// existing registry; otherwise nothing changes. Returns cleared paths; notices include every changed selection.
     @discardableResult
     func clearSelectionsOutsideTheCatalog() -> [String] {
+        migrationNotices = []
         guard !previewing, let configURL, dictation.registryReadable,
             FileManager.default.fileExists(atPath: dictation.registryURL.path),
             let data = try? Data(contentsOf: configURL), var edited = try? JSONDecoder().decode(Configuration.self, from: data)
         else { return [] }
         var cleared: [String] = []
         var notices: [String] = []
-        var reasons: [RecognitionMode: String] = [:]
         var changed = false
         for mode in RecognitionMode.allCases {
             let path = mode == .dictation ? edited.model : edited.streamingModel
@@ -196,7 +195,6 @@ struct ModelDeletionPlan {
             } else {
                 lastError = "The saved model is no longer an offered catalog tier. Its files are kept; select a model in Models."
             }
-            reasons[mode] = lastError
             edited.clearedSelectionReasons[mode.rawValue] = lastError
             notices.append("\(mode.title): " + (lastError ?? "Choose a model in Models."))
             edited.selectModel("", for: mode)
@@ -206,7 +204,6 @@ struct ModelDeletionPlan {
         guard changed else { return [] }
         do { try JSONEncoder().encode(edited).write(to: configURL, options: .atomic) } catch { return [] }
         migrationNotices = notices
-        clearedSelectionReasons = reasons
         reloadConfig()
         return cleared
     }
