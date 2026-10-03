@@ -22,7 +22,7 @@
 
 - **Parakeet v3 int8 is offered.** The final presence gate passed; int4 remains unavailable.
 
-- On Apple M5 Max, macOS 26.6, 1–2 October 2026: Parakeet v3 Ultra bf16 · Optimized Fast is 15.51% WER, 507.1× real time, 4.58 J per audio minute and 1,792 MB peak RAM. Accuracy uses v2 (239.7 min); speed, energy and peak RAM use v2-quick (22.5 min). Measured build 55cb080 was built from 77be9f2; the final figures carry the source bridge and build provenance in `Resources/benchmarks.json`.
+- On Apple M5 Max, macOS 26.6, 1–2 October 2026: Parakeet v3 Ultra bf16 · Optimized Fast is 15.51% English WER, 507.1× real time, 4.58 J per audio minute and 1,792 MB peak RAM. Accuracy uses v2 (239.7 min); speed, energy and peak RAM use v2-quick (22.5 min). Measured build 55cb080 was built from 77be9f2; the final figures carry the source bridge and build provenance in `Resources/benchmarks.json`.
 - Whisper Fast figures remain measured. Standard and Exact figures are withdrawn and not measured yet; no Whisper speed multiplier against Standard is claimed. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
 
 ### Changed
