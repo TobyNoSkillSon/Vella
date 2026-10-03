@@ -5399,9 +5399,17 @@
       "commit": "08203e24ebdf83004ca4d81daa03f678880898c2",
       "worker_source_commit": "08203e24ebdf83004ca4d81daa03f678880898c2",
       "worker_sha256": null,
-      "commit_kind": "worker-source",
+      "commit_kind": "informational measured-defaults commit (may change in a history rewrite)",
+      "worker_source_trees": {
+        "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
+        "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+      },
+      "build_scripts_sha256": "a4a1fbcbdec5ecc7ade7ea8bf0b241cc5fec78a1e368aa1b2d3b5f7c9db463b1",
+      "worker_documentation_changes": [
+        "Worker/Sources/MLXAudioSTT/Whisper/README.md"
+      ],
       "build_receipt": "verified CI artifact receipt (filled at publish)",
-      "note": "Worker source is pinned; worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate. Bundled pre-fill data records source only."
+      "note": "Worker/Packages tree hashes and build-script bytes are authoritative. Relative to 08203e2, ALL changed Worker files are: Worker/Sources/MLXAudioSTT/Whisper/README.md (excluded by Worker/Package.swift); every other Worker file and all Packages bytes are identical. The commit is informational. Worker source is pinned; worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate. Bundled pre-fill data records source only."
     },
     "bridge": {
       "evidence": "scoped CPU source/key/verdict bridge receipt (3 Oct 2026)",

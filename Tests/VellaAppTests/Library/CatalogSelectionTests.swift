@@ -110,6 +110,12 @@ final class CatalogSelectionTests: XCTestCase {
         try JSONEncoder().encode(Configuration(model: p.plain)).write(to: configURL)
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [p.plain])
         XCTAssertTrue(c.lastError?.contains("16-bit source") == true)
+        XCTAssertEqual(c.migrationNotices.count, 1)
+        let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+        XCTAssertTrue(saved.clearedSelectionReasons["dictation"]?.contains("16-bit source") == true)
+        var replacement = saved
+        replacement.selectModel(p.stored, for: .dictation)
+        XCTAssertNil(replacement.clearedSelectionReasons["dictation"])
         XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, "")
         XCTAssertTrue(FileManager.default.fileExists(atPath: p.plain + "/model.safetensors"))
     }
@@ -136,7 +142,7 @@ final class CatalogSelectionTests: XCTestCase {
         let after = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
         XCTAssertEqual(after.model, p.plain); XCTAssertEqual(after.streamingModel, p.outside)
     }
-    /// Read-only snapshot of the 3 Oct upgrader: Ultra BF16 dictation, Nemotron published int8 streaming,
+    /// Representative subset of the 3 Oct upgrader (external registry entries omitted): Ultra BF16 dictation, Nemotron published int8 streaming,
     /// BF16 Nemotron root and unoffered v3 Q4. No user paths, recordings or weights are copied.
     @MainActor func testOctoberUpgraderKeepsStreamingAtMeasuredInt8() async throws {
         let models = support.appendingPathComponent("Models")
@@ -165,6 +171,11 @@ final class CatalogSelectionTests: XCTestCase {
             benchmarksURL: resources.appendingPathComponent("benchmarks.json"), configURL: configURL)
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
         let migrated = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+        XCTAssertEqual(c.migrationNotices.count, 1)
+        XCTAssertTrue(c.migrationNotices[0].contains("Streaming now uses"))
+        XCTAssertTrue(c.migrationNotices[0].contains("made on this Mac"))
+        XCTAssertTrue(c.migrationNotices[0].contains("earlier download is kept"))
+        XCTAssertEqual(migrated.lastLoaded, config.lastLoaded, "migration is not a successful Load")
         XCTAssertEqual(migrated.model, dictation)
         XCTAssertNotEqual(migrated.streamingModel, old)
         let manifest = try XCTUnwrap(derivedModelManifest(at: URL(fileURLWithPath: migrated.streamingModel)))
@@ -176,6 +187,8 @@ final class CatalogSelectionTests: XCTestCase {
         let absent = try XCTUnwrap(c.catalog.family("parakeet-v3"))
         XCTAssertFalse(c.options(absent).contains("4b"))
         XCTAssertEqual(try c.deletionPlan(absent, precision: "4b").path, models.appendingPathComponent(names[2]).path)
+        let streamingFamily = try XCTUnwrap(c.catalog.family(manifest.family))
+        XCTAssertTrue(try c.deletionPlan(streamingFamily, precision: "8b").title.contains("earlier download (not used)"))
         let menu = try XCTUnwrap(ModelsMenu(controller: c).modelItem().submenu)
         XCTAssertTrue(menu.items.contains { $0.title == "Delete Parakeet v3 4-bit…" })
         let bytes = try Data(contentsOf: configURL)
@@ -215,6 +228,27 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, p.stored)
         XCTAssertTrue(c.lastError?.contains("no longer offered") == true)
         XCTAssertEqual(try Data(contentsOf: legacy.appendingPathComponent("model.safetensors")), Data("keep".utf8))
+    }
+
+    @MainActor func testExternalModelJSONAgreesWithDeleteRefusal() throws {
+        let (c, _) = try controller()
+        let family = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        let id = try XCTUnwrap(family.variants["BF16"]?.id)
+        let external = root.appendingPathComponent("external-model")
+        try FileManager.default.createDirectory(at: external, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: external.appendingPathComponent("config.json"))
+        try Data("keep".utf8).write(to: external.appendingPathComponent("model.safetensors"))
+        let registryURL = support.appendingPathComponent("models-installed.json")
+        var registry = try JSONDecoder().decode([String: InstalledModel].self, from: Data(contentsOf: registryURL))
+        registry[id] = InstalledModel(path: external.path, name: family.name, quantization: "BF16")
+        try JSONEncoder().encode(registry).write(to: registryURL)
+        c.reload()
+        let runtime = try Runtime.isolated(root.appendingPathComponent("external-api-fixture"))
+        let controls = ModelControls(controller: c, runtime: runtime)
+        let files = try XCTUnwrap(controls.object(family)["local_files"] as? [[String: Any]])
+        XCTAssertEqual(files.first { $0["precision"] as? String == "bf16" }?["deletable"] as? Bool, false)
+        XCTAssertThrowsError(try c.deletionPlan(family, precision: "BF16"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: external.appendingPathComponent("model.safetensors").path))
     }
 
 }

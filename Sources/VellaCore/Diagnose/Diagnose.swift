@@ -7,7 +7,7 @@ import VellaWire
 // the five public self-test clips in the app bundle.
 
 /// Transcripts and speed of the bundled self-test clips on the reference Mac (Resources/diagnose-reference.json):
-/// family id → precision (as worker-status.json reports it) → segment ("optimized_fast", "optimized_exact", "standard") → run; legacy "optimized" / "mlx" remain readable.
+/// family id → precision (as worker-status.json reports it) → segment ("optimized_fast", "optimized_exact", "standard") → run. References older than schema 2 are rejected.
 public struct DiagnoseReference: Codable, Equatable {
     public struct Run: Codable, Equatable {
         public var transcripts: [String: String]
@@ -27,14 +27,14 @@ public struct DiagnoseReference: Codable, Equatable {
     public var method: String?
     public var models: [String: [String: [String: Run]]]
     public init(
-        schema: Int = 1, date: String? = nil, hardware: String? = nil, chip: String? = nil, gpu_family: String? = nil,
+        schema: Int = 2, date: String? = nil, hardware: String? = nil, chip: String? = nil, gpu_family: String? = nil,
         app_version: String? = nil, gate_version: String? = nil, method: String? = nil, models: [String: [String: [String: Run]]] = [:]
     ) {
         self.schema = schema; self.date = date; self.hardware = hardware; self.chip = chip; self.gpu_family = gpu_family
         self.app_version = app_version; self.gate_version = gate_version; self.method = method; self.models = models
     }
     public func run(model: String, precision: String?, engine: String?, selection: ModelSelection? = nil) -> Run? {
-        guard let precision, let engine, let runs = models[model]?[precision] else { return nil }
+        guard schema >= 2, let precision, let engine, let runs = models[model]?[precision] else { return nil }
         let segment: String
         if engine != "optimized" {
             segment = "standard"
@@ -42,16 +42,14 @@ public struct DiagnoseReference: Codable, Equatable {
             segment = effectiveSelection(selection, engine: engine).segmentKey.rawValue
         } else {
             // A new segmented reference cannot guess Fast versus Exact from the engine alone.
-            return runs["optimized"]
+            return nil
         }
         if let run = runs[segment] { return run }
-        // Never use a Fast-only legacy reference for Exact, or another segment when a new reference lacks this one.
-        guard !runs.keys.contains(where: { ["standard", "optimized_fast", "optimized_exact"].contains($0) }) else { return nil }
-        return segment == "standard" ? runs["mlx"] : segment == "optimized_fast" ? runs["optimized"] : nil
+        return nil
     }
-    /// Schemas 1 (legacy paths) and 2 (per-segment recipes).
+    /// Only qualified per-segment references (schema 2) may be compared.
     public static func decode(_ data: Data) -> DiagnoseReference? {
-        guard let reference = try? JSONDecoder().decode(DiagnoseReference.self, from: data), [1, 2].contains(reference.schema) else { return nil }
+        guard let reference = try? JSONDecoder().decode(DiagnoseReference.self, from: data), reference.schema == 2 else { return nil }
         return reference
     }
 }
@@ -279,7 +277,7 @@ public enum Diagnose {
                     "no model loaded: nothing timed. `vella diagnose --load` loads the dictation model"
                         + (d.dictationModel.map { " (\($0))" } ?? "") + " and times it.")
             }
-            if !d.referenceAvailable { out.append("reference transcripts: not found in this installation") }
+            if !d.referenceAvailable { out.append("reference transcripts: missing for this build") }
         }
         out.append(gateLine(d))
         if let e = d.statusError { out.append("last load error: \(redact(e))") }

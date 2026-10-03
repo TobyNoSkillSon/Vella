@@ -14,7 +14,17 @@ import VellaCore
     private var subscription: AnyCancellable?
     init(runtime: Runtime? = nil) { self.runtime = runtime ?? .shared }
 
+    var migrationNotice: ((String) -> Void)?
     func attach(_ delegate: AppDelegate) {
+        migrationNotice = { notice in
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = "Model selection updated"
+                alert.informativeText = notice
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
         attach(controller: delegate.modelsMenu.controller, model: delegate.model)
         delegate.menuSettings = self
         delegate.factLine = { [weak self] in self?.factLine }
@@ -74,6 +84,11 @@ import VellaCore
             runtime.log("derived: rewrote to the catalog's current recipe: \(rewritten.map { URL(fileURLWithPath: $0).lastPathComponent }.sorted().joined(separator: ", "))")
         }
         let cleared = controller.clearSelectionsOutsideTheCatalog()
+        for notice in controller.migrationNotices { runtime.log("selection migration: " + notice) }
+        model?.missingSelectionReason = { [weak controller] mode in controller?.config?.clearedSelectionReasons[mode.rawValue] }
+        if !controller.migrationNotices.isEmpty {
+            migrationNotice?(controller.migrationNotices.joined(separator: "\n"))
+        }
         if !cleared.isEmpty {
             runtime.log("config: cleared models outside the catalog: \(cleared.map { URL(fileURLWithPath: $0).lastPathComponent }.joined(separator: ", "))")
         }

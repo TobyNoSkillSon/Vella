@@ -7,7 +7,7 @@ description: Transcribe audio files offline with Vella, the local speech-to-text
 
 Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
 
-Vella runs speech-recognition models on this Mac (Apple Silicon); the user's audio and transcripts never leave the machine. Vella checks GitHub's releases API for a newer version at most once a day (at launch when due), and downloads models or updates only when asked; it has no telemetry and uploads no audio. The models the user dictates with also transcribe your files. The user's own dictation always goes first, so a file may wait a moment while they speak.
+Vella runs speech-recognition models on this Mac (Apple Silicon); the user's audio and transcripts never leave the machine. Vella checks GitHub's releases API for a newer version at most once a day (at launch when due; failed checks retry about hourly), and downloads models or updates only when asked; it has no telemetry and uploads no audio. The models the user dictates with also transcribe your files. The user's own dictation always goes first, so a file may wait a moment while they speak.
 
 ## When to use
 

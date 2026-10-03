@@ -18,8 +18,10 @@ public struct Configuration: Codable {
     /// Reload, next to `model`/`streamingModel`; the Models table shows it on an unloaded row.
     public var lastLoaded: [String: String] = [:]
     /// Catalog family id → the tier × path × Exact/Fast it was last loaded with (Selection.swift). Written only by a
-    /// successful Load or Reload, like `lastLoaded`; a family without one shows Standard 16.
+    /// successful Load or Reload, or adjusted during an upgrade migration; a family without one shows Standard 16.
     public var selections: [String: ModelSelection] = [:]
+    /// An upgrade-cleared mode retains its reason until the user selects a replacement.
+    public var clearedSelectionReasons: [String: String] = [:]
     public init(
         model: String,
         preferredMicrophone: String = "MacBook Pro Microphone", fallbackMicrophone: String = "MacBook Pro Microphone",
@@ -31,7 +33,7 @@ public struct Configuration: Codable {
     }
     /// Earlier versions also stored `executable` (the Python runtime of 0.8.x); it is ignored when read.
     private enum CodingKeys: String, CodingKey {
-        case model, mode, streamingModel, preferredMicrophone, fallbackMicrophone, residency, lastLoaded, selections
+        case model, mode, streamingModel, preferredMicrophone, fallbackMicrophone, residency, lastLoaded, selections, clearedSelectionReasons
     }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -42,6 +44,7 @@ public struct Configuration: Codable {
         fallbackMicrophone = try values.decodeIfPresent(String.self, forKey: .fallbackMicrophone) ?? "MacBook Pro Microphone"
         residency = (try? values.decodeIfPresent(ResidencySettings.self, forKey: .residency)) ?? ResidencySettings()
         lastLoaded = (try? values.decodeIfPresent([String: String].self, forKey: .lastLoaded)) ?? [:]
+        clearedSelectionReasons = (try? values.decodeIfPresent([String: String].self, forKey: .clearedSelectionReasons)) ?? [:]
         selections = (try? values.decodeIfPresent([String: ModelSelection].self, forKey: .selections)) ?? [:]
     }
     /// A successful Load/Reload: the model becomes its mode's model (what the next dictation or streaming session
@@ -53,6 +56,7 @@ public struct Configuration: Codable {
     }
     public var selectedModel: String { mode == .dictation ? model : streamingModel }
     public mutating func selectModel(_ path: String, for mode: RecognitionMode) {
+        if !path.isEmpty { clearedSelectionReasons[mode.rawValue] = nil }
         if mode == .dictation { model = path } else { streamingModel = path }
     }
     public func forRecording() throws -> Configuration {

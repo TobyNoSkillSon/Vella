@@ -83,8 +83,11 @@ designated_pinned() {  # App AND each signed helper/resource bundle: verify sign
     esac
     [[ -z "$f" ]] && target="$app" || target="$app/Contents/$f"
     expected="identifier \"$identifier\" and certificate leaf = H\"$(tr '[:upper:]' '[:lower:]' <<<"$PIN_SHA1")\""
-    codesign --verify --strict -R "$expected" "$target" >/dev/null 2>&1 || return 1
+    codesign --verify --strict -R "=$expected" "$target" >/dev/null 2>&1 || return 1
     requirement="$(codesign -d -r- "$target" 2>&1 | sed -n 's/^designated => //p')"
+    # codesign prints simple helper identifiers without quotes; dotted bundle identifiers keep them.
+    requirement="$(sed -E 's/identifier "([^"]+)"/identifier \1/' <<<"$requirement")"
+    expected="$(sed -E 's/identifier "([^"]+)"/identifier \1/' <<<"$expected")"
     [[ "$requirement" == "$expected" ]] || return 1
   done
 }
@@ -118,6 +121,8 @@ for_upload() {
   [[ -z "$tmp" ]] || rm -rf "$tmp"
   echo "release-identity: $path is signed by Vella Release Signing with the pinned requirement"
 }
+
+[[ "${BASH_SOURCE[0]}" == "$0" ]] || return 0
 
 case "${1:-}" in
   classify) [[ $# -eq 2 ]] || die "usage: classify APP|ZIP"; classify_path "$2" ;;

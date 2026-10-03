@@ -258,7 +258,7 @@ public func hardwareNote(thisChip: String?, measuredOn: String?) -> (text: Strin
     else { return nil }
     return (
         "Benchmarks measured on \(measured)",
-        "Speed, energy and memory were measured on \(measured); they differ on this Mac (\(this)). Error rates are the same."
+        "Speed, energy and memory were measured on \(measured); they differ on this Mac (\(this)). Component fallbacks can change transcripts and error rates."
     )
 }
 

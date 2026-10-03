@@ -46,7 +46,8 @@ import VellaCore
         o["local_files"] = f.variants.keys.sorted().compactMap { precision -> [String: Any]? in
             guard controller.localPath(f, precision) != nil else { return nil }
             return [
-                "precision": tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16), "offered": controller.options(f).contains(precision), "deletable": !controller.inUse(f)
+                "precision": tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16), "offered": controller.options(f).contains(precision),
+                "deletable": f.variants[precision].map { library.deletionBlockReason($0.id) == nil } ?? false
             ]
         }
         o["cells"] = ModelTier.allCases.flatMap { tier -> [[String: Any]] in

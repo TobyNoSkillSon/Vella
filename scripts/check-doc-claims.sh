@@ -9,21 +9,21 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 # Files that make claims about the product. Generated blocks inside them are covered too.
 doc_files() {
   local root="$1" f
-  for f in README.md AGENTS.md CONTRIBUTING.md CHANGELOG.md SECURITY.md docs/USAGE.md Resources/SKILL.md Resources/AGENT_GUIDE.md \
+  for f in README.md AGENTS.md CONTRIBUTING.md CHANGELOG.md SECURITY.md docs/USAGE.md Resources/SKILL.md Resources/AGENT_GUIDE.md Sources/VellaCore/ModelsTable/TableModel.swift \
            Worker/Sources/MLXAudioSTT/*/README.md; do
     [[ -f "$root/$f" ]] && echo "$f"
   done
 }
 
-# Files that ship or are published (app resources, Pages site, README, changelog, user docs). The whisper.cpp comparison was
-# withdrawn (Toby, 3 Oct 2026): none of them may name a competitor or carry its data. Worker model READMEs are not listed:
-# they credit upstream techniques by name and make no comparison.
+# Scan every published text path, including source literals and repository metadata.
+# Regression inputs and these guard implementations are intentionally excluded.
 shipped_files() {
-  local root="$1" f
-  for f in README.md CHANGELOG.md docs/USAGE.md docs/*.js docs/*.html Resources/*.json Resources/*.md; do
-    [[ -f "$root/$f" ]] && echo "$f"
-  done
-  return 0
+  local root="$1"
+  if [[ "$(git -C "$root" rev-parse --show-toplevel 2>/dev/null || true)" == "$root" ]]; then
+    git -C "$root" ls-files
+  else
+    (cd "$root" && find . -type f | sed 's|^./||')
+  fi | grep -vE '^(Tests/|lab/|\.build/|\.git/)|^scripts/(check-doc-claims.sh|public-data-guard.swift)$'
 }
 
 # forbid FILE-GLOB-REGEX PATTERN WHY: no matching line may exist in the matching files.
@@ -51,9 +51,10 @@ check() {
   forbid 'nothing leaves' 'say "your audio and transcripts never leave your Mac" plus the update-check and download facts'
   forbid 'check for a newer release after a transcription' 'the update check runs at launch and then daily'
   require README.md 'audio and transcripts never leave your Mac' 'README privacy sentence'
-  require README.md 'at most once a day \(at launch when due\)'  'README update-check cadence'
+  require README.md 'at most once a day \(at launch when due'  'README update-check cadence'
   require Resources/SKILL.md 'audio and transcripts never leave' 'skill privacy sentence'
   # Item 9: the Exact contract.
+  forbid 'accuracy does not|Error rates are the same' 'cross-chip component fallbacks can change transcripts and error rates'
   forbid 'output identical to Standard|identical to Standard' 'Exact is exact-only components that match Standard on the load-time self-test, not an identity guarantee'
   forbid 'reorder no sums|only kernels whose output equals Standard|vendor.s quantization-aware 4-bit' 'Exact is a load-time self-test contract; low-bit tiers are plain local affine derivations'
   # Item 10: WER is English WER.
@@ -66,8 +67,8 @@ check() {
   forbid 'github\.com/TobyNoSkillSon/Vireo' 'the Vireo link returns 404'
   # Withdrawn comparison: no competitor name or competitor_comparisons key in anything shipped or published.
   while IFS= read -r f; do
-    if grep -n -i -E -e 'whisper\.cpp|whispercpp|whisper-cpp|wcpp|macwhisper|buzz|competitor_comparisons' "$root/$f" >"$hits" 2>/dev/null; then
-      sed "s|^|$f:|" "$hits" | cut -c1-200; echo "  -> the whisper.cpp comparison is withdrawn; no competitor name or competitor_comparisons ships"; bad=1
+    if grep -n -i -E -e 'whisper[._ -]?cpp|wcpp|macwhisper|buzz|ggml|competitor_comparisons' "$root/$f" >"$hits" 2>/dev/null; then
+      sed "s|^|$f:|" "$hits" | cut -c1-200; echo "  -> withdrawn third-party comparison; no competitor name or competitor_comparisons ships"; bad=1
     fi
   done < <(shipped_files "$root")
   rm -f "$hits"
@@ -89,6 +90,11 @@ E
   local rules=(
     "| Native int8 | VELLA_X=1 | rev | inexact | result | Default: off |"
     "Only the checkpoint's native 16-bit weights are downloaded"
+    "accuracy does not differ across chips"
+    "Error rates are the same on other chips"
+    "Whisper cpp"
+    "whisper_cpp"
+    "ggml-fixture"
     "nothing leaves the machine"
     "a once-a-day check for a newer release after a transcription"
     "Exact offers only kernels whose output is identical to Standard"
@@ -110,8 +116,8 @@ E
   done
   # a mention planted in a shipped data file or the Pages site is refused too, not only in prose
   local planted
-  for planted in Resources/benchmarks.json docs/data.js docs/index.html Resources/AGENT_GUIDE.md; do
-    rm -rf "$t/plant"; cp -R "$t/good" "$t/plant"; printf '%s\n' 'whisper.cpp' >>"$t/plant/$planted"
+  for planted in Resources/benchmarks.json docs/data.js docs/index.html Resources/AGENT_GUIDE.md SECURITY.md CONTRIBUTING.md AGENTS.md THIRD_PARTY_NOTICES.md .github/ISSUE_TEMPLATE/test.md Sources/test.swift Worker/Sources/MLXAudioSTT/Whisper/README.md; do
+    rm -rf "$t/plant"; cp -R "$t/good" "$t/plant"; mkdir -p "$(dirname "$t/plant/$planted")"; printf '%s\n' 'whisper.cpp' >>"$t/plant/$planted"
     if check "$t/plant" >/dev/null; then echo "selftest: a planted mention in $planted was accepted"; return 1; fi
   done
   # a missing required claim is refused too

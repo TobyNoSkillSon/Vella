@@ -23,7 +23,7 @@ final class FinalBenchmarkTests: XCTestCase {
         XCTAssertEqual(benchmarkCell(qwen, ModelSelection(tier: .t16, path: .optimized, mode: .fast)), qwen.tiers[.t16]?.cells[.optimized_exact])
     }
 
-    /// Toby withdrew the whisper.cpp comparison (3 Oct 2026): published comparisons are Vella against stock MLX plus the cloud
+    /// Withdrawn third-party comparison: published comparisons are Vella against stock MLX plus the cloud
     /// reference rows. No competitor name or competitor_comparisons key may ship in the app resources, the Pages site or the docs.
     func testNoCompetitorComparisonShips() throws {
         let raw = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: Repository.root.appendingPathComponent("Resources/benchmarks.json"))) as? [String: Any])
@@ -64,12 +64,18 @@ final class FinalBenchmarkTests: XCTestCase {
         }
         XCTAssertEqual(try run().0, 0)
         let plants = [
-            ("README.md", "whisper.cpp Metal CLI"),
+            ("README.md", "whisper.cpp synthetic fixture"),
+            ("SECURITY.md", "whisper_cpp"), ("CONTRIBUTING.md", "Whisper cpp"),
+            ("AGENTS.md", "ggml-fixture"), ("THIRD_PARTY_NOTICES.md", "whisper.cpp"),
+            (".github/ISSUE_TEMPLATE/test.md", "whisper.cpp"),
+            ("Sources/Test.swift", "let name = \"whisper_cpp\""),
+            ("Worker/Sources/MLXAudioSTT/Whisper/README.md", "Whisper cpp"),
             ("Resources/AGENT_GUIDE.md", "compared with MacWhisper"),
             ("docs/data.js", "\"competitor_comparisons\": {}")
         ]
         for (relative, planted) in plants {
             let url = fixture.appendingPathComponent(relative)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             let original = try? Data(contentsOf: url)
             try Data(planted.utf8).write(to: url)
             let (status, text) = try run()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # CPU-only regression for scripts/release-identity.sh: a development-signed build is refused for staging and upload,
 # an ad hoc one is local-only, and only the pinned "Vella Release Signing" build passes. Real ad hoc signing plus a
-# codesign shim for the identities that need a certificate.
+# REAL codesign on ad hoc and development fixtures. Only the unavailable release certificate is shimmed.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
 GUARD="$PROJECT/scripts/release-identity.sh"
@@ -53,14 +53,52 @@ grep -q "not 'Vella Release Signing'" "$ROOT/err" || fail "upload refusal does n
 if "$GUARD" for-upload "$ROOT/real-out" 2>"$ROOT/err"; then fail "a directory marked local-only was accepted"; fi
 grep -q "local-only" "$ROOT/err" || fail "marker refusal does not say why"
 
-# codesign shim: development, mixed and release identities without a certificate.
+# Real development certificate: the production verifier itself must accept a pinned custom requirement.
+# This fails on the old -R file-path syntax and the old quoted-helper-only comparison.
+DEV_PIN="${VELLA_SIGN_IDENTITY:-51B366DDFD3BEA342E2AA8545D90146C9797F043}"
+DEV_APP="$ROOT/development/Vella.app"
+mkdir -p "$(dirname "$DEV_APP")"; ditto "$APP" "$DEV_APP"
+source "$GUARD"
+PIN_SHA1="$DEV_PIN"
+for f in "${BINARIES[@]}" ""; do
+  case "$f" in
+    ""|MacOS/Vella) id=dev.vella.dictation ;;
+    MacOS/VellaWorker|MacOS/VellaStreamingWorker) id=VellaWorker ;;
+    MacOS/VellaModelTool) id=VellaModelTool ;;
+    Helpers/VellaInstallTool) id=VellaInstallTool ;;
+    Helpers/vella) id=vella ;;
+    Resources/mlx-swift_Cmlx.bundle) id=org.vella.mlx-swift-Cmlx ;;
+  esac
+  target="$DEV_APP"; [[ -z "$f" ]] || target="$DEV_APP/Contents/$f"
+  codesign --force --sign "$DEV_PIN" --identifier "$id" -r "=identifier \"$id\" and certificate leaf = H\"$(tr '[:upper:]' '[:lower:]' <<<"$DEV_PIN")\"" "$target" 2>/dev/null
+ done
+designated_pinned "$DEV_APP" || fail "real development fixture's requirements refused (syntax/quoting regression)"
+[[ "$("$GUARD" classify "$DEV_APP")" == development ]] || fail "real development app not classified development"
+if "$GUARD" for-upload "$DEV_APP" 2>"$ROOT/err"; then fail "development app accepted for upload"; fi
+grep -q "signed as 'development'" "$ROOT/err" || fail "development refusal lacks reason"
+grep -q '@' "$ROOT/err" && fail "developer identity leaked"
+mkdir "$ROOT/development-out"
+ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "$DEV_APP" "$ROOT/development-out/Vella-9.9.9-arm64.zip"
+[[ "$("$GUARD" mark-local "$ROOT/development-out")" == development ]] || fail "development zip not local-only"
+PIN_SHA1=0000000000000000000000000000000000000000
+if designated_pinned "$DEV_APP"; then fail "real wrong certificate pin accepted"; fi
+PIN_SHA1="$DEV_PIN"
+echo 'PASS: real codesign ad hoc/development fixtures; custom pinned requirements and unquoted helper identifiers'
+
+# Release-identity positive case ONLY is shimmed: no access to the release private key.
 mkdir "$ROOT/bin"
 cat >"$ROOT/bin/codesign" <<'E'
 #!/usr/bin/env bash
 # Signature and requirement shims remain per-target to expose a wrong-pin helper with the right CN.
 target="${@: -1}"
 if [[ " $* " == *" --verify "* ]]; then
-  [[ -z "${FAKE_INVALID_PATH:-}" || "$target" != *"$FAKE_INVALID_PATH"* ]]; exit $?
+  previous=""
+  for arg in "$@"; do
+    if [[ "$previous" == -R && "$arg" != =* ]]; then exit 1; fi
+    previous="$arg"
+  done
+  [[ -z "${FAKE_INVALID_PATH:-}" || "$target" != *"$FAKE_INVALID_PATH"* ]] || exit 1
+  [[ -z "${FAKE_WRONG_PIN_PATH:-}" || "$target" != *"$FAKE_WRONG_PIN_PATH"* ]]; exit $?
 fi
 if [[ " $* " == *" -r- "* ]]; then
   case "$target" in
@@ -71,7 +109,8 @@ if [[ " $* " == *" -r- "* ]]; then
   esac
   pin="$FAKE_PIN"
   [[ -z "${FAKE_WRONG_PIN_PATH:-}" || "$target" != *"$FAKE_WRONG_PIN_PATH"* ]] || pin=0000
-  echo "designated => identifier \"$id\" and certificate leaf = H\"$pin\"" >&2; exit 0
+  case "$id" in *.*) id="\"$id\"" ;; esac
+  echo "designated => identifier $id and certificate leaf = H\"$pin\"" >&2; exit 0
 fi
 if [[ -n "${FAKE_DEV_PATH:-}" && "$target" == *"$FAKE_DEV_PATH"* ]]; then cat "$FAKE_DEV_TEXT" >&2; else cat "$FAKE_TEXT" >&2; fi
 E
@@ -84,23 +123,9 @@ export FAKE_PIN="$PIN"
 export FAKE_DEV_TEXT="$ROOT/dev.txt"
 shimmed() { PATH="$ROOT/bin:$PATH" "$@"; }
 
-# development identity everywhere
-export FAKE_TEXT="$ROOT/dev.txt" FAKE_DEV_PATH=""
-[[ "$(shimmed "$GUARD" classify "$FAKE")" == development ]] || fail "development app not classified development"
-if shimmed "$GUARD" for-upload "$FAKE" 2>"$ROOT/err"; then fail "a development-signed app was accepted for upload"; fi
-grep -q "signed as 'development'" "$ROOT/err" || fail "upload refusal does not say why"
-grep -q "someone@example.com" "$ROOT/err" && fail "the upload refusal printed the developer's email"
+export FAKE_TEXT="$ROOT/release.txt" FAKE_DEV_PATH=""
 mkdir "$ROOT/fake-out"
 ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "$FAKE" "$ROOT/fake-out/Vella-9.9.9-arm64.zip"
-if shimmed "$GUARD" for-upload "$ROOT/fake-out" 2>/dev/null; then fail "a development-signed zip was accepted for upload"; fi
-[[ "$(shimmed "$GUARD" mark-local "$ROOT/fake-out")" == development ]] || fail "mark-local did not report development"
-grep -q "someone@example.com" "$ROOT/fake-out/LOCAL-ONLY-NOT-FOR-UPLOAD.txt" && fail "the marker holds the developer's email"
-rm "$ROOT/fake-out/LOCAL-ONLY-NOT-FOR-UPLOAD.txt"
-
-# one development-signed helper among release-signed code: still development
-export FAKE_TEXT="$ROOT/release.txt" FAKE_DEV_PATH="Helpers/vella"
-[[ "$(shimmed "$GUARD" classify "$FAKE")" == development ]] || fail "one development helper did not make the app development"
-if shimmed "$GUARD" for-upload "$FAKE" 2>/dev/null; then fail "an app with one development helper was accepted"; fi
 
 # release identity with the pinned requirement passes; a different requirement does not
 export FAKE_DEV_PATH=""

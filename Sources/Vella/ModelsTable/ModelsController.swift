@@ -74,6 +74,8 @@ struct ModelDeletionPlan {
     /// Runtime state from the worker status; nil = no runtime attached (loaded = the mode's selected model).
     @Published var runtime: TableRuntime?
     @Published var lastError: String?
+    @Published private(set) var migrationNotices: [String] = []
+    private(set) var clearedSelectionReasons: [RecognitionMode: String] = [:]
     /// True in the render harness: nothing is written, no worker is asked.
     var previewing = false
     weak var actions: ModelRuntimeActions?
@@ -150,7 +152,7 @@ struct ModelDeletionPlan {
     /// Launch migration: a legacy published quant moves to its measured local tier from the installed root;
     /// an unoffered tier moves to that root. Missing roots/unsupported selections are cleared with a reason.
     /// No downloads or weight deletion. A preparation failure keeps the selection for retry. Requires a readable
-    /// existing registry; otherwise nothing changes. Returns only cleared paths (not migrated selections).
+    /// existing registry; otherwise nothing changes. Returns cleared paths; notices include every changed selection.
     @discardableResult
     func clearSelectionsOutsideTheCatalog() -> [String] {
         guard !previewing, let configURL, dictation.registryReadable,
@@ -158,6 +160,8 @@ struct ModelDeletionPlan {
             let data = try? Data(contentsOf: configURL), var edited = try? JSONDecoder().decode(Configuration.self, from: data)
         else { return [] }
         var cleared: [String] = []
+        var notices: [String] = []
+        var reasons: [RecognitionMode: String] = [:]
         var changed = false
         for mode in RecognitionMode.allCases {
             let path = mode == .dictation ? edited.model : edited.streamingModel
@@ -171,15 +175,16 @@ struct ModelDeletionPlan {
                 do {
                     if let derived = try precisionLoadPath(found.family, precision, installedPath: { lib.installed[$0]?.path }, modelsDirectory: lib.modelsDirectory) {
                         edited.selectModel(derived, for: mode)
-                        edited.lastLoaded[found.family.id] = precision
                         var selection = edited.selections[found.family.id] ?? ModelSelection(tier: .t16, path: .optimized, mode: .fast)
                         selection.tier = modelTier(ofPrecision: precision) ?? .t16
                         edited.selections[found.family.id] = selection
                         changed = true
-                        if precision != found.precision {
-                            lastError =
-                                "\(found.family.name)'s legacy tier is no longer offered. Its saved selection now uses \(precisionInProse(precision)) from the installed source; legacy files are kept."
-                        }
+                        let notice =
+                            precision != found.precision
+                            ? "\(mode.title) now uses \(found.family.name) at \(precisionInProse(precision)) from its installed source because the earlier precision is no longer offered; earlier files are kept."
+                            : "\(mode.title) now uses \(found.family.name) at \(precisionInProse(precision)) made on this Mac from its 16-bit source; the earlier download is kept."
+                        notices.append(notice)
+                        lastError = notice
                         continue
                     }
                 } catch {
@@ -187,16 +192,21 @@ struct ModelDeletionPlan {
                     continue
                 }
                 lastError =
-                    "\(found.family.name)'s legacy published quantization is kept on disk but no longer used. Get its 16-bit source in Models to prepare the measured local tier."
+                    "\(found.family.name)'s legacy published quantization is kept on disk but no longer used. Get its 16-bit source in Models \(options(found.family).contains(found.precision) ? "to prepare the measured local tier" : "(this precision is no longer offered)")."
             } else {
                 lastError = "The saved model is no longer an offered catalog tier. Its files are kept; select a model in Models."
             }
+            reasons[mode] = lastError
+            edited.clearedSelectionReasons[mode.rawValue] = lastError
+            notices.append("\(mode.title): " + (lastError ?? "Choose a model in Models."))
             edited.selectModel("", for: mode)
             changed = true
             cleared.append(path)
         }
         guard changed else { return [] }
         do { try JSONEncoder().encode(edited).write(to: configURL, options: .atomic) } catch { return [] }
+        migrationNotices = notices
+        clearedSelectionReasons = reasons
         reloadConfig()
         return cleared
     }
@@ -659,7 +669,7 @@ struct ModelDeletionPlan {
         let name = f.name + " " + legacyQuantization(precision)
         return ModelDeletionPlan(
             familyID: f.id, precision: precision, variantID: variant.id, path: path, wasInstalled: installed,
-            bytes: bytes, title: installed ? "Delete " + name + "?" : "Delete unfinished " + name + " download?")
+            bytes: bytes, title: installed ? "Delete " + name + (variant.isDerived ? " earlier download (not used)?" : "?") : "Delete unfinished " + name + " download?")
     }
 
     func performDeletion(_ f: ModelFamily, plan: ModelDeletionPlan) async throws {

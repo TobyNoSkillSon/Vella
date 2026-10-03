@@ -77,6 +77,7 @@ import VellaCore
     var offerModel: ((RecognitionMode) -> ModelOffer?)?
     /// Download, validate and select the offered model; returns its local path (wired by the model library).
     var fetchModel: ((ModelOffer) async throws -> String)?
+    var missingSelectionReason: ((RecognitionMode) -> String?)?
     private func awaitModel(_ session: RecordingSession) {
         savedSession = session
         allowAutomaticInsertion = false
@@ -84,7 +85,8 @@ import VellaCore
         session.manifest.state = "interrupted"; session.manifest.failureCode = "no_model"; try? session.save()
         pendingModelRequest = offerModel?(mode)
         let action = pendingModelRequest.map { "Choose \($0.title) in the menu to transcribe it." } ?? "Get a \(mode.title.lowercased()) model in Models…, then Retry."
-        update(.failed, "Recording saved. No \(mode.title.lowercased()) model is installed yet. " + action)
+        let reason = missingSelectionReason?(mode) ?? "No \(mode.title.lowercased()) model is selected."
+        update(.failed, "Recording saved. " + reason + " " + action)
     }
     /// One click: download the offered model, then transcribe the saved recording (clipboard only, like recovery).
     func getRecommendedModel() {

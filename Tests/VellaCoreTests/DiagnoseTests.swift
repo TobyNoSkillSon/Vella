@@ -11,7 +11,7 @@ final class DiagnoseFormatTests: XCTestCase {
         models: [
             "parakeet-v3-ultra": [
                 "BF16": [
-                    "optimized": .init(
+                    "optimized_fast": .init(
                         transcripts: [
                             "clip-a": "One two three.", "clip-b": "Four five six seven.", "clip-c": "Eight.",
                             "clip-d": "Nine ten.", "clip-e": "Eleven twelve."
@@ -23,7 +23,7 @@ final class DiagnoseFormatTests: XCTestCase {
     func clips(_ texts: [String]) -> [Diagnosis.Clip] { zip(Diagnose.clips, texts).map { Diagnosis.Clip(name: $0.0.name, text: $0.1) } }
 
     func testReportOptimizedStockAndStreamingModels() throws {
-        let ref = Self.reference.run(model: "parakeet-v3-ultra", precision: "BF16", engine: "optimized")
+        let ref = Self.reference.run(model: "parakeet-v3-ultra", precision: "BF16", engine: "optimized", selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast))
         XCTAssertNotNil(ref)
         let got = Diagnose.compare(clips(["One two three.", "Four five sixty seven.", "Eight.", "Nine ten.", "eleven twelve"]), with: ref)
         let run = Diagnosis.Run(
@@ -111,7 +111,7 @@ final class DiagnoseFormatTests: XCTestCase {
         let text = Diagnose.text(d)
         XCTAssertTrue(text.contains("dictation: recording"))
         XCTAssertTrue(text.contains("no model loaded: nothing timed. `vella diagnose --load` loads the dictation model (parakeet-v3-ultra) and times it."))
-        XCTAssertTrue(text.contains("reference transcripts: not found in this installation"))
+        XCTAssertTrue(text.contains("reference transcripts: missing for this build"))
         XCTAssertEqual(text.suffix(2), ["last refusal: Parakeet needs 1.3 GB; 0.4 GB is free.", "diagnostic switches set: VELLA_FORCE_STOCK"])
     }
 
@@ -187,23 +187,17 @@ final class DiagnoseFormatTests: XCTestCase {
             DiagnoseReference.decode(
                 Data(
                     #"""
-                    {"schema": 1, "chip": "Apple M5 Max", "method": "api", "extra": 1, "models": {"parakeet-v3": {"8b": {"mlx":
+                    {"schema": 2, "chip": "Apple M5 Max", "method": "api", "extra": 1, "models": {"parakeet-v3": {"8b": {"standard":
                       {"transcripts": {"clip-a": "x"}, "speed_x": 100.5, "pass_s": [0.2], "wall_ms": {"clip-a": 1}}}}}}
                     """#.utf8)))
         XCTAssertEqual(lab.run(model: "parakeet-v3", precision: "8b", engine: "mlx")?.speed_x, 100.5)
-        // The bundled file: schema 1, and every run carries all five clips.
-        let url = Repository.root
-            .appendingPathComponent("Resources/diagnose-reference.json")
-        let bundled = try XCTUnwrap(DiagnoseReference.decode(try Data(contentsOf: url)))
-        for (family, precisions) in bundled.models {
-            for (precision, paths) in precisions {
-                for (path, run) in paths {
-                    XCTAssertTrue(["optimized", "mlx", "optimized_fast", "optimized_exact", "standard"].contains(path), "\(family) \(precision) \(path)")
-                    XCTAssertEqual(Set(run.transcripts.keys), Set(Diagnose.clips.map { $0.name }), "\(family) \(precision) \(path)")
-                }
-            }
-        }
+        let url = Repository.root.appendingPathComponent("Resources/diagnose-reference.json")
+        let raw = try Data(contentsOf: url)
+        let schema = (try JSONSerialization.jsonObject(with: raw) as? [String: Any])?["schema"] as? Int ?? 0
+        if schema < 2 { XCTAssertNil(DiagnoseReference.decode(raw), "do not compare the stale bundled reference") }
+        XCTAssertNil(DiagnoseReference.decode(Data(#"{"schema": 1, "models": {}}"#.utf8)))
     }
+
     func testSegmentedReferenceSeparatesFastExactAndStandard() throws {
         let fast = DiagnoseReference.Run(transcripts: ["clip-a": "fast"], speed_x: 500)
         let exact = DiagnoseReference.Run(transcripts: ["clip-a": "exact"], speed_x: 300)
@@ -216,10 +210,10 @@ final class DiagnoseFormatTests: XCTestCase {
         XCTAssertEqual(ref.run(model: "test", precision: "8b", engine: "optimized", selection: precise), exact)
         XCTAssertEqual(ref.run(model: "test", precision: "8b", engine: "mlx", selection: precise), standard)
         XCTAssertNil(ref.run(model: "test", precision: "8b", engine: "optimized"), "do not guess the segment")
-        let legacy = DiagnoseReference(models: ["test": ["8b": ["optimized": fast, "mlx": standard]]])
-        XCTAssertEqual(legacy.run(model: "test", precision: "8b", engine: "optimized", selection: selection), fast)
+        let legacy = DiagnoseReference(schema: 1, models: ["test": ["8b": ["optimized": fast, "mlx": standard]]])
+        XCTAssertNil(legacy.run(model: "test", precision: "8b", engine: "optimized", selection: selection))
         XCTAssertNil(legacy.run(model: "test", precision: "8b", engine: "optimized", selection: precise))
-        XCTAssertEqual(legacy.run(model: "test", precision: "8b", engine: "mlx", selection: precise), standard)
+        XCTAssertNil(legacy.run(model: "test", precision: "8b", engine: "mlx", selection: precise))
     }
 }
 

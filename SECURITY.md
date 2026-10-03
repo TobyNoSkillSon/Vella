@@ -14,7 +14,7 @@ Vella records the microphone only while you dictate, and keeps recordings and tr
 
 The app serves an OpenAI-compatible HTTP API on the IPv4 loopback address (`127.0.0.1`) at a port chosen at launch. It has no authentication for uploads, by design: any process running as any user on the Mac can send it audio, and nothing off the Mac can reach it. It refuses what a web page could send. A request with an `Origin` header, a `Host` other than `127.0.0.1:<port>` or `localhost:<port>`, or a POST body that is neither `multipart/form-data` nor JSON is rejected before its body is read. A JSON request that names a local file to transcribe also needs a token that only processes able to read Vella's support directory can see. [docs/USAGE.md](docs/USAGE.md#transcribe-files-command-line-and-api) describes these checks.
 
-Its network traffic is the release download at install time, model weights from Hugging Face when you confirm a download, an update check at most once a day (at launch when due) (one request to the GitHub releases API) and the release download when you update. There is no telemetry, and audio and transcripts never leave the Mac.
+Its network traffic is the release download at install time, model weights from Hugging Face when you confirm a download, an update check at most once a day (at launch when due; failed checks retry about hourly) (one request to the GitHub releases API) and the release download when you update. There is no telemetry, and audio and transcripts never leave the Mac.
 
 ## In scope
 

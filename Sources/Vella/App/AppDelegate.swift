@@ -376,7 +376,7 @@ import VellaCore
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
     }
     static let privacyHelp =
-        "Your audio and transcripts never leave your Mac. Vella checks the GitHub releases API at most once a day (at launch when due). Models and updates download only when you ask. No telemetry."
+        "Your audio and transcripts never leave your Mac. Vella checks the GitHub releases API at most once a day (at launch when due; failed checks retry about hourly). Models and updates download only when you ask. No telemetry."
 
     private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = [], help: String? = nil) {
         let entry = NSMenuItem(title: title, action: action, keyEquivalent: key)

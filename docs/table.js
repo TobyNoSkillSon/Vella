@@ -24,7 +24,7 @@ const flavour = (tier, recipe) => {
  const all = (recipe.layers || {}).all;
  if (tier === '16') return `${all || 'bf16'}${recipe.converted_from ? `, converted once from the published ${recipe.converted_from}` : ', as published'}`;
  const layers = Object.entries(recipe.layers || {});
- return layers.length ? layers.map(([name, dtype]) => `${name}: ${dtype}`).join(', ') + ` (affine-${tier} g64 for quantized layers)` : `${tier}-bit affine weights (group 64)`;
+ return layers.length ? layers.map(([name, dtype]) => name === 'all' ? dtype : `${name} ${dtype}`).join('; ') : `${tier}-bit affine weights (group 64)`;
 };
 // Standard, then Optimized: one Optimized row where Fast runs no inexact kernel (Exact = Fast), as in the README.
 const displayCell = (t, path) => t[(t.display_cells || {})[path] || path];
