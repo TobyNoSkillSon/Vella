@@ -5401,8 +5401,8 @@
       "worker_sha256": null,
       "commit_kind": "informational measured-defaults commit (may change in a history rewrite)",
       "worker_source_trees": {
-        "Worker": "af976137fbcd3cb0346fb187aced20cd82f9cc86",
-        "Packages": "093375e515b30db74a5803abfdd6c1c0d28e29e2"
+        "Worker": "2003f58af1db057b3033b63677cae6aac8a1a54a",
+        "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
       },
       "build_scripts_sha256": "1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90",
       "worker_documentation_changes": [
@@ -5412,7 +5412,7 @@
         "Worker/Sources/MLXAudioSTT/Whisper/README.md"
       ],
       "build_receipt": "verified CI artifact receipt (filled at publish)",
-      "note": "Worker/Packages tree hashes and build-script bytes are authoritative. Relative to 843a434, ALL changed Worker files are: Worker/Sources/MLXAudioSTT/NemotronASR/README.md, Worker/Sources/MLXAudioSTT/Parakeet/README.md, Worker/Sources/MLXAudioSTT/Qwen3ASR/README.md, Worker/Sources/MLXAudioSTT/Whisper/README.md (excluded by Worker/Package.swift); every other Worker file and all Packages bytes are identical. The commit is informational. Packaging now adds the metadata-only diagnose-reference qualification guard (3 Oct); inference/build compilation is unchanged. Worker source is pinned; worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate. Bundled pre-fill data records source only."
+      "note": "Worker/Packages tree hashes and build-script bytes are authoritative. The informational commit identifies the measured-defaults baseline, not this chip-safety delta: SmallMGEMM now requires macOS 26.2 for tensor ops; FastPathGate keys and verdict metadata now include GPU architecture and device name; Parakeet tensor wrappers guard availability; worker key/capability tests and the shared GateRecord codec were updated. Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged. Measurements and the original bridge below remain dated evidence from before this safety delta, not a new performance or verdict-reuse qualification. Old verdict keys miss and each model/recipe self-tests once on its next optimized load. Worker SHA256 is filled only from the verified CI artifact at publish, never a local candidate."
     },
     "bridge": {
       "evidence": "scoped CPU source/key/verdict bridge receipt (3 Oct 2026)",

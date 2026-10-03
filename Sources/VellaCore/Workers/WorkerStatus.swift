@@ -56,7 +56,7 @@ public struct Refusal: Codable, Equatable {
 
 public struct GPUStatus: Codable, Equatable {
     public var chip: String?
-    /// Metal GPU family the engine gate keys on ("apple9"); never a chip name.
+    /// Metal GPU feature family ("apple9"); the gate also keys on architecture and device name.
     public var family: String?
     public init(chip: String? = nil, family: String? = nil) { self.chip = chip; self.family = family }
 }

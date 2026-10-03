@@ -35,6 +35,7 @@ final class GateStringTests: XCTestCase {
         #""nemotron-stream-5""#,
         #""stub-1""#,
         #""\(gpuFamily):\(osBuild):\(version)""#,
+        #"":gpu=\(identity.utf8.count):\(identity)""#,
         #"":\(revision)""#,
         #"":components=\(components)""#,
         #"":recipe=exact""#,

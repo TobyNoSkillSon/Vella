@@ -9,7 +9,7 @@ extension WorkerTests {
     /// The fast-path gate on the CPU: key composition (golden hashes derived independently with Python's hashlib from
     /// the documented recipe), switch membership, verdict persistence, and the streaming option dependencies.
     @Suite struct Gate {
-        static let host = FastPathGate.Host(gpuFamily: "apple9", osBuild: "25A123")
+        static let host = FastPathGate.Host(gpuFamily: "apple9", gpuArchitecture: "applegpu_g17s", gpuName: "Apple M5 Max", osBuild: "25A123")
         /// Production defaults: no recipe, no component switch.
         static let clean: [String: String?] = Dictionary(
             uniqueKeysWithValues: ([
@@ -35,12 +35,12 @@ extension WorkerTests {
             func key(_ revision: String = "stub-1", _ environment: [String: String?] = [:]) throws -> String {
                 try withEnvironment(Self.clean) { try withEnvironment(environment) { try FastPathGate.key(model, revision: revision, host: Self.host) } }
             }
-            #expect(try key() == "fe9f3f82e7f5f2708a3fa0869935f9e0fd9c2accb51fe2e1d31024bcb493a4e7")
-            #expect(try key("") == "84e4b1b7e7c1ad90ad1acaee3a03fb4f958a2fd263b639c7e88d24664ec83e2d")
-            #expect(try key("stub-1", ["VELLA_RECIPE": "optimized_exact"]) == "0ef51effbaa74631c7ba7bd2dab36fff6d6c90d277112d51b7a66cc350cb7c0e")
+            #expect(try key() == "7f973547927e5eac29eeb5c584bfd4516991b3762e57bd4af8de8aef0c8201de")
+            #expect(try key("") == "126dd394e80cf9e9094c7f68c2c0c5fefaa951e0bbd00cdcda5be50a1f750b36")
+            #expect(try key("stub-1", ["VELLA_RECIPE": "optimized_exact"]) == "17eefd4989df3e9d8f30494982ef94323e0fc2430b3c5b1686bc185e036dff8a")
             #expect(
                 try key("stub-1", ["VELLA_PARAKEET_FAST": "decoder", "VELLA_NEMO_FUSED": "0"])
-                    == "0244ffad6697ac8cef3431d1d02035b5823b950d5209dcd24ed660a75b9f5cfd")
+                    == "74d496dc62f2d5c41fba6c1db3f02cc6423c4c1a5558dd7b547fc1efd3ae50ba")
         }
 
         @Test func derivedKeysHashTheRecipeAndTheSource() throws {
@@ -49,11 +49,11 @@ extension WorkerTests {
             let cases = [
                 (
                     "derived-4b", "{\"schema\": 1, \"precision\": \"4b\", \"bits\": 4, \"groupSize\": 64, \"source\": \"\(source.path)\"}",
-                    "parakeet-r2-dense-encoder", "b1a7d02aa888050618fa04c585ee3432b9660e760d10755833350d68c15591de"
+                    "parakeet-r2-dense-encoder", "3f5a6ba8ea5d22494145dd36ea39015a1c2bef33a77cb3b788dc719f2de529c6"
                 ),
                 (
                     "derived-bf16", "{\"schema\": 1, \"precision\": \"BF16\", \"dtype\": \"bfloat16\", \"source\": \"\(source.path)\"}",
-                    "stub-1", "561a2df7cf0f53bfa866a4d1fdd2e17b10ecbb5eea4a80b276aa689d6817d6fb"
+                    "stub-1", "ff50349837ce02526c468228b8d602682f7515ff3d213eb030c43bb2e9dfe55d"
                 )
             ]
             for (name, manifest, revision, expected) in cases {
@@ -91,6 +91,62 @@ extension WorkerTests {
             let folder = try scratch.folder("empty")
             try Data("{}".utf8).write(to: folder.appendingPathComponent("config.json"))
             #expect(throws: (any Error).self) { try FastPathGate.key(folder, revision: "stub-1", host: Self.host) }
+        }
+
+        @Test func gpuIdentityScopesPersistedVerdicts() throws {
+            let scratch = try Scratch("vella-gate-hardware")
+            let model = try checkpoint(scratch)
+            try withEnvironment(Self.clean) {
+                func url(_ host: FastPathGate.Host) throws -> URL {
+                    scratch.url.appendingPathComponent(try FastPathGate.key(model, revision: "stub-1", host: host) + ".json")
+                }
+                let qualified = try url(Self.host)
+                FastPathGate.persist("fast", to: qualified)
+                #expect(FastPathGate.status(try url(Self.host)) == "fast")
+                var migrated = Self.host
+                migrated.gpuArchitecture = "applegpu_g16s"
+                #expect(FastPathGate.status(try url(migrated)) == nil)
+                migrated = Self.host
+                migrated.gpuName = "Apple M5 Pro"
+                #expect(FastPathGate.status(try url(migrated)) == nil)
+                // Historical keys/files survive for diagnose, but never qualify the new host key.
+                let old = scratch.url.appendingPathComponent("fe9f3f82e7f5f2708a3fa0869935f9e0fd9c2accb51fe2e1d31024bcb493a4e7.json")
+                FastPathGate.persist("fast", to: old)
+                try FileManager.default.removeItem(at: qualified)
+                #expect(FastPathGate.status(try url(Self.host)) == nil)
+                #expect(FastPathGate.status(old) == "fast")
+            }
+        }
+
+        @Test func tensorAvailabilityMirrorsMLXAndParakeetFallsBack() {
+            func os(_ major: Int, _ minor: Int) -> OperatingSystemVersion {
+                OperatingSystemVersion(majorVersion: major, minorVersion: minor, patchVersion: 0)
+            }
+            for version in [os(25, 6), os(26, 0), os(26, 1)] {
+                #expect(!SmallMGEMM.tensorOpsAvailable(architecture: "applegpu_g17s", osVersion: version))
+                let nax = FastParakeetNAX.available(architecture: "applegpu_g17s", osVersion: version)
+                let int8 = FastParakeetInt8.available(architecture: "applegpu_g17s", osVersion: version)
+                #expect(!nax && !int8)
+                Device.withDefaultDevice(Device(.cpu)) {
+                    // No evaluation or kernel dispatch: nil is the production caller's stock-MLX branch.
+                    let x = MLXArray([Float](repeating: 1, count: 9 * 64), [9, 64]).asType(.bfloat16)
+                    let w = MLXArray([Float](repeating: 1, count: 32 * 64), [32, 64]).asType(.bfloat16)
+                    let codes = MLXArray([UInt32](repeating: 1, count: 32 * 16), [32, 16])
+                    let scales = MLXArray([Float](repeating: 1, count: 32), [32, 1]).asType(.bfloat16)
+                    #expect(FastParakeetNAX.matmul(x, w, tensorOpsAvailable: nax) == nil)
+                    #expect(
+                        FastParakeetInt8.matmul(
+                            x, weight: codes, scales: scales, biases: scales, bits: 8,
+                            groupSize: 64, bias: nil, tensorOpsAvailable: int8) == nil)
+                }
+            }
+            for version in [os(26, 2), os(26, 6), os(27, 0)] {
+                #expect(SmallMGEMM.tensorOpsAvailable(architecture: "applegpu_g17s", osVersion: version))
+                #expect(!SmallMGEMM.tensorOpsAvailable(architecture: "applegpu_g16s", osVersion: version))
+                #expect(!SmallMGEMM.tensorOpsAvailable(architecture: "applegpu_g17p", osVersion: version))
+                #expect(SmallMGEMM.tensorOpsAvailable(architecture: "applegpu_g18p", osVersion: version))
+                #expect(!SmallMGEMM.tensorOpsAvailable(architecture: "unknown", osVersion: version))
+            }
         }
 
         @Test func currentHostIsTheDefault() throws {
@@ -136,7 +192,9 @@ extension WorkerTests {
             #expect(FastPathGate.disabledComponents(url) == ["nax_gemm": "word edits 3 > 1"])
             #expect(FastPathGate.inconclusiveCount(url) == 0)
             let object = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String])
-            #expect(Set(object.keys) == ["status", "workerVersion", "gpuFamily", "osBuild", "date", "model", "reason", "disabled.nax_gemm"])
+            #expect(Set(object.keys) == ["status", "workerVersion", "gpuFamily", "gpuArchitecture", "gpuName", "osBuild", "date", "model", "reason", "disabled.nax_gemm"])
+            #expect(object["gpuArchitecture"] == FastPathGate.Host.current.gpuArchitecture)
+            #expect(object["gpuName"] == FastPathGate.Host.current.gpuName)
             #expect(object["model"] == "parakeet-ultra-bf16")
             #expect(object["workerVersion"] == "native-kernels-10")
             #expect(object["reason"] == "optimized without nax_gemm (word edits 3 > 1)")

@@ -14,6 +14,9 @@ import SmallMGEMM
 /// tolerant gate component, `int8_gemm`, like `nax_gemm`.
 enum FastParakeetInt8 {
     static var available: Bool { SmallMGEMM.tensorOpsAvailable }
+    static func available(architecture: String, osVersion: OperatingSystemVersion) -> Bool {
+        SmallMGEMM.tensorOpsAvailable(architecture: architecture, osVersion: osVersion)
+    }
 
     /// The gate component for a checkpoint's bit width, or nil when the kernel does not take it or its switch is off:
     /// MLX affine 8- or 4-bit, group 64, scales and biases in BF16 (the activation dtype).
@@ -28,8 +31,8 @@ enum FastParakeetInt8 {
     /// Rows `SmallMGEMM.qtileRows` only: with `native: true` the package would otherwise route 1…2-row calls to its
     /// affine GEMV family, which this component neither self-tests nor keys. Within those rows a call the native kernel
     /// declines (N > 2048 above 100 rows) finds no other quantized family there and returns nil too.
-    static func matmul(_ x: MLXArray, weight: MLXArray, scales: MLXArray, biases: MLXArray, bits: Int, groupSize: Int, bias: MLXArray?) -> MLXArray? {
-        guard x.dtype == .bfloat16, SmallMGEMM.qtileRows.contains(x.size / max(x.dim(-1), 1)) else { return nil }
+    static func matmul(_ x: MLXArray, weight: MLXArray, scales: MLXArray, biases: MLXArray, bits: Int, groupSize: Int, bias: MLXArray?, tensorOpsAvailable: Bool = available) -> MLXArray? {
+        guard tensorOpsAvailable, x.dtype == .bfloat16, SmallMGEMM.qtileRows.contains(x.size / max(x.dim(-1), 1)) else { return nil }
         let weights = SmallMGEMM.Weights(w: weight, scales: scales, biases: biases, format: .affine(bits: bits, groupSize: groupSize))
         return SmallMGEMM.matmul(x, weights, epilogue: bias.map { .bias($0) } ?? .none, native: true)
     }

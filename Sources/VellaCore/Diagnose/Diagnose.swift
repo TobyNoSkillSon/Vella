@@ -143,10 +143,15 @@ public struct Diagnosis: Equatable {
         public var reason: String?
         public var workerVersion: String?
         public var gpuFamily: String?
+        public var gpuArchitecture: String?
+        public var gpuName: String?
         public var osBuild: String?
-        public init(status: String, model: String? = nil, reason: String? = nil, workerVersion: String? = nil, gpuFamily: String? = nil, osBuild: String? = nil) {
+        public init(
+            status: String, model: String? = nil, reason: String? = nil, workerVersion: String? = nil, gpuFamily: String? = nil, gpuArchitecture: String? = nil,
+            gpuName: String? = nil, osBuild: String? = nil
+        ) {
             self.status = status; self.model = model; self.reason = reason; self.workerVersion = workerVersion
-            self.gpuFamily = gpuFamily; self.osBuild = osBuild
+            self.gpuFamily = gpuFamily; self.gpuArchitecture = gpuArchitecture; self.gpuName = gpuName; self.osBuild = osBuild
         }
     }
 
@@ -426,7 +431,7 @@ public enum Diagnose {
         let gate: [[String: Any]] = d.gate.map { g in
             [
                 "status": g.status, "model": v(safeModelName(g.model)), "reason": v(g.reason.map(redact)), "worker_version": v(g.workerVersion),
-                "gpu_family": v(g.gpuFamily), "os_build": v(g.osBuild)
+                "gpu_family": v(g.gpuFamily), "gpu_architecture": v(g.gpuArchitecture), "gpu_name": v(g.gpuName), "os_build": v(g.osBuild)
             ]
         }
         return [

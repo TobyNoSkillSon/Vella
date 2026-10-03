@@ -18,6 +18,15 @@ final class VellaWireTests: XCTestCase {
         XCTAssertEqual(record.status, .fast)
         XCTAssertEqual(record.disabled, ["nax_gemm": "word edits 3 > 1"])
         XCTAssertEqual(record.json as NSDictionary, object as NSDictionary)
+        XCTAssertNil(record.gpuArchitecture)
+        XCTAssertNil(record.gpuName)
+        var current = object
+        current["gpuArchitecture"] = "applegpu_g17s"
+        current["gpuName"] = "Apple M5 Max"
+        let identified = try XCTUnwrap(GateRecord(json: current))
+        XCTAssertEqual(identified.gpuArchitecture, "applegpu_g17s")
+        XCTAssertEqual(identified.gpuName, "Apple M5 Max")
+        XCTAssertEqual(identified.json as NSDictionary, current as NSDictionary)
         let inconclusive = try XCTUnwrap(GateRecord(json: ["status": "inconclusive", "count": "1"]))
         XCTAssertEqual(inconclusive.count, 1)
         XCTAssertEqual(inconclusive.json, ["status": "inconclusive", "count": "1"])

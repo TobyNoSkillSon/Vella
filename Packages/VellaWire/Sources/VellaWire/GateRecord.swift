@@ -5,6 +5,8 @@ public struct GateRecord: Equatable, Sendable {
     public var status: Status
     public var workerVersion: String?
     public var gpuFamily: String?
+    public var gpuArchitecture: String?
+    public var gpuName: String?
     public var osBuild: String?
     public var date: String?
     /// Consecutive inconclusive self-tests (only with `inconclusive`).
@@ -17,10 +19,11 @@ public struct GateRecord: Equatable, Sendable {
     public var disabled: [String: String]
 
     public init(
-        status: Status, workerVersion: String? = nil, gpuFamily: String? = nil, osBuild: String? = nil, date: String? = nil,
+        status: Status, workerVersion: String? = nil, gpuFamily: String? = nil, gpuArchitecture: String? = nil, gpuName: String? = nil, osBuild: String? = nil, date: String? = nil,
         count: Int? = nil, model: String? = nil, reason: String? = nil, disabled: [String: String] = [:]
     ) {
         self.status = status; self.workerVersion = workerVersion; self.gpuFamily = gpuFamily; self.osBuild = osBuild; self.date = date
+        self.gpuArchitecture = gpuArchitecture; self.gpuName = gpuName
         self.count = count; self.model = model; self.reason = reason; self.disabled = disabled
     }
 
@@ -31,7 +34,8 @@ public struct GateRecord: Equatable, Sendable {
         guard let raw = json["status"] as? String, let status = Status(rawValue: raw) else { return nil }
         func text(_ key: String) -> String? { json[key] as? String }
         self.init(
-            status: status, workerVersion: text("workerVersion"), gpuFamily: text("gpuFamily"), osBuild: text("osBuild"),
+            status: status, workerVersion: text("workerVersion"), gpuFamily: text("gpuFamily"),
+            gpuArchitecture: text("gpuArchitecture"), gpuName: text("gpuName"), osBuild: text("osBuild"),
             date: text("date"), count: text("count").flatMap(Int.init), model: text("model"), reason: text("reason"),
             disabled: Dictionary(
                 uniqueKeysWithValues: json.compactMap { key, value in
@@ -44,7 +48,7 @@ public struct GateRecord: Equatable, Sendable {
     public var json: [String: String] {
         var object = ["status": status.rawValue]
         for (key, value) in [
-            ("workerVersion", workerVersion), ("gpuFamily", gpuFamily), ("osBuild", osBuild), ("date", date),
+            ("workerVersion", workerVersion), ("gpuFamily", gpuFamily), ("gpuArchitecture", gpuArchitecture), ("gpuName", gpuName), ("osBuild", osBuild), ("date", date),
             ("count", count.map(String.init)), ("model", model), ("reason", reason)
         ] {
             if let value { object[key] = value }

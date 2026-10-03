@@ -86,15 +86,21 @@ public enum SmallMGEMM {
     /// Rows of the native quantized tile kernel (`native: true`).
     public static let qtileRows = 9...256
 
-    /// Tensor-op matmul needs Metal 4 and an Apple GPU of generation 17 or later (MLX's own test before its NAX
-    /// kernels: `applegpu_g<gen><class>`, gen ≥ 17, phones ≥ 18).
+    /// Tensor-op matmul mirrors MLX's NAX availability: macOS ≥ 26.2 and
+    /// `applegpu_g<gen><class>`, gen ≥ 17, phones ≥ 18.
     public static let tensorOpsAvailable: Bool = {
-        let architecture = GPU.deviceInfo().architecture
+        guard #available(macOS 26.2, *) else { return false }
+        return tensorOpsAvailable(architecture: GPU.deviceInfo().architecture, osVersion: ProcessInfo.processInfo.operatingSystemVersion)
+    }()
+
+    /// Pure capability seam: tests can exercise older OS/GPU combinations without compiling or running a kernel.
+    public static func tensorOpsAvailable(architecture: String, osVersion: OperatingSystemVersion) -> Bool {
+        guard osVersion.majorVersion > 26 || (osVersion.majorVersion == 26 && osVersion.minorVersion >= 2) else { return false }
         guard architecture.hasPrefix("applegpu_g") else { return false }
         let tail = architecture.dropFirst("applegpu_g".count)
         guard let generation = Int(tail.prefix(while: \.isNumber)), let family = tail.last else { return false }
         return generation >= (family == "p" ? 18 : 17)
-    }()
+    }
 
     // MARK: - Capability
 

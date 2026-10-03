@@ -9,7 +9,7 @@ public enum FastPathGateError: Error { case invalid }
 
 /// Load-time qualification of any `FastPathCapable` model's optimized path against stock MLX on this Mac.
 /// The test runs in a child process with a deadline, so a kernel hang or GPU fault cannot take down the serving
-/// worker. The verdict is persisted per (model files, GPU family, macOS build, worker version, model fast-path
+/// worker. The verdict is persisted per (model files, GPU family/architecture/device name, macOS build, worker version, model fast-path
 /// revision); failure is sticky for that key — never turn a failed test into a fast run.
 /// Two stages (lab/notes/GATE-REVISION.md): exact components must reproduce stock's tokens, or the whole model runs
 /// stock; each inexact (tolerant) component is then tested within its tolerance on top of them, and a failure there
@@ -120,9 +120,16 @@ public enum FastPathGate {
     /// The host facts a gate key covers. Tests pin them; the worker always passes `.current`.
     public struct Host: Equatable, Sendable {
         public var gpuFamily: String
+        public var gpuArchitecture: String
+        public var gpuName: String
         public var osBuild: String
-        public init(gpuFamily: String, osBuild: String) { self.gpuFamily = gpuFamily; self.osBuild = osBuild }
-        public static var current: Host { Host(gpuFamily: FastPathGate.gpuFamily, osBuild: FastPathGate.osBuild) }
+        public init(gpuFamily: String, gpuArchitecture: String, gpuName: String, osBuild: String) {
+            self.gpuFamily = gpuFamily; self.gpuArchitecture = gpuArchitecture; self.gpuName = gpuName; self.osBuild = osBuild
+        }
+        public static var current: Host {
+            Host(gpuFamily: FastPathGate.gpuFamily, gpuArchitecture: GPU.deviceInfo().architecture,
+                 gpuName: MTLCreateSystemDefaultDevice()?.name ?? "unavailable", osBuild: FastPathGate.osBuild)
+        }
     }
 
     /// Encode resolved kept levers in the historical measured-key format. Off is absence, on is NAME=1;
@@ -171,6 +178,10 @@ public enum FastPathGate {
             }) {}
         }
         digest.update(data: Data("\(gpuFamily):\(osBuild):\(version)".utf8))
+        // Length-delimited identity prevents ambiguous names; every pre-identity verdict now misses once.
+        for identity in [host.gpuArchitecture, host.gpuName] {
+            digest.update(data: Data(":gpu=\(identity.utf8.count):\(identity)".utf8))
+        }
         if !revision.isEmpty { digest.update(data: Data(":\(revision)".utf8)) }
         let components = effectiveConfiguration(levers, environment: ProcessInfo.processInfo.environment)
         if !components.isEmpty { digest.update(data: Data(":components=\(components)".utf8)) }
@@ -209,7 +220,9 @@ public enum FastPathGate {
     public static func persist(_ value: String, to url: URL, count: Int? = nil, model: URL? = nil, reason: String? = nil,
                                disabled: [String: String] = [:]) {
         guard let status = GateRecord.Status(rawValue: value) else { return }
-        let record = GateRecord(status: status, workerVersion: version, gpuFamily: gpuFamily, osBuild: osBuild,
+        let host = Host.current
+        let record = GateRecord(status: status, workerVersion: version, gpuFamily: host.gpuFamily, gpuArchitecture: host.gpuArchitecture,
+                                gpuName: host.gpuName, osBuild: host.osBuild,
                                 date: ISO8601DateFormatter().string(from: Date()), count: count, model: model?.lastPathComponent,
                                 reason: reason, disabled: disabled)
         guard let data = try? JSONSerialization.data(withJSONObject: record.json) else { return }

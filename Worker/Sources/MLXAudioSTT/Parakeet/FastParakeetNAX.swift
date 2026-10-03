@@ -10,8 +10,11 @@ import SmallMGEMM
 /// tile kernel reorders the sums (≤ 1 BF16 ulp per GEMM), so the self-test bounds the encoder deviation instead of
 /// requiring bit-identity.
 enum FastParakeetNAX {
-    /// Tensor-op matmul needs Metal 4 and an Apple GPU of generation 17 or later (SmallMGEMM's test).
+    /// Tensor-op matmul needs macOS 26.2, Metal 4 and an Apple GPU of generation 17 or later (SmallMGEMM's test).
     static var available: Bool { SmallMGEMM.tensorOpsAvailable }
+    static func available(architecture: String, osVersion: OperatingSystemVersion) -> Bool {
+        SmallMGEMM.tensorOpsAvailable(architecture: architecture, osVersion: osVersion)
+    }
 
     /// The one default switch. On since 28 Sep: the kernel passed the full-v2 gate of lab/notes/GATE-REVISION.md for
     /// Ultra and v3 BF16 against the fused MLX-GEMM path and stock (lab/bench/GATE-RESULTS.md); on M5 Max it made the
@@ -33,9 +36,9 @@ enum FastParakeetNAX {
     /// Row range 9…256 (SmallMGEMM.tileRows): above ~256 rows MLX's own tiling fills the GPU and the split-K kernel no
     /// longer wins (M5 Max, 24-layer encoder stack: T 150 1.21×, T 375 0.99×); up to 8 rows MLX's gemv streams weights
     /// at ~390 GB/s (Ultra BF16 v2-mini, encoder calls with T ≤ 8: 5.5 ms MLX vs 6.4 ms here).
-    static func matmul(_ x: MLXArray, _ w: MLXArray) -> MLXArray? {
+    static func matmul(_ x: MLXArray, _ w: MLXArray, tensorOpsAvailable: Bool = available) -> MLXArray? {
         // Tile rows only: the package's GEMV family (M ≤ 8) is not part of Parakeet's qualified path.
-        guard x.dtype == .bfloat16, SmallMGEMM.tileRows.contains(x.size / max(x.dim(-1), 1)) else { return nil }
+        guard tensorOpsAvailable, x.dtype == .bfloat16, SmallMGEMM.tileRows.contains(x.size / max(x.dim(-1), 1)) else { return nil }
         return SmallMGEMM.matmul(x, .dense(w))
     }
 

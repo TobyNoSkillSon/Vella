@@ -70,7 +70,7 @@ extension WorkerTests {
             try Data("test weights".utf8).write(to: model.appendingPathComponent("model.safetensors"))
             try withEnvironment(WorkerTests.Gate.clean) {
                 let base = "parakeet-r2-dense-encoder"
-                let host = FastPathGate.Host(gpuFamily: "apple9", osBuild: "25G72")
+                let host = FastPathGate.Host(gpuFamily: "apple9", gpuArchitecture: "applegpu_g17s", gpuName: "Apple M5 Max", osBuild: "25G72")
                 let defaultKey = try FastPathGate.key(model, revision: base, host: host)
                 let explicitKey = try withEnvironment(["VELLA_PARAKEET_TAILBLOCK": "1"]) {
                     try FastPathGate.key(model, revision: base, host: host)

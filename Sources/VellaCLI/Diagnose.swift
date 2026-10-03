@@ -157,7 +157,8 @@ struct DiagnoseCollector {
             else { return nil }
             return Diagnosis.GateVerdict(
                 status: status, model: o["model"] as? String, reason: o["reason"] as? String,
-                workerVersion: o["workerVersion"] as? String, gpuFamily: o["gpuFamily"] as? String, osBuild: o["osBuild"] as? String)
+                workerVersion: o["workerVersion"] as? String, gpuFamily: o["gpuFamily"] as? String,
+                gpuArchitecture: o["gpuArchitecture"] as? String, gpuName: o["gpuName"] as? String, osBuild: o["osBuild"] as? String)
         }
     }
 

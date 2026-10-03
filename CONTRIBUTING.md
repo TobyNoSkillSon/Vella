@@ -113,7 +113,7 @@ One model at a time is welcome; nobody needs to run the full catalog. **The 2.0 
 
 Vella optimizes on hardware we own: M5 Max so far. Standard and working feature-gated fallbacks serve other Macs; no speed claim on them is a measurement until someone measures it. If a path is slow or disabled on your chip and you can fix it, you are welcome to:
 
-- Put the new path **behind the load-time self-test** (`FastPathGate`). When a model loads, a child process runs the optimized and the stock MLX path on the bundled self-test clips and compares the tokens; the verdict is kept per model, GPU family, macOS build and helper version. Gate on GPU family and features, never on chip names. If the test fails, or the path fails during a transcription, Vella must fall back to the stock path and say why: that is what the table's "MLX" label and `vella diagnose` show.
+- Put the new path **behind the load-time self-test** (`FastPathGate`). When a model loads, a child process runs the optimized and the stock MLX path on the bundled self-test clips and compares the tokens; the verdict is kept per model, GPU family/architecture/device name, macOS build and helper version. Gate on GPU family and features, never on chip names. If the test fails, or the path fails during a transcription, Vella must fall back to the stock path and say why: that is what the table's "MLX" label and `vella diagnose` show.
 - Leave other chips' paths unchanged. Transcripts must stay within the parity limits: token-exact on the self-test clips, and English word error rate within 0.1 points of the stock path.
 - Attach `vella diagnose` output from before and after the change on that chip, and name every chip you tested on. The maintainer checks the reference Mac for regressions.
 

@@ -58,6 +58,25 @@ final class PersistedFormatTests: XCTestCase {
             ])
     }
 
+    func testGateGPUIdentityReachesDiagnosisJSON() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("vella-verdicts-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: fixture("verdict-fast-partial.json")) as? [String: String])
+        object["gpuArchitecture"] = "applegpu_g17s"
+        object["gpuName"] = "Apple M5 Max"
+        try JSONSerialization.data(withJSONObject: object).write(to: dir.appendingPathComponent("current.json"))
+        let verdicts = DiagnoseCollector.gateVerdicts(in: dir)
+        XCTAssertEqual(verdicts.first?.gpuArchitecture, "applegpu_g17s")
+        XCTAssertEqual(verdicts.first?.gpuName, "Apple M5 Max")
+        var diagnosis = Diagnosis(host: Diagnosis.Host(), running: false)
+        diagnosis.gate = verdicts
+        let json = Diagnose.json(diagnosis, issueURL: "")
+        let gate = try XCTUnwrap((json["gate_verdicts"] as? [[String: Any]])?.first)
+        XCTAssertEqual(gate["gpu_architecture"] as? String, "applegpu_g17s")
+        XCTAssertEqual(gate["gpu_name"] as? String, "Apple M5 Max")
+    }
+
     func testWorkerStatusOf10() throws {
         let data = try fixture("worker-status-1.0.json")
         let status = try JSONDecoder().decode(WorkerStatus.self, from: data)

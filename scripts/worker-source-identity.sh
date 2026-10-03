@@ -9,11 +9,13 @@
 # under Worker/ is pinned byte for byte (content and exec bit), and so is all of Packages/.
 set -euo pipefail
 SOURCE=843a43444659dbd7f2de507b1e2da11453efb31b # informational measured-defaults commit, never a reachability gate
-WORKER_CODE_TREE=ce8b527583b37c77274eb242b58025b85f35b6fc   # git tree of Worker/ with its README.md files removed
-PACKAGES_TREE=093375e515b30db74a5803abfdd6c1c0d28e29e2
+WORKER_CODE_TREE=91974929416f1f62d2c7c1bcb5eb5a08449cfcb5   # git tree of Worker/ with its README.md files removed
+PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
+# 3 Oct chip-safety delta: macOS 26.2 tensor preflight; GPU architecture/name in gate keys and optional verdict metadata.
+# Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
 # Reported, never gated: README content is outside the pin.
-WORKER_FULL_TREE=af976137fbcd3cb0346fb187aced20cd82f9cc86
+WORKER_FULL_TREE=2003f58af1db057b3033b63677cae6aac8a1a54a
 # Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 843a434
 # (BASE_WORKER_TREE, full tree including READMEs). The history scrub of 3 Oct rewrote that commit's Whisper README, so this
 # is the rewritten tree; the pre-scrub tree survives only in the local backup (see its receipt). Package.swift excludes each of
