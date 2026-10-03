@@ -305,7 +305,7 @@ final class CatalogTests: XCTestCase {
             }
         }
         XCTAssertEqual(lines.filter { $0.hasPrefix("| ") && !$0.hasPrefix("| Model") && !$0.contains("(cloud API)") }.count, rows, "no other model rows")
-        XCTAssertTrue(table.contains("Shipped worker source `40a2eef`"), "both builds and the source bridge are documented")
+        XCTAssertTrue(table.contains("Shipped worker source `08203e2`"), "both builds and the source bridge are documented")
     }
 
     /// The shipped benchmarks.json (schema 2): every catalog family, tiers 16/8/4 only (never fp32), all three cells per

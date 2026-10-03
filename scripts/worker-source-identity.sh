@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# Release 2.0 measured-source bridge. Markdown is generated documentation, not executed worker source.
-# Pin every other tracked Worker/Packages file and the measured build scripts by bytes; works with shallow Git history.
+# Release 2.0 defaults-source receipt. The historical measured-source bridge is retained separately.
+# Worker/Packages must match the named defaults commit; build scripts keep their measured byte pin.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 untracked="$(git ls-files --others --exclude-standard Worker Packages | grep -v '\.md$' || true)"
 [[ -z "$untracked" ]] || { echo "untracked worker source outside bridge: $untracked"; exit 1; }
-EXPECTED=1bdd71a270f7cf09d66629ef7a25e50806428029adaf5ab232c23737a58d595d
-actual="$(git ls-files Worker Packages | grep -v '\.md$' | LC_ALL=C sort | while IFS= read -r path; do shasum -a 256 "$path"; done | shasum -a 256 | awk '{print $1}')"
-[[ "$actual" == "$EXPECTED" ]] || { echo "worker source differs from shipped bridge 40a2eef: $actual"; exit 1; }
-echo "worker source matches 40a2eef (generated Markdown excluded): $actual"
+# Immutable defaults source commit; measurement provenance remains 55cb080/40a2eef in the historical bridge.
+SOURCE=08203e24ebdf83004ca4d81daa03f678880898c2
+git cat-file -e "$SOURCE^{commit}" || { echo "defaults source commit is missing: $SOURCE"; exit 1; }
+git diff --exit-code "$SOURCE" HEAD -- Worker Packages >/dev/null \
+  || { echo "Worker/Packages differ from defaults source $SOURCE"; exit 1; }
+git diff --exit-code "$SOURCE" -- Worker Packages >/dev/null \
+  || { echo "working Worker/Packages differ from defaults source $SOURCE"; exit 1; }
+echo "worker source matches defaults commit $SOURCE (measured keys checked separately)"
 
 # The bridge also depends on the packaging/toolchain path, not only Worker/Packages.
 build_paths=(

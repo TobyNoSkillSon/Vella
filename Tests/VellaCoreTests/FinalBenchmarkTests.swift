@@ -20,7 +20,7 @@ final class FinalBenchmarkTests: XCTestCase {
         let raw = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let builds = try XCTUnwrap(raw["builds"] as? [String: [String: Any]])
         XCTAssertEqual(builds["measured"]?["commit"] as? String, "55cb080")
-        XCTAssertEqual(builds["shipped"]?["commit"] as? String, "40a2eef")
+        XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "08203e24ebdf83004ca4d81daa03f678880898c2")
         let bridge = try XCTUnwrap(builds["bridge"]?["whisper_fast_token_identity"] as? [String: Any])
         XCTAssertEqual(bridge["status"] as? String, "pass")
         XCTAssertEqual(bridge["cells"] as? Int, 6)

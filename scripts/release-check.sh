@@ -77,10 +77,10 @@ toolchains() {
   local v; v="$("$CLT_SWIFT" --version 2>&1)"; echo "$v"
   grep -q 'Apple Swift version 6\.3\.3 ' <<<"$v" \
     || { echo "releases are built with Command Line Tools Swift 6.3.3 (xcode-select --install)"; return 1; }
-  xcodebuild -version
-  xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q 'Status: installed' \
+  DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcodebuild -version
+  DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q 'Status: installed' \
     || { echo "Metal Toolchain missing: xcodebuild -downloadComponent MetalToolchain"; return 1; }
-  xcrun metal --version
+  DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcrun metal --version
 }
 
 changelog() {  # release.yml puts this section into the draft release notes
@@ -137,7 +137,7 @@ tests() {
 
 step "source only in git" source_only
 step "source archive excludes lab" source_archive_no_lab
-step "shipped worker-source bridge 40a2eef" scripts/worker-source-identity.sh
+step "shipped defaults worker-source receipt" scripts/worker-source-identity.sh
 step "public data privacy" xcrun swift scripts/public-data-guard.swift
 step "toolchains" toolchains
 step "changelog $VERSION" changelog
