@@ -32,7 +32,13 @@ final class APIJobCancellation: @unchecked Sendable {
     private var finished = false
     var source: String { lock.withLock { reason } }
     /// Records why the request is being cancelled; false once its handler has returned (nothing left to cancel).
-    func mark(_ source: String) -> Bool { lock.withLock { if finished { return false }; reason = source; return true } }
+    func mark(_ source: String) -> Bool {
+        lock.withLock {
+            guard !finished else { return false }
+            reason = source
+            return true
+        }
+    }
     func finish() { lock.withLock { finished = true } }
 }
 
