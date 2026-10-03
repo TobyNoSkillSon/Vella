@@ -22,10 +22,12 @@ mkdir -p "$PROJECT/.build"
 STAGE="$(mktemp -d "$PROJECT/.build/.dmg-stage.XXXXXX")"
 MOUNT="$STAGE/mounted"
 cleanup() {
-  if mount | grep -F " on $MOUNT (" >/dev/null; then hdiutil detach -quiet "$MOUNT" || return; fi
+  local mounts
+  mounts="$(mount)" || { echo "Could not inspect mounts; preserving $STAGE" >&2; return 1; }
+  if grep -F " on $MOUNT (" <<<"$mounts" >/dev/null; then hdiutil detach -quiet "$MOUNT" || return; fi
   rm -rf "$STAGE"
 }
-trap cleanup EXIT
+trap 'status=$?; cleanup || exit 1; exit "$status"' EXIT
 mkdir "$STAGE/unpacked" "$STAGE/image"
 ditto -x -k "$RELEASE/$ZIP" "$STAGE/unpacked"
 APP="$STAGE/unpacked/Vella.app"

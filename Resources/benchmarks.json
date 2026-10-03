@@ -5794,8 +5794,8 @@
         "Worker": "6b3891fdc61cf62b5a7ade9518b7c04b1189f81f",
         "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
       },
-      "build_scripts_sha256": "025547b32840d30e6b1065dcd8322640a0bdcf9d6f972d5c09bfd5b47b76b56b",
-      "build_scripts_note": "4 Oct: build.sh identity, existing-signature and runtime-symbol probes now drain producer output under pipefail. The measured build used the old build.sh text. This is non-functional for compilation: compiler, flags, build commands, workers and shader inputs are unchanged. The prior shipped build-script pin was 1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90.",
+      "build_scripts_sha256": "494137a7f64e14c4a621618ab8fd2fd68cdb370ab82bdad16d60ac78f75ee48e",
+      "build_scripts_note": "4 Oct: build.sh identity, existing-signature and runtime-symbol probes drain producer output under pipefail; failed signature/symbol inspection now refuses the build. The measured build used the old build.sh text. Compilation is unchanged: compiler, flags, build commands, workers and shader inputs are unchanged. Earlier shipped build-script pins were 1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90 (before pipefail repair) and 025547b32840d30e6b1065dcd8322640a0bdcf9d6f972d5c09bfd5b47b76b56b (before producer-error hardening).",
       "worker_documentation_changes": [
         "Worker/Sources/MLXAudioSTT/NemotronASR/README.md",
         "Worker/Sources/MLXAudioSTT/Parakeet/README.md",

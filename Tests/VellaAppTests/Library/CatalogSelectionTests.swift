@@ -94,6 +94,89 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertTrue(c.migrationNotices.isEmpty, "the change is disclosed once")
     }
 
+    @MainActor private func offerOnlyNativeStandard(_ c: ModelsController, family: ModelFamily) throws {
+        var benchmark = try XCTUnwrap(c.benchmarks.models[family.id])
+        for tier in benchmark.tiers.keys {
+            for segment in Recipe.allCases {
+                benchmark.tiers[tier]?.cells[segment]?.gate = SegmentGate(
+                    status: .pass, presence: TierPresence(offered: tier == .t16 && segment == .standard))
+            }
+        }
+        c.benchmarks.models[family.id] = benchmark
+    }
+
+    @MainActor func testRejectedImplicitSelectionsMigratePrecisionAndRecipeAndDiscloseOnce() throws {
+        let (c, p) = try controller()
+        let family = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        try offerOnlyNativeStandard(c, family: family)
+        // Both implicit shapes are supported: a derived tier, and native weights whose default recipe was withdrawn.
+        for oldPath in [p.derived, p.ultra] {
+            var original = Configuration(model: oldPath)
+            original.lastLoaded = [family.id: "8b"]
+            try JSONEncoder().encode(original).write(to: configURL)
+            let manifestURL = URL(fileURLWithPath: p.derived).appendingPathComponent("vella-derived.json")
+            let manifest = try Data(contentsOf: manifestURL)
+            XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+            let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+            XCTAssertEqual(saved.model, p.ultra)
+            XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, path: .standard, mode: .fast))
+            XCTAssertEqual(saved.lastLoaded, original.lastLoaded)
+            XCTAssertEqual(c.migrationNotices.count, 1)
+            XCTAssertTrue(c.migrationNotices.first?.contains("Dictation now uses") == true)
+            XCTAssertTrue(c.migrationNotices.first?.contains("bf16 · Standard") == true)
+            XCTAssertEqual(try Data(contentsOf: manifestURL), manifest)
+            let bytes = try Data(contentsOf: configURL)
+            XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+            XCTAssertTrue(c.migrationNotices.isEmpty)
+            XCTAssertEqual(try Data(contentsOf: configURL), bytes)
+        }
+    }
+
+    @MainActor func testInactiveRejectedSelectionNoticeDoesNotClaimAnActiveSwitch() throws {
+        let (c, p) = try controller()
+        let family = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        try offerOnlyNativeStandard(c, family: family)
+        for activePath in [p.stored, ""] {
+            var original = Configuration(model: activePath)
+            original.selections[family.id] = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+            try JSONEncoder().encode(original).write(to: configURL)
+            XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+            let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+            XCTAssertEqual(saved.model, activePath)
+            XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, path: .standard, mode: .fast))
+            XCTAssertEqual(c.migrationNotices.count, 1)
+            XCTAssertTrue(c.migrationNotices.first?.contains("saved selection for Parakeet v3 Ultra") == true)
+            XCTAssertFalse(c.migrationNotices.first?.contains("now uses") == true)
+            let bytes = try Data(contentsOf: configURL)
+            XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+            XCTAssertTrue(c.migrationNotices.isEmpty)
+            XCTAssertEqual(try Data(contentsOf: configURL), bytes)
+        }
+    }
+
+    @MainActor func testActualRejectedImplicitNemotronInt4MovesToOfferedNativeFast() throws {
+        let (c, _) = try controller()
+        let family = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
+        let source = support.appendingPathComponent("Models/" + family.variants["BF16"]!.id)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: source.appendingPathComponent("config.json"))
+        try Data("fixture".utf8).write(to: source.appendingPathComponent("model.safetensors"))
+        c.streaming.installed[family.variants["BF16"]!.id] = InstalledModel(path: source.path)
+        let old = try prepareDerivedModel(family: family, precision: "4b", sourcePath: source.path, modelsDirectory: source.deletingLastPathComponent())
+        try JSONEncoder().encode(Configuration(model: "", streamingModel: old)).write(to: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
+        XCTAssertEqual(saved.streamingModel, source.path)
+        XCTAssertEqual(saved.selections[family.id], .fallback)
+        XCTAssertEqual(c.migrationNotices.count, 1)
+        XCTAssertTrue(c.migrationNotices.first?.contains("Streaming now uses") == true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: old + "/vella-derived.json"))
+        let bytes = try Data(contentsOf: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        XCTAssertTrue(c.migrationNotices.isEmpty)
+        XCTAssertEqual(try Data(contentsOf: configURL), bytes)
+    }
+
     /// The current configuration shape: Ultra BF16 uses the implicit Optimized Fast default; Streaming already uses
     /// a local Nemotron int8 derivation at Optimized Fast. Corrected cell presence must not migrate either selection.
     @MainActor func testCorrectedDataKeepsCurrentSelectionsWithoutMigrationNotice() throws {
@@ -107,20 +190,22 @@ final class CatalogSelectionTests: XCTestCase {
         c.streaming.installed[nemotron.variants["BF16"]!.id] = InstalledModel(path: source.path)
         let derived = try prepareDerivedModel(family: nemotron, precision: "8b", sourcePath: source.path, modelsDirectory: source.deletingLastPathComponent())
         let selected = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
-        var config = Configuration(model: p.ultra, streamingModel: derived)
-        config.selections[nemotron.id] = selected
-        let bytes = try JSONEncoder().encode(config)
-        try bytes.write(to: configURL)
-        c.reloadConfig()
-        XCTAssertEqual(c.rules(ultra).runnable(recorded: nil, precision: "BF16"), .fallback)
-        XCTAssertEqual(c.rules(nemotron).valid(selected), selected)
-        XCTAssertNotNil(c.identify(path: derived, mode: .streaming))
-        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
-        XCTAssertTrue(c.migrationNotices.isEmpty)
-        XCTAssertNil(c.lastError)
-        XCTAssertEqual(try Data(contentsOf: configURL), bytes, "no selection or configuration migration")
-        XCTAssertEqual(c.committedSelection(ultra), .fallback)
-        XCTAssertEqual(c.committedSelection(nemotron), selected)
+        for explicit in [true, false] {
+            var config = Configuration(model: p.ultra, streamingModel: derived)
+            if explicit { config.selections[nemotron.id] = selected }
+            let bytes = try JSONEncoder().encode(config)
+            try bytes.write(to: configURL)
+            c.reloadConfig()
+            XCTAssertEqual(c.rules(ultra).runnable(recorded: nil, precision: "BF16"), .fallback)
+            XCTAssertEqual(c.rules(nemotron).valid(selected), selected)
+            XCTAssertNotNil(c.identify(path: derived, mode: .streaming))
+            XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+            XCTAssertTrue(c.migrationNotices.isEmpty)
+            XCTAssertNil(c.lastError)
+            XCTAssertEqual(try Data(contentsOf: configURL), bytes, "no selection or configuration migration")
+            XCTAssertEqual(c.committedSelection(ultra), .fallback)
+            XCTAssertEqual(c.committedSelection(nemotron), selected)
+        }
     }
 
     @MainActor func testRejectedSavedCellWithoutOfferedWeightsClearsActivePathAndExplainsGet() throws {

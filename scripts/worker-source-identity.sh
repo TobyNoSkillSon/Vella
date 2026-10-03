@@ -45,9 +45,9 @@ build_paths=(
   scripts/test-worker.sh
   scripts/verify-release-symbols.sh
 )
-# 4 Oct: pipefail-safe identity/runtime probes in build.sh; no compiler, flags, or build behaviour change.
+# 4 Oct: pipefail-safe identity/runtime probes, including fail-closed producer errors; no compilation behaviour change.
 # The measured build used the old build.sh text; this pin identifies the current shipped script bytes.
-BUILD_EXPECTED=025547b32840d30e6b1065dcd8322640a0bdcf9d6f972d5c09bfd5b47b76b56b
+BUILD_EXPECTED=494137a7f64e14c4a621618ab8fd2fd68cdb370ab82bdad16d60ac78f75ee48e
 
 # git with the user's configuration (autocrlf, excludes, hooks) out of the hash.
 g() { git -c core.autocrlf=false -c core.excludesFile=/dev/null "$@"; }

@@ -107,7 +107,7 @@ public struct TierBenchmark: Equatable {
 }
 
 /// THE presence rule: a cell's gate owns its presence. Only a cell with no gate inherits tier presence.
-/// An existing gate without a readable presence verdict fails closed. An unmeasured family shows pending cells.
+/// An existing gate without a readable presence verdict fails closed, including JSON null. An unmeasured family shows pending cells.
 public func cellPresent(_ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe) -> Bool {
     guard let benchmark, !benchmark.tiers.isEmpty else { return true }
     guard let t = benchmark.tiers[tier], let cell = t.cells[segment] else { return false }
@@ -147,12 +147,18 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
     for key in Recipe.allCases {
         guard let c = object[key.rawValue] as? [String: Any], var result = decode(PrecisionResult.self, c) else { continue }
         let measured = decode(CellMeasured.self, c["measured"])
+        var gate = decode(SegmentGate.self, c["gate"])
+        if c.keys.contains("gate"), gate?.presence == nil {
+            let reason = "Unreadable cell presence verdict"
+            NSLog("benchmarks: %@ %@ %@ gate has no readable presence verdict; cell not offered", precision, key.rawValue, gate == nil ? "malformed" : "decoded")
+            gate = SegmentGate(status: .fail, reasons: [reason], presence: TierPresence(offered: false, reasons: [reason]))
+        }
         result.suite = measured?.suite; result.audio_min = measured?.audio_min
         result.date = measured?.date; result.hardware = measured?.hardware
         result.gate = nil // the cell's gate has the schema-2 shape (below)
         cells[key] = BenchmarkCell(
             result: result, recipe: decode(CellRecipe.self, c["recipe"]) ?? CellRecipe(layers: [:]),
-            measured: measured, gate: decode(SegmentGate.self, c["gate"]), notMeasuredReason: c["not_measured_reason"] as? String)
+            measured: measured, gate: gate, notMeasuredReason: c["not_measured_reason"] as? String)
     }
     var tier = TierBenchmark(
         precision: precision, presence: decode(TierPresence.self, object["presence"]) ?? TierPresence(offered: true),

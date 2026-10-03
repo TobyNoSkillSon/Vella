@@ -89,8 +89,8 @@ public struct SelectionRules {
     /// What an unloaded family runs: the recorded selection (config.json `selections`) at the recorded precision (the
     /// mode's model or `lastLoaded`), else Optimized 16 · Fast, made valid. `available` (a precision's weights are on
     /// this Mac) keeps a working setup working: the valid cell when its weights are here, else the first valid cell whose
-    /// weights are (the same order as `valid`); when no offered precision is on this Mac but the recorded one is (an
-    /// upgrade whose only weights are a precision no longer offered), the recorded one, so nothing needs a download.
+    /// weights are (the same order as `valid`). Installed weights never make a rejected cell runnable; when no offered
+    /// cell's weights are available, return the valid choice and let the caller explain that Get or Load is needed.
     public func runnable(recorded: ModelSelection?, precision: String?, available: ((String) -> Bool)? = nil) -> ModelSelection {
         let candidate = precision.map { defaultSelection(recorded: recorded, precision: $0) } ?? recorded ?? .fallback
         let chosen = valid(candidate)

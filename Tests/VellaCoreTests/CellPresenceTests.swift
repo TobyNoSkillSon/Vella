@@ -31,6 +31,30 @@ final class CellPresenceTests: XCTestCase {
         XCTAssertTrue(cellPresent(nil, tier: .t16, segment: .standard))
     }
 
+    func testSuppliedMalformedGateFailsClosedWhileAbsentGateKeepsTierFallback() throws {
+        for rawGate in ["\"bad\"", "[]", "null", "73", "true", "{\"status\":\"pass\"}", "{\"presence\":{\"offered\":\"yes\"}}"] {
+            let raw = try JSONSerialization.jsonObject(
+                with: Data(
+                    """
+                    {"precision":"BF16","presence":{"offered":true},
+                     "standard":{"gate":\(rawGate),"measured":{"suite":"fixture"}}}
+                    """.utf8))
+            let tier = try XCTUnwrap(decodeTier(raw))
+            XCTAssertNotNil(tier.cells[.standard]?.gate, rawGate)
+            XCTAssertFalse(cellPresent(FamilyBenchmark(tiers: [.t16: tier]), tier: .t16, segment: .standard), rawGate)
+        }
+        for offered in [true, false] {
+            let absent: [String: Any] = ["precision": "BF16", "presence": ["offered": offered], "standard": [:] as [String: Any]]
+            let tier = try XCTUnwrap(decodeTier(absent))
+            XCTAssertNil(tier.cells[.standard]?.gate)
+            XCTAssertEqual(cellPresent(FamilyBenchmark(tiers: [.t16: tier]), tier: .t16, segment: .standard), offered)
+            var gated = absent
+            gated["standard"] = ["gate": ["status": "fail", "presence": ["offered": !offered]]] as [String: Any]
+            let valid = try XCTUnwrap(decodeTier(gated))
+            XCTAssertEqual(cellPresent(FamilyBenchmark(tiers: [.t16: valid]), tier: .t16, segment: .standard), !offered)
+        }
+    }
+
     func testCorrectedNemotronKeepsEveryNativeAndInt8CellAndRejectsInt4() throws {
         let resources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Resources")

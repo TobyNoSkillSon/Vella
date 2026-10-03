@@ -170,7 +170,16 @@ struct ModelDeletionPlan {
         var cleared: [String] = []
         var notices: [String] = []
         var changed = false
-        for (id, saved) in edited.selections.sorted(by: { $0.key < $1.key }) {
+        // An active path also records its precision when no explicit selection was saved. Inspect the same
+        // effective default the runtime would load, but do not persist still-valid implicit selections.
+        var candidates = edited.selections
+        for mode in RecognitionMode.allCases {
+            let path = mode == .dictation ? edited.model : edited.streamingModel
+            if let selected = identify(path: path, mode: mode) {
+                candidates[selected.family.id] = defaultSelection(recorded: edited.selections[selected.family.id], precision: selected.precision)
+            }
+        }
+        for (id, saved) in candidates.sorted(by: { $0.key < $1.key }) {
             guard let family = catalog.family(id), !rules(family).isPresent(saved) else { continue }
             let replacement = rules(family).valid(saved)
             guard replacement != saved, rules(family).isPresent(replacement), rules(family).measured(replacement) else { continue }
@@ -204,7 +213,9 @@ struct ModelDeletionPlan {
             let notice =
                 missingReplacement
                 ? "\(mode.title)'s earlier cell is no longer offered. Its files are kept. Get or Load \(family.name) at \(tierDTypeLabel(family, replacement.tier)) · \(path) in Models…."
-                : "\(mode.title) now uses \(family.name) at \(tierDTypeLabel(family, replacement.tier)) · \(path) because the earlier cell is no longer offered. Model files are kept."
+                : selectedPrecision != nil
+                    ? "\(mode.title) now uses \(family.name) at \(tierDTypeLabel(family, replacement.tier)) · \(path) because the earlier cell is no longer offered. Model files are kept."
+                    : "The saved selection for \(family.name) is now \(tierDTypeLabel(family, replacement.tier)) · \(path) because the earlier cell is no longer offered. The active \(mode.title) model is unchanged. Model files are kept."
             if missingReplacement { edited.clearedSelectionReasons[mode.rawValue] = notice }
             notices.append(notice)
             lastError = notice
