@@ -181,13 +181,13 @@ public final class UpdateInstaller {
             try fm.moveItem(at: destination, to: failed)
             do { try fm.moveItem(at: previous, to: destination) } catch { try? fm.moveItem(at: failed, to: destination); throw error }
         } catch {
-            let message = failure + " and restoring \(plan.from) failed; the previous app is at \(previous.path)"
+            let message = sentence(failure) + " Restoring \(plan.from) failed; the previous app is at \(previous.path)."
             fail(message)
             launch(destination)
             throw UpdateError(message)
         }
         try? fm.removeItem(at: failed)
-        let message = failure + "; Vella \(plan.from) was restored"
+        let message = sentence(failure) + " Vella \(plan.from) was restored."
         fail(message) // written first: the restored app reports it at launch
         launch(destination)
         throw UpdateError(message)
