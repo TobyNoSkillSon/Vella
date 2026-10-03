@@ -8,6 +8,7 @@ DEST="${VELLA_DESTINATION_APP:-$HOME/Applications/Vella.app}"
 SUPPORT="${VELLA_SUPPORT_DIR:-$HOME/Library/Application Support/Vella}"
 TOOL="$APP/Contents/Helpers/VellaInstallTool"
 [[ -x "$TOOL" ]] || { echo 'Prepared app lacks its installer tool; nothing installed.' >&2; exit 1; }
+export VELLA_INSTALL_RETRY_COMMAND="${VELLA_INSTALL_RETRY_COMMAND:-scripts/install-prepared.sh $(printf %q "$APP") --migrate-signing}"
 EXTRA=()
 [[ "${2:-}" == --migrate-signing ]] && EXTRA+=(--migrate-signing)
 [[ -z "${VELLA_LAB_BUNDLE_ID:-}" ]] || EXTRA+=(--bundle-id "$VELLA_LAB_BUNDLE_ID")  # lab candidates only

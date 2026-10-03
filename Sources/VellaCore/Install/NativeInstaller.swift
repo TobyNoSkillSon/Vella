@@ -206,11 +206,24 @@ public final class NativeInstaller {
         // Installation is committed. A launch failure is reported, never rolled back.
         previousApp = kept
         do { try launch(destination) } catch {
-            let recovery = kept.map { " Previous app kept at \($0.path); quit Vella and restore it to \(destination.path) to roll back." } ?? ""
-            throw NativeInstallError.message("Vella was installed at \(destination.path), but could not launch: \(sentence(error.localizedDescription))" + recovery)
+            let version =
+                (try? PropertyListSerialization.propertyList(
+                    from: Data(contentsOf: destination.appendingPathComponent("Contents/Info.plist")), format: nil) as? [String: Any])?["CFBundleShortVersionString"] as? String
+                ?? "2.0.0"
+            let displayVersion = version.split(separator: ".").prefix(2).joined(separator: ".")
+            let message = "Vella \(displayVersion) was installed but didn't start (\(error.localizedDescription))."
+            let recovery =
+                kept.map {
+                    " Your previous version is kept at \($0.path). To go back, quit Vella and run:\n"
+                        + "app=\(Self.shellQuote(destination.path)); rm -rf -- \"$app\" && mv -- \(Self.shellQuote($0.path)) \"$app\""
+                } ?? ""
+            throw NativeInstallError.message(message + recovery)
         }
         return kept
     }
+
+    /// POSIX shell single-quoting keeps spaces, quotes and metacharacters literal in recovery commands.
+    private static func shellQuote(_ path: String) -> String { "'" + path.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
 
     private static func run(_ args: [String]) throws -> String {
         let (status, text) = try runTool("/usr/bin/codesign", args)

@@ -4,8 +4,8 @@ import Foundation
 import VellaTestSupport
 
 final class NativeInstallerTests: XCTestCase {
-    private func fixture() throws -> (NativeInstaller, URL, URL, URL) {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-native-install-\(UUID())")
+    private func fixture(pathSuffix: String = "") throws -> (NativeInstaller, URL, URL, URL) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-native-install-\(UUID())\(pathSuffix)")
         let prepared = root.appendingPathComponent("prepared/Vella.app")
         let app = root.appendingPathComponent("Applications/Vella.app")
         let support = root.appendingPathComponent("Library/Application Support/Vella")
@@ -192,22 +192,32 @@ final class NativeInstallerTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: app.appendingPathComponent("old")), "old")
     }
     func testLaunchFailureReportsTheCommittedDestinationAndPreservedRollbackPath() throws {
-        let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let (installer, root, app, _) = try fixture(pathSuffix: " quote's space"); defer { try? FileManager.default.removeItem(at: root) }
         try existingApp(app, marker: "old")
         installer.keepPrevious = true
         installer.launch = { _ in throw NativeInstallError.message("fixture launch failed") }
+        var rollback: String?
         XCTAssertThrowsError(try installer.install()) { error in
             guard let previous = installer.previousApp else { return XCTFail("Missing rollback path") }
-            XCTAssertTrue(error.localizedDescription.contains(previous.path))
-            XCTAssertTrue(error.localizedDescription.contains(app.path))
-            XCTAssertTrue(error.localizedDescription.contains("restore it"))
-            if let directory = ProcessInfo.processInfo.environment["VELLA_RENDER_REVIEW_DIR"] {
-                let output = "previous: \(previous.path)\nVella installation stopped: \(error.localizedDescription)\n"
-                try? output.write(to: URL(fileURLWithPath: directory).appendingPathComponent("installer-launch-failure.txt"), atomically: true, encoding: .utf8)
+            let message = error.localizedDescription
+            let body = "Vella 2.0 was installed but didn't start (fixture launch failed). Your previous version is kept at \(previous.path). To go back, quit Vella and run:"
+            let quote: (String) -> String = { "'" + $0.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+            let command = "app=\(quote(app.path)); rm -rf -- \"$app\" && mv -- \(quote(previous.path)) \"$app\""
+            XCTAssertEqual(message, body + "\n" + command)
+            XCTAssertFalse(message.contains("previous:"))
+            rollback = command
+            if let directory = ProcessInfo.processInfo.environment["VELLA_RENDER_EXACT_TEXT_DIR"] {
+                try? (message + "\n").write(to: URL(fileURLWithPath: directory).appendingPathComponent("installer-launch-failure.txt"), atomically: true, encoding: .utf8)
             }
             XCTAssertEqual(try? Data(contentsOf: previous.appendingPathComponent("old")), Data("old".utf8))
             XCTAssertTrue(FileManager.default.fileExists(atPath: app.appendingPathComponent("Contents/MacOS/Vella").path))
         }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash"); process.arguments = ["-c", try XCTUnwrap(rollback)]
+        try process.run(); process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0, "The printed command must restore the previous app, with quotes and spaces intact")
+        XCTAssertEqual(try Data(contentsOf: app.appendingPathComponent("old")), Data("old".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: try XCTUnwrap(installer.previousApp).path))
     }
 
     func testSigningMismatchAndMalformedConfigArePreserved() throws {

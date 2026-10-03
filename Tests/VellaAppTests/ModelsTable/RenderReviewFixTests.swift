@@ -20,7 +20,7 @@ import ServiceManagement
         let family = try XCTUnwrap(controller.catalog.family("parakeet-v3"))
         XCTAssertTrue(controller.fellBack(family))
         XCTAssertTrue(controller.loadedEngineHelp(family).contains("non-finite"))
-        XCTAssertTrue(controller.loadedEngineHelp(family).contains("Fast or Exact will retry on the next load"))
+        XCTAssertTrue(controller.loadedEngineHelp(family).contains("Optimized is tried again the next time the model loads."))
         controller.runtime?.loaded[family.id]?.selection?.path = .standard
         XCTAssertFalse(controller.fellBack(family), "Explicit Standard is not a fallback")
     }
@@ -125,6 +125,34 @@ import ServiceManagement
             let alert = AppDelegate.loginFailureAlert(error)
             XCTAssertEqual(alert.messageText, "Could not change Launch at Login")
             XCTAssertTrue(alert.informativeText.contains("Login Items & Extensions"))
+        }
+    }
+
+    func testRenderExactTextFixesOnly() throws {
+        guard let path = ProcessInfo.processInfo.environment["VELLA_RENDER_EXACT_TEXT_DIR"] else { throw XCTSkip("Exact text renders are opt-in") }
+        let directory = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        _ = NSApplication.shared; NSApp.appearance = NSAppearance(named: .darkAqua)
+        var state = TableRenderDelegate.State(name: "self-test-fallback")
+        state.runtime.loaded = [
+            "nemotron-3.5-streaming-0.6b": LoadedFamily(
+                precision: "BF16", engine: "mlx", engineReason: "fused conformer self-test failed: streamed text did not match Standard",
+                selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast))
+        ]
+        let controller = TableRenderDelegate.controller(state)
+        let family = try XCTUnwrap(controller.catalog.family("nemotron-3.5-streaming-0.6b"))
+        let expected =
+            "Vella's optimized path didn't pass its self-test on this Mac (its output didn't match Standard (fused conformer)), so this model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
+        XCTAssertEqual(controller.loadedEngineHelp(family), expected)
+        let views: [(String, NSView)] =
+            [("fallback-tooltip", TooltipSheet(pairs: [("Fell back to Standard", expected)], width: 620))]
+            + (try ["installer-signing-terminal-declined", "installer-signing-public-declined", "installer-signing-noninteractive", "installer-launch-failure"].map { name in
+                (name, CLIOutputView(try String(contentsOf: directory.appendingPathComponent(name + ".txt"), encoding: .utf8)))
+            })
+        for (name, view) in views {
+            let done = expectation(description: name)
+            MenuMock.capture(view, to: directory.appendingPathComponent(name + ".png")) { done.fulfill() }
+            wait(for: [done], timeout: 8)
         }
     }
 

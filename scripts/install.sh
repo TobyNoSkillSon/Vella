@@ -5,6 +5,7 @@
 # Both refuse while Vella is recording, transcribing or loading, and keep the previous app until ready.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+export VELLA_INSTALL_RETRY_COMMAND="scripts/install.sh --migrate-signing"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
 case "${VELLA_BUILD:-release}" in
   release)

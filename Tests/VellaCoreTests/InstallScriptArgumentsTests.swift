@@ -80,7 +80,7 @@ final class InstallScriptArgumentsTests: XCTestCase {
         try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
             .write(to: resources.appendingPathComponent("Info.plist"))
         let stub = scripts.appendingPathComponent("install-release.sh")
-        try Data("#!/bin/bash\nprintf '<%s>\\n' \"$@\"\n".utf8).write(to: stub)
+        try Data("#!/bin/bash\nprintf '<%s>\\n' \"$@\"\nprintf 'retry: %s\\n' \"$VELLA_INSTALL_RETRY_COMMAND\"\n".utf8).write(to: stub)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: stub.path)
         let cases: [([String], String)] = [
             ([], "<2.0.0>\n"), (["--dry-run"], "<2.0.0>\n<--dry-run>\n"),
@@ -97,7 +97,7 @@ final class InstallScriptArgumentsTests: XCTestCase {
             let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
             process.waitUntilExit()
             XCTAssertEqual(process.terminationStatus, 0)
-            XCTAssertEqual(text, expected, args.joined(separator: " "))
+            XCTAssertEqual(text, expected + "retry: scripts/install.sh --migrate-signing\n", args.joined(separator: " "))
         }
     }
 }

@@ -7,6 +7,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 VERSION="${1:-}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Pass a release version, e.g. 2.0.0' >&2; exit 2; }
+export VELLA_INSTALL_RETRY_COMMAND="${VELLA_INSTALL_RETRY_COMMAND:-scripts/install-release.sh $VERSION --migrate-signing}"
 DRY_RUN=0 MIGRATE=()
 shift
 for option in "$@"; do

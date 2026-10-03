@@ -80,7 +80,7 @@ install_prepared() {
   local TOOL="$APP/Contents/Helpers/VellaInstallTool" OUTPUT PREVIOUS STATUS=0
   [[ -x "$TOOL" ]] || fail 'Prepared app lacks its installer tool; nothing installed.'
   mkdir -p "$(dirname "$DEST")"
-  echo 'For a 0.8 self-built signing migration, re-run: curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing'
+  export VELLA_INSTALL_RETRY_COMMAND="curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing"
   OUTPUT="$("$TOOL" install --app "$APP" --destination "$DEST" --support "$SUPPORT" --keep-previous ${MIGRATE[@]+"${MIGRATE[@]}"})"
   PREVIOUS="$(sed -n 's/^previous: //p' <<<"$OUTPUT")"
   echo "installed $DEST; starting…"

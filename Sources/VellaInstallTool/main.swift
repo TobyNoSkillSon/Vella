@@ -22,14 +22,18 @@ import VellaUpdate
     }
     static func url(_ key: String, in args: [String]) -> URL? { value(key, in: args).map { URL(fileURLWithPath: $0) } }
 
+    static var signingRetryCommand: String {
+        ProcessInfo.processInfo.environment["VELLA_INSTALL_RETRY_COMMAND"] ?? "scripts/install.sh --migrate-signing"
+    }
+
     static func main() {
         let args = Array(CommandLine.arguments.dropFirst())
         #if DEBUG
             // Tests exercise the exact tool consent dispatch with PTY/pipe descriptors; no app is touched.
             if args.first == "--signing-consent-fixture" {
                 do {
-                    try SigningMigrationConsent.authorize(flag: args.contains("--migrate-signing")) { fputs($0, stderr) }
-                    print("consented"); return
+                    try SigningMigrationConsent.authorize(flag: args.contains("--migrate-signing"), retryCommand: signingRetryCommand) { fputs($0, stderr) }
+                    return
                 } catch { fputs(error.localizedDescription + "\n", stderr); exit(1) }
             }
         #endif
@@ -47,7 +51,7 @@ import VellaUpdate
                 try Updater.removeQuarantine(app)
                 let previous: URL?
                 do { previous = try installer.install() } catch NativeInstallError.signingMigrationRequired {
-                    try SigningMigrationConsent.authorize(flag: args.contains("--migrate-signing")) { fputs($0, stderr) }
+                    try SigningMigrationConsent.authorize(flag: args.contains("--migrate-signing"), retryCommand: signingRetryCommand) { fputs($0, stderr) }
                     installer.allowSigningMigration = true
                     previous = try installer.install()
                 }
@@ -55,8 +59,8 @@ import VellaUpdate
                 print("installed \(destination.path)")
                 if let previous { print("previous: \(previous.path)") }
             } catch {
-                if let previous = installer.previousApp { fputs("previous: \(previous.path)\n", stderr) }
-                fputs("Vella installation stopped: \(error.localizedDescription)\n", stderr)
+                let prefix = installer.previousApp == nil ? "Vella installation stopped: " : ""
+                fputs(prefix + error.localizedDescription + "\n", stderr)
                 exit(1)
             }
         case "ready":

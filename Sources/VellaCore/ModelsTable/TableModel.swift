@@ -219,6 +219,22 @@ public func engineHelp(engine: String?, reason: String?, optimizations: [String:
     return lines.joined(separator: "\n")
 }
 
+/// The reported component remains identifiable, while the failure reads as ordinary tooltip prose.
+public func fallbackEngineHelp(reason: String?) -> String {
+    let raw = reason?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    var plain = raw.isEmpty ? "no reason was reported" : raw
+    if let range = raw.range(of: " self-test failed: ") {
+        let component = String(raw[..<range.lowerBound])
+        let detail = String(raw[range.upperBound...])
+        plain = (detail == "streamed text did not match Standard" ? "its output didn't match Standard" : detail) + " (" + component + ")"
+    }
+    for (upper, lower) in [("BF16", "bf16"), ("FP16", "fp16"), ("FP32", "fp32"), ("INT8", "int8"), ("INT4", "int4")] {
+        plain = plain.replacingOccurrences(of: upper, with: lower)
+    }
+    return
+        "Vella's optimized path didn't pass its self-test on this Mac (\(plain)), so this model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
+}
+
 // MARK: Hardware note
 
 /// `Apple M5 Max` → `M5 Max`. Nil when empty.

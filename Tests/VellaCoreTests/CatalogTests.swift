@@ -470,6 +470,16 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(BenchmarkHardware.measured.energyText(4.6), "4.6 J")
         XCTAssertEqual(chipGeneration("Apple M5 Pro"), "M5"); XCTAssertEqual(displayChip("Apple M5 Max"), "M5 Max")
     }
+    func testFallbackTooltipUsesPlainReasonWithoutRepeatingPrecision() {
+        XCTAssertEqual(
+            fallbackEngineHelp(reason: "fused conformer self-test failed: streamed text did not match Standard"),
+            "Vella's optimized path didn't pass its self-test on this Mac (its output didn't match Standard (fused conformer)), so this model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
+        )
+        XCTAssertTrue(fallbackEngineHelp(reason: "decoder self-test failed: BF16 output was non-finite").contains("bf16 output was non-finite (decoder)"))
+        XCTAssertFalse(fallbackEngineHelp(reason: nil).contains("Precision:"))
+        XCTAssertTrue(fallbackEngineHelp(reason: nil).contains("no reason was reported"))
+    }
+
     func testEngineLabelAndHelp() {
         XCTAssertEqual(engineLabel(engine: "optimized", chip: "Apple M5 Max"), "Optimized \u{00b7} M5 Max")
         XCTAssertEqual(engineLabel(engine: "optimized", chip: nil), "Optimized")

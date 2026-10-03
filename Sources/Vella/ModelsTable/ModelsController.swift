@@ -281,8 +281,8 @@ struct ModelDeletionPlan {
     }
     func loadedEngineHelp(_ f: ModelFamily) -> String {
         guard let loaded = loaded(f) else { return "" }
-        let help = engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations, chip: runtime?.chip, precision: loaded.precision)
-        return fellBack(f) ? help + "\nOptimized Fast or Exact will retry on the next load." : help
+        if fellBack(f) { return fallbackEngineHelp(reason: loaded.engineReason) }
+        return engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations, chip: runtime?.chip, precision: loaded.precision)
     }
 
     func isPreviewing(_ f: ModelFamily) -> Bool { previews[f.id] != nil }
