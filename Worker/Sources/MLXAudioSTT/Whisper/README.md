@@ -60,8 +60,9 @@ reference equivalence. Mel is always rounded to FP16; arbitrary FP32/BF16 source
 
 Always on once the load-time self-test passed on the Mac (revision `whisper-4`; stock MLX is the fallback).
 Standard now computes in FP16 like mlx-whisper. Exact and Fast use the same exact decoder components;
-there is no encoder lever or inexact component. Fast retains its measured figures; Standard and Exact
-figures are withdrawn pending separate measurements.
+there is no encoder lever or inexact component. Standard and Optimized were measured together on the faithful
+FP16 build in a quiet window (refresh completed 4 October). Exact and Fast share a canonical measurement;
+per-cell and tier gates use that build’s FP16 Standard baseline. Earlier Float32-baseline figures remain withdrawn.
 
 - **GPU-side decoder** (component `decoder`, exact): the greedy decode loop runs on the GPU, with a finite check on every logit tensor it uses.
 - **Fused decode step** (listed as `fused_decode` in a quantized tier's recipe, exact, quantized checkpoints only): a
@@ -128,7 +129,7 @@ Speed is × real time, energy is joules per minute of audio (whole chip, idle su
 
 Gate limits: English ≤ 0.10 pt, multilingual mean ≤ 0.10 pt.
 
-Standard figures were withdrawn: the shipped Standard now computes in FP16. Exact equals Fast but has not been measured separately. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
+Standard computes in faithful FP16. Standard and Optimized were measured in the same quiet window (refresh completed 4 October); Exact and Fast share the same exact-only whisper-4 recipe and canonical measurement. Per-cell and tier gates use that build’s FP16 Standard baseline; earlier Float32-baseline figures remain withdrawn.
 
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
@@ -152,7 +153,7 @@ Standard figures were withdrawn: the shipped Standard now computes in FP16. Exac
 
 Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.02 pt; not remeasured on this build), multilingual mean ≤ 0.22 pt (noise measured 2026-09-28: 0.17 pt; not remeasured on this build).
 
-Standard figures were withdrawn: the shipped Standard now computes in FP16. Exact equals Fast but has not been measured separately. Whisper tier quality and presence verdicts compare each measured Optimized Fast tier with Optimized Fast fp16. Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline; they do not compare with shipped FP16 Standard.
+Standard computes in faithful FP16. Standard and Optimized were measured in the same quiet window (refresh completed 4 October); Exact and Fast share the same exact-only whisper-4 recipe and canonical measurement. Per-cell and tier gates use that build’s FP16 Standard baseline; earlier Float32-baseline figures remain withdrawn.
 
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|

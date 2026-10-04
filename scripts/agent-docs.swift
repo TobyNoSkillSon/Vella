@@ -64,7 +64,8 @@ func row(_ family: JSON, _ bench: JSON) -> String {
         let tier = ((bench["models"] as? JSON)?[id] as? JSON).flatMap { ($0["tiers"] as? JSON)?["16"] as? JSON }
         for requested in ["optimized_fast", "optimized_exact", "standard"] {
             guard let own = tier?[requested] as? JSON else { continue }
-            let present = (own["gate"] as? JSON).map { ($0["presence"] as? JSON)?["offered"] as? Bool ?? false }
+            let present =
+                (own["gate"] as? JSON).map { ($0["presence"] as? JSON)?["offered"] as? Bool ?? false }
                 ?? (tier?["presence"] as? JSON)?["offered"] as? Bool ?? true
             guard present,
                 let cell = tier?[(tier?["display_cells"] as? [String: String])?[requested] ?? requested] as? JSON,
@@ -94,7 +95,7 @@ func render(_ models: JSON, _ bench: JSON) -> String {
     lines += (models["families"] as? [JSON] ?? []).map { row($0, bench) }
     var note =
         "English WER is on the 167 English minutes of v2 (239.7 min total); nine other languages are scored separately. Figures use the first offered, measured 16-bit cell: Optimized Fast, then Exact, then Standard. Speed is × real time and energy is joules "
-        + "per minute of audio on the reference Mac (\(bench["hardware"] as? String ?? dash)); they are reference measurements, qualified only on M5 Max with 40 GPU cores. On any other configuration, WER/Format/Peak RAM remain reference measurements; Speed remains the M5 Max measured speed, lighter grey with a small M5 Max label; J/min is not known. Tooltip: Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it. "
+        + "per minute of audio on the reference Mac (\(bench["hardware"] as? String ?? dash)); measurements are from an M5 Max with a 40-core GPU; other M5 configurations have not yet been tested. On any other configuration, WER/Format/Peak RAM remain reference measurements; Speed remains the M5 Max measured speed, lighter grey with a small M5 Max label; J/min is not known. Tooltip: Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it. "
         + "Fast enables every kept lever for that model and precision; Exact enables only exact kept levers; Standard enables none. "
         + "Streaming models do not transcribe files. `vella models --json` lists every cell, its reference English WER and peak RAM, M5 Max measured speed labelled by hardware and chip-qualified energy, measurement provenance or refusal reason, and the source and size. Equal recipes use the canonical measured cell named in `cells[].provenance.display_cell` (`display_cells` in the benchmark file)."
     if isPending(bench) {

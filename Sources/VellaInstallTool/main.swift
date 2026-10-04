@@ -43,6 +43,7 @@ import VellaUpdate
                 let support = url("--support", in: args)
             else { fputs(usage, stderr); exit(2) }
             let installer = NativeInstaller(preparedApp: app, destination: destination, support: support)
+            installer.signingRetryCommand = signingRetryCommand
             installer.keepPrevious = args.contains("--keep-previous")
             installer.allowSigningMigration = false // consent is resolved only after the migration disclosure
             if let id = value("--bundle-id", in: args) { installer.bundleIdentifier = id } // lab candidates only
@@ -51,7 +52,9 @@ import VellaUpdate
                 try Updater.removeQuarantine(app)
                 let previous: URL?
                 do { previous = try installer.install() } catch NativeInstallError.signingMigrationRequired {
-                    try SigningMigrationConsent.authorize(flag: args.contains("--migrate-signing"), retryCommand: signingRetryCommand) { fputs($0, stderr) }
+                    try SigningMigrationConsent.authorize(
+                        flag: args.contains("--migrate-signing"), retryCommand: signingRetryCommand, explanation: installer.signingMigrationExplanation
+                    ) { fputs($0, stderr) }
                     installer.allowSigningMigration = true
                     previous = try installer.install()
                 }

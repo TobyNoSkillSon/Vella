@@ -3,9 +3,12 @@ import Foundation
 
 /// Stderr is only an output destination. Consent depends on the explicit flag and real terminal input.
 public enum SigningMigrationConsent {
-    public static func authorize(flag: Bool, stdinFD: Int32 = STDIN_FILENO, retryCommand: String = "scripts/install.sh --migrate-signing", report: (String) -> Void) throws {
-        guard flag else { throw NativeInstallError.signingMigrationRequired(NativeInstaller.migrationExplanation + " Nothing changed. To opt in, run: \(retryCommand)") }
-        report(NativeInstaller.migrationExplanation + "\n")
+    public static func authorize(
+        flag: Bool, stdinFD: Int32 = STDIN_FILENO, retryCommand: String = "scripts/install.sh --migrate-signing",
+        explanation: String = NativeInstaller.migrationExplanation, report: (String) -> Void
+    ) throws {
+        guard flag else { throw NativeInstallError.signingMigrationRequired(explanation + " Nothing changed. To opt in, run: \(retryCommand)") }
+        report(explanation + "\n")
         guard isatty(stdinFD) != 0 else {
             report("Signing migration authorized by --migrate-signing.\n")
             return

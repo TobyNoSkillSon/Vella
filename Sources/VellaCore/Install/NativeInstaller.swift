@@ -29,15 +29,31 @@ public final class NativeInstaller {
     public var keepPrevious = false
     /// The committed backup remains discoverable even if launching the replacement throws.
     public private(set) var previousApp: URL?
-    /// Explicit installer-only transition: verified ad-hoc source build -> pinned Vella release signature.
+    /// Explicit installer-only transition: any verified installed identity -> pinned Vella release signature.
     public var allowSigningMigration = false
     public private(set) var didMigrateSigning = false
+    public var signingRetryCommand = "scripts/install.sh --migrate-signing"
+    public private(set) var signingMigrationExplanation = NativeInstaller.migrationExplanation
     public var verifyMigrationTarget: (URL) throws -> Void = { app in
-        _ = try NativeInstaller.run(["--verify", "--deep", "--strict", "-R", NativeInstaller.releaseRequirement, app.path])
+        try NativeInstaller.verifyRequirement(app, NativeInstaller.releaseRequirement)
     }
     public static let releaseRequirement = "identifier \"dev.vella.dictation\" and certificate leaf = H\"2ca2587c8b85ef687e68950e405ec58ce31fc1c7\""
     public static let migrationExplanation =
-        "This changes your old self-built signature to Vella’s release signature. macOS will ask for Microphone and Accessibility access again. Settings, history, recordings and models are kept. The old app is kept for rollback."
+        "This changes your installed signing identity to Vella’s pinned release signature. macOS will ask for Microphone and Accessibility access again. Settings, history, recordings and models are kept. The old app is kept for rollback."
+
+    public static func migrationExplanation(replacing signature: Signature) -> String {
+        let identity: String
+        if signature.kind == "adhoc" {
+            identity = "ad-hoc"
+        } else if let range = signature.kind.range(of: #"subject\.CN\] = "([^"]*)""#, options: .regularExpression),
+            let name = signature.kind[range].split(separator: "\"").dropFirst().first
+        {
+            identity = String(name)
+        } else {
+            identity = signature.kind.replacingOccurrences(of: "designated => ", with: "")
+        }
+        return "Installed signing identity being replaced: \(identity). " + migrationExplanation
+    }
 
     /// Lab installs of a separately identified candidate use another id; releases never do.
     public var bundleIdentifier = "dev.vella.dictation"
@@ -124,13 +140,14 @@ public final class NativeInstaller {
         let current = try verify(destination)
         guard current != replacement else { return }
         let target = replacement.kind.replacingOccurrences(of: "designated => ", with: "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard current.kind == "adhoc", target == Self.releaseRequirement.lowercased() else {
+        guard target == Self.releaseRequirement.lowercased() else {
             throw NativeInstallError.message(
-                "The existing signing identity differs; installation left unchanged. Only an ad-hoc source build can migrate to Vella’s pinned release signature.")
+                "The existing signing identity differs; installation left unchanged. Signing migration is allowed only to Vella’s pinned release signature.")
         }
         try verifyMigrationTarget(preparedApp)
+        signingMigrationExplanation = Self.migrationExplanation(replacing: current)
         guard allowSigningMigration else {
-            throw NativeInstallError.signingMigrationRequired(Self.migrationExplanation + " Nothing changed. To opt in, run: scripts/install.sh --migrate-signing")
+            throw NativeInstallError.signingMigrationRequired(signingMigrationExplanation + " Nothing changed. To opt in, run: \(signingRetryCommand)")
         }
         keepPrevious = true; didMigrateSigning = true
     }
@@ -139,6 +156,7 @@ public final class NativeInstaller {
     @discardableResult
     public func install() throws -> URL? {
         didMigrateSigning = false; previousApp = nil
+        signingMigrationExplanation = Self.migrationExplanation
         let manager = FileManager.default
         // The common owner root is HOME in production and a disposable fixture
         // root in isolated tests. System aliases above it (such as /var) are not ours.
@@ -242,6 +260,10 @@ public final class NativeInstaller {
         let (status, text) = try runTool("/usr/bin/codesign", args)
         guard status == 0 else { throw NativeInstallError.message("Bundle signature verification failed: \(text.suffix(1200))") }
         return text
+    }
+    /// The leading '=' means inline requirement text, not a path to a requirement file.
+    public static func verifyRequirement(_ app: URL, _ requirement: String) throws {
+        _ = try run(["--verify", "--deep", "--strict", "-R", "=" + requirement, app.path])
     }
     public static func verifySignedBundle(_ app: URL) throws -> Signature {
         _ = try run(["--verify", "--strict", "--deep", app.path])

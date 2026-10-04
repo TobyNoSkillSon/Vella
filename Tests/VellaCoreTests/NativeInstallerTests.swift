@@ -181,13 +181,86 @@ final class NativeInstallerTests: XCTestCase {
         XCTAssertEqual(try NativeInstaller.verifySignedBundle(previous), .init("adhoc"))
         for (name, bytes) in kept { XCTAssertEqual(try Data(contentsOf: support.appendingPathComponent(name)), bytes) }
     }
-    func testSigningMigrationFlagCannotReplaceOtherCertificates() throws {
+    /// Real ad-hoc seals exercise verification/copy/rollback without any keychain access. Only certificate
+    /// metadata is injected, just as for the unavailable release identity in the ad-hoc migration test.
+    func testDevelopmentAndSelfSignedUpgradeRequiresConsentAndKeepsBackup() throws {
+        let identities = [
+            #"designated => identifier "dev.vella.dictation" and anchor apple generic and certificate leaf[subject.CN] = "Apple Development: Fixture""#,
+            #"designated => identifier "dev.vella.dictation" and certificate leaf = H"0123456789012345678901234567890123456789""#
+        ]
+        let retry = "curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing"
+        for identity in identities {
+            let (installer, root, app, support) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            let prepared = installer.preparedApp
+            for name in ["Vella", "VellaWorker", "VellaStreamingWorker", "VellaModelTool"] {
+                let path = prepared.appendingPathComponent("Contents/MacOS/\(name)")
+                try FileManager.default.removeItem(at: path)
+                try FileManager.default.copyItem(at: URL(fileURLWithPath: "/usr/bin/true"), to: path)
+            }
+            try PropertyListSerialization.data(
+                fromPropertyList: ["CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella", "CFBundlePackageType": "APPL"],
+                format: .xml, options: 0
+            ).write(to: prepared.appendingPathComponent("Contents/Info.plist"))
+            XCTAssertEqual(try runTool("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", prepared.path]).status, 0)
+            try FileManager.default.createDirectory(at: app.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: prepared, to: app)
+            installer.verify = { url in
+                _ = try NativeInstaller.verifySignedBundle(url)
+                return .init(url == app && !installer.didMigrateSigning ? identity : "designated => " + NativeInstaller.releaseRequirement)
+            }
+            installer.verifyMigrationTarget = { url in
+                try NativeInstaller.verifyRequirement(url, #"identifier "dev.vella.dictation""#)
+            }
+            XCTAssertThrowsError(try NativeInstaller.verifyRequirement(prepared, #"identifier "another.app""#))
+            XCTAssertThrowsError(try NativeInstaller.verifyRequirement(prepared, NativeInstaller.releaseRequirement))
+            installer.signingRetryCommand = retry
+            var stopped = 0
+            installer.stop = { _ in
+                stopped += 1; return false
+            }
+            try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+            let settings = Data(#"{"custom":42}"#.utf8)
+            try settings.write(to: support.appendingPathComponent("config.json"))
+            XCTAssertThrowsError(try installer.install()) { error in
+                guard case NativeInstallError.signingMigrationRequired = error else { return XCTFail("Wrong refusal: \(error)") }
+                XCTAssertTrue(error.localizedDescription.contains(retry))
+                XCTAssertTrue(error.localizedDescription.contains("Microphone and Accessibility"))
+                XCTAssertTrue(error.localizedDescription.contains(identity.contains("subject.CN") ? "Apple Development: Fixture" : "0123456789012345678901234567890123456789"))
+            }
+            XCTAssertEqual(stopped, 0)
+            installer.allowSigningMigration = true
+            installer.afterSwap = { throw NativeInstallError.message("Fixture migration swap failure") }
+            XCTAssertThrowsError(try installer.install())
+            XCTAssertEqual(stopped, 1)
+            XCTAssertEqual(try NativeInstaller.verifySignedBundle(app), .init("adhoc"), "old sealed app restored")
+            XCTAssertEqual(try Data(contentsOf: support.appendingPathComponent("config.json")), settings)
+            installer.afterSwap = {}
+            let previous = try XCTUnwrap(installer.install())
+            XCTAssertTrue(installer.didMigrateSigning)
+            XCTAssertEqual(stopped, 2)
+            XCTAssertEqual(try NativeInstaller.verifySignedBundle(previous), .init("adhoc"))
+            XCTAssertEqual(try Data(contentsOf: support.appendingPathComponent("config.json")), settings)
+        }
+    }
+    func testReleaseIdentityUpdateNeedsNoMigrationConsent() throws {
+        let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try existingApp(app, marker: "old")
+        installer.verify = { _ in .init("designated => " + NativeInstaller.releaseRequirement) }
+        installer.verifyMigrationTarget = { _ in XCTFail("Same identity must not request migration") }
+        XCTAssertNil(try installer.install())
+        XCTAssertFalse(installer.didMigrateSigning)
+        XCTAssertFalse(installer.keepPrevious)
+    }
+    func testSigningMigrationCannotTargetOtherCertificatesOrAnUnverifiedRelease() throws {
         let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try existingApp(app, marker: "old")
         installer.allowSigningMigration = true
-        installer.verify = { url in .init(url == app ? "another certificate" : "designated => " + NativeInstaller.releaseRequirement) }
+        installer.verify = { url in .init(url == app ? "another certificate" : "designated => arbitrary replacement") }
         XCTAssertThrowsError(try installer.install())
         installer.verify = { url in .init(url == app ? "adhoc" : "designated => arbitrary replacement") }
+        XCTAssertThrowsError(try installer.install())
+        installer.verify = { url in .init(url == app ? "another certificate" : "designated => " + NativeInstaller.releaseRequirement) }
+        installer.verifyMigrationTarget = { _ in throw NativeInstallError.message("Unverified release") }
         XCTAssertThrowsError(try installer.install())
         XCTAssertEqual(try String(contentsOf: app.appendingPathComponent("old")), "old")
     }

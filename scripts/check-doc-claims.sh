@@ -57,6 +57,11 @@ check() {
   forbid 'accuracy does not|Error rates are the same' 'cross-chip component fallbacks can change transcripts and error rates'
   forbid 'output identical to Standard|identical to Standard' 'Exact is exact-only components that match Standard on the load-time self-test, not an identity guarantee'
   forbid 'reorder no sums|only kernels whose output equals Standard|vendor.s quantization-aware 4-bit' 'Exact is a load-time self-test contract; low-bit tiers are plain local affine derivations'
+  # Final 2.0 qualification supersedes the provisional reference and Float32 Whisper baseline.
+  forbid 'provisional.*diagnose reference|diagnose reference.*provisional' 'the bundled diagnose reference is the final quiet-window qualification'
+  forbid 'Whisper[^.]*(Standard[^.]*Exact|Exact[^.]*Standard)[^.]*(not measured yet|remain[^.]*Not measured|withdrawn and not measured)' 'Whisper Standard and shared Exact/Fast have same-window faithful FP16 measurements'
+  forbid 'Whisper has no Standard measurement|Per-cell gates on retained Fast figures used the withdrawn' 'Whisper gates and deltas use the same-window faithful FP16 Standard baseline'
+  forbid 'only (a verified |an? )?ad-hoc[^.]*(migrat|→)|self-built 0\.8 app has an ad-hoc signature' 'explicit consent permits any verified installed Vella identity to migrate only to the pinned release signature'
   # Item 10: WER is English WER.
   require README.md 'English word error rate on the 167 English minutes' 'README WER definition'
   require docs/USAGE.md 'English word error rate' 'user guide WER definition'
@@ -107,6 +112,14 @@ E
     "MacWhisper and Vella compared"
     "Buzz.app transcription rows"
     '"competitor_comparisons": {}'
+    'Local builds include a provisional schema-2 diagnose reference.'
+    'The diagnose reference is provisional pending qualification.'
+    'Whisper Standard and Exact are not measured yet.'
+    'Whisper Standard and Exact remain `Not measured yet`.'
+    'Whisper has no Standard measurement after the FP16 correction.'
+    'Per-cell gates on retained Fast figures used the withdrawn Float32 Standard baseline.'
+    'This permits only a verified ad-hoc Vella app → Vella’s pinned release signature.'
+    'A self-built 0.8 app has an ad-hoc signature.'
   )
   local i=0 rule
   for rule in "${rules[@]}"; do

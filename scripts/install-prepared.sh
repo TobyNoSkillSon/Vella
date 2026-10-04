@@ -34,7 +34,7 @@ if [[ $STATUS -ne 0 ]]; then
 fi
 # Ready: the previous app is no longer needed as a rollback.
 if [[ "${2:-}" == --migrate-signing || "$OUTPUT" == *'signing-migrated:'* ]]; then
-  [[ -z "$PREVIOUS" ]] || echo "Previous self-built app kept at $PREVIOUS; to roll back, quit Vella and move it to $DEST."
+  [[ -z "$PREVIOUS" ]] || echo "Previous app kept at $PREVIOUS; to roll back, quit Vella and move it to $DEST."
 else
   [[ -z "$PREVIOUS" ]] || rm -rf "$PREVIOUS"
 fi

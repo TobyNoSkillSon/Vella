@@ -100,7 +100,7 @@ install_prepared() {
     exit 1
   fi
   if [[ ${#MIGRATE[@]} -gt 0 || "$OUTPUT" == *'signing-migrated:'* ]]; then
-    [[ -z "$PREVIOUS" ]] || echo "Previous self-built app kept at $PREVIOUS; to roll back, quit Vella and move it to $DEST."
+    [[ -z "$PREVIOUS" ]] || echo "Previous app kept at $PREVIOUS; to roll back, quit Vella and move it to $DEST."
   else
     [[ -z "$PREVIOUS" ]] || rm -rf "$PREVIOUS"
   fi
