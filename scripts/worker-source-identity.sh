@@ -17,7 +17,7 @@ PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=d268d239a920e4e6910d101eff0bcf2a06413c70   # 4 Oct: reconciled Whisper README prose and generated measurement notes; code tree unchanged
+WORKER_FULL_TREE=198576968f1cb23f436c596946d85059c06e8967   # 4 Oct: reconciled Whisper README prose and generated measurement notes; code tree unchanged
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
 # Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files only (checked below).
 REFERENCE_WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
