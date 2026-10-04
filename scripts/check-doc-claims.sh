@@ -62,6 +62,9 @@ check() {
   forbid 'Whisper[^.]*(Standard[^.]*Exact|Exact[^.]*Standard)[^.]*(not measured yet|remain[^.]*Not measured|withdrawn and not measured)' 'Whisper Standard and shared Exact/Fast have same-window faithful FP16 measurements'
   forbid 'Whisper has no Standard measurement|Per-cell gates on retained Fast figures used the withdrawn' 'Whisper gates and deltas use the same-window faithful FP16 Standard baseline'
   forbid 'only (a verified |an? )?ad-hoc[^.]*(migrat|→)|self-built 0\.8 app has an ad-hoc signature' 'explicit consent permits any verified installed Vella identity to migrate only to the pinned release signature'
+  forbid 'No comparison with Standard is available until|comparison with Standard.*(unavailable|not available)' 'final Whisper Standard/Exact/Fast comparisons are measured'
+  forbid 'certificate-signed installation is only replaced by an app with the same signing identity' 'qualify default identity preservation with the explicit pinned-release migration exception'
+  forbid 'Only then is the previous app deleted;' 'same-identity readiness deletes the backup; signing migration retains it'
   # Item 10: WER is English WER.
   require README.md 'English word error rate on the 167 English minutes' 'README WER definition'
   require docs/USAGE.md 'English word error rate' 'user guide WER definition'
@@ -93,6 +96,9 @@ E
   echo 'audio and transcripts never leave the machine' >"$t/good/Resources/SKILL.md"
   check "$t/good" >/dev/null || { echo "selftest: the good fixture was refused"; return 1; }
   local rules=(
+    'The generated block below retains measured Fast rows. No comparison with Standard is available until the FP16 Standard path is measured.'
+    'A certificate-signed installation is only replaced by an app with the same signing identity, so macOS privacy permissions carry over.'
+    'Only then is the previous app deleted; if Vella is not ready the previous app is kept.'
     "| Native int8 | VELLA_X=1 | rev | inexact | result | Default: off |"
     "Only the checkpoint's native 16-bit weights are downloaded"
     "accuracy does not differ across chips"

@@ -378,13 +378,13 @@ Pair identities:
 - Whisper large-v3: no noise pair measured; floor tolerances.
 - Whisper large-v3 turbo: per-family noise pair of 2026-09-28: FP16:seed-0x5eed-v2 vs FP16:seed-0x0b0e-v2.
 
-Gate baselines are retained in the data, not inferred from the mode name. For the original non-Whisper measurements, per-cell gates compare with tier-16 Standard of the same measured build. Retained original Whisper Fast cell gates used the withdrawn Float32 Standard baseline; the original Whisper tier quality/presence verdicts compare with measured Optimized Fast fp16, not shipped fp16 Standard. A same-build refresh records its changed baseline explicitly.
+Gate baselines are retained in the data, not inferred from the mode name. Final Whisper per-cell and tier gates use same-build faithful FP16 Standard, measured in the same quiet window as shared Exact/Fast. Non-Whisper gates use their recorded same-build tier-16 Standard controls. Historical Whisper Float32-baseline verdicts were withdrawn and are not the final gates.
 
 ## Not measured yet
 
 No offered cells currently have missing measurement status. Per-cell dates/builds still apply.
 
-The original Whisper loader made a Float32 positional table that promoted activations away from checkpoint dtype. The shipped loader fixes this and removes the encoder-dtype lever. Earlier Standard/Exact figures were withdrawn rather than relabeled as faithful fp16 measurements. Fast's identity receipt supports its carry-over only; it does not create Standard/Exact speed or energy measurements. Unoffered tiers are a gate decision, not missing measurements.
+The original Whisper loader made a Float32 positional table that promoted activations away from checkpoint dtype. The shipped loader fixes this and removes the encoder-dtype lever. Earlier Standard/Exact figures were withdrawn rather than relabeled as faithful fp16 measurements. The historical Fast identity receipt did not create Standard/Exact measurements. The final faithful FP16 Standard and shared Exact/Fast cells were measured together in a quiet window completed 4 October; deltas and gates use that FP16 Standard baseline. Unoffered tiers are a gate decision, not missing measurements.
 
 ## Check your Mac
 

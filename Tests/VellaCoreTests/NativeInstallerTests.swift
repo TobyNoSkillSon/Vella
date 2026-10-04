@@ -18,7 +18,8 @@ final class NativeInstallerTests: XCTestCase {
         let metallib = prepared.appendingPathComponent("Contents/Resources/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib")
         try FileManager.default.createDirectory(at: metallib.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("fixture shader".utf8).write(to: metallib)
-        let info = try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": "dev.vella.dictation"], format: .xml, options: 0)
+        let info = try PropertyListSerialization.data(
+            fromPropertyList: ["CFBundleShortVersionString": "2.0.0", "CFBundleVersion": "35", "CFBundleIdentifier": "dev.vella.dictation"], format: .xml, options: 0)
         try info.write(to: prepared.appendingPathComponent("Contents/Info.plist"))
         let installer = NativeInstaller(preparedApp: prepared, destination: app, support: support)
         installer.verify = { _ in .init("adhoc") }
@@ -27,8 +28,10 @@ final class NativeInstallerTests: XCTestCase {
     }
     private func existingApp(_ app: URL, marker: String) throws {
         try FileManager.default.createDirectory(at: app.appendingPathComponent("Contents"), withIntermediateDirectories: true)
-        try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": "dev.vella.dictation"], format: .xml, options: 0)
-            .write(to: app.appendingPathComponent("Contents/Info.plist"))
+        try PropertyListSerialization.data(
+            fromPropertyList: ["CFBundleShortVersionString": "2.0.0", "CFBundleVersion": "35", "CFBundleIdentifier": "dev.vella.dictation"], format: .xml, options: 0
+        )
+        .write(to: app.appendingPathComponent("Contents/Info.plist"))
         try Data(marker.utf8).write(to: app.appendingPathComponent(marker))
     }
     /// A real signed bundle must keep its sealed relative alias through copy, swap and a second update.
@@ -45,7 +48,10 @@ final class NativeInstallerTests: XCTestCase {
         let alias = contents.appendingPathComponent("MacOS/VellaStreamingWorker")
         try FileManager.default.removeItem(at: alias)
         try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: "VellaWorker")
-        let info: [String: Any] = ["CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella", "CFBundlePackageType": "APPL"]
+        let info: [String: Any] = [
+            "CFBundleShortVersionString": "2.0.0", "CFBundleVersion": "35", "CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella",
+            "CFBundlePackageType": "APPL"
+        ]
         try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0).write(to: contents.appendingPathComponent("Info.plist"))
         XCTAssertEqual(try runTool("/usr/bin/codesign", ["--force", "--sign", "-", prepared.path]).status, 0)
         installer.verify = NativeInstaller.verifySignedBundle // do not stub signature checks
@@ -150,7 +156,10 @@ final class NativeInstallerTests: XCTestCase {
         let oldExecutable = app.appendingPathComponent("Contents/MacOS/Vella")
         try FileManager.default.removeItem(at: oldExecutable)
         try FileManager.default.copyItem(at: URL(fileURLWithPath: "/usr/bin/true"), to: oldExecutable)
-        let plist = ["CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": "0.8.8"]
+        let plist = [
+            "CFBundleShortVersionString": "0.8.8", "CFBundleVersion": "35", "CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella",
+            "CFBundlePackageType": "APPL"
+        ]
         try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: app.appendingPathComponent("Contents/Info.plist"))
         XCTAssertEqual(try runTool("/usr/bin/codesign", ["--force", "--sign", "-", "--deep", app.path]).status, 0)
         XCTAssertEqual(try NativeInstaller.verifySignedBundle(app), .init("adhoc"))
@@ -198,12 +207,18 @@ final class NativeInstallerTests: XCTestCase {
                 try FileManager.default.copyItem(at: URL(fileURLWithPath: "/usr/bin/true"), to: path)
             }
             try PropertyListSerialization.data(
-                fromPropertyList: ["CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella", "CFBundlePackageType": "APPL"],
+                fromPropertyList: [
+                    "CFBundleShortVersionString": "2.0.0", "CFBundleVersion": "35", "CFBundleIdentifier": "dev.vella.dictation", "CFBundleExecutable": "Vella",
+                    "CFBundlePackageType": "APPL"
+                ],
                 format: .xml, options: 0
             ).write(to: prepared.appendingPathComponent("Contents/Info.plist"))
             XCTAssertEqual(try runTool("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", prepared.path]).status, 0)
             try FileManager.default.createDirectory(at: app.deletingLastPathComponent(), withIntermediateDirectories: true)
             try FileManager.default.copyItem(at: prepared, to: app)
+            let oldMarker = app.appendingPathComponent("Contents/Resources/old-identity-marker")
+            try Data("old signed app".utf8).write(to: oldMarker)
+            XCTAssertEqual(try runTool("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", app.path]).status, 0)
             installer.verify = { url in
                 _ = try NativeInstaller.verifySignedBundle(url)
                 return .init(url == app && !installer.didMigrateSigning ? identity : "designated => " + NativeInstaller.releaseRequirement)
@@ -233,14 +248,77 @@ final class NativeInstallerTests: XCTestCase {
             XCTAssertThrowsError(try installer.install())
             XCTAssertEqual(stopped, 1)
             XCTAssertEqual(try NativeInstaller.verifySignedBundle(app), .init("adhoc"), "old sealed app restored")
+            XCTAssertEqual(try Data(contentsOf: oldMarker), Data("old signed app".utf8))
             XCTAssertEqual(try Data(contentsOf: support.appendingPathComponent("config.json")), settings)
             installer.afterSwap = {}
             let previous = try XCTUnwrap(installer.install())
             XCTAssertTrue(installer.didMigrateSigning)
             XCTAssertEqual(stopped, 2)
             XCTAssertEqual(try NativeInstaller.verifySignedBundle(previous), .init("adhoc"))
+            XCTAssertEqual(try Data(contentsOf: previous.appendingPathComponent("Contents/Resources/old-identity-marker")), Data("old signed app".utf8))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: oldMarker.path))
             XCTAssertEqual(try Data(contentsOf: support.appendingPathComponent("config.json")), settings)
         }
+    }
+    func testVersionAndBuildDowngradesRefuseBeforeStopAndRequireExplicitOverride() throws {
+        // Numeric ordering, not lexicographic strings. Includes a cross-identity newer development app.
+        for (installedVersion, installedBuild, replacementVersion, replacementBuild, migration) in [
+            ("2.1.0", "36", "2.0.0", "35", false), ("2.0.10", "1", "2.0.9", "100", false),
+            ("2.0.0", "36", "2.0.0", "35", false), ("3.0.0", "1", "2.0.0", "35", true)
+        ] {
+            let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            try existingApp(app, marker: "old")
+            try setVersion(app, installedVersion, build: installedBuild)
+            try setVersion(installer.preparedApp, replacementVersion, build: replacementBuild)
+            installer.keepPrevious = true
+            installer.allowSigningMigration = true
+            installer.verify = { url in
+                .init(migration && url == app && !installer.didMigrateSigning ? "development certificate" : "designated => " + NativeInstaller.releaseRequirement)
+            }
+            installer.verifyMigrationTarget = { _ in }
+            var stops = 0
+            installer.stop = { _ in
+                stops += 1; return false
+            }
+            let before = try bundleSnapshot(app)
+            XCTAssertThrowsError(try installer.install()) { error in
+                XCTAssertTrue(error.localizedDescription.contains("--allow-downgrade"), error.localizedDescription)
+            }
+            XCTAssertEqual(stops, 0); XCTAssertEqual(try bundleSnapshot(app), before)
+            installer.allowVersionDowngrade = true
+            let previous = try XCTUnwrap(installer.install())
+            XCTAssertEqual(stops, 1); XCTAssertEqual(try bundleSnapshot(previous), before)
+        }
+    }
+    func testEqualAndNewerVersionsInstallButDowngradeOverrideCannotBypassSigning() throws {
+        for (version, build) in [("2.0.0", "35"), ("2.0.0", "36"), ("2.0.1", "1"), ("2.10.0", "1")] {
+            let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            try existingApp(app, marker: "old"); try setVersion(installer.preparedApp, version, build: build)
+            XCTAssertNoThrow(try installer.install())
+        }
+        let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try existingApp(app, marker: "old"); try setVersion(app, "3.0.0", build: "36")
+        installer.allowVersionDowngrade = true; installer.allowSigningMigration = true
+        installer.verify = { url in .init(url == app ? "designated => " + NativeInstaller.releaseRequirement : "adhoc") }
+        XCTAssertThrowsError(try installer.install())
+        XCTAssertEqual(try String(contentsOf: app.appendingPathComponent("old")), "old")
+    }
+    func testMalformedVersionOrBuildCannotBypassDowngradeCheck() throws {
+        for (version, build) in [("2.0", "35"), ("-1.0.0", "35"), ("2.0.0", "bad"), ("2.0.0", "-1")] {
+            let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            try existingApp(app, marker: "old"); try setVersion(app, version, build: build)
+            installer.allowVersionDowngrade = true
+            installer.stop = { _ in
+                XCTFail("Must refuse before stopping"); return false
+            }
+            XCTAssertThrowsError(try installer.install())
+        }
+    }
+    private func setVersion(_ app: URL, _ version: String, build: String) throws {
+        let path = app.appendingPathComponent("Contents/Info.plist")
+        var plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: path), format: nil) as? [String: Any])
+        plist["CFBundleShortVersionString"] = version; plist["CFBundleVersion"] = build
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: path)
     }
     func testReleaseIdentityUpdateNeedsNoMigrationConsent() throws {
         let (installer, root, app, _) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }

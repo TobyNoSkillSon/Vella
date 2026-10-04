@@ -150,7 +150,7 @@ jobs:
             echo
             echo "    gh attestation verify Vella-$VERSION-arm64.zip --repo $GITHUB_REPOSITORY"
             echo
-            echo "Signed with Vella's own certificate \"Vella Release Signing\" (SHA-1 \`$VELLA_SIGNING_SHA1\`), the same in every release, so Microphone and Accessibility permissions carry over when you update."
+            echo "Signed with Vella's own certificate \"Vella Release Signing\" (SHA-1 \`$VELLA_SIGNING_SHA1\`), the same in every release. Microphone and Accessibility permissions carry over between releases signed with this pinned identity; the first migration from a development or other identity requires granting them again."
           } >> "$NOTES"
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Vella $VERSION" --notes-file "$NOTES" \
             "$OUT/Vella-$VERSION-arm64.zip" "$OUT/Vella-$VERSION-arm64-symbols.zip" "$OUT/SHA256SUMS"

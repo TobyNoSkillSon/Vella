@@ -29,6 +29,8 @@ public final class NativeInstaller {
     public var keepPrevious = false
     /// The committed backup remains discoverable even if launching the replacement throws.
     public private(set) var previousApp: URL?
+    /// Explicit opt-in to an older release/build; signing checks remain mandatory.
+    public var allowVersionDowngrade = false
     /// Explicit installer-only transition: any verified installed identity -> pinned Vella release signature.
     public var allowSigningMigration = false
     public private(set) var didMigrateSigning = false
@@ -151,6 +153,38 @@ public final class NativeInstaller {
         }
         keepPrevious = true; didMigrateSigning = true
     }
+    /// Refuse older releases (or older builds of the same release) before consent, stopping or swapping.
+    /// Manual rollback moves the backup bundle back; it does not use this installer.
+    private func checkExistingVersion() throws {
+        guard FileManager.default.fileExists(atPath: destination.path) else { return }
+        func metadata(_ app: URL) throws -> (version: String, components: [Int], build: Int) {
+            let info = app.appendingPathComponent("Contents/Info.plist")
+            guard let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: info), format: nil) as? [String: Any],
+                let version = plist["CFBundleShortVersionString"] as? String
+            else { throw NativeInstallError.message("Cannot verify Vella's version; installation left unchanged.") }
+            let parts = version.split(separator: ".", omittingEmptySubsequences: false)
+            let numbers = parts.compactMap { part in
+                !part.isEmpty && part.count <= 9 && part.allSatisfy({ $0.isASCII && $0.isNumber }) ? Int(part) : nil
+            }
+            guard parts.count == 3, numbers.count == 3 else {
+                throw NativeInstallError.message("Cannot verify Vella's version; installation left unchanged.")
+            }
+            guard let build = plist["CFBundleVersion"] as? String, !build.isEmpty, build.count <= 9,
+                build.allSatisfy({ $0.isASCII && $0.isNumber }), let buildNumber = Int(build)
+            else {
+                throw NativeInstallError.message("Cannot verify Vella's build; installation left unchanged.")
+            }
+            return (version, numbers, buildNumber)
+        }
+        let current = try metadata(destination), replacement = try metadata(preparedApp)
+        let olderVersion = replacement.components.lexicographicallyPrecedes(current.components)
+        let olderBuild = replacement.components == current.components && replacement.build < current.build
+        guard allowVersionDowngrade || (!olderVersion && !olderBuild) else {
+            throw NativeInstallError.message(
+                "Refusing to replace Vella \(current.version) (build \(current.build)) with older Vella \(replacement.version) (build \(replacement.build)). Installation left unchanged. To intentionally downgrade, repeat the original command with --allow-downgrade."
+            )
+        }
+    }
     /// Installs the prepared app and launches it. Returns where the previous app was kept when
     /// `keepPrevious` is set (delete it after readiness; restore it by moving it back), else nil.
     @discardableResult
@@ -180,6 +214,7 @@ public final class NativeInstaller {
         guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else { throw NativeInstallError.message("Another Vella installer is running") }
         try checkBusy()
         let replacement = try verifyPreparedBundle()
+        try checkExistingVersion()
         try checkExistingIdentity(replacement)
         try manager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         let transaction = destination.deletingLastPathComponent().appendingPathComponent(".vella-update-\(UUID().uuidString)")

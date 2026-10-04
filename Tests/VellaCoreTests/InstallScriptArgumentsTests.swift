@@ -83,7 +83,7 @@ final class InstallScriptArgumentsTests: XCTestCase {
         try Data("#!/bin/bash\nprintf '<%s>\\n' \"$@\"\nprintf 'retry: %s\\n' \"$VELLA_INSTALL_RETRY_COMMAND\"\n".utf8).write(to: stub)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: stub.path)
         let cases: [([String], String)] = [
-            ([], "<2.0.0>\n"), (["--dry-run"], "<2.0.0>\n<--dry-run>\n"),
+            ([], "<2.0.0>\n"), (["2.0.1", "--allow-downgrade"], "<2.0.1>\n<--allow-downgrade>\n"), (["--dry-run"], "<2.0.0>\n<--dry-run>\n"),
             (["2.0.0", "--dry-run"], "<2.0.0>\n<--dry-run>\n"),
             (["--migrate-signing"], "<2.0.0>\n<--migrate-signing>\n")
         ]
@@ -97,7 +97,40 @@ final class InstallScriptArgumentsTests: XCTestCase {
             let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
             process.waitUntilExit()
             XCTAssertEqual(process.terminationStatus, 0)
-            XCTAssertEqual(text, expected + "retry: scripts/install.sh --migrate-signing\n", args.joined(separator: " "))
+            XCTAssertEqual(
+                text, expected + "retry: scripts/install.sh \(args.first.flatMap { $0.hasPrefix("--") ? nil : $0 } ?? "2.0.0") --migrate-signing\n", args.joined(separator: " "))
         }
     }
+    func testShellGuardsProtectEvenReleasesWithOlderInstallerTools() throws {
+        let script = #"""
+            import os, pathlib, subprocess, sys, tempfile
+            root = pathlib.Path(sys.argv[1])
+            with tempfile.TemporaryDirectory(prefix='vella-shell-version-') as temp:
+                base = pathlib.Path(temp); app = base/'prepared/Vella.app'; dest = base/'custom/Vella.app'
+                for folder in [app,dest]: (folder/'Contents').mkdir(parents=True)
+                for route in ['docs/install.sh','scripts/install-prepared.sh']:
+                    text = (root/route).read_text()
+                    guard = text[text.index('check_version() {'):text.index('\n}\n', text.index('check_version() {'))+3]
+                    guard = guard.replace('/usr/libexec/PlistBuddy','buddy')
+                    setup = '''buddy() { case "$2" in *ShortVersionString*) if [[ $3 == "$DEST"/* ]]; then echo "$FIX_OLD"; else echo "$FIX_NEW"; fi;; *CFBundleVersion*) if [[ $3 == "$DEST"/* ]]; then echo "$OB"; else echo "$NB"; fi;; *) return 2;; esac; }; '''
+                    for old,new,ob,nb,allow,exitcode in [
+                        ('2.1.0','2.0.0','35','36',0,1), ('2.0.10','2.0.9','1','100',0,1),
+                        ('2.0.0','2.0.0','36','35',0,1), ('2.0.0','2.0.0','36','35',1,0),
+                        ('2.0.0','2.0.1','36','1',0,0), ('2.0.0','2.0.0','35','35',0,0),
+                        ('bad','2.0.0','35','35',1,1)]:
+                        env = dict(os.environ, APP=str(app),DEST=str(dest),FIX_OLD=old,FIX_NEW=new,OB=ob,NB=nb,ALLOW=str(allow))
+                        result = subprocess.run(['/bin/bash','-c','set -euo pipefail; '+setup+guard+'\ncheck_version "$APP" "$DEST" "$ALLOW"'],env=env,capture_output=True,text=True,timeout=5)
+                        assert result.returncode == exitcode, (route,old,new,ob,nb,allow,result.stderr)
+                    assert text.index('check_version "$APP" "$DEST"') < text.index('OUTPUT="$("$TOOL" install'), route
+                print('shell downgrade guards passed: numeric versions/builds, explicit override, malformed metadata and pre-tool ordering')
+            """#
+        let process = Process(), output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        process.arguments = ["-c", script, Repository.root.path]
+        process.standardOutput = output; process.standardError = output
+        try process.run(); let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self); process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0, text)
+        XCTAssertTrue(text.contains("shell downgrade guards passed"), text)
+    }
+
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prebuilt release installer (the default path of scripts/install.sh). No Xcode needed.
-# Usage: install-release.sh VERSION [--dry-run]
+# Usage: install-release.sh VERSION [--dry-run] [--migrate-signing] [--allow-downgrade]
 # Downloads Vella-VERSION-arm64.zip and SHA256SUMS with curl, verifies everything before
 # touching the installed app, then installs (install-prepared.sh). --dry-run stops after verifying.
 set -euo pipefail
@@ -13,8 +13,8 @@ shift
 for option in "$@"; do
   case "$option" in
     --dry-run) DRY_RUN=1 ;;
-    --migrate-signing) MIGRATE=(--migrate-signing) ;;
-    *) echo 'Usage: install-release.sh VERSION [--dry-run] [--migrate-signing]' >&2; exit 2 ;;
+    --migrate-signing|--allow-downgrade) MIGRATE+=("$option") ;;
+    *) echo 'Usage: install-release.sh VERSION [--dry-run] [--migrate-signing] [--allow-downgrade]' >&2; exit 2 ;;
   esac
 done
 [[ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" == 1 ]] || { echo 'Vella requires an Apple Silicon Mac' >&2; exit 1; }

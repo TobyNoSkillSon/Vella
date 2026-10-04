@@ -11,7 +11,7 @@ import VellaUpdate
 //          update-result.json, which the relaunched app reports.
 @main struct VellaInstallTool {
     static let usage = """
-        Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> [--keep-previous] [--migrate-signing]
+        Usage: VellaInstallTool install --app <prepared Vella.app> --destination <Vella.app> --support <Vella support> [--keep-previous] [--migrate-signing] [--allow-downgrade]
                VellaInstallTool ready --app <installed Vella.app> --support <Vella support> [--timeout seconds] [--interval seconds] [--settle seconds]
                VellaInstallTool update --plan <plan.json>
 
@@ -23,7 +23,10 @@ import VellaUpdate
     static func url(_ key: String, in args: [String]) -> URL? { value(key, in: args).map { URL(fileURLWithPath: $0) } }
 
     static var signingRetryCommand: String {
-        ProcessInfo.processInfo.environment["VELLA_INSTALL_RETRY_COMMAND"] ?? "scripts/install.sh --migrate-signing"
+        if let retry = ProcessInfo.processInfo.environment["VELLA_INSTALL_RETRY_COMMAND"] { return retry }
+        guard CommandLine.arguments.dropFirst().first == "install" else { return "scripts/install.sh --migrate-signing" }
+        return (CommandLine.arguments.filter { $0 != "--migrate-signing" } + ["--migrate-signing"])
+            .map { "'" + $0.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }.joined(separator: " ")
     }
 
     static func main() {
@@ -45,6 +48,7 @@ import VellaUpdate
             let installer = NativeInstaller(preparedApp: app, destination: destination, support: support)
             installer.signingRetryCommand = signingRetryCommand
             installer.keepPrevious = args.contains("--keep-previous")
+            installer.allowVersionDowngrade = args.contains("--allow-downgrade")
             installer.allowSigningMigration = false // consent is resolved only after the migration disclosure
             if let id = value("--bundle-id", in: args) { installer.bundleIdentifier = id } // lab candidates only
             do {

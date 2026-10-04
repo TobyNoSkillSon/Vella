@@ -127,7 +127,9 @@ Open Vella from the menu bar, approve Microphone and Accessibility access, and p
 <details>
 <summary>Updating, verification and uninstalling</summary>
 
-**Updating.** `git pull && scripts/install.sh`. Models, recordings and settings are kept. The installer refuses while Vella is recording, transcribing or loading a model ("try again in a moment"); otherwise it quits Vella, swaps the app in place and restarts it. The previous app is kept until the new one reports ready, and restored if the swap fails. A certificate-signed installation is only replaced by an app with the same signing identity, so macOS privacy permissions carry over.
+**Updating.** `git pull && scripts/install.sh`. Models, recordings and settings are kept. The installer refuses while Vella is recording, transcribing or loading a model ("try again in a moment"); otherwise it quits Vella, swaps the app in place and restarts it. The previous app is kept until the new one reports ready, and restored if the swap fails. By default, a certificate-signed installation is replaced only by the same signing identity, preserving macOS privacy permissions. Explicit `--migrate-signing` consent permits a change only to Vella’s pinned release signature; permissions must be re-granted and the old app stays available for rollback.
+
+The installer refuses an older version or an older build of the same version. To intentionally downgrade, repeat the original command (including any custom destination) with `--allow-downgrade`. This does not bypass signing checks. Manual rollback restores the saved app directly, without running the installer.
 
 ### Upgrading from 0.8
 

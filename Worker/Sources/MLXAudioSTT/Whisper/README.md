@@ -72,8 +72,6 @@ per-cell and tier gates use that build’s FP16 Standard baseline. Earlier Float
   within noise, so dense checkpoints keep the plain step. Screening, 28 Sep, large-v3 int4: 36.5 → 38.1× and
   104.7 → 95.9 J/min.
 
-The generated block below retains measured Fast rows. No comparison with Standard is available until the FP16 Standard path is measured.
-
 Levers kept from the kernel rounds:
 
 | Lever | Switch | Revision | Exact? | Screening result | Default |

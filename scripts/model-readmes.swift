@@ -321,7 +321,10 @@ func run(root: URL, models: JSON, bench: JSON, check: Bool) -> [String] {
             stale.append("\(relative): missing")
             continue
         }
-        guard let updated = replaceBlock(text, renderBlock(folder, models, bench)) else {
+        let source = text.replacingOccurrences(
+            of: "The generated block below retains measured Fast rows. No comparison with Standard is available until the FP16 Standard path is measured.\n\n",
+            with: "")
+        guard let updated = replaceBlock(source, renderBlock(folder, models, bench)) else {
             stale.append("\(relative): needs exactly one \(startMarker) ... \(endMarker) pair")
             continue
         }

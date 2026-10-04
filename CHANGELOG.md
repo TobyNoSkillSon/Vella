@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0 (3 October 2026)
+## 2.0.0 (4 October 2026)
 
 - Tensor kernels require macOS 26.2 or newer. Optimized-path verdicts now include GPU architecture and device name; existing verdicts requalify once when each model/recipe next loads.
 
@@ -10,6 +10,8 @@
 - Known limitation: `--language` does not change recognition in 2.0; it only sets `verbose_json.language`, which echoes the requested code, or `unknown` when omitted. Detected-language reporting is deferred to 2.1.
 
 - Kept performance levers are now on by default for their measured model/precision cells: native INT8/INT4 in Parakeet Fast; tail blocks in Ultra Fast and Exact; keep-cache in Nemotron Fast and Exact, plus joint batching in BF16 Fast. Standard uses none. Lab `=1`/`=0` overrides remain; effective lever configurations match measured verdicts; GPU-identity keys require fresh local qualification.
+
+- Installers refuse older versions and older builds of the same version unless explicitly authorized with `--allow-downgrade`. Signing checks still apply; manual backup restoration is unchanged.
 
 ### Known limitations
 

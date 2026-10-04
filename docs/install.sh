@@ -13,8 +13,8 @@ main() {
   for option in "$@"; do
     case "$option" in
       --dry-run) DRY_RUN=1 ;;
-      --migrate-signing) MIGRATE=(--migrate-signing) ;;
-      *) fail 'Usage: install.sh [--dry-run] [--migrate-signing]' 2 ;;
+      --migrate-signing|--allow-downgrade) MIGRATE+=("$option") ;;
+      *) fail 'Usage: install.sh [--dry-run] [--migrate-signing] [--allow-downgrade]' 2 ;;
     esac
   done
   [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VELLA_VERSION must be a release version, e.g. 2.0.0' 2
@@ -60,6 +60,28 @@ main() {
   install_prepared "$APP" "$DEST"
 }
 
+# The downloaded tool can predate downgrade protection, so enforce it in the calling script too.
+check_version() {
+  local APP="$1" DEST="$2" ALLOW="$3" OLD NEW OLD_BUILD NEW_BUILD
+  [[ -e "$DEST" ]] || return 0
+  OLD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$DEST/Contents/Info.plist")" || return 1
+  NEW="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" || return 1
+  OLD_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$DEST/Contents/Info.plist")" || return 1
+  NEW_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")" || return 1
+  [[ "$OLD" =~ ^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ && "$NEW" =~ ^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ &&
+     "$OLD_BUILD" =~ ^[0-9]{1,9}$ && "$NEW_BUILD" =~ ^[0-9]{1,9}$ ]] || {
+    echo "Cannot verify Vella's version/build; installation left unchanged." >&2; return 1;
+  }
+  [[ "$ALLOW" == 1 ]] && return 0
+  if ! awk -v old="$OLD" -v new="$NEW" -v ob="$OLD_BUILD" -v nb="$NEW_BUILD" 'BEGIN {
+    split(old,a,"."); split(new,b,"."); for (i=1;i<=3;i++) { if (b[i]+0 < a[i]+0) exit 1; if (b[i]+0 > a[i]+0) exit 0 }
+    exit (nb+0 < ob+0)
+  }'; then
+    echo "Refusing to replace Vella $OLD (build $OLD_BUILD) with older Vella $NEW (build $NEW_BUILD). Installation left unchanged. To intentionally downgrade, repeat the original command with --allow-downgrade." >&2
+    return 1
+  fi
+}
+
 fail() { echo "$1" >&2; exit "${2:-1}"; }
 
 fetch() {
@@ -80,7 +102,11 @@ install_prepared() {
   local TOOL="$APP/Contents/Helpers/VellaInstallTool" OUTPUT PREVIOUS STATUS=0
   [[ -x "$TOOL" ]] || fail 'Prepared app lacks its installer tool; nothing installed.'
   mkdir -p "$(dirname "$DEST")"
-  export VELLA_INSTALL_RETRY_COMMAND="curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing"
+  export VELLA_INSTALL_RETRY_COMMAND="curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | env VELLA_DESTINATION_APP=$(printf %q "$DEST") VELLA_VERSION=$(printf %q "${VELLA_VERSION:-2.0.0}") VELLA_SUPPORT_DIR=$(printf %q "$SUPPORT") VELLA_BIN_DIR=$(printf %q "${VELLA_BIN_DIR:-$HOME/.local/bin}") ${VELLA_RELEASE_BASE_URL:+VELLA_RELEASE_BASE_URL=$(printf %q "$VELLA_RELEASE_BASE_URL") }bash -s -- --migrate-signing"
+  [[ " ${MIGRATE[*]-} " != *' --allow-downgrade '* ]] || VELLA_INSTALL_RETRY_COMMAND+=' --allow-downgrade'
+  local ALLOW_DOWNGRADE=0
+  [[ " ${MIGRATE[*]-} " != *' --allow-downgrade '* ]] || ALLOW_DOWNGRADE=1
+  check_version "$APP" "$DEST" "$ALLOW_DOWNGRADE"
   OUTPUT="$("$TOOL" install --app "$APP" --destination "$DEST" --support "$SUPPORT" --keep-previous ${MIGRATE[@]+"${MIGRATE[@]}"})"
   PREVIOUS="$(sed -n 's/^previous: //p' <<<"$OUTPUT")"
   echo "installed $DEST; starting…"
@@ -99,7 +125,7 @@ install_prepared() {
     [[ $STATUS -eq 3 && "${VELLA_ACCEPT_DEGRADED:-0}" == 1 ]] && return 0
     exit 1
   fi
-  if [[ ${#MIGRATE[@]} -gt 0 || "$OUTPUT" == *'signing-migrated:'* ]]; then
+  if [[ " ${MIGRATE[*]-} " == *' --migrate-signing '* || "$OUTPUT" == *'signing-migrated:'* ]]; then
     [[ -z "$PREVIOUS" ]] || echo "Previous app kept at $PREVIOUS; to roll back, quit Vella and move it to $DEST."
   else
     [[ -z "$PREVIOUS" ]] || rm -rf "$PREVIOUS"
