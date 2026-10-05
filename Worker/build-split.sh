@@ -7,10 +7,13 @@ clt=/Library/Developer/CommandLineTools
 xcode=${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}
 link=()
 swift_version=$(DEVELOPER_DIR="$clt" "$clt/usr/bin/swift" --version 2>&1 | sed -n 's/.*Swift version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p')
-read -r swift_major swift_minor <<<"$swift_version"
+read -r swift_major swift_minor <<<"$swift_version" || true
+[[ "${swift_major:-}" =~ ^[0-9]+$ && "${swift_minor:-}" =~ ^[0-9]+$ ]] || { echo 'Could not read the Command Line Tools Swift version.' >&2; exit 1; }
 # Swift 6.4 builds swift-collections' Optional._borrow() (SwiftStdlib 6.4, never called) with a strong reference to
 # swift_initBorrow, which the macOS 26 runtime lacks, so dyld would refuse to launch the worker there. One weak
 # declaration plus weak mismatch resolution makes that reference weak. Swift 6.3 compiles none of that code: no change.
+# Mismatch resolution is link-wide: with Swift 6.4 it also weakens NSCocoaErrorDomain and NSLocalizedDescriptionKey,
+# which macOS 26 exports, so they still bind. scripts/build.sh rejects any strong borrow reference that remains.
 if (( swift_major > 6 || (swift_major == 6 && swift_minor >= 4) )); then
     shim="$root/.build/weak-swift-borrow.o"
     mkdir -p "$root/.build"

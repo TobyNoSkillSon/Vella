@@ -9,7 +9,7 @@ You need an Apple Silicon Mac and two toolchains:
 - **Command Line Tools with Swift 6.3.3 or 6.4** (`xcode-select --install`; check with `/Library/Developer/CommandLineTools/usr/bin/swift --version`). All Swift code is compiled with it. Releases are built with 6.3.3; a 6.4 build still runs on macOS 26.
 - **Full Xcode with its Metal Toolchain** (`xcodebuild -downloadComponent MetalToolchain`). Xcode only compiles MLX's Metal shaders, with fast math off.
 
-The split is deliberate. Xcode 27's Swift 6.4 emits a runtime symbol (`_swift_initBorrow`) that macOS 26 does not have, so its binaries abort at launch. The shader setting is part of the qualified numerics (see [Dependencies](#dependencies)). The scripts do both halves:
+The split is deliberate. With Swift 6.4, a swift-collections function that nothing calls references a runtime symbol (`_swift_initBorrow`) that macOS 26 does not have, so an unmodified build aborts at launch there; `Worker/build-split.sh` links that reference weakly, so both 6.3.3 and 6.4 builds run on macOS 26. The shader setting is part of the qualified numerics (see [Dependencies](#dependencies)). The scripts do both halves:
 
 ```sh
 scripts/build.sh                          # dist/Vella.app: app, both recognition helpers, the `vella` command, mlx.metallib

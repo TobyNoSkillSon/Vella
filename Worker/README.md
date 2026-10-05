@@ -15,7 +15,7 @@ Model admission validates the local folder before loading; errors deliberately d
 
 ## Build
 
-`Worker/build-split.sh` compiles Swift/C++ with the existing CLT Swift 6.3.3, then compiles the pinned MLX package's ten prepared Metal sources using Xcode's installed Metal compiler. It creates the required `mlx-swift_Cmlx.bundle` beside the executable and records compiler versions, deployment target and artifact hashes in `Worker/.build/split-build-provenance.txt`. No installation or Python is involved. Explicit macOS 14 deployment alone does not fix Xcode Swift 6.4's `_swift_initBorrow` launch failure on this host.
+`Worker/build-split.sh` compiles Swift/C++ with the Command Line Tools Swift (6.3.3 for releases, or 6.4), then compiles the pinned MLX package's ten prepared Metal sources using Xcode's installed Metal compiler. It creates the required `mlx-swift_Cmlx.bundle` beside the executable and records compiler versions, deployment target and artifact hashes in `Worker/.build/split-build-provenance.txt`. No installation or Python is involved. With Swift 6.4 it also links swift-collections' uncalled `_swift_initBorrow` reference weakly, which macOS 26 lacks; without that an unmodified build aborts at launch on macOS 26.
 
 ## Attribution
 

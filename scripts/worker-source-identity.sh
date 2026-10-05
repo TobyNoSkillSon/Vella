@@ -11,7 +11,7 @@
 # a Worker README-only change, refresh that declared full-tree identity and its published provenance references.
 set -euo pipefail
 SOURCE=843a43444659dbd7f2de507b1e2da11453efb31b # informational measured-defaults commit, never a reachability gate
-WORKER_CODE_TREE=7d1627eabec827047633feca393ea73962a0f7db   # git tree of Worker/ with its README.md files removed
+WORKER_CODE_TREE=f91dc21579e795736daab3d6cb743bc3a5f4e621   # git tree of Worker/ with its README.md files removed
 # 5 Oct: Worker/build-split.sh weak-links swift_initBorrow for Swift >= 6.4 builds only; with Swift 6.3.3 its commands are
 # unchanged.
 PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
@@ -19,7 +19,7 @@ PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=4c2236401b4b6f5d2606d3b1afaa6599f3cb7af7   # 5 Oct: build-split.sh Swift 6.4 link step
+WORKER_FULL_TREE=80205ea71559cec951c1913d9464c38fa241a26b   # 5 Oct: build-split.sh Swift 6.4 link step
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
 # Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
 # build-split.sh differs by the Swift 6.4-only link step, inactive with the reference's Swift 6.3.3).
