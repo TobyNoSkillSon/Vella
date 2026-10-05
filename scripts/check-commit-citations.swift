@@ -80,7 +80,8 @@ func citations(_ text: String) -> Set<String> {
 }
 if CommandLine.arguments.contains("--selftest") {
     let head = git(["rev-parse", "HEAD"]).1.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard citations("commit `\(head.prefix(7))`; worker SHA-256 `\(String(repeating: "a", count: 64))`") == [String(head.prefix(7))],
+    // The full SHA: a 7-character prefix can be all digits (e.g. 3377576), which citations() rightly skips as a number.
+    guard citations("commit `\(head)`; worker SHA-256 `\(String(repeating: "a", count: 64))`") == [head],
         citations("commit `deadbee`") == ["deadbee"], git(["rev-parse", "--verify", "deadbee^{commit}"]).0 != 0,
         citations(#""revision": "deadbee""#).isEmpty,
         citations("- package: fixture revision (deadbee)").isEmpty,
