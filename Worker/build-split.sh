@@ -1,11 +1,25 @@
 #!/bin/bash
 # Compatibility build: existing CLT Swift/C++ compiler + Xcode's Metal compiler.
-# Installs nothing. This is needed on macOS 26.6 with Xcode 27 Swift 6.4.
+# Installs nothing. Releases use Swift 6.3.3; Swift 6.4 builds get the weak swift_initBorrow link below.
 set -euo pipefail
 root=$(cd -- "$(dirname "$0")" && pwd)
 clt=/Library/Developer/CommandLineTools
 xcode=${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}
-DEVELOPER_DIR="$clt" "$clt/usr/bin/swift" build --package-path "$root" -c release --build-system native
+link=()
+swift_version=$(DEVELOPER_DIR="$clt" "$clt/usr/bin/swift" --version 2>&1 | sed -n 's/.*Swift version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p')
+read -r swift_major swift_minor <<<"$swift_version"
+# Swift 6.4 builds swift-collections' Optional._borrow() (SwiftStdlib 6.4, never called) with a strong reference to
+# swift_initBorrow, which the macOS 26 runtime lacks, so dyld would refuse to launch the worker there. One weak
+# declaration plus weak mismatch resolution makes that reference weak. Swift 6.3 compiles none of that code: no change.
+if (( swift_major > 6 || (swift_major == 6 && swift_minor >= 4) )); then
+    shim="$root/.build/weak-swift-borrow.o"
+    mkdir -p "$root/.build"
+    printf '%s\n' 'extern void swift_initBorrow(void) __attribute__((weak_import));' \
+        '__attribute__((used)) void *const vella_weak_swift_initBorrow = (void *)&swift_initBorrow;' |
+        DEVELOPER_DIR="$clt" "$clt/usr/bin/clang" -target arm64-apple-macos26.0 -x c -c - -o "$shim"
+    link=(-Xlinker "$shim" -Xlinker -weak_reference_mismatches -Xlinker weak)
+fi
+DEVELOPER_DIR="$clt" "$clt/usr/bin/swift" build --package-path "$root" -c release --build-system native ${link[@]+"${link[@]}"}
 source="$root/.build/checkouts/mlx-swift"
 [[ $(git -C "$source" rev-parse HEAD) == 901941965d82e4a216d4d117231d847d194c563d ]]
 bin=$(DEVELOPER_DIR="$clt" "$clt/usr/bin/swift" build --package-path "$root" -c release --build-system native --show-bin-path)

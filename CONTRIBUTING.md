@@ -6,7 +6,7 @@ Bug reports, model proposals, fixes and speed-ups are welcome. This file covers 
 
 You need an Apple Silicon Mac and two toolchains:
 
-- **Command Line Tools with Swift 6.3.3** (`xcode-select --install`; check with `/Library/Developer/CommandLineTools/usr/bin/swift --version`). All Swift code is compiled with it.
+- **Command Line Tools with Swift 6.3.3 or 6.4** (`xcode-select --install`; check with `/Library/Developer/CommandLineTools/usr/bin/swift --version`). All Swift code is compiled with it. Releases are built with 6.3.3; a 6.4 build still runs on macOS 26.
 - **Full Xcode with its Metal Toolchain** (`xcodebuild -downloadComponent MetalToolchain`). Xcode only compiles MLX's Metal shaders, with fast math off.
 
 The split is deliberate. Xcode 27's Swift 6.4 emits a runtime symbol (`_swift_initBorrow`) that macOS 26 does not have, so its binaries abort at launch. The shader setting is part of the qualified numerics (see [Dependencies](#dependencies)). The scripts do both halves:
@@ -50,7 +50,7 @@ scripts/release-check.sh --ci       # the CI test set only (unit tests, CI=true)
 scripts/release-check.sh --signed   # release-signing environment: check the "Vella Release Signing" identity as release.yml does
 ```
 
-It runs the steps of `.github/workflows/ci.yml` and `release.yml` locally: tracked files are source only; Command Line Tools Swift 6.3.3 and the Metal Toolchain are present; `CHANGELOG.md` has a section for the version in `Resources/Info.plist` (it becomes the release notes); relative links in the public docs resolve; `scripts/lint.sh` is clean; `scripts/package-release.sh` builds, smoke-tests and zips the app into `.build/release-check/<time>/release/`; `SHA256SUMS` verifies; `xcrun swift test` passes. It prints one line per step and ends with the zip's path and SHA-256. It installs, uploads, tags and publishes nothing. Run it before a pull request that touches the build, the scripts or the docs, and before every tag.
+It runs the steps of `.github/workflows/ci.yml` and `release.yml` locally: tracked files are source only; Command Line Tools Swift 6.3.3 or 6.4 and the Metal Toolchain are present; `CHANGELOG.md` has a section for the version in `Resources/Info.plist` (it becomes the release notes); relative links in the public docs resolve; `scripts/lint.sh` is clean; `scripts/package-release.sh` builds, smoke-tests and zips the app into `.build/release-check/<time>/release/`; `SHA256SUMS` verifies; `xcrun swift test` passes. It prints one line per step and ends with the zip's path and SHA-256. It installs, uploads, tags and publishes nothing. Run it before a pull request that touches the build, the scripts or the docs, and before every tag.
 
 Real-model parity and benchmarks need downloaded weights and a quiet GPU. The maintainer runs them on the reference Mac (an M5 Max) before a change that affects numerics is merged.
 

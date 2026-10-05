@@ -7,7 +7,7 @@
 #   scripts/release-check.sh --signed   sign with "Vella Release Signing" (must be in the login keychain) and check
 #                                       the designated requirement and every binary's authority, as release.yml does
 #
-# Steps: tracked files are source only; toolchains (Command Line Tools Swift 6.3.3, Metal Toolchain); the version has
+# Steps: tracked files are source only; toolchains (Command Line Tools Swift 6.3.3 or 6.4, Metal Toolchain); the version has
 # a CHANGELOG section (the release notes); relative links in the public docs resolve; scripts/lint.sh (swift-format
 # layout and SwiftLint rules on first-party code); scripts/package-release.sh
 # (build, helper smoke tests, zip checks) into a temporary directory; SHA256SUMS verifies; xcrun swift test;
@@ -82,8 +82,10 @@ release_archive_no_lab() {
 
 toolchains() {
   local v; v="$("$CLT_SWIFT" --version 2>&1)"; echo "$v"
-  grep -q 'Apple Swift version 6\.3\.3 ' <<<"$v" \
-    || { echo "releases are built with Command Line Tools Swift 6.3.3 (xcode-select --install)"; return 1; }
+  # Release artifacts are built in CI with 6.3.3 (release.yml enforces it); local checks also accept 6.4, whose builds
+  # Worker/build-split.sh weak-links for macOS 26.
+  grep -E 'Apple Swift version (6\.3\.3|6\.4(\.[0-9]+)?) ' <<<"$v" >/dev/null \
+    || { echo "needs Command Line Tools Swift 6.3.3 (as releases) or 6.4 (xcode-select --install)"; return 1; }
   DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcodebuild -version
   DEVELOPER_DIR="${VELLA_XCODE_DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcodebuild -showComponent MetalToolchain 2>/dev/null | grep 'Status: installed' >/dev/null \
     || { echo "Metal Toolchain missing: xcodebuild -downloadComponent MetalToolchain"; return 1; }

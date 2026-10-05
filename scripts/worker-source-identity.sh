@@ -11,15 +11,18 @@
 # a Worker README-only change, refresh that declared full-tree identity and its published provenance references.
 set -euo pipefail
 SOURCE=843a43444659dbd7f2de507b1e2da11453efb31b # informational measured-defaults commit, never a reachability gate
-WORKER_CODE_TREE=53bde5329b1828bb286071a4d871c0a3cd9a2908   # git tree of Worker/ with its README.md files removed
+WORKER_CODE_TREE=7d1627eabec827047633feca393ea73962a0f7db   # git tree of Worker/ with its README.md files removed
+# 5 Oct: Worker/build-split.sh weak-links swift_initBorrow for Swift >= 6.4 builds only; with Swift 6.3.3 its commands are
+# unchanged.
 PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
 # 3 Oct chip-safety delta: macOS 26.2 tensor preflight; GPU architecture/name in gate keys and optional verdict metadata.
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=198576968f1cb23f436c596946d85059c06e8967   # 4 Oct: reconciled Whisper README prose and generated measurement notes; code tree unchanged
+WORKER_FULL_TREE=4c2236401b4b6f5d2606d3b1afaa6599f3cb7af7   # 5 Oct: build-split.sh Swift 6.4 link step
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
-# Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files only (checked below).
+# Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
+# build-split.sh differs by the Swift 6.4-only link step, inactive with the reference's Swift 6.3.3).
 REFERENCE_WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
 # Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 843a434
 # (BASE_WORKER_TREE, full tree including READMEs). The history scrub of 3 Oct rewrote that commit's Whisper README, so this
@@ -46,8 +49,9 @@ build_paths=(
   scripts/verify-release-symbols.sh
 )
 # 4 Oct: pipefail-safe identity/runtime probes, including fail-closed producer errors; no compilation behaviour change.
+# 5 Oct: the build.sh runtime-symbol guard rejects only strong borrow references (Swift 6.4 builds).
 # The measured build used the old build.sh text; this pin identifies the current shipped script bytes.
-BUILD_EXPECTED=494137a7f64e14c4a621618ab8fd2fd68cdb370ab82bdad16d60ac78f75ee48e
+BUILD_EXPECTED=baa879823b5157546f0ce6912de8fe9b670af29e664cf5b23bdf2bbe9173149b
 
 # git with the user's configuration (autocrlf, excludes, hooks) out of the hash.
 g() { git -c core.autocrlf=false -c core.excludesFile=/dev/null "$@"; }
@@ -67,8 +71,8 @@ verify_index() {
   echo "worker source: published full Worker tree (README.md included) $full"
   if g cat-file -e "$REFERENCE_WORKER_FULL_TREE^{tree}" 2>/dev/null; then
     refdiff="$(g diff --name-only "$REFERENCE_WORKER_FULL_TREE" "$WORKER_FULL_TREE")" || return 1
-    [[ -z "$(grep -Ev '(^|/)README\.md$' <<<"$refdiff" || true)" ]] || { echo 'reference capture tree differs from the shipped Worker tree beyond README.md files' >&2; return 1; }
-    echo "worker source: diagnose reference capture tree differs from the shipped tree in README.md files only"
+    [[ -z "$(grep -Ev '(^|/)README\.md$|^build-split\.sh$' <<<"$refdiff" || true)" ]] || { echo 'reference capture tree differs from the shipped Worker tree beyond README.md files and build-split.sh' >&2; return 1; }
+    echo "worker source: diagnose reference capture tree differs from the shipped tree in README.md files and the Swift 6.4 link step only"
   fi
   while IFS= read -r path; do g update-index --force-remove -- "$path" || return 1; done <<<"$readmes"
   tree="$(g write-tree)" || return 1

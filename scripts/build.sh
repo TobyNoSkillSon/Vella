@@ -37,8 +37,8 @@ if [[ "$IDENTITY" == "-" ]]; then
   echo 'Local ad-hoc build: replacing this build can invalidate macOS privacy permissions.' >&2
 fi
 xcrun swift scripts/prepare-build.swift check
-# Xcode's Metal compiler produces the pinned MLX shaders. The existing CLT
-# Swift 6.3.3 compiler produces binaries that launch on this macOS release.
+# Xcode's Metal compiler produces the pinned MLX shaders. Releases use CLT Swift 6.3.3; CLT Swift 6.4 also builds
+# binaries for macOS 26 (Worker/build-split.sh weak-links the one 6.4-only runtime call).
 CLT=/Library/Developer/CommandLineTools
 DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build -c release
 Worker/build-split.sh
@@ -46,12 +46,13 @@ WORKER_BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build --package-path Wor
 [[ -x "$WORKER_BIN/VellaWorker" && -x "$WORKER_BIN/VellaStreamingWorker" && -s "$WORKER_BIN/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib" ]] || {
   echo 'Native workers or pinned MLX shaders missing; build left installed app unchanged.' >&2; exit 1;
 }
-# Xcode 27's Swift 6.4 emits borrow symbols the macOS 26 Swift runtime lacks; such binaries die in dyld.
+# Swift 6.4 can reference borrow runtime symbols the macOS 26 Swift runtime lacks; a strong reference dies in dyld.
+# Weak references (resolved to null on macOS 26, behind 6.4-only availability) are allowed.
 for binary in .build/release/Vella .build/release/VellaModelTool .build/release/VellaInstallTool .build/release/vella-cli "$WORKER_BIN/VellaWorker" "$WORKER_BIN/VellaStreamingWorker"; do
-  UNDEFINED="$(nm -u "$binary")" || {
+  UNDEFINED="$(nm -m -u "$binary")" || {
     echo "Could not inspect Swift runtime symbols in $(basename "$binary"); build left installed app unchanged." >&2; exit 1;
   }
-  if grep -E '_swift_(init|end)Borrow' <<<"$UNDEFINED" >/dev/null; then
+  if grep -E '_swift_(init|end)Borrow' <<<"$UNDEFINED" | grep -v ' weak external ' >/dev/null; then
     echo "Unsupported Swift runtime borrow symbol in $(basename "$binary"); build left installed app unchanged." >&2; exit 1
   fi
 done
