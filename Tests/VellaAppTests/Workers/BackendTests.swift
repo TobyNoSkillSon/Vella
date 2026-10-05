@@ -91,7 +91,10 @@ final class BackendTests: XCTestCase {
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Start Dictation" })
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Quit Vella" })
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Microphone" && $0.submenu != nil })
-        XCTAssertNil(delegate.menu.item(withTitle: "Microphone")?.submenu?.item(withTitle: AppDelegate.microphoneFallbackCaption))
+        // The caption follows the configured preference; the backend reads the real support directory's config.json.
+        let preferred = (try? delegate.model.backend.configuration(requiresModel: false).preferredMicrophone) ?? ""
+        let caption = delegate.menu.item(withTitle: "Microphone")?.submenu?.item(withTitle: AppDelegate.microphoneFallbackCaption)
+        XCTAssertEqual(caption != nil, !preferred.isEmpty, "the fallback caption shows only under a preferred microphone")
     }
     @MainActor func testRecordingMenuOffersFinishAndCancel() {
         _ = NSApplication.shared

@@ -390,10 +390,14 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(tipped["Memory → Fit in free memory"], fitInFreeMemoryHelp)
         XCTAssertEqual(tipped["Memory → Allow swap (slower)"], allowSwapHelp)
         XCTAssertEqual(tipped["Open Saved Recordings"], AppDelegate.privacyHelp)
-        let survivors: Set<String> = [
+        var survivors: Set<String> = [
             "Copy Skill for Your Agent", "Keep Hot → Manually loaded", "Keep Hot → Loaded on demand", "Keep Hot → Always",
             "Memory → Fit in free memory", "Memory → Allow swap (slower)", "Open Saved Recordings"
         ]
+        // Under a preferred microphone (the real support directory's config.json) its fallback caption carries a tooltip.
+        if !((try? delegate.model.backend.configuration(requiresModel: false).preferredMicrophone) ?? "").isEmpty {
+            survivors.insert("Microphone → " + AppDelegate.microphoneFallbackCaption)
+        }
         // The header (first item) has one only while it reports an error or permission (menuHeaderToolTip, below).
         let header = delegate.menu.items[0]
         XCTAssertEqual(header.toolTip, menuHeaderToolTip(failed: false, message: "", needsPermission: !model.insertionPermission.granted, idle: true, pending: nil))

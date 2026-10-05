@@ -75,7 +75,9 @@ import SwiftUI
             if case .family(let f) = $0 { return f }; return nil
         }
     }
-    /// A real click (down, then up queued for the control's tracking loop) at `point` in window coordinates.
+    /// A real click at `point` in window coordinates: down, then up queued for the control's tracking loop (macOS 26,
+    /// where the segmented control receives the down). On macOS 27 the hosting view receives the down and no tracking
+    /// loop pulls the up, so a still-queued up goes to the window, as the window server delivers a real click.
     private func click(_ window: NSWindow, at point: NSPoint) {
         func event(_ type: NSEvent.EventType) -> NSEvent {
             NSEvent.mouseEvent(
@@ -84,6 +86,7 @@ import SwiftUI
         }
         NSApp.postEvent(event(.leftMouseUp), atStart: false)
         window.sendEvent(event(.leftMouseDown))
+        if let up = NSApp.nextEvent(matching: .leftMouseUp, until: Date(), inMode: .default, dequeue: true) { window.sendEvent(up) }
         spin()
     }
     /// A SwiftUI button's click: down and up both sent to the window (no control tracking loop pulls the up).
