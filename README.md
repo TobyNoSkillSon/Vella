@@ -1,7 +1,29 @@
-# Vella
+<p align="center">
+  <img src="docs/images/icon.png" alt="" width="72">
+</p>
+
+<h1 align="center">Vella</h1>
+
+<p align="center">Offline dictation and transcription for Apple Silicon Macs.</p>
 
 <p align="center">
-  <img src="docs/images/models-current.png" alt="Vella Models table with Dictation and Streaming sections, six precision cells per model, Exact/Fast, Get/Load/Unload, and final M5 Max benchmark figures" width="904">
+  <a href="#install"><img src="docs/images/install.svg" alt="Install Vella" width="152" height="42"></a>
+  &nbsp;
+  <a href="https://github.com/sponsors/TobyNoSkillSon"><img src="docs/images/support.svg" alt="Support Vella on GitHub Sponsors" width="176" height="42"></a>
+</p>
+
+<p align="center">
+  <a href="#models">Models</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#using-it">Using it</a> ·
+  <a href="#for-your-agent">For your agent</a> ·
+  <a href="docs/USAGE.md">User guide</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/menu-current.png" alt="Vella's menu while dictating: status, Models, Keep Hot, Memory, Finish Dictation, Stop and Keep Audio, Mode, Microphone, Shortcuts, Copy Last Transcript, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Launch at Login" height="340">
+  &nbsp;
+  <img height="340" src="docs/images/models-current.png" alt="Vella Models table with Dictation and Streaming sections, six precision cells per model, Exact/Fast, Get/Load/Unload, and final M5 Max benchmark figures" width="904">
 </p>
 
 Offline dictation and transcription for Mac: local Whisper, Parakeet and Qwen speech-to-text, tuned for Apple Silicon. Scripts and coding agents get an OpenAI-compatible local API: `POST /v1/audio/transcriptions`.
@@ -200,9 +222,6 @@ A source build needs the Command Line Tools Swift (`xcode-select --install`), fu
 
 Everything lives in the menu: the status line, then **Models… · Keep Hot · Memory**, then **Start Dictation** with **Mode · Microphone · Shortcuts**, your last transcript and saved recordings, then the agent skill, files and **Launch at Login**.
 
-<p align="center">
-  <img src="docs/images/menu-current.png" alt="Vella's menu: status, Models, Keep Hot, Memory, Start Dictation, Mode, Microphone, Shortcuts, Copy Last Transcript, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Start Worker, Launch at Login, Support and Quit" width="340">
-</p>
 
 **Choose.** In Models…, choose a precision on Standard or Optimized. Fast and Exact select the Optimized recipe; unavailable cells explain why in their tooltip.
 
