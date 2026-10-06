@@ -15,7 +15,7 @@ final class InstallScriptArgumentsTests: XCTestCase {
             try Data(("#!/bin/bash\n" + body + "\n").utf8).write(to: file)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
         }
-        for (path, args) in [("scripts/install-release.sh", ["2.0.0", "--dry-run"]), ("docs/install.sh", ["--dry-run"])] {
+        for (path, args) in [("scripts/install-release.sh", ["2.0.0", "--dry-run"]), ("scripts/install-public.sh", ["--dry-run"])] {
             let process = Process(), output = Pipe()
             process.executableURL = URL(fileURLWithPath: "/bin/bash")
             process.arguments = [Repository.root.appendingPathComponent(path).path] + args
@@ -51,7 +51,7 @@ final class InstallScriptArgumentsTests: XCTestCase {
     }
 
     func testInstallersCheckHardwareNotRosettaProcessArchitecture() throws {
-        for path in ["scripts/install.sh", "scripts/install-release.sh", "docs/install.sh"] {
+        for path in ["scripts/install.sh", "scripts/install-release.sh", "scripts/install-public.sh"] {
             let text = try String(contentsOf: Repository.root.appendingPathComponent(path), encoding: .utf8)
             let guardLine = try XCTUnwrap(text.components(separatedBy: "\n").first { $0.contains("hw.optional.arm64") })
             for (hardware, expected) in [("1", Int32(0)), ("0", Int32(1))] {
@@ -108,7 +108,7 @@ final class InstallScriptArgumentsTests: XCTestCase {
             with tempfile.TemporaryDirectory(prefix='vella-shell-version-') as temp:
                 base = pathlib.Path(temp); app = base/'prepared/Vella.app'; dest = base/'custom/Vella.app'
                 for folder in [app,dest]: (folder/'Contents').mkdir(parents=True)
-                for route in ['docs/install.sh','scripts/install-prepared.sh']:
+                for route in ['scripts/install-public.sh','scripts/install-prepared.sh']:
                     text = (root/route).read_text()
                     guard = text[text.index('check_version() {'):text.index('\n}\n', text.index('check_version() {'))+3]
                     guard = guard.replace('/usr/libexec/PlistBuddy','buddy')

@@ -197,7 +197,7 @@ final class NativeInstallerTests: XCTestCase {
             #"designated => identifier "dev.vella.dictation" and anchor apple generic and certificate leaf[subject.CN] = "Apple Development: Fixture""#,
             #"designated => identifier "dev.vella.dictation" and certificate leaf = H"0123456789012345678901234567890123456789""#
         ]
-        let retry = "curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing"
+        let retry = "curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash -s -- --migrate-signing"
         for identity in identities {
             let (installer, root, app, support) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
             let prepared = installer.preparedApp

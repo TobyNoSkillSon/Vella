@@ -10,7 +10,7 @@ final class SigningConsentToolTests: XCTestCase {
             tool, root = sys.argv[1:]
             routes = [
                 ('scripts/install.sh', 'scripts/install.sh 2.0.0 --migrate-signing'),
-                ('docs/install.sh', 'curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | env VELLA_DESTINATION_APP=/fixture/Vella.app VELLA_VERSION=2.0.0 VELLA_SUPPORT_DIR=/fixture/support VELLA_BIN_DIR=/fixture/bin bash -s -- --migrate-signing'),
+                ('scripts/install-public.sh', 'curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | env VELLA_DESTINATION_APP=/fixture/Vella.app VELLA_VERSION=2.0.0 VELLA_SUPPORT_DIR=/fixture/support VELLA_BIN_DIR=/fixture/bin bash -s -- --migrate-signing'),
                 ('scripts/install-release.sh', 'scripts/install-release.sh 2.0.0 --migrate-signing'),
                 ('scripts/install-prepared.sh', "scripts/install-prepared.sh /fixture/Vella.app --migrate-signing"),
             ]
@@ -58,7 +58,7 @@ final class SigningConsentToolTests: XCTestCase {
                                     name = None
                                     if route == 'scripts/install.sh':
                                         name = 'installer-signing-terminal-declined' if terminal else 'installer-signing-noninteractive'
-                                    elif route == 'docs/install.sh' and terminal: name = 'installer-signing-public-declined'
+                                    elif route == 'scripts/install-public.sh' and terminal: name = 'installer-signing-public-declined'
                                     if name:
                                         with open(os.path.join(review, name + '.txt'), 'wb') as f:
                                             f.write(expected.encode() + b'\n\n' + error + result.stdout)
@@ -95,10 +95,10 @@ final class SigningConsentToolTests: XCTestCase {
                 scripts = home / 'scripts'; scripts.mkdir()
                 for name in ['install.sh', 'install-release.sh', 'install-prepared.sh']:
                     path = scripts / name; path.write_text(capture); path.chmod(0o755)
-                for route in ['docs/install.sh', 'scripts/install.sh', 'scripts/install-release.sh', 'scripts/install-prepared.sh']:
+                for route in ['scripts/install-public.sh', 'scripts/install.sh', 'scripts/install-release.sh', 'scripts/install-prepared.sh']:
                     lines = (root / route).read_text().splitlines()
                     export = next(line.strip() for line in lines if 'export VELLA_INSTALL_RETRY_COMMAND=' in line)
-                    if route != 'docs/install.sh':
+                    if route != 'scripts/install-public.sh':
                         prepared = (root / 'scripts/install-prepared.sh').read_text().splitlines()
                         # install.sh/release.sh supply the route; prepared.sh adds selected destination/support.
                         context = next(line for line in prepared if line.startswith('VELLA_INSTALL_RETRY_COMMAND="env '))
@@ -114,7 +114,7 @@ final class SigningConsentToolTests: XCTestCase {
                     assert result[:3] == [dest, support, binpath], (route, retry, result)
                     assert result[4] == 'file:///custom release', (route, result)
                     assert '--migrate-signing' in result[5], (route, result)
-                    if route == 'docs/install.sh': assert result[3] == '9.8.7', result
+                    if route == 'scripts/install-public.sh': assert result[3] == '9.8.7', result
                     elif route != 'scripts/install-prepared.sh': assert '9.8.7' in result[5], result
                 print('retry context passed: every route, quoted custom destination/support, version and release base')
             """#

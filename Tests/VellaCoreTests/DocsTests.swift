@@ -1,7 +1,7 @@
 import XCTest
 import VellaTestSupport
 
-/// The public documents: community files, the Pages installer and benchmark site, and what they must not contain.
+/// The public documents: community files, the standalone installer and benchmark kit, and what they must not contain.
 final class DocsTests: XCTestCase {
     static let root = Repository.root
     func text(_ path: String) throws -> String { try String(contentsOf: Self.root.appendingPathComponent(path), encoding: .utf8) }
@@ -22,7 +22,7 @@ final class DocsTests: XCTestCase {
         ] {
             XCTAssertTrue(exists(path), path)
         }
-        XCTAssertFalse(exists("BENCHMARKS.md"), "the benchmark table lives in the README and on the Pages site")
+        XCTAssertFalse(exists("BENCHMARKS.md"), "the benchmark table lives in the README")
     }
 
     /// The bug form asks for `vella diagnose`, with the field ids the prefilled issue link fills in.
@@ -44,11 +44,11 @@ final class DocsTests: XCTestCase {
         XCTAssertTrue(try text("Sources/Vella/App/AppDelegate.swift").contains("https://github.com/sponsors/TobyNoSkillSon"))
     }
 
-    /// The Pages installer (the short curl URL) installs this version's prebuilt release with the repository installer's
+    /// The standalone installer (the raw GitHub URL) installs this version's prebuilt release with the repository installer's
     /// checks, from main() so a truncated download runs nothing; it never builds from source or needs Python.
-    func testPagesInstallerInstallsThisRelease() throws {
-        let pages = try text("docs/install.sh")
-        XCTAssertTrue(pages.contains("VERSION=\"${VELLA_VERSION:-\(try version)}\""), "docs/install.sh installs the version in Info.plist")
+    func testPublicInstallerInstallsThisRelease() throws {
+        let pages = try text("scripts/install-public.sh")
+        XCTAssertTrue(pages.contains("VERSION=\"${VELLA_VERSION:-\(try version)}\""), "scripts/install-public.sh installs the version in Info.plist")
         XCTAssertTrue(pages.hasSuffix("main \"$@\"\n"))
         let release = try text("scripts/install-release.sh"), prepared = try text("scripts/install-prepared.sh")
         for step in [
@@ -60,7 +60,7 @@ final class DocsTests: XCTestCase {
             "codesign --verify --deep --strict \"$APP\"", "--proto '=https,file' --proto-redir '=https' --tlsv1.2"
         ] {
             XCTAssertTrue(release.contains(step), "scripts/install-release.sh: \(step)")
-            XCTAssertTrue(pages.contains(step), "docs/install.sh: \(step)")
+            XCTAssertTrue(pages.contains(step), "scripts/install-public.sh: \(step)")
         }
         for step in [
             "install --app \"$APP\" --destination \"$DEST\" --support \"$SUPPORT\" --keep-previous",
@@ -68,7 +68,7 @@ final class DocsTests: XCTestCase {
             "ln -sfn \"$DEST/Contents/Helpers/vella\" \"$BIN/vella\"", "VELLA_ACCEPT_DEGRADED"
         ] {
             XCTAssertTrue(prepared.contains(step), "scripts/install-prepared.sh: \(step)")
-            XCTAssertTrue(pages.contains(step), "docs/install.sh: \(step)")
+            XCTAssertTrue(pages.contains(step), "scripts/install-public.sh: \(step)")
         }
         for stale in ["python", "Python", "source.tar.gz", "swift build", "install_app"] { XCTAssertFalse(pages.contains(stale), stale) }
     }
@@ -105,7 +105,7 @@ final class DocsTests: XCTestCase {
     func testPublicDocumentsHaveNoInternalReferences() throws {
         let documents = [
             "README.md", "AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md", "NOTICE",
-            "THIRD_PARTY_NOTICES.md", "docs/USAGE.md", "docs/index.html", "docs/table.js", "docs/install.sh",
+            "THIRD_PARTY_NOTICES.md", "docs/USAGE.md", "docs/index.html", "docs/table.js", "scripts/install-public.sh",
             ".github/pull_request_template.md", ".github/ISSUE_TEMPLATE/bug_report.yml",
             ".github/ISSUE_TEMPLATE/feature_request.yml", ".github/ISSUE_TEMPLATE/new_model.yml",
             "scripts/third-party-notices.sh", "scripts/pages-data.sh", "Resources/benchmarks.json", "docs/data.js"

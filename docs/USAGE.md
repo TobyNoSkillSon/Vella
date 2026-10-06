@@ -31,7 +31,7 @@ A self-built 0.8.x or development-signed app may have an ad-hoc, Apple Developme
 scripts/install.sh --migrate-signing
 ```
 
-For the public installer: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing`. This permits any verified installed Vella signing identity → Vella’s pinned release signature, never an arbitrary replacement identity. The installer names the identity being replaced. Same-identity updates need no migration consent. macOS will ask for **Microphone** and **Accessibility** again; re-enable Vella under System Settings → Privacy & Security. Settings, history, recordings and models are kept. The previous app stays at the printed path even after readiness; to roll back, quit Vella and move that app back to the printed destination. No upgrade proceeds while recording, transcribing or loading.
+For the public installer: `curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash -s -- --migrate-signing`. This permits any verified installed Vella signing identity → Vella’s pinned release signature, never an arbitrary replacement identity. The installer names the identity being replaced. Same-identity updates need no migration consent. macOS will ask for **Microphone** and **Accessibility** again; re-enable Vella under System Settings → Privacy & Security. Settings, history, recordings and models are kept. The previous app stays at the printed path even after readiness; to roll back, quit Vella and move that app back to the printed destination. No upgrade proceeds while recording, transcribing or loading.
 
 The installer also links the `vella` command into `~/.local/bin` (see **Transcribe files** below).
 
@@ -333,3 +333,7 @@ Settings, models and recordings in `~/Library/Application Support/Vella` are kep
 - [License](../LICENSE) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 **Recover later.** Choose **Recover Saved Recording…** even after relaunch or another recording. Select the dated Dictation/Streaming session; the result is copied, never inserted automatically. **Open Saved Recordings** opens its files: segmented Float32 PCM plus `session.json` and transcript/checkpoints, not ordinary playable audio files.
+
+## Measure and optimize on your Mac
+
+Coding agents start with the [public benchmark kit](../Benchmarks/README.md). It provides the frozen suites, pinned audio fetch, scorer and isolated serial runner, plus an optimization guide and a one-model result PR recipe. Quick quality is an estimate; maintainers review results by hand. Ask before downloads, long runs, scheduling or submitting.

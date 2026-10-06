@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Public [benchmark and optimization kit](Benchmarks/README.md): frozen full/quick suites, pinned upstream audio fetch, scorer, quality gate, isolated installed-app API runner and manually reviewed chip-specific result PRs. Quick quality is labelled an estimate.
+- Standalone installer moves to GitHub raw hosting; Pages retirement follows public-URL verification and compatibility review.
+
 ## 2.0.0 (4 October 2026)
 
 - Tensor kernels require macOS 26.2 or newer. Optimized-path verdicts now include GPU architecture and device name; existing verdicts requalify once when each model/recipe next loads.
@@ -26,8 +31,8 @@
 - **First dictation without a model** keeps the recording and offers **Get <model> (<size>)**; the recording is transcribed once the model is ready.
 - **In-app updates.** A newer release shows an orange **Update to X…** item under **Support the Developer…**. **Update Now** downloads the release, verifies its SHA-256, contents, version and that it is signed like the running app, installs it when Vella is idle and restarts; if the new version does not become ready, the previous one is restored. It replaces the notice that only opened the release page.
 - **Audio files, for you and your agents.** `vella transcribe <file>` (text, `--srt`, `--vtt`, `--json`) and an OpenAI-compatible local API (`POST /v1/audio/transcriptions`, `GET /v1/models`, `GET /status`) on 127.0.0.1, so the OpenAI SDKs work with only the base URL changed. Any audio macOS decodes, up to 3 hours; dictation always goes first; nothing is pasted or kept. The installer links `vella` into `~/.local/bin`; **Copy Skill for Your Agent** and `vella skill` provide the agent skill.
-- **One-command install without git.** `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` now installs the prebuilt release with the same checks as `scripts/install.sh` (it built 0.8.8 from source with Python). `bash -s -- --dry-run` verifies without installing.
-- **Benchmark site** at https://tobynoskillson.github.io/Vella/: every measured model and precision on the v2 benchmark, sortable, with the estimated cloud API rows.
+- **One-command install without git.** `curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash` now installs the prebuilt release with the same checks as `scripts/install.sh` (it built 0.8.8 from source with Python). `bash -s -- --dry-run` verifies without installing.
+- **Benchmark table**: every measured model and precision on the v2 benchmark. Current data is in `Resources/benchmarks.json`; community measurement is in [Benchmarks/](Benchmarks/README.md).
 - **Models controls for agents.** `vella models --json` lists all table rows and cells; Select, Get (explicit `--yes` consent), Load, Reload, Unload, Delete (explicit precision and `--yes`), Keep Hot and Memory use the table's controller and runtime. Authenticated local API routes expose the same controls; file transcription itself still never downloads.
 - **Optional disk image.** `scripts/package-dmg.sh` makes a local `Vella-2.0.0.dmg` from the verified release ZIP, keeps the app's existing signature and adds its checksum. The primary installer still uses the ZIP.
 
@@ -44,7 +49,7 @@
 - **A fresh install downloads and loads nothing.** Earlier versions downloaded and selected Parakeet Q4 during installation.
 - One helper process per loaded model; a crashed helper restarts up to three times (after 2, 4 and 6 s). Helpers exit when Vella quits or is force-quit, and helpers left behind by an earlier Vella are stopped at launch, matched by their executable file only.
 - The installer keeps the previous app until the new one reports ready, and refuses while a model is loading as well as during dictation.
-- **Signing migration.** An installed Vella with an ad-hoc, Apple Development or other verified signature can move to the pinned release identity only with explicit `--migrate-signing` consent. The installer names the identity being replaced, asks y/N only with terminal stdin, keeps the old app for rollback and warns that macOS will ask for Microphone and Accessibility again. Same-identity updates need no migration consent. For 0.8.x or development-signed installs: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing`.
+- **Signing migration.** An installed Vella with an ad-hoc, Apple Development or other verified signature can move to the pinned release identity only with explicit `--migrate-signing` consent. The installer names the identity being replaced, asks y/N only with terminal stdin, keeps the old app for rollback and warns that macOS will ask for Microphone and Accessibility again. Same-identity updates need no migration consent. For 0.8.x or development-signed installs: `curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash -s -- --migrate-signing`.
 - Updates replace the whole app bundle, so files from older versions (including Python-era resources) never survive an update.
 - **Licence changed to MIT.** Vella 2.0 is licensed under the MIT License. Published 0.x releases remain Apache-2.0; their licences are not changed retroactively. Third-party code and model weights retain their own licences.
 - **Chip coverage.** Standard is optimized for your Mac through MLX; Optimized adds our custom kernels. Measurements are from an M5 Max with a 40-core GPU; other M5 configurations have not yet been tested. The CLI help and agent guides state that boundary explicitly.

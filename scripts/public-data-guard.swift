@@ -41,7 +41,7 @@ if CommandLine.arguments.contains("--selftest") {
         "%2Fhome%2Fprivate", "lab/notes/private.md"
     ]
     for example in bad where violations(example).isEmpty { fail("public guard missed a forbidden identity kind") }
-    for example in ["$HOME/Applications", "~/Applications", "mlx-community/checkpoint", "https://tobynoskillson.github.io/Vella/", "https://github.com/NTRLab/MediaSpeech"] where !violations(example).isEmpty {
+    for example in ["$HOME/Applications", "~/Applications", "mlx-community/checkpoint", "https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh", "https://github.com/NTRLab/MediaSpeech"] where !violations(example).isEmpty {
         fail("public guard rejected a portable identifier or generic shell placeholder")
     }
     // Compressed image bytes can resemble a short named-user tilde path; literal absolute paths and names still scan.

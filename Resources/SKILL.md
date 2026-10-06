@@ -17,7 +17,7 @@ Use another tool to translate, to identify speakers or for word-level timestamps
 
 ## Install
 
-`vella status` prints one line when Vella is installed. If `vella` is missing, try `~/.local/bin/vella`; if that is missing too, check `/Applications/Vella.app/Contents/Helpers/vella` (the DMG does not link a command); otherwise ask the user before installing: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash` (Apple Silicon, macOS 26 or newer; it ends with `ready: …`). A fresh install has no model. List cells and the pinned source/size with `vella models --json`; ask consent before `vella get ID --yes`.
+`vella status` prints one line when Vella is installed. If `vella` is missing, try `~/.local/bin/vella`; if that is missing too, check `/Applications/Vella.app/Contents/Helpers/vella` (the DMG does not link a command); otherwise ask the user before installing: `curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash` (Apple Silicon, macOS 26 or newer; it ends with `ready: …`). A fresh install has no model. List cells and the pinned source/size with `vella models --json`; ask consent before `vella get ID --yes`.
 
 ## Results
 
@@ -119,5 +119,4 @@ curl -s "$(vella url)/audio/transcriptions" -F file=@talk.m4a -F response_format
 
 ## Measure on another Mac
 
-For community measurement, follow https://github.com/TobyNoSkillSon/Vella/blob/main/CONTRIBUTING.md#community-measurement. One model at a time is enough. The shipped `diagnose` clips are diagnostic evidence, not the full benchmark suite; label the dataset and chip. Use an agent capable of running the benchmark commands, checking their results and reporting failures for an unattended run, and ask consent before scheduling, downloading or submitting an issue/PR. Energy needs `powermetrics` and admin consent; otherwise leave energy unmeasured.
-
+Start at https://github.com/TobyNoSkillSon/Vella/blob/main/Benchmarks/README.md for the frozen full/quick suites, audio fetch, serial installed-app runner, scorer, local result check and chip optimization guide. One model is enough. Quick quality is an estimate; full quality needs the full suite. Ask before downloads, long runs, scheduling or opening an issue/PR; exclude personal recordings. Leave energy absent unless measured with the documented powermetrics protocol and admin consent.

@@ -23,7 +23,7 @@ Offline dictation and transcription for Mac: local Whisper, Parakeet and Qwen sp
 Press **Control + Command + N**, speak, press it again: Vella transcribes on your Mac and pastes the text where you were typing. In Streaming mode the words appear as you speak. Audio and text stay on the Mac.
 
 ```sh
-curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash
 ```
 
 Apple Silicon, macOS 26 or newer. No Xcode, Python or developer account.
@@ -138,14 +138,14 @@ Speed differences use “N× faster” at a ratio of 2× or above and “N% fast
 - **Which tiers are offered.** Every measured tier is offered, with its figures. Where a tier loses anything against 16, its tooltip says what, starting with test clips it left empty or cut short, which an average word error rate hides; Vella's quality gate (English word error rate within 0.1 points of 16, up to 0.2 points for a model whose measured run-to-run noise is larger, the other languages within a similar limit, no dropped or cut-off segments) says whether a tier loses nothing measurable. No tier is recommended: you choose.
 - Measurements are from an M5 Max with a 40-core GPU; other M5 configurations have not yet been tested. Other Apple Silicon chips run the fallback paths qualified by self-test. Only M5 Max with 40 GPU cores matches the measured configuration. On every other Mac (including M5, M5 Pro and other M5 Max core counts), Speed stays the **M5 Max measurement**, lighter grey with a small **M5 Max** label; it is not an estimate for that Mac. J / min is `not known`. WER, Format and Peak RAM stay as measured. Tooltip: “Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it.”
 
-Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); the [benchmark methods](docs/BENCHMARKS.md) cover suites, scoring, timing, energy and build provenance. A sortable table is at https://tobynoskillson.github.io/Vella/.
+Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); the [benchmark methods](docs/BENCHMARKS.md) cover suites, scoring, timing, energy and build provenance. Benchmark your Mac or tune a model with the [public benchmark kit](Benchmarks/README.md).
 
 </details>
 
 ## Install
 
 ```sh
-curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash
 ```
 
 Or from a checkout: `git clone https://github.com/TobyNoSkillSon/Vella && cd Vella && scripts/install.sh`. Either way the installer downloads the prebuilt app for this version with curl, checks its SHA-256 and code signature, clears quarantine, installs it in `~/Applications`, starts it and ends with `ready: …`. Coding agents can follow [AGENTS.md](AGENTS.md).
@@ -171,7 +171,7 @@ A self-built 0.8.x or development-signed app may have an ad-hoc, Apple Developme
 scripts/install.sh --migrate-signing
 ```
 
-For the public installer: `curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | bash -s -- --migrate-signing`. This permits any verified installed Vella signing identity → Vella’s pinned release signature, never an arbitrary replacement identity. The installer names the identity being replaced. Same-identity updates need no migration consent. macOS will ask for **Microphone** and **Accessibility** again; re-enable Vella under System Settings → Privacy & Security. Settings, history, recordings and models are kept. The previous app stays at the printed path even after readiness; to roll back, quit Vella and move that app back to the printed destination. No upgrade proceeds while recording, transcribing or loading.
+For the public installer: `curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash -s -- --migrate-signing`. This permits any verified installed Vella signing identity → Vella’s pinned release signature, never an arbitrary replacement identity. The installer names the identity being replaced. Same-identity updates need no migration consent. macOS will ask for **Microphone** and **Accessibility** again; re-enable Vella under System Settings → Privacy & Security. Settings, history, recordings and models are kept. The previous app stays at the printed path even after readiness; to roll back, quit Vella and move that app back to the printed destination. No upgrade proceeds while recording, transcribing or loading.
 
 **Verification.** `scripts/install-release.sh <version> --dry-run` downloads and verifies a release without installing it. The SHA-256 detects a corrupted download; it comes from the same release, so it is not a signature. Download releases with the installer, not a browser: a browser adds the quarantine flag, and Gatekeeper then blocks the app.
 
