@@ -2,8 +2,10 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore: ["**.md", "docs/**", "LICENSE", "NOTICE"]
   push:
     branches: [main]
+    paths-ignore: ["**.md", "docs/**", "LICENSE", "NOTICE"]
 
 permissions:
   contents: read
@@ -12,25 +14,21 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# Toolchain. Vella ships Swift compiled by the Command Line Tools' Swift 6.3.3 and MLX's Metal shaders compiled by
-# Xcode's Metal Toolchain (scripts/build.sh, Worker/build-split.sh). The macos-26 image carries Command Line Tools
-# 26.6 (Swift 6.3.3), the compiler releases are built with, so scripts/build.sh runs here unchanged. Xcode 26.6
-# compiles the shaders and runs `swift test`; the parity of optimised kernels is qualified on a real Mac, not on the
-# runner's virtual GPU. No job loads a real model. CI runs the unit tests only: tests that start another program (the
-# app or `vella` binary, a compiler, an installer script) skip under CI=true unless VELLA_INTEGRATION=1, and run locally.
+# A quick check of every push and pull request: source-only tree, lint, and the logic tests (catalog, selection and
+# presence rules, recommendation, docs consistency, updater). The signed release build is release.yml (v* tags); the
+# app UI tests, the MLX worker tests and the GPU parity checks need a real Apple Silicon Mac with a display and run in
+# scripts/release-check.sh before every release.
 env:
   XCODE_APP: /Applications/Xcode_26.6.app
-  CLT_SWIFT: /Library/Developer/CommandLineTools/usr/bin/swift
 
 jobs:
   build-and-test:
     name: Build and test
     runs-on: macos-26
-    timeout-minutes: 120
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # The defaults-source guard compares Worker/Packages to its named source commit.
           persist-credentials: false
 
       - name: Only source in git
@@ -39,65 +37,33 @@ jobs:
             echo "::error::Local-only files are tracked (lab/, dist/, logs/, Marketing/, .build/ or Python)"; exit 1
           fi
 
-      - name: Select Xcode and check the Swift toolchains
-        run: |
-          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
-          xcodebuild -version
-          swift --version
-          "$CLT_SWIFT" --version
-          if ! "$CLT_SWIFT" --version 2>&1 | grep 'Apple Swift version 6\.3\.3 ' >/dev/null; then
-            echo "::warning::Command Line Tools Swift is not 6.3.3; releases are built with 6.3.3 only"
-          fi
+      - name: Select Xcode
+        run: sudo xcode-select -s "$XCODE_APP/Contents/Developer" && swift --version
 
       - name: Lint (swift-format, SwiftLint)
         run: |
           command -v swiftlint >/dev/null || brew install swiftlint
           scripts/lint.sh
 
-      - name: Metal Toolchain
-        run: |
-          if ! xcodebuild -showComponent MetalToolchain 2>/dev/null | grep 'Status: installed' >/dev/null; then
-            xcodebuild -downloadComponent MetalToolchain
-          fi
-          xcrun metal --version
-
-      - name: Cache SwiftPM dependencies
+      # Incremental builds: restore the last .build of this branch (else main's) and build only what changed.
+      - name: Cache build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            Worker/.build/repositories
-            Worker/.build/checkouts
-            ~/Library/Caches/org.swift.swiftpm
-          key: swiftpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Worker/Package.resolved') }}
-          restore-keys: swiftpm-${{ runner.os }}-${{ runner.arch }}-
+            .build
+            Packages/VellaWire/.build
+          key: build-${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name }}-${{ hashFiles('Package.swift', 'Sources/**', 'Tests/**', 'Packages/**/*.swift') }}
+          restore-keys: |
+            build-${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name }}-
+            build-${{ runner.os }}-${{ runner.arch }}-main-
 
-      # The release path end to end, signed ad hoc: scripts/build.sh (split toolchain, borrow-symbol check, helper
-      # smoke), scripts/release-zip.sh and the archive contents check. Nothing is installed or registered.
-      - name: Build and package (scripts/package-release.sh)
+      - name: Logic tests (VellaCoreTests, VellaUpdateTests)
+        timeout-minutes: 20
         env:
-          VELLA_SIGN_IDENTITY: "-"
-          VELLA_XCODE_DEVELOPER_DIR: ${{ env.XCODE_APP }}/Contents/Developer
-          VELLA_RELEASE_OUTPUT_DIR: ${{ runner.temp }}/release
-        run: |
-          scripts/package-release.sh
-          cd "$VELLA_RELEASE_OUTPUT_DIR" && shasum -a 256 -c SHA256SUMS
-
-      - name: Split-build provenance
-        run: cat Worker/.build/split-build-provenance.txt
-
-      - name: swift test (unit tests; integration tests run locally)
-        timeout-minutes: 30
-        env:
-          CI: "true"                # explicit: Integration.require() skips the integration tests
-          NSUnbufferedIO: "YES"     # test output as it happens: a stuck test is then named in the log
-        run: xcrun swift test
-
-      - name: Worker unit tests (scripts/test-worker.sh; CPU only, Command Line Tools Swift)
-        timeout-minutes: 30
-        env:
+          CI: "true"
           NSUnbufferedIO: "YES"
-        run: scripts/test-worker.sh
+        run: xcrun swift test --filter 'VellaCoreTests|VellaUpdateTests'
 
-      - name: VellaWire tests (the vocabulary shared by the app and the helpers)
+      - name: VellaWire tests
         timeout-minutes: 10
         run: xcrun swift test --package-path Packages/VellaWire
