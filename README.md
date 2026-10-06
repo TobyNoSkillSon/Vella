@@ -281,3 +281,5 @@ Your audio and transcripts never leave your Mac. The recognition helpers run in 
 
 Vella 2.0 is [MIT-licensed](LICENSE). Published 0.x releases remain Apache-2.0; this does not change their licence retroactively. Keep the copyright and permission notice in [LICENSE](LICENSE), and the applicable [third-party notices](THIRD_PARTY_NOTICES.md), when you redistribute. Vella ships no model weights; each model's licence is in its tooltip in the app and in [`Resources/models.json`](Resources/models.json). The helpers include code adapted from mlx-audio-swift, mlx-audio and mlx-whisper (MIT) and link MLX and swift-transformers; [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) has each licence, and Vella.app carries it with LICENSE and NOTICE in `Contents/Resources`.
 
+
+The Polish TEDx reference transcripts in the benchmark manifests are CC BY-NC-ND; see [dataset terms and attribution](Benchmarks/DATASETS.md).

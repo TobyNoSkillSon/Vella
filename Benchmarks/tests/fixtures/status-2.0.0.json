@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "updated": 1790727236,
+  "app_pid": 4242,
+  "api": 1,
+  "api_port": 50438,
+  "models": {
+    "parakeet-v3-ultra": {
+      "mode": "dictation",
+      "precision": "BF16",
+      "name": "Parakeet v3 Ultra",
+      "pid": 4243,
+      "engine": "mlx",
+      "engine_reason": "self-test failed: encoder",
+      "optimizations": {
+        "encoder": false,
+        "decoder": false
+      },
+      "worker_version": "native-kernels-10",
+      "selection": {
+        "tier": "16",
+        "path": "optimized",
+        "mode": "fast"
+      },
+      "residency": "manual",
+      "keep_hot_min": 0,
+      "load_s": 1.7,
+      "memory_mb": 1551.5
+    }
+  }
+}

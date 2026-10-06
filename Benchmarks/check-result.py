@@ -29,6 +29,9 @@ def check(r):
     assert status['engine'] in ('mlx', 'optimized', 'stock', 'standard'), 'unknown actual engine'
     assert ('selection' in status or 'recipe' in status) and 'optimizations' in status, 'missing actual path/components'
     assert 'fallbacks' in status, 'record actual fallback state (an empty list means none)'
+    assert isinstance(status['fallbacks'], list) and all(isinstance(x, str) and x for x in status['fallbacks']), 'invalid fallback reasons'
+    if r['model']['path'] == 'Optimized' and status['engine'] != 'optimized':
+        assert status['fallbacks'], 'Optimized request running stock must record a fallback'
     kind = r['suite']['kind']
     assert kind in ('quick', 'full')
     suite = ROOT / 'suites' / ('v2-quick' if kind == 'quick' else 'v2') / 'manifest.json'

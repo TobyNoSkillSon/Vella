@@ -41,10 +41,29 @@ def public_status(model):
     # Whitelist: never submit paths, tokens, timestamps, user settings or recording history.
     result = {k: model[k] for k in ('engine', 'precision', 'mode', 'selection', 'requested_selection', 'optimizations', 'fallback', 'fallbacks', 'fallback_reason', 'worker_version', 'recipe', 'engine_reason', 'version') if k in model}
     result['fallbacks'] = model.get('fallbacks', [])
-    requested_optimized = model.get('recipe', '').startswith('optimized') or (model.get('requested_selection') or {}).get('path') == 'optimized'
-    if requested_optimized and model.get('engine_reason') and model.get('engine') != 'optimized':
+    # /status in 2.0.0: WorkerModelStatus.selection is the launch selection.
+    # Direct helper status (streaming.py) instead carries recipe.
+    requested_optimized = (model.get('selection') or {}).get('path') == 'optimized' or model.get('recipe', '').startswith('optimized')
+    if requested_optimized and model.get('engine_reason'):
         result['fallbacks'] = result['fallbacks'] + [model['engine_reason']]
+    if requested_optimized and model.get('engine') != 'optimized' and not result['fallbacks']:
+        raise RuntimeError('Optimized selection is running stock without a fallback reason')
     return result
+
+
+def check_selection(model, precision, path, mode):
+    expected = {'tier': {'bf16': '16', 'fp16': '16', 'int8': '8', 'int4': '4'}[precision],
+                'path': path.lower(), 'mode': mode.lower()}
+    label = {'bf16': 'BF16', 'fp16': 'FP16', 'int8': '8b', 'int4': '4b'}[precision]
+    if model.get('selection') != expected or model.get('precision', '').lower() != label.lower():
+        raise RuntimeError('running selection/precision does not match the request; do not publish timings')
+
+
+def new_output(path):
+    try:
+        path.mkdir(parents=True, exist_ok=False)
+    except FileExistsError:
+        raise ValueError(f'output already exists: {path}; use a fresh --out for each model/cell/run') from None
 
 
 def main():
@@ -64,6 +83,9 @@ def main():
     a = p.parse_args()
     if a.repeats < 3:
         p.error('at least three warm passes required')
+    out = a.out.expanduser().resolve()
+    if out.exists():
+        p.error('output already exists; use a fresh --out for each model/cell/run')
     app = a.app.expanduser().resolve()
     info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
     catalog = json.loads((app / 'Contents/Resources/models.json').read_text())
@@ -90,8 +112,7 @@ def main():
             'precision': a.precision, 'path': a.path, 'mode': a.mode, 'repeats': a.repeats,
             'action': 'dry run: no launch, load or inference'}))
         return
-    out = a.out.expanduser().resolve()
-    out.mkdir(parents=True, exist_ok=False)
+    new_output(out)
     support = out / 'support'
     support.mkdir()
     write(support / 'models-installed.json', {native['id']: registry[native['id']]})
@@ -128,6 +149,7 @@ def main():
             status_line = command('status')
             before, state = status()
             model = before['models'][a.model]
+            check_selection(model, a.precision, a.path, a.mode)
             expected = public_status(model)
             pid = model['pid']
 

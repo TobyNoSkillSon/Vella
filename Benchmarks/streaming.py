@@ -19,7 +19,7 @@ from pathlib import Path
 
 import numpy as np
 from fetch import verify
-from run import ROOT, peak, public_status, scoring, shell, write
+from run import ROOT, peak, public_status, scoring, shell, write, new_output
 
 
 class Worker:
@@ -86,6 +86,9 @@ def main():
     forbidden = [k for k in os.environ if k.startswith('VELLA_') and k not in ('VELLA_LOCK_HELD', 'VELLA_MEASURE_WINDOW', 'VELLA_MEASURE_COMPOSITING_GPU')]
     if forbidden:
         p.error('unset inherited experiment switches: ' + ', '.join(sorted(forbidden)))
+    out = a.out.expanduser().resolve()
+    if out.exists():
+        p.error('output already exists; use a fresh --out for each model/cell/run')
     app = a.app.expanduser().resolve()
     model_path = a.model_path.expanduser().resolve()
     if not model_path.is_dir():
@@ -98,8 +101,7 @@ def main():
     if a.dry_run:
         print(f"dry run: {manifest['id']}, {len(pcm)} clips, stream-concat-gap19200, 1600-sample packets; no worker started")
         return
-    out = a.out.expanduser().resolve()
-    out.mkdir(parents=True, exist_ok=False)
+    new_output(out)
     support = out / 'support'; support.mkdir()
     recipe = 'standard' if a.path == 'Standard' else 'optimized_' + a.mode.lower()
     passes = []

@@ -9,10 +9,23 @@ For an optimization, include the baseline and candidate records, all changed tra
 Before proposing a PR:
 
 ```sh
-python3 Benchmarks/check-result.py Benchmarks/runs/ultra-quick/result.json
+Benchmarks/.venv/bin/python Benchmarks/check-result.py Benchmarks/runs/ultra-quick/result.json
 ```
 
 Inspect that file yourself. Copy only the shareable result JSON here (retain pass/score files locally for review); describe whether the Mac was idle and whether power/thermal conditions changed. Ask the user before opening the PR at https://github.com/TobyNoSkillSon/Vella. A quick result must say **estimate** in the PR title/body. Measurement permission does not authorize publishing.
+
+For example, slug `Apple M3 Pro` as `apple-m3-pro` (lowercase, spaces → hyphens). After inspecting the result and receiving publication consent:
+
+```sh
+git switch -c results/apple-m3-pro-ultra-quick
+cp Benchmarks/runs/ultra-quick/result.json Benchmarks/results/2026-10-06-apple-m3-pro-parakeet-v3-ultra-bf16-optimized-fast-quick.json
+git add Benchmarks/results/2026-10-06-apple-m3-pro-parakeet-v3-ultra-bf16-optimized-fast-quick.json
+git commit -m "Add Apple M3 Pro Ultra quick estimate"
+git push -u origin results/apple-m3-pro-ultra-quick
+gh pr create --repo TobyNoSkillSon/Vella --base main --title "Apple M3 Pro: Ultra quick estimate" --body "Quick suite estimate; bf16 Optimized Fast. See JSON for actual engine/fallbacks, power and machine-idle conditions. No full-suite claim. Agent: NAME/MODEL."
+```
+
+Use your actual date, chip, cell, agent and conditions; the filename and title above are examples. A fork contributor pushes to their fork and selects that head in `gh pr create`. Include baseline/candidate and gate evidence for an optimization. Keep `support/`, logs, audio and model files private.
 
 ## Optional energy
 

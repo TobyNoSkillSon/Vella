@@ -30,7 +30,7 @@ Quantization remains native bf16/fp16 plus plain MLX affine group-64 int8/int4 d
 
 Read [FastPathGate.swift](../Worker/Sources/MLXAudioSTT/Gate/FastPathGate.swift) and a working component in the same model before editing. Register the lever in [EnvironmentSwitch.swift](../Packages/VellaWire/Sources/VellaWire/EnvironmentSwitch.swift), the owning model runtime and gate revision. Use a separate component key where a failure can disable that component alone; retain working Standard. Include effective lever set, checkpoint/recipe identity, GPU feature family, OS/build and app/worker revision in the existing qualification identity. Bump the affected revision when kernel numerics or dispatch changes.
 
-Exact paths qualify token-exact on the bundled self-test clips. Existing inexact components have their own finite-output/RMS and text-edit tolerances; an inexact path belongs only in Fast and must still pass the full task-quality gate. Do not weaken a self-test just to show a win. The app reports active components and fallback reasons; check those fields and, when needed, sample the worker or log the first call per kernel/shape. Seeing a wrapper frame or an environment switch only proves the wrapper was visited, not that its guard used the kernel.
+The gate has two stages. Exact components must reproduce Standard tokens on the bundled clips; failure puts the model on stock MLX. Each inexact component is then tested on top of the accepted exact components with its own finite-output/RMS and text-edit limits; failure disables only that component. Persisted failures remain sticky for the qualification key. A changed kernel/dispatch requires a new affected revision, not deletion of a failed verdict. Exact paths qualify token-exact on the bundled self-test clips. Existing inexact components have their own finite-output/RMS and text-edit tolerances; an inexact path belongs only in Fast and must still pass the full task-quality gate. Do not weaken a self-test just to show a win. The app reports active components and fallback reasons; check those fields and, when needed, sample the worker or log the first call per kernel/shape. Seeing a wrapper frame or an environment switch only proves the wrapper was visited, not that its guard used the kernel.
 
 Build the candidate without replacing or registering the installed app:
 
@@ -40,13 +40,23 @@ VELLA_APP_PATH=/tmp/Vella-candidate.app VELLA_REGISTER_APP=0 VELLA_SIGN_IDENTITY
 
 Use `run.py --app /tmp/Vella-candidate.app` after user consent. Compare a source-built Standard control and candidate from the same final build/toolchain; the CLI `--path/--mode` options select qualified recipes. Do not inherit an experiment override silently. For a new lever without a public selection yet, exercise it in a narrow owned probe and include its effective status and diff before adding it to the public runner.
 
-Score files and gate:
+Quick A/B after run consent (same build, precision and honest machine condition):
 
 ```sh
-python3 Benchmarks/scorer/Benchmarks/v2/scoring.py Benchmarks/suites/v2/manifest.json standard-pass.json --support Benchmarks/scorer/support.json --bootstrap 0 --output standard-score.json
-python3 Benchmarks/scorer/Benchmarks/v2/scoring.py Benchmarks/suites/v2/manifest.json candidate-pass.json --support Benchmarks/scorer/support.json --bootstrap 0 --output candidate-score.json
-python3 Benchmarks/gate.py standard-score.json candidate-score.json --standard-pass standard-pass.json --candidate-pass candidate-pass.json
+Benchmarks/.venv/bin/python Benchmarks/run.py --app /tmp/Vella-candidate.app --suite quick --path Standard --machine-idle unknown --out Benchmarks/runs/standard-quick
+Benchmarks/.venv/bin/python Benchmarks/run.py --app /tmp/Vella-candidate.app --suite quick --path Optimized --machine-idle unknown --out Benchmarks/runs/candidate-quick
+Benchmarks/.venv/bin/python Benchmarks/gate.py Benchmarks/runs/standard-quick/score-1.json Benchmarks/runs/candidate-quick/score-1.json --suite quick --standard-pass Benchmarks/runs/standard-quick/pass-1.json --candidate-pass Benchmarks/runs/candidate-quick/pass-1.json
 ```
+
+The runner writes `Benchmarks/runs/<dir>/pass-N.json` and its matching `score-N.json` for each warm pass (`N` starts at 1). Gate corresponding pass pairs **for every pass**, not just the best/median-speed pass; begin with pass 1 as above, then repeat for 2 and 3. Inspect cross-pass transcript variation. The result's median WER is not a pass file. Existing output folders are preserved; choose fresh names for another run. Quick gating is a screen only. For acceptance, run both arms with `--suite full` into fresh full directories, then gate every pair with `--suite full` (the gate's default).
+
+To rescore a quick pass manually:
+
+```sh
+Benchmarks/.venv/bin/python Benchmarks/scorer/Benchmarks/v2/scoring.py Benchmarks/suites/v2-quick/manifest.json Benchmarks/runs/standard-quick/pass-1.json --support Benchmarks/scorer/support.json --bootstrap 0 --output Benchmarks/runs/standard-quick/score-1.json
+```
+
+The public gate uses English WER and Format CER deltas of at most 0.1 percentage point for same-precision path changes. Supported-language mean uses the published family's `noise_floor.families[MODEL].tolerance_ml_pt` in `Resources/benchmarks.json` (0.1 point when absent); each supported language with at least 5 audio minutes has a +2-point limit. Empty clips or a lost tail of at least three reference words that Standard retained fail. Total deletion counts are diagnostic, not a separate acceptance threshold. These task checks are distinct from the load-time component self-tests. The Standard reference must use the checkpoint's faithful native dtype, including FP16 for Whisper; old FP32-promotion measurements are superseded.
 
 Pass files contain exactly one hypothesis for every manifest clip. `gate.py` compares the pinned scorer/suite/model identities and English/format delta, lost clips/tails and supported-language mean/per-language gates (the published family tolerance, with +2 points maximum for languages having at least 5 audio minutes). Self-test token parity, error-free execution, same precision/seed/session and actual dispatch remain required evidence in the PR; a numeric gate alone cannot establish those.
 
@@ -60,3 +70,5 @@ Pass files contain exactly one hypothesis for every manifest clip. `gate.py` com
 - Unified-memory footprint includes GPU allocations; RSS and weight size are different metrics. Sample `footprint -p PID`/`vmmap` categories when investigating growth. Wrap every long-lived JSON/file-read loop in `autoreleasepool`.
 - Worker stdout contains pushed status lines. Match response IDs, retain stderr privately and bound request deadlines. Never let a shifted response list produce plausible scores.
 - Inexact kernels must stay finite for valid extreme input, including final split-K reduction. Check guard and fallback paths as well as a forced kernel; numerical exceptional cases may need float64 truth rather than equality to overflowing stock.
+
+Compare kit speed only against a kit baseline using the same transport and timer. Published helper-timer speeds are a different boundary. The maintainer will commit an M5 Max kit baseline after the first GPU window; do not invent or derive one from the published table.

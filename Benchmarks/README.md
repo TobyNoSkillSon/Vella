@@ -5,31 +5,73 @@ Coding agents start here. Measure one installed model, then propose a result or 
 ## Run one model
 
 1. Install Vella using the repository's `scripts/install.sh`. Ask before Get if the native checkpoint is missing. Default: `parakeet-v3-ultra`, `bf16`, `Optimized`, `Fast`. `vella models --json` lists sources, download sizes and available cells. No model download happens in this kit.
-2. Make a tooling environment (Python 3.12+; it is not Vella's inference runtime):
+2. Make a tooling environment. Check the interpreter first:
    ```sh
-   python3 -m venv Benchmarks/.venv
-   Benchmarks/.venv/bin/pip install -r Benchmarks/requirements.txt
+   python3 -c 'import sys; print(sys.version); raise SystemExit(0 if sys.version_info >= (3, 12) else "Python 3.12+ required; use uv below")'
+   ```
+   The Command Line Tools `python3` can be 3.9; it cannot install these pinned dependencies. Prefer uv's explicit Python 3.12 environment: it avoids changing the system Python and does not require Homebrew. If uv is missing, after tooling-download consent install it using https://docs.astral.sh/uv/getting-started/installation/:
+   ```sh
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   "$HOME/.local/bin/uv" venv --python 3.12 Benchmarks/.venv
+   "$HOME/.local/bin/uv" pip install --python Benchmarks/.venv/bin/python -r Benchmarks/requirements.txt
+   Benchmarks/.venv/bin/python -c 'import sys; assert sys.version_info >= (3, 12); print(sys.version)'
    (cd Benchmarks && shasum -a 256 -c SHA256SUMS)
    ```
-   If dependencies are already available in a prepared tooling environment, reuse it. With uv and cached wheels, `uv venv --python python3.12 Benchmarks/.venv && uv pip install --offline --python Benchmarks/.venv/bin/python -r Benchmarks/requirements.txt` needs no network.
+   If uv is already on PATH, use `uv` instead of its full path. uv can download Python 3.12 if missing (https://docs.astral.sh/uv/guides/install-python/); obtain consent first. Python is only for these tools, not Vella's inference runtime. Reuse a prepared environment when available. With a cached interpreter and wheels, `uv venv --offline --python 3.12 Benchmarks/.venv` and `uv pip install --offline --python Benchmarks/.venv/bin/python -r Benchmarks/requirements.txt` need no network.
 3. After audio-download consent:
    ```sh
    Benchmarks/.venv/bin/python Benchmarks/fetch.py --suite quick --yes
    ```
 4. With the user's run consent, use a quiet Mac, no other inference, and stable power. Run serially:
    ```sh
-   Benchmarks/.venv/bin/python Benchmarks/run.py --app "$HOME/Applications/Vella.app" --machine-idle yes --out Benchmarks/runs/ultra-quick
+   Benchmarks/.venv/bin/python Benchmarks/run.py --app "$HOME/Applications/Vella.app" --machine-idle unknown --out Benchmarks/runs/ultra-quick
    ```
+   Set `--machine-idle yes|no|unknown` honestly: `yes` only when you observed a quiet machine throughout; record other work or uncertainty. Use a fresh `--out` for every model/cell/run; existing folders are refused and preserved.
+
    A DMG install uses `/Applications/Vella.app`. The runner starts a separate instance of that installed app with a fresh support/home directory and its existing headless API mode (no extra menu, shortcuts or update checks), reads only the native installed-model registry entry, warms one whole clip, then measures three serial passes through its real API. It creates derived tiers only in its isolated profile. Your usual Vella settings, history and recordings are untouched. Quit other inference yourself; this kit never stops another app. Use `--dry-run` to verify inputs without launching, loading or transcribing.
 5. Check and inspect the result, then ask before submitting:
    ```sh
-   python3 Benchmarks/check-result.py Benchmarks/runs/ultra-quick/result.json
+   Benchmarks/.venv/bin/python Benchmarks/check-result.py Benchmarks/runs/ultra-quick/result.json
    ```
    Read [results/README.md](results/README.md) for the JSON and PR recipe. Keep `support/` and `app.log` private.
 
 For another cell add `--model ID --precision bf16|fp16|int8|int4 --path Standard|Optimized --mode Exact|Fast`. For full quality, fetch and run with `--suite full`; retain all clips. `--audio-root PATH` reuses an existing verified audio directory without copying it. `--models-from PATH` reads another installed registry, never its recordings or configuration. The runner refuses inherited experiment switches; a source-built candidate is selected through `--app`.
 
 **Nemotron:** 2.0.0 exposes no streaming transcription API. [streaming.py](streaming.py) drives the installed app's shipped streaming helper, using 100-ms packets and a fixed 1.2-second silence between clips, as the published measurement did. It is labelled `shipped-streaming-helper`, not end-to-end app/API performance. Read its `--help` and the model [notes](../Worker/Sources/MLXAudioSTT/NemotronASR/README.md); compare Standard and candidate with identical session layout. The kit does not automate microphone or UI recording.
+
+## Numbers for each model
+
+Inspect `vella models --json` before running: its `data` array includes each family's `id`, `mode`, `dtype`, available `cells`, and `download` size/source/revision. Choose a valid precision per family (`bf16` or `fp16` for native; `int8`/`int4` for derived tiers). Missing weights require the user's consent for that model's download size; only then run `vella get ID --yes`. Get downloads the native checkpoint and may derive the selected precision; it does not grant benchmark or publication consent.
+
+Run dictation families serially, with a fresh output folder per model. This prints the IDs without loading anything:
+
+```sh
+vella models --json | Benchmarks/.venv/bin/python -c 'import json,sys; print("\n".join(m["id"] for m in json.load(sys.stdin)["data"] if m["mode"] == "Dictation"))'
+```
+
+For each ID, run the one-model command with `--model ID --precision PRECISION --out Benchmarks/runs/ID-PRECISION-quick-1`, replacing the placeholders. Repeat for each requested cell; never reuse the default Ultra folder. Nemotron uses the separate helper lane below.
+
+After Get, find Nemotron's native installed checkpoint and revision by joining the app catalog to the registry (this only reads files):
+
+```sh
+Benchmarks/.venv/bin/python - "$HOME/Applications/Vella.app" <<'PYTHON'
+import json, sys
+from pathlib import Path
+app = Path(sys.argv[1])  # use /Applications/Vella.app for a DMG install
+catalog = json.loads((app / "Contents/Resources/models.json").read_text())
+f = next(f for f in catalog["families"] if f["id"] == "nemotron-3.5-streaming-0.6b")
+v = next(v for v in f["variants"].values() if not v.get("derivedFrom"))
+registry = json.loads((Path.home() / "Library/Application Support/Vella/models-installed.json").read_text())
+entry = registry[v["id"]]
+print("--model-path", entry["path"])
+print("--checkpoint-revision", entry["revision"])
+print("native precision:", f["native"])
+PYTHON
+```
+
+Pass those exact values to `streaming.py --model-path PATH --checkpoint-revision REVISION`, with `--app`, `--precision bf16`, `--suite quick`, an honest `--machine-idle`, and a fresh `--out`. Native Nemotron is BF16. For a derived tier, use its verified registry path/manifest and matching precision; do not label a native checkpoint int8/int4. Never submit checkpoint paths in the results JSON.
+
+Kit API speed measures the entire serial API request, including file decode, app segmentation and HTTP response work. Published README/table speeds use the helper timer and exclude file preparation and the app/HTTP layer. **Compare kit speeds with kit speeds**, on the same transport, suite, precision and conditions; do not rank an API result against the published helper figure. The maintainer's M5 Max kit baseline will be committed after the first GPU window; none is available yet. Nemotron's helper lane is separate again because of its packet/gap layout.
 
 ## Suites and audio
 
