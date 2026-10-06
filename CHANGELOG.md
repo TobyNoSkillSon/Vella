@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Restore menu icons on macOS 27, including Models, Shortcuts, Microphone, Mode and update items.
 - Public [benchmark and optimization kit](Benchmarks/README.md): frozen full/quick suites, pinned upstream audio fetch, scorer, quality gate, isolated installed-app API runner and manually reviewed chip-specific result PRs. Quick quality is labelled an estimate.
 - Standalone installer moves to GitHub raw hosting; Pages retirement follows public-URL verification and compatibility review.
 

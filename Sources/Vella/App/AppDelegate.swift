@@ -404,6 +404,7 @@ import VellaCore
         item("Support the Developer…", "heart", #selector(supportDeveloper))
         if let update = updates.menuItem() { menu.addItem(update) }
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
+        MenuImages.show(in: menu)
     }
     static let privacyHelp =
         "Your audio and transcripts never leave your Mac. Vella checks the GitHub releases API at most once a day (at launch when due; failed checks retry about hourly). Models and updates download only when you ask. No telemetry."

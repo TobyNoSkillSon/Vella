@@ -151,6 +151,7 @@ enum ShortcutMenuFactory {
         menu.addItem(error)
         refreshStatus(in: menu, manager: manager)
         root.submenu = menu
+        MenuImages.show(in: root)
         return root
     }
 }

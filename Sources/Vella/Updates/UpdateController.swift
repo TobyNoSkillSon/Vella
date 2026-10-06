@@ -119,6 +119,7 @@ import VellaUpdate
         item.image = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: nil)?
             .withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemOrange]))
         item.toolTip = machine.lastError.map { "Last attempt failed: \($0)" }
+        MenuImages.show(in: item)
         return item
     }
 

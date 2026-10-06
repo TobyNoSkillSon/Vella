@@ -59,6 +59,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
             }
         }
         root.submenu = menu
+        MenuImages.show(in: root)
         return root
     }
     @objc private func deleteLegacy(_ sender: NSMenuItem) {
