@@ -48,7 +48,7 @@ func tierFormat(_ family: ModelFamily, _ label: String) -> String {
 
 /// The popup for getting `precision` of `family` (Toby, 29 Sep 2026): what is downloaded (always the 16-bit checkpoint,
 /// or an fp32-only model's fp32 source), what is converted on this Mac and how long that takes, and what stays on disk.
-/// Nil when the precision is not offered (an absent tier is never offered) or nothing in the catalog is downloadable.
+/// Nil when the precision is not offered (a tier the catalog does not offer) or nothing in the catalog is downloadable.
 /// `freeBytes`: free space on the models volume now (nil = unknown).
 public func downloadPrompt(family: ModelFamily, precision: String, followUp: DownloadFollowUp, freeBytes: Int64?) -> DownloadPrompt? {
     guard precisionOptions(family).contains(precision), let root = family.downloadSource(of: precision),

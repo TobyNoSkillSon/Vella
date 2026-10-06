@@ -7,7 +7,7 @@ import SwiftUI
 // values in, one callback out.
 //
 // - Every row shows all three columns (16, 8, 4), equal width, labelled with the dtype that runs (`labels`, e.g. bf16,
-//   fp16, int8, int4). A cell that cannot be chosen (a tier the presence gate removed, a recipe the switch position
+//   fp16, int8, int4). A cell that cannot be chosen (a tier the catalog does not offer, a recipe the switch position
 //   lacks, a cell without a measurement) is greyed in place, never hidden: the grid never shifts. `unavailable` maps it
 //   to its one-line reason, which is its tooltip; a click on it does nothing.
 // - Exactly one cell is selected across both rows. Clicking a cell reports it; what that means (preview, deltas,

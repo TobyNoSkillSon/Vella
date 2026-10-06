@@ -250,14 +250,9 @@ public func unmeasuredReasonHelp(_ cell: BenchmarkCell?) -> String {
 }
 public let modelDeletionBusyHelp = "Finish dictation, downloading or calibration before deleting a model."
 
-/// A greyed Precision cell of a tier the presence gate removed (or the catalog does not offer), in one line: why.
-/// `Not offered: 1 clip empty or cut short where 16 had the words`.
-public func tierAbsentHelp(_ benchmark: FamilyBenchmark?, tier: ModelTier) -> String {
-    if let t = benchmark?.tiers[tier], !t.presence.offered, let reason = t.presence.reasons.first, !reason.isEmpty {
-        return "Not offered: " + reason
-    }
-    return "Not offered for this model"
-}
+/// A greyed Precision cell of a tier the catalog does not offer. A failed presence verdict never greys a cell (6 Oct):
+/// the offered cell states it as its loss.
+public func tierAbsentHelp(_ benchmark: FamilyBenchmark?, tier: ModelTier) -> String { "Not offered for this model" }
 /// A greyed Optimized cell under Exact whose tier has only a Fast recipe (family coupling rule).
 public func exactRecipeMissingHelp(_ dtype: String) -> String { "No Exact recipe at \(dtype); Fast offers it" }
 /// A greyed Optimized row of a model without an Optimized path.

@@ -137,8 +137,8 @@ public struct ModelFamily: Codable, Equatable, Identifiable {
     public var summary: String?
     /// The checkpoint's own dtype (`bfloat16`, `float16`, `float32`); models.json `native_dtype`.
     public var nativeDType: String?
-    /// Tiers the app offers ("16", "8", "4"): the tiers present in benchmarks.json (a tier is absent only when it breaks,
-    /// lab/notes/models-table-ROUND.md). Nil (older catalogs, fixtures): every catalogued precision down to 4 bits.
+    /// Tiers the app offers ("16", "8", "4"): every tier measured in benchmarks.json, whatever its presence verdict
+    /// (Toby, 6 Oct). Nil (older catalogs, fixtures): every catalogued precision down to 4 bits.
     public var tiersOffered: [String]?
     /// What Get downloads and which tiers are made locally from it.
     public var download: CatalogDownload?

@@ -527,7 +527,8 @@ final class ModelControlTests: XCTestCase {
             .t4: TierBenchmark(precision: "4b", presence: TierPresence(offered: false, reasons: ["1 clip empty"]), cells: [:])
         ])
         let controls = ModelControls(controller: f.controller, runtime: f.runtime)
-        for (precision, expected) in [("int4", "Not offered: 1 clip empty"), ("bf16", "Not measured yet")] {
+        // A tier with no cells is not offered; its failed presence verdict is not the reason (6 Oct: it never hides a cell).
+        for (precision, expected) in [("int4", "Not offered for this model"), ("bf16", "Not measured yet")] {
             do {
                 _ = try await controls.perform("select", id: "alpha", fields: ["precision": precision, "path": "Standard"])
                 XCTFail("unavailable cell should refuse")

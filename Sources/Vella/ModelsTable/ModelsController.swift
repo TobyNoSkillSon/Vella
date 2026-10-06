@@ -157,7 +157,7 @@ struct ModelDeletionPlan {
     }
 
     /// Launch migration: a legacy published quant moves to its measured local tier from the installed root;
-    /// an unoffered tier moves to that root. Missing roots/unsupported selections are cleared with a reason.
+    /// a tier the catalog no longer offers moves to that root. Missing roots/unsupported selections are cleared with a reason.
     /// No downloads or weight deletion. A preparation failure keeps the selection for retry. Requires a readable
     /// existing registry; otherwise nothing changes. Returns cleared paths; notices include every changed selection.
     @discardableResult
@@ -396,7 +396,8 @@ struct ModelDeletionPlan {
     func select(_ f: ModelFamily, tier: ModelTier, path: EnginePath) {
         Self.log.notice("segment click \(f.id, privacy: .public) \(tier.rawValue, privacy: .public) \(path == .standard ? "standard" : "optimized", privacy: .public)")
         let s = ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode)
-        // A greyed cell (absent tier, recipe the switch position lacks) is never selected, whatever reaches here.
+        // A greyed cell (a tier the catalog does not offer, a recipe the switch position lacks, malformed data) is never
+        // selected, whatever reaches here.
         guard isPresent(f, s) || s == loadedSelection(f) else { Self.log.notice("click refused (not offered)"); return }
         guard measured(f, s) || s == loadedSelection(f) else { Self.log.notice("click refused (not measured)"); return }
         guard setPreview(f, s) else { return }
