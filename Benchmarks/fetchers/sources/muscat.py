@@ -34,7 +34,7 @@ class _Range(io.RawIOBase):
  def read(self,n=-1):
   n=self.size-self.pos if n<0 else min(n,self.size-self.pos)
   if n<=0:return b''
-  r=self.session.get(self.url,headers={'Range':f'bytes={self.pos}-{self.pos+n-1}'},timeout=(30,120));r.raise_for_status()
+  r=self.ctx.http_request(self.url,session=self.session,headers={'Range':f'bytes={self.pos}-{self.pos+n-1}'})
   if r.status_code!=206 or len(r.content)!=n:raise ValueError('HF pinned Parquet range not honoured')
   self.pos+=n;self.ctx.note_download(f'range:{self.url}',n);return r.content
 @lru_cache(maxsize=2)
@@ -43,7 +43,7 @@ def _meta(cache,allocation):
  ctx=Context(cache,allocation);out={}
  for shard,path in SHARDS.items():
   url=f'https://huggingface.co/datasets/{REPO}/resolve/{REV}/{path}'
-  size=int(requests.head(url,allow_redirects=True,timeout=(30,90)).headers['Content-Length'])
+  size=int(ctx.http_request(url,method='HEAD',allow_redirects=True).headers['Content-Length'])
   with _Range(url,size,ctx) as stream:
    tab=pq.ParquetFile(stream,pre_buffer=False).read(columns=['device','conv_lang','lid','text','segmentation','audio.path']).to_pylist()
   for i,r in enumerate(tab):
@@ -57,7 +57,7 @@ def prepare(ctx,chosen):
  for offset in sorted({(c.origin['viewerRow']//100)*100 for c in chosen}):
   if offset in _urls:continue
   url=f'https://datasets-server.huggingface.co/rows?dataset=goodpiku%2Fmuscat-eval&config=default&split=train&offset={offset}&length=100'
-  response=requests.get(url,timeout=(30,90));response.raise_for_status();ctx.note_download(f'viewer:{offset}',len(response.content))
+  response=ctx.http_request(url);ctx.note_download(f'viewer:{offset}',len(response.content))
   _urls[offset]={r['row_idx']:r['row'] for r in response.json()['rows']}
  for c in chosen:
   row=c.origin['viewerRow'];r=_urls[(row//100)*100][row]
@@ -67,7 +67,7 @@ def prepare(ctx,chosen):
 def extract(ctx,cand):
  o=cand.origin;row=o['viewerRow']
  if row//100*100 not in _urls:prepare(ctx,[cand])
- r=requests.get(_urls[row//100*100][row]['audio'][0]['src'],timeout=(30,120));r.raise_for_status();b=r.content;ctx.note_download(f'muscat-audio:{row}',len(b))
+ r=ctx.http_request(_urls[row//100*100][row]['audio'][0]['src']);b=r.content;ctx.note_download(f'muscat-audio:{row}',len(b))
  digest=sha_bytes(b)
  if o.get('sourceSha256') and o['sourceSha256']!=digest:raise ValueError(f'MUSCAT pinned WAV mismatch {row}')
  o['sourceSha256']=digest

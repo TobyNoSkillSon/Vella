@@ -1,5 +1,5 @@
 """MediaSpeech via pinned per-language HF mirror, one shard per language. Original video rights unclear."""
-import io,hashlib,re,requests
+import io,hashlib,re
 from functools import lru_cache
 import soundfile as sf
 import pyarrow.parquet as pq
@@ -16,7 +16,7 @@ def _viewer(ctx,language,row):
  if row not in _tr_urls:
   offset=(row//100)*100
   url=f'https://datasets-server.huggingface.co/rows?dataset=ymoslem%2FMediaSpeech&config={language}&split=train&offset={offset}&length=100'
-  response=requests.get(url,timeout=(30,90));response.raise_for_status();ctx.note_download(f'mediaspeech-viewer:{language}:{offset}',len(response.content))
+  response=ctx.http_request(url);ctx.note_download(f'mediaspeech-viewer:{language}:{offset}',len(response.content))
   for r in response.json()['rows']:
    source=r['row']['audio'][0]['src']
    if f'/{REV}/' not in source:raise ValueError('MediaSpeech viewer revision mismatch')
@@ -24,7 +24,7 @@ def _viewer(ctx,language,row):
  return _tr_urls[row]
 def _tr_data(ctx,row):
  if row not in _tr_audio:
-  url,_=_viewer(ctx,'tr',row);r=requests.get(url,timeout=(30,120));r.raise_for_status()
+  url,_=_viewer(ctx,'tr',row);r=ctx.http_request(url)
   ctx.note_download(f'mediaspeech-audio:tr:{row}',len(r.content));_tr_audio[row]=r.content
  return _tr_audio[row]
 def _tr_candidates(ctx):
