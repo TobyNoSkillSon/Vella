@@ -21,9 +21,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/menu-current.png" alt="Vella's menu while dictating: status, Models, Keep Hot, Memory, Finish Dictation, Stop and Keep Audio, Mode, Microphone, Shortcuts, Copy Last Transcript, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Launch at Login" height="340">
+  <img src="docs/images/menu-current.png" alt="Vella's menu while dictating: status, Models, Keep Hot, Memory, Finish Dictation, Stop and Keep Audio, Mode, Microphone, Shortcuts, Copy Last Transcript, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Launch at Login" width="256">
   &nbsp;
-  <img height="340" src="docs/images/models-current.png" alt="Vella Models table with Dictation and Streaming sections, six precision cells per model, Exact/Fast, Get/Load/Unload, and final M5 Max benchmark figures" width="904">
+  <img width="519" src="docs/images/models-current.png" alt="Vella Models table with Dictation and Streaming sections, six precision cells per model, Exact/Fast, Get/Load/Unload, and final M5 Max benchmark figures" width="904">
 </p>
 
 Offline dictation and transcription for Mac: local Whisper, Parakeet and Qwen speech-to-text, tuned for Apple Silicon. Scripts and coding agents get an OpenAI-compatible local API: `POST /v1/audio/transcriptions`.
