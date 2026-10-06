@@ -1,10 +1,12 @@
 """CPU-only failure checks for contribution arithmetic and pinned audio identity."""
 import copy
+import io
 import importlib.util
 import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,6 +14,8 @@ sys.path.insert(0, str(ROOT))
 spec = importlib.util.spec_from_file_location('check_result', ROOT / 'check-result.py')
 checks = importlib.util.module_from_spec(spec); spec.loader.exec_module(checks)
 from fetch import verify
+from common import Candidate
+from sources import mediaspeech
 from run import public_status, check_selection, new_output
 from gate import compare
 import numpy as np
@@ -76,6 +80,26 @@ class ContractTest(unittest.TestCase):
             with self.assertRaises(ValueError): verify(c,root)
             c['pcmSha256'] = hashlib.sha256(pcm.tobytes()).hexdigest(); c['samples'] += 1
             with self.assertRaises(ValueError): verify(c,root)
+
+    def test_mediaspeech_viewer_normalization_preserves_identity_checks(self):
+        audio = io.BytesIO()
+        sf.write(audio, np.array([0, 1, -1], dtype='int16'), 16000, format='WAV', subtype='PCM_16')
+        data = audio.getvalue()
+        candidate = Candidate(key='fixture', language='tr', duration=3/16000,
+            reference='café iki kelime', referenceType='normalised', group='fixture',
+            origin={'viewer':True, 'row':1216, 'memberSha256':hashlib.sha256(data).hexdigest()})
+        with patch.object(mediaspeech, '_tr_data', return_value=data), \
+             patch.object(mediaspeech, '_viewer', return_value=('unused', 'cafe\u0301  iki  kelime ')):
+            samples, rate, channel = mediaspeech.extract(None, candidate)
+            self.assertEqual((len(samples), rate, channel), (3, 16000, 'mean'))
+        with patch.object(mediaspeech, '_tr_data', return_value=data), \
+             patch.object(mediaspeech, '_viewer', return_value=('unused', 'café başka kelime')):
+            with self.assertRaisesRegex(ValueError, 'reference mismatch'):
+                mediaspeech.extract(None, candidate)
+        with patch.object(mediaspeech, '_tr_data', return_value=data+b'changed'), \
+             patch.object(mediaspeech, '_viewer', return_value=('unused', candidate.reference)):
+            with self.assertRaisesRegex(ValueError, 'audio mismatch'):
+                mediaspeech.extract(None, candidate)
 
     def test_gate_detects_lost_tail_even_with_identical_aggregate(self):
         base = {'modelID':'m','suiteID':'vella-v2','scoringVersion':'v','scorerSHA256':'s','clips':[{'id':'a'}],

@@ -3,7 +3,7 @@ import io,hashlib,re,requests
 from functools import lru_cache
 import soundfile as sf
 import pyarrow.parquet as pq
-from common import Candidate,decode,stratified_select,sha_file
+from common import Candidate,decode,stratified_select,sha_file,clean_text
 REPO='ymoslem/MediaSpeech';REV='4008a968760f2187b0c5b2b2db965f1283433059'
 SOURCE=dict(id='mediaspeech',name='MediaSpeech (per-language HF mirror)',url='https://www.openslr.org/108/',revision=REV,licence='CC BY 4.0 dataset; original videos retain owners’ copyright',licenceUrl='https://github.com/NTRLab/MediaSpeech',redistributable=False,released='2021',attribution='Kolobov et al., MediaSpeech (2021); original YouTube video owners. HF mirror ymoslem/MediaSpeech.',referenceProduction='Two manual annotators and third disagreement resolver; postprocessed lexical sentences. HF mirror strips original video/channel identifiers.')
 @lru_cache(maxsize=3)
@@ -46,7 +46,7 @@ def extract(ctx,cand):
  o=cand.origin
  if o.get('viewer'):
   b=_tr_data(ctx,o['row'])
-  if _viewer(ctx,'tr',o['row'])[1]!=cand.reference:raise ValueError('MediaSpeech viewer reference mismatch')
+  if clean_text(_viewer(ctx,'tr',o['row'])[1])!=cand.reference:raise ValueError('MediaSpeech viewer reference mismatch')
   if hashlib.sha256(b).hexdigest()!=o['memberSha256']:raise ValueError('MediaSpeech viewer audio mismatch')
   return (*decode(b),'mean')
  p=ctx.hf_file(o['repo'],o['path'],o['revision'])
