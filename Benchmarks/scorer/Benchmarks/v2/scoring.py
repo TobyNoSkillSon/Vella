@@ -12,6 +12,8 @@ import unicodedata as ud
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import formatting_metrics as fm  # v1 canonicalisation and punctuation/case alignment, read-only
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from references import hydrate_references
 
 NORMALIZER_VERSION = 'vella-v2-lexical-1.0.0'
 SCORER_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
@@ -153,6 +155,7 @@ def _ci(rows, field, iterations, seed):
     return bootstrap(rows, lambda sampled: counts(sampled,field)['rate'], iterations, seed)
 
 def score(manifest, result, support=None, iterations=10000):
+    manifest=hydrate_references(manifest)
     clips=manifest['clips']; outcomes=result['clips']
     by_id={x['id']:x for x in clips}
     if len(by_id)!=len(clips):raise ValueError('duplicate manifest ids')
@@ -251,12 +254,13 @@ def main():
         args=parser.parse_args()
         print(json.dumps(compare(json.loads(Path(args.a).read_text()),json.loads(Path(args.b).read_text()),args.bootstrap),indent=2));return
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('manifest');parser.add_argument('result');parser.add_argument('--support');parser.add_argument('--bootstrap',type=int,default=10000);parser.add_argument('--output')
+    parser.add_argument('manifest');parser.add_argument('result');parser.add_argument('--support');parser.add_argument('--bootstrap',type=int,default=10000);parser.add_argument('--output');parser.add_argument('--references-root',type=Path)
     args=parser.parse_args()
     if args.bootstrap<0:parser.error('bootstrap must be nonnegative')
     manifest_path=Path(args.manifest);result_path=Path(args.result)
     manifest=json.loads(manifest_path.read_text());result=json.loads(result_path.read_text())
-    if result.get('suiteHash') and result['suiteHash']!=hashlib.sha256(manifest_path.read_bytes()).hexdigest():raise ValueError('suite hash mismatch')
+    if result.get('suiteHash') and result['suiteHash'] not in (hashlib.sha256(manifest_path.read_bytes()).hexdigest(),manifest.get('publishedIdentity',{}).get('manifestSha256')):raise ValueError('suite hash mismatch')
+    manifest=hydrate_references(manifest,args.references_root)
     support=json.loads(Path(args.support).read_text()) if args.support else None
     data=score(manifest,result,support,args.bootstrap)
     path=Path(args.output) if args.output else result_path.with_name(result_path.stem+'.v2.json')

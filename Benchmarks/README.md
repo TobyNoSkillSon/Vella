@@ -2,6 +2,8 @@
 
 Coding agents start here. Measure one installed model, then propose a result or a chip-specific improvement for manual review. Ask the user before downloads, long runs, scheduling, or opening an issue/PR. Never include personal recordings. A quick result is an **estimate**, not a replacement for the published full-suite WER.
 
+Reference text is third-party data with mixed licences, separate from Vella’s MIT licence. Polish TEDx and MediaSpeech references are fetched into the ignored local cache; other references retain their BY, BY-SA, Apache or CDLA terms and attribution. Read [DATASETS.md](DATASETS.md) before downloading, using or sharing data.
+
 ## Run one model
 
 1. Install Vella using the repository's `scripts/install.sh`. Ask before Get if the native checkpoint is missing. Default: `parakeet-v3-ultra`, `bf16`, `Optimized`, `Fast`. `vella models --json` lists sources, download sizes and available cells. No model download happens in this kit.
@@ -18,7 +20,7 @@ Coding agents start here. Measure one installed model, then propose a result or 
    (cd Benchmarks && shasum -a 256 -c SHA256SUMS)
    ```
    If uv is already on PATH, use `uv` instead of its full path. uv can download Python 3.12 if missing (https://docs.astral.sh/uv/guides/install-python/); obtain consent first. Python is only for these tools, not Vella's inference runtime. Reuse a prepared environment when available. With a cached interpreter and wheels, `uv venv --offline --python 3.12 Benchmarks/.venv` and `uv pip install --offline --python Benchmarks/.venv/bin/python -r Benchmarks/requirements.txt` need no network.
-3. After audio-download consent:
+3. After upstream audio/reference-download consent:
    ```sh
    Benchmarks/.venv/bin/python Benchmarks/fetch.py --suite quick --yes
    ```
@@ -80,11 +82,21 @@ Kit API speed measures the entire serial API request, including file decode, app
 | `vella-v2-quick` | 122 | 22.547 | Warm speed and quick quality estimate |
 | `vella-v2` | 797 | 239.655 | Full quality and optimization acceptance |
 
-Quick reuses the published subset unchanged, including its long-form call. It is 22.5 minutes of audio, not a promise of 15 minutes of wall time on every chip/model. Three warm passes process 67.6 audio minutes. Full processes 719.0 audio minutes across three passes. The manifest version `2.0.0-dev` is the frozen original identifier; its byte hash, not a renamed version, pins the published inputs. No reselection or missing-clip substitution is allowed.
+Quick reuses the published subset unchanged, including its long-form call. It is 22.5 minutes of audio, not a promise of 15 minutes of wall time on every chip/model. Three warm passes process 67.6 audio minutes. Full processes 719.0 audio minutes across three passes. The manifest version `2.0.0-dev` is the frozen original identifier. The licence cleanup changes manifest bytes, replacing restrictive reference text with SHA-256 hashes; `publishedIdentity` preserves the original manifest/scorer hashes in historical results. New runs record the current hashes. Clip IDs/order, extraction origins, audio identities, reference bytes and scoring rules are unchanged. No reselection or missing-clip substitution is allowed.
 
-No audio is committed, no LFS is used and no audio release is required. The clone contains the exact references, source revisions, extraction recipes and per-file/PCM hashes. [DATASETS.md](DATASETS.md) labels every dataset, licence and extracted size. Fetch audio directly from the named pinned upstreams; dataset terms remain theirs. This avoids redistributing recordings whose rights are unclear or restrictive. The extracted full suite is about 218 MB; upstream containers may need over 6 GB temporarily. Quick fetches only its clips, though upstream containers can still be large. Ask before downloads and allow that space; `.cache/` and `.data/` are ignored. A changed or unavailable upstream is a reported failure, never permission to substitute audio or adjust a hash.
+No benchmark audio is committed, no LFS is used and no benchmark audio release is required. Six separately licensed LibriSpeech self-test/calibration clips ship with the app. The kit contains source revisions, extraction recipes, per-file/PCM hashes, permitted reference text and hashes for locally fetched references. [DATASETS.md](DATASETS.md) lists each dataset's attribution, licence, text policy and audio policy. Fetch from the named pinned upstreams; source terms still govern local use. TEDx remains noncommercial; do not share its adapted text or restrictive/unclear-rights caches.
 
-`fetch.py --verify-only` checks sample rate, mono layout, sample count and SHA-256 of little-endian PCM16. Reconstruction uses the original decoder, channel selection and soxr VHQ resampling. FLAC encoder bytes can differ; PCM identity cannot. The untouched scorer and formatting scorer are pinned in `SHA256SUMS`. English WER pools word edit counts; the scorer's `rate` is a fraction, whereas result JSON `wer_percent` is percent. [Methods](../docs/BENCHMARKS.md) defines all normalization and metrics.
+The extracted full suite is about 218 MB; upstream containers may need over 6 GB temporarily. Quick fetches only its clips, though upstream containers can still be large. Ask before downloads and allow that space; `.cache/` and `.data/` are ignored. A changed or unavailable upstream is a reported failure, never permission to substitute audio, text or adjust a hash.
+
+To fetch/check only reference text, without audio or a model run:
+
+```sh
+Benchmarks/.venv/bin/python Benchmarks/fetch.py --suite full --references-only --yes
+```
+
+Reference strings are cleaned with the original builder's Unicode NFC and whitespace collapse. Both `reference` and any separately published `lexicalReference` are verified by SHA-256 of their UTF-8 bytes before use. Caches live in `--audio-root/references` (default `.data/references`). Runners, the scorer and the gate read verified caches without network access and fail if a reference is missing or changed. For an alternate cache location, pass `--references-root PATH` to the standalone scorer/gate. These checks do not run a model or repeat published measurements.
+
+`fetch.py --verify-only` checks sample rate, mono layout, sample count and SHA-256 of little-endian PCM16. Reconstruction uses the original decoder, channel selection and soxr VHQ resampling. FLAC encoder bytes can differ; PCM identity cannot. The scorer, reference loader/fetchers and unchanged formatting scorer are pinned in `SHA256SUMS`. English WER pools word edit counts; the scorer's `rate` is a fraction, whereas result JSON `wer_percent` is percent. [Methods](../docs/BENCHMARKS.md) defines all normalization and metrics.
 
 ## Optimize and compare
 

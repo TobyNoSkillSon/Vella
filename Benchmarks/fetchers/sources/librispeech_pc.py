@@ -8,7 +8,7 @@ REPO='openslr/librispeech_asr'; REV='2b9f39377850ffce6bf6358257ae9f84b2349497'
 PARQUET='other/test/0000.parquet'
 MANIFEST='https://www.openslr.org/resources/145/manifests.tar.gz'
 MANIFEST_SHA='96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0'
-SOURCE=dict(id='librispeech-pc',name='LibriSpeech-PC test-other',url='https://www.openslr.org/145/',revision=f'OpenSLR145 manifests sha256:{MANIFEST_SHA}; {REPO} parquet@{REV}',licence='CC BY 4.0',licenceUrl='https://www.openslr.org/resources/145/about.html',redistributable=True,released='2023',attribution='Mehri et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.',referenceProduction='Printed source-book text aligned by researchers to LibriSpeech; text_raw keeps original orthography, text is ASR-normalized.')
+SOURCE=dict(id='librispeech-pc',name='LibriSpeech-PC test-other',url='https://www.openslr.org/145/',revision=f'OpenSLR145 manifests sha256:{MANIFEST_SHA}; {REPO} parquet@{REV}',licence='CC BY 4.0',licenceUrl='https://www.openslr.org/resources/145/about.html',redistributable=True,released='2023',attribution='Meister et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.',referenceProduction='Printed source-book text aligned by researchers to LibriSpeech; text_raw keeps original orthography, text is ASR-normalized.')
 
 def _manifest(ctx):
     arc=ctx.http_file(MANIFEST,MANIFEST_SHA,name='librispeech-pc-manifests.tar.gz')

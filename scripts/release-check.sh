@@ -210,6 +210,7 @@ step "model READMEs match the benchmarks" xcrun swift scripts/model-readmes.swif
 step "benchmark methods match published inputs" xcrun swift scripts/benchmark-method.swift --check
 step "skill and user guide model lists" xcrun swift scripts/agent-docs.swift --check
 step "lint (swift-format, SwiftLint)" scripts/lint.sh
+step "benchmark reference contract (no downloads or models)" python3 -m unittest discover -s Benchmarks/tests -p test_references.py
 step "symbol retention fixture" scripts/test-release-symbols.sh
 step "build and package" package
 step "release archive and tree exclude lab" release_archive_no_lab

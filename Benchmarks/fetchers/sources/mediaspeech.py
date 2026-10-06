@@ -11,6 +11,22 @@ def _table(path):return pq.read_table(path)
 def _file(ctx,lang):
  path=f'{lang}/train-00000-of-00002.parquet';p=ctx.hf_file(REPO,path,REV);return path,p
 
+_references={}
+def references(ctx,clip):
+ # Read only the text column from the same pinned shard used for audio.
+ # No viewer HEAD revision or audio download can silently replace the reference.
+ from sources.muscat import _Range
+ o=clip['origin'];key=(str(ctx.cache),o['path'])
+ if o['repo']!=REPO or o['revision']!=REV:raise ValueError('MediaSpeech reference revision mismatch')
+ if key not in _references:
+  url=f"https://huggingface.co/datasets/{REPO}/resolve/{REV}/{o['path']}"
+  size=int(ctx.http_request(url,method='HEAD',allow_redirects=True).headers['Content-Length'])
+  with _Range(url,size,ctx) as stream:
+   _references[key]=pq.ParquetFile(stream,pre_buffer=False).read(columns=['sentence','audio.path']).to_pylist()
+ row=_references[key][o['row']]
+ if row['audio']['path']!=o['member']:raise ValueError('MediaSpeech reference row mismatch')
+ return {'reference':clean_text(row['sentence'])}
+
 _tr_audio={};_tr_urls={};TR_SHA='1ef4556b76a86785da6d9b7e40897df66719adcd325ff9ebe6380e3f8f0e8061'
 def _viewer(ctx,language,row):
  if row not in _tr_urls:

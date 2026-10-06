@@ -368,7 +368,7 @@
       "licence": "CC BY 4.0",
       "licenceUrl": "https://www.openslr.org/resources/145/about.html",
       "redistributable": true,
-      "attribution": "Mehri et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.",
+      "attribution": "Meister et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.",
       "referenceProduction": "Printed source-book text aligned by researchers to LibriSpeech; text_raw keeps original orthography, text is ASR-normalized."
     },
     "fleurs": {

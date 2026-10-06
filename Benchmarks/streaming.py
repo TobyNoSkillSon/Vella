@@ -94,8 +94,9 @@ def main():
     if not model_path.is_dir():
         p.error('checkpoint is not installed')
     manifest_path = ROOT / 'suites' / ('v2-quick' if a.suite == 'quick' else 'v2') / 'manifest.json'
-    manifest = json.loads(manifest_path.read_text())
+    from references import load_manifest
     audio = a.audio_root.expanduser().resolve()
+    manifest = load_manifest(manifest_path, audio / 'references')
     # Match the original f32 transport; silence and packet layout are pinned in the receipt.
     pcm = [(c, np.concatenate((verify(c, audio).astype(np.float32) / np.float32(32768), np.zeros(19200, np.float32)))) for c in manifest['clips']]
     if a.dry_run:

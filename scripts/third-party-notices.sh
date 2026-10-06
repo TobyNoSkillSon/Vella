@@ -165,21 +165,26 @@ LibriSpeech by Vassil Panayotov, Guoguo Chen, Daniel Povey and Sanjeev Khudanpur
 
 ## Model weights (downloaded, not included)
 
-Vella.app contains no model weights. When you confirm a download, Vella fetches the pinned revision from Hugging Face, and the weights keep their own licence; the licence files in a model's repository are downloaded with it. Precisions without a published download are made on your Mac from the downloaded weights and are not redistributed. Each model's licence also shows in its table tooltip.
+Vella.app contains no model weights. When you confirm a download, Vella fetches the pinned revision from Hugging Face, including its README.md model card. The current model repositories provide no separate licence files; the model cards and linked upstream terms govern the weights. Precisions without a published download are made on your Mac from the downloaded weights and are not redistributed. Each model's licence also shows in its table tooltip.
 
-| Model | In the app | Licence | Upstream weights | MLX downloads (Hugging Face) |
-|---|---|---|---|---|
+| Model | In the app | Licence | Licence URL / clarification | Upstream weights | MLX downloads (Hugging Face) |
+|---|---|---|---|---|---|
 EOF
   jq -r '.families[] | [.id, .name, (if .offered then "yes" else "no" end), .license,
       ([.variants | to_entries[] | select((.value.repository // "") != "") | "`\(.value.repository)`"] | unique | join(", "))] | join("|")' Resources/models.json |
   while IFS='|' read -r id name offered licence repositories; do
     upstream="$(awk -F'|' -v id="$id" '$1 == id { print $2 }' <<<"$UPSTREAM")"
     [[ -n "$upstream" ]] || fail "Resources/models.json family $id has no upstream entry in this script"
-    printf '| %s | %s | %s | %s | %s |\n' "$name" "$offered" "$licence" "$upstream" "$repositories"
+    clarification=''
+    case "$id" in
+      parakeet-v3|parakeet-v3-ultra) clarification='https://creativecommons.org/licenses/by/4.0/' ;;
+      nemotron-3.5-streaming-0.6b) clarification='https://openmdw.ai/license/1-1/ (upstream since 2026-06-05); MLX card metadata still names NVIDIA Open Model License' ;;
+    esac
+    printf '| %s | %s | %s | %s | %s | %s |\n' "$name" "$offered" "$licence" "$clarification" "$upstream" "$repositories"
   done
   cat <<'EOF'
 
-Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream card specifies the OpenMDW License 1.1 (https://openmdw.ai/license/1-1/); its MLX conversions still carry the NVIDIA Open Model License in their card metadata.
+Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream NVIDIA card changed to OpenMDW License 1.1 on 2026-06-05 (https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b/commit/24b151a851dd15909e1fc611b11bb2da52b9fc81); its MLX conversions still name NVIDIA Open Model License in their card metadata.
 
 ## Apple
 

@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'fetchers'))
 import common as C
+from references import hydrate_references
 
 
 def verify(clip, root):
@@ -25,9 +26,18 @@ def main():
     p.add_argument('--audio-root', type=Path, default=ROOT / '.data')
     p.add_argument('--cache', type=Path, default=ROOT / '.cache')
     p.add_argument('--verify-only', action='store_true')
-    p.add_argument('--yes', action='store_true', help='user consent for upstream audio downloads obtained')
+    p.add_argument('--references-only', action='store_true', help='fetch/verify reference text without downloading audio')
+    p.add_argument('--yes', action='store_true', help='user consent for upstream downloads obtained')
     a = p.parse_args()
     manifest = json.loads((ROOT / 'suites' / ('v2-quick' if a.suite == 'quick' else 'v2') / 'manifest.json').read_text())
+    try:
+        manifest = hydrate_references(manifest, a.audio_root / 'references', fetch=a.yes and not a.verify_only, cache=a.cache)
+    except Exception as error:
+        print(f"{manifest['id']}: INCOMPLETE; {error}; no audio or model run started", flush=True)
+        return 1
+    if a.references_only:
+        print(f"{manifest['id']}: {len(manifest['clips'])} references verified; no audio downloaded")
+        return 0
     plan = json.loads((ROOT / 'suites/v2/suite.json').read_text())
     modules = {x['id']: x['source'] for x in plan['allocations']}
     results = {allocation: {'verified': 0, 'failed': 0} for allocation in sorted({c['allocation'] for c in manifest['clips']})}

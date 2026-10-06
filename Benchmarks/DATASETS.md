@@ -1,30 +1,36 @@
-# Audio sources and terms
+# Benchmark data sources and terms
 
-All recordings are fetched from pinned upstreams, never redistributed by this repository. Licences below reproduce the frozen source audit; the linked source terms govern audio and references. A dataset licence is not a grant of every underlying recording right. The manifests preserve attribution, original reference text, revision, origin/row/time/channel and SHA-256 identity. Treat Polish TEDx references as CC BY-NC-ND 4.0; do not relicense them under the application MIT licence. CC BY-SA sources retain their share-alike terms.
+Benchmark audio is fetched from pinned upstreams and is not redistributed in this kit. Reference text has mixed licences: application MIT terms do not apply to third-party data. Attribution, source terms, revisions and extraction origins are listed below and in the fetchers. Audio rights and text rights are assessed separately.
 
-No recording enters Git or a Vella release asset. This also keeps the clone light. Before proposing future bundled audio, check the actual upstream licence and original rights and obtain maintainer approval; the prior audit alone is not clearance.
+Polish TEDx (CC BY-NC-ND 4.0) and MediaSpeech (CC BY 4.0 dataset, with original video owners retaining copyright) references are fetched locally by `fetch.py`. Neither their text nor cleaned lexical copies are committed. Each UTF-8 reference hash must match the frozen original before audio extraction or scoring. Runtime fetching does not remove source restrictions: TEDx use remains noncommercial, and adapted text must not be shared. Do not redistribute these local caches or their audio.
 
-| Source | Licence in frozen audit | Full extracted MB | Quick extracted MB | Audio policy |
-|---|---|---:|---:|---|
-| `aishell4` | CC BY-SA 4.0 | 3.033 | 0.386 | Fetch pinned upstream; prior audit permits redistribution |
-| `ami` | CC BY 4.0 | 4.911 | 0.228 | Fetch pinned upstream; prior audit permits redistribution |
-| `apptek` | CC BY-SA 4.0 | 18.326 | 0.000 | Fetch pinned upstream; prior audit permits redistribution |
-| `dipco` | CDLA-Permissive-1.0 | 7.904 | 0.060 | Fetch pinned upstream; prior audit permits redistribution |
-| `earnings25` | CC BY 4.0 transcripts/metadata; recording redistribution unclear | 18.679 | 0.000 | Fetch pinned upstream; do not redistribute audio |
-| `edacc` | CC BY-SA 4.0 | 18.842 | 2.764 | Fetch pinned upstream; prior audit permits redistribution |
-| `fleurs` | CC BY 4.0 | 15.833 | 2.603 | Fetch pinned upstream; prior audit permits redistribution |
-| `hike` | Apache-2.0 | 3.401 | 0.473 | Fetch pinned upstream; prior audit permits redistribution |
-| `klang` | CC BY 4.0 | 4.948 | 0.660 | Fetch pinned upstream; prior audit permits redistribution |
-| `librispeech-pc` | CC BY 4.0 | 5.259 | 1.534 | Fetch pinned upstream; prior audit permits redistribution |
-| `mediaspeech` | CC BY 4.0 dataset; original videos retain owners’ copyright | 21.590 | 3.143 | Fetch pinned upstream; do not redistribute audio |
-| `mls` | CC BY 4.0 | 2.922 | 0.439 | Fetch pinned upstream; prior audit permits redistribution |
-| `monsoon` | CC BY 4.0 | 13.851 | 2.094 | Fetch pinned upstream; prior audit permits redistribution |
-| `muscat` | CC BY 4.0 | 10.350 | 1.490 | Fetch pinned upstream; prior audit permits redistribution |
-| `notsofar` | CC BY 4.0 | 17.181 | 0.104 | Fetch pinned upstream; prior audit permits redistribution |
-| `polish-tedx` | CC BY-NC-ND 4.0 | 7.042 | 0.936 | Fetch pinned upstream; do not redistribute audio |
-| `rev-earnings` | CC BY-SA 4.0 text only; audio rights unclear | 17.141 | 3.383 | Fetch pinned upstream; do not redistribute audio |
-| `rev16` | CC BY-SA 4.0 text only; podcast audio rights unclear | 23.347 | 0.000 | Fetch pinned upstream; do not redistribute audio |
-| `zeroth` | CC BY 4.0 | 3.434 | 0.520 | Fetch pinned upstream; prior audit permits redistribution |
+Other references remain under their source licences. CC BY-SA 4.0 reference extracts and their cleaned/assembled forms remain CC BY-SA 4.0, including any Vella contributions to those forms. Preserve attribution and source links when sharing them. Vella selects fixed segments, collapses whitespace and applies Unicode NFC; source-specific assembly or annotation cleanup is described by each fetcher's `referenceProduction` and code. No endorsement is implied.
+
+Licence texts: CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/legalcode ; CC BY-SA 4.0 — https://creativecommons.org/licenses/by-sa/4.0/legalcode ; CC BY-NC-ND 4.0 — https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode ; Apache-2.0 — https://www.apache.org/licenses/LICENSE-2.0 ; CDLA-Permissive-1.0 — https://cdla.dev/permissive-1-0/ . HiKE references retain their Apache-2.0 terms; DiPCo references retain CDLA-Permissive-1.0, including this notice. Copies of those agreements are in [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt) and [licenses/CDLA-Permissive-1.0.txt](licenses/CDLA-Permissive-1.0.txt).
+
+Six attributed LibriSpeech recordings (CC BY 4.0) are committed and ship in the app: five worker self-test clips and one calibration clip. Their `ATTRIBUTION.md` and full licence text accompany them in `Worker/Sources/VellaWorker/Resources/` and `Resources/Calibration/`. Earlier Git history also contains LibriSpeech audio copies. Benchmark-suite recordings are fetched locally. Before adding bundled audio, check upstream and underlying rights and obtain maintainer approval.
+
+| Source | Source terms | Full extracted MB | Quick extracted MB | Reference text policy | Audio policy |
+|---|---|---:|---:|---|---|
+| `aishell4` | CC BY-SA 4.0 | 3.033 | 0.386 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `ami` | CC BY 4.0 | 4.911 | 0.228 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `apptek` | CC BY-SA 4.0 | 18.326 | 0.000 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `dipco` | CDLA-Permissive-1.0 | 7.904 | 0.060 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `earnings25` | CC BY 4.0 transcripts/metadata; recording redistribution unclear | 18.679 | 0.000 | Committed; source licence applies | Fetch pinned upstream; do not redistribute audio |
+| `edacc` | CC BY-SA 4.0 | 18.842 | 2.764 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `fleurs` | CC BY 4.0 | 15.833 | 2.603 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `hike` | Apache-2.0 | 3.401 | 0.473 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `klang` | CC BY 4.0 | 4.948 | 0.660 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `librispeech-pc` | CC BY 4.0 | 5.259 | 1.534 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `mediaspeech` | CC BY 4.0 dataset; original videos retain owners’ copyright | 21.590 | 3.143 | Fetch locally; hash-pinned | Fetch pinned upstream; do not redistribute audio |
+| `mls` | CC BY 4.0 | 2.922 | 0.439 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `monsoon` | CC BY 4.0 | 13.851 | 2.094 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `muscat` | CC BY 4.0 | 10.350 | 1.490 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `notsofar` | CC BY 4.0 | 17.181 | 0.104 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
+| `polish-tedx` | CC BY-NC-ND 4.0 | 7.042 | 0.936 | Fetch locally; hash-pinned | Fetch pinned upstream; do not redistribute audio |
+| `rev-earnings` | CC BY-SA 4.0 text only; audio rights unclear | 17.141 | 3.383 | Committed; source licence applies | Fetch pinned upstream; do not redistribute audio |
+| `rev16` | CC BY-SA 4.0 text only; podcast audio rights unclear | 23.347 | 0.000 | Committed; source licence applies | Fetch pinned upstream; do not redistribute audio |
+| `zeroth` | CC BY 4.0 | 3.434 | 0.520 | Committed; source licence applies | Fetch pinned upstream; prior audit permits redistribution |
 
 Sizes are measured compressed FLAC bytes, decimal MB; container downloads are larger. Quick and full share files. PCM verification is mandatory even when FLAC byte encoding changes.
 
@@ -62,7 +68,7 @@ Pinned upstream "revision": `e2b29d3d0d88692c744feb15e290f7316b68014e`
 
 ## earnings25
 
-Florence Jiang et al., Earnings25 (2026), Zenodo DOI 10.5281/zenodo.18762167.
+Florence Jiang et al., Earnings25 (2026), Zenodo DOI 10.5281/zenodo.18762167. The paper explicitly grants CC BY 4.0 for transcripts, annotations, metadata, splits and alignments; original-provider terms remain applicable to audio.
 
 Source: https://huggingface.co/datasets/florencejiang/earnings25
 Licence: https://arxiv.org/html/2607.23813v1
@@ -102,7 +108,7 @@ Pinned upstream "revision": `4117db6f1c53f5c1ca03309ce2a8060b96653708`
 
 ## librispeech-pc
 
-Mehri et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.
+Meister et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.
 
 Source: https://www.openslr.org/145/
 Licence: https://www.openslr.org/resources/145/about.html
@@ -150,7 +156,7 @@ Pinned upstream "revision": `ba8fd0f034ce185fe4d24f47e53b4b8194795f07`
 
 ## polish-tedx
 
-s512757, Polish TEDx ASR Eval (2026); original TEDx Talks speakers/video owners.
+s512757 and AMU ZWESUI Group 1, Polish TEDx ASR Eval (2026); original TEDx Talks speakers/video owners. Transcriptions and metadata are CC BY-NC-ND 4.0. Local normalization reproduces the frozen suite; it is not redistributed.
 
 Source: https://huggingface.co/datasets/s512757/polish-tedx-asr-eval
 Licence: https://huggingface.co/datasets/s512757/polish-tedx-asr-eval/blob/d0826bb93d2e268dce45b078e0bae56e7d43af21/README.md

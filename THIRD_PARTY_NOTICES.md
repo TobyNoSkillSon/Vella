@@ -2505,19 +2505,19 @@ LibriSpeech by Vassil Panayotov, Guoguo Chen, Daniel Povey and Sanjeev Khudanpur
 
 ## Model weights (downloaded, not included)
 
-Vella.app contains no model weights. When you confirm a download, Vella fetches the pinned revision from Hugging Face, and the weights keep their own licence; the licence files in a model's repository are downloaded with it. Precisions without a published download are made on your Mac from the downloaded weights and are not redistributed. Each model's licence also shows in its table tooltip.
+Vella.app contains no model weights. When you confirm a download, Vella fetches the pinned revision from Hugging Face, including its README.md model card. The current model repositories provide no separate licence files; the model cards and linked upstream terms govern the weights. Precisions without a published download are made on your Mac from the downloaded weights and are not redistributed. Each model's licence also shows in its table tooltip.
 
-| Model | In the app | Licence | Upstream weights | MLX downloads (Hugging Face) |
-|---|---|---|---|---|
-| Parakeet v3 Ultra | yes | cc-by-4.0 | moondream/parakeet-ultra (post-trained from nvidia/parakeet-tdt-0.6b-v3) | `selcukkubur/parakeet-ultra-mlx` |
-| Parakeet v3 | yes | cc-by-4.0 | nvidia/parakeet-tdt-0.6b-v3 | `animaslabs/parakeet-tdt-0.6b-v3-mlx` |
-| Qwen3 ASR 1.7B | yes | apache-2.0 | Qwen/Qwen3-ASR-1.7B | `mlx-community/Qwen3-ASR-1.7B-bf16` |
-| Qwen3 ASR 0.6B | yes | apache-2.0 | Qwen/Qwen3-ASR-0.6B | `mlx-community/Qwen3-ASR-0.6B-bf16` |
-| Whisper large-v3 | yes | apache-2.0 | openai/whisper-large-v3 | `mlx-community/whisper-large-v3-asr-fp16` |
-| Whisper large-v3 turbo | yes | mit | openai/whisper-large-v3-turbo | `mlx-community/whisper-large-v3-turbo-asr-fp16` |
-| Nemotron 3.5 Streaming | yes | OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License | nvidia/nemotron-3.5-asr-streaming-0.6b | `mlx-community/nemotron-3.5-asr-streaming-0.6b` |
+| Model | In the app | Licence | Licence URL / clarification | Upstream weights | MLX downloads (Hugging Face) |
+|---|---|---|---|---|---|
+| Parakeet v3 Ultra | yes | cc-by-4.0 | https://creativecommons.org/licenses/by/4.0/ | moondream/parakeet-ultra (post-trained from nvidia/parakeet-tdt-0.6b-v3) | `selcukkubur/parakeet-ultra-mlx` |
+| Parakeet v3 | yes | cc-by-4.0 | https://creativecommons.org/licenses/by/4.0/ | nvidia/parakeet-tdt-0.6b-v3 | `animaslabs/parakeet-tdt-0.6b-v3-mlx` |
+| Qwen3 ASR 1.7B | yes | apache-2.0 |  | Qwen/Qwen3-ASR-1.7B | `mlx-community/Qwen3-ASR-1.7B-bf16` |
+| Qwen3 ASR 0.6B | yes | apache-2.0 |  | Qwen/Qwen3-ASR-0.6B | `mlx-community/Qwen3-ASR-0.6B-bf16` |
+| Whisper large-v3 | yes | apache-2.0 |  | openai/whisper-large-v3 | `mlx-community/whisper-large-v3-asr-fp16` |
+| Whisper large-v3 turbo | yes | mit |  | openai/whisper-large-v3-turbo | `mlx-community/whisper-large-v3-turbo-asr-fp16` |
+| Nemotron 3.5 Streaming | yes | OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License | https://openmdw.ai/license/1-1/ (upstream since 2026-06-05); MLX card metadata still names NVIDIA Open Model License | nvidia/nemotron-3.5-asr-streaming-0.6b | `mlx-community/nemotron-3.5-asr-streaming-0.6b` |
 
-Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream card specifies the OpenMDW License 1.1 (https://openmdw.ai/license/1-1/); its MLX conversions still carry the NVIDIA Open Model License in their card metadata.
+Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream NVIDIA card changed to OpenMDW License 1.1 on 2026-06-05 (https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b/commit/24b151a851dd15909e1fc611b11bb2da52b9fc81); its MLX conversions still name NVIDIA Open Model License in their card metadata.
 
 ## Apple
 

@@ -8,6 +8,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "scorer/Benchmarks/v2"))
 import scoring
+from references import load_manifest
 TAIL_WORDS = 3
 
 def align_ops(ref, hyp):
@@ -150,9 +151,10 @@ def main():
     p.add_argument('--standard-pass', type=Path, required=True)
     p.add_argument('--candidate-pass', type=Path, required=True)
     p.add_argument('--suite', choices=['quick', 'full'], default='full')
+    p.add_argument('--references-root', type=Path, help='reference cache from fetch.py (default: .data/references)')
     a = p.parse_args()
     root = Path(__file__).resolve().parent
-    manifest = json.loads((root / 'suites' / ('v2-quick' if a.suite == 'quick' else 'v2') / 'manifest.json').read_text())
+    manifest = load_manifest(root / 'suites' / ('v2-quick' if a.suite == 'quick' else 'v2') / 'manifest.json', a.references_root)
     base = json.loads(a.standard_score.read_text()); candidate = json.loads(a.candidate_score.read_text())
     base_raw = json.loads(a.standard_pass.read_text()); candidate_raw = json.loads(a.candidate_pass.read_text())
     support = json.loads((root / 'scorer/support.json').read_text())

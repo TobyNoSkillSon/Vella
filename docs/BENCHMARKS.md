@@ -11,7 +11,7 @@ Quality uses the full v2 suite. Warm speed, energy and peak worker footprint use
 | vella-v2 | 797 | 239.655 | 166.901 | 50.233 | `361a9b078db7e6813671f719223dfd27c50f54589a1e292239324ac17071e366` |
 | vella-v2-quick | 122 | 22.547 | 12.429 | 6.676 | `5cbda7a5f463d4f12bc4e58982ea16e1f23f3f9361aafc42c3344b6d5fd159b8` |
 
-Durations above are calculated from manifest sample counts; the model table rounds suite minutes more coarsely. Both suites use 16000 Hz mono PCM. The manifest hash is SHA-256 of the complete manifest bytes: it pins clip IDs, order, source revisions, references and per-clip file/PCM hashes. The runner verifies SHA-256 of little-endian signed PCM16 bytes before preparing worker inputs.
+Durations above are calculated from manifest sample counts; the model table rounds suite minutes more coarsely. Both suites use 16000 Hz mono PCM. These are the original published manifest hashes, before the licence cleanup. The public kit now replaces Polish TEDx and MediaSpeech text with hash-pinned local references and records these original hashes in `publishedIdentity`. Current file hashes are in `Benchmarks/SHA256SUMS`; clip order, audio identities, fetched reference bytes and scoring rules are unchanged. The runner verifies SHA-256 of little-endian signed PCM16 bytes before preparing worker inputs.
 
 v2-quick was frozen 2026-09-26 with selection seed 20260926. Selection is seeded shuffle within allocations, then round-robin across speaker/recording groups, with new groups first. It includes a long-form call to exercise segmentation and overlap joining. Excluded allocations: `en-apptek`, `en-earnings22`, `en-earnings25`, `en-rev16`.
 
@@ -32,7 +32,7 @@ Language codes: en English, pl Polish, de German, fr French, es Spanish, sv Swed
 
 ### Dataset identities and licences
 
-These are the source manifest's licence statements, not a grant to redistribute every recording. Sources marked no are not cleared for recording redistribution by this benchmark, whether because terms are restrictive or rights are unclear. The [public kit](../Benchmarks/README.md) includes the frozen manifests and references; recordings are fetched from pinned upstreams and verified, never bundled in the clone.
+These are the source manifest's licence statements, not a grant to redistribute every recording. Sources marked no are not cleared for recording redistribution by this benchmark, whether because terms are restrictive or rights are unclear. The [public kit](../Benchmarks/README.md) includes the fixed clip manifests, permitted reference text and hashes for locally fetched references. Its [dataset terms](../Benchmarks/DATASETS.md) distinguish text rights from audio rights. Benchmark recordings are fetched from pinned upstreams and verified; six separately licensed LibriSpeech self-test/calibration recordings ship with the app.
 
 | Source ID / dataset | v2 clips / min | Quick clips / min | Licence | Audio redistributable |
 |---|---:|---:|---|---|
@@ -106,7 +106,7 @@ Pinned upstream revisions and attribution:
 - `librispeech-pc`: https://www.openslr.org/145/
   - "revision": OpenSLR145 manifests sha256:96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0; openslr/librispeech_asr parquet@2b9f39377850ffce6bf6358257ae9f84b2349497
   - Licence: https://www.openslr.org/resources/145/about.html
-  - Attribution: Mehri et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.
+  - Attribution: Meister et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.
   - Reference: Printed source-book text aligned by researchers to LibriSpeech; text_raw keeps original orthography, text is ASR-normalized.
 - `mediaspeech`: https://www.openslr.org/108/
   - "revision": 4008a968760f2187b0c5b2b2db965f1283433059

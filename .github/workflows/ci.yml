@@ -45,6 +45,9 @@ jobs:
           command -v swiftlint >/dev/null || brew install swiftlint
           scripts/lint.sh
 
+      - name: Benchmark reference contract (no downloads or model runs)
+        run: python3 -m unittest discover -s Benchmarks/tests -p test_references.py
+
       # Incremental builds: restore the last .build of this branch (else main's) and build only what changed.
       - name: Cache build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

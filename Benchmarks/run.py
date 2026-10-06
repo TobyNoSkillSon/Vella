@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'scorer/Benchmarks/v2'))
 import scoring
 from fetch import verify
+from references import load_manifest
 
 
 def shell(*args):
@@ -103,8 +104,8 @@ def main():
     if family['mode'] != 'dictation':
         p.error('2.0.0 has no streaming API; use streaming.py, labelled shipped-helper, for Nemotron')
     suite = ROOT / 'suites' / ('v2-quick' if a.suite == 'quick' else 'v2') / 'manifest.json'
-    manifest = json.loads(suite.read_text())
     audio = a.audio_root.expanduser().resolve()
+    manifest = load_manifest(suite, audio / 'references')
     for clip in manifest['clips']:
         verify(clip, audio)
     registry = installed_registry(a.models_from)

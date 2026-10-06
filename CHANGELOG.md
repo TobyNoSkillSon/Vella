@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Benchmark references with restrictive or unclear redistribution terms are fetched locally, with the frozen text hashes checked before scoring. Suite clips and scoring rules are unchanged.
+- Corrects dataset attribution and bundled-audio documentation; clarifies model-card licence terms and the Parakeet licence link in model tooltips.
+
 ## 2.0.1 (6 October 2026)
 
 - Restores the menu icons on macOS 27, which hides menu-item icons by default.

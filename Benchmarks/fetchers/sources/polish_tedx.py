@@ -1,6 +1,6 @@
 """Polish TEDx natural segments, original published text, never redistributed."""
 import csv, re
-from common import Candidate, decode, stratified_select, sha_file
+from common import Candidate, decode, stratified_select, sha_file, clean_text
 REPO='s512757/polish-tedx-asr-eval';REV='d0826bb93d2e268dce45b078e0bae56e7d43af21'
 SOURCE=dict(id='polish-tedx',name='Polish TEDx ASR Eval',url='https://huggingface.co/datasets/'+REPO,revision=REV,licence='CC BY-NC-ND 4.0',licenceUrl='https://huggingface.co/datasets/'+REPO+'/blob/'+REV+'/README.md',redistributable=False,released='2026-05-29',attribution='s512757, Polish TEDx ASR Eval (2026); original TEDx Talks speakers/video owners.',referenceProduction='Student-transcribed TEDx talks; only rows with verified_by populated have evidenced second-annotator verification. Raw text preserved.')
 # grupa1 timestamps are relative to a different edit of this talk: nine sampled
@@ -9,6 +9,25 @@ MISALIGNED_TALKS={'0t-sG8FhC4E'}
 # Pinned talk shortlist minimizes whole-WAV transfer while retaining ten independent talks.
 TALKS=('0t-sG8FhC4E','2-_tJd9FFK0','4XMKrqabpds','7_OWTJtUK5k','DOIllGDNKw4','cuRVUT3bmek','MYH2qGScEVk','eANk3-vRpCM','f6W_8V7wFJA','owA_Z3navgg')
 _source_hash={}
+CORPUS_SHA='fce09faa5bd8c83e4157a0ad9df0f53646fdca68a49e4e2d774a592b33301e6f'
+_references={}
+def references(ctx,clip):
+ o=clip['origin']
+ if o['repo']!=REPO or o['revision']!=REV:raise ValueError('TEDx reference revision mismatch')
+ p=ctx.hf_file(REPO,'corpus.csv',REV)
+ if sha_file(p)!=CORPUS_SHA:raise ValueError('TEDx corpus SHA-256 mismatch')
+ if str(p) not in _references:
+  rows={}
+  with open(p,encoding='utf-8',newline='') as stream:
+   for r in csv.DictReader(stream):
+    key=f"{r['file'].removesuffix('.wav')}-{round(float(r['start'])*1000):08d}-{round(float(r['end'])*1000):08d}"
+    values={'reference':clean_text(r['text'].strip())}
+    if r['text_norm'].strip():values['lexicalReference']=clean_text(r['text_norm'])
+    if key in rows and rows[key]!=values:raise ValueError('ambiguous TEDx reference row')
+    rows[key]=values
+  _references[str(p)]=rows
+ return _references[str(p)][clip['key']]
+
 def extract(ctx,cand):
  o=cand.origin;p=ctx.hf_file(o['repo'],o['path'],o['revision'])
  if str(p) not in _source_hash:_source_hash[str(p)]=sha_file(p)

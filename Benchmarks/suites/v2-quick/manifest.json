@@ -2581,7 +2581,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "2a40e77abcff70d9f807b98d009321983cdfe68127ed8bc9b7c1ed46dd84d95a",
    "referenceType": "formatted",
    "group": "2-_tJd9FFK0",
    "speaker": null,
@@ -2605,6 +2604,7 @@
    },
    "extra": {},
    "key": "audio_s441306_2-_tJd9FFK0-00105860-00113086",
+   "referenceSha256": "2a40e77abcff70d9f807b98d009321983cdfe68127ed8bc9b7c1ed46dd84d95a",
    "lexicalReferenceSha256": "7d72e3c2ab1cf5fb6d7010b5a20f5b758525e0a213afbcd8f06aa0246f4ea206"
   },
   {
@@ -2621,7 +2621,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "83605b9d4d2e883c53afadbff48225c27b96460159cf915c66412f4b4f7657db",
    "referenceType": "formatted",
    "group": "4XMKrqabpds",
    "speaker": null,
@@ -2645,6 +2644,7 @@
    },
    "extra": {},
    "key": "audio_s441306_4XMKrqabpds-00007112-00011572",
+   "referenceSha256": "83605b9d4d2e883c53afadbff48225c27b96460159cf915c66412f4b4f7657db",
    "lexicalReferenceSha256": "0c8bba1ce2e1a916c459974d489281c31b3404a1d36f787e22924c657d216ba5"
   },
   {
@@ -2661,7 +2661,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "ef170d10bd09f4304a501e3e8bc933e6efea4d4257c0141d6e04d1649dffd320",
    "referenceType": "formatted",
    "group": "DOIllGDNKw4",
    "speaker": null,
@@ -2685,6 +2684,7 @@
    },
    "extra": {},
    "key": "audio_s441306_DOIllGDNKw4-00166264-00175148",
+   "referenceSha256": "ef170d10bd09f4304a501e3e8bc933e6efea4d4257c0141d6e04d1649dffd320",
    "lexicalReferenceSha256": "6edf2c723775b6f99befd923c7001f46e9480e455b7fa79e70cc4de29bb48115"
   },
   {
@@ -2701,7 +2701,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "bdcc4af79c6fd2d58ddb6baa48911b36a0ea8c5033f8076e48152ce8e2bb9d98",
    "referenceType": "formatted",
    "group": "cuRVUT3bmek",
    "speaker": null,
@@ -2725,6 +2724,7 @@
    },
    "extra": {},
    "key": "audio_s485704_cuRVUT3bmek-00168020-00173060",
+   "referenceSha256": "bdcc4af79c6fd2d58ddb6baa48911b36a0ea8c5033f8076e48152ce8e2bb9d98",
    "lexicalReferenceSha256": "b3599c1f10336ea0aa7f2cd49944875bfee8c44c49548d6c7beccf4435676494"
   },
   {
@@ -2741,7 +2741,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "4dbb7cd1d96a67d0334ddd71f2e6447ca50b2a36f818b533994f577f145416dd",
    "referenceType": "formatted",
    "group": "owA_Z3navgg",
    "speaker": null,
@@ -2765,6 +2764,7 @@
    },
    "extra": {},
    "key": "audio_s485704_owA_Z3navgg-00435960-00441980",
+   "referenceSha256": "4dbb7cd1d96a67d0334ddd71f2e6447ca50b2a36f818b533994f577f145416dd",
    "lexicalReferenceSha256": "d041cacf1fe7b4be43b6a490bffa8a5449183c04fc9acbd743cfa4596a4f4939"
   },
   {
@@ -2781,7 +2781,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "36a8c6e6e45fc543ce64bda19284d6003e66fe2724e42d7a040debd963c2ea74",
    "referenceType": "formatted",
    "group": "eANk3-vRpCM",
    "speaker": null,
@@ -2805,6 +2804,7 @@
    },
    "extra": {},
    "key": "audio_s485936_eANk3-vRpCM-00019949-00025900",
+   "referenceSha256": "36a8c6e6e45fc543ce64bda19284d6003e66fe2724e42d7a040debd963c2ea74",
    "lexicalReferenceSha256": "edda638080c144fa46cc73ff0084944e04c144aba9efffd8c2f35099b40d0870"
   },
   {
@@ -2821,7 +2821,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "3705900d222b953fb7d87656467300ef326fa1e7986a3ebb665e429b3c170069",
    "referenceType": "formatted",
    "group": "f6W_8V7wFJA",
    "speaker": null,
@@ -2845,6 +2844,7 @@
    },
    "extra": {},
    "key": "audio_s485936_f6W_8V7wFJA-00036018-00046303",
+   "referenceSha256": "3705900d222b953fb7d87656467300ef326fa1e7986a3ebb665e429b3c170069",
    "lexicalReferenceSha256": "c2589f9f875aeb240ebe74956b074517879847996fd84939fcad716a93935ce8"
   },
   {
@@ -3204,7 +3204,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "97c07ea8fcd4328ba269e40d3e6de31aa33abb96d3e7bc3deff1b381ce1b4027",
    "referenceType": "normalised",
    "group": "fr-1ca46a8b-2724-443b-a368-670504225bb8.flac",
    "speaker": null,
@@ -3224,7 +3223,8 @@
     "upstream": "OpenSLR SLR108 v1.1"
    },
    "extra": {},
-   "key": "1ca46a8b-2724-443b-a368-670504225bb8"
+   "key": "1ca46a8b-2724-443b-a368-670504225bb8",
+   "referenceSha256": "97c07ea8fcd4328ba269e40d3e6de31aa33abb96d3e7bc3deff1b381ce1b4027"
   },
   {
    "id": "fr-mediaspeech-573ddb82-ba62-4b7a-b8f9-3d98603953ab",
@@ -3240,7 +3240,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "3ac20cb152b743e97ee29154005aade25297bf564624397ee3264bc5fd565c9f",
    "referenceType": "normalised",
    "group": "fr-573ddb82-ba62-4b7a-b8f9-3d98603953ab.flac",
    "speaker": null,
@@ -3260,7 +3259,8 @@
     "upstream": "OpenSLR SLR108 v1.1"
    },
    "extra": {},
-   "key": "573ddb82-ba62-4b7a-b8f9-3d98603953ab"
+   "key": "573ddb82-ba62-4b7a-b8f9-3d98603953ab",
+   "referenceSha256": "3ac20cb152b743e97ee29154005aade25297bf564624397ee3264bc5fd565c9f"
   },
   {
    "id": "fr-mediaspeech-5c4d94cf-f2c0-45ff-8f96-61891747b5ce",
@@ -3276,7 +3276,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "8357f228063ad2a4e656e979f5eebaccbbb2a205148c8f179bf06f3fbf38de45",
    "referenceType": "normalised",
    "group": "fr-5c4d94cf-f2c0-45ff-8f96-61891747b5ce.flac",
    "speaker": null,
@@ -3296,7 +3295,8 @@
     "upstream": "OpenSLR SLR108 v1.1"
    },
    "extra": {},
-   "key": "5c4d94cf-f2c0-45ff-8f96-61891747b5ce"
+   "key": "5c4d94cf-f2c0-45ff-8f96-61891747b5ce",
+   "referenceSha256": "8357f228063ad2a4e656e979f5eebaccbbb2a205148c8f179bf06f3fbf38de45"
   },
   {
    "id": "fr-mediaspeech-a167cebd-f751-4336-aafc-4c0210666fd9",
@@ -3312,7 +3312,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "0d34a4e073b66698190ca13da0d09a05f0647ab2bdb6c399189ea5742519a830",
    "referenceType": "normalised",
    "group": "fr-a167cebd-f751-4336-aafc-4c0210666fd9.flac",
    "speaker": null,
@@ -3332,7 +3331,8 @@
     "upstream": "OpenSLR SLR108 v1.1"
    },
    "extra": {},
-   "key": "a167cebd-f751-4336-aafc-4c0210666fd9"
+   "key": "a167cebd-f751-4336-aafc-4c0210666fd9",
+   "referenceSha256": "0d34a4e073b66698190ca13da0d09a05f0647ab2bdb6c399189ea5742519a830"
   },
   {
    "id": "fr-mediaspeech-c3801ddb-d38b-4405-b6a7-076330ce1f05",
@@ -3348,7 +3348,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "26bb0f0e8a040122b1f0b4487dfba19bafc8111241793bbc329575da4b7e71f5",
    "referenceType": "normalised",
    "group": "fr-c3801ddb-d38b-4405-b6a7-076330ce1f05.flac",
    "speaker": null,
@@ -3368,7 +3367,8 @@
     "upstream": "OpenSLR SLR108 v1.1"
    },
    "extra": {},
-   "key": "c3801ddb-d38b-4405-b6a7-076330ce1f05"
+   "key": "c3801ddb-d38b-4405-b6a7-076330ce1f05",
+   "referenceSha256": "26bb0f0e8a040122b1f0b4487dfba19bafc8111241793bbc329575da4b7e71f5"
   },
   {
    "id": "es-mediaspeech-2c079d03-4768-48c9-b320-5763dbb368c0",
@@ -3384,7 +3384,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "28a106798576031cc40b0409ad0024d11fe6d01e4b9820b92882f5cb810abb63",
    "referenceType": "normalised",
    "group": "es-2c079d03-4768-48c9-b320-5763dbb368c0.flac",
    "speaker": null,
@@ -3404,7 +3403,8 @@
     "upstream": "OpenSLR SLR108 v1.1"
    },
    "extra": {},
-   "key": "2c079d03-4768-48c9-b320-5763dbb368c0"
+   "key": "2c079d03-4768-48c9-b320-5763dbb368c0",
+   "referenceSha256": "28a106798576031cc40b0409ad0024d11fe6d01e4b9820b92882f5cb810abb63"
   },
   {
    "id": "es-mediaspeech-39a7aebb-212d-41e6-9ca6-a829f43e9818",
@@ -3420,7 +3420,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "c9bf8a0c004f5e7466fb52d3b3183f613cdb009e1d7947b6361d0c020cd0b816",
    "referenceType": "normalised",
    "group": "es-39a7aebb-212d-41e6-9ca6-a829f43e9818.flac",
    "speaker": null,
@@ -3440,7 +3439,8 @@
     "upstream": "OpenSLR SLR108 v1.1"
    },
    "extra": {},
-   "key": "39a7aebb-212d-41e6-9ca6-a829f43e9818"
+   "key": "39a7aebb-212d-41e6-9ca6-a829f43e9818",
+   "referenceSha256": "c9bf8a0c004f5e7466fb52d3b3183f613cdb009e1d7947b6361d0c020cd0b816"
   },
   {
    "id": "es-mediaspeech-9c258cc0-33ae-470a-8169-00fcc564e746",
@@ -3456,7 +3456,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "36012c2683994614c53e34bf4cfcf44d29d00e67f79c61d0f7edf83dbae9c8ce",
    "referenceType": "normalised",
    "group": "es-9c258cc0-33ae-470a-8169-00fcc564e746.flac",
    "speaker": null,
@@ -3476,7 +3475,8 @@
     "upstream": "OpenSLR SLR108 v1.1"
    },
    "extra": {},
-   "key": "9c258cc0-33ae-470a-8169-00fcc564e746"
+   "key": "9c258cc0-33ae-470a-8169-00fcc564e746",
+   "referenceSha256": "36012c2683994614c53e34bf4cfcf44d29d00e67f79c61d0f7edf83dbae9c8ce"
   },
   {
    "id": "es-mediaspeech-f54d49d7-d29a-4fc9-a242-e1f0d2d5d7e8",
@@ -3492,7 +3492,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "2decc90a99a285bfbe361653e17e76d0e6d7e3403192a8e1237e9a37d04d6b65",
    "referenceType": "normalised",
    "group": "es-f54d49d7-d29a-4fc9-a242-e1f0d2d5d7e8.flac",
    "speaker": null,
@@ -3512,7 +3511,8 @@
     "upstream": "OpenSLR SLR108 v1.1"
    },
    "extra": {},
-   "key": "f54d49d7-d29a-4fc9-a242-e1f0d2d5d7e8"
+   "key": "f54d49d7-d29a-4fc9-a242-e1f0d2d5d7e8",
+   "referenceSha256": "2decc90a99a285bfbe361653e17e76d0e6d7e3403192a8e1237e9a37d04d6b65"
   },
   {
    "id": "sv-klang-00942a57d3cb_2",
@@ -3902,7 +3902,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "6f779578021c8db27960f8108803e799e52674c1e405fbc45967ebc6b17ddb6d",
    "referenceType": "normalised",
    "group": "tr-76d3b491-ac1b-440a-a6d1-a977a5ff18ba.flac",
    "speaker": null,
@@ -3923,7 +3922,8 @@
     "viewer": true
    },
    "extra": {},
-   "key": "76d3b491-ac1b-440a-a6d1-a977a5ff18ba"
+   "key": "76d3b491-ac1b-440a-a6d1-a977a5ff18ba",
+   "referenceSha256": "6f779578021c8db27960f8108803e799e52674c1e405fbc45967ebc6b17ddb6d"
   },
   {
    "id": "tr-mediaspeech-89685016-adc6-4dbb-83ae-6158b1130850",
@@ -3939,7 +3939,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "c760bcef482e3286322487c01fbb93398204aa8f69f7fc3658de9758bf077a55",
    "referenceType": "normalised",
    "group": "tr-89685016-adc6-4dbb-83ae-6158b1130850.flac",
    "speaker": null,
@@ -3960,7 +3959,8 @@
     "viewer": true
    },
    "extra": {},
-   "key": "89685016-adc6-4dbb-83ae-6158b1130850"
+   "key": "89685016-adc6-4dbb-83ae-6158b1130850",
+   "referenceSha256": "c760bcef482e3286322487c01fbb93398204aa8f69f7fc3658de9758bf077a55"
   },
   {
    "id": "tr-mediaspeech-fba4a313-6aaf-4f39-8e14-d75b697ddb03",
@@ -3976,7 +3976,6 @@
     "multilingual"
    ],
    "scoring": "wer",
-   "referenceSha256": "cfae9fb63f976614b6fabd705bf6695890c2a4629370c844bf2201214e7184dd",
    "referenceType": "normalised",
    "group": "tr-fba4a313-6aaf-4f39-8e14-d75b697ddb03.flac",
    "speaker": null,
@@ -3997,7 +3996,8 @@
     "viewer": true
    },
    "extra": {},
-   "key": "fba4a313-6aaf-4f39-8e14-d75b697ddb03"
+   "key": "fba4a313-6aaf-4f39-8e14-d75b697ddb03",
+   "referenceSha256": "cfae9fb63f976614b6fabd705bf6695890c2a4629370c844bf2201214e7184dd"
   },
   {
    "id": "ja-fleurs-ja_jp-10969509778910365671",
@@ -4712,5 +4712,10 @@
    "key": "e06be3fc-7d6b-4862-b26f-7bfed8cd7d88",
    "lexicalReference": "when someone is leaving you should say 안녕히 가세요 instead of just goodbye because it literally means go peacefully and shows you care about their journey"
   }
- ]
+ ],
+ "publishedIdentity": {
+  "manifestSha256": "5cbda7a5f463d4f12bc4e58982ea16e1f23f3f9361aafc42c3344b6d5fd159b8",
+  "scorerSha256": "d917f5ca849a060f380f65acadfeda27022da3d6e2b99bc2115d61439b182eaa",
+  "note": "Original published inputs before licence cleanup; clip order, audio, reference bytes and scoring rules are unchanged."
+ }
 }

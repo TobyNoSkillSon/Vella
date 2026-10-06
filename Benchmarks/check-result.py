@@ -9,6 +9,7 @@ import statistics
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+from references import receipt_matches
 
 
 def check(r):
@@ -37,7 +38,9 @@ def check(r):
     suite = ROOT / 'suites' / ('v2-quick' if kind == 'quick' else 'v2') / 'manifest.json'
     m = json.loads(suite.read_text())
     assert r['suite']['id'] == m['id'] and r['suite']['version'] == m['version']
-    assert r['suite']['manifest_sha256'] == hashlib.sha256(suite.read_bytes()).hexdigest()
+    assert receipt_matches(m, r['suite']['manifest_sha256'], r['scorer']['sha256'],
+        hashlib.sha256(suite.read_bytes()).hexdigest(),
+        hashlib.sha256((ROOT / 'scorer/Benchmarks/v2/scoring.py').read_bytes()).hexdigest()), 'suite/scorer identity mismatch'
     assert r['suite']['quality_label'] == ('estimate' if kind == 'quick' else 'full')
     assert r['protocol']['transport'] in ('installed-app-api', 'shipped-streaming-helper')
     assert r['protocol']['repeats'] >= 3 and len(r['passes']) == r['protocol']['repeats']
@@ -56,7 +59,6 @@ def check(r):
     for k in ('wer_percent', 'speed_x_realtime'):
         assert math.isclose(r['metrics'][k], statistics.median(x[k] for x in r['passes']), abs_tol=1e-6), 'median mismatch'
     assert r['scorer']['normalizer'] == 'vella-v2-lexical-1.0.0'
-    assert r['scorer']['sha256'] == hashlib.sha256((ROOT / 'scorer/Benchmarks/v2/scoring.py').read_bytes()).hexdigest()
     if 'energy_j_per_audio_minute' in r['metrics']:
         assert math.isfinite(r['metrics']['energy_j_per_audio_minute']) and r['metrics']['energy_j_per_audio_minute'] > 0, 'absent energy must be omitted, never zero'
         e = r['protocol']['energy']

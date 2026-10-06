@@ -33,7 +33,11 @@ final class TableTooltipTests: XCTestCase {
     ]
     private func assertClean(_ text: String, _ label: String, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertFalse(text.isEmpty, label, file: file, line: line)
-        for (pattern, what) in Self.forbidden where text.range(of: pattern, options: .regularExpression) != nil {
+        // The requested Parakeet attribution URL is the only permitted URL, in the Model column only.
+        let checked =
+            label.hasSuffix("[Model]") && (label.hasPrefix("parakeet-v3 ") || label.hasPrefix("parakeet-v3-ultra "))
+            ? text.replacingOccurrences(of: "https://creativecommons.org/licenses/by/4.0/", with: "") : text
+        for (pattern, what) in Self.forbidden where checked.range(of: pattern, options: .regularExpression) != nil {
             XCTFail("\(label): \(what) in tooltip:\n\(text)", file: file, line: line)
         }
         for l in text.components(separatedBy: "\n") {
@@ -253,13 +257,13 @@ final class TableTooltipTests: XCTestCase {
     static let modelNotes: [String: String] = [
         "parakeet-v3-ultra": """
         Parakeet v3 Ultra
-        Moondream, 2026 · CC BY 4.0
+        Moondream, 2026 · CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
         Moondream's post-training of NVIDIA Parakeet v3 for dictation in 25 European languages; none from outside Europe
         0.6B parameters · native BF16
         """,
         "parakeet-v3": """
         Parakeet v3
-        NVIDIA, 2025 · CC BY 4.0
+        NVIDIA, 2025 · CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
         The unmodified Parakeet v3 that Ultra is post-trained from: the same 25 European languages, no others
         0.6B parameters · native FP32
         """,
@@ -289,7 +293,7 @@ final class TableTooltipTests: XCTestCase {
         """,
         "nemotron-3.5-streaming-0.6b": """
         Nemotron 3.5 Streaming
-        NVIDIA, 2026 · OpenMDW-1.1 (MLX conversion: NVIDIA Open Model License)
+        NVIDIA, 2026 · OpenMDW-1.1 upstream; MLX card: NVIDIA Open Model License
         Transcribes 28 languages as the audio arrives, so Streaming mode types while you speak; not used for Dictation
         0.6B parameters · native BF16
         """

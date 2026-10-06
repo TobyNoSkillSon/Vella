@@ -5,7 +5,8 @@ import VellaWire
 // (VFamily/research/hover-contract-2026-09-28.md): short lines joined with "\n", no trailing periods on fragments.
 // A model name gets at most 5 lines (name; publisher, year · licence; summary; size · native precision; loaded state),
 // a number two (what it is and which way is better; who measured or estimated it, on which Mac, when).
-// Unknown facts are omitted, never "not stated". No repository ids, hashes, paths, URLs or internal names.
+// Unknown facts are omitted, never "not stated". No repository ids, hashes, paths or internal names;
+// the CC BY licence URL is included for the Parakeet models.
 
 public let notMeasuredHelp = "Not measured at this precision"
 
@@ -16,7 +17,7 @@ public func languageDisplayName(_ code: String) -> String { enUS.localizedString
 /// A catalog licence id (the upstream card's metadata) as its display name; nil for a free-form id.
 public func licenceDisplayName(_ id: String) -> String? {
     switch id.lowercased() {
-    case "cc-by-4.0": return "CC BY 4.0"
+    case "cc-by-4.0": return "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
     case "apache-2.0": return "Apache-2.0"
     case "mit": return "MIT"
     default: return nil
@@ -27,7 +28,13 @@ public func licenceDisplayName(_ id: String) -> String? {
 public func modelHelp(_ f: ModelFamily, loaded: LoadedFamily? = nil) -> String {
     var lines = [f.name]
     let who = [f.publisher, f.released.map { String($0) }].compactMap { $0 }.joined(separator: ", ")
-    let origin = [who.isEmpty ? nil : who, f.licence ?? licenceDisplayName(f.license)].compactMap { $0 }.joined(separator: " \u{00b7} ")
+    let licence =
+        f.license == "cc-by-4.0"
+        ? licenceDisplayName(f.license)
+        : f.id == "nemotron-3.5-streaming-0.6b"
+            ? "OpenMDW-1.1 upstream; MLX card: NVIDIA Open Model License"
+            : f.licence ?? licenceDisplayName(f.license)
+    let origin = [who.isEmpty ? nil : who, licence].compactMap { $0 }.joined(separator: " \u{00b7} ")
     if !origin.isEmpty { lines.append(origin) }
     if let summary = f.summary, !summary.isEmpty { lines.append(summary) }
     lines.append((f.params.isEmpty ? "" : "\(f.params) parameters \u{00b7} ") + "native \(precisionInProse(f.native))")
