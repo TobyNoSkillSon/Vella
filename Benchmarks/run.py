@@ -44,7 +44,9 @@ def public_status(model):
     # /status in 2.0.0: WorkerModelStatus.selection is the launch selection.
     # Direct helper status (streaming.py) instead carries recipe.
     requested_optimized = (model.get('selection') or {}).get('path') == 'optimized' or model.get('recipe', '').startswith('optimized')
-    if requested_optimized and model.get('engine_reason'):
+    # App /status uses engine_reason for stock/partial fallbacks. Direct helper
+    # status can instead explain a successful optimized self-test.
+    if requested_optimized and model.get('engine_reason') and ('selection' in model or model.get('engine') != 'optimized'):
         result['fallbacks'] = result['fallbacks'] + [model['engine_reason']]
     if requested_optimized and model.get('engine') != 'optimized' and not result['fallbacks']:
         raise RuntimeError('Optimized selection is running stock without a fallback reason')

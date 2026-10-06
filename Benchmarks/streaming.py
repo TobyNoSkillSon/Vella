@@ -118,10 +118,10 @@ def main():
                 return ' '.join(pieces)
             w.call({'op': 'start', 'model': str(model_path)})
             feed(np.concatenate((pcm[0][1][:32000], np.zeros(19200, np.float32))))
+            w.call({'op': 'finish'})  # end warmup; keep the loaded model, discard its stream state/text
             warm_status = public_status(w.status)
             for i in range(a.repeats):
-                if i:
-                    w.call({'op': 'start', 'model': str(model_path)})
+                w.call({'op': 'start', 'model': str(model_path)})
                 t = time.monotonic()
                 rows = [{'id': c['id'], 'transcript': feed(data)} for c, data in pcm]
                 tail = w.call({'op': 'finish'}).get('committed')
@@ -152,7 +152,7 @@ def main():
                     'status':actual,'status_line':'direct shipped-helper status; vella status does not observe this separate worker'},
                 'suite':{'kind':a.suite,'id':manifest['id'],'version':manifest['version'],'manifest_sha256':hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
                     'quality_label':'estimate' if a.suite=='quick' else 'full'},
-                'protocol':{'transport':'shipped-streaming-helper','repeats':a.repeats,'warm_state':'2-second audio + 1.2-second gap warmup; loaded worker reused',
+                'protocol':{'transport':'shipped-streaming-helper','repeats':a.repeats,'warm_state':'2-second audio + 1.2-second gap warmup; fresh stream before each timed pass; loaded worker reused',
                     'machine_idle':a.machine_idle,'request_errors':0,'worker_exits':0,'speed':'audio seconds / serial helper warm wall seconds; excludes decode; includes 1.2s gap per clip',
                     'peak_ram':'worker lifetime peak physical footprint; decimal MB','session_layout':'stream-concat-gap19200;1600-sample-packets;one-session-per-pass'},
                 'metrics':{'wer_percent':statistics.median(x['wer_percent'] for x in passes),'speed_x_realtime':statistics.median(x['speed_x_realtime'] for x in passes),

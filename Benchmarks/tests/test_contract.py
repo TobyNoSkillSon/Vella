@@ -62,6 +62,17 @@ class ContractTest(unittest.TestCase):
         model['engine_reason'] = 'nax_gemm disabled: unsupported GPU'
         self.assertEqual(public_status(model)['fallbacks'], [model['engine_reason']])
 
+    def test_direct_helper_success_reason_is_not_a_fallback(self):
+        model = {'engine': 'optimized', 'recipe': 'optimized_fast', 'optimizations': {'keep_cache': True},
+                 'engine_reason': 'Self-tested on this Mac against stock MLX (identical streamed text).'}
+        status = public_status(model)
+        self.assertEqual(status['fallbacks'], [])
+        self.assertEqual(status['engine_reason'], model['engine_reason'])
+        model.update(engine='mlx', engine_reason='self-test failed: encoder')
+        self.assertEqual(public_status(model)['fallbacks'], ['self-test failed: encoder'])
+        model.pop('engine_reason')
+        with self.assertRaisesRegex(RuntimeError, 'without a fallback reason'): public_status(model)
+
     def test_existing_output_is_preserved(self):
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / 'run'
