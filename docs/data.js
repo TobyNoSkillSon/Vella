@@ -5827,6 +5827,7 @@ const VELLA_BENCHMARKS = {
       "status": "layout_artifact",
       "baseline": "same-layout native Standard",
       "decision_rule": "all five shared Standard losses => layout artifact; retained words lost by candidate => Optimized withheld; mixed => refuse publication",
+      "decision_rule_superseded": "Historical (3 Oct). Superseded 6 Oct (Toby): every measured cell is offered; a failed check is stated as that cell's loss and the cell is never recommended. The 3 Oct outcome was a layout artifact, so nothing was withheld.",
       "layout_sha256": "16428e35ae2cb72ee865a52e3a2f6a8a6876b07248f851824a7c8e3b52628f2e",
       "worker_sha256": "8a215e827e5972ef9afb4db7cf57ea8f068006f40ef1510ccd66e6977546b99d",
       "result_sha256": "40b78af02d6885bd5e891c31f52c87db3d57489f825aef1981cb717d84169ea4",

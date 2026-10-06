@@ -105,7 +105,7 @@ final class APIWiringTests: XCTestCase {
         XCTAssertNil(registered["Voxtral-Mini-4B-Realtime-2602-4bit"])
         XCTAssertNil(registered["imported-whisper-large-v3-q8"])
         XCTAssertEqual(registered["whisper-large-v3-8bit"]?.path, root.appendingPathComponent("outside/whisper-large-v3-q8").path)
-        XCTAssertNotNil(registered["parakeet-tdt-0.6b-v3-mlx-4bit"], "an absent tier's files stay registered (not shown)")
+        XCTAssertNotNil(registered["parakeet-tdt-0.6b-v3-mlx-4bit"], "an earlier published 4-bit download stays registered; the offered int4 is made from the 16-bit root")
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: runtime.support.appendingPathComponent("Models/Voxtral-Mini-4B-Realtime-2602-4bit").path),
             "the registry migration never deletes files")
@@ -122,7 +122,8 @@ final class APIWiringTests: XCTestCase {
         }
 
         // GET /v1/models: every dictation family with weights of an offered tier here; the loaded one loaded and current.
-        // Parakeet v3's only files are 4-bit, an absent tier: not listed (and never replaced by another tier).
+        // Parakeet v3's only files are an earlier published 4-bit download, which the offered int4 never runs (it is made
+        // from the 16-bit root, absent here): not listed (and never replaced by another tier).
         let (code, list) = try await get("/v1/models")
         XCTAssertEqual(code, 200)
         let data = try XCTUnwrap(list["data"] as? [[String: Any]])

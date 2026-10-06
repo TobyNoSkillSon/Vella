@@ -312,7 +312,8 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(after.model, p.plain); XCTAssertEqual(after.streamingModel, p.outside)
     }
     /// Representative subset of the 3 Oct upgrader (external registry entries omitted): Ultra BF16 dictation, Nemotron published int8 streaming,
-    /// BF16 Nemotron root and unoffered v3 Q4. No user paths, recordings or weights are copied.
+    /// BF16 Nemotron root and an earlier published v3 Q4 download (int4 is offered, made from the 16-bit root, so the
+    /// published file is kept but not used). No user paths, recordings or weights are copied.
     @MainActor func testLegacyPublishedStreamingQuantMigratesToCorrectedLocalInt8() async throws {
         let models = support.appendingPathComponent("Models")
         let names = [
