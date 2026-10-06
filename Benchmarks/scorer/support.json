@@ -1,0 +1,110 @@
+{
+ "parakeet-v3": [
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv"
+ ],
+ "parakeet-v3-ultra": [
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv"
+ ],
+ "parakeet-v3-redux": [
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv"
+ ],
+ "qwen3-asr-1.7b": [
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv",
+  "tr",
+  "ja",
+  "zh",
+  "ko"
+ ],
+ "qwen3-asr-0.6b": [
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv",
+  "tr",
+  "ja",
+  "zh",
+  "ko"
+ ],
+ "whisper-large-v3": [
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv",
+  "tr",
+  "ja",
+  "zh",
+  "ko"
+ ],
+ "whisper-large-v3-turbo": [
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv",
+  "tr",
+  "ja",
+  "zh",
+  "ko"
+ ],
+ "voxtral-realtime": [
+  "de",
+  "fr",
+  "es",
+  "ja",
+  "zh",
+  "ko"
+ ],
+ "nemotron-3.5-streaming": [
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv",
+  "tr",
+  "ja",
+  "zh",
+  "ko"
+ ],
+ "nemotron-3.5-streaming-0.6b": [
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv",
+  "tr",
+  "ja",
+  "zh",
+  "ko"
+ ],
+ "voxtral-mini-4b-realtime": [
+  "de",
+  "fr",
+  "es",
+  "ja",
+  "zh",
+  "ko"
+ ],
+ "sensevoice-small": [
+  "ja",
+  "zh",
+  "ko"
+ ]
+}

@@ -53,8 +53,8 @@ step() {  # step NAME FUNCTION: run, log, print one line; stop on the first fail
 }
 
 source_only() {
-  if git ls-files | grep -E '^(lab|dist|dist-preview|logs|Marketing|\.build)/|\.py$'; then
-    echo "local-only files are tracked (lab/, dist/, logs/, Marketing/, .build/ or Python)"; return 1
+  if git ls-files | grep -E '^(lab|dist|dist-preview|logs|Marketing|\.build)/|\.py$' | grep -v '^Benchmarks/'; then
+    echo "local-only files are tracked (lab/, dist/, logs/, Marketing/, .build/ or Python outside Benchmarks/)"; return 1
   fi
 }
 

@@ -1,6 +1,6 @@
 # Benchmark methods
 
-Vella 2.0.0. The published cell data is in [Resources/benchmarks.json](../Resources/benchmarks.json). Suite metadata is in [benchmark-method.json](benchmark-method.json). This document describes the measurements, not a prediction for every Mac.
+Vella 2.0.0. Run or optimize on another chip with the [public kit](../Benchmarks/README.md). The published cell data is in [Resources/benchmarks.json](../Resources/benchmarks.json). Suite metadata is in [benchmark-method.json](benchmark-method.json). This document describes the measurements, not a prediction for every Mac.
 
 ## Suites
 
@@ -32,7 +32,7 @@ Language codes: en English, pl Polish, de German, fr French, es Spanish, sv Swed
 
 ### Dataset identities and licences
 
-These are the source manifest's licence statements, not a grant to redistribute every recording. Sources marked no are not cleared for recording redistribution by this benchmark, whether because terms are restrictive or rights are unclear. No benchmark recording or reference transcript is included here.
+These are the source manifest's licence statements, not a grant to redistribute every recording. Sources marked no are not cleared for recording redistribution by this benchmark, whether because terms are restrictive or rights are unclear. The [public kit](../Benchmarks/README.md) includes the frozen manifests and references; recordings are fetched from pinned upstreams and verified, never bundled in the clone.
 
 | Source ID / dataset | v2 clips / min | Quick clips / min | Licence | Audio redistributable |
 |---|---:|---:|---|---|

@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "example": true,
+  "recorded_at": "2026-01-01T00:00:00Z",
+  "hardware": {
+    "chip": "Example Apple chip",
+    "gpu_cores": 1,
+    "ram_bytes": 8000000000,
+    "macos_version": "26.0",
+    "macos_build": "example",
+    "power_source": "AC"
+  },
+  "vella": {
+    "version": "2.0.0",
+    "build": "35"
+  },
+  "model": {
+    "id": "parakeet-v3-ultra",
+    "precision": "bf16",
+    "path": "Optimized",
+    "mode": "Fast",
+    "checkpoint_revision": "b554592c50b2a48471add2daa3d46fa9f00fef5e",
+    "status": {
+      "engine": "optimized",
+      "selection": {
+        "tier": "16",
+        "path": "optimized",
+        "mode": "fast"
+      },
+      "optimizations": {
+        "encoder": true,
+        "decoder": true
+      },
+      "fallbacks": []
+    },
+    "status_line": "Synthetic example only"
+  },
+  "suite": {
+    "kind": "quick",
+    "id": "vella-v2-quick",
+    "version": "1.0.0",
+    "manifest_sha256": "5cbda7a5f463d4f12bc4e58982ea16e1f23f3f9361aafc42c3344b6d5fd159b8",
+    "quality_label": "estimate"
+  },
+  "protocol": {
+    "transport": "installed-app-api",
+    "repeats": 3,
+    "warm_state": "one whole-clip warmup; model remains loaded",
+    "machine_idle": "unknown",
+    "speed": "audio seconds / serial API wall seconds",
+    "peak_ram": "worker lifetime peak physical footprint; decimal MB"
+  },
+  "metrics": {
+    "wer_percent": 10,
+    "speed_x_realtime": 13.52813625,
+    "peak_ram_mb": 1000
+  },
+  "passes": [
+    {
+      "wer_percent": 10,
+      "wall_seconds": 100,
+      "speed_x_realtime": 13.52813625
+    },
+    {
+      "wer_percent": 10,
+      "wall_seconds": 100,
+      "speed_x_realtime": 13.52813625
+    },
+    {
+      "wer_percent": 10,
+      "wall_seconds": 100,
+      "speed_x_realtime": 13.52813625
+    }
+  ],
+  "scorer": {
+    "normalizer": "vella-v2-lexical-1.0.0",
+    "sha256": "d917f5ca849a060f380f65acadfeda27022da3d6e2b99bc2115d61439b182eaa"
+  },
+  "personal_recordings_included": false
+}

@@ -33,8 +33,8 @@ jobs:
 
       - name: Only source in git
         run: |
-          if git ls-files | grep -E '^(lab|dist|dist-preview|logs|Marketing|\.build)/|\.py$'; then
-            echo "::error::Local-only files are tracked (lab/, dist/, logs/, Marketing/, .build/ or Python)"; exit 1
+          if git ls-files | grep -E '^(lab|dist|dist-preview|logs|Marketing|\.build)/|\.py$' | grep -v '^Benchmarks/'; then
+            echo "::error::Local-only files are tracked (lab/, dist/, logs/, Marketing/, .build/ or Python outside Benchmarks/)"; exit 1
           fi
 
       - name: Select Xcode

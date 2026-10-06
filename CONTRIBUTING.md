@@ -65,7 +65,8 @@ Real-model parity and benchmarks need downloaded weights and a quiet GPU. The ma
 | `Sources/VellaModelTool` | A retired stub, shipped only because 1.0.x in-app updaters require the file. |
 | `Worker/` | A separate Swift package: the sandboxed recognition helpers (`VellaWorker` for Dictation, `VellaStreamingWorker` for Streaming), the vendored MLX speech models in `Worker/Sources/MLXAudioSTT` (each model folder has a README), the optimized kernels and their self-tests. |
 | `Resources/` | `models.json` (catalog), `benchmarks.json` (measured figures), `SKILL.md` (agent skill), the calibration clip. |
-| `docs/` | The user guide and the GitHub Pages site (benchmark table and installer). |
+| `docs/` | User guide and benchmark methods. Legacy Pages files remain until retirement is verified. |
+| `Benchmarks/` | Public measurement/optimization kit and community results; audio is fetched from pinned upstreams. |
 
 ## Pull requests
 
@@ -96,20 +97,13 @@ Before a model's figures go into `Resources/benchmarks.json`, the maintainer mea
 
 ### Community measurement
 
-Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far
+Start at [Benchmarks/README.md](Benchmarks/README.md). The public kit contains the frozen full v2 and v2-quick manifests, upstream audio fetch/hash verification, exact scorer, serial installed-app API runner, quality gate, local result self-check and [result PR recipe](Benchmarks/results/README.md). One model/cell is enough. Quick quality is an estimate, never a full benchmark row. Nemotron's shipped-helper lane is labelled separately because 2.0.0 has no streaming API.
 
-One model at a time is welcome; nobody needs to run the full catalog. **The 2.0 app ships `vella diagnose` and `vella transcribe`, not the maintainer's v2 suite, scorer or measurement harness.** The following produces diagnostic evidence on another Mac, not a v2 benchmark row or a joules claim:
-
-1. Ask the user's consent for the run, any model download and any later scheduling. An unattended agent should use Opus 5.5 / Sol 6.1 or better. Install the release using `scripts/install.sh`; record `vella --version`.
-2. In **Models…**, choose one model, tier (`bf16`/`fp16`, `int8`, `int4`), Standard or Optimized, and Exact/Fast; confirm **Get** if needed, then **Load**. With permission, unload other models so diagnostics times only this one. Keep the same selection throughout the run. The same controls are available through `vella select ID --precision bf16 --path Standard --mode Fast`, `vella get ID --yes`, Load/Reload/Unload, Keep Hot and Memory. Ask consent before Get; the catalog JSON lists the source and size.
-3. On an idle Mac with no other inference, record chip, RAM, macOS/build, power source and whether other work was running. Run `vella status`, then `vella diagnose --json > diagnosis.json`. This uses only the bundled public LibriSpeech self-test clips, one request at a time, and includes reference transcripts and timing. It sends nothing. Its exact-match checks are diagnostics, not suite WER.
-4. For a larger public, redistributable clip, record its source URL, licence, SHA-256, exact audio duration and reference text. Warm up once, then run at least three serial timings with `/usr/bin/time -p vella transcribe public.wav --model MODEL_ID > transcript.txt`. Save each elapsed time and transcript separately. These are end-to-end API times, not kernel times. Read and compare the full transcripts; do not describe raw transcript equality as accuracy on a benchmark suite. Without an approved scorer, submit references and transcripts for maintainer scoring.
-5. Save a manifest with app version/build, model id, source revision, actual selection/engine/fallbacks from status, hardware, clip list/hashes/licences, timing method, repeats and load/warm state. Keep diagnostic evidence distinct from v2 or v2-quick. Leave energy absent unless you have a defined measurement protocol. Energy requires `powermetrics` and admin consent: speed/accuracy-only contributions are valid and labelled as such; never put zero for missing energy. Peak RAM likewise needs a described measurement, not installed weight size.
-6. Inspect all files for personal recordings, paths or transcripts before sharing. Ask consent before opening an issue or PR at https://github.com/TobyNoSkillSon/Vella. Attach the manifest, diagnostic JSON, public transcripts and timings; a partial one-model contribution is fine. Sending it is a separate action from measuring.
-
-**Full benchmark kit still needed.** Comparable `benchmarks/<chip>.json` submissions need a redistributable suite (or explicitly labelled public subset), pinned clip manifest/hashes and references, scorer/normalization version, a serial CLI/API runner, quality gate, optional idle-subtracted `powermetrics` protocol and a result-schema validator. These currently live in the local-only lab and are not shipped. There is no automatic validation/merge pipeline in 2.0, and no `vella contribute` command. Until the public kit exists, submit diagnostic evidence for review rather than manufacturing suite scores. Proposed contribution tiers are numbers, tuning existing kernels, and new kernels; kernel changes need review, and numbers-only automation requires that validator first.
+Ask consent before downloads, long runs, scheduling and opening an issue/PR. Exclude personal recordings and private support/log files. Record chip/GPU cores/RAM, macOS build, power, Vella version/build, precision and requested/actual path, engine and fallbacks. Speed/WER/RAM-only contributions are welcome; leave energy absent without the kit's powermetrics protocol and admin consent. Maintainers review by hand; no automatic validation or merge pipeline is required.
 
 ### Chip-specific optimizations
+
+Follow the public [optimization guide](Benchmarks/OPTIMIZATION.md) and the owning model README before changing a kernel. The quick suite screens A/B; the full suite checks the task-quality gate.
 
 Vella optimizes on hardware we own: M5 Max so far. Standard and working feature-gated fallbacks serve other Macs; no speed claim on them is a measurement until someone measures it. If a path is slow or disabled on your chip and you can fix it, you are welcome to:
 
