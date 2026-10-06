@@ -13,14 +13,6 @@
 </p>
 
 <p align="center">
-  <a href="#models">Models</a> ·
-  <a href="#install">Install</a> ·
-  <a href="#using-it">Using it</a> ·
-  <a href="#for-your-agent">For your agent</a> ·
-  <a href="docs/USAGE.md">User guide</a>
-</p>
-
-<p align="center">
   <img src="docs/images/menu-current.png" alt="Vella's menu while dictating: status, Models, Keep Hot, Memory, Finish Dictation, Stop and Keep Audio, Mode, Microphone, Shortcuts, Copy Last Transcript, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Launch at Login" width="256">
   &nbsp;
   <img width="519" src="docs/images/models-current.png" alt="Vella Models table with Dictation and Streaming sections, six precision cells per model, Exact/Fast, Get/Load/Unload, and final M5 Max benchmark figures" width="904">
