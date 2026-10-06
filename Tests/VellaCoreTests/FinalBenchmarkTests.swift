@@ -24,7 +24,7 @@ final class FinalBenchmarkTests: XCTestCase {
     }
 
     /// Withdrawn third-party comparison: published comparisons are Vella against stock MLX plus the cloud
-    /// reference rows. No competitor name or competitor_comparisons key may ship in the app resources, the Pages site or the docs.
+    /// reference rows. No competitor name or competitor_comparisons key may ship in the app resources, the legacy Pages installer or the docs.
     func testNoCompetitorComparisonShips() throws {
         let raw = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: Repository.root.appendingPathComponent("Resources/benchmarks.json"))) as? [String: Any])
         XCTAssertNil(raw["competitor_comparisons"])
@@ -34,9 +34,9 @@ final class FinalBenchmarkTests: XCTestCase {
         for folder in ["Resources", "docs"] {
             let base = Repository.root.appendingPathComponent(folder)
             let found = FileManager.default.enumerator(atPath: base.path)?.allObjects as? [String] ?? []
-            files += found.filter { ["json", "md", "js", "html", "plist"].contains(($0 as NSString).pathExtension) }.map { folder + "/" + $0 }
+            files += found.filter { ["json", "md", "sh", "plist"].contains(($0 as NSString).pathExtension) }.map { folder + "/" + $0 }
         }
-        XCTAssertTrue(files.contains("Resources/benchmarks.json") && files.contains("docs/data.js") && files.contains("Resources/AGENT_GUIDE.md"))
+        XCTAssertTrue(files.contains("Resources/benchmarks.json") && files.contains("docs/install.sh") && files.contains("Resources/AGENT_GUIDE.md"))
         for relative in Set(files) {
             let text = try String(contentsOf: Repository.root.appendingPathComponent(relative), encoding: .utf8).lowercased()
             for token in tokens { XCTAssertFalse(text.contains(token), "\(relative) mentions the withdrawn comparison: \(token)") }
@@ -48,7 +48,7 @@ final class FinalBenchmarkTests: XCTestCase {
         try FileManager.default.createDirectory(at: fixture.appendingPathComponent("Resources"), withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: fixture.appendingPathComponent("docs"), withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: fixture) }
-        for relative in ["Resources/benchmarks.json", "Resources/models.json", "Resources/SKILL.md", "README.md", "CHANGELOG.md", "docs/data.js"] {
+        for relative in ["Resources/benchmarks.json", "Resources/models.json", "Resources/SKILL.md", "README.md", "CHANGELOG.md", "docs/install.sh"] {
             try Data("portable fixture".utf8).write(to: fixture.appendingPathComponent(relative))
         }
         func run() throws -> (Int32, String) {
@@ -71,7 +71,7 @@ final class FinalBenchmarkTests: XCTestCase {
             ("Sources/Test.swift", "let name = \"whisper_cpp\""),
             ("Worker/Sources/MLXAudioSTT/Whisper/README.md", "Whisper cpp"),
             ("Resources/AGENT_GUIDE.md", "compared with MacWhisper"),
-            ("docs/data.js", "\"competitor_comparisons\": {}")
+            ("docs/install.sh", "\"competitor_comparisons\": {}")
         ]
         for (relative, planted) in plants {
             let url = fixture.appendingPathComponent(relative)
@@ -129,7 +129,7 @@ final class FinalBenchmarkTests: XCTestCase {
         try FileManager.default.createDirectory(at: fixture.appendingPathComponent("Resources"), withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: fixture.appendingPathComponent("docs"), withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: fixture) }
-        for relative in ["Resources/benchmarks.json", "Resources/models.json", "Resources/SKILL.md", "README.md", "CHANGELOG.md", "docs/data.js"] {
+        for relative in ["Resources/benchmarks.json", "Resources/models.json", "Resources/SKILL.md", "README.md", "CHANGELOG.md", "docs/install.sh"] {
             try Data("portable fixture".utf8).write(to: fixture.appendingPathComponent(relative))
         }
         for argument in [Repository.root.path, "--selftest", fixture.path] {

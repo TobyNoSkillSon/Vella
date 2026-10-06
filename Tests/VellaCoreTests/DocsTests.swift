@@ -73,19 +73,15 @@ final class DocsTests: XCTestCase {
         for stale in ["python", "Python", "source.tar.gz", "swift build", "install_app"] { XCTAssertFalse(pages.contains(stale), stale) }
     }
 
-    /// docs/data.js is Resources/benchmarks.json and Resources/models.json unchanged (scripts/pages-data.sh).
-    func testPagesDataMatchesTheResources() throws {
-        func trimmed(_ s: String) -> String { var s = s; while s.hasSuffix("\n") { s.removeLast() }; return s }
-        let expected =
-            "// Written by scripts/pages-data.sh from Resources/benchmarks.json and Resources/models.json.\n"
-            + "const VELLA_BENCHMARKS = \(trimmed(try text("Resources/benchmarks.json")));\n"
-            + "const VELLA_MODELS = \(trimmed(try text("Resources/models.json")));\n"
-        XCTAssertTrue(try text("docs/data.js") == expected, "docs/data.js is stale: run scripts/pages-data.sh")
-        let page = try text("docs/index.html"), table = try text("docs/table.js")
-        XCTAssertTrue(page.contains("<script src=\"data.js") && page.contains("<script src=\"table.js"))
-        XCTAssertTrue(table.contains("VELLA_BENCHMARKS") && table.contains("VELLA_MODELS") && table.contains("references"))
-        for stale in ["VELLA_RESULTS", "ReferenceResults", "20m15s", "144 English clips"] {
-            XCTAssertFalse(page.contains(stale) || table.contains(stale), stale)
+    /// 2.0.0's copied skill and old signing-migration retries still use Pages. Keep only its installer.
+    func testLegacyPagesInstallerMatchesRawInstaller() throws {
+        let rawURL = "https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh"
+        let pagesURL = "https://tobynoskillson.github.io/Vella/install.sh"
+        let raw = try text("scripts/install-public.sh"), legacy = try text("docs/install.sh")
+        XCTAssertEqual(legacy.components(separatedBy: pagesURL).count - 1, 2)
+        XCTAssertEqual(legacy.replacingOccurrences(of: pagesURL, with: rawURL), raw)
+        for retired in ["docs/index.html", "docs/install.sh", "docs/table.js", "scripts/pages-data.sh"] {
+            XCTAssertFalse(exists(retired), retired)
         }
     }
 
@@ -105,10 +101,10 @@ final class DocsTests: XCTestCase {
     func testPublicDocumentsHaveNoInternalReferences() throws {
         let documents = [
             "README.md", "AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md", "NOTICE",
-            "THIRD_PARTY_NOTICES.md", "docs/USAGE.md", "docs/index.html", "docs/table.js", "scripts/install-public.sh",
+            "THIRD_PARTY_NOTICES.md", "docs/USAGE.md", "scripts/install-public.sh",
             ".github/pull_request_template.md", ".github/ISSUE_TEMPLATE/bug_report.yml",
             ".github/ISSUE_TEMPLATE/feature_request.yml", ".github/ISSUE_TEMPLATE/new_model.yml",
-            "scripts/third-party-notices.sh", "scripts/pages-data.sh", "Resources/benchmarks.json", "docs/data.js"
+            "scripts/third-party-notices.sh", "Resources/benchmarks.json", "docs/install.sh"
         ]
         for path in documents {
             let body = try text(path)
