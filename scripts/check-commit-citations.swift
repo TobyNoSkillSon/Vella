@@ -101,7 +101,7 @@ if CommandLine.arguments.contains("--selftest") {
     exit(0)
 }
 let files =
-    ["README.md", "CHANGELOG.md", "Resources/benchmarks.json", "Resources/diagnose-reference.json", "Resources/SKILL.md", "docs/install.sh", "scripts/worker-source-identity.sh"]
+    ["README.md", "CHANGELOG.md", "Resources/benchmarks.json", "Resources/diagnose-reference.json", "Resources/SKILL.md", "scripts/worker-source-identity.sh"]
     + git(["ls-files", "*.md"]).1.split(separator: "\n").map(String.init).filter { !$0.hasPrefix("Worker/") && !$0.hasPrefix("Packages/") }
 var failures: [String] = []
 var checked = Set<String>()

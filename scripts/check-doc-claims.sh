@@ -133,9 +133,9 @@ E
     printf '%s\n' "$rule" >>"$t/bad$i/README.md"
     if check "$t/bad$i" >/dev/null; then echo "selftest: rule $i not enforced: $rule"; return 1; fi
   done
-  # a mention planted in a shipped data file or the legacy Pages installer is refused too, not only in prose
+  # a mention planted in a shipped data file or the benchmark docs is refused too, not only in prose
   local planted
-  for planted in Resources/benchmarks.json docs/install.sh Resources/AGENT_GUIDE.md SECURITY.md CONTRIBUTING.md AGENTS.md THIRD_PARTY_NOTICES.md .github/ISSUE_TEMPLATE/test.md Sources/test.swift Worker/Sources/MLXAudioSTT/Whisper/README.md; do
+  for planted in Resources/benchmarks.json docs/BENCHMARKS.md Resources/AGENT_GUIDE.md SECURITY.md CONTRIBUTING.md AGENTS.md THIRD_PARTY_NOTICES.md .github/ISSUE_TEMPLATE/test.md Sources/test.swift Worker/Sources/MLXAudioSTT/Whisper/README.md; do
     rm -rf "$t/plant"; cp -R "$t/good" "$t/plant"; mkdir -p "$(dirname "$t/plant/$planted")"; printf '%s\n' 'whisper.cpp' >>"$t/plant/$planted"
     if check "$t/plant" >/dev/null; then echo "selftest: a planted mention in $planted was accepted"; return 1; fi
   done

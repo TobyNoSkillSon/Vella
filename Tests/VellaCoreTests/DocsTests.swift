@@ -73,14 +73,9 @@ final class DocsTests: XCTestCase {
         for stale in ["python", "Python", "source.tar.gz", "swift build", "install_app"] { XCTAssertFalse(pages.contains(stale), stale) }
     }
 
-    /// 2.0.0's copied skill and old signing-migration retries still use Pages. Keep only its installer.
-    func testLegacyPagesInstallerMatchesRawInstaller() throws {
-        let rawURL = "https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh"
-        let pagesURL = "https://tobynoskillson.github.io/Vella/install.sh"
-        let raw = try text("scripts/install-public.sh"), legacy = try text("docs/install.sh")
-        XCTAssertEqual(legacy.components(separatedBy: pagesURL).count - 1, 2)
-        XCTAssertEqual(Data(legacy.replacingOccurrences(of: pagesURL, with: rawURL).utf8), Data(raw.utf8))
-        for retired in ["docs/index.html", "docs/data.js", "docs/table.js", "scripts/pages-data.sh"] {
+    /// The legacy Pages installer and website are retired; the raw GitHub installer is canonical.
+    func testRetiredPagesFilesDoNotExist() {
+        for retired in ["docs/install.sh", "docs/.nojekyll", "docs/index.html", "docs/data.js", "docs/table.js", "scripts/pages-data.sh"] {
             XCTAssertFalse(exists(retired), retired)
         }
     }
@@ -104,7 +99,7 @@ final class DocsTests: XCTestCase {
             "THIRD_PARTY_NOTICES.md", "docs/USAGE.md", "scripts/install-public.sh",
             ".github/pull_request_template.md", ".github/ISSUE_TEMPLATE/bug_report.yml",
             ".github/ISSUE_TEMPLATE/feature_request.yml", ".github/ISSUE_TEMPLATE/new_model.yml",
-            "scripts/third-party-notices.sh", "Resources/benchmarks.json", "docs/install.sh"
+            "scripts/third-party-notices.sh", "Resources/benchmarks.json"
         ]
         for path in documents {
             let body = try text(path)

@@ -4,7 +4,7 @@
 
 - Restores the menu icons on macOS 27, which hides menu-item icons by default.
 - Public [benchmark and optimization kit](Benchmarks/README.md): frozen full/quick suites, pinned upstream audio fetch, scorer, quality gate, isolated installed-app API runner and manually reviewed chip-specific result PRs. Quick quality is labelled an estimate.
-- Standalone installer is now hosted at `https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh`; the legacy Pages installer remains compatible.
+- Standalone installer is now hosted at `https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh`.
 
 ## 2.0.0 (4 October 2026)
 

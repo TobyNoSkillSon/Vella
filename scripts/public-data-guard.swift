@@ -92,7 +92,6 @@ if let entries = FileManager.default.enumerator(atPath: docs.path) {
         }
     }
 }
-guard files.contains("docs/install.sh") else { fail("public-data guard: legacy docs/install.sh missing") }
 var failures: [String] = []
 for relative in files.sorted() {
     guard let data = FileManager.default.contents(atPath: root.appendingPathComponent(relative).path) else { fail("cannot read " + relative) }

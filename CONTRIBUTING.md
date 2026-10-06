@@ -54,7 +54,7 @@ It runs the steps of `.github/workflows/ci.yml` and `release.yml` locally: track
 
 Real-model parity and benchmarks need downloaded weights and a quiet GPU. The maintainer runs them on the reference Mac (an M5 Max) before a change that affects numerics is merged.
 
-Keep `docs/install.sh` on Pages for 2.0.0's copied skill and signing-migration retries; it must match `scripts/install-public.sh` byte for byte except the two installer URL lines (enforced by `DocsTests`). The website/table/data generator are retired. Delete Pages entirely only after a release containing the new `Resources/SKILL.md` installer URL has reached users through the updater. Bump `Resources/Info.plist` and both standalone installers only in the release commit: the raw-from-main installer reads the current release version, so advancing it before that release exists breaks installs.
+Bump `Resources/Info.plist`, `scripts/install-public.sh` and `scripts/install-release.sh` only in the release commit: the raw-from-main installer reads the current release version, so advancing it before that release exists breaks installs.
 
 ## Layout
 
@@ -67,7 +67,7 @@ Keep `docs/install.sh` on Pages for 2.0.0's copied skill and signing-migration r
 | `Sources/VellaModelTool` | A retired stub, shipped only because 1.0.x in-app updaters require the file. |
 | `Worker/` | A separate Swift package: the sandboxed recognition helpers (`VellaWorker` for Dictation, `VellaStreamingWorker` for Streaming), the vendored MLX speech models in `Worker/Sources/MLXAudioSTT` (each model folder has a README), the optimized kernels and their self-tests. |
 | `Resources/` | `models.json` (catalog), `benchmarks.json` (measured figures), `SKILL.md` (agent skill), the calibration clip. |
-| `docs/` | User guide and benchmark methods. The retired Pages site retains only `install.sh` for existing users. |
+| `docs/` | User guide, benchmark methods and images. |
 | `Benchmarks/` | Public measurement/optimization kit and community results; audio is fetched from pinned upstreams. |
 
 ## Pull requests
