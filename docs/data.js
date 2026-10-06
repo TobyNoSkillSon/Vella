@@ -5792,7 +5792,7 @@ const VELLA_BENCHMARKS = {
       "worker_sha256": null,
       "commit_kind": "informational measured-defaults commit (may change in a history rewrite)",
       "worker_source_trees": {
-        "Worker": "d61612bbd3ef2ce80b6ae80544ce436383a85e98",
+        "Worker": "ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c",
         "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
       },
       "build_scripts_sha256": "baa879823b5157546f0ce6912de8fe9b670af29e664cf5b23bdf2bbe9173149b",

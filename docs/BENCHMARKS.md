@@ -319,7 +319,7 @@ Measured hardware: Apple M5 Max, macOS 26.6, 40 GPU cores. Measurement dates: 20
 Authoritative shipped source identities:
 
 - Packages Git tree: `6851d8c101f507aea8980af93fd877aa0e84a20c`.
-- Worker Git tree: `d61612bbd3ef2ce80b6ae80544ce436383a85e98`.
+- Worker Git tree: `ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c`.
 - Build-script SHA-256: `baa879823b5157546f0ce6912de8fe9b670af29e664cf5b23bdf2bbe9173149b`.
 - Build-script change: 5 Oct: Swift 6.4 source builds. Worker/build-split.sh weak-links swift_initBorrow (referenced by swift-collections code that only Swift 6.4 compiles and nothing calls) when the compiler is Swift 6.4 or newer, and the build.sh runtime-symbol guard rejects only strong borrow references. With the release compiler, Swift 6.3.3, the build commands and flags are unchanged. 4 Oct: build.sh identity, existing-signature and runtime-symbol probes drain producer output under pipefail; failed signature/symbol inspection now refuses the build. The measured build used the old build.sh text. Compilation is unchanged: compiler, flags, build commands, workers and shader inputs are unchanged. Earlier shipped build-script pins were 494137a7f64e14c4a621618ab8fd2fd68cdb370ab82bdad16d60ac78f75ee48e (before Swift 6.4 support), 1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90 (before pipefail repair) and 025547b32840d30e6b1065dcd8322640a0bdcf9d6f972d5c09bfd5b47b76b56b (before producer-error hardening).
 - CI worker SHA-256: pending verified publication artifact; no local binary is substituted.
@@ -384,7 +384,7 @@ Gate baselines are retained in the data, not inferred from the mode name. Final 
 
 No offered cells currently have missing measurement status. Per-cell dates/builds still apply.
 
-The original Whisper loader made a Float32 positional table that promoted activations away from checkpoint dtype. The shipped loader fixes this and removes the encoder-dtype lever. Earlier Standard/Exact figures were withdrawn rather than relabeled as faithful fp16 measurements. The historical Fast identity receipt did not create Standard/Exact measurements. The final faithful FP16 Standard and shared Exact/Fast cells were measured together in a quiet window completed 4 October; deltas and gates use that FP16 Standard baseline. Unoffered tiers are a gate decision, not missing measurements.
+The original Whisper loader made a Float32 positional table that promoted activations away from checkpoint dtype. The shipped loader fixes this and removes the encoder-dtype lever. Earlier Standard/Exact figures were withdrawn rather than relabeled as faithful fp16 measurements. The historical Fast identity receipt did not create Standard/Exact measurements. The final faithful FP16 Standard and shared Exact/Fast cells were measured together in a quiet window completed 4 October; deltas and gates use that FP16 Standard baseline. Every measured tier is offered; a tier that fails the presence check is shown with its loss and never recommended.
 
 ## Check your Mac
 
