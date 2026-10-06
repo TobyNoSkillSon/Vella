@@ -34,7 +34,7 @@ final class FinalBenchmarkTests: XCTestCase {
         for folder in ["Resources", "docs"] {
             let base = Repository.root.appendingPathComponent(folder)
             let found = FileManager.default.enumerator(atPath: base.path)?.allObjects as? [String] ?? []
-            files += found.filter { ["json", "md", "sh", "plist"].contains(($0 as NSString).pathExtension) }.map { folder + "/" + $0 }
+            files += found.filter { ["json", "md", "js", "html", "plist", "sh"].contains(($0 as NSString).pathExtension) }.map { folder + "/" + $0 }
         }
         XCTAssertTrue(files.contains("Resources/benchmarks.json") && files.contains("docs/install.sh") && files.contains("Resources/AGENT_GUIDE.md"))
         for relative in Set(files) {

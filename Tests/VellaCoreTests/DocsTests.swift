@@ -79,8 +79,8 @@ final class DocsTests: XCTestCase {
         let pagesURL = "https://tobynoskillson.github.io/Vella/install.sh"
         let raw = try text("scripts/install-public.sh"), legacy = try text("docs/install.sh")
         XCTAssertEqual(legacy.components(separatedBy: pagesURL).count - 1, 2)
-        XCTAssertEqual(legacy.replacingOccurrences(of: pagesURL, with: rawURL), raw)
-        for retired in ["docs/index.html", "docs/install.sh", "docs/table.js", "scripts/pages-data.sh"] {
+        XCTAssertEqual(Data(legacy.replacingOccurrences(of: pagesURL, with: rawURL).utf8), Data(raw.utf8))
+        for retired in ["docs/index.html", "docs/data.js", "docs/table.js", "scripts/pages-data.sh"] {
             XCTAssertFalse(exists(retired), retired)
         }
     }
