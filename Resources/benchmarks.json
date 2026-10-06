@@ -5788,7 +5788,7 @@
     "shipped": {
       "commit": "843a43444659dbd7f2de507b1e2da11453efb31b",
       "worker_source_commit": "843a43444659dbd7f2de507b1e2da11453efb31b",
-      "worker_sha256": null,
+      "worker_sha256": "613c911562efa5379bcd02ed78b126e5867290659e5151ab9f61185e49711252",
       "commit_kind": "informational measured-defaults commit (may change in a history rewrite)",
       "worker_source_trees": {
         "Worker": "ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c",
