@@ -27,10 +27,11 @@ Pinned revisions and download sizes are in `Resources/models.json`.
 
 ## Tiers offered, and why
 
-A tier is offered unless it breaks against 16 (the presence rule, `local gate_check.py`): more clips empty or cut short
+Every measured tier is offered (Toby, 6 Oct 2026), with its figures; the table's tooltip states any loss. A tier
+that breaks against 16 fails the presence check (`local gate_check.py`) and is never recommended: more clips empty or cut short
 where 16 had the words than the base's seed allowance, a request error or worker exit, English WER or the multilingual mean
 5 points worse, or any supported language 10 points worse. Whisper has a seed allowance because its temperature fallback
-samples: a clip lost within it is sampling noise, not a rejected tier. Lower tiers are made on the Mac from the FP16
+samples: a clip lost within it is sampling noise, not a presence failure. Lower tiers are made on the Mac from the FP16
 weights with plain affine group-64 rounding, never from a quantized download. No calibrated, searched, refit or
 bias-aware recipe is used (Toby, 30 Sep 2026: calibration is training on the 16-bit outputs).
 
@@ -42,7 +43,7 @@ bias-aware recipe is used (Toby, 30 Sep 2026: calibration is training on the 16-
   uniform 8-bit recipe and transcribes the same 21 clips identically (screening below). Memory is higher than the uniform
   recipe's, by about 390–400 MB. An imported uniform 8-bit checkpoint no longer counts as this tier; Get makes it from
   the FP16 download.
-- **4 (int4): absent.** The final 1–2 Oct measurement loses two clips on large-v3 and one on turbo
+- **4 (int4): offered, never recommended.** The final 1–2 Oct measurement loses two clips on large-v3 and one on turbo
   where Optimized Fast fp16 had the words. Tier verdicts compare Fast with Fast; the generated tables below
   carry the numerical gate loss. The 29 Sep screen is historical, not the shipped verdict.
 

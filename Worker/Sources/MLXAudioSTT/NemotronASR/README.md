@@ -26,7 +26,8 @@ revisions and download sizes are in `Resources/models.json`.
 
 ## Tiers offered, and why
 
-A tier is offered unless it breaks against 16 (the presence rule, `local gate_check.py`): a clip empty or cut short where
+Every measured tier is offered (Toby, 6 Oct 2026), with its figures; the table's tooltip states any loss. A tier
+that breaks against 16 fails the presence check (`local gate_check.py`) and is never recommended: a clip empty or cut short where
 16 had the words, a request error or worker exit, English WER or the multilingual mean 5 points worse, or any supported
 language 10 points worse. Lower tiers are made on the Mac from the BF16
 weights with plain affine group-64 rounding, never from a quantized download. No calibrated, searched, refit or
@@ -35,7 +36,7 @@ BF16 in every tier.
 
 - **16 (bf16) and 8 (int8): offered.** The final 1–2 Oct tier verdict puts int8 at multilingual +0.16 pt:
   worse than 16 by the quality gate, nothing broken, so it is offered.
-- **4 (int4): absent.** The final verdict loses 22 clips where 16 had the words; English +9.44 pt,
+- **4 (int4): offered, never recommended.** The final verdict loses 22 clips where 16 had the words; English +9.44 pt,
   multilingual +8.85 pt. Historical calibrated screens are not the shipped plain-affine recipe.
 
 `tiers_offered` in `Resources/models.json` is what the app offers.

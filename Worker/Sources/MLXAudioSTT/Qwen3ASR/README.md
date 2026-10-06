@@ -23,7 +23,8 @@ Qwen3-Omni. Pinned revisions and download sizes are in `Resources/models.json`.
 
 ## Tiers offered, and why
 
-A tier is offered unless it breaks against 16 (the presence rule, `local gate_check.py`): a clip empty or cut short where
+Every measured tier is offered (Toby, 6 Oct 2026), with its figures; the table's tooltip states any loss. A tier
+that breaks against 16 fails the presence check (`local gate_check.py`) and is never recommended: a clip empty or cut short where
 16 had the words, a request error or worker exit, English WER or the multilingual mean 5 points worse, or any supported
 language 10 points worse. Lower tiers are made on the Mac from the BF16
 weights with plain affine group-64 rounding, never from a quantized download. No calibrated, searched, refit or
@@ -32,9 +33,9 @@ float at every tier, so 8 and 4 already are "16-bit tower, quantized decoder".
 
 The final 1–2 Oct verdicts in `Resources/benchmarks.json` use plain affine g64 against the 16 tier.
 
-- **1.7B: 16 only.** Int8 loses one clip where 16 had the words and Turkish WER is +42.64 pt
+- **1.7B: 16, 8 and 4; 8 and 4 never recommended.** Int8 loses one clip where 16 had the words and Turkish WER is +42.64 pt
   (presence limit +10 pt). Int4 also loses one clip.
-- **0.6B: 16 and 8.** Int4 is absent because it loses two clips where 16 had the words.
+- **0.6B: 16, 8 and 4; 4 never recommended.** Int4 loses two clips where 16 had the words.
 
 `tiers_offered` in `Resources/models.json` is what the app offers.
 
@@ -54,7 +55,7 @@ Qwen in this build.
 
 Kept on the screening A/B but not integrated (1 Oct): the quantized prefill GEMMs on SmallMGEMM `qtile-1`
 (`VELLA_QWEN_QTILE`) and the int8 audio tower (`quantizeModules: ["audio_tower.layers"]`, `VELLA_QWEN_QTOWER`). They
-help only tiers that are absent today (1.7B 8: prefill +3.3 % speed / +0.5 % energy, int8 tower +1.2 % / −3.7 % and
+help only tiers that fail presence (1.7B 8: prefill +3.3 % speed / +0.5 % energy, int8 tower +1.2 % / −3.7 % and
 −854 MB; 1.7B 4: prefill +4.4 % / −1.3 %; 0.6B 4: prefill +1.4 % / −5.1 %). The final-build review dropped them because
 they ran under Standard and Exact and bypassed the self-test's stock baseline and the stock fallback. They need
 model-owned activation, separate switches per tolerant component and fallback coverage before they can ship. The patch

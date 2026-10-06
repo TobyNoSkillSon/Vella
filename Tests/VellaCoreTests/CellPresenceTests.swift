@@ -136,4 +136,43 @@ final class CellPresenceTests: XCTestCase {
         XCTAssertEqual(checked, 63)
         XCTAssertEqual(warned, 21)
     }
+
+    /// The loss a cell states is its own gate's, not its tier's: Parakeet v3 int4 Standard and Fast differ (review, 6 Oct).
+    func testCellLossIsTheShownCellsOwnPerPath() throws {
+        let resources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Resources")
+        let file = decodeBenchmarks(try Data(contentsOf: resources.appendingPathComponent("benchmarks.json")))
+        let v3 = file.models["parakeet-v3"]
+        XCTAssertEqual(
+            cellLoss(v3, tier: .t4, segment: .standard),
+            ["2 test clips came back empty or cut short", "English WER +0.65 pt", "Swedish +2.80 pt"])
+        XCTAssertEqual(
+            cellLoss(v3, tier: .t4, segment: .optimized_fast),
+            ["3 test clips came back empty or cut short", "English WER +0.57 pt", "Swedish +2.80 pt"])
+        XCTAssertEqual(cellLoss(v3, tier: .t16, segment: .standard), [], "16 loses nothing")
+        XCTAssertEqual(cellLoss(file.models["parakeet-v3-ultra"], tier: .t8, segment: .standard), ["multilingual mean +0.11 pt"])
+    }
+
+    /// A missing or unreadable tier gate fails closed, and a tier with a failed presence cell is never recommended even
+    /// when its tier gate passes (review, 6 Oct).
+    func testMalformedTierGatesAndFailedPresenceAreNeverRecommended() throws {
+        for rawGate in ["null", "\"bad\"", "[]"] {
+            let raw = try JSONSerialization.jsonObject(with: Data(#"{"precision":"8b","gate":\#(rawGate)}"#.utf8))
+            XCTAssertEqual(try XCTUnwrap(decodeTier(raw)).gate.status, .fail, rawGate)
+        }
+        XCTAssertEqual(try XCTUnwrap(decodeTier(["precision": "8b"] as [String: Any])).gate.status, .fail, "no tier gate")
+        let resources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Resources")
+        let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
+        let family = try XCTUnwrap(catalog.family("qwen3-asr-1.7b"))
+        var file = decodeBenchmarks(try Data(contentsOf: resources.appendingPathComponent("benchmarks.json")))
+        var bench = try XCTUnwrap(file.models[family.id])
+        // Make int8 the cheapest candidate with a passing tier gate: its failed presence cells must still exclude it.
+        bench.tiers[.t8]?.gate = SegmentGate(status: .pass)
+        for key in Recipe.allCases { bench.tiers[.t8]?.cells[key]?.result.j_per_min = 0.01 }
+        let rebuilt = FamilyBenchmark(tiers: bench.tiers, noise_pt: bench.noise_pt, tolerance_pt: bench.tolerance_pt)
+        XCTAssertEqual(rebuilt.precisions["8b"]?.gate?.pass, false)
+        file.models[family.id] = rebuilt
+        XCTAssertNotEqual(recommendedPrecision(for: family, in: file), "8b")
+    }
 }

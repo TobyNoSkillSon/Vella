@@ -1,7 +1,7 @@
 'use strict';
 // The benchmark table: one row per offered model × tier × path, as in the app's Models table (VELLA_BENCHMARKS schema 2,
 // VELLA_MODELS from data.js), plus the cloud APIs as estimated reference rows. Absent figures show —; a cell not measured
-// yet says "measure pending". Tiers that break against 16 are not rows (the footer lists them).
+// yet says "measure pending". Every measured cell is a row; one that loses against 16 says what in its tier tooltip.
 const B = VELLA_BENCHMARKS, families = Object.fromEntries(VELLA_MODELS.families.map(f => [f.id, f]));
 const columns = [
  ['name', 'Model'],
@@ -32,21 +32,41 @@ const pathRows = t => t.optimized_fast.recipe.inexact.length || Boolean(t.optimi
  ? [['Standard', displayCell(t, 'standard')], ['Optimized · Exact', displayCell(t, 'optimized_exact')], ['Optimized · Fast', displayCell(t, 'optimized_fast')]]
  : [['Standard', displayCell(t, 'standard')], ['Optimized (Exact = Fast)', displayCell(t, 'optimized_fast')]];
 
-const absent = [];
+// What a shown cell loses against 16, from its own gate, in the app's words (TableHelp.swift cellLoss): lost test clips
+// first, which an average hides, then one item per metric, limits left out. Every measured cell is offered (6 Oct).
+const plainLoss = reasons => {
+ const clips = [], other = [], seen = new Set();
+ for (const r of reasons || []) {
+  if (!r) continue;
+  const m = r.match(/^(\d+) clips? empty or cut short where (?:same-layout Standard )?16 had the words(?: \(limit [^)]*\))?$/);
+  if (m) { if (!seen.has('clips')) { seen.add('clips'); const n = Number(m[1]); clips.push(`${n} test clip${n === 1 ? '' : 's'} came back empty or cut short`); } continue; }
+  const item = r.replace(/ \((presence limit|absent from|limit) [^)]*\)/, '').replace(/ vs (same-layout Standard )?16$/, '');
+  const metric = item.split(/ [+\u2212-][0-9]/)[0];
+  if (!seen.has(metric)) { seen.add(metric); other.push(item); }
+ }
+ return clips.concat(other);
+};
+const cellLoss = (t, c) => {
+ const g = c.gate;
+ if (!g) return t.gate.status === 'pass' ? [] : (t.gate.loss || []);
+ const reasons = g.presence && g.presence.offered === false ? [...(g.presence.reasons || [])] : [];
+ if (g.status === 'fail' || g.status === 'borderline') reasons.push(...(g.reasons || []));
+ return plainLoss(reasons);
+};
 function modelRows() {
  const rows = [];
  for (const [id, model] of Object.entries(B.models)) {
   const family = families[id]; if (!family) continue;
   // Integer-like keys enumerate ascending in JS: walk 16, 8, 4 explicitly.
   for (const [tier, t] of ['16', '8', '4'].filter(k => (model.tiers || {})[k]).map(k => [k, model.tiers[k]])) {
-   if (!t.presence.offered) { absent.push(`${family.name} ${tier} (${t.presence.reasons[0].split(' (absent from')[0]})`); continue; }
    const variant = family.variants[t.precision] || {};
    const root = family.download?.repo || (variant.repository ? variant.repository : (family.variants[variant.derivedFrom] || {}).repository);
    for (const [path, c] of pathRows(t)) {
+    if (c.gate && !c.gate.presence) continue; // malformed gate data: not offered, as in the app
     const ml = c.multilingual || {}, m = c.measured;
     rows.push({
      id: `${id}/${tier}/${path}`, name: family.name, family, reference: false,
-     mode: family.mode, tier: Number(tier), tierLabel: tier, path, flavour: flavour(tier, c.recipe), loss: t.gate.status === 'pass' ? [] : (t.gate.loss || []),
+     mode: family.mode, tier: Number(tier), tierLabel: tier, path, flavour: flavour(tier, c.recipe), loss: cellLoss(t, c),
      wer: c.wer ?? null, format: c.format ?? null, languages: ml.coverage ?? null, byLanguage: ml.by_language || null,
      speed: c.speed_x ?? null, energy: c.j_per_min ?? null, memory: c.memory_mb ?? null, disk: c.disk_mb ?? null,
      suite: m?.suite || 'v2', date: m?.date || null, pending: !m, notMeasuredReason: c.not_measured_reason || null, note: c.note || null, hardware: m?.hardware || B.hardware,
@@ -156,7 +176,7 @@ function render() {
   body.append(tr);
  }
  if (!rows.length) { const tr = document.createElement('tr'), td = document.createElement('td'); td.colSpan = columns.length; td.className = 'empty'; td.textContent = 'No matching models'; tr.append(td); body.append(tr); }
- document.querySelector('#footer').textContent = [absent.length ? `Not offered (breaks against 16): ${absent.join('; ')}.` : '', rows.some(r => r.reference) ? referenceNote : ''].filter(Boolean).join(' ');
+ document.querySelector('#footer').textContent = [rows.some(r => r.reference) ? referenceNote : ''].filter(Boolean).join(' ');
  document.querySelector('#count').textContent = `${rows.length} / ${all.filter(r => r.suite === suite.value).length} rows`;
  for (const button of document.querySelectorAll('th button')) button.parentElement.setAttribute('aria-sort', button.dataset.key === key ? (ascending ? 'ascending' : 'descending') : 'none');
 }

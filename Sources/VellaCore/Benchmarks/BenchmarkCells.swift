@@ -122,13 +122,23 @@ public func cellPresent(_ benchmark: FamilyBenchmark?, tier: ModelTier, segment:
 /// with are left out: they no longer decide whether the cell is offered.
 public func presenceLossItems(_ cell: BenchmarkCell?) -> [String] {
     guard let presence = cell?.gate?.presence, !presence.offered else { return [] }
-    var clips: [String] = [], others: [String] = []
-    for reason in presence.reasons where !reason.isEmpty {
-        if let match = reason.wholeMatch(of: /(\d+) clips? empty or cut short where 16 had the words/) {
+    return plainLossItems(presence.reasons)
+}
+
+/// Gate reasons in the tooltip's words, lost clips first: `2 clips empty or cut short where 16 had the words (limit 0)`
+/// → `2 test clips came back empty or cut short`; `English WER +0.65 pt vs 16 (limit 0.10)` → `English WER +0.65 pt`.
+/// The limits are left out (the tooltip states the loss, not the verdict); one item per metric, the first kept.
+public func plainLossItems(_ reasons: [String]) -> [String] {
+    var clips: [String] = [], others: [String] = [], seen = Set<String>()
+    for reason in reasons where !reason.isEmpty {
+        if let match = reason.wholeMatch(of: /(\d+) clips? empty or cut short where (?:same-layout Standard )?16 had the words(?: \(limit [^)]*\))?/) {
             let n = Int(match.1) ?? 0
-            clips.append("\(n) test clip\(n == 1 ? "" : "s") came back empty or cut short")
+            if seen.insert("clips").inserted { clips.append("\(n) test clip\(n == 1 ? "" : "s") came back empty or cut short") }
         } else {
-            others.append(reason.replacing(#/ vs 16 \((presence limit|absent from) [^)]*\)/#, with: "").replacing(#/ \((presence limit|absent from) [^)]*\)/#, with: ""))
+            let item = reason.replacing(#/ \((presence limit|absent from|limit) [^)]*\)/#, with: "")
+                .replacing(#/ vs (same-layout Standard )?16$/#, with: "")
+            let metric = item.firstRange(of: #/ [+\u{2212}-][0-9]/#).map { String(item[..<$0.lowerBound]) } ?? item
+            if seen.insert(metric).inserted { others.append(item) }
         }
     }
     return clips + others
@@ -182,7 +192,9 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
     }
     var tier = TierBenchmark(
         precision: precision, presence: decode(TierPresence.self, object["presence"]) ?? TierPresence(offered: true),
-        gate: decode(SegmentGate.self, object["gate"]) ?? SegmentGate(status: .pass), cells: cells)
+        // A missing or unreadable tier gate fails closed: such a tier is never recommended.
+        gate: decode(SegmentGate.self, object["gate"]) ?? SegmentGate(status: .fail, reasons: [object["gate"] == nil ? "No tier gate" : "Unreadable tier gate"]),
+        cells: cells)
     for (requested, canonical) in object["display_cells"] as? [String: String] ?? [:] {
         if let from = Recipe(rawValue: requested), let to = Recipe(rawValue: canonical), cells[to] != nil { tier.displayCells[from] = to }
     }
@@ -200,7 +212,9 @@ func legacyPrecisions(_ tiers: [ModelTier: TierBenchmark]) -> [String: Precision
             .filter { cellPresent(family, tier: key, segment: $0) }
             .compactMap { tier.cells[tier.displayCells[$0] ?? $0] }.first { !$0.isPending }
         guard var r = shipping?.result else { continue }
-        r.gate = GateResult(pass: tier.gate.status == .pass, reasons: tier.gate.reasons)
+        // A tier with a cell that fails the presence check is never recommended, whatever its tier gate says.
+        let presenceFailed = tier.cells.values.contains { $0.gate?.presence?.offered == false }
+        r.gate = GateResult(pass: tier.gate.status == .pass && !presenceFailed, reasons: tier.gate.reasons)
         if let s = tier.cells[.standard], !s.isPending {
             let x = s.result
             r.stock = StockBaseline(

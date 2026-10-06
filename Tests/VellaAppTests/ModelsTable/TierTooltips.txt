@@ -8,12 +8,12 @@ vs Standard bf16: Speed: 82% faster · Energy: 26% less · WER +0.03 pt · M5 Ma
 [Parakeet v3 Ultra · Precision Optimized int8 · Exact]
 16-bit decoder, 16-bit joint (affine-8 g64)
 vs Standard bf16: Speed: 41% faster · Energy: 36% more · same WER · M5 Max, 1 Oct
-Loss vs bf16: multilingual mean +0.23 pt
+Loss vs bf16: multilingual mean +0.14 pt
 
 [Parakeet v3 Ultra · Precision Optimized int4 · Exact]
 16-bit decoder, 16-bit joint (affine-4 g64)
 vs Standard bf16: Speed: 42% faster · Energy: 33% more · WER +0.19 pt · M5 Max, 1 Oct
-Loss vs bf16: multilingual mean +0.79 pt, Swedish +2.37 pt
+Loss vs bf16: English WER +0.19 pt, multilingual mean +0.88 pt, Swedish +2.80 pt
 
 [Parakeet v3 Ultra · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
@@ -25,12 +25,12 @@ Reference for the deltas · M5 Max, 1 Oct
 [Parakeet v3 Ultra · Precision Standard int8]
 16-bit decoder, 16-bit joint (affine-8 g64)
 vs Standard bf16: Speed: 6% slower · Energy: 42% more · same WER · M5 Max, 1 Oct
-Loss vs bf16: multilingual mean +0.23 pt
+Loss vs bf16: multilingual mean +0.11 pt
 
 [Parakeet v3 Ultra · Precision Standard int4]
 16-bit decoder, 16-bit joint (affine-4 g64)
 vs Standard bf16: Speed: 6% slower · Energy: 38% more · WER +0.16 pt · M5 Max, 1 Oct
-Loss vs bf16: multilingual mean +0.79 pt, Swedish +2.37 pt
+Loss vs bf16: English WER +0.16 pt, multilingual mean +0.94 pt, Swedish +3.01 pt
 
 [Parakeet v3 Ultra · Exact/Fast]
 Sets the Optimized row only
@@ -43,12 +43,12 @@ vs Standard bf16: Speed: 94% faster · Energy: 28% less · WER +0.05 pt · M5 Ma
 [Parakeet v3 Ultra · Precision Optimized int8 · Fast]
 16-bit decoder, 16-bit joint (affine-8 g64)
 vs Standard bf16: Speed: 97% faster · Energy: 15% less · same WER · M5 Max, 1 Oct
-Loss vs bf16: multilingual mean +0.23 pt
+Loss vs bf16: multilingual mean +0.24 pt
 
 [Parakeet v3 Ultra · Precision Optimized int4 · Fast]
 16-bit decoder, 16-bit joint (affine-4 g64)
 vs Standard bf16: Speed: 100% faster · Energy: 19% less · WER +0.12 pt · M5 Max, 1 Oct
-Loss vs bf16: multilingual mean +0.79 pt, Swedish +2.37 pt
+Loss vs bf16: English WER +0.11 pt, multilingual mean +0.80 pt, Swedish +2.37 pt
 
 [Parakeet v3 · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
@@ -64,7 +64,7 @@ vs Standard bf16: Speed: 41% faster · Energy: 37% more · WER −0.02 pt · M5 
 [Parakeet v3 · Precision Optimized int4 · Exact]
 16-bit decoder, 16-bit joint (affine-4 g64)
 vs Standard bf16: Speed: 42% faster · Energy: 34% more · WER +0.53 pt · M5 Max, 1 Oct
-Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.53 pt, Swedish +3.01 pt
+Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.53 pt, Swedish +2.80 pt
 
 [Parakeet v3 · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
@@ -80,7 +80,7 @@ vs Standard bf16: Speed: 6% slower · Energy: 43% more · WER +0.03 pt · M5 Max
 [Parakeet v3 · Precision Standard int4]
 16-bit decoder, 16-bit joint (affine-4 g64)
 vs Standard bf16: Speed: 6% slower · Energy: 39% more · WER +0.65 pt · M5 Max, 1 Oct
-Loss vs bf16: 2 test clips came back empty or cut short, English WER +0.53 pt, Swedish +3.01 pt
+Loss vs bf16: 2 test clips came back empty or cut short, English WER +0.65 pt, Swedish +2.80 pt
 
 [Parakeet v3 · Exact/Fast]
 Sets the Optimized row only
@@ -97,7 +97,7 @@ vs Standard bf16: Speed: 96% faster · Energy: 15% less · WER −0.07 pt · M5 
 [Parakeet v3 · Precision Optimized int4 · Fast]
 16-bit decoder, 16-bit joint (affine-4 g64)
 vs Standard bf16: Speed: 99% faster · Energy: 18% less · WER +0.58 pt · M5 Max, 1 Oct
-Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.53 pt, Swedish +3.01 pt
+Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.57 pt, Swedish +2.80 pt
 
 [Qwen3 ASR 1.7B · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
@@ -318,12 +318,12 @@ vs Standard bf16: Speed: 2.6× faster · Energy: 57% less · same WER · M5 Max,
 [Nemotron 3.5 Streaming · Precision Optimized int8 · Exact]
 8-bit weights throughout (affine-8 g64)
 vs Standard bf16: Speed: 4.1× faster · Energy: 69% less · WER +0.03 pt · M5 Max, 1 Oct
-Loss vs bf16: multilingual mean +0.19 pt
+Loss vs bf16: multilingual mean +0.16 pt
 
 [Nemotron 3.5 Streaming · Precision Optimized int4 · Exact]
 4-bit weights throughout (affine-4 g64)
 vs Standard bf16: Speed: 4.2× faster · Energy: 70% less · WER +9.39 pt · M5 Max, 1 Oct
-Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.40 pt, multilingual mean +8.89 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.99 pt, Japanese +10.34 pt
+Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.40 pt, multilingual mean +8.89 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.99 pt, Japanese +10.34 pt, German +8.72 pt, Korean +4.34 pt, French +3.58 pt, Spanish +3.27 pt, format CER +5.63 pt
 
 [Nemotron 3.5 Streaming · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
@@ -335,12 +335,12 @@ Reference for the deltas · M5 Max, 1 Oct
 [Nemotron 3.5 Streaming · Precision Standard int8]
 8-bit weights throughout (affine-8 g64)
 vs Standard bf16: Speed: 2.1× faster · Energy: 41% less · WER +0.03 pt · M5 Max, 1 Oct
-Loss vs bf16: multilingual mean +0.19 pt
+Loss vs bf16: multilingual mean +0.16 pt
 
 [Nemotron 3.5 Streaming · Precision Standard int4]
 4-bit weights throughout (affine-4 g64)
 vs Standard bf16: Speed: 2.1× faster · Energy: 41% less · WER +9.39 pt · M5 Max, 1 Oct
-Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.40 pt, multilingual mean +8.89 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.99 pt, Japanese +10.34 pt
+Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.40 pt, multilingual mean +8.89 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.99 pt, Japanese +10.34 pt, German +8.72 pt, Korean +4.34 pt, French +3.58 pt, Spanish +3.27 pt, format CER +5.63 pt
 
 [Nemotron 3.5 Streaming · Exact/Fast]
 Sets the Optimized row only
@@ -358,4 +358,4 @@ Loss vs bf16: multilingual mean +0.19 pt
 [Nemotron 3.5 Streaming · Precision Optimized int4 · Fast]
 4-bit weights throughout (affine-4 g64)
 vs Standard bf16: Speed: 5.4× faster · Energy: 79% less · WER +9.41 pt · M5 Max, 1 Oct
-Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.41 pt, multilingual mean +8.88 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.70 pt, Japanese +10.46 pt
+Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.41 pt, multilingual mean +8.88 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.70 pt, Japanese +10.46 pt, German +8.72 pt, Korean +4.34 pt, French +3.66 pt, Spanish +3.27 pt, format CER +5.61 pt

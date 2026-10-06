@@ -25,7 +25,8 @@ post-trained for dictation; it is the model offered for a first dictation. Pinne
 
 ## Tiers offered, and why
 
-A tier is offered unless it breaks against 16 (the presence rule, `local gate_check.py`): a clip empty or cut short where
+Every measured tier is offered (Toby, 6 Oct 2026), with its figures; the table's tooltip states any loss. A tier
+that breaks against 16 fails the presence check (`local gate_check.py`) and is never recommended: a clip empty or cut short where
 16 had the words, a request error or worker exit, English WER or the multilingual mean 5 points worse, or any supported
 language 10 points worse. Lower tiers are made on the Mac from the 16-bit
 weights with plain affine group-64 rounding (MLX `quantized`), never from a quantized download. No calibrated, searched,
@@ -53,7 +54,7 @@ rows of the 8 and 4 tiers that qualify on the native int8 and int4 encoder kerne
 | Ultra 4, decoder and joint BF16 | fail | +0.07 | +0.79 | sv +2.37 | 0 | present |
 
 Ultra's 8 and 4 tiers are worse than 16 by the gate but break nothing, so they are offered with the loss in their
-figures. v3's 4 tier stays absent (3 lost clips). `tiers_offered` in `Resources/models.json` is what the app offers; v3's
+figures. v3's 4 tier fails presence (3 lost clips): offered with its figures, never recommended. `tiers_offered` in `Resources/models.json` is what the app offers; v3's
 8 tier is offered: the final release measurement confirms its presence. The screen above remains dated historical evidence.
 
 ## What Vella optimizes

@@ -222,24 +222,21 @@ public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, t
     return lines.joined(separator: "\n")
 }
 
-/// What a cell loses against 16, as its tooltip's `Loss vs …` line and the API's cell `loss` list state it: a failed
-/// presence verdict first (lost clips, which averages hide), then the tier's recommendation-gate losses not already
-/// named. Empty for a cell that loses nothing measurable.
+/// What the shown cell loses against 16, as its tooltip's `Loss vs …` line and the API's cell `loss` list state it,
+/// from that cell's own gate: a failed presence verdict and failed (or borderline) gate checks, lost clips first,
+/// which averages hide (`plainLossItems`). A cell without a gate of its own states its tier's losses. Empty for a cell
+/// that loses nothing measurable; a `not_gated` verdict is not a loss.
 public func cellLoss(_ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe) -> [String] {
     let cell = benchmarkCell(
         benchmark,
         ModelSelection(tier: tier, path: segment == .standard ? .standard : .optimized, mode: segment == .optimized_fast ? .fast : .exact))
-    var loss = presenceLossItems(cell)
-    if let t = benchmark?.tiers[tier], t.gate.status != .pass {
-        let named = Set(loss.map(lossMetric))
-        loss += t.gate.loss.filter { !named.contains(lossMetric($0)) }
+    guard let gate = cell?.gate else {
+        guard let t = benchmark?.tiers[tier], t.gate.status != .pass else { return [] }
+        return t.gate.loss
     }
-    return loss
-}
-
-/// The metric a loss item names (`Turkish +42.64 pt` → `Turkish`), so a cell's own figure wins over the tier's.
-private func lossMetric(_ item: String) -> String {
-    item.firstRange(of: #/ [+\u{2212}-][0-9]/#).map { String(item[..<$0.lowerBound]) } ?? item
+    var reasons = gate.presence?.offered == false ? gate.presence?.reasons ?? [] : []
+    if gate.status == .fail || gate.status == .borderline { reasons += gate.reasons }
+    return plainLossItems(reasons)
 }
 
 // MARK: Greyed cells and pending figures (table pass v3, 30 Sep)

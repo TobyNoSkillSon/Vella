@@ -19,7 +19,7 @@ PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=cd736b3f07157e93c3a78fae06cbe6c0b2565766   # 6 Oct: model READMEs regenerated (every measured tier offered); code tree unchanged
+WORKER_FULL_TREE=d61612bbd3ef2ce80b6ae80544ce436383a85e98   # 6 Oct: model READMEs regenerated (every measured tier offered); code tree unchanged
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
 # Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
 # build-split.sh differs by the Swift 6.4-only link step, inactive with the reference's Swift 6.3.3).
