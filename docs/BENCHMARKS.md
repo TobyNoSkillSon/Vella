@@ -319,7 +319,7 @@ Measured hardware: Apple M5 Max, macOS 26.6, 40 GPU cores. Measurement dates: 20
 Authoritative shipped source identities:
 
 - Packages Git tree: `6851d8c101f507aea8980af93fd877aa0e84a20c`.
-- Worker Git tree: `80205ea71559cec951c1913d9464c38fa241a26b`.
+- Worker Git tree: `cd736b3f07157e93c3a78fae06cbe6c0b2565766`.
 - Build-script SHA-256: `baa879823b5157546f0ce6912de8fe9b670af29e664cf5b23bdf2bbe9173149b`.
 - Build-script change: 5 Oct: Swift 6.4 source builds. Worker/build-split.sh weak-links swift_initBorrow (referenced by swift-collections code that only Swift 6.4 compiles and nothing calls) when the compiler is Swift 6.4 or newer, and the build.sh runtime-symbol guard rejects only strong borrow references. With the release compiler, Swift 6.3.3, the build commands and flags are unchanged. 4 Oct: build.sh identity, existing-signature and runtime-symbol probes drain producer output under pipefail; failed signature/symbol inspection now refuses the build. The measured build used the old build.sh text. Compilation is unchanged: compiler, flags, build commands, workers and shader inputs are unchanged. Earlier shipped build-script pins were 494137a7f64e14c4a621618ab8fd2fd68cdb370ab82bdad16d60ac78f75ee48e (before Swift 6.4 support), 1862cec695156417ab3518e58b95ab61f491f8c59e867c4709ee68c9024dfc90 (before pipefail repair) and 025547b32840d30e6b1065dcd8322640a0bdcf9d6f972d5c09bfd5b47b76b56b (before producer-error hardening).
 - CI worker SHA-256: pending verified publication artifact; no local binary is substituted.

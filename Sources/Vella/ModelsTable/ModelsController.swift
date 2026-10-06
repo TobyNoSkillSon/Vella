@@ -425,7 +425,9 @@ struct ModelDeletionPlan {
     /// `Exact: bf16 only, was int8`.
     func couplingNote(_ f: ModelFamily) -> String? {
         guard let from = couplingNotes[f.id] else { return nil }
-        let offered = precisions(f, .exact).map { tierDTypeLabel(f, $0) }
+        // The cells Exact can pick, as setMode moves to them: measured ones where any are measured.
+        let measured = measuredPrecisions(f, .exact)
+        let offered = (measured.isEmpty ? precisions(f, .exact) : measured).map { tierDTypeLabel(f, $0) }
         return "Exact: " + (offered.count == 1 ? "\(offered[0]) only" : offered.joined(separator: " and ")) + ", was \(tierDTypeLabel(f, from))"
     }
     @discardableResult private func setPreview(_ f: ModelFamily, _ s: ModelSelection) -> Bool {

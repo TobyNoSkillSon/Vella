@@ -15,8 +15,9 @@ public struct SelectionRules {
     public func cellRefusal(_ s: ModelSelection, loaded: ModelSelection? = nil) -> String? {
         if s.path == .optimized, !hasOptimizedPath { return noOptimizedPathHelp }
         if !isPresent(s) {
-            if let presence = benchmark?.tiers[s.tier]?.cells[s.segmentKey]?.gate?.presence,
-                !presence.offered, let reason = presence.reasons.first, !reason.isEmpty
+            // Malformed gate data (no readable presence verdict) is the one data reason a cell is not offered.
+            if let gate = benchmark?.tiers[s.tier]?.cells[s.segmentKey]?.gate, gate.presence == nil,
+                let reason = gate.reasons.first, !reason.isEmpty
             {
                 return "Not offered: " + reason
             }

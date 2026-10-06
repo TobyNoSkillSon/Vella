@@ -483,6 +483,13 @@ final class ModelControlTests: XCTestCase {
         let builds = try XCTUnwrap(provenance["builds"] as? [String: [String: Any]])
         XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "843a43444659dbd7f2de507b1e2da11453efb31b")
         XCTAssertNotNil(cell["measurement"])
+        // A cell that fails the presence check states its loss as the tooltip does, lost clips first (6 Oct).
+        XCTAssertNil(cell["loss"], "16 loses nothing")
+        let int8 = try XCTUnwrap(cells.first { $0["recipe"] as? String == "optimized_fast" && $0["tier"] as? String == "8" })
+        let loss = try XCTUnwrap(int8["loss"] as? [String])
+        XCTAssertEqual(loss, cellLoss(f.controller.benchmark(f.alpha), tier: .t8, segment: .optimized_fast), "the tooltip's loss items")
+        XCTAssertEqual(loss.first, "1 test clip came back empty or cut short")
+        XCTAssertTrue(loss.contains("Turkish +42.64 pt"))
         XCTAssertTrue(JSONSerialization.isValidJSONObject(controls.catalog()))
         f.controller.benchmarks.figuresPending = true
         let pendingCells = try XCTUnwrap(controls.object(f.alpha)["cells"] as? [[String: Any]])

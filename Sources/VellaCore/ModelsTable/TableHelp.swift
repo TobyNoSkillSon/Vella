@@ -204,11 +204,10 @@ public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: 
     return "vs Standard \(baseName): " + (parts + [basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
 }
 
-/// A tier cell's tooltip: flavour; delta vs Standard 16 with its basis; for an offered tier that is worse than 16 on the
-/// recommendation gate, the loss in numbers. With `figuresPending` (benchmarks.json `figures_pending`) the flavour only:
-/// no delta and no loss until the final build is measured.
+/// A tier cell's tooltip: flavour; delta vs Standard 16 with its basis; for a cell that loses anything against 16, the
+/// loss (`cellLoss`). With `figuresPending` (benchmarks.json `figures_pending`) the flavour only: no delta and no loss
+/// until the final build is measured.
 public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe, figuresPending: Bool = false) -> String {
-    let t = benchmark?.tiers[tier]
     let cell = benchmarkCell(
         benchmark,
         ModelSelection(
@@ -218,8 +217,29 @@ public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, t
     if figuresPending { return lines[0] }
     let baseName = tierDTypeLabel(family, .t16)
     lines.append(tierDeltaLine(cell, base: benchmark?.tiers[.t16]?.cells[.standard], isBase: tier == .t16 && segment == .standard, baseName: baseName))
-    if let loss = t?.gate.loss, !loss.isEmpty, t?.gate.status != .pass { lines.append("Loss vs \(baseName): " + loss.joined(separator: ", ")) }
+    let loss = cellLoss(benchmark, tier: tier, segment: segment)
+    if !loss.isEmpty { lines.append("Loss vs \(baseName): " + loss.joined(separator: ", ")) }
     return lines.joined(separator: "\n")
+}
+
+/// What a cell loses against 16, as its tooltip's `Loss vs …` line and the API's cell `loss` list state it: a failed
+/// presence verdict first (lost clips, which averages hide), then the tier's recommendation-gate losses not already
+/// named. Empty for a cell that loses nothing measurable.
+public func cellLoss(_ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe) -> [String] {
+    let cell = benchmarkCell(
+        benchmark,
+        ModelSelection(tier: tier, path: segment == .standard ? .standard : .optimized, mode: segment == .optimized_fast ? .fast : .exact))
+    var loss = presenceLossItems(cell)
+    if let t = benchmark?.tiers[tier], t.gate.status != .pass {
+        let named = Set(loss.map(lossMetric))
+        loss += t.gate.loss.filter { !named.contains(lossMetric($0)) }
+    }
+    return loss
+}
+
+/// The metric a loss item names (`Turkish +42.64 pt` → `Turkish`), so a cell's own figure wins over the tier's.
+private func lossMetric(_ item: String) -> String {
+    item.firstRange(of: #/ [+\u{2212}-][0-9]/#).map { String(item[..<$0.lowerBound]) } ?? item
 }
 
 // MARK: Greyed cells and pending figures (table pass v3, 30 Sep)

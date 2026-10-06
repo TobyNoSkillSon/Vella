@@ -92,8 +92,9 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(c.currentSelection(qwen), .fallback)
         XCTAssertEqual(c.selected(qwen), "BF16")
         XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t16, path: .optimized, mode: .fast), "never loaded: Optimized 16 · Fast")
-        XCTAssertEqual(c.tiers(qwen, .optimized), [.t16, .t8])
-        XCTAssertEqual(c.tiers(qwen, .standard), [.t16, .t8], "a pending Standard 8 is present (measure pending), not absent")
+        XCTAssertEqual(c.tiers(qwen, .optimized), [.t16, .t8, .t4], "an unmeasured 4 is present, greyed (never hidden)")
+        XCTAssertEqual(c.tiers(qwen, .standard), [.t16, .t8, .t4], "a pending Standard 8 is present (measure pending), not absent")
+        XCTAssertFalse(c.measured(qwen, ModelSelection(tier: .t4, path: .optimized, mode: .fast)))
         XCTAssertTrue(c.switchAvailable(qwen), "Fast runs an inexact component at 16")
         c.select(qwen, tier: .t16, path: .optimized)
         c.setMode(qwen, .exact)
@@ -115,14 +116,22 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(reopened.currentSelection(qwen), .fallback)
     }
 
-    /// The presence rule: a tier absent in the file is absent on both rows; `cellPresent` reads `presence` only.
-    @MainActor func testAbsentTierIsOmittedFromBothRows() throws {
-        let file = decodeBenchmarks(Data(Self.tierFixture.utf8))
+    /// The presence rule (6 Oct): every cell in the file is offered whatever its verdict; one without a measurement is
+    /// greyed with its reason; a tier missing from the file is absent on both rows.
+    @MainActor func testUnmeasuredTierIsGreyedAndAMissingTierIsAbsent() throws {
+        var file = decodeBenchmarks(Data(Self.tierFixture.utf8))
         let b = try XCTUnwrap(file.models["qwen3-asr-0.6b"])
+        let family = try XCTUnwrap(controller().catalog.family("qwen3-asr-0.6b"))
+        let rules = SelectionRules(family: family, benchmark: b)
         for segment in Recipe.allCases {
-            XCTAssertFalse(cellPresent(b, tier: .t4, segment: segment))
+            XCTAssertTrue(cellPresent(b, tier: .t4, segment: segment), "a failed presence verdict is stated, not hidden")
             XCTAssertTrue(cellPresent(b, tier: .t8, segment: segment), "worse than 16 on the gate, but offered")
         }
+        let int4 = ModelSelection(tier: .t4, path: .optimized, mode: .fast)
+        XCTAssertFalse(rules.measured(int4))
+        XCTAssertEqual(rules.cellRefusal(int4), unmeasuredCellHelp)
+        file.models["qwen3-asr-0.6b"]?.tiers[.t4] = nil
+        for segment in Recipe.allCases { XCTAssertFalse(cellPresent(file.models["qwen3-asr-0.6b"], tier: .t4, segment: segment)) }
         XCTAssertTrue(cellPresent(nil, tier: .t4, segment: .standard), "an unmeasured family shows its catalog cells as pending")
         XCTAssertEqual(b.precisions.keys.sorted(), ["8b", "BF16"], "per-precision readers see offered tiers only")
         XCTAssertEqual(b.precisions["BF16"]?.speed_x, 80, "the shipping cell (Optimized Fast)")
@@ -268,6 +277,7 @@ final class ModelsTests: XCTestCase {
     @MainActor func testExactRestrictsThePrecisionsAndMovesTo16() throws {
         var fixture = decodeBenchmarks(Data(Self.tierFixture.utf8))
         fixture.models["qwen3-asr-0.6b"]?.tiers[.t8]?.cells[.optimized_exact] = nil
+        fixture.models["qwen3-asr-0.6b"]?.tiers[.t4] = nil // the coupling under test, without an unmeasured tier
         let c = try controller(benchmarks: Self.tierFixture)
         c.benchmarks = fixture
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-0.6b"))

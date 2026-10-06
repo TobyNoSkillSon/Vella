@@ -95,7 +95,6 @@ var pending: [String: [String]] = [:]
 for id in models.keys.sorted() {
     for tierID in object(object(models[id])["tiers"]).keys.sorted() {
         let tier = object(object(object(models[id])["tiers"])[tierID])
-        guard object(tier["presence"])["offered"] as? Bool == true else { continue }
         for (key, title) in paths {
             let cell = object(tier[key])
             if cell["measured"] as? JSON == nil {

@@ -11,34 +11,27 @@ final class TierCatalogTests: XCTestCase {
     }
     private func catalog() throws -> ModelCatalog { try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json"))) }
 
-    func testShippedTiersFollowPresence() throws {
+    func testShippedTiersOfferEveryMeasuredTier() throws {
         let c = try catalog()
-        let tiers = Dictionary(uniqueKeysWithValues: c.families.map { ($0.id, $0.tiersOffered ?? []) })
-        // Presence today (v-family correction, 29 Sep): a tier is absent only when it breaks.
-        XCTAssertEqual(
-            tiers,
-            [
-                "parakeet-v3-ultra": ["16", "8", "4"], "parakeet-v3": ["16", "8"], "qwen3-asr-1.7b": ["16"],
-                "qwen3-asr-0.6b": ["16", "8"], "whisper-large-v3": ["16", "8"], "whisper-large-v3-turbo": ["16", "8"],
-                "nemotron-3.5-streaming-0.6b": ["16", "8"]
-            ])
-        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("parakeet-v3"))), ["BF16", "8b"], "fp32 is never a tier")
+        // Every measured tier is offered (Toby, 6 Oct); the measured figures and tooltips state any loss.
+        for f in c.families { XCTAssertEqual(f.tiersOffered, ["16", "8", "4"], f.id) }
+        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("parakeet-v3"))), ["BF16", "8b", "4b"], "fp32 is never a tier")
         XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("parakeet-v3-ultra"))), ["BF16", "8b", "4b"])
-        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("whisper-large-v3"))), ["FP16", "8b"])
-        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("qwen3-asr-1.7b"))), ["BF16"])
-        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("nemotron-3.5-streaming-0.6b"))), ["BF16", "8b"])
+        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("whisper-large-v3"))), ["FP16", "8b", "4b"])
+        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("qwen3-asr-1.7b"))), ["BF16", "8b", "4b"])
+        XCTAssertEqual(precisionOptions(try XCTUnwrap(c.family("nemotron-3.5-streaming-0.6b"))), ["BF16", "8b", "4b"])
     }
 
-    /// `tiers_offered` is the tiers benchmarks.json marks present (schema 2 `tiers.<t>.presence.offered`).
-    func testTiersOfferedMatchBenchmarkPresence() throws {
+    /// `tiers_offered` is every tier benchmarks.json has measured cells for, whatever its presence verdict.
+    func testTiersOfferedMatchMeasuredBenchmarkTiers() throws {
         let object = try JSONSerialization.jsonObject(with: Data(contentsOf: resources.appendingPathComponent("benchmarks.json"))) as? [String: Any]
         let models = try XCTUnwrap(object?["models"] as? [String: Any])
         for f in try catalog().families {
             guard let tiers = (models[f.id] as? [String: Any])?["tiers"] as? [String: Any] else { continue }
-            let present = tiers.compactMap { key, value -> String? in
-                ((value as? [String: Any])?["presence"] as? [String: Any])?["offered"] as? Bool == true ? key : nil
+            let measured = tiers.compactMap { key, value -> String? in
+                ((value as? [String: Any])?["standard"] as? [String: Any])?["measured"] != nil ? key : nil
             }
-            XCTAssertEqual(Set(present), Set(f.tiersOffered ?? []), f.id)
+            XCTAssertEqual(Set(measured), Set(f.tiersOffered ?? []), f.id)
         }
     }
 
@@ -184,9 +177,9 @@ final class TierCatalogTests: XCTestCase {
         let whisper = try XCTUnwrap(c.family("whisper-large-v3"))
         let sixteen = try XCTUnwrap(downloadPrompt(family: whisper, precision: "FP16", followUp: .transcribe, freeBytes: 100))
         XCTAssertTrue(sixteen.body.contains("Download: 3.09 GB (3,087,748,437 bytes). Stored: 3.09 GB; 100 bytes free. Not enough free disk space."), sixteen.body)
-        // An absent tier is never offered, and fp32 is never a tier.
-        XCTAssertNil(downloadPrompt(family: whisper, precision: "4b", followUp: .load, freeBytes: nil))
-        XCTAssertNil(downloadPrompt(family: v3, precision: "4b", followUp: .load, freeBytes: nil))
+        // Every measured tier is offered (6 Oct): 4-bit is made from the 16-bit download like 8; fp32 is never a tier.
+        XCTAssertEqual(downloadPrompt(family: whisper, precision: "4b", followUp: .load, freeBytes: nil)?.title, "Download Whisper large-v3 · 16 (FP16) to make 4 (4-bit)?")
+        XCTAssertEqual(downloadPrompt(family: v3, precision: "4b", followUp: .load, freeBytes: nil)?.variantID, "parakeet-tdt-0.6b-v3-mlx-bf16-local")
         XCTAssertNil(downloadPrompt(family: v3, precision: "FP32", followUp: .load, freeBytes: nil))
     }
 }

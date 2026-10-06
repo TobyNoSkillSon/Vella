@@ -161,17 +161,17 @@ import SwiftUI
         var (optimized, standard) = try XCTUnwrap(try segmentRows(c, view)[turbo.id])
         XCTAssertEqual([optimized.segmentCount, standard.segmentCount], [3, 3], "every row keeps its three cells")
         XCTAssertEqual((0..<3).map { standard.label(forSegment: $0) }, ["fp16", "int8", "int4"], "Whisper's 16 is fp16")
-        XCTAssertEqual((0..<3).map { optimized.isEnabled(forSegment: $0) }, [true, true, false], "Fast: fp16 and int8; int4 removed by the gate, greyed")
+        XCTAssertEqual((0..<3).map { optimized.isEnabled(forSegment: $0) }, [true, true, true], "Fast: fp16, int8 and int4, each measured")
         click(window, segment: 1, of: optimized)
         XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t8, path: .optimized, mode: .fast))
         let s = topDown(all(SwitchView.self, in: view))[index]
         let r = s.convert(s.bounds, to: nil)
         click(window, at: NSPoint(x: r.midX, y: r.midY))
         XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t16, path: .optimized, mode: .exact), "Exact moved 8 to 16")
-        XCTAssertEqual(c.couplingNote(turbo), "Exact: fp16 only, was int8")
+        XCTAssertEqual(c.couplingNote(turbo), "Exact: fp16 and int4, was int8")
         (optimized, standard) = try XCTUnwrap(try segmentRows(c, view)[turbo.id])
         XCTAssertEqual([optimized.segmentCount, standard.segmentCount], [3, 3], "the grid never shifts")
-        XCTAssertEqual((0..<3).map { optimized.isEnabled(forSegment: $0) }, [true, false, false], "Exact: the Optimized row offers fp16 only")
+        XCTAssertEqual((0..<3).map { optimized.isEnabled(forSegment: $0) }, [true, false, true], "Exact: fp16 and int4, not int8 (no Exact recipe)")
         XCTAssertEqual(optimized.toolTip(forSegment: 1), "No Exact recipe at int8; Fast offers it")
         XCTAssertEqual((0..<3).map { standard.isEnabled(forSegment: $0) }, [true, true, false], "the Standard row is not restricted by the switch")
         let exact16 = c.currentSelection(turbo)
@@ -298,9 +298,10 @@ import SwiftUI
         XCTAssertEqual(a.toolTipText(at: NSPoint(x: a.buttonRect.midX, y: a.buttonRect.midY)).components(separatedBy: "\n").first, "Not downloaded")
     }
 
-    /// A tier the presence gate removed is greyed in place on both rows (never hidden): its tooltip says why in one
-    /// line, and a real click on it selects nothing (Toby, 30 Sep).
-    func testGateRemovedTiersAreGreyedInPlaceAndRefuseClicks() throws {
+    /// A tier that fails the presence gate is offered where it is measured (Toby, 6 Oct): its measured Optimized cells
+    /// are selectable by a real click; its unmeasured Standard cells stay greyed in place with their reason, and a click
+    /// on them selects nothing. The grid never shifts.
+    func testFormerlyGateRemovedTiersAreSelectableWhereMeasured() throws {
         let c = try controller()
         let (window, view) = host(c)
         let rows = try segmentRows(c, view)
@@ -309,24 +310,25 @@ import SwiftUI
         for control in [optimized, standard] {
             XCTAssertEqual(control.segmentCount, 3, "all three cells shown")
             XCTAssertEqual((0..<3).map { control.label(forSegment: $0) }, ["bf16", "int8", "int4"])
-            XCTAssertEqual((0..<3).map { control.isEnabled(forSegment: $0) }, [true, false, false], "int8 and int4 lose a clip: greyed")
-            XCTAssertEqual(control.toolTip(forSegment: 1), "Not offered: 1 clip empty or cut short where 16 had the words")
-            XCTAssertEqual(control.toolTip(forSegment: 1)?.contains("\n"), false, "one line")
         }
+        XCTAssertEqual((0..<3).map { optimized.isEnabled(forSegment: $0) }, [true, true, true], "measured: selectable")
+        XCTAssertEqual((0..<3).map { standard.isEnabled(forSegment: $0) }, [true, false, false], "Standard 8 and 4 unmeasured: greyed")
+        XCTAssertEqual(standard.toolTip(forSegment: 1), unmeasuredCellHelp)
         let before = c.currentSelection(qwen)
-        for control in [optimized, standard] {
-            for index in [1, 2] {
-                click(window, segment: index, of: control)
-                XCTAssertEqual(c.currentSelection(qwen), before, "a click on greyed segment \(index) changes nothing")
-                XCTAssertNil(c.previews[qwen.id])
-            }
+        for index in [1, 2] {
+            click(window, segment: index, of: standard)
+            XCTAssertEqual(c.currentSelection(qwen), before, "a click on greyed segment \(index) changes nothing")
+            XCTAssertNil(c.previews[qwen.id])
         }
+        click(window, segment: 1, of: optimized)
+        XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t8, path: .optimized, mode: .fast), "a real click selects int8")
         // Every model's two rows keep the same three columns, so the grid never shifts from row to row.
         let frames = rows.values.flatMap { [$0.optimized, $0.standard] }.map { $0.convert($0.bounds, to: nil) }
         XCTAssertEqual(Set(frames.map { Int($0.minX.rounded()) }).count, 1, "one left edge")
         XCTAssertEqual(Set(frames.map { Int($0.width.rounded()) }).count, 1, "one width")
         // The API path refuses a greyed cell too.
-        c.select(qwen, tier: .t8, path: .optimized)
+        c.discardPreviews()
+        c.select(qwen, tier: .t8, path: .standard)
         XCTAssertEqual(c.currentSelection(qwen), before)
     }
 

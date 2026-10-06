@@ -154,7 +154,7 @@ Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.04 pt; not remeas
 |---|---|---|---|
 | 16 (bf16) | converted once from the fp32 download | yes | — |
 | 8 (int8) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the source checkpoint's weight bytes) | yes | pass; present |
-| 4 (int4) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the source checkpoint's weight bytes) | no | fail; absent: 3 clips empty or cut short where 16 had the words |
+| 4 (int4) | affine group 64 from the bf16 weights; `decoder`, `joint` kept at bf16 (1.8 % of the source checkpoint's weight bytes) | yes | fail; fails presence (offered, never recommended): 3 clips empty or cut short where 16 had the words |
 
 | Tier | Path | English WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
@@ -164,7 +164,7 @@ Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.04 pt; not remeas
 | 8 (int8) | Standard | 16.40 | 7.92 | 20.96 | 241.2× | 9.05 | 1279 | — | — |
 | 8 (int8) | Optimized Exact | 16.35 | 7.81 | 21.05 | 363.3× | 8.68 | 1883 | +51 % | −4 % |
 | 8 (int8) | Optimized Fast | 16.30 | 7.85 | 20.94 | 504.4× | 5.41 | 1342 | +109 % | −40 % |
-| 4 (int4) | Standard — Not offered | 17.02 | 7.68 | 20.48 | 242.3× | 8.84 | 1024 | — | — |
-| 4 (int4) | Optimized Exact — Not offered | 16.90 | 7.69 | 20.68 | 365.0× | 8.49 | 1628 | +51 % | −4 % |
-| 4 (int4) | Optimized Fast — Not offered | 16.95 | 7.69 | 20.77 | 512.3× | 5.20 | 1088 | +111 % | −41 % |
+| 4 (int4) | Standard — Fails presence, never recommended | 17.02 | 7.68 | 20.48 | 242.3× | 8.84 | 1024 | — | — |
+| 4 (int4) | Optimized Exact — Fails presence, never recommended | 16.90 | 7.69 | 20.68 | 365.0× | 8.49 | 1628 | +51 % | −4 % |
+| 4 (int4) | Optimized Fast — Fails presence, never recommended | 16.95 | 7.69 | 20.77 | 512.3× | 5.20 | 1088 | +111 % | −41 % |
 <!-- MEASURED_END -->

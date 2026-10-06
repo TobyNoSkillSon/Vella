@@ -64,9 +64,8 @@ func row(_ family: JSON, _ bench: JSON) -> String {
         let tier = ((bench["models"] as? JSON)?[id] as? JSON).flatMap { ($0["tiers"] as? JSON)?["16"] as? JSON }
         for requested in ["optimized_fast", "optimized_exact", "standard"] {
             guard let own = tier?[requested] as? JSON else { continue }
-            let present =
-                (own["gate"] as? JSON).map { ($0["presence"] as? JSON)?["offered"] as? Bool ?? false }
-                ?? (tier?["presence"] as? JSON)?["offered"] as? Bool ?? true
+            // Every cell is offered (6 Oct); only a gate without a readable presence verdict is malformed.
+            let present = (own["gate"] as? JSON).map { $0["presence"] as? JSON != nil } ?? true
             guard present,
                 let cell = tier?[(tier?["display_cells"] as? [String: String])?[requested] ?? requested] as? JSON,
                 cell["measured"] as? JSON != nil

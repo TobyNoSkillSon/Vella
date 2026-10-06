@@ -127,7 +127,8 @@
       "native_dtype": "float32",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "animaslabs/parakeet-tdt-0.6b-v3-mlx",
@@ -227,7 +228,9 @@
       "native": "BF16",
       "native_dtype": "bfloat16",
       "tiers_offered": [
-        "16"
+        "16",
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/Qwen3-ASR-1.7B-bf16",
@@ -310,7 +313,8 @@
       "native_dtype": "bfloat16",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/Qwen3-ASR-0.6B-bf16",
@@ -463,7 +467,8 @@
       "native_dtype": "float16",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/whisper-large-v3-asr-fp16",
@@ -623,7 +628,8 @@
       "native_dtype": "float16",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/whisper-large-v3-turbo-asr-fp16",
@@ -708,7 +714,8 @@
       "native_dtype": "bfloat16",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/nemotron-3.5-asr-streaming-0.6b",

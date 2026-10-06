@@ -67,11 +67,11 @@ final class CatalogSelectionTests: XCTestCase {
     @MainActor func testRejectedSavedCellMigratesWithExistingLaunchNoticeAndKeepsFiles() throws {
         let (c, p) = try controller()
         let family = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        // Every measured cell is offered (6 Oct), so a withdrawn cell is one the data no longer has.
         var benchmark = try XCTUnwrap(c.benchmarks.models[family.id])
         for tier in benchmark.tiers.keys {
-            for segment in Recipe.allCases {
-                benchmark.tiers[tier]?.cells[segment]?.gate = SegmentGate(
-                    status: .pass, presence: TierPresence(offered: tier == .t16 && segment == .standard))
+            for segment in Recipe.allCases where !(tier == .t16 && segment == .standard) {
+                benchmark.tiers[tier]?.cells[segment] = nil
             }
         }
         c.benchmarks.models[family.id] = benchmark
@@ -95,11 +95,11 @@ final class CatalogSelectionTests: XCTestCase {
     }
 
     @MainActor private func offerOnlyNativeStandard(_ c: ModelsController, family: ModelFamily) throws {
+        // Every measured cell is offered (6 Oct), so a withdrawn cell is one the data no longer has.
         var benchmark = try XCTUnwrap(c.benchmarks.models[family.id])
         for tier in benchmark.tiers.keys {
-            for segment in Recipe.allCases {
-                benchmark.tiers[tier]?.cells[segment]?.gate = SegmentGate(
-                    status: .pass, presence: TierPresence(offered: tier == .t16 && segment == .standard))
+            for segment in Recipe.allCases where !(tier == .t16 && segment == .standard) {
+                benchmark.tiers[tier]?.cells[segment] = nil
             }
         }
         c.benchmarks.models[family.id] = benchmark
@@ -154,7 +154,9 @@ final class CatalogSelectionTests: XCTestCase {
         }
     }
 
-    @MainActor func testActualRejectedImplicitNemotronInt4MovesToOfferedNativeFast() throws {
+    /// Every measured cell is offered (Toby, 6 Oct): a saved Nemotron int4 streaming selection, which the presence gate
+    /// used to migrate away, now stays as it is, without a notice.
+    @MainActor func testActualNemotronInt4SelectionStaysOffered() throws {
         let (c, _) = try controller()
         let family = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
         let source = support.appendingPathComponent("Models/" + family.variants["BF16"]!.id)
@@ -164,17 +166,12 @@ final class CatalogSelectionTests: XCTestCase {
         c.streaming.installed[family.variants["BF16"]!.id] = InstalledModel(path: source.path)
         let old = try prepareDerivedModel(family: family, precision: "4b", sourcePath: source.path, modelsDirectory: source.deletingLastPathComponent())
         try JSONEncoder().encode(Configuration(model: "", streamingModel: old)).write(to: configURL)
-        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
-        let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
-        XCTAssertEqual(saved.streamingModel, source.path)
-        XCTAssertEqual(saved.selections[family.id], .fallback)
-        XCTAssertEqual(c.migrationNotices.count, 1)
-        XCTAssertTrue(c.migrationNotices.first?.contains("Streaming now uses") == true)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: old + "/vella-derived.json"))
         let bytes = try Data(contentsOf: configURL)
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
         XCTAssertTrue(c.migrationNotices.isEmpty)
-        XCTAssertEqual(try Data(contentsOf: configURL), bytes)
+        XCTAssertEqual(try Data(contentsOf: configURL), bytes, "config.json is untouched")
+        XCTAssertTrue(c.isPresent(family, ModelSelection(tier: .t4, path: .optimized, mode: .fast)))
+        XCTAssertNotEqual(recommendedPrecision(for: family, in: c.benchmarks), "4b", "offered, never recommended")
     }
 
     /// The current configuration shape: Ultra BF16 uses the implicit Optimized Fast default; Streaming already uses
@@ -211,11 +208,11 @@ final class CatalogSelectionTests: XCTestCase {
     @MainActor func testRejectedSavedCellWithoutOfferedWeightsClearsActivePathAndExplainsGet() throws {
         let (c, p) = try controller()
         let family = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        // Every measured cell is offered (6 Oct), so a withdrawn cell is one the data no longer has.
         var benchmark = try XCTUnwrap(c.benchmarks.models[family.id])
         for tier in benchmark.tiers.keys {
-            for segment in Recipe.allCases {
-                benchmark.tiers[tier]?.cells[segment]?.gate = SegmentGate(
-                    status: .pass, presence: TierPresence(offered: tier == .t16 && segment == .standard))
+            for segment in Recipe.allCases where !(tier == .t16 && segment == .standard) {
+                benchmark.tiers[tier]?.cells[segment] = nil
             }
         }
         c.benchmarks.models[family.id] = benchmark
@@ -353,9 +350,11 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(migrated.streamingModel, models.appendingPathComponent(names[0] + ".derived").path)
         XCTAssertEqual(migrated.selections["nemotron-3.5-streaming-0.6b"], ModelSelection(tier: .t8, path: .optimized, mode: .fast))
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: old + "/model.safetensors")), Data("legacy-weight-fixture".utf8))
+        // Parakeet v3 int4 is offered (6 Oct): its published 4-bit file is an earlier download, not the offered tier.
         let absent = try XCTUnwrap(c.catalog.family("parakeet-v3"))
-        XCTAssertFalse(c.options(absent).contains("4b"))
+        XCTAssertTrue(c.options(absent).contains("4b"))
         XCTAssertEqual(try c.deletionPlan(absent, precision: "4b").path, models.appendingPathComponent(names[2]).path)
+        XCTAssertTrue(try c.deletionPlan(absent, precision: "4b").title.contains("earlier download (not used)"))
         let streamingFamily = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
         XCTAssertTrue(try c.deletionPlan(streamingFamily, precision: "8b").title.contains("earlier download (not used)"))
         let legacyPlan = try c.deletionPlan(streamingFamily, precision: "8b")
@@ -363,7 +362,7 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertTrue(legacyPlan.body.contains("No recipe files depend"))
         XCTAssertFalse(legacyPlan.body.contains("You can download it again"))
         let menu = try XCTUnwrap(ModelsMenu(controller: c).modelItem().submenu)
-        XCTAssertTrue(menu.items.contains { $0.title == "Delete Parakeet v3 4-bit…" })
+        XCTAssertFalse(menu.items.contains { $0.title == "Delete Parakeet v3 4-bit…" }, "an offered tier's file is managed in the table")
         let bytes = try Data(contentsOf: configURL)
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
         XCTAssertEqual(try Data(contentsOf: configURL), bytes, "idempotent")
@@ -376,7 +375,7 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(oldFile["offered"] as? Bool, false); XCTAssertEqual(oldFile["used"] as? Bool, false)
         do {
             _ = try await controls.perform("delete", id: absent.id, fields: ["precision": "int4"])
-            XCTFail("unoffered legacy Delete needs consent")
+            XCTFail("legacy Delete needs consent")
         } catch let error as APIError { XCTAssertEqual(error.code, "deletion_consent_required") }
         let trash = root.appendingPathComponent("fixture-trash")
         c.dictation.trashModel = { item in
@@ -402,6 +401,10 @@ final class CatalogSelectionTests: XCTestCase {
         registry[variant.id] = InstalledModel(path: legacy.path, name: family.name, quantization: "4-bit")
         try JSONEncoder().encode(registry).write(to: registryURL)
         c.reload()
+        // Every measured tier is offered today (6 Oct); exercise a later catalog withdrawal of int4.
+        var withdrawn = family
+        withdrawn.tiersOffered = ["16", "8"]
+        c.catalog.families[try XCTUnwrap(c.catalog.families.firstIndex { $0.id == family.id })] = withdrawn
         try JSONEncoder().encode(Configuration(model: legacy.path)).write(to: configURL)
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
         XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, p.stored)

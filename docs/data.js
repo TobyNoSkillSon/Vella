@@ -5792,7 +5792,7 @@ const VELLA_BENCHMARKS = {
       "worker_sha256": null,
       "commit_kind": "informational measured-defaults commit (may change in a history rewrite)",
       "worker_source_trees": {
-        "Worker": "80205ea71559cec951c1913d9464c38fa241a26b",
+        "Worker": "cd736b3f07157e93c3a78fae06cbe6c0b2565766",
         "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
       },
       "build_scripts_sha256": "baa879823b5157546f0ce6912de8fe9b670af29e664cf5b23bdf2bbe9173149b",
@@ -5971,7 +5971,8 @@ const VELLA_MODELS = {
       "native_dtype": "float32",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "animaslabs/parakeet-tdt-0.6b-v3-mlx",
@@ -6071,7 +6072,9 @@ const VELLA_MODELS = {
       "native": "BF16",
       "native_dtype": "bfloat16",
       "tiers_offered": [
-        "16"
+        "16",
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/Qwen3-ASR-1.7B-bf16",
@@ -6154,7 +6157,8 @@ const VELLA_MODELS = {
       "native_dtype": "bfloat16",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/Qwen3-ASR-0.6B-bf16",
@@ -6307,7 +6311,8 @@ const VELLA_MODELS = {
       "native_dtype": "float16",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/whisper-large-v3-asr-fp16",
@@ -6467,7 +6472,8 @@ const VELLA_MODELS = {
       "native_dtype": "float16",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/whisper-large-v3-turbo-asr-fp16",
@@ -6552,7 +6558,8 @@ const VELLA_MODELS = {
       "native_dtype": "bfloat16",
       "tiers_offered": [
         "16",
-        "8"
+        "8",
+        "4"
       ],
       "download": {
         "repo": "mlx-community/nemotron-3.5-asr-streaming-0.6b",

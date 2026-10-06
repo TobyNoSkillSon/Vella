@@ -373,7 +373,7 @@ struct ModelTable: View {
     }
 
     /// The cells of both rows that cannot be chosen, each with its one-line reason (the greyed cell's tooltip), in this
-    /// order: a model without an Optimized path; a tier the presence gate removed (or the catalog does not offer); under
+    /// order: a model without an Optimized path; a tier the catalog does not offer (or malformed gate data); under
     /// Exact, a tier with only a Fast recipe; a cell without a measurement ('Not measured yet'), except the loaded cell,
     /// which always stays selectable. Selection itself follows `SelectionRules` as before; this only names the cells.
     func unavailableCells(_ family: ModelFamily) -> [TierControl.Cell: String] {

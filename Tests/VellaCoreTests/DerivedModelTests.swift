@@ -46,9 +46,9 @@ final class DerivedModelTests: XCTestCase {
         }
         XCTAssertEqual(catalog.locate(variant: "parakeet-ultra-mlx-4bit-local")?.precision, "4b")
         for f in catalog.families { XCTAssertEqual(f.derivationProblems(), [], f.id) }
-        // Precision options follow tiers_offered (presence); fp32 is never a tier.
+        // Precision options follow tiers_offered (every measured tier); fp32 is never a tier.
         XCTAssertEqual(precisionOptions(ultra), ["BF16", "8b", "4b"])
-        XCTAssertEqual(precisionOptions(v3), ["BF16", "8b"])
+        XCTAssertEqual(precisionOptions(v3), ["BF16", "8b", "4b"])
     }
 
     func testDerivedVariantRoundTripsWithoutDownloadFields() throws {

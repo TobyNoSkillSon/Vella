@@ -102,7 +102,7 @@ import VellaUpdate
         for family in catalog.catalog.families {
             guard let benchmark = catalog.benchmark(family) else { continue }
             for tier in ModelTier.allCases {
-                guard benchmark.tiers[tier]?.presence.offered == true else { continue }
+                guard benchmark.tiers[tier] != nil else { continue }
                 for segment in [Recipe.standard, .optimized_exact, .optimized_fast] {
                     let selection = ModelSelection(tier: tier, path: segment == .standard ? .standard : .optimized, mode: segment == .optimized_exact ? .exact : .fast)
                     guard let cell = benchmarkCell(benchmark, selection), !cell.isPending else { continue }
@@ -290,10 +290,10 @@ import VellaUpdate
     static func renderControls(to url: URL, done: @escaping () -> Void) {
         typealias Cell = TierControl.Cell
         let dtypes = ["bf16", "int8", "int4"]
-        /// Greyed cells: the tiers of `absent` on both rows, with the presence gate's reason.
+        /// Greyed cells: the tiers of `absent` on both rows, with the reason a tier the catalog does not offer shows.
         func greyed(_ absent: [String], _ extra: [Cell: String] = [:]) -> [Cell: String] {
             var off = extra
-            for tier in absent { for row in TierControl.Row.allCases { off[Cell(row, tier)] = "Not offered: 1 clip empty or cut short where 16 had the words" } }
+            for tier in absent { for row in TierControl.Row.allCases { off[Cell(row, tier)] = "Not offered for this model" } }
             return off
         }
         func line(

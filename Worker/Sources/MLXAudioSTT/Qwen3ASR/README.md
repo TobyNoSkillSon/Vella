@@ -109,20 +109,20 @@ Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.00 pt; not remeas
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (bf16) | the checkpoint as published | yes | — |
-| 8 (int8) | affine group 64 from the bf16 weights | no | fail; absent: 1 clip empty or cut short where 16 had the words; Turkish +42.64 pt vs 16 (presence limit +10.0) |
-| 4 (int4) | affine group 64 from the bf16 weights | no | fail; absent: 1 clip empty or cut short where 16 had the words |
+| 8 (int8) | affine group 64 from the bf16 weights | yes | fail; fails presence (offered, never recommended): 1 clip empty or cut short where 16 had the words; Turkish +42.64 pt vs 16 (presence limit +10.0) |
+| 4 (int4) | affine group 64 from the bf16 weights | yes | fail; fails presence (offered, never recommended): 1 clip empty or cut short where 16 had the words |
 
 | Tier | Path | English WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
 | 16 (bf16) | Standard | 15.00 | 6.67 | 14.04 | 26.6× | 81.03 | 4624 | — | — |
 | 16 (bf16) | Optimized Exact | 15.00 | 6.67 | 14.04 | 29.6× | 72.73 | 5118 | +11 % | −10 % |
 | 16 (bf16) | Optimized Fast | 15.00 | 6.67 | 14.04 | 29.6× | 72.73 | 5118 | +11 % | −10 % |
-| 8 (int8) | Standard — Not offered | 15.11 | 6.59 | 19.01 | 36.7× | 71.35 | 3197 | — | — |
-| 8 (int8) | Optimized Exact — Not offered | 15.11 | 6.59 | 19.01 | 44.3× | 64.81 | 3721 | +21 % | −9 % |
-| 8 (int8) | Optimized Fast — Not offered | 15.11 | 6.59 | 19.01 | 44.3× | 64.81 | 3721 | +21 % | −9 % |
-| 4 (int4) | Standard — Not offered | 18.32 | 7.03 | 15.96 | 47.3× | 56.23 | 2367 | — | — |
-| 4 (int4) | Optimized Exact — Not offered | 18.32 | 7.03 | 15.96 | 61.5× | 51.43 | 2890 | +30 % | −9 % |
-| 4 (int4) | Optimized Fast — Not offered | 18.32 | 7.03 | 15.96 | 61.5× | 51.43 | 2890 | +30 % | −9 % |
+| 8 (int8) | Standard — Fails presence, never recommended | 15.11 | 6.59 | 19.01 | 36.7× | 71.35 | 3197 | — | — |
+| 8 (int8) | Optimized Exact — Fails presence, never recommended | 15.11 | 6.59 | 19.01 | 44.3× | 64.81 | 3721 | +21 % | −9 % |
+| 8 (int8) | Optimized Fast — Fails presence, never recommended | 15.11 | 6.59 | 19.01 | 44.3× | 64.81 | 3721 | +21 % | −9 % |
+| 4 (int4) | Standard — Fails presence, never recommended | 18.32 | 7.03 | 15.96 | 47.3× | 56.23 | 2367 | — | — |
+| 4 (int4) | Optimized Exact — Fails presence, never recommended | 18.32 | 7.03 | 15.96 | 61.5× | 51.43 | 2890 | +30 % | −9 % |
+| 4 (int4) | Optimized Fast — Fails presence, never recommended | 18.32 | 7.03 | 15.96 | 61.5× | 51.43 | 2890 | +30 % | −9 % |
 
 #### Qwen3 ASR 0.6B (`qwen3-asr-0.6b`)
 
@@ -132,7 +132,7 @@ Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.00 pt; not remeas
 |---|---|---|---|
 | 16 (bf16) | the checkpoint as published | yes | — |
 | 8 (int8) | affine group 64 from the bf16 weights | yes | fail; present; gate: English WER +0.15 pt vs 16 (limit 0.10); multilingual mean +0.32 pt vs 16 (limit 0.10) |
-| 4 (int4) | affine group 64 from the bf16 weights | no | fail; absent: 2 clips empty or cut short where 16 had the words |
+| 4 (int4) | affine group 64 from the bf16 weights | yes | fail; fails presence (offered, never recommended): 2 clips empty or cut short where 16 had the words |
 
 | Tier | Path | English WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
@@ -142,7 +142,7 @@ Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.00 pt; not remeas
 | 8 (int8) | Standard | 16.04 | 7.17 | 20.46 | 60.7× | 33.58 | 1639 | — | — |
 | 8 (int8) | Optimized Exact | 16.04 | 7.17 | 20.46 | 82.0× | 30.05 | 1920 | +35 % | −10 % |
 | 8 (int8) | Optimized Fast | 16.04 | 7.17 | 20.46 | 82.0× | 30.05 | 1920 | +35 % | −10 % |
-| 4 (int4) | Standard — Not offered | 17.56 | 8.25 | 24.93 | 68.4× | 28.71 | 1332 | — | — |
-| 4 (int4) | Optimized Exact — Not offered | 17.56 | 8.25 | 24.93 | 96.4× | 25.60 | 1648 | +41 % | −11 % |
-| 4 (int4) | Optimized Fast — Not offered | 17.56 | 8.25 | 24.93 | 96.4× | 25.60 | 1648 | +41 % | −11 % |
+| 4 (int4) | Standard — Fails presence, never recommended | 17.56 | 8.25 | 24.93 | 68.4× | 28.71 | 1332 | — | — |
+| 4 (int4) | Optimized Exact — Fails presence, never recommended | 17.56 | 8.25 | 24.93 | 96.4× | 25.60 | 1648 | +41 % | −11 % |
+| 4 (int4) | Optimized Fast — Fails presence, never recommended | 17.56 | 8.25 | 24.93 | 96.4× | 25.60 | 1648 | +41 % | −11 % |
 <!-- MEASURED_END -->

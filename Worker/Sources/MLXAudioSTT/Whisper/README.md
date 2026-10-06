@@ -133,7 +133,7 @@ Standard computes in faithful FP16. Standard and Optimized were measured in the 
 |---|---|---|---|
 | 16 (fp16) | the checkpoint as published | yes | — |
 | 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (40.8 % of the source checkpoint's weight bytes) | yes | fail; present; gate: English WER +0.22 pt vs 16 (limit 0.10) |
-| 4 (int4) | affine group 64 from the fp16 weights | no | fail; absent: 2 clips empty or cut short where 16 had the words |
+| 4 (int4) | affine group 64 from the fp16 weights | yes | fail; fails presence (offered, never recommended): 2 clips empty or cut short where 16 had the words |
 
 | Tier | Path | English WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
@@ -143,9 +143,9 @@ Standard computes in faithful FP16. Standard and Optimized were measured in the 
 | 8 (int8) | Standard | 17.27 | 8.18 | 14.57 | 34.0× | 80.65 | 3141 | — | — |
 | 8 (int8) | Optimized Exact | 17.27 | 8.18 | 14.57 | 43.5× | 73.70 | 3116 | +28 % | −9 % |
 | 8 (int8) | Optimized Fast | 17.27 | 8.18 | 14.57 | 43.5× | 73.70 | 3116 | +28 % | −9 % |
-| 4 (int4) | Standard — Not offered | 17.10 | 8.17 | 14.03 | 40.4× | 73.16 | 2102 | — | — |
-| 4 (int4) | Optimized Exact — Not offered | 17.10 | 8.17 | 14.03 | 54.4× | 65.96 | 2097 | +35 % | −10 % |
-| 4 (int4) | Optimized Fast — Not offered | 17.10 | 8.17 | 14.03 | 54.4× | 65.96 | 2097 | +35 % | −10 % |
+| 4 (int4) | Standard — Fails presence, never recommended | 17.10 | 8.17 | 14.03 | 40.4× | 73.16 | 2102 | — | — |
+| 4 (int4) | Optimized Exact — Fails presence, never recommended | 17.10 | 8.17 | 14.03 | 54.4× | 65.96 | 2097 | +35 % | −10 % |
+| 4 (int4) | Optimized Fast — Fails presence, never recommended | 17.10 | 8.17 | 14.03 | 54.4× | 65.96 | 2097 | +35 % | −10 % |
 
 #### Whisper large-v3 turbo (`whisper-large-v3-turbo`)
 
@@ -157,7 +157,7 @@ Standard computes in faithful FP16. Standard and Optimized were measured in the 
 |---|---|---|---|
 | 16 (fp16) | the checkpoint as published | yes | — |
 | 8 (int8) | affine group 64 from the fp16 weights; `model.encoder` kept at fp16 (78.0 % of the source checkpoint's weight bytes) | yes | pass; present |
-| 4 (int4) | affine group 64 from the fp16 weights | no | fail; absent: 1 clip empty or cut short where 16 had the words |
+| 4 (int4) | affine group 64 from the fp16 weights | yes | fail; fails presence (offered, never recommended): 1 clip empty or cut short where 16 had the words |
 
 | Tier | Path | English WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
@@ -167,7 +167,7 @@ Standard computes in faithful FP16. Standard and Optimized were measured in the 
 | 8 (int8) | Standard | 16.52 | 7.46 | 14.80 | 91.5× | 37.06 | 2419 | — | — |
 | 8 (int8) | Optimized Exact | 16.52 | 7.46 | 14.80 | 129.8× | 34.64 | 2363 | +42 % | −7 % |
 | 8 (int8) | Optimized Fast | 16.52 | 7.46 | 14.80 | 129.8× | 34.64 | 2363 | +42 % | −7 % |
-| 4 (int4) | Standard — Not offered | 16.96 | 8.14 | 15.06 | 93.8× | 39.81 | 1723 | — | — |
-| 4 (int4) | Optimized Exact — Not offered | 16.96 | 8.14 | 15.06 | 134.6× | 37.27 | 1731 | +43 % | −6 % |
-| 4 (int4) | Optimized Fast — Not offered | 16.96 | 8.14 | 15.06 | 134.6× | 37.27 | 1731 | +43 % | −6 % |
+| 4 (int4) | Standard — Fails presence, never recommended | 16.96 | 8.14 | 15.06 | 93.8× | 39.81 | 1723 | — | — |
+| 4 (int4) | Optimized Exact — Fails presence, never recommended | 16.96 | 8.14 | 15.06 | 134.6× | 37.27 | 1731 | +43 % | −6 % |
+| 4 (int4) | Optimized Fast — Fails presence, never recommended | 16.96 | 8.14 | 15.06 | 134.6× | 37.27 | 1731 | +43 % | −6 % |
 <!-- MEASURED_END -->

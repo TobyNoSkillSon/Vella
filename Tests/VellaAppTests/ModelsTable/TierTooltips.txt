@@ -62,7 +62,9 @@ vs Standard bf16: Speed: 80% faster · Energy: 24% less · WER +0.05 pt · M5 Ma
 vs Standard bf16: Speed: 41% faster · Energy: 37% more · WER −0.02 pt · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Optimized int4 · Exact]
-Not offered: 3 clips empty or cut short where 16 had the words
+16-bit decoder, 16-bit joint (affine-4 g64)
+vs Standard bf16: Speed: 42% faster · Energy: 34% more · WER +0.53 pt · M5 Max, 1 Oct
+Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.53 pt, Swedish +3.01 pt
 
 [Parakeet v3 · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
@@ -76,7 +78,9 @@ Reference for the deltas · M5 Max, 1 Oct
 vs Standard bf16: Speed: 6% slower · Energy: 43% more · WER +0.03 pt · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Standard int4]
-Not offered: 2 clips empty or cut short where 16 had the words
+16-bit decoder, 16-bit joint (affine-4 g64)
+vs Standard bf16: Speed: 6% slower · Energy: 39% more · WER +0.65 pt · M5 Max, 1 Oct
+Loss vs bf16: 2 test clips came back empty or cut short, English WER +0.53 pt, Swedish +3.01 pt
 
 [Parakeet v3 · Exact/Fast]
 Sets the Optimized row only
@@ -91,7 +95,9 @@ vs Standard bf16: Speed: 92% faster · Energy: 26% less · WER +0.05 pt · M5 Ma
 vs Standard bf16: Speed: 96% faster · Energy: 15% less · WER −0.07 pt · M5 Max, 1 Oct
 
 [Parakeet v3 · Precision Optimized int4 · Fast]
-Not offered: 3 clips empty or cut short where 16 had the words
+16-bit decoder, 16-bit joint (affine-4 g64)
+vs Standard bf16: Speed: 99% faster · Energy: 18% less · WER +0.58 pt · M5 Max, 1 Oct
+Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.53 pt, Swedish +3.01 pt
 
 [Qwen3 ASR 1.7B · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
@@ -101,10 +107,14 @@ bf16, as published
 vs Standard bf16: Speed: 11% faster · Energy: 10% less · same WER · M5 Max, 1 Oct
 
 [Qwen3 ASR 1.7B · Precision Optimized int8 · Exact]
-Not offered: 1 clip empty or cut short where 16 had the words
+8-bit weights throughout (affine-8 g64)
+vs Standard bf16: Speed: 67% faster · Energy: 20% less · WER +0.11 pt · M5 Max, 1 Oct
+Loss vs bf16: 1 test clip came back empty or cut short, Turkish +42.64 pt, English WER +0.11 pt, multilingual mean +4.98 pt
 
 [Qwen3 ASR 1.7B · Precision Optimized int4 · Exact]
-Not offered: 1 clip empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard bf16: Speed: 2.3× faster · Energy: 37% less · WER +3.32 pt · M5 Max, 1 Oct
+Loss vs bf16: 1 test clip came back empty or cut short, English WER +3.32 pt, multilingual mean +1.93 pt, Swedish +7.10 pt, Turkish +3.32 pt, Polish +2.44 pt, format CER +0.35 pt
 
 [Qwen3 ASR 1.7B · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
@@ -114,10 +124,14 @@ bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
 [Qwen3 ASR 1.7B · Precision Standard int8]
-Not offered: 1 clip empty or cut short where 16 had the words
+8-bit weights throughout (affine-8 g64)
+vs Standard bf16: Speed: 38% faster · Energy: 12% less · WER +0.11 pt · M5 Max, 1 Oct
+Loss vs bf16: 1 test clip came back empty or cut short, Turkish +42.64 pt, English WER +0.11 pt, multilingual mean +4.98 pt
 
 [Qwen3 ASR 1.7B · Precision Standard int4]
-Not offered: 1 clip empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard bf16: Speed: 78% faster · Energy: 31% less · WER +3.32 pt · M5 Max, 1 Oct
+Loss vs bf16: 1 test clip came back empty or cut short, English WER +3.32 pt, multilingual mean +1.93 pt, Swedish +7.10 pt, Turkish +3.32 pt, Polish +2.44 pt, format CER +0.35 pt
 
 [Qwen3 ASR 1.7B · Exact/Fast]
 Sets the Optimized row only
@@ -129,10 +143,14 @@ bf16, as published
 vs Standard bf16: Speed: 11% faster · Energy: 10% less · same WER · M5 Max, 1 Oct
 
 [Qwen3 ASR 1.7B · Precision Optimized int8 · Fast]
-Not offered: 1 clip empty or cut short where 16 had the words
+8-bit weights throughout (affine-8 g64)
+vs Standard bf16: Speed: 67% faster · Energy: 20% less · WER +0.11 pt · M5 Max, 1 Oct
+Loss vs bf16: 1 test clip came back empty or cut short, Turkish +42.64 pt, English WER +0.11 pt, multilingual mean +4.98 pt
 
 [Qwen3 ASR 1.7B · Precision Optimized int4 · Fast]
-Not offered: 1 clip empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard bf16: Speed: 2.3× faster · Energy: 37% less · WER +3.32 pt · M5 Max, 1 Oct
+Loss vs bf16: 1 test clip came back empty or cut short, English WER +3.32 pt, multilingual mean +1.93 pt, Swedish +7.10 pt, Turkish +3.32 pt, Polish +2.44 pt, format CER +0.35 pt
 
 [Qwen3 ASR 0.6B · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
@@ -147,7 +165,9 @@ vs Standard bf16: Speed: 59% faster · Energy: 18% less · WER +0.15 pt · M5 Ma
 Loss vs bf16: English WER +0.15 pt, multilingual mean +0.32 pt
 
 [Qwen3 ASR 0.6B · Precision Optimized int4 · Exact]
-Not offered: 2 clips empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard bf16: Speed: 86% faster · Energy: 30% less · WER +1.67 pt · M5 Max, 1 Oct
+Loss vs bf16: 2 test clips came back empty or cut short, English WER +1.67 pt, multilingual mean +4.79 pt, Swedish +7.74 pt, Polish +7.67 pt, Spanish +5.93 pt, Japanese +5.90 pt, Turkish +5.76 pt, French +3.82 pt, Korean +2.38 pt, German +2.07 pt, format CER +1.09 pt
 
 [Qwen3 ASR 0.6B · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
@@ -162,7 +182,9 @@ vs Standard bf16: Speed: 17% faster · Energy: 9% less · WER +0.15 pt · M5 Max
 Loss vs bf16: English WER +0.15 pt, multilingual mean +0.32 pt
 
 [Qwen3 ASR 0.6B · Precision Standard int4]
-Not offered: 2 clips empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard bf16: Speed: 32% faster · Energy: 22% less · WER +1.67 pt · M5 Max, 1 Oct
+Loss vs bf16: 2 test clips came back empty or cut short, English WER +1.67 pt, multilingual mean +4.79 pt, Swedish +7.74 pt, Polish +7.67 pt, Spanish +5.93 pt, Japanese +5.90 pt, Turkish +5.76 pt, French +3.82 pt, Korean +2.38 pt, German +2.07 pt, format CER +1.09 pt
 
 [Qwen3 ASR 0.6B · Exact/Fast]
 Sets the Optimized row only
@@ -179,7 +201,9 @@ vs Standard bf16: Speed: 59% faster · Energy: 18% less · WER +0.15 pt · M5 Ma
 Loss vs bf16: English WER +0.15 pt, multilingual mean +0.32 pt
 
 [Qwen3 ASR 0.6B · Precision Optimized int4 · Fast]
-Not offered: 2 clips empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard bf16: Speed: 86% faster · Energy: 30% less · WER +1.67 pt · M5 Max, 1 Oct
+Loss vs bf16: 2 test clips came back empty or cut short, English WER +1.67 pt, multilingual mean +4.79 pt, Swedish +7.74 pt, Polish +7.67 pt, Spanish +5.93 pt, Japanese +5.90 pt, Turkish +5.76 pt, French +3.82 pt, Korean +2.38 pt, German +2.07 pt, format CER +1.09 pt
 
 [Whisper large-v3 · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
@@ -194,7 +218,9 @@ vs Standard fp16: Speed: 47% faster · Energy: 15% less · WER +0.21 pt · M5 Ma
 Loss vs fp16: English WER +0.22 pt
 
 [Whisper large-v3 · Precision Optimized int4 · Exact]
-Not offered: 2 clips empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard fp16: Speed: 84% faster · Energy: 24% less · WER +0.04 pt · M5 Max, 3 Oct
+Loss vs fp16: 2 test clips came back empty or cut short
 
 [Whisper large-v3 · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
@@ -209,7 +235,9 @@ vs Standard fp16: Speed: 15% faster · Energy: 7% less · WER +0.21 pt · M5 Max
 Loss vs fp16: English WER +0.22 pt
 
 [Whisper large-v3 · Precision Standard int4]
-Not offered: 2 clips empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard fp16: Speed: 37% faster · Energy: 15% less · WER +0.04 pt · M5 Max, 3 Oct
+Loss vs fp16: 2 test clips came back empty or cut short
 
 [Whisper large-v3 · Exact/Fast]
 Sets the Optimized row only
@@ -226,7 +254,9 @@ vs Standard fp16: Speed: 47% faster · Energy: 15% less · WER +0.21 pt · M5 Ma
 Loss vs fp16: English WER +0.22 pt
 
 [Whisper large-v3 · Precision Optimized int4 · Fast]
-Not offered: 2 clips empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard fp16: Speed: 84% faster · Energy: 24% less · WER +0.04 pt · M5 Max, 3 Oct
+Loss vs fp16: 2 test clips came back empty or cut short
 
 [Whisper large-v3 turbo · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
@@ -240,7 +270,9 @@ vs Standard fp16: Speed: 38% faster · Energy: 4% less · same WER · M5 Max, 3 
 vs Standard fp16: Speed: 55% faster · Energy: 9% less · WER −0.05 pt · M5 Max, 3 Oct
 
 [Whisper large-v3 turbo · Precision Optimized int4 · Exact]
-Not offered: 1 clip empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard fp16: Speed: 60% faster · Energy: 2% less · WER +0.39 pt · M5 Max, 3 Oct
+Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
 [Whisper large-v3 turbo · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
@@ -254,7 +286,9 @@ Reference for the deltas · M5 Max, 3 Oct
 vs Standard fp16: Speed: 9% faster · Energy: 3% less · WER −0.05 pt · M5 Max, 3 Oct
 
 [Whisper large-v3 turbo · Precision Standard int4]
-Not offered: 1 clip empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard fp16: Speed: 12% faster · Energy: 4% more · WER +0.39 pt · M5 Max, 3 Oct
+Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
 [Whisper large-v3 turbo · Exact/Fast]
 Sets the Optimized row only
@@ -270,7 +304,9 @@ vs Standard fp16: Speed: 38% faster · Energy: 4% less · same WER · M5 Max, 3 
 vs Standard fp16: Speed: 55% faster · Energy: 9% less · WER −0.05 pt · M5 Max, 3 Oct
 
 [Whisper large-v3 turbo · Precision Optimized int4 · Fast]
-Not offered: 1 clip empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard fp16: Speed: 60% faster · Energy: 2% less · WER +0.39 pt · M5 Max, 3 Oct
+Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
 [Nemotron 3.5 Streaming · Path Optimized]
 Optimized: the same weights with custom kernels for this Mac's chip
@@ -285,7 +321,9 @@ vs Standard bf16: Speed: 4.1× faster · Energy: 69% less · WER +0.03 pt · M5 
 Loss vs bf16: multilingual mean +0.19 pt
 
 [Nemotron 3.5 Streaming · Precision Optimized int4 · Exact]
-Not offered: 21 clips empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard bf16: Speed: 4.2× faster · Energy: 70% less · WER +9.39 pt · M5 Max, 1 Oct
+Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.40 pt, multilingual mean +8.89 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.99 pt, Japanese +10.34 pt
 
 [Nemotron 3.5 Streaming · Path Standard]
 Standard: the plain MLX runtime, same weights, no custom kernels
@@ -300,7 +338,9 @@ vs Standard bf16: Speed: 2.1× faster · Energy: 41% less · WER +0.03 pt · M5 
 Loss vs bf16: multilingual mean +0.19 pt
 
 [Nemotron 3.5 Streaming · Precision Standard int4]
-Not offered: 21 clips empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard bf16: Speed: 2.1× faster · Energy: 41% less · WER +9.39 pt · M5 Max, 1 Oct
+Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.40 pt, multilingual mean +8.89 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.99 pt, Japanese +10.34 pt
 
 [Nemotron 3.5 Streaming · Exact/Fast]
 Sets the Optimized row only
@@ -316,4 +356,6 @@ vs Standard bf16: Speed: 5.3× faster · Energy: 77% less · WER +0.05 pt · M5 
 Loss vs bf16: multilingual mean +0.19 pt
 
 [Nemotron 3.5 Streaming · Precision Optimized int4 · Fast]
-Not offered: 21 clips empty or cut short where 16 had the words
+4-bit weights throughout (affine-4 g64)
+vs Standard bf16: Speed: 5.4× faster · Energy: 79% less · WER +9.41 pt · M5 Max, 1 Oct
+Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.41 pt, multilingual mean +8.88 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.70 pt, Japanese +10.46 pt

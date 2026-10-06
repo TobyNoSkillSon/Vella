@@ -7,8 +7,9 @@ import VellaWire
 //                                      standard, optimized_exact, optimized_fast }
 // Written by lab/bench/measure_catalog.py from gate_check.py's verdicts. A cell without `measured` is "measure pending".
 
-/// Whether a tier is offered at all (presence gate, separate from the recommendation gate): absent only when it breaks
-/// against 16 (lost clips, errors, +5 pt English or multilingual-mean WER, +10 pt in one language).
+/// The presence gate's verdict against 16 (lost clips, errors, +5 pt English or multilingual-mean WER, +10 pt in one
+/// language). Every measured cell is offered (Toby, 6 Oct: the measured figures let people judge); a failed verdict is
+/// stated in the cell's tooltip (`presenceLossItems`) and such a cell is never recommended (its gate fails).
 public struct TierPresence: Codable, Equatable {
     public var offered: Bool
     public var reasons: [String]
@@ -106,13 +107,31 @@ public struct TierBenchmark: Equatable {
     public func cell(_ key: Recipe) -> BenchmarkCell? { cells[key] }
 }
 
-/// THE presence rule: a cell's gate owns its presence. Only a cell with no gate inherits tier presence.
-/// An existing gate without a readable presence verdict fails closed, including JSON null. An unmeasured family shows pending cells.
+/// THE presence rule: every cell in the file is offered, whatever its presence verdict (Toby, 6 Oct); a pending cell is
+/// shown greyed (`SelectionRules.measured`). A gate without a readable presence verdict is malformed data and fails
+/// closed, including JSON null. An unmeasured family shows pending cells.
 public func cellPresent(_ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe) -> Bool {
     guard let benchmark, !benchmark.tiers.isEmpty else { return true }
     guard let t = benchmark.tiers[tier], let cell = t.cells[segment] else { return false }
-    if let gate = cell.gate { return gate.presence?.offered ?? false }
-    return t.presence.offered
+    if let gate = cell.gate { return gate.presence != nil }
+    return true
+}
+
+/// A cell's failed presence verdict as loss items in the tooltip's words, lost clips first (clips the 16-bit cell
+/// transcribed): `1 test clip came back empty or cut short`, `Turkish +42.64 pt`. Empty when the verdict passed. The limits the verdict compared
+/// with are left out: they no longer decide whether the cell is offered.
+public func presenceLossItems(_ cell: BenchmarkCell?) -> [String] {
+    guard let presence = cell?.gate?.presence, !presence.offered else { return [] }
+    var clips: [String] = [], others: [String] = []
+    for reason in presence.reasons where !reason.isEmpty {
+        if let match = reason.wholeMatch(of: /(\d+) clips? empty or cut short where 16 had the words/) {
+            let n = Int(match.1) ?? 0
+            clips.append("\(n) test clip\(n == 1 ? "" : "s") came back empty or cut short")
+        } else {
+            others.append(reason.replacing(#/ vs 16 \((presence limit|absent from) [^)]*\)/#, with: "").replacing(#/ \((presence limit|absent from) [^)]*\)/#, with: ""))
+        }
+    }
+    return clips + others
 }
 
 /// Fast differs from Exact for this family: some offered tier's Fast recipe runs an inexact component. False greys the
@@ -151,7 +170,8 @@ func decodeTier(_ raw: Any) -> TierBenchmark? {
         if c.keys.contains("gate"), gate?.presence == nil {
             let reason = "Unreadable cell presence verdict"
             NSLog("benchmarks: %@ %@ %@ gate has no readable presence verdict; cell not offered", precision, key.rawValue, gate == nil ? "malformed" : "decoded")
-            gate = SegmentGate(status: .fail, reasons: [reason], presence: TierPresence(offered: false, reasons: [reason]))
+            // No presence verdict at all: malformed data fails closed (cellPresent), and the refusal names this reason.
+            gate = SegmentGate(status: .fail, reasons: [reason], presence: nil)
         }
         result.suite = measured?.suite; result.audio_min = measured?.audio_min
         result.date = measured?.date; result.hardware = measured?.hardware

@@ -124,21 +124,25 @@ import XCTest
         XCTAssertEqual(apiLoaded.precision, "8b"); XCTAssertTrue(apiLoaded.loaded)
     }
 
-    /// Legacy published quants remain files, never measured tier identities. Without the high-precision root,
-    /// table and API offer Get; with it, requests resolve through the offered local recipe.
+    /// Legacy published quants remain files, never measured tier identities. The tier itself is offered (6 Oct), so the
+    /// recorded int4 selection stays; without the 16-bit root it needs a Get, with it the int4 is made on this Mac from
+    /// that root (a manifest folder), never run from the published import.
     func testLegacyPublishedQuantWithoutOfferedWeightsNeedsGetAndNeverRunsAsAMeasuredTier() throws {
-        let parakeet = try family("whisper-large-v3-turbo")
+        let turbo = try family("whisper-large-v3-turbo")
         let four = try install("whisper-large-v3-turbo-asr-4bit")
-        try record(model: four, family: parakeet.id, precision: "4b", ModelSelection(tier: .t4, path: .optimized, mode: .fast))
-        XCTAssertEqual(controller.committed(parakeet), "FP16")
-        XCTAssertEqual(controller.committedSelection(parakeet).tier, .t16)
-        XCTAssertNil(source.models().first { $0.id == parakeet.id })
+        try record(model: four, family: turbo.id, precision: "4b", ModelSelection(tier: .t4, path: .optimized, mode: .fast))
+        XCTAssertEqual(controller.committed(turbo), "4b")
+        XCTAssertEqual(controller.committedSelection(turbo).tier, .t4)
+        XCTAssertNil(source.models().first { $0.id == turbo.id }, "no 16-bit root: Get first")
         XCTAssertNil(bridge.ref(path: four, mode: .dictation))
         XCTAssertTrue(FileManager.default.fileExists(atPath: four + "/config.json"))
-        // Once the offered 16 is downloaded, the 4-bit files stop being used.
-        let bf16 = try install("whisper-large-v3-turbo-asr-fp16")
-        XCTAssertEqual(controller.committed(parakeet), "FP16")
-        XCTAssertEqual(bridge.ref(path: four, mode: .dictation)?.path, bf16)
-        XCTAssertEqual(source.models().first { $0.id == parakeet.id }?.path, bf16)
+        // Once the offered 16 is downloaded, the int4 is made from it; the published 4-bit files stop being used.
+        _ = try install("whisper-large-v3-turbo-asr-fp16")
+        XCTAssertEqual(controller.committed(turbo), "4b")
+        let ref = try XCTUnwrap(bridge.ref(path: four, mode: .dictation))
+        XCTAssertNotEqual(ref.path, four, "never the published import")
+        XCTAssertNotNil(derivedModelManifest(at: URL(fileURLWithPath: ref.path)), "the local int4 recipe")
+        let listed = try XCTUnwrap(source.models().first { $0.id == turbo.id })
+        XCTAssertEqual(listed.path, "", "made on this Mac at load")
     }
 }

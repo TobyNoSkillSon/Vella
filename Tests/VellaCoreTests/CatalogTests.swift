@@ -283,11 +283,10 @@ final class CatalogTests: XCTestCase {
                 guard let t = bench.tiers[tier] else { continue }
                 let mine = lines.filter { $0.range(of: "^\\| \(NSRegularExpression.escapedPattern(for: family.name))( [⁰¹²³⁴⁵⁶⁷⁸⁹]+)? \\|", options: .regularExpression) != nil }
                     .filter { $0.contains(" | \(mode) | \(tierDTypeLabel(family, tier)) | ") }
-                guard t.presence.offered else {
-                    XCTAssertTrue(mine.isEmpty, "\(family.id) \(tier.rawValue): an absent tier has no row")
-                    let notOffered = try XCTUnwrap(lines.first { $0.hasPrefix("Not offered: ") })
-                    XCTAssertTrue(notOffered.contains("\(family.name) \(tier.rawValue) ("), "\(family.id) \(tier.rawValue) listed as not offered")
-                    continue
+                // Every measured tier has rows (6 Oct); one that fails the presence check is also named below the table.
+                if !t.presence.offered {
+                    let flagged = try XCTUnwrap(lines.first { $0.hasPrefix("Offered with their measured figures but never recommended") })
+                    XCTAssertTrue(flagged.contains("\(family.name) \(tier.rawValue) "), "\(family.id) \(tier.rawValue) named as never recommended")
                 }
                 var paths: [(String, BenchmarkCell?)] = [
                     ("Standard", t.cells[.standard]), ("Optimized · Exact", t.cells[.optimized_exact]),
@@ -309,7 +308,7 @@ final class CatalogTests: XCTestCase {
         }
         XCTAssertEqual(lines.filter { $0.hasPrefix("| ") && !$0.hasPrefix("| Model") && !$0.contains("(cloud API)") }.count, rows, "no other model rows")
         XCTAssertTrue(
-            table.contains("Shipped source trees: Worker `80205ea71559cec951c1913d9464c38fa241a26b`, Packages `6851d8c101f507aea8980af93fd877aa0e84a20c`"),
+            table.contains("Shipped source trees: Worker `cd736b3f07157e93c3a78fae06cbe6c0b2565766`, Packages `6851d8c101f507aea8980af93fd877aa0e84a20c`"),
             "both builds and the source bridge are documented")
     }
 
@@ -321,16 +320,13 @@ final class CatalogTests: XCTestCase {
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
         XCTAssertEqual(file.schema, 2)
         XCTAssertEqual(Set(file.models.keys), Set(catalog.families.map(\.id)), "a benchmark row for every catalog family, none for removed ones")
-        let offered: [String: [ModelTier]] = [
-            "parakeet-v3": [.t16, .t8], "parakeet-v3-ultra": [.t16, .t8, .t4], "qwen3-asr-1.7b": [.t16], "qwen3-asr-0.6b": [.t16, .t8],
-            "nemotron-3.5-streaming-0.6b": [.t16, .t8], "whisper-large-v3": [.t16, .t8], "whisper-large-v3-turbo": [.t16, .t8]
-        ]
+        // Every measured cell is offered (Toby, 6 Oct); failed presence verdicts are stated in the tooltip.
         for (id, bench) in file.models {
             let family = try XCTUnwrap(catalog.family(id))
             for recipe in Recipe.allCases {
-                XCTAssertEqual(ModelTier.allCases.filter { cellPresent(bench, tier: $0, segment: recipe) }, offered[id], "\(id) \(recipe)")
+                XCTAssertEqual(ModelTier.allCases.filter { cellPresent(bench, tier: $0, segment: recipe) }, ModelTier.allCases, "\(id) \(recipe)")
             }
-            XCTAssertEqual(family.tiersOffered, offered[id]?.map(\.rawValue), "\(id): models.json tiers_offered agrees with the presence")
+            XCTAssertEqual(family.tiersOffered, ModelTier.allCases.map(\.rawValue), "\(id): models.json tiers_offered offers every measured tier")
             XCTAssertFalse(bench.precisions.keys.contains("FP32"), "\(id): fp32 is never a tier")
             for (tier, t) in bench.tiers {
                 XCTAssertEqual(modelTier(ofPrecision: t.precision), tier, id)
@@ -549,7 +545,7 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(
             all.contains("Vella's quality gate") && all.contains("within 0.1 points of 16") && all.contains("up to 0.2 points"),
             "the quality gate and its English tolerance")
-        XCTAssertTrue(docs[0].contains("breaks against 16") && docs[1].contains("breaks against 16"), "presence rule")
+        XCTAssertTrue(docs[0].contains("Every measured tier is offered") && docs[1].contains("Every measured tier is offered"), "presence rule")
         XCTAssertTrue(docs[0].contains("No tier is recommended") && docs[1].contains("Nothing is marked as recommended"), "no recommended cell")
         XCTAssertFalse(all.contains("0.5 points"), "retired 0.5-point margin")
         XCTAssertTrue(docs[0].contains("Mode · Microphone · Shortcuts") && docs[0].contains("Models… · Keep Hot · Memory"), "menu order")

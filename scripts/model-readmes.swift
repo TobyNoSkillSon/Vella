@@ -197,9 +197,10 @@ func gateText(_ bench: JSON, _ id: String, _ tier: String) -> String {
     guard tier != "16", let entry, !isPending(bench) else { return dash }
     let gate = entry["gate"] as? JSON ?? [:]
     let presence = entry["presence"] as? JSON
-    let word = (presence?["offered"] as? Bool).map { $0 ? "present" : "absent" } ?? dash
+    // Every tier is offered (6 Oct); a failed presence check is stated, and such a tier is never recommended.
+    let word = (presence?["offered"] as? Bool).map { $0 ? "present" : "fails presence (offered, never recommended)" } ?? dash
     var text = "\(gate["status"] as? String ?? dash); \(word)"
-    // Why a tier is absent (or, if it is present, why the recommendation gate failed), each under its own label.
+    // Why a tier fails presence (or, if it passes, why the recommendation gate failed), each under its own label.
     if let why = presence?["reasons"] as? [String], !why.isEmpty {
         text += ": " + why.joined(separator: "; ")
     } else if let why = gate["reasons"] as? [String], !why.isEmpty {
@@ -269,7 +270,7 @@ func renderFamily(_ family: JSON, _ bench: JSON, keys: [MeasureKey] = []) -> [St
             let pending = ((entry?[path] as? JSON)?["not_measured_reason"] as? String) != nil
             let gate = (entry?[path] as? JSON)?["gate"] as? JSON
             let refused = (gate?["presence"] as? JSON)?["offered"] as? Bool == false
-            let status = refused ? " — \(gate?["status"] as? String == "not_gated" ? "Not gated (no same-layout baseline)" : "Not offered")" : ""
+            let status = refused ? " — \(gate?["status"] as? String == "not_gated" ? "Not gated (no same-layout baseline)" : "Fails presence, never recommended")" : ""
             lines.append("| \(tier) (\(dtypeLabel(family, tier))) | \(title)\(mark)\(pending ? " — Not measured yet" : "")\(status) | " + row.joined(separator: " | ") + " |")
         }
     }
@@ -378,7 +379,7 @@ func selfTest() {
     for expected in [
         "| 16 (fp16) | Optimized Fast | 17.20 | 7.70 | 21.80 | 20.0× | 80.00 | 3346 | +100 % | −20 % |",
         "| 16 (fp16) | Standard | 17.20 | 7.70 | 21.80 | 10.0× | 100.00 | 3346 | — | — |",
-        "| 8 (int8) | affine group 64", "`model.encoder` kept at fp16 (40.8 % of the source checkpoint's weight bytes)", "| 4 (int4) |", "fail; absent: 1 clip lost",
+        "| 8 (int8) | affine group 64", "`model.encoder` kept at fp16 (40.8 % of the source checkpoint's weight bytes)", "| 4 (int4) |", "fail; fails presence (offered, never recommended): 1 clip lost",
         "Gate limits: English ≤ 0.10 pt (noise measured 2026-09-28: 0.04 pt; not remeasured on this build), multilingual mean ≤ 0.20 pt.",
         "Measured 2026-10-02 on Test Mac. English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately. Accuracy: v2 (239.7 min); speed, energy and peak RAM: v2-quick (22.5 min)."
     ] where !block.contains(expected) { fail("selftest: missing \(expected)") }
@@ -419,7 +420,7 @@ func selfTest() {
     if gateText(gated, "demo", "8") != "fail; present; gate: x +1 pt" { fail("selftest: \(gateText(gated, "demo", "8"))") }
     bench["figures_pending"] = true
     let pending = renderBlock(whisper, models, bench)
-    if !pending.contains("Figures pending") || pending.contains("20.0×") || pending.contains("fail; absent") { fail("selftest: pending block shows figures") }
+    if !pending.contains("Figures pending") || pending.contains("20.0×") || pending.contains("fail; fails presence") { fail("selftest: pending block shows figures") }
     let replaced = replaceBlock("a\n\(startMarker)\nold\n\(endMarker)\nb\n", "new")
     if replaced != "a\n\(startMarker)\nnew\n\(endMarker)\nb\n" { fail("selftest: replaceBlock") }
     if replaceBlock("no markers", "x") != nil { fail("selftest: replaceBlock accepted a file without markers") }

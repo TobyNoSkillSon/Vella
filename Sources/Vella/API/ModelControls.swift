@@ -72,6 +72,9 @@ import VellaCore
                         cell["measurement"] = jsonObject(measured.measured)
                         cell["components"] = jsonObject(measured.recipe)
                         cell["provenance"] = benchmarkProvenance(f.id, s)
+                        // The tooltip's `Loss vs …` items (lost clips first); absent when the cell loses nothing measurable.
+                        let loss = cellLoss(controller.benchmark(f), tier: tier, segment: s.segmentKey)
+                        if !loss.isEmpty { cell["loss"] = loss }
                     }
                     return cell
                 }
