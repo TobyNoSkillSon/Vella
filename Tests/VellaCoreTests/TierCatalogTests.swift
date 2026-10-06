@@ -76,7 +76,8 @@ final class TierCatalogTests: XCTestCase {
         XCTAssertEqual(c.locate(variant: "nemotron-3.5-asr-streaming-0.6b-8bit")?.precision, "8b")
         XCTAssertEqual(c.locate(variant: "parakeet-ultra-mlx-bf16")?.precision, "BF16")
         XCTAssertEqual(c.locate(variant: "Qwen3-ASR-1.7B-bf16")?.precision, "BF16")
-        // Parakeet v3 4-bit stays a known id (tier 4 is absent, so it is not shown); the imported Whisper q8 maps to 8.
+        // Parakeet v3 4-bit stays a known id (an earlier published download; the offered int4 is made from the 16-bit
+        // root); the imported Whisper q8 maps to 8.
         XCTAssertEqual(c.locate(variant: "parakeet-tdt-0.6b-v3-mlx-4bit")?.precision, "4b")
         XCTAssertEqual(c.family("whisper-large-v3")?.precision(ofLegacyID: "imported-whisper-large-v3-q8"), "8b")
         XCTAssertNil(c.locate(variant: "Voxtral-Mini-4B-Realtime-2602-4bit"), "a removed model's id is not in the catalog")
