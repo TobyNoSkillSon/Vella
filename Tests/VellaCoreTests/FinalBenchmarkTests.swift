@@ -100,8 +100,8 @@ final class FinalBenchmarkTests: XCTestCase {
         let data = try Data(contentsOf: Repository.root.appendingPathComponent("Resources/benchmarks.json"))
         let raw = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let builds = try XCTUnwrap(raw["builds"] as? [String: [String: Any]])
-        XCTAssertEqual(builds["measured"]?["commit"] as? String, "53d1bf3")
-        XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "843a43444659dbd7f2de507b1e2da11453efb31b")
+        XCTAssertEqual(builds["measured"]?["commit"] as? String, "deb8845")
+        XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "9aad75cbac72dbc650669fe227fc273414db6c63")
         for field in ["summary", "defaults"] {
             let claim = try XCTUnwrap(builds["bridge"]?[field] as? String)
             XCTAssertTrue(claim.hasPrefix("Historical, before GPU-identity keys:"), field)

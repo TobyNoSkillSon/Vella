@@ -481,7 +481,7 @@ final class ModelControlTests: XCTestCase {
         let provenance = try XCTUnwrap(cell["provenance"] as? [String: Any])
         XCTAssertEqual(provenance["display_cell"] as? String, "optimized_exact")
         let builds = try XCTUnwrap(provenance["builds"] as? [String: [String: Any]])
-        XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "843a43444659dbd7f2de507b1e2da11453efb31b")
+        XCTAssertEqual(builds["shipped"]?["worker_source_commit"] as? String, "9aad75cbac72dbc650669fe227fc273414db6c63")
         XCTAssertNotNil(cell["measurement"])
         // A cell that fails the presence check states its loss as the tooltip does, lost clips first (6 Oct).
         XCTAssertNil(cell["loss"], "16 loses nothing")

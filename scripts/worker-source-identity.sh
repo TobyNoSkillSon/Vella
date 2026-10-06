@@ -10,7 +10,7 @@
 # Separately, check-commit-citations.swift requires HEAD's full Worker tree to match WORKER_FULL_TREE; after committing
 # a Worker README-only change, refresh that declared full-tree identity and its published provenance references.
 set -euo pipefail
-SOURCE=843a43444659dbd7f2de507b1e2da11453efb31b # informational measured-defaults commit, never a reachability gate
+SOURCE=9aad75cbac72dbc650669fe227fc273414db6c63 # informational measured-defaults commit, never a reachability gate
 WORKER_CODE_TREE=f91dc21579e795736daab3d6cb743bc3a5f4e621   # git tree of Worker/ with its README.md files removed
 # 5 Oct: Worker/build-split.sh weak-links swift_initBorrow for Swift >= 6.4 builds only; with Swift 6.3.3 its commands are
 # unchanged.
@@ -24,7 +24,7 @@ WORKER_FULL_TREE=ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c   # 6 Oct: model READM
 # Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
 # build-split.sh differs by the Swift 6.4-only link step, inactive with the reference's Swift 6.3.3).
 REFERENCE_WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
-# Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 843a434
+# Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 9aad75c
 # (BASE_WORKER_TREE, full tree including READMEs). The history scrub of 3 Oct rewrote that commit's Whisper README, so this
 # is the rewritten tree; the pre-scrub tree survives only in the local backup (see its receipt). Package.swift excludes each of
 # these from its target. They are the only README.md files besides Worker/README.md that may exist; verified against the

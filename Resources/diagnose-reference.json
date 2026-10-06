@@ -1318,7 +1318,7 @@
   "Worker": "7640d1d1e0953f58d894ee89711a2f0f74ab7083",
   "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
  },
- "worker_source_commit": "843a43444659dbd7f2de507b1e2da11453efb31b",
+ "worker_source_commit": "9aad75cbac72dbc650669fe227fc273414db6c63",
  "candidate_app_sha256": "1b3c4b53ff14165c9c6342c0745fbe768aaee56bb44e1c235ce75a3049d3a938",
  "candidate_worker_sha256": "b49faa52236c39ab210c3a11d993b396517b8483a1859953acccdd7af68bf119",
  "clips": {
@@ -4403,7 +4403,7 @@
    }
   ],
   "worker_sha256": "b49faa52236c39ab210c3a11d993b396517b8483a1859953acccdd7af68bf119",
-  "source_commit": "7ccd67c790bb52ec15c344474ee0dc6872e7d0a4",
+  "source_commit": "a142fd4612e330cb073fa8cd797e02bd8c5dc3df",
   "capture_exit": 0,
   "whisper_fill": "Same executable/worker as initial capture; new benchmark resource only; lab/bin/measure CPU<=60; targeted Whisper API captures after faithful measurement."
  },

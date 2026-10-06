@@ -5773,8 +5773,8 @@
   },
   "builds": {
     "measured": {
-      "commit": "53d1bf3",
-      "built_from": "932136f",
+      "commit": "deb8845",
+      "built_from": "6eed904",
       "worker_sha256": "8a215e827e5972ef9afb4db7cf57ea8f068006f40ef1510ccd66e6977546b99d",
       "tag": "full-8a215e827e59",
       "dates": [
@@ -5786,8 +5786,8 @@
       "env_map_sha256": "f6b6918a5ede08b3dffa45f4540bc9c9c488f566da8ef63fd7860e0aa8723242"
     },
     "shipped": {
-      "commit": "843a43444659dbd7f2de507b1e2da11453efb31b",
-      "worker_source_commit": "843a43444659dbd7f2de507b1e2da11453efb31b",
+      "commit": "9aad75cbac72dbc650669fe227fc273414db6c63",
+      "worker_source_commit": "9aad75cbac72dbc650669fe227fc273414db6c63",
       "worker_sha256": "613c911562efa5379bcd02ed78b126e5867290659e5151ab9f61185e49711252",
       "commit_kind": "informational measured-defaults commit (may change in a history rewrite)",
       "worker_source_trees": {
@@ -5811,14 +5811,14 @@
       "whisper_fast_token_identity": {
         "status": "pass",
         "evidence": "Whisper Fast token-identity receipt (3 Oct 2026)",
-        "worker_source": "4d5e996",
+        "worker_source": "5298c3c",
         "suite": "v2-quick",
         "cells": 6,
         "clips_per_cell": 122,
         "token_identical_per_cell": 122,
         "engine": "optimized",
         "components": "decoder (+ fused_decode on 8b/4b); no encoder lever",
-        "summary": "One gpulock run of the new 4d5e996 build: large-v3 and turbo × FP16/8b/4b, each 122/122 clips token-identical to measured Fast transcripts."
+        "summary": "One gpulock run of the new 5298c3c build: large-v3 and turbo × FP16/8b/4b, each 122/122 clips token-identical to measured Fast transcripts."
       },
       "defaults": "Historical, before GPU-identity keys: defaults flipped to the measured lever sets (Toby, 3 Oct); default keys == measured verdict keys: 30/30; 0 mismatches outside Whisper (whisper-4 listed separately); current default and explicit measured lever configurations still agree; current keys differ from historical verdict keys and require local requalification."
     },
@@ -5836,7 +5836,7 @@
     },
     "night": {
       "tag": "night-faithful-whisper-4",
-      "source_commit": "7ccd67c790bb52ec15c344474ee0dc6872e7d0a4",
+      "source_commit": "a142fd4612e330cb073fa8cd797e02bd8c5dc3df",
       "worker_sha256": "b49faa52236c39ab210c3a11d993b396517b8483a1859953acccdd7af68bf119",
       "note": "Faithful fp16 Whisper Standard and shared Exact/Fast measured together; remaining models retain dated measurements."
     }

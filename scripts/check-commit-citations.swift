@@ -66,7 +66,7 @@ func citations(_ text: String) -> Set<String> {
             let sha = String(line[range])
             let prefix = String(line[..<range.lowerBound])
             if !prefix.lowercased().contains("github.com/tobynoskillson/vella"),
-                prefix.range(of: #"github\.com/[^/ ]+/[^/ ]+/(blob|commit|tree)/$"#, options: .regularExpression) != nil
+                prefix.range(of: #"(?:github\.com/[^/ ]+/[^/ ]+|huggingface\.co/(?:datasets/)?[^/ ]+/[^/ ]+)/(blob|commit|tree|resolve)/$"#, options: .regularExpression) != nil
             {
                 continue
             }
@@ -86,6 +86,7 @@ if CommandLine.arguments.contains("--selftest") {
         citations(#""revision": "deadbee""#).isEmpty,
         citations("- package: fixture revision (deadbee)").isEmpty,
         citations("https://github.com/vendor/fixture/blob/deadbee/LICENSE").isEmpty,
+        citations("https://huggingface.co/vendor/fixture/commit/deadbee").isEmpty,
         citations("https://github.com/TobyNoSkillSon/Vella/commit/deadbee") == ["deadbee"],
         pinnedTrees("WORKER_FULL_TREE=\(String(repeating: "b", count: 40)) # source\nSOURCE=\(String(repeating: "c", count: 40))") == [String(repeating: "b", count: 40)],
         pinnedTrees(sourcePins).count == 5,

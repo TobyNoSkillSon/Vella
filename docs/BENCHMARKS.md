@@ -314,7 +314,7 @@ Within a bracket, the absolute change in foreign CPU use between loaded-idle and
 
 ## Build and hardware identity
 
-Measured hardware: Apple M5 Max, macOS 26.6, 40 GPU cores. Measurement dates: 2026-10-01, 2026-10-02. Measured build `53d1bf3`, built from `932136f`; worker SHA-256 `8a215e827e5972ef9afb4db7cf57ea8f068006f40ef1510ccd66e6977546b99d`. Frozen lever-map SHA-256 `f6b6918a5ede08b3dffa45f4540bc9c9c488f566da8ef63fd7860e0aa8723242`.
+Measured hardware: Apple M5 Max, macOS 26.6, 40 GPU cores. Measurement dates: 2026-10-01, 2026-10-02. Measured build `deb8845`, built from `6eed904`; worker SHA-256 `8a215e827e5972ef9afb4db7cf57ea8f068006f40ef1510ccd66e6977546b99d`. Frozen lever-map SHA-256 `f6b6918a5ede08b3dffa45f4540bc9c9c488f566da8ef63fd7860e0aa8723242`.
 
 Authoritative shipped source identities:
 
@@ -330,7 +330,7 @@ Shipped-source scope: Worker/Packages tree hashes and build-script bytes are aut
 
 Carried-over measurements use a scoped **CPU-only identity bridge**, not a fresh performance run: Historical, before GPU-identity keys: scoped source bridge: 83 protected paths, with 3 comment-only hunks allowed; separate source diff confirms Nemotron; gate keys 24/24 identical; measured-worker verdicts 24/24 match. Builds are not bit-reproducible; metallib identical. No cross-build speed/energy spot remeasurement was performed for this bridge. Source/key/verdict equality is evidence about executed code, not evidence that binary bytes are identical. Clean Swift rebuilds differ even under the same compiler; the Metal library is byte-identical.
 
-Recorded Whisper Fast identity receipt: One gpulock run of the new 4d5e996 build: large-v3 and turbo × FP16/8b/4b, each 122/122 clips token-identical to measured Fast transcripts.
+Recorded Whisper Fast identity receipt: One gpulock run of the new 5298c3c build: large-v3 and turbo × FP16/8b/4b, each 122/122 clips token-identical to measured Fast transcripts.
 
 Clean rebuild receipt: Swift driver/compiler `1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)`; `Apple metal version 32023.921 (metalfe-32023.921.6)`; `Xcode 27.0`; macOS build `25G72`. This is the rebuild receipt, not a per-bracket OS-build capture. Identical `default.metallib` SHA-256: `b3bb7c969e967732920d798aee2c98fb8ee0f75419d667dfd22fb9845ad144ef`.
 
@@ -344,7 +344,7 @@ Clean rebuild receipt: Swift driver/compiler `1.168.6 Apple Swift version 6.4 (s
 | Whisper large-v3 | `stock`, `whisper-4` |
 | Whisper large-v3 turbo | `stock`, `whisper-4` |
 
-Refreshed same-build cells: source `7ccd67c790bb52ec15c344474ee0dc6872e7d0a4`, worker SHA-256 `b49faa52236c39ab210c3a11d993b396517b8483a1859953acccdd7af68bf119`. Per-cell `measured` and `build_provenance` fields identify their own date and build; older figures do not silently acquire the refresh date.
+Refreshed same-build cells: source `a142fd4612e330cb073fa8cd797e02bd8c5dc3df`, worker SHA-256 `b49faa52236c39ab210c3a11d993b396517b8483a1859953acccdd7af68bf119`. Per-cell `measured` and `build_provenance` fields identify their own date and build; older figures do not silently acquire the refresh date.
 
 ## Modes and gates
 
