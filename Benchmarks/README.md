@@ -35,7 +35,7 @@ Coding agents start here. Measure one installed model, then propose a result or 
    ```
    Read [results/README.md](results/README.md) for the JSON and PR recipe. Keep `support/` and `app.log` private.
 
-For another cell add `--model ID --precision bf16|fp16|int8|int4 --path Standard|Optimized --mode Exact|Fast`. For full quality, fetch and run with `--suite full`; retain all clips. `--audio-root PATH` reuses an existing verified audio directory without copying it. `--models-from PATH` reads another installed registry, never its recordings or configuration. The runner refuses inherited experiment switches; a source-built candidate is selected through `--app`.
+For another cell add `--model ID --precision bf16|fp16|int8|int4 --path Standard|Optimized --mode Exact|Fast`. For full quality, fetch and run with `--suite full`; retain all clips. `--audio-root PATH` reuses an existing verified audio directory without copying it. `--models-from PATH` accepts an installed `models-installed.json` file or its support directory, reading only the registry. The runner refuses inherited experiment switches; a source-built candidate is selected through `--app`.
 
 **Nemotron:** 2.0.0 exposes no streaming transcription API. [streaming.py](streaming.py) drives the installed app's shipped streaming helper, using 100-ms packets and a fixed 1.2-second silence between clips, as the published measurement did. It is labelled `shipped-streaming-helper`, not end-to-end app/API performance. Read its `--help` and the model [notes](../Worker/Sources/MLXAudioSTT/NemotronASR/README.md); compare Standard and candidate with identical session layout. The kit does not automate microphone or UI recording.
 

@@ -16,7 +16,7 @@ checks = importlib.util.module_from_spec(spec); spec.loader.exec_module(checks)
 from fetch import verify
 from common import Candidate
 from sources import mediaspeech
-from run import public_status, check_selection, new_output
+from run import public_status, check_selection, new_output, installed_registry
 from gate import compare
 import numpy as np
 import soundfile as sf
@@ -69,6 +69,19 @@ class ContractTest(unittest.TestCase):
             (out / 'keep').write_text('existing result')
             with self.assertRaisesRegex(ValueError, 'fresh --out'): new_output(out)
             self.assertEqual((out / 'keep').read_text(), 'existing result')
+
+    def test_installed_registry_accepts_file_or_directory_without_writing(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            path = root / 'models-installed.json'
+            contents = '{"native": {"path": "/installed/checkpoint", "revision": "pinned"}}\n'
+            path.write_text(contents)
+            before = path.stat()
+            for source in (root, path):
+                self.assertEqual(installed_registry(source), json.loads(contents))
+            self.assertEqual(path.read_text(), contents)
+            self.assertEqual(path.stat().st_mtime_ns, before.st_mtime_ns)
+            self.assertEqual(list(root.iterdir()), [path])
 
     def test_pcm_hash_sample_count_and_layout(self):
         with tempfile.TemporaryDirectory() as d:

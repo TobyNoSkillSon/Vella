@@ -66,12 +66,18 @@ def new_output(path):
         raise ValueError(f'output already exists: {path}; use a fresh --out for each model/cell/run') from None
 
 
+def installed_registry(path):
+    path = path.expanduser()
+    return json.loads((path if path.is_file() else path / 'models-installed.json').read_text())
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--app', type=Path, required=True)
     p.add_argument('--suite', choices=['quick', 'full'], default='quick')
     p.add_argument('--audio-root', type=Path, default=ROOT / '.data')
-    p.add_argument('--models-from', type=Path, default=Path.home() / 'Library/Application Support/Vella')
+    p.add_argument('--models-from', type=Path, default=Path.home() / 'Library/Application Support/Vella',
+                   help='installed registry JSON or its support directory; read only')
     p.add_argument('--model', default='parakeet-v3-ultra')
     p.add_argument('--precision', choices=['bf16', 'fp16', 'int8', 'int4'], default='bf16')
     p.add_argument('--path', choices=['Standard', 'Optimized'], default='Optimized')
@@ -99,8 +105,7 @@ def main():
     audio = a.audio_root.expanduser().resolve()
     for clip in manifest['clips']:
         verify(clip, audio)
-    registry_path = a.models_from.expanduser() / 'models-installed.json'
-    registry = json.loads(registry_path.read_text())
+    registry = installed_registry(a.models_from)
     native = next(v for v in family['variants'].values() if not v.get('derivedFrom'))
     if native['id'] not in registry or not Path(registry[native['id']]['path']).is_dir():
         sys.exit('native checkpoint is not installed; ask user before Get')
