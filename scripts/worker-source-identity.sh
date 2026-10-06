@@ -11,7 +11,7 @@
 # a Worker README-only change, refresh that declared full-tree identity and its published provenance references.
 set -euo pipefail
 SOURCE=843a43444659dbd7f2de507b1e2da11453efb31b # informational measured-defaults commit, never a reachability gate
-WORKER_CODE_TREE=365189f37c2ec01e5e1995d2a31dfef82c87ede3   # git tree of Worker/ with its README.md files removed
+WORKER_CODE_TREE=f91dc21579e795736daab3d6cb743bc3a5f4e621   # git tree of Worker/ with its README.md files removed
 # 5 Oct: Worker/build-split.sh weak-links swift_initBorrow for Swift >= 6.4 builds only; with Swift 6.3.3 its commands are
 # unchanged.
 PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
@@ -19,13 +19,10 @@ PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=39e2ba2869b76a37ebe3cad9d1f86d6a9e6240d7   # 6 Oct: public gate documentation pointer; executable source unchanged
+WORKER_FULL_TREE=ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c   # 6 Oct: model READMEs regenerated (every measured tier offered); code tree unchanged
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
-# Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files, build-split.sh and the two pinned gate comment references only (checked below;
+# Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
 # build-split.sh differs by the Swift 6.4-only link step, inactive with the reference's Swift 6.3.3).
-# A strictly pinned comment-only bridge: no other FastPathGate bytes may differ from the captured reference.
-REFERENCE_GATE_BLOB=c77f98a1ec0d4266330a878c21a64cc8689fcddf
-PUBLIC_GATE_BLOB=4a15ca43a7a376da80ce7aec05427a10921af607
 REFERENCE_WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
 # Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 843a434
 # (BASE_WORKER_TREE, full tree including READMEs). The history scrub of 3 Oct rewrote that commit's Whisper README, so this
@@ -74,15 +71,8 @@ verify_index() {
   echo "worker source: published full Worker tree (README.md included) $full"
   if g cat-file -e "$REFERENCE_WORKER_FULL_TREE^{tree}" 2>/dev/null; then
     refdiff="$(g diff --name-only "$REFERENCE_WORKER_FULL_TREE" "$WORKER_FULL_TREE")" || return 1
-    [[ -z "$(grep -Ev '(^|/)README\.md$|^build-split\.sh$|^Sources/MLXAudioSTT/Gate/FastPathGate\.swift$' <<<"$refdiff" || true)" ]] || { echo 'reference capture tree differs from the shipped Worker tree beyond README.md files and build-split.sh' >&2; return 1; }
-    local gate=Sources/MLXAudioSTT/Gate/FastPathGate.swift
-    [[ "$(g rev-parse "$REFERENCE_WORKER_FULL_TREE:$gate")" == "$REFERENCE_GATE_BLOB" && "$(g rev-parse "$WORKER_FULL_TREE:$gate")" == "$PUBLIC_GATE_BLOB" ]] || { echo 'gate documentation bridge differs from its exact reviewed blobs' >&2; return 1; }
-    # Only the two documentation references change; executable lines remain byte-equal.
-    local old new
-    old="$(g cat-file blob "$REFERENCE_GATE_BLOB" | sed 's|lab/notes/GATE-REVISION.md|Benchmarks/OPTIMIZATION.md, "Put a path behind FastPathGate"|; s|(GATE-REVISION.md)|(Benchmarks/OPTIMIZATION.md)|')" || return 1
-    new="$(g cat-file blob "$PUBLIC_GATE_BLOB")" || return 1
-    [[ "$old" == "$new" ]] || { echo 'gate bridge changes more than the public documentation references' >&2; return 1; }
-    echo "worker source: reference differs only in README.md files, Swift 6.4 link step and two pinned gate comment references"
+    [[ -z "$(grep -Ev '(^|/)README\.md$|^build-split\.sh$' <<<"$refdiff" || true)" ]] || { echo 'reference capture tree differs from the shipped Worker tree beyond README.md files and build-split.sh' >&2; return 1; }
+    echo "worker source: diagnose reference capture tree differs from the shipped tree in README.md files and the Swift 6.4 link step only"
   fi
   while IFS= read -r path; do g update-index --force-remove -- "$path" || return 1; done <<<"$readmes"
   tree="$(g write-tree)" || return 1
