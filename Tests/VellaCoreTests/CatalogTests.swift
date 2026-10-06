@@ -308,7 +308,7 @@ final class CatalogTests: XCTestCase {
         }
         XCTAssertEqual(lines.filter { $0.hasPrefix("| ") && !$0.hasPrefix("| Model") && !$0.contains("(cloud API)") }.count, rows, "no other model rows")
         XCTAssertTrue(
-            table.contains("Shipped source trees: Worker `ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c`, Packages `6851d8c101f507aea8980af93fd877aa0e84a20c`"),
+            table.contains("Shipped source trees: Worker `39e2ba2869b76a37ebe3cad9d1f86d6a9e6240d7`, Packages `6851d8c101f507aea8980af93fd877aa0e84a20c`"),
             "both builds and the source bridge are documented")
     }
 

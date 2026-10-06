@@ -11,7 +11,7 @@ public enum FastPathGateError: Error { case invalid }
 /// The test runs in a child process with a deadline, so a kernel hang or GPU fault cannot take down the serving
 /// worker. The verdict is persisted per (model files, GPU family/architecture/device name, macOS build, worker version, model fast-path
 /// revision); failure is sticky for that key — never turn a failed test into a fast run.
-/// Two stages (lab/notes/GATE-REVISION.md): exact components must reproduce stock's tokens, or the whole model runs
+/// Two stages (Benchmarks/OPTIMIZATION.md, "Put a path behind FastPathGate"): exact components must reproduce stock's tokens, or the whole model runs
 /// stock; each inexact (tolerant) component is then tested within its tolerance on top of them, and a failure there
 /// disables only that component: the verdict is "fast" without it.
 /// Shared by both workers (dictation `VellaWorker`, streaming `VellaStreamingWorker`); each worker supplies its own
@@ -19,7 +19,7 @@ public enum FastPathGateError: Error { case invalid }
 public enum FastPathGate {
     /// Bumped to 8 with the component configuration in the key: a verdict persisted earlier may have
     /// been qualified under a diagnostic component override, so every model requalifies once.
-    /// 9: two-stage gate with tolerance self-tests for inexact components (GATE-REVISION.md).
+    /// 9: two-stage gate with tolerance self-tests for inexact components (Benchmarks/OPTIMIZATION.md).
     /// 10: Parakeet NAX GEMMs on by default; Qwen3-ASR's BF16 audio encoder off by default (removed since).
     /// Kept-lever defaults reuse the measured effective configurations: no kernel or self-test changed.
     public static let version = "native-kernels-10"

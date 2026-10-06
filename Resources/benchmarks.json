@@ -5791,7 +5791,7 @@
       "worker_sha256": "613c911562efa5379bcd02ed78b126e5867290659e5151ab9f61185e49711252",
       "commit_kind": "informational measured-defaults commit (may change in a history rewrite)",
       "worker_source_trees": {
-        "Worker": "ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c",
+        "Worker": "39e2ba2869b76a37ebe3cad9d1f86d6a9e6240d7",
         "Packages": "6851d8c101f507aea8980af93fd877aa0e84a20c"
       },
       "build_scripts_sha256": "baa879823b5157546f0ce6912de8fe9b670af29e664cf5b23bdf2bbe9173149b",
