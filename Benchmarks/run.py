@@ -41,7 +41,8 @@ def public_status(model):
     # Whitelist: never submit paths, tokens, timestamps, user settings or recording history.
     result = {k: model[k] for k in ('engine', 'precision', 'mode', 'selection', 'requested_selection', 'optimizations', 'fallback', 'fallbacks', 'fallback_reason', 'worker_version', 'recipe', 'engine_reason', 'version') if k in model}
     result['fallbacks'] = model.get('fallbacks', [])
-    if model.get('engine_reason') and model.get('engine') != 'optimized':
+    requested_optimized = model.get('recipe', '').startswith('optimized') or (model.get('requested_selection') or {}).get('path') == 'optimized'
+    if requested_optimized and model.get('engine_reason') and model.get('engine') != 'optimized':
         result['fallbacks'] = result['fallbacks'] + [model['engine_reason']]
     return result
 
@@ -66,7 +67,9 @@ def main():
     app = a.app.expanduser().resolve()
     info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
     catalog = json.loads((app / 'Contents/Resources/models.json').read_text())
-    family = next(f for f in catalog['families'] if f['id'] == a.model)
+    family = next((f for f in catalog['families'] if f['id'] == a.model), None)
+    if family is None:
+        p.error('model ID is not in the installed app catalog')
     if family['mode'] != 'dictation':
         p.error('2.0.0 has no streaming API; use streaming.py, labelled shipped-helper, for Nemotron')
     suite = ROOT / 'suites' / ('v2-quick' if a.suite == 'quick' else 'v2') / 'manifest.json'
@@ -92,7 +95,9 @@ def main():
     support = out / 'support'
     support.mkdir()
     write(support / 'models-installed.json', {native['id']: registry[native['id']]})
-    env = dict(os.environ, VELLA_SUPPORT_DIR=str(support), VELLA_NO_LAUNCH='1', VELLA_REGISTER_APP='0')
+    (support / 'home').mkdir()
+    env = dict(os.environ, HOME=str(support / 'home'), VELLA_SUPPORT_DIR=str(support), VELLA_NO_LAUNCH='1',
+               VELLA_REGISTER_APP='0', VELLA_QA_HEADLESS='1', VELLA_UPDATE='0')
     # Refuse inherited experiment switches: shipped defaults are the baseline.
     forbidden = sorted(k for k in os.environ if k.startswith('VELLA_') and k not in ('VELLA_LOCK_HELD', 'VELLA_MEASURE_WINDOW', 'VELLA_MEASURE_COMPOSITING_GPU'))
     if forbidden:
@@ -166,7 +171,7 @@ def main():
                 'suite': {'kind': a.suite, 'id': manifest['id'], 'version': manifest['version'],
                     'manifest_sha256': hashlib.sha256(suite.read_bytes()).hexdigest(), 'quality_label': 'estimate' if a.suite == 'quick' else 'full'},
                 'protocol': {'transport': 'installed-app-api', 'repeats': a.repeats, 'warm_state': 'one whole-clip warmup; model remains loaded',
-                    'machine_idle': a.machine_idle, 'request_errors': 0, 'worker_exits': 0, 'speed': 'audio seconds / serial API wall seconds; includes decode and app segmentation',
+                    'machine_idle': a.machine_idle, 'isolation': 'fresh support/home; headless API; updates disabled; native checkpoint read in place', 'request_errors': 0, 'worker_exits': 0, 'speed': 'audio seconds / serial API wall seconds; includes decode and app segmentation',
                     'peak_ram': 'worker lifetime peak physical footprint; decimal MB; includes load and warmup'},
                 'metrics': {'wer_percent': statistics.median(x['wer_percent'] for x in passes),
                     'speed_x_realtime': statistics.median(x['speed_x_realtime'] for x in passes), 'peak_ram_mb': peak_mb}, 'passes': passes,

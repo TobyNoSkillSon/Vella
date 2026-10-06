@@ -34,7 +34,7 @@ AISHELL-4, Beijing Shell Shell Technology Co., Ltd.; OpenSLR SLR111; utterance f
 
 Source: https://www.openslr.org/111/
 Licence: https://www.openslr.org/111/
-Pinned revision: `df062e4993eeb9873605f8c74d6fac1db0560799`
+Pinned upstream "revision": `df062e4993eeb9873605f8c74d6fac1db0560799`
 
 ## ami
 
@@ -42,7 +42,7 @@ AMI Corpus, University of Edinburgh; official AMI download, CC BY 4.0.
 
 Source: https://groups.inf.ed.ac.uk/ami/download/
 Licence: https://groups.inf.ed.ac.uk/ami/download/
-Pinned revision: `manual-v1.6.2 SHA256:b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d; ES2004a.Array1-01.wav SHA256:6936edac5d0904fc5c4ab175546c5cc5366601fdc1b1e5183a6ea2c10f05d150`
+Pinned upstream "revision": `manual-v1.6.2 SHA256:b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d; ES2004a.Array1-01.wav SHA256:6936edac5d0904fc5c4ab175546c5cc5366601fdc1b1e5183a6ea2c10f05d150`
 
 ## apptek
 
@@ -50,7 +50,7 @@ AppTek, Call-Center Dialogues (2026); role-played customer-service recordings.
 
 Source: https://huggingface.co/datasets/apptek-com/apptek_callcenter_dialogues
 Licence: https://huggingface.co/datasets/apptek-com/apptek_callcenter_dialogues/blob/b98967d9946f7f59f58d08624a2a00fe98fe0219/README.md
-Pinned revision: `b98967d9946f7f59f58d08624a2a00fe98fe0219`
+Pinned upstream "revision": `b98967d9946f7f59f58d08624a2a00fe98fe0219`
 
 ## dipco
 
@@ -58,7 +58,7 @@ DiPCo corpus, Dinner Party Corpus; huckiyang/DiPCo mirror.
 
 Source: https://huggingface.co/datasets/huckiyang/DiPCo
 Licence: https://huggingface.co/datasets/huckiyang/DiPCo/blob/e2b29d3d0d88692c744feb15e290f7316b68014e/README.md
-Pinned revision: `e2b29d3d0d88692c744feb15e290f7316b68014e`
+Pinned upstream "revision": `e2b29d3d0d88692c744feb15e290f7316b68014e`
 
 ## earnings25
 
@@ -66,7 +66,7 @@ Florence Jiang et al., Earnings25 (2026), Zenodo DOI 10.5281/zenodo.18762167.
 
 Source: https://huggingface.co/datasets/florencejiang/earnings25
 Licence: https://arxiv.org/html/2607.23813v1
-Pinned revision: `b4864bf8f0cd1e3b153e502d45bb29cd46993f21`
+Pinned upstream "revision": `b4864bf8f0cd1e3b153e502d45bb29cd46993f21`
 
 ## edacc
 
@@ -74,7 +74,7 @@ University of Edinburgh CSTR, EdAcc (2023).
 
 Source: https://huggingface.co/datasets/edinburghcstr/edacc
 Licence: https://huggingface.co/datasets/edinburghcstr/edacc/blob/d9ae7bd344f0562b766ec93ee5ce8f2f9568ce66/README.md
-Pinned revision: `d9ae7bd344f0562b766ec93ee5ce8f2f9568ce66`
+Pinned upstream "revision": `d9ae7bd344f0562b766ec93ee5ce8f2f9568ce66`
 
 ## fleurs
 
@@ -82,7 +82,7 @@ Conneau et al., FLEURS: Few-shot Learning Evaluation of Universal Representation
 
 Source: https://huggingface.co/datasets/google/fleurs
 Licence: https://huggingface.co/datasets/google/fleurs/blob/70bb2e84b976b7e960aa89f1c648e09c59f894dd/README.md
-Pinned revision: `70bb2e84b976b7e960aa89f1c648e09c59f894dd`
+Pinned upstream "revision": `70bb2e84b976b7e960aa89f1c648e09c59f894dd`
 
 ## hike
 
@@ -90,7 +90,7 @@ HiKE, thetaone-ai; bilingual speakers recorded reviewed, scripted Korean–Engli
 
 Source: https://huggingface.co/datasets/thetaone-ai/HiKE
 Licence: https://huggingface.co/datasets/thetaone-ai/HiKE/blob/255609b24005e1fcce3f8b3a452260aaf2872cc9/README.md
-Pinned revision: `255609b24005e1fcce3f8b3a452260aaf2872cc9`
+Pinned upstream "revision": `255609b24005e1fcce3f8b3a452260aaf2872cc9`
 
 ## klang
 
@@ -98,7 +98,7 @@ Klang AI, Klang Dialects (2026); opt-in Swedish speakers.
 
 Source: https://huggingface.co/datasets/KlangAI/klang-dialects
 Licence: https://huggingface.co/datasets/KlangAI/klang-dialects/blob/4117db6f1c53f5c1ca03309ce2a8060b96653708/LICENSE
-Pinned revision: `4117db6f1c53f5c1ca03309ce2a8060b96653708`
+Pinned upstream "revision": `4117db6f1c53f5c1ca03309ce2a8060b96653708`
 
 ## librispeech-pc
 
@@ -106,7 +106,7 @@ Mehri et al., LibriSpeech-PC; LibriSpeech / OpenSLR 12 audio.
 
 Source: https://www.openslr.org/145/
 Licence: https://www.openslr.org/resources/145/about.html
-Pinned revision: `OpenSLR145 manifests sha256:96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0; openslr/librispeech_asr parquet@2b9f39377850ffce6bf6358257ae9f84b2349497`
+Pinned upstream "revision": `OpenSLR145 manifests sha256:96d4eae2222b29b66437a21959252419bcd4762e5042e71e023790171054d1c0; openslr/librispeech_asr parquet@2b9f39377850ffce6bf6358257ae9f84b2349497`
 
 ## mediaspeech
 
@@ -114,7 +114,7 @@ Kolobov et al., MediaSpeech (2021); original YouTube video owners. HF mirror ymo
 
 Source: https://www.openslr.org/108/
 Licence: https://github.com/NTRLab/MediaSpeech
-Pinned revision: `4008a968760f2187b0c5b2b2db965f1283433059`
+Pinned upstream "revision": `4008a968760f2187b0c5b2b2db965f1283433059`
 
 ## mls
 
@@ -122,7 +122,7 @@ Pratap et al., MLS (2020); source LibriVox readers and works.
 
 Source: https://huggingface.co/datasets/facebook/multilingual_librispeech
 Licence: https://www.openslr.org/94/
-Pinned revision: `2e83e61823b4c47dcbcb1980bb88601274127609`
+Pinned upstream "revision": `2e83e61823b4c47dcbcb1980bb88601274127609`
 
 ## monsoon
 
@@ -130,7 +130,7 @@ VoiceArena, Monsoon en-IN public test (2026).
 
 Source: https://huggingface.co/datasets/VoiceArena/MonsoonASR-Open-ASR-leaderboard-en-IN
 Licence: https://huggingface.co/datasets/VoiceArena/MonsoonASR-Open-ASR-leaderboard-en-IN/blob/bc1da7b42ef6e2853123c97bf6d22067e4802d11/README.md
-Pinned revision: `bc1da7b42ef6e2853123c97bf6d22067e4802d11`
+Pinned upstream "revision": `bc1da7b42ef6e2853123c97bf6d22067e4802d11`
 
 ## muscat
 
@@ -138,7 +138,7 @@ MUSCAT authors, bilingual scientific conversations, LREC 2026; native speakers.
 
 Source: https://huggingface.co/datasets/goodpiku/muscat-eval
 Licence: https://huggingface.co/datasets/goodpiku/muscat-eval/blob/e5e477cc4aeee6b6f5ea65513914b694fb1030f3/README.md
-Pinned revision: `e5e477cc4aeee6b6f5ea65513914b694fb1030f3`
+Pinned upstream "revision": `e5e477cc4aeee6b6f5ea65513914b694fb1030f3`
 
 ## notsofar
 
@@ -146,7 +146,7 @@ Microsoft, NOTSOFAR-1 dataset; CC BY 4.0.
 
 Source: https://huggingface.co/datasets/microsoft/NOTSOFAR
 Licence: https://huggingface.co/datasets/microsoft/NOTSOFAR/blob/ba8fd0f034ce185fe4d24f47e53b4b8194795f07/LICENSE.txt
-Pinned revision: `ba8fd0f034ce185fe4d24f47e53b4b8194795f07`
+Pinned upstream "revision": `ba8fd0f034ce185fe4d24f47e53b4b8194795f07`
 
 ## polish-tedx
 
@@ -154,23 +154,23 @@ s512757, Polish TEDx ASR Eval (2026); original TEDx Talks speakers/video owners.
 
 Source: https://huggingface.co/datasets/s512757/polish-tedx-asr-eval
 Licence: https://huggingface.co/datasets/s512757/polish-tedx-asr-eval/blob/d0826bb93d2e268dce45b078e0bae56e7d43af21/README.md
-Pinned revision: `d0826bb93d2e268dce45b078e0bae56e7d43af21`
+Pinned upstream "revision": `d0826bb93d2e268dce45b078e0bae56e7d43af21`
 
 ## rev-earnings
 
 Rev, Earnings-22 and Earnings-21 human verbatim transcripts.
 
 Source: https://github.com/revdotcom/speech-datasets
-Licence: https://raw.githubusercontent.com/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings22/LICENSE.md
-Pinned revision: `c05ab6fd8b4b627d123c922a22a39e993dd37635`
+Licence: https://github.com/revdotcom/speech-datasets/blob/c05ab6fd8b4b627d123c922a22a39e993dd37635/earnings22/LICENSE.md
+Pinned upstream "revision": `c05ab6fd8b4b627d123c922a22a39e993dd37635`
 
 ## rev16
 
 Radford et al. (2023), Rev transcriptionists; underlying podcast creators retain media rights.
 
 Source: https://github.com/revdotcom/speech-datasets/tree/c05ab6fd8b4b627d123c922a22a39e993dd37635/rev16
-Licence: https://raw.githubusercontent.com/revdotcom/speech-datasets/c05ab6fd8b4b627d123c922a22a39e993dd37635/rev16/LICENSE.md
-Pinned revision: `Rev text c05ab6fd8b4b627d123c922a22a39e993dd37635; podcast mirror sanchit-gandhi/rev16_csv@acad9372c439d3d538f846e1c4df9bb9a2730ba1`
+Licence: https://github.com/revdotcom/speech-datasets/blob/c05ab6fd8b4b627d123c922a22a39e993dd37635/rev16/LICENSE.md
+Pinned upstream "revision": `Rev text c05ab6fd8b4b627d123c922a22a39e993dd37635; podcast mirror sanchit-gandhi/rev16_csv@acad9372c439d3d538f846e1c4df9bb9a2730ba1`
 
 ## zeroth
 
@@ -178,4 +178,4 @@ Zeroth-Korean, OpenSLR SLR40; test-only parquet redistributed by kresnik/zeroth_
 
 Source: https://www.openslr.org/40/
 Licence: https://www.openslr.org/40/
-Pinned revision: `1fe937899f828af822293d05e086200946088bdf`
+Pinned upstream "revision": `1fe937899f828af822293d05e086200946088bdf`

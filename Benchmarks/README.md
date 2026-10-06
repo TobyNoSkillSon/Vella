@@ -20,7 +20,7 @@ Coding agents start here. Measure one installed model, then propose a result or 
    ```sh
    Benchmarks/.venv/bin/python Benchmarks/run.py --app "$HOME/Applications/Vella.app" --machine-idle yes --out Benchmarks/runs/ultra-quick
    ```
-   A DMG install uses `/Applications/Vella.app`. The runner starts a separate instance of that installed app with a fresh support directory, reads only the native installed-model registry entry, warms one whole clip, then measures three serial passes through its real API. It creates derived tiers only in its isolated profile. Your usual Vella settings, history and recordings are untouched. Quit other inference yourself; this kit never stops another app. Use `--dry-run` to verify inputs without launching, loading or transcribing.
+   A DMG install uses `/Applications/Vella.app`. The runner starts a separate instance of that installed app with a fresh support/home directory and its existing headless API mode (no extra menu, shortcuts or update checks), reads only the native installed-model registry entry, warms one whole clip, then measures three serial passes through its real API. It creates derived tiers only in its isolated profile. Your usual Vella settings, history and recordings are untouched. Quit other inference yourself; this kit never stops another app. Use `--dry-run` to verify inputs without launching, loading or transcribing.
 5. Check and inspect the result, then ask before submitting:
    ```sh
    python3 Benchmarks/check-result.py Benchmarks/runs/ultra-quick/result.json
