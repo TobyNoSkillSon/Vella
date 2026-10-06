@@ -37,7 +37,7 @@ Coding agents start here. Measure one installed model, then propose a result or 
 
 For another cell add `--model ID --precision bf16|fp16|int8|int4 --path Standard|Optimized --mode Exact|Fast`. For full quality, fetch and run with `--suite full`; retain all clips. `--audio-root PATH` reuses an existing verified audio directory without copying it. `--models-from PATH` accepts an installed `models-installed.json` file or its support directory, reading only the registry. The runner refuses inherited experiment switches; a source-built candidate is selected through `--app`.
 
-**Nemotron:** 2.0.0 exposes no streaming transcription API. [streaming.py](streaming.py) drives the installed app's shipped streaming helper, using 100-ms packets and a fixed 1.2-second silence between clips, as the published measurement did. It is labelled `shipped-streaming-helper`, not end-to-end app/API performance. Read its `--help` and the model [notes](../Worker/Sources/MLXAudioSTT/NemotronASR/README.md); compare Standard and candidate with identical session layout. The kit does not automate microphone or UI recording.
+**Nemotron:** 2.0.0 exposes no streaming transcription API. [streaming.py](streaming.py) drives the installed app's shipped streaming helper, using 100-ms packets and a fixed 1.2-second silence between clips, as the published measurement did. It finishes a separate warm-up stream before timing; every measured pass starts a fresh session while reusing the loaded model. It is labelled `shipped-streaming-helper`, not end-to-end app/API performance. Read its `--help` and the model [notes](../Worker/Sources/MLXAudioSTT/NemotronASR/README.md); compare Standard and candidate with identical session layout. The kit does not automate microphone or UI recording.
 
 ## Numbers for each model
 
@@ -71,7 +71,7 @@ PYTHON
 
 Pass those exact values to `streaming.py --model-path PATH --checkpoint-revision REVISION`, with `--app`, `--precision bf16`, `--suite quick`, an honest `--machine-idle`, and a fresh `--out`. Native Nemotron is BF16. For a derived tier, use its verified registry path/manifest and matching precision; do not label a native checkpoint int8/int4. Never submit checkpoint paths in the results JSON.
 
-Kit API speed measures the entire serial API request, including file decode, app segmentation and HTTP response work. Published README/table speeds use the helper timer and exclude file preparation and the app/HTTP layer. **Compare kit speeds with kit speeds**, on the same transport, suite, precision and conditions; do not rank an API result against the published helper figure. The maintainer's M5 Max kit baseline will be committed after the first GPU window; none is available yet. Nemotron's helper lane is separate again because of its packet/gap layout.
+Kit API speed measures the entire serial API request, including file decode, app segmentation and HTTP response work. Published README/table speeds use the helper timer and exclude file preparation and the app/HTTP layer. **Compare kit speeds with kit speeds**, on the same transport, suite, precision and conditions; do not rank an API result against the published helper figure. The maintainer's [M5 Max v2.0.1 kit baselines](results/README.md#m5-max-maintainer-baselines) include Ultra quick/full and Nemotron quick. Nemotron's helper lane is separate again because of its packet/gap layout.
 
 ## Suites and audio
 

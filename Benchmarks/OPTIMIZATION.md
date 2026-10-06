@@ -71,4 +71,4 @@ Pass files contain exactly one hypothesis for every manifest clip. `gate.py` com
 - Worker stdout contains pushed status lines. Match response IDs, retain stderr privately and bound request deadlines. Never let a shifted response list produce plausible scores.
 - Inexact kernels must stay finite for valid extreme input, including final split-K reduction. Check guard and fallback paths as well as a forced kernel; numerical exceptional cases may need float64 truth rather than equality to overflowing stock.
 
-Compare kit speed only against a kit baseline using the same transport and timer. Published helper-timer speeds are a different boundary. The maintainer will commit an M5 Max kit baseline after the first GPU window; do not invent or derive one from the published table.
+Compare kit speed only against a kit baseline using the same transport and timer. Published helper-timer speeds are a different boundary. The maintainer's [M5 Max v2.0.1 kit baselines](results/README.md#m5-max-maintainer-baselines) are committed for Ultra quick/full and Nemotron quick; do not derive an API baseline from the published helper table.

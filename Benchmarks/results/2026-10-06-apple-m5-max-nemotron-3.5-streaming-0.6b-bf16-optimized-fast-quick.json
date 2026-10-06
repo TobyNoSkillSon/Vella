@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-06T09:28:16.592488+00:00",
+  "hardware": {
+    "chip": "Apple M5 Max",
+    "gpu_cores": 40,
+    "ram_bytes": 137438953472,
+    "macos_version": "27.0.1",
+    "macos_build": "26A434",
+    "power_source": "AC"
+  },
+  "vella": {
+    "version": "2.0.1",
+    "build": "36",
+    "worker_sha256": "e9cb469b6381f25a251ccdcaef262c8b671c19ba004f8526bcd55c422c5e96a0"
+  },
+  "model": {
+    "id": "nemotron-3.5-streaming-0.6b",
+    "precision": "bf16",
+    "path": "Optimized",
+    "mode": "Fast",
+    "checkpoint_revision": "e550040c0478027ed679b2b6b0d055502c103663",
+    "status": {
+      "engine": "optimized",
+      "optimizations": {
+        "batched_decode": true,
+        "bf16_linears": true,
+        "coalesce": true,
+        "f32_weights": true,
+        "fused_layer": true,
+        "joint_batch": true,
+        "keep_cache": true,
+        "kv_cache": true,
+        "mel_batch": true,
+        "position_cache": true
+      },
+      "recipe": "optimized_fast",
+      "engine_reason": "Self-tested on this Mac against stock MLX (same streamed text; the fused layer and the joint batch are within a small numeric tolerance).",
+      "version": "native-kernels-10",
+      "fallbacks": []
+    },
+    "status_line": "direct shipped-helper status; vella status does not observe this separate worker"
+  },
+  "suite": {
+    "kind": "quick",
+    "id": "vella-v2-quick",
+    "version": "1.0.0",
+    "manifest_sha256": "5cbda7a5f463d4f12bc4e58982ea16e1f23f3f9361aafc42c3344b6d5fd159b8",
+    "quality_label": "estimate"
+  },
+  "protocol": {
+    "transport": "shipped-streaming-helper",
+    "repeats": 3,
+    "warm_state": "2-second audio + 1.2-second gap warmup; fresh stream before each timed pass; loaded worker reused",
+    "machine_idle": "no",
+    "request_errors": 0,
+    "worker_exits": 0,
+    "speed": "audio seconds / serial helper warm wall seconds; excludes decode; includes 1.2s gap per clip",
+    "peak_ram": "worker lifetime peak physical footprint; decimal MB",
+    "session_layout": "stream-concat-gap19200;1600-sample-packets;one-session-per-pass",
+    "conditions_notes": "Mac in active use by its owner; isolated benchmark serialized under the shared GPU lock. AC power; pmset reported no recorded thermal/performance warnings before and after the run. No temperature or energy measurement; no quiet-machine claim."
+  },
+  "metrics": {
+    "wer_percent": 18.813468733297704,
+    "speed_x_realtime": 19.6668278997968,
+    "peak_ram_mb": 1864.41908
+  },
+  "passes": [
+    {
+      "wer_percent": 18.813468733297704,
+      "wall_seconds": 101.87488045899954,
+      "speed_x_realtime": 13.27916772912879
+    },
+    {
+      "wer_percent": 18.813468733297704,
+      "wall_seconds": 68.78656954200414,
+      "speed_x_realtime": 19.6668278997968
+    },
+    {
+      "wer_percent": 18.813468733297704,
+      "wall_seconds": 67.31590712499747,
+      "speed_x_realtime": 20.096492534639538
+    }
+  ],
+  "scorer": {
+    "normalizer": "vella-v2-lexical-1.0.0",
+    "sha256": "d917f5ca849a060f380f65acadfeda27022da3d6e2b99bc2115d61439b182eaa"
+  },
+  "personal_recordings_included": false
+}

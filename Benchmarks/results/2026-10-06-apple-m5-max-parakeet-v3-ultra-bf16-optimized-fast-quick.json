@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-06T08:47:05.552464+00:00",
+  "hardware": {
+    "chip": "Apple M5 Max",
+    "gpu_cores": 40,
+    "ram_bytes": 137438953472,
+    "macos_version": "27.0.1",
+    "macos_build": "26A434",
+    "power_source": "AC"
+  },
+  "vella": {
+    "version": "2.0.1",
+    "build": "36",
+    "app_sha256": "7cba73311d451a44bc80fc09a7111bf17c6ddf903a12102ce0bd2128f637a5f4",
+    "worker_sha256": "e9cb469b6381f25a251ccdcaef262c8b671c19ba004f8526bcd55c422c5e96a0"
+  },
+  "model": {
+    "id": "parakeet-v3-ultra",
+    "precision": "bf16",
+    "path": "Optimized",
+    "mode": "Fast",
+    "checkpoint_revision": "b554592c50b2a48471add2daa3d46fa9f00fef5e",
+    "status": {
+      "engine": "optimized",
+      "precision": "BF16",
+      "mode": "dictation",
+      "selection": {
+        "mode": "fast",
+        "path": "optimized",
+        "tier": "16"
+      },
+      "optimizations": {
+        "decoder": true,
+        "encoder": true,
+        "nax_gemm": true
+      },
+      "worker_version": "native-kernels-10",
+      "fallbacks": []
+    },
+    "status_line": "Vella 2.0.1 running (pid 43442), parakeet-v3-ultra bf16 · Optimized Fast loaded · dictation model Parakeet v3 Ultra (bf16, Optimized Fast) · API http://127.0.0.1:59330/v1"
+  },
+  "suite": {
+    "kind": "quick",
+    "id": "vella-v2-quick",
+    "version": "1.0.0",
+    "manifest_sha256": "5cbda7a5f463d4f12bc4e58982ea16e1f23f3f9361aafc42c3344b6d5fd159b8",
+    "quality_label": "estimate"
+  },
+  "protocol": {
+    "transport": "installed-app-api",
+    "repeats": 3,
+    "warm_state": "one whole-clip warmup; model remains loaded",
+    "machine_idle": "no",
+    "isolation": "fresh support/home; headless API; updates disabled; native checkpoint read in place",
+    "request_errors": 0,
+    "worker_exits": 0,
+    "speed": "audio seconds / serial API wall seconds; includes decode and app segmentation",
+    "peak_ram": "worker lifetime peak physical footprint; decimal MB; includes load and warmup",
+    "conditions_notes": "Mac in active use by its owner; isolated benchmark serialized under the shared GPU lock. AC power; pmset reported no recorded thermal/performance warnings before and after the run. No temperature or energy measurement; no quiet-machine claim."
+  },
+  "metrics": {
+    "wer_percent": 6.8412613575628,
+    "speed_x_realtime": 129.3789621754874,
+    "peak_ram_mb": 2175.420264
+  },
+  "passes": [
+    {
+      "wer_percent": 6.8412613575628,
+      "wall_seconds": 10.121014791999187,
+      "speed_x_realtime": 133.66383241228135
+    },
+    {
+      "wer_percent": 6.8412613575628,
+      "wall_seconds": 10.456210208001721,
+      "speed_x_realtime": 129.3789621754874
+    },
+    {
+      "wer_percent": 6.8412613575628,
+      "wall_seconds": 12.545057000002998,
+      "speed_x_realtime": 107.83638727186944
+    }
+  ],
+  "scorer": {
+    "normalizer": "vella-v2-lexical-1.0.0",
+    "sha256": "d917f5ca849a060f380f65acadfeda27022da3d6e2b99bc2115d61439b182eaa"
+  },
+  "personal_recordings_included": false
+}

@@ -6,6 +6,16 @@ The record includes chip, GPU core count, RAM bytes, macOS version/build, power 
 
 For an optimization, include the baseline and candidate records, all changed transcripts, profile, diff and gate output. Record both source commits and worker hashes. Run the full suite before claiming the full-quality gate passed. Numbers alone can be contributed for one model; they do not automatically replace the reference table. Maintainers review hardware, protocol, quality and claims by hand.
 
+## M5 Max maintainer baselines
+
+Measured 6 October 2026 using the published Vella 2.0.1, build 36, on a 40-core M5 Max with 128 GiB RAM, macOS 27.0.1 and AC power. The Mac was in active use (`machine_idle: no`); speeds varied across passes. Each record retains all three passes and actual engine status. No energy or temperature measurement was taken; `pmset` reported no recorded thermal/performance warnings before or after the runs.
+
+- [Ultra BF16 Optimized Fast, quick estimate](2026-10-06-apple-m5-max-parakeet-v3-ultra-bf16-optimized-fast-quick.json): installed-app API.
+- [Ultra BF16 Optimized Fast, full](2026-10-06-apple-m5-max-parakeet-v3-ultra-bf16-optimized-fast-full.json): installed-app API; English WER rounds to the published 15.51%. Full-suite peak RAM includes allocations outside the published quick performance suite.
+- [Nemotron BF16 Optimized Fast, quick estimate](2026-10-06-apple-m5-max-nemotron-3.5-streaming-0.6b-bf16-optimized-fast-quick.json): shipped streaming helper, with the packet/gap/session layout recorded in the JSON.
+
+The other five dictation families lacked installed native checkpoints and were skipped; no model weights were downloaded. Compare results only within the same suite, transport and cell, accounting for machine conditions. These records do not replace the dated helper-timer figures in the app table.
+
 Before proposing a PR:
 
 ```sh
