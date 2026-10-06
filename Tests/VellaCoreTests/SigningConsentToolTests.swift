@@ -10,7 +10,7 @@ final class SigningConsentToolTests: XCTestCase {
             tool, root = sys.argv[1:]
             routes = [
                 ('scripts/install.sh', 'scripts/install.sh 2.0.0 --migrate-signing'),
-                ('scripts/install-public.sh', 'curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | env VELLA_DESTINATION_APP=/fixture/Vella.app VELLA_VERSION=2.0.0 VELLA_SUPPORT_DIR=/fixture/support VELLA_BIN_DIR=/fixture/bin bash -s -- --migrate-signing'),
+                ('scripts/install-public.sh', 'curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | env VELLA_DESTINATION_APP=/fixture/Vella.app VELLA_VERSION=2.0.1 VELLA_SUPPORT_DIR=/fixture/support VELLA_BIN_DIR=/fixture/bin bash -s -- --migrate-signing'),
                 ('scripts/install-release.sh', 'scripts/install-release.sh 2.0.0 --migrate-signing'),
                 ('scripts/install-prepared.sh', "scripts/install-prepared.sh /fixture/Vella.app --migrate-signing"),
             ]

@@ -42,7 +42,7 @@ final class CLIReleaseTests: XCTestCase {
         let cli = VellaCLI(environment: ["VELLA_NO_LAUNCH": "1"], write: { lines.append($0) }, warn: { _ in })
         let code = await cli.run(["--version"])
         XCTAssertEqual(code, 0)
-        XCTAssertEqual(lines, ["Vella 2.0.0"])
+        XCTAssertEqual(lines, ["Vella 2.0.1"])
     }
 
     func testAgentDocumentsPinTheSameChipLine() throws {

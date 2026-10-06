@@ -132,7 +132,7 @@ struct VellaCLI {
             let args = try Arguments(rest, values: [], flags: [])
             if let extra = args.positional.first { throw CLIError("unexpected argument \(extra)") }
             let info = VellaClient.containingApp.flatMap { NSDictionary(contentsOf: $0.appendingPathComponent("Contents/Info.plist")) }
-            write("Vella \(info?["CFBundleShortVersionString"] as? String ?? "2.0.0")")
+            write("Vella \(info?["CFBundleShortVersionString"] as? String ?? "2.0.1")")
         case "transcribe": try await transcribe(rest)
         case "status":
             let args = try Arguments(rest, values: [], flags: [])

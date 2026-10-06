@@ -6,9 +6,9 @@
 <key>CFBundleIconFile</key><string>Vella</string>
 <key>CFBundleName</key><string>Vella</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>2.0.0</string>
+<key>CFBundleShortVersionString</key><string>2.0.1</string>
 <key>NSHumanReadableCopyright</key><string>Copyright 2026 Vella contributors. Vella 2.0 is licensed under the MIT License. Published 0.x releases remain Apache-2.0. Third-party code and model weights keep their own licences; see NOTICE and THIRD_PARTY_NOTICES.md.</string>
-<key>CFBundleVersion</key><string>35</string>
+<key>CFBundleVersion</key><string>36</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>LSUIElement</key><true/>
 <key>NSMicrophoneUsageDescription</key><string>Vella records your voice only when you start Dictation or Streaming. Speech recognition runs locally on your Mac.</string>

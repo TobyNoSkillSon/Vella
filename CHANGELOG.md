@@ -1,10 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2.0.1 (6 October 2026)
 
-- Restore menu icons on macOS 27, including Models, Shortcuts, Microphone, Mode and update items.
+- Restores the menu icons on macOS 27, which hides menu-item icons by default.
 - Public [benchmark and optimization kit](Benchmarks/README.md): frozen full/quick suites, pinned upstream audio fetch, scorer, quality gate, isolated installed-app API runner and manually reviewed chip-specific result PRs. Quick quality is labelled an estimate.
-- Standalone installer moves to GitHub raw hosting; Pages retirement follows public-URL verification and compatibility review.
+- Standalone installer is now hosted at `https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh`; the legacy Pages installer remains compatible.
 
 ## 2.0.0 (4 October 2026)
 

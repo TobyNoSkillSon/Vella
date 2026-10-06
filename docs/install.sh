@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Everything runs from main, so a download cut short executes nothing.
 main() {
-  local VERSION="${VELLA_VERSION:-2.0.0}" DRY_RUN=0
+  local VERSION="${VELLA_VERSION:-2.0.1}" DRY_RUN=0
   MIGRATE=()
   for option in "$@"; do
     case "$option" in
@@ -17,7 +17,7 @@ main() {
       *) fail 'Usage: install.sh [--dry-run] [--migrate-signing] [--allow-downgrade]' 2 ;;
     esac
   done
-  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VELLA_VERSION must be a release version, e.g. 2.0.0' 2
+  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VELLA_VERSION must be a release version, e.g. 2.0.1' 2
   [[ "$(uname -s)" == Darwin && "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" == 1 ]] || fail 'Vella requires an Apple Silicon Mac'
   local OS; OS="$(sw_vers -productVersion)"
   [[ "${OS%%.*}" -ge 26 ]] || fail "Vella requires macOS 26 or newer ($OS)"
@@ -90,7 +90,7 @@ fetch() {
     --connect-timeout 20 --max-time 1800 --write-out '%{http_code}' "$1/$2" -o "$TEMP/$2" 2>"$TEMP/curl-error")" || result=$?
   [[ $result == 0 ]] && return 0
   [[ ! -s "$TEMP/curl-error" ]] || head -1 "$TEMP/curl-error" >&2
-  if [[ "$http" == 404 ]]; then fail "Vella ${VELLA_VERSION:-2.0.0} is not available at the release URL; nothing was installed."
+  if [[ "$http" == 404 ]]; then fail "Vella ${VELLA_VERSION:-2.0.1} is not available at the release URL; nothing was installed."
   else fail 'Vella could not download the release. Check your connection and try again; the installed app is unchanged.'; fi
 }
 
@@ -102,7 +102,7 @@ install_prepared() {
   local TOOL="$APP/Contents/Helpers/VellaInstallTool" OUTPUT PREVIOUS STATUS=0
   [[ -x "$TOOL" ]] || fail 'Prepared app lacks its installer tool; nothing installed.'
   mkdir -p "$(dirname "$DEST")"
-  export VELLA_INSTALL_RETRY_COMMAND="curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | env VELLA_DESTINATION_APP=$(printf %q "$DEST") VELLA_VERSION=$(printf %q "${VELLA_VERSION:-2.0.0}") VELLA_SUPPORT_DIR=$(printf %q "$SUPPORT") VELLA_BIN_DIR=$(printf %q "${VELLA_BIN_DIR:-$HOME/.local/bin}") ${VELLA_RELEASE_BASE_URL:+VELLA_RELEASE_BASE_URL=$(printf %q "$VELLA_RELEASE_BASE_URL") }bash -s -- --migrate-signing"
+  export VELLA_INSTALL_RETRY_COMMAND="curl -fsSL https://tobynoskillson.github.io/Vella/install.sh | env VELLA_DESTINATION_APP=$(printf %q "$DEST") VELLA_VERSION=$(printf %q "${VELLA_VERSION:-2.0.1}") VELLA_SUPPORT_DIR=$(printf %q "$SUPPORT") VELLA_BIN_DIR=$(printf %q "${VELLA_BIN_DIR:-$HOME/.local/bin}") ${VELLA_RELEASE_BASE_URL:+VELLA_RELEASE_BASE_URL=$(printf %q "$VELLA_RELEASE_BASE_URL") }bash -s -- --migrate-signing"
   [[ " ${MIGRATE[*]-} " != *' --allow-downgrade '* ]] || VELLA_INSTALL_RETRY_COMMAND+=' --allow-downgrade'
   local ALLOW_DOWNGRADE=0
   [[ " ${MIGRATE[*]-} " != *' --allow-downgrade '* ]] || ALLOW_DOWNGRADE=1

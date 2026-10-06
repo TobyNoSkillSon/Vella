@@ -15,7 +15,7 @@ final class InstallScriptArgumentsTests: XCTestCase {
             try Data(("#!/bin/bash\n" + body + "\n").utf8).write(to: file)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
         }
-        for (path, args) in [("scripts/install-release.sh", ["2.0.0", "--dry-run"]), ("scripts/install-public.sh", ["--dry-run"])] {
+        for (path, args) in [("scripts/install-release.sh", ["2.0.1", "--dry-run"]), ("scripts/install-public.sh", ["--dry-run"])] {
             let process = Process(), output = Pipe()
             process.executableURL = URL(fileURLWithPath: "/bin/bash")
             process.arguments = [Repository.root.appendingPathComponent(path).path] + args
@@ -29,7 +29,7 @@ final class InstallScriptArgumentsTests: XCTestCase {
             try process.run(); let bytes = output.fileHandleForReading.readDataToEndOfFile(); process.waitUntilExit()
             let text = try XCTUnwrap(String(data: bytes, encoding: .utf8), "installer output must be valid UTF-8")
             XCTAssertNotEqual(process.terminationStatus, 0)
-            XCTAssertTrue(text.contains("Downloading Vella 2.0.0…"), path)
+            XCTAssertTrue(text.contains("Downloading Vella 2.0.1…"), path)
             XCTAssertTrue(text.contains("the installed app is unchanged"), text)
             XCTAssertFalse(text.contains("unbound variable"), text)
             XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Vella.app").path))
