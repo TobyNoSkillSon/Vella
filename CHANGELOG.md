@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Homebrew: `brew install --cask tobynoskillson/tap/vella`. Publishing a release updates the cask in [TobyNoSkillSon/homebrew-tap](https://github.com/TobyNoSkillSon/homebrew-tap) (`.github/workflows/homebrew.yml`).
 - Benchmark references with restrictive or unclear redistribution terms are fetched locally, with the frozen text hashes checked before scoring. Suite clips and scoring rules are unchanged.
 - Corrects dataset attribution and bundled-audio documentation; clarifies model-card licence terms and the Parakeet licence link in model tooltips.
 

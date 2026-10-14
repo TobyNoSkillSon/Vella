@@ -1,0 +1,63 @@
+name: Homebrew
+
+# Publishing a release moves the cask in TobyNoSkillSon/homebrew-tap (`brew install --cask tobynoskillson/tap/vella`)
+# to that version and its zip's SHA-256. The repository secret HOMEBREW_TAP_DEPLOY_KEY is a deploy key with write
+# access to the tap only. Run it by hand with a tag to repeat an update; a cask already at that version is unchanged.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, e.g. v2.0.1
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-tap
+  cancel-in-progress: false
+
+jobs:
+  cask:
+    name: Update the cask
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Update tobynoskillson/tap/vella
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$DEPLOY_KEY" ]] || { echo "::error::Secret HOMEBREW_TAP_DEPLOY_KEY is missing"; exit 1; }
+          VERSION="${TAG#v}"
+          ZIP="Vella-$VERSION-arm64.zip"
+          cd "$RUNNER_TEMP"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS --pattern "$ZIP"
+          SHA="$(awk -v f="$ZIP" '$2 == f {print $1}' SHA256SUMS)"
+          [[ "$SHA" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::SHA256SUMS has no SHA-256 for $ZIP"; exit 1; }
+          echo "$SHA  $ZIP" | sha256sum -c -
+
+          # GitHub's SSH host keys come from its API over HTTPS, so the first connection is not trust-on-first-use.
+          gh api meta --jq '.ssh_keys[] | "github.com " + .' > known_hosts
+          (umask 077 && printf '%s\n' "$DEPLOY_KEY" > deploy_key)
+          export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/deploy_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
+          git clone --quiet --depth 1 git@github.com:TobyNoSkillSon/homebrew-tap.git tap
+          cd tap
+          sed -i -E "s/^  version \"[^\"]*\"$/  version \"$VERSION\"/; s/^  sha256 \"[0-9a-f]{64}\"$/  sha256 \"$SHA\"/" Casks/vella.rb
+          if ! grep -Fx "  version \"$VERSION\"" Casks/vella.rb >/dev/null || ! grep -Fx "  sha256 \"$SHA\"" Casks/vella.rb >/dev/null; then
+            echo "::error::Casks/vella.rb no longer has the expected version and sha256 lines"; exit 1
+          fi
+          if git diff --quiet; then
+            echo "Cask already at $VERSION"
+          else
+            git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit --quiet -am "vella $VERSION"
+          fi
+          # Also run when unchanged: a push checks that the deploy key can still write.
+          git push --quiet origin HEAD:main
+          echo "### Homebrew: vella $VERSION" >> "$GITHUB_STEP_SUMMARY"

@@ -56,6 +56,8 @@ Real-model parity and benchmarks need downloaded weights and a quiet GPU. The ma
 
 Bump `Resources/Info.plist`, `scripts/install-public.sh` and `scripts/install-release.sh` only in the release commit: the raw-from-main installer reads the current release version, so advancing it before that release exists breaks installs.
 
+Publishing the release (not the draft) runs `.github/workflows/homebrew.yml`, which moves the Homebrew cask in `TobyNoSkillSon/homebrew-tap` to the new version and zip SHA-256 with the deploy key in the `HOMEBREW_TAP_DEPLOY_KEY` secret. Re-run it from the Actions tab with the tag if it failed.
+
 ## Layout
 
 | Path | What |

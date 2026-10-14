@@ -11,6 +11,8 @@ scripts/install.sh            # later: git pull && scripts/install.sh
 
 Requirements: an Apple Silicon Mac with macOS 26 or newer. The prebuilt app needs no Xcode, Python or developer account.
 
+With Homebrew instead: `brew install --cask tobynoskillson/tap/vella`. It installs the same release in `/Applications`, links `vella` into Homebrew's `bin` and does not start Vella; start it from Applications. Later updates come from Vella itself (see [Updates](#updates)).
+
 What `scripts/install.sh` does, in order:
 
 1. Downloads `Vella-<version>-arm64.zip` and `SHA256SUMS` for the version in this checkout with curl (never a browser, which would quarantine the app).
@@ -319,7 +321,7 @@ Settings, models and recordings in `~/Library/Application Support/Vella` are kep
 ## Uninstall
 
 1. Turn off **Launch at Login** in Vella, then quit.
-2. Trash the installed app (`~/Applications/Vella.app` for the shell installer; `/Applications/Vella.app` for the DMG).
+2. Trash the installed app (`~/Applications/Vella.app` for the shell installer; `/Applications/Vella.app` for the DMG). For Homebrew, run `brew uninstall --cask vella` instead; `brew uninstall --zap --cask vella` also deletes the folders in steps 4 and 5.
 3. Remove `~/.local/bin/vella` only if it points into that app, and `~/.local/share/vella/app-path`, if present. Keep unrelated files and shared parent folders.
 4. Models, recordings and settings remain in `~/Library/Application Support/Vella`. Delete that folder only if you want them gone.
 5. For a complete settings reset, run `defaults delete dev.vella.dictation` after quitting (a missing-domain error just means nothing was saved). Vella’s cache `~/Library/Caches/dev.vella.dictation` and HTTP storage `~/Library/HTTPStorages/dev.vella.dictation` may also be deleted, if present. Keep them if you plan to reinstall. Do not delete shared model caches or unrelated login records.

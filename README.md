@@ -23,10 +23,10 @@ Offline dictation and transcription for Mac: local Whisper, Parakeet and Qwen sp
 Press **Control + Command + N**, speak, press it again: Vella transcribes on your Mac and pastes the text where you were typing. In Streaming mode the words appear as you speak. Audio and text stay on the Mac.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash
+brew install --cask tobynoskillson/tap/vella
 ```
 
-Apple Silicon, macOS 26 or newer. No Xcode, Python or developer account.
+Apple Silicon, macOS 26 or newer. No Xcode, Python or developer account. [Without Homebrew](#install), one curl command.
 
 [Models](#models) · [Install](#install) · [Using it](#using-it) · [For your agent](#for-your-agent) · [Privacy](#privacy) · [User guide](docs/USAGE.md) · [Sponsor](https://github.com/sponsors/TobyNoSkillSon)
 
@@ -145,6 +145,14 @@ Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); the
 ## Install
 
 ```sh
+brew install --cask tobynoskillson/tap/vella
+```
+
+Homebrew installs Vella in `/Applications` and links `vella` into Homebrew's `bin`. The cask follows each release; Vella then updates itself (**Update Now**). Remove it with `brew uninstall --cask vella`; `--zap` also deletes models, recordings and settings.
+
+Without Homebrew:
+
+```sh
 curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash
 ```
 
@@ -152,7 +160,7 @@ Or from a checkout: `git clone https://github.com/TobyNoSkillSon/Vella && cd Vel
 
 **Optional DMG.** The release also carries a disk image, `Vella-2.0.0.dmg`, wrapped from the same release ZIP; the ZIP remains the primary asset. Open the image and drag Vella to Applications. For Terminal and agents, use `/Applications/Vella.app/Contents/Helpers/vella`, or use the command-line installer, which links `vella`. The app is self-signed and not notarized: after macOS blocks its first launch, use **System Settings → Privacy & Security → Open Anyway**, then confirm. The command-line installer above needs no Gatekeeper step.
 
-Open Vella from the menu bar, approve Microphone and Accessibility access, and press **Control + Command + N**. The first dictation without a model keeps the recording and offers **Get <model> (<size>)**; after the download it transcribes the waiting recording.
+Open Vella from the menu bar (after a Homebrew install, start it from Applications first), approve Microphone and Accessibility access, and press **Control + Command + N**. The first dictation without a model keeps the recording and offers **Get <model> (<size>)**; after the download it transcribes the waiting recording.
 
 <details>
 <summary>Updating, verification and uninstalling</summary>
@@ -175,7 +183,7 @@ For the public installer: `curl -fsSL https://raw.githubusercontent.com/TobyNoSk
 
 **Verification.** `scripts/install-release.sh <version> --dry-run` downloads and verifies a release without installing it. The SHA-256 detects a corrupted download; it comes from the same release, so it is not a signature. Download releases with the installer, not a browser: a browser adds the quarantine flag, and Gatekeeper then blocks the app.
 
-**Uninstalling.** Turn off Launch at Login in Vella, then quit. Trash the installed app (`~/Applications/Vella.app` for the shell installer, `/Applications/Vella.app` for the DMG). Remove `~/.local/bin/vella` only if it points into that app, and `~/.local/share/vella/app-path` if present. Models, recordings and settings remain in `~/Library/Application Support/Vella`; delete them only if you want them gone. The detailed [uninstall guide](docs/USAGE.md#uninstall) covers Vella’s preferences and caches.
+**Uninstalling.** Turn off Launch at Login in Vella, then quit. Trash the installed app (`~/Applications/Vella.app` for the shell installer, `/Applications/Vella.app` for the DMG; Homebrew users run `brew uninstall --cask vella` instead). Remove `~/.local/bin/vella` only if it points into that app, and `~/.local/share/vella/app-path` if present. Models, recordings and settings remain in `~/Library/Application Support/Vella`; delete them only if you want them gone. The detailed [uninstall guide](docs/USAGE.md#uninstall) covers Vella’s preferences and caches.
 
 </details>
 
