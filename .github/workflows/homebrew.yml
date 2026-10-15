@@ -22,7 +22,6 @@ concurrency:
 jobs:
   cask:
     name: Update the cask
-    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -33,6 +32,13 @@ jobs:
           DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
         run: |
           set -euo pipefail
+          # Resolve the release for both publication events and manual dispatches.
+          SEMVER='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,isPrerelease > "$RUNNER_TEMP/release.json"
+          if ! jq -e --arg tag "$TAG" '.tagName == $tag and .isDraft == false and .isPrerelease == false' "$RUNNER_TEMP/release.json" >/dev/null ||
+             [[ ! "$TAG" =~ ^v${SEMVER}$ ]]; then
+            echo "::error::Only a published stable release with a vX.Y.Z tag can update the cask"; exit 1
+          fi
           [[ -n "$DEPLOY_KEY" ]] || { echo "::error::Secret HOMEBREW_TAP_DEPLOY_KEY is missing"; exit 1; }
           VERSION="${TAG#v}"
           ZIP="Vella-$VERSION-arm64.zip"
@@ -48,16 +54,24 @@ jobs:
           export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/deploy_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
           git clone --quiet --depth 1 git@github.com:TobyNoSkillSon/homebrew-tap.git tap
           cd tap
+          CURRENT="$(sed -nE 's/^  version "([^"]*)"$/\1/p' Casks/vella.rb)"
+          CURRENT_SHA="$(sed -nE 's/^  sha256 "([0-9a-f]{64})"$/\1/p' Casks/vella.rb)"
+          if [[ ! "$CURRENT" =~ ^${SEMVER}$ || ! "$CURRENT_SHA" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Casks/vella.rb no longer has the expected version and sha256 lines"; exit 1
+          fi
+          if [[ "$CURRENT" == "$VERSION" ]]; then
+            [[ "$CURRENT_SHA" == "$SHA" ]] || { echo "::error::Cask $VERSION already exists with a different SHA-256; refusing to replace it"; exit 1; }
+            echo "Cask already at $VERSION with matching SHA-256; nothing to push."
+            exit 0
+          fi
+          if [[ "$(printf '%s\n' "$CURRENT" "$VERSION" | sort -V | head -n 1)" == "$VERSION" ]]; then
+            echo "::error::Refusing to move the Vella cask from $CURRENT to older release $VERSION."; exit 1
+          fi
           sed -i -E "s/^  version \"[^\"]*\"$/  version \"$VERSION\"/; s/^  sha256 \"[0-9a-f]{64}\"$/  sha256 \"$SHA\"/" Casks/vella.rb
           if ! grep -Fx "  version \"$VERSION\"" Casks/vella.rb >/dev/null || ! grep -Fx "  sha256 \"$SHA\"" Casks/vella.rb >/dev/null; then
             echo "::error::Casks/vella.rb no longer has the expected version and sha256 lines"; exit 1
           fi
-          if git diff --quiet; then
-            echo "Cask already at $VERSION"
-          else
-            git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit --quiet -am "vella $VERSION"
-          fi
-          # Also run when unchanged: a push checks that the deploy key can still write.
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet -am "vella $VERSION"
           git push --quiet origin HEAD:main
           echo "### Homebrew: vella $VERSION" >> "$GITHUB_STEP_SUMMARY"
