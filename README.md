@@ -28,7 +28,7 @@ brew install --cask tobynoskillson/tap/vella
 
 Apple Silicon, macOS 26 or newer. No Xcode, Python or developer account. [Without Homebrew](#install), one curl command.
 
-[Models](#models) · [Install](#install) · [Using it](#using-it) · [For your agent](#for-your-agent) · [Privacy](#privacy) · [User guide](docs/USAGE.md) · [Sponsor](https://github.com/sponsors/TobyNoSkillSon)
+[Models](#models) · [Install](#install) · [Using it](#using-it) · [For your agent](#for-your-agent) · [Privacy](#privacy) · [User guide](docs/USAGE.md) · [Website](https://tobynoskillson.com/vella/) · [Sponsor](https://github.com/sponsors/TobyNoSkillSon)
 
 ## Models
 
@@ -283,7 +283,7 @@ with open("talk.m4a", "rb") as f:
 
 Your audio and transcripts never leave your Mac. The recognition helpers run in a sandbox that denies all network access. The app's local API listens on 127.0.0.1 only and refuses browser requests. The only network traffic is model downloads from Hugging Face when you choose **Get**, and a check for a newer release at most once a day (at launch when due; failed checks retry about hourly) (an ordinary request to GitHub's releases API, no speech data); an update downloads only when you choose **Update Now**. There is no telemetry and no audio upload. Apps you dictate into, clipboard managers and Universal Clipboard see the text you insert or copy.
 
-[Verdict](https://github.com/TobyNoSkillSon/Verdict) and [Vella](https://github.com/TobyNoSkillSon/Vella) are free, open-source Mac apps that run AI models on your own Apple Silicon chip, for you and your coding agent: Verdict decides, Vella listens. [Sponsor them on GitHub](https://github.com/sponsors/TobyNoSkillSon).
+[Verdict](https://github.com/TobyNoSkillSon/Verdict) and [Vella](https://github.com/TobyNoSkillSon/Vella) are free, open-source Mac apps that run AI models on your own Apple Silicon chip, for you and your coding agent: Verdict decides, Vella listens. Both are made by [Toby NoSkillSon](https://tobynoskillson.com). [Sponsor them on GitHub](https://github.com/sponsors/TobyNoSkillSon).
 
 ## Licence
 
