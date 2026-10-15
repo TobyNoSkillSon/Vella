@@ -1,9 +1,12 @@
 import Foundation
 import VellaWire
 
-// What a model runs: tier (precision kept) × path (Standard = stock MLX, Optimized = our kernels) × the Exact/Fast
-// switch. Shared by the Models table (VellaCore/Benchmarks cells), config.json (`selections`, written by a successful
-// Load/Reload) and the runtime (ModelRef.selection → the worker's recipe). lab/notes/models-table-ROUND.md.
+// What a model runs: tier (precision kept) × the Exact/Fast switch, on the optimized path. Shared by the Models table
+// (VellaCore/Benchmarks cells), config.json (`selections`, written by a successful Load/Reload) and the runtime
+// (ModelRef.selection → the worker's recipe). Since 2.1 the path is not a choice (Toby, 15 Oct: "we should just have
+// the lightning option"): every request is Optimized and the worker's gate falls back to stock MLX by itself when the
+// self-test fails or the GPU lacks the kernels' family. `path` survives only to describe what a fallen-back worker
+// actually runs (`effectiveSelection`) and to keep config.json readable by the previous version.
 
 /// How much precision is kept: 16 (the checkpoint's own bf16/fp16), 8 (affine-8 g64), 4 (affine-4 g64 or vendor
 /// QAT 4-bit). fp32 is never a tier.
@@ -13,7 +16,8 @@ public enum ModelTier: String, Codable, CaseIterable, Comparable, Sendable {
     public static func < (a: ModelTier, b: ModelTier) -> Bool { a.bits > b.bits } // 16 first
 }
 
-/// The segment row: Standard (stock MLX, any Apple-silicon Mac) or Optimized (per-layer recipe + our kernels).
+/// What actually runs: Optimized (per-layer recipe + our kernels, the only request) or Standard (stock MLX, what a worker
+/// runs after its gate fell back). Never chosen by the user, the API or the CLI.
 public enum EnginePath: String, Codable, CaseIterable, Sendable { case standard, optimized }
 
 /// The Exact/Fast switch: Exact = only kernels whose output is identical to Standard; Fast = adds gate-passing
@@ -24,13 +28,34 @@ public enum OptimizedMode: String, Codable, CaseIterable, Sendable { case exact,
 
 public struct ModelSelection: Codable, Equatable, Hashable, Sendable {
     public var tier: ModelTier
+    /// `.optimized` for every request; `.standard` only on an effective selection (`effectiveSelection`).
     public var path: EnginePath
-    /// The switch position; kept on a Standard selection too (the switch is per model, independent of the row).
+    /// The switch position.
     public var mode: OptimizedMode
     public init(tier: ModelTier, path: EnginePath, mode: OptimizedMode) { self.tier = tier; self.path = path; self.mode = mode }
-    /// Nothing chosen yet: Optimized 16 · Fast (family ruling: fresh installs and on-demand loads never land on Standard;
-    /// the table falls back to Standard 16 only where no Optimized 16 cell exists).
-    public static let fallback = ModelSelection(tier: .t16, path: .optimized, mode: .fast)
+    /// A request: the optimized path at this tier and switch position.
+    public init(tier: ModelTier, mode: OptimizedMode) { self.init(tier: tier, path: .optimized, mode: mode) }
+    /// Nothing chosen yet: 16 · Fast.
+    public static let fallback = ModelSelection(tier: .t16, mode: .fast)
+    /// The request this selection stands for: the same tier and switch position on the optimized path.
+    public var request: ModelSelection { ModelSelection(tier: tier, mode: mode) }
+
+    enum CodingKeys: String, CodingKey { case tier, path, mode }
+    /// Every stored selection is a request (config.json `selections`, the launch set, worker status), so decoding
+    /// always yields the optimized path: a 2.0 Standard choice migrates to the optimized request at the same tier and
+    /// switch position, and the worker's gate still falls back to stock MLX where it must. A missing or unknown `path`
+    /// decodes the same way.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        tier = try c.decode(ModelTier.self, forKey: .tier)
+        mode = try c.decode(OptimizedMode.self, forKey: .mode)
+        path = .optimized
+    }
+    /// `path` stays in the file (always `optimized` for a request) so the previous version still reads config.json.
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(tier, forKey: .tier); try c.encode(path, forKey: .path); try c.encode(mode, forKey: .mode)
+    }
     /// The benchmarks.json cell this selection runs.
     public var segmentKey: Recipe {
         path == .standard ? .standard : mode == .exact ? .optimized_exact : .optimized_fast

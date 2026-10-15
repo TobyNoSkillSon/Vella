@@ -47,11 +47,11 @@ Measured 1–2 October 2026; Whisper refreshed 2026-10-03 on Apple M5 Max, macOS
 
 <!-- RELEASE_SHORT_TABLE_END -->
 
-Standard is optimized for your Mac through MLX; Optimized adds our custom kernels. Measurements are from an M5 Max with a 40-core GPU; other M5 configurations have not yet been tested.
+Every model runs Vella's optimized kernels where your Mac supports them and falls back to plain MLX by itself. Measurements are from an M5 Max with a 40-core GPU; on other Macs the table shows those speed and energy figures for reference, marked with a triangle.
 
 Parakeet v3 Ultra is Moondream's post-training of NVIDIA Parakeet v3 (CC BY 4.0), converted to MLX by `selcukkubur/parakeet-ultra-mlx`. Publishers, source models, MLX converters and licences for every model are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md#model-weights-downloaded-not-included).
 
-Each model downloads one pinned checkpoint at its published 16-bit precision, except Parakeet v3, whose pinned source is FP32 (2.51 GB) and which Vella converts once to BF16 when you choose **Get**. `int8` and `int4` are made on your Mac from the 16-bit weights; the download prompt names the exact size first. The table shows the dtype actually running (`bf16`/`fp16`, `int8`, `int4`). Choose Standard or Optimized; Optimized has Exact and Fast recipes. Missing figures show `—`, never a sibling model's score. Models and weights retain their own licences in [`Resources/models.json`](Resources/models.json).
+Each model downloads one pinned checkpoint at its published 16-bit precision, except Parakeet v3, whose pinned source is FP32 (2.51 GB) and which Vella converts once to BF16 when you choose **Get**. `int8` and `int4` are made on your Mac from the 16-bit weights; the download prompt names the exact size first. The table shows the dtype actually running (`bf16`/`fp16`, `int8`, `int4`), the precision recommended for your Mac in gold (the smallest that keeps 16-bit accuracy and runs on its GPU's matrix hardware), and a triangle on precisions your Mac runs in software. An Exact/Fast switch chooses the recipe. Missing figures show `—`, never a sibling model's score. Models and weights retain their own licences in [`Resources/models.json`](Resources/models.json).
 
 <details>
 <summary>Every model and precision: word error rate, speed, energy, Peak RAM</summary>
@@ -60,7 +60,7 @@ Each model downloads one pinned checkpoint at its published 16-bit precision, ex
 
 Measured 2026-10-01, 2026-10-03 on Apple M5 Max, macOS 26.6. English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately; speed, energy and peak RAM: v2-quick (22.5 min). Languages are supported benchmark languages, out of 9.
 
-**Standard** is plain MLX; **Optimized** adds custom kernels. Whisper Standard runs faithful fp16. Whisper Exact and Fast share the same exact-only whisper-4 recipe and canonical measurement. Whisper Standard and Optimized were measured together on the faithful build; their per-cell and tier gates use that build’s fp16 Standard baseline. Other families retain their dated release measurements.
+**Standard** is plain MLX, the path a model falls back to; **Optimized** adds custom kernels and is what Vella runs. Whisper Standard runs faithful fp16. Whisper Exact and Fast share the same exact-only whisper-4 recipe and canonical measurement. Whisper Standard and Optimized were measured together on the faithful build; their per-cell and tier gates use that build’s fp16 Standard baseline. Other families retain their dated release measurements.
 
 | Model | Mode | Precision | Path | English WER % | Format % | Languages | Speed | J / min | Peak RAM | Suite |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -135,7 +135,7 @@ Commit SHAs are those of the published history (rewritten 3 Oct to remove the wi
 - **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Peak RAM** is the peak footprint of the model worker, including loading.
 Speed differences use “N× faster” at a ratio of 2× or above and “N% faster” below; decreases use “N% slower”. Energy differences always use percentages (“N% less” or “N% more”). Noise-level WER/Format differences read same.
 
-- **Which tiers are offered.** Every measured tier is offered, with its figures. Where a tier loses anything against 16, its tooltip says what, starting with test clips it left empty or cut short, which an average word error rate hides; Vella's quality gate (English word error rate within 0.1 points of 16, up to 0.2 points for a model whose measured run-to-run noise is larger, the other languages within a similar limit, no dropped or cut-off segments) says whether a tier loses nothing measurable. No tier is recommended: you choose.
+- **Which tiers are offered.** Every measured tier is offered, with its figures. Where a tier loses anything against 16, its tooltip says what, starting with test clips it left empty or cut short, which an average word error rate hides; Vella's quality gate (English word error rate within 0.1 points of 16, up to 0.2 points for a model whose measured run-to-run noise is larger, the other languages within a similar limit, no dropped or cut-off segments) says whether a tier loses nothing measurable. The precision recommended for your Mac is gold: the smallest that passes the gate and runs on its GPU's matrix hardware. A tier that fails the gate is never recommended.
 - Measurements are from an M5 Max with a 40-core GPU; other M5 configurations have not yet been tested. Other Apple Silicon chips run the fallback paths qualified by self-test. Only M5 Max with 40 GPU cores matches the measured configuration. On every other Mac (including M5, M5 Pro and other M5 Max core counts), Speed stays the **M5 Max measurement**, lighter grey with a small **M5 Max** label; it is not an estimate for that Mac. J / min is `not known`. WER, Format and Peak RAM stay as measured. Tooltip: “Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it.”
 
 Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); the [benchmark methods](docs/BENCHMARKS.md) cover suites, scoring, timing, energy and build provenance. Benchmark your Mac or tune a model with the [public benchmark kit](Benchmarks/README.md).
@@ -223,7 +223,7 @@ A source build needs the Command Line Tools Swift (`xcode-select --install`), fu
 Everything lives in the menu: the status line, then **Models… · Keep Hot · Memory**, then **Start Dictation** with **Mode · Microphone · Shortcuts**, your last transcript and saved recordings, then the agent skill, files and **Launch at Login**.
 
 
-**Choose.** In Models…, choose a precision on Standard or Optimized. Fast and Exact select the Optimized recipe; unavailable cells explain why in their tooltip.
+**Choose.** In Models…, choose a precision; every model runs optimized and falls back to plain MLX by itself. Fast and Exact select the recipe; unavailable cells explain why in their tooltip.
 
 **Preview.** Choosing a cell previews its figures. Load, Reload or Get applies it; closing the menu discards the preview.
 
@@ -255,7 +255,7 @@ vella status                      # Vella 2.0.0 running (pid 29335), parakeet-v3
 vella transcribe talk.m4a         # the transcript as plain text
 vella transcribe talk.m4a --srt   # SRT subtitles; also --vtt, --json, --verbose-json
 vella models --json                # all catalog rows, cells, reasons, source and download size
-vella select parakeet-v3-ultra --precision bf16 --path Optimized --mode Fast
+vella select parakeet-v3-ultra --precision bf16 --mode Fast
 vella get parakeet-v3-ultra --yes   # only after consent; downloads then loads
 vella unload parakeet-v3-ultra      # free memory, keep downloaded weights
 vella url                         # http://127.0.0.1:63080/v1

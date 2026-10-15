@@ -34,7 +34,7 @@ final class CLIReleaseTests: XCTestCase {
         XCTAssertTrue(usage.components(separatedBy: "\n")[1].hasPrefix("vella:"))
         XCTAssertEqual(
             usage.components(separatedBy: "\n")[0],
-            "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far.")
+            "Every model runs Vella's optimized kernels where this Mac supports them and falls back to stock MLX by itself; figures are measured on M5 Max so far.")
     }
 
     func testVersionNeedsNoAppOrAPI() async {
@@ -46,7 +46,7 @@ final class CLIReleaseTests: XCTestCase {
     }
 
     func testAgentDocumentsPinTheSameChipLine() throws {
-        let claim = "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far."
+        let claim = "Every model runs Vella's optimized kernels where this Mac supports them and falls back to stock MLX by itself; figures are measured on M5 Max so far."
         for path in ["Resources/SKILL.md", "Resources/AGENT_GUIDE.md"] {
             let text = try String(contentsOf: Repository.root.appendingPathComponent(path), encoding: .utf8)
             XCTAssertTrue(text.components(separatedBy: "\n").contains(claim), path)
@@ -55,7 +55,7 @@ final class CLIReleaseTests: XCTestCase {
 
     func testSkillNamesTheEuropeanLanguageDefaultAndGetProgress() throws {
         let text = try String(contentsOf: Repository.root.appendingPathComponent("Resources/SKILL.md"), encoding: .utf8)
-        XCTAssertTrue(text.contains("Start with `parakeet-v3-ultra` at `bf16`, Optimized Fast"))
+        XCTAssertTrue(text.contains("Start with `parakeet-v3-ultra` at `bf16`, Fast"))
         XCTAssertTrue(text.contains("fastest, with near-best English accuracy, and supports 24 other European languages; for other languages choose `whisper-large-v3-turbo`"))
         let data = try Data(contentsOf: Repository.root.appendingPathComponent("Resources/models.json"))
         let catalog = try JSONSerialization.jsonObject(with: data) as! [String: Any]

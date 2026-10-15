@@ -3,12 +3,10 @@ import AppKit
 import SwiftUI
 @testable import Vella
 
-/// The shared table controls (the Precision control's two segment rows, the Exact/Fast switch, the action button) must have their explicit geometry on the
+/// The table controls (the Precision control's one segment row, the Exact/Fast switch, the action button) must have their explicit geometry on the
 /// FIRST layout pass, as when the Models menu first opens: no click, no second pass, whatever control size the hosting
 /// environment pushes. (Toby's screenshots, 29 Sep: controls drawn over each other until a click relaid the row.)
 @MainActor final class TierControlLayoutTests: XCTestCase {
-    func testStandardUsesTheBundledLogoByDefault() { XCTAssertFalse(TierControl.standardUsesWordmark) }
-
     private func firstPass(_ view: some View, in menuItem: Bool) -> NSView {
         let host = NSHostingView(rootView: view)
         host.frame = NSRect(x: 0, y: 0, width: 400, height: 60)
@@ -33,29 +31,24 @@ import SwiftUI
     func testSegmentsHaveTheirExplicitSizeOnTheFirstLayoutPass() throws {
         for menuItem in [false, true] {
             for size in [ControlSize.regular, .small, .mini, .large] {
-                // Greyed cells never change the grid: every row keeps its three equal cells.
-                for greyed in [[], ["8", "4"], ["16"], ["16", "8", "4"]] {
-                    var unavailable: [TierControl.Cell: String] = [:]
-                    for tier in greyed { unavailable[TierControl.Cell(.optimized, tier)] = "Not offered"; unavailable[TierControl.Cell(.standard, tier)] = "Not offered" }
+                // Greyed cells, the gold cell and warning triangles never change the grid: three equal cells.
+                for (greyed, warned) in [([], []), (["8", "4"], []), (["16"], ["8"]), (["16", "8", "4"], []), ([], ["8", "4"])] as [([String], [String])] {
+                    var unavailable: [String: String] = [:]
+                    for tier in greyed { unavailable[tier] = "Not offered" }
                     let host = firstPass(
                         HStack(spacing: 6) {
                             TierControl(
-                                labels: ["bf16", "int8", "int4"], selected: TierControl.Cell(.standard, "16"), enabled: true, unavailable: unavailable,
-                                help: { _ in "" }, onSelect: { _ in })
+                                labels: ["bf16", "int8", "int4"], selected: "16", enabled: true, unavailable: unavailable, recommended: "8",
+                                warnings: Dictionary(uniqueKeysWithValues: warned.map { ($0, "No hardware support") }), help: { _ in "" }, onSelect: { _ in })
                             ExactFastSwitch(position: .fast, available: true, enabled: true, onChange: { _ in })
                             RowAction(title: "Load", enabled: true, deletable: true, help: "", onPerform: {}, onDelete: {})
                         }.controlSize(size), in: menuItem)
-                    let label = "\(size) greyed \(greyed)"
-                    // Top to bottom: the host is flipped, so the smaller minY is the Optimized row.
-                    let segments = all(NSSegmentedControl.self, in: host).map { drawn($0, in: host) }.sorted { $0.minY < $1.minY }
-                    XCTAssertEqual(segments.count, 2, "two rows of segments: \(label)")
-                    guard segments.count == 2 else { continue }
-                    let (top, bottom) = (host.isFlipped ? segments[0] : segments[1], host.isFlipped ? segments[1] : segments[0])
-                    for r in [top, bottom] {
-                        XCTAssertEqual(r.height, TierControl.segmentHeight, accuracy: 0.5, "\(label): \(r)")
-                        XCTAssertEqual(r.width, TierControl.segmentsWidth(3), accuracy: 0.5, "\(label): all three cells: \(r)")
-                    }
-                    XCTAssertEqual(top.minX, bottom.minX, accuracy: 0.5, "\(label): the rows' cells line up")
+                    let label = "\(size) greyed \(greyed) warned \(warned)"
+                    let segments = all(NSSegmentedControl.self, in: host).map { drawn($0, in: host) }
+                    XCTAssertEqual(segments.count, 1, "one row of segments, no Standard row: \(label)")
+                    guard let row = segments.first else { continue }
+                    XCTAssertEqual(row.height, TierControl.segmentHeight, accuracy: 0.5, "\(label): \(row)")
+                    XCTAssertEqual(row.width, TierControl.segmentsWidth(3), accuracy: 0.5, "\(label): all three cells: \(row)")
                     for control in all(NSSegmentedControl.self, in: host) {
                         XCTAssertEqual(control.segmentCount, 3, label)
                         XCTAssertEqual((0..<3).map { control.label(forSegment: $0) }, ["bf16", "int8", "int4"], label)
@@ -64,8 +57,6 @@ import SwiftUI
                             XCTAssertEqual(control.isEnabled(forSegment: i), !greyed.contains(tier), "\(label): \(tier) greyed in place")
                         }
                     }
-                    let gap = host.isFlipped ? bottom.minY - top.maxY : top.minY - bottom.maxY
-                    XCTAssertEqual(gap, TierControl.rowSpacing, accuracy: 0.5, "\(label): real air between Optimized and Standard")
                     for control in all(NSSegmentedControl.self, in: host) {
                         XCTAssertEqual(control.controlSize, .regular, "the environment's size does not reach the control")
                         // The stock regular geometry in its own bounds, scaled by its frame (TableMetrics).
@@ -76,9 +67,9 @@ import SwiftUI
                     // Half-point sizes (TableMetrics) land on whole points where the host draws at 1x.
                     XCTAssertEqual(switchView.frame.width, ExactFastSwitch.width, accuracy: 0.5, label)
                     XCTAssertEqual(switchView.frame.height, ExactFastSwitch.height, accuracy: 0.5, label)
-                    XCTAssertEqual(ExactFastSwitch.height, TierControl.height, "the switch spans both rows")
+                    XCTAssertEqual(ExactFastSwitch.height, 2 * TableMetrics.pt(24) + TableMetrics.pt(6), "the switch keeps its two-row height")
                     let s = switchView.convert(switchView.bounds, to: host)
-                    XCTAssertEqual(s.midY, (top.midY + bottom.midY) / 2, accuracy: 0.5, "\(label): centred on the pair")
+                    XCTAssertEqual(s.midY, row.midY, accuracy: 0.5, "\(label): the row is centred on the switch")
                     let action = try XCTUnwrap(all(RowActionView.self, in: host).first)
                     XCTAssertEqual(action.frame.width, RowAction.width, accuracy: 0.5, label)
                     XCTAssertEqual(action.frame.height, RowAction.height, accuracy: 0.5, label)
@@ -104,21 +95,20 @@ import SwiftUI
         XCTAssertEqual(TierControl.title, "Precision")
         XCTAssertEqual(
             TierControl.headerHelp,
-            "The running weight format: bf16 or fp16 from the checkpoint; int8 and int4 are quantized on your Mac to reduce weight size. Speed, peak RAM and accuracy depend on the model and path."
+            "The running weight format: bf16 or fp16 from the checkpoint; int8 and int4 are quantized on your Mac to reduce weight size. Gold: recommended for this Mac. Speed, peak RAM and accuracy depend on the model and precision."
         )
-        XCTAssertEqual(TierControl.Row.allCases.map(\.title), ["Optimized", "Standard"], "Optimized above Standard")
-        // The rows are named by icons, each with one line naming its path (Toby, 30 Sep).
-        XCTAssertEqual(TierControl.Row.optimized.help, "Optimized: the same weights with custom kernels for this Mac's chip")
-        XCTAssertEqual(TierControl.Row.standard.help, "Standard: the plain MLX runtime, same weights, no custom kernels")
-        XCTAssertNotNil(TierControl.mlxLogo, "Resources/mlx-logo.pdf, the Standard row's icon")
-        XCTAssertEqual(TierControl.mlxLogo?.isTemplate, true, "a template image: drawn in the text colour")
+        // The bolt is the one path (Toby, 15 Oct); its line is true on every Mac, whichever path the worker ends up on.
+        XCTAssertEqual(TierControl.boltHelp, "Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails")
         XCTAssertEqual(ExactFastSwitch.title, ExactFastSwitch.showsWords ? "" : "Fast/Exact")
         for text in [
-            TierControl.title, TierControl.headerHelp, TierControl.inUseHelp, ExactFastSwitch.title, ExactFastSwitch.help, ExactFastSwitch.rowHelp,
-            TierControl.Row.optimized.help, TierControl.Row.standard.help,
+            TierControl.title, TierControl.headerHelp, TierControl.inUseHelp, TierControl.boltHelp, ExactFastSwitch.title, ExactFastSwitch.help,
             ExactFastSwitch.sameHelp, ExactFastSwitch.inUseHelp, RowAction.deleteHelp
         ] {
             XCTAssertFalse(text.lowercased().contains("tier"), text)
+            // No path names a user reads (Toby, 15 Oct): no Standard and no Optimized row.
+            XCTAssertFalse(text.contains("Standard"), text); XCTAssertFalse(text.contains("Optimized"), text)
         }
+        // Gold reads as recommended on both backgrounds, distinct from the bolt's colours.
+        XCTAssertNotEqual(TierControl.gold, TierControl.boltColor(hot: true)); XCTAssertNotEqual(TierControl.gold, TierControl.boltColor(hot: false))
     }
 }

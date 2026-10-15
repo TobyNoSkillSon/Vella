@@ -423,11 +423,30 @@ final class ModelControlTests: XCTestCase {
         let f = try fixture()
         defer { f.close(); try? FileManager.default.removeItem(at: f.root) }
         let controls = ModelControls(controller: f.controller, runtime: f.runtime)
-        _ = try await controls.perform("select", id: "alpha", fields: ["precision": "int4", "path": "Standard", "mode": "Fast"])
+        // A 2.0 client's `path` is refused with its reason, never silently honoured; nothing changes.
+        for path in ["Standard", "Optimized"] {
+            do {
+                _ = try await controls.perform("select", id: "alpha", fields: ["precision": "int4", "path": path, "mode": "Fast"])
+                XCTFail("path must be refused")
+            } catch let error as APIError {
+                XCTAssertEqual(error.status, 400); XCTAssertEqual(error.param, "path"); XCTAssertEqual(error.message, ModelControls.pathRemovedHelp)
+            }
+            XCTAssertFalse(f.controller.isPreviewing(f.alpha))
+        }
+        do {
+            _ = try await controls.perform("load", id: "alpha", fields: ["path": "Standard"])
+            XCTFail("path must be refused on every action")
+        } catch let error as APIError { XCTAssertEqual(error.message, ModelControls.pathRemovedHelp) }
+        XCTAssertFalse(f.runtime.isLoaded("alpha"))
+        _ = try await controls.perform("select", id: "alpha", fields: ["precision": "int4", "mode": "Fast"])
         XCTAssertEqual(f.controller.currentSelection(f.alpha).tier, .t4)
         XCTAssertFalse(f.runtime.isLoaded("alpha"), "Select is a preview, not an implicit load")
         _ = try await controls.perform("load", id: "alpha", fields: [:])
-        XCTAssertEqual(f.runtime.loadedRef("alpha")?.selection?.path, .standard)
+        XCTAssertEqual(f.runtime.loadedRef("alpha")?.selection, ModelSelection(tier: .t4, mode: .fast), "always the optimized request")
+        // The fixture worker runs stock MLX: the API reports what actually runs, with the request beside it.
+        let row = controls.object(f.alpha)
+        XCTAssertEqual((row["selection"] as? [String: Any])?["path"] as? String, "standard")
+        XCTAssertEqual((row["requested_selection"] as? [String: Any])?["path"] as? String, "optimized")
         XCTAssertEqual(try f.config().model, try f.path(f.alpha, "4b"))
         _ = try await controls.perform("select", id: "alpha", fields: ["precision": "bf16"])
         _ = try await controls.perform("reload", id: "alpha", fields: [:])
@@ -473,7 +492,32 @@ final class ModelControlTests: XCTestCase {
         let cells = try XCTUnwrap(row["cells"] as? [[String: Any]])
         let cell = try XCTUnwrap(cells.first { $0["recipe"] as? String == "optimized_fast" && $0["tier"] as? String == "16" })
         let figures = try XCTUnwrap(cell["figures"] as? [String: Any])
-        let shown = try XCTUnwrap(benchmarkCell(f.controller.benchmark(f.alpha), ModelSelection(tier: .t16, path: .optimized, mode: .fast)))
+        let shown = try XCTUnwrap(benchmarkCell(f.controller.benchmark(f.alpha), ModelSelection(tier: .t16, mode: .fast)))
+        // One capability, one interface: cells per tier × switch position, no Standard cells to choose.
+        XCTAssertEqual(cells.count, ModelTier.allCases.count * OptimizedMode.allCases.count)
+        XCTAssertTrue(cells.allSatisfy { $0["path"] as? String == "optimized" && $0["recipe"] as? String != "standard" })
+        // The table's advice: the gold cell and each cell's hardware support, on fixed hardware.
+        f.controller.benchmarkHardware = BenchmarkHardware(chip: "Apple M4 Pro", gpuCores: 20)
+        f.controller.gpu = GPUCapability(appleFamily: 9, architecture: "applegpu_g16s", osMajor: 26, osMinor: 6)
+        let m4 = controls.object(f.alpha)
+        XCTAssertEqual(m4["recommended_precision"] as? String, "bf16")
+        let m4Cells = try XCTUnwrap(m4["cells"] as? [[String: Any]])
+        for tier in ["8", "4"] {
+            let quantized = try XCTUnwrap(m4Cells.first { $0["recipe"] as? String == "optimized_fast" && $0["tier"] as? String == tier })
+            guard quantized["reason"] == nil else { XCTAssertNil(quantized["hardware"], "an unavailable cell has its reason, no advice"); continue }
+            let dtype = tier == "8" ? "int8" : "int4"
+            XCTAssertEqual(quantized["hardware"] as? String, "software", dtype)
+            XCTAssertEqual(quantized["hardware_note"] as? String, "No hardware support for \(dtype) on this Mac: saves memory, may be slower than bf16")
+            XCTAssertEqual(quantized["recommended"] as? Bool, false)
+        }
+        let m4bf16 = try XCTUnwrap(m4Cells.first { $0["recipe"] as? String == "optimized_fast" && $0["tier"] as? String == "16" })
+        XCTAssertEqual(m4bf16["hardware"] as? String, "matrix"); XCTAssertEqual(m4bf16["recommended"] as? Bool, true)
+        // Speed and energy figures from the M5 Max stay in the JSON, marked as not this Mac's.
+        let m4Figures = try XCTUnwrap(m4bf16["figures"] as? [String: Any])
+        XCTAssertEqual(m4Figures["j_per_min"] as? Double, shown.result.j_per_min)
+        XCTAssertEqual(m4Figures["speed_kind"] as? String, "measured on M5 Max, not this Mac")
+        f.controller.benchmarkHardware = .measured
+        f.controller.gpu = GPUCapability(appleFamily: 10, architecture: "applegpu_g17s", osMajor: 26, osMinor: 6)
         XCTAssertEqual(figures["speed_x"] as? Double, shown.result.speed_x)
         XCTAssertEqual(figures["wer"] as? Double, shown.result.wer)
         XCTAssertEqual(figures["j_per_min"] as? Double, shown.result.j_per_min)
@@ -510,11 +554,11 @@ final class ModelControlTests: XCTestCase {
         configuration.protocolClasses = [ControlHub.self]
         f.controller.dictation.downloadConfiguration = configuration
         let controls = ModelControls(controller: f.controller, runtime: f.runtime)
-        _ = try await controls.perform("select", id: "alpha", fields: ["precision": "bf16", "path": "Standard"])
+        _ = try await controls.perform("select", id: "alpha", fields: ["precision": "bf16", "mode": "Exact"])
         _ = try await controls.perform("get", id: "alpha", fields: ["yes": true])
         XCTAssertNil(f.controller.dictation.downloadError, "path-built support dir: \(pathBuilt)")
         XCTAssertTrue(f.controller.available(f.alpha, "BF16"))
-        XCTAssertEqual(f.runtime.loadedRef("alpha")?.selection?.path, .standard)
+        XCTAssertEqual(f.runtime.loadedRef("alpha")?.selection, ModelSelection(tier: .t16, mode: .exact))
         XCTAssertNil(f.controller.pendingLoads["alpha"])
     }
 
@@ -530,7 +574,7 @@ final class ModelControlTests: XCTestCase {
         // A tier with no cells is not offered; its failed presence verdict is not the reason (6 Oct: it never hides a cell).
         for (precision, expected) in [("int4", "Not offered for this model"), ("bf16", "Not measured yet")] {
             do {
-                _ = try await controls.perform("select", id: "alpha", fields: ["precision": precision, "path": "Standard"])
+                _ = try await controls.perform("select", id: "alpha", fields: ["precision": precision])
                 XCTFail("unavailable cell should refuse")
             } catch let error as APIError { XCTAssertEqual(error.message, expected) }
             XCTAssertFalse(f.controller.isPreviewing(f.alpha))
@@ -538,7 +582,7 @@ final class ModelControlTests: XCTestCase {
         f.controller.benchmarks.models.removeValue(forKey: "alpha")
         f.controller.previewInUse = true
         do {
-            _ = try await controls.perform("select", id: "alpha", fields: ["precision": "bf16", "path": "Standard"])
+            _ = try await controls.perform("select", id: "alpha", fields: ["precision": "bf16"])
             XCTFail("busy model should refuse")
         } catch let error as APIError { XCTAssertEqual(error.status, 409) }
         XCTAssertFalse(f.controller.isPreviewing(f.alpha))
@@ -554,7 +598,7 @@ final class ModelControlTests: XCTestCase {
             .t4: TierBenchmark(precision: "4b", cells: [.standard: fast, .optimized_fast: fast])
         ])
         let controls = ModelControls(controller: f.controller, runtime: f.runtime)
-        _ = try await controls.perform("select", id: "alpha", fields: ["precision": "int4", "path": "Optimized", "mode": "Fast"])
+        _ = try await controls.perform("select", id: "alpha", fields: ["precision": "int4", "mode": "Fast"])
         _ = try await controls.perform("select", id: "alpha", fields: ["mode": "Exact"])
         XCTAssertEqual(f.controller.currentSelection(f.alpha).tier, .t16)
         XCTAssertEqual(f.controller.currentSelection(f.alpha).mode, .exact)
@@ -596,17 +640,25 @@ final class ModelControlTests: XCTestCase {
         let (listed, list, _) = try await APIClientTests.run(APIClientTests.cli, ["models", "--json"], environment: environment)
         XCTAssertEqual(listed, 0)
         XCTAssertTrue(list.contains("cells") && list.contains("org/a"))
-        let (picked, preview, _) = try await APIClientTests.run(
+        // `--path` (2.0) is refused with its reason before anything is sent.
+        let (refused, _, refusal) = try await APIClientTests.run(
             APIClientTests.cli,
             ["select", "alpha", "--precision", "int4", "--path", "Standard", "--mode", "Fast"], environment: environment)
+        XCTAssertEqual(refused, 1)
+        XCTAssertTrue(refusal.contains("--path was removed in Vella 2.1"), refusal)
+        XCTAssertFalse(f.controller.isPreviewing(f.alpha))
+        let (picked, preview, _) = try await APIClientTests.run(
+            APIClientTests.cli,
+            ["select", "alpha", "--precision", "int4", "--mode", "Fast"], environment: environment)
         XCTAssertEqual(picked, 0)
-        XCTAssertTrue(preview.contains("preview int4 Standard"))
+        XCTAssertTrue(preview.contains("preview int4 Optimized Fast"), preview)
         let (ready, readyLine, _) = try await APIClientTests.run(APIClientTests.cli, ["get", "alpha"], environment: environment)
         XCTAssertEqual(ready, 0)
         XCTAssertTrue(readyLine.contains("loaded"))
         let (loaded, effective, _) = try await APIClientTests.run(APIClientTests.cli, ["get", "alpha", "--yes"], environment: environment)
         XCTAssertEqual(loaded, 0)
-        XCTAssertTrue(effective.contains("Standard") && effective.contains("loaded"))
+        // The fixture worker runs stock MLX: the agent-facing line names the true path and the request.
+        XCTAssertTrue(effective.contains("Standard (Optimized Fast asked)") && effective.contains("loaded"), effective)
         let (deleteRefused, _, deletedPrompt) = try await APIClientTests.run(
             APIClientTests.cli,
             ["delete", "zeta", "--precision", "bf16"], environment: environment)

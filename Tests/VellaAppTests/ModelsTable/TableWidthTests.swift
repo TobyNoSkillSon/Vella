@@ -18,10 +18,12 @@ import SwiftUI
     /// The table at 90 % of the 1006 pt × 60 pt-row v4 table (Toby, 30 Sep: about 10 % smaller in both directions).
     func testTheTableIsTheScaledSize() {
         XCTAssertEqual(TableMetrics.scale, 0.9)
-        XCTAssertEqual(ModelTable.width, 907)
+        // 2.1: one Precision row with wider cells (room for the warning triangle) and a bolt-only icon slot: +4 pt.
+        XCTAssertEqual(ModelTable.width, 911)
         XCTAssertEqual(ModelTable.rowHeight, 54)
         XCTAssertEqual(ModelTable.referenceRowHeight, 34)
-        XCTAssertEqual(TierControl.height, 48.5)
+        XCTAssertEqual(TierControl.height, 21.5, "one segment row")
+        XCTAssertEqual(ExactFastSwitch.height, 48.5, "the switch keeps its height, and with it the row")
     }
 
     /// The declared width is the sum of the layout constants, and the table's own content is exactly that wide.

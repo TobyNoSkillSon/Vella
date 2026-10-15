@@ -46,7 +46,10 @@ import XCTest
         controller.reloadConfig()
     }
 
-    func testCorrectedWhisperStandardAndExactAreAvailableAndLoadedStandardStaysSelected() throws {
+    /// A 2.0 config that chose Whisper's Standard 16 (plain MLX): since 2.1 the path is not a choice, so the table, the
+    /// API and the runtime all run the optimized request at the same tier and switch position; a launch-set ref built
+    /// with Standard asks the worker for the optimized recipe, never `standard`. Exact stays available.
+    func testRecordedStandardRunsTheOptimizedRequestEverywhere() throws {
         for id in ["whisper-large-v3", "whisper-large-v3-turbo"] {
             let whisper = try family(id)
             let standard = ModelSelection(tier: .t16, path: .standard, mode: .fast)
@@ -55,36 +58,46 @@ import XCTest
             XCTAssertTrue(controller.rules(whisper).isPresent(standard))
             XCTAssertNil(controller.rules(whisper).cellRefusal(standard, loaded: controller.loadedSelection(whisper)))
             let path = try install(try XCTUnwrap(whisper.variants["FP16"]?.id))
+            try record(model: path, family: whisper.id, precision: "FP16", standard)
+            XCTAssertEqual(controller.config?.selections[whisper.id], standard.request, "config.json decodes the optimized request")
+            XCTAssertEqual(controller.committedSelection(whisper), ModelSelection(tier: .t16, mode: .fast))
+            let listed = try XCTUnwrap(source.models().first { $0.id == id })
+            XCTAssertEqual(listed.selection, ModelSelection(tier: .t16, mode: .fast)); XCTAssertNil(listed.requested)
             let loaded = bridge.ref(whisper, "FP16", path: path, selection: standard)
+            XCTAssertEqual(loaded.selection, standard.request)
+            XCTAssertEqual(loaded.recipe, .optimized_fast, "VELLA_RECIPE is never standard")
             runtime.register(loaded, residency: .manual) {}
             XCTAssertNil(controller.rules(whisper).cellRefusal(standard, loaded: controller.loadedSelection(whisper)))
-            controller.select(whisper, tier: .t16, path: .standard)
-            XCTAssertEqual(controller.currentSelection(whisper).path, .standard)
+            controller.select(whisper, tier: .t16)
+            XCTAssertEqual(controller.currentSelection(whisper).path, .optimized)
             let api = try XCTUnwrap(source.models().first { $0.id == id })
-            XCTAssertEqual(api.selection?.path, .standard)
+            XCTAssertEqual(api.selection?.path, .optimized)
         }
     }
 
-    /// Qwen3-ASR 0.6B recorded at Standard 8, a cell with no measurement ("Not measured yet" in the table): the table,
-    /// the API and a request for its files all run Optimized 8 Exact.
+    /// Qwen3-ASR 0.6B recorded at 2.0's Standard 8 · Exact: the table, the API and a request for its files all run 8 ·
+    /// Exact on the optimized path. With that cell unmeasured ("Not measured yet" in the table; Qwen's Fast is the same
+    /// recipe, so 8 · Fast is unmeasured too), all of them run the table's cell instead: 16 · Exact from the bf16 files.
     func testUnmeasuredRecordedCellRunsTheTablesCellEverywhere() throws {
         let qwen = try family("qwen3-asr-0.6b")
         let bf16 = try install("Qwen3-ASR-0.6B-bf16")
         let eight = try derived(qwen, "8b", from: bf16)
         let stored = ModelSelection(tier: .t8, path: .standard, mode: .exact)
-        // Keep the regression fixture unmeasured even after the release file measures this cell.
-        controller.benchmarks.models[qwen.id]?.tiers[.t8]?.cells[.standard]?.measured = nil
-        XCTAssertFalse(controller.measured(qwen, stored), "fixture: Standard 8 is not measured")
-        let expected = ModelSelection(tier: .t8, path: .optimized, mode: .exact)
-        for model in ["", eight] { // not the dictation model, then the dictation model
-            try record(model: model, family: qwen.id, precision: "8b", stored)
-            XCTAssertEqual(controller.committedSelection(qwen), expected)
-            XCTAssertEqual(controller.committed(qwen), "8b")
-            let api = try XCTUnwrap(source.models().first { $0.id == qwen.id })
-            XCTAssertEqual(api.selection, expected); XCTAssertNil(api.requested); XCTAssertEqual(api.precision, "8b")
-            XCTAssertEqual(api.current, !model.isEmpty)
-            let request = try XCTUnwrap(bridge.ref(path: eight, mode: .dictation))
-            XCTAssertEqual(request.selection, expected); XCTAssertEqual(request.path, eight)
+        for unmeasured in [false, true] {
+            if unmeasured { controller.benchmarks.models[qwen.id]?.tiers[.t8]?.cells[.optimized_exact]?.measured = nil }
+            XCTAssertEqual(controller.measured(qwen, stored), !unmeasured)
+            let expected = ModelSelection(tier: unmeasured ? .t16 : .t8, mode: .exact)
+            let precision = unmeasured ? "BF16" : "8b"
+            for model in ["", eight] { // not the dictation model, then the dictation model
+                try record(model: model, family: qwen.id, precision: "8b", stored)
+                XCTAssertEqual(controller.committedSelection(qwen), expected)
+                XCTAssertEqual(controller.committed(qwen), precision)
+                let api = try XCTUnwrap(source.models().first { $0.id == qwen.id })
+                XCTAssertEqual(api.selection, expected); XCTAssertNil(api.requested); XCTAssertEqual(api.precision, precision)
+                XCTAssertEqual(api.current, !model.isEmpty)
+                let request = try XCTUnwrap(bridge.ref(path: eight, mode: .dictation))
+                XCTAssertEqual(request.selection, expected); XCTAssertEqual(request.path, unmeasured ? bf16 : eight)
+            }
         }
     }
 
@@ -100,9 +113,9 @@ import XCTest
         try install("parakeet-tdt-0.6b-v3-mlx-fp32")
         let bf16 = try install("parakeet-tdt-0.6b-v3-mlx-bf16-local")
         let eight = try derived(parakeet, "8b", from: bf16)
-        let recorded = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+        let recorded = ModelSelection(tier: .t8, mode: .fast)
         try record(model: eight, family: parakeet.id, precision: "8b", recorded)
-        let expected = controller.valid(parakeet, ModelSelection(tier: .t16, path: .optimized, mode: .fast))
+        let expected = controller.valid(parakeet, ModelSelection(tier: .t16, mode: .fast))
         XCTAssertEqual(expected.tier, .t16)
 
         XCTAssertEqual(controller.committed(parakeet), "BF16")
@@ -130,7 +143,7 @@ import XCTest
     func testLegacyPublishedQuantWithoutOfferedWeightsNeedsGetAndNeverRunsAsAMeasuredTier() throws {
         let turbo = try family("whisper-large-v3-turbo")
         let four = try install("whisper-large-v3-turbo-asr-4bit")
-        try record(model: four, family: turbo.id, precision: "4b", ModelSelection(tier: .t4, path: .optimized, mode: .fast))
+        try record(model: four, family: turbo.id, precision: "4b", ModelSelection(tier: .t4, mode: .fast))
         XCTAssertEqual(controller.committed(turbo), "4b")
         XCTAssertEqual(controller.committedSelection(turbo).tier, .t4)
         XCTAssertNil(source.models().first { $0.id == turbo.id }, "no 16-bit root: Get first")

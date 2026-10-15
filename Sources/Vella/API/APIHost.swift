@@ -35,7 +35,7 @@ import VellaCore
             var isLoaded = loaded.map { sameFiles($0.path, path) } == true
             var requested: ModelSelection
             if isLoaded, let selection = loaded?.selection {
-                requested = selection
+                requested = selection.request
             } else {
                 // Not loaded (or loaded without a reported selection): the table's rule (`SelectionRules.runnable`),
                 // so a recorded precision no longer offered or a cell never measured is neither reported nor loaded.
@@ -47,7 +47,7 @@ import VellaCore
                     precision = valid
                     path = controller.installed(family, valid)?.path ?? "" // derived: prepared on use
                     if let loaded, loaded.precision == valid {
-                        path = loaded.path; isLoaded = true; requested = loaded.selection ?? requested
+                        path = loaded.path; isLoaded = true; requested = loaded.selection?.request ?? requested
                     }
                 } else if requested.tier != modelTier(ofPrecision: precision) {
                     requested = recordedSelection(config: config, family: family.id, precision: precision)

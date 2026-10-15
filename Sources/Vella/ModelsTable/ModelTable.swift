@@ -33,10 +33,10 @@ struct ModelTable: View {
     /// Room right of the action cell (the row padding and the table padding), as the buttons had before v3: the action
     /// button and its trash glyph stay at least this far inside the item view (TableWidthTests).
     static let trailingMargin: CGFloat = W.rowPadding + trailingPadding
-    /// One line per model: the Optimized and Standard segment rows with air around them, the Exact/Fast switch as tall as
-    /// both; beside them a 13 pt value over a 10.5 pt delta (or the name over its engine label). A cloud row has no
-    /// controls and keeps a 38 pt line.
-    static let rowHeight: CGFloat = TierControl.height + pt(6)
+    /// One line per model: the Exact/Fast switch at its full height with air around it, the one Precision row centred
+    /// beside it; beside them a 13 pt value over a 10.5 pt delta or reference label. A cloud row has no controls and
+    /// keeps a 38 pt line.
+    static let rowHeight: CGFloat = ExactFastSwitch.height + pt(6)
     static let referenceRowHeight: CGFloat = pt(38)
     static let rowGap: CGFloat = pt(2)
     static let headerHeight: CGFloat = pt(26), sectionHeight: CGFloat = pt(24), footerHeight: CGFloat = pt(28)
@@ -108,7 +108,7 @@ struct ModelTable: View {
     static let modelHeaderHelp = "The speech model. Hover a name for its languages and details."
     static let paramsHeaderHelp = "Model size in parameters."
     /// The small figures' base, one shared line.
-    static let deltaHeaderLine = "Small figure: change vs Standard 16-bit."
+    static let deltaHeaderLine = "Small figure: change vs the model's 16-bit precision."
     /// The Memory column's heading (Toby, 30 Sep).
     static let memoryTitle = "Peak RAM"
 
@@ -188,56 +188,48 @@ struct ModelTable: View {
         let library = controller.library(family.mode)
         // A confirmed download for this row (a precision made here downloads its source).
         let downloading = controller.downloadRoot(family, precision).flatMap { family.variants[$0] }.map { library.downloadingID == $0.id } ?? false
+        let hardware = controller.benchmarkHardware
+        let reference = !hardware.isMeasuredConfiguration
         HStack(spacing: W.spacing) {
             HStack(spacing: W.iconGap) {
                 Image(systemName: "flame.fill").font(.system(size: W.flameSize)).foregroundStyle(Color.orange)
                     .frame(width: W.icon).opacity(hot ? 1 : 0)
                 VStack(alignment: .leading, spacing: W.lineGap) {
                     Text(family.name).font(.system(size: Self.valueSize)).lineLimit(1)
-                    // A flip to Exact that moved the precision says so; else the engine beneath a loaded model.
+                    // A flip to Exact that moved the precision says so. No path is ever named here (Toby, 15 Oct).
                     if let note = controller.couplingNote(family) {
                         Text(note).font(.system(size: Self.deltaSize, weight: .medium)).lineLimit(1)
                             .foregroundStyle(hot ? Self.hotText.opacity(0.8) : .secondary)
-                            .appKitTooltip("Exact offers exact-only components that must match Standard on the load-time self-test")
-                    } else if let loaded, loaded.engine != nil {
-                        Text(
-                            controller.fellBack(family)
-                                ? "Fell back to Standard" : engineLabel(engine: loaded.engine, chip: runtime?.chip, selection: shownEngineSelection(family, engine: loaded.engine))
-                        )
-                        .font(.system(size: Self.deltaSize, weight: .medium))
-                        .foregroundStyle(controller.fellBack(family) ? Color(nsColor: TierControl.hotBoltTint) : Self.tone(.better, hot: hot)).lineLimit(1)
-                        .appKitTooltip(
-                            controller.loadedEngineHelp(family))
+                            .appKitTooltip(Self.couplingHelp)
                     }
                 }
             }.frame(width: W.model, alignment: .leading)
                 .appKitTooltip(modelHelp(family, loaded: loaded))
             Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params)
             precisionControl(family, hot: hot).frame(width: W.precision)
-            // As tall as both segment rows and centred on the pair; it applies to the Optimized row (its knob's bolt).
             pathSwitch(family)
-                .frame(width: W.path, height: TierControl.height)
+                .frame(width: W.path, height: ExactFastSwitch.height)
             metric(formatErrorRate(bench?.wer), compare ? errorRateDelta(bench?.wer, base: base?.wer) : nil, W.wer, hot: hot)
                 .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, werHelp(bench, suites: suites)))
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
                 .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, formatHelp(bench, suites: suites)))
+            // Speed and J / min depend on the Mac: elsewhere they show the M5 Max figure as a reference, marked by the
+            // triangle and its label (Toby, 15 Oct: "for the reference this was the speed on M5 Max").
             metric(
-                controller.benchmarkHardware.speedText(bench?.speed_x),
-                compare && controller.benchmarkHardware.isMeasuredConfiguration ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, W.speed, hot: hot,
-                referenceLabel: bench?.speed_x == nil ? nil : controller.benchmarkHardware.speedReferenceLabel
+                hardware.speedText(bench?.speed_x),
+                compare && !reference ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, W.speed, hot: hot,
+                referenceLabel: bench?.speed_x == nil ? nil : hardware.speedReferenceLabel,
+                warning: Self.speedWarning(family.mode, speed: bench?.speed_x, hardware: hardware)
             )
-            .overlay(alignment: .leading) {
-                if family.mode == .dictation, let x = bench?.speed_x, x < slowSpeedFloor {
-                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: size(9))).foregroundStyle(.orange).accessibilityLabel("very slow")
-                }
-            }
-            .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, speedHelp(family.mode, bench, suites: suites)))
+            .appKitTooltip(
+                pending ? figuresPendingHelp : figureHelp(family, speedHelp(family.mode, bench, suites: suites), reference: hardware.referenceLine(speed: bench?.speed_x)))
             metric(
-                controller.benchmarkHardware.energyText(bench?.j_per_min),
-                compare && controller.benchmarkHardware.isMeasuredConfiguration ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot,
-                subdued: !controller.benchmarkHardware.isMeasuredConfiguration
+                hardware.energyText(bench?.j_per_min),
+                compare && !reference ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot,
+                referenceLabel: bench?.j_per_min == nil ? nil : hardware.speedReferenceLabel,
+                warning: Self.energyWarning(bench?.j_per_min, hardware: hardware)
             )
-            .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, energyHelp(bench, suites: suites)))
+            .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, energyHelp(bench, suites: suites), reference: hardware.referenceLine(energy: bench?.j_per_min)))
             metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
                 .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, memoryHelp(bench, suites: suites)))
             rowAction(family, action: action, loading: loading, downloading: downloading, variant: variant, library: library, hot: hot, precision: precision, loaded: loaded)
@@ -310,12 +302,23 @@ struct ModelTable: View {
         }
     }
 
-    /// What runs, for the engine label: where Fast = Exact the switch is pinned up (always on), so the label says Fast
-    /// whichever position was recorded.
-    private func shownEngineSelection(_ family: ModelFamily, engine: String?) -> ModelSelection? {
-        guard var s = controller.loadedSelection(family).map({ effectiveSelection($0, engine: engine) }) else { return nil }
-        if !controller.switchAvailable(family) { s.mode = .fast }
-        return s
+    /// The Speed figure's triangle (its VoiceOver label): very slow for dictation (under 20× real time), else a reference
+    /// figure from the M5 Max on any other Mac; nil without a figure or on the measured Mac.
+    static func speedWarning(_ mode: RecognitionMode, speed: Double?, hardware: BenchmarkHardware) -> String? {
+        guard let speed else { return nil }
+        if mode == .dictation, speed < slowSpeedFloor { return "very slow" }
+        return hardware.isMeasuredConfiguration ? nil : referenceWarning
+    }
+    /// The J / min figure's triangle: a reference figure from the M5 Max on any other Mac.
+    static func energyWarning(_ energy: Double?, hardware: BenchmarkHardware) -> String? {
+        energy == nil || hardware.isMeasuredConfiguration ? nil : referenceWarning
+    }
+    static let referenceWarning = "not measured on this Mac"
+    /// The coupling note's tooltip.
+    static let couplingHelp = "Exact offers only components that must match plain MLX on the load-time self-test"
+    /// The table's orange warning triangle (Speed's very slow and reference figures; the Precision cells draw the same).
+    static func warningTriangle(_ label: String) -> some View {
+        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: size(9))).foregroundStyle(.orange).accessibilityLabel(label)
     }
 
     /// The action button's tooltip: the model's state (loaded, on disk, not downloaded), then what a click does.
@@ -345,10 +348,17 @@ struct ModelTable: View {
         }
     }
 
-    /// Value on top, delta vs Standard 16 beneath it in small type; centred under the column's label.
-    @ViewBuilder private func metric(_ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool, referenceLabel: String? = nil, subdued: Bool = false) -> some View {
+    /// Value on top, delta vs 16-bit (or the reference label) beneath it in small type; centred under the column's label.
+    /// `warning`: the orange triangle before the value (a reference figure from another Mac, or very slow), named for
+    /// VoiceOver.
+    @ViewBuilder private func metric(
+        _ value: String?, _ delta: Delta?, _ width: CGFloat?, hot: Bool, referenceLabel: String? = nil, subdued: Bool = false, warning: String? = nil
+    ) -> some View {
         VStack(alignment: .center, spacing: W.lineGap) {
-            Text(value ?? "—").lineLimit(1).foregroundStyle(referenceLabel == nil && !subdued ? Color.primary : Color.secondary)
+            HStack(spacing: pt(3)) {
+                if let warning { Self.warningTriangle(warning) }
+                Text(value ?? "—").lineLimit(1).foregroundStyle(referenceLabel == nil && !subdued ? Color.primary : Color.secondary)
+            }
             if let referenceLabel { Text(referenceLabel).font(Self.deltaFont).foregroundStyle(.secondary) }
             if let delta {
                 Text(delta.text).font(Self.deltaFont).lineLimit(1).fixedSize()
@@ -357,47 +367,50 @@ struct ModelTable: View {
         }.frame(width: width)
     }
 
-    /// The Precision control (TierControl.swift): the Optimized row (bolt) above the Standard row (MLX logo), each with
-    /// all three cells labelled with the dtype that runs; the Optimized row follows the Exact/Fast switch. A cell that
-    /// cannot be chosen is greyed in place with its reason. Disabled while the model is in use.
+    /// The Precision control (TierControl.swift): one row of three cells labelled with the dtype that runs, following the
+    /// Exact/Fast switch; the cell recommended for this Mac in gold, cells without matrix hardware here with the
+    /// triangle. A cell that cannot be chosen is greyed in place with its reason. Disabled while the model is in use.
     private func precisionControl(_ family: ModelFamily, hot: Bool) -> some View {
-        TierControl(
+        let advice = controller.advice(family)
+        let off = unavailableCells(family)
+        return TierControl(
             labels: TierControl.columns.map { ModelTier(rawValue: $0).map { tierDTypeLabel(family, $0) } ?? $0 },
-            selected: controller.shownCell(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
-            enabled: !controller.inUse(family), unavailable: unavailableCells(family), hot: hot,
-            loaded: controller.loadedSelection(family).map { TierControl.Cell($0.path == .standard ? .standard : .optimized, $0.tier.rawValue) },
-            help: { controller.tierHelp(family, tier: ModelTier(rawValue: $0.tier) ?? .t16, path: $0.row == .standard ? .standard : .optimized) },
-            onSelect: { cell in
-                if let tier = ModelTier(rawValue: cell.tier) { controller.select(family, tier: tier, path: cell.row == .standard ? .standard : .optimized) }
+            selected: controller.shownCell(family)?.tier.rawValue,
+            enabled: !controller.inUse(family), unavailable: off, hot: hot,
+            recommended: advice.recommended?.rawValue,
+            warnings: Dictionary(uniqueKeysWithValues: advice.software.map { ($0.key.rawValue, $0.value) }),
+            help: { tier in cellHelp(family, tier: ModelTier(rawValue: tier) ?? .t16, advice: advice) },
+            onSelect: { tier in
+                if let tier = ModelTier(rawValue: tier) { controller.select(family, tier: tier) }
             })
     }
+    /// An available cell's tooltip after its warning line: the recommendation (on the gold cell), the flavour, the change
+    /// vs 16-bit and any loss.
+    private func cellHelp(_ family: ModelFamily, tier: ModelTier, advice: PrecisionAdvice) -> String {
+        [advice.recommended == tier ? advice.recommendedHelp : nil, controller.tierHelp(family, tier: tier)].compactMap { $0 }.joined(separator: "\n")
+    }
 
-    /// The cells of both rows that cannot be chosen, each with its one-line reason (the greyed cell's tooltip), in this
-    /// order: a model without an Optimized path; a tier the catalog does not offer (or malformed gate data); under
-    /// Exact, a tier with only a Fast recipe; a cell without a measurement ('Not measured yet'), except the loaded cell,
-    /// which always stays selectable. Selection itself follows `SelectionRules` as before; this only names the cells.
-    func unavailableCells(_ family: ModelFamily) -> [TierControl.Cell: String] {
+    /// The cells that cannot be chosen, each with its one-line reason (the greyed cell's tooltip): a tier the catalog
+    /// does not offer (or malformed gate data); under Exact, a tier with only a Fast recipe; a cell without a
+    /// measurement ('Not measured yet'), except the loaded cell, which always stays selectable. Selection itself follows
+    /// `SelectionRules` as before; this only names the cells.
+    func unavailableCells(_ family: ModelFamily) -> [String: String] {
         let mode = controller.currentSelection(family).mode
         let loaded = controller.loadedSelection(family)
-        var off: [TierControl.Cell: String] = [:]
+        var off: [String: String] = [:]
         for tier in ModelTier.allCases {
-            for (row, path) in [(TierControl.Row.optimized, EnginePath.optimized), (.standard, .standard)] {
-                let cell = TierControl.Cell(row, tier.rawValue)
-                let s = ModelSelection(tier: tier, path: path, mode: mode)
-                if let reason = controller.rules(family).cellRefusal(s, loaded: loaded) { off[cell] = reason }
-            }
+            if let reason = controller.rules(family).cellRefusal(ModelSelection(tier: tier, mode: mode), loaded: loaded) { off[tier.rawValue] = reason }
         }
         return off
     }
 
-    /// The Exact/Fast switch (ExactFastSwitch.swift) beside both rows, for the Optimized one: up Fast, down Exact; none
-    /// for a model without an Optimized path.
+    /// The Exact/Fast switch (ExactFastSwitch.swift) beside the Precision row: up Fast, down Exact.
     @ViewBuilder private func pathSwitch(_ family: ModelFamily) -> some View {
         if controller.hasOptimizedPath(family) {
             ExactFastSwitch(
                 position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
                 available: controller.switchAvailable(family), enabled: !controller.inUse(family),
-                exactAvailable: controller.exactAvailable(family), hot: controller.loadedSelection(family)?.path == .optimized,
+                exactAvailable: controller.exactAvailable(family), hot: controller.loaded(family) != nil,
                 onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
         } else {
             Color.clear.frame(height: 1)
@@ -414,28 +427,19 @@ struct ModelTable: View {
         let r = controller.shownResult(family)
         let loaded = controller.loaded(family)
         let enabled = !controller.inUse(family)
+        let hardware = controller.benchmarkHardware
         var cells: [(String, String)] = [("Model", modelHelp(family, loaded: loaded))]
-        if controller.couplingNote(family) == nil, loaded?.engine != nil {
-            cells.append(
-                (
-                    "Engine",
-                    controller.loadedEngineHelp(family)
-                ))
-        }
-        let optimized = controller.hasOptimizedPath(family)
+        if controller.couplingNote(family) != nil { cells.append(("Coupling", Self.couplingHelp)) }
+        cells.append(("Bolt", TierControl.boltHelp))
         let off = unavailableCells(family)
-        for row in TierControl.Row.allCases {
-            cells.append(("Path \(row.title)", row.help))
-            for tier in ModelTier.allCases {
-                let cell = TierControl.Cell(row, tier.rawValue)
-                cells.append(
-                    (
-                        "Precision \(row.title) \(tierDTypeLabel(family, tier))",
-                        off[cell] ?? TierControl.tooltip(controller.tierHelp(family, tier: tier, path: row == .standard ? .standard : .optimized), enabled: enabled)
-                    ))
-            }
+        let advice = controller.advice(family)
+        for tier in ModelTier.allCases {
+            let text =
+                off[tier.rawValue]
+                ?? TierControl.tooltip([advice.software[tier], cellHelp(family, tier: tier, advice: advice)].compactMap { $0 }.joined(separator: "\n"), enabled: enabled)
+            cells.append(("Precision \(tierDTypeLabel(family, tier))", text))
         }
-        if optimized {
+        if controller.hasOptimizedPath(family) {
             cells.append(
                 (
                     "Exact/Fast",
@@ -450,16 +454,19 @@ struct ModelTable: View {
             ? ["WER", "Format", "Speed", "J / min", Self.memoryTitle].map { ($0, figuresPendingHelp) }
             : [
                 ("WER", figureHelp(family, werHelp(r, suites: suites))), ("Format", figureHelp(family, formatHelp(r, suites: suites))),
-                ("Speed", figureHelp(family, speedHelp(family.mode, r, suites: suites))), ("J / min", figureHelp(family, energyHelp(r, suites: suites))),
+                ("Speed", figureHelp(family, speedHelp(family.mode, r, suites: suites), reference: hardware.referenceLine(speed: r?.speed_x))),
+                ("J / min", figureHelp(family, energyHelp(r, suites: suites), reference: hardware.referenceLine(energy: r?.j_per_min))),
                 (Self.memoryTitle, figureHelp(family, memoryHelp(r, suites: suites)))
             ]
         return cells + figures + [("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))]
     }
 
-    /// Retained loaded selections can point at a withdrawn cell; its reason still belongs on every figure.
-    private func figureHelp(_ family: ModelFamily, _ measuredHelp: String) -> String {
-        let cell = controller.shownCell(family).flatMap { benchmarkCell(controller.benchmark(family), $0) }
-        return cell?.isPending == true ? unmeasuredReasonHelp(cell) : [measuredHelp, controller.benchmarkHardware.caveat].compactMap { $0 }.joined(separator: "\n")
+    /// Retained loaded selections can point at a withdrawn cell; its reason still belongs on every figure. A speed or
+    /// energy figure on a Mac other than the measured one starts with its reference line (`Not measured on your Mac.
+    /// M5 Max: 507× real time.`); word error, format errors and peak RAM depend on the precision, not the Mac.
+    private func figureHelp(_ family: ModelFamily, _ measuredHelp: String, reference: String? = nil) -> String {
+        let cell = controller.shownBenchmarkCell(family)
+        return cell?.isPending == true ? unmeasuredReasonHelp(cell) : [reference, measuredHelp].compactMap { $0 }.joined(separator: "\n")
     }
 
     /// A reference row's tooltips as (column, text); Params and the controls have none (nothing is known).

@@ -11,11 +11,13 @@ import VellaCore
         let family = try XCTUnwrap(controller.catalog.family("parakeet-v3"))
         let requested = try XCTUnwrap(controller.loaded(family)?.selection)
         XCTAssertEqual(requested.path, .optimized)
-        XCTAssertEqual(controller.loadedSelection(family)?.path, .standard)
-        XCTAssertEqual(controller.shownCell(family)?.path, .standard)
+        // The row keeps the request (no path is named); the figures are those of what runs: stock MLX's.
+        XCTAssertEqual(controller.loadedSelection(family)?.path, .optimized)
+        XCTAssertEqual(controller.runningSelection(family)?.path, .standard)
+        XCTAssertEqual(controller.shownCell(family)?.path, .optimized)
         XCTAssertEqual(controller.shownResult(family)?.speed_x ?? 0, 257.7, accuracy: 0.2)
         XCTAssertFalse(controller.showsDeltas(family))
-        XCTAssertTrue(modelHelp(family, loaded: controller.loaded(family)).contains("Reload Optimized Fast"))
+        XCTAssertFalse(modelHelp(family, loaded: controller.loaded(family)).contains("Reload"), "no retry is promised")
         // Corrected Whisper Standard uses its own faithful measurement, never Fast figures.
         state.runtime.loaded = ["whisper-large-v3": LoadedFamily(precision: "FP16", engine: "mlx", selection: requested)]
         let whisperController = TableRenderDelegate.controller(state)
@@ -39,7 +41,7 @@ import VellaCore
         let alert = AppDelegate.savedRecordingAlert(choices)
         XCTAssertEqual(alert.informativeText, "The transcript is copied to the clipboard.")
     }
-    func testNonMeasuredConfigurationsFitTheNativeTableAndLabelOnlySpeed() {
+    func testNonMeasuredConfigurationsFitTheNativeTableAndLabelSpeedAndEnergy() {
         let state = TableRenderDelegate.states()[0]
         for hardware in [
             BenchmarkHardware(chip: "M5 Max", gpuCores: 32), BenchmarkHardware(chip: "M5 Pro", gpuCores: 20), BenchmarkHardware(chip: "M5", gpuCores: 10),
@@ -49,7 +51,8 @@ import VellaCore
             let view = NSHostingView(rootView: ModelTable(controller: controller))
             XCTAssertEqual(view.fittingSize.width, ModelTable.width)
             XCTAssertEqual(hardware.speedReferenceLabel, "M5 Max")
-            XCTAssertEqual(hardware.energyText(10), "not known")
+            XCTAssertEqual(hardware.energyText(10), "10 J", "the M5 Max figure, for reference")
+            XCTAssertEqual(hardware.referenceLine(energy: 10), "Not measured on your Mac. M5 Max: 10 J per audio minute.")
         }
     }
 }

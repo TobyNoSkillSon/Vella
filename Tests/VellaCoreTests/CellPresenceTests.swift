@@ -91,7 +91,9 @@ final class CellPresenceTests: XCTestCase {
                 XCTAssertTrue(cellPresent(benchmark, tier: tier, segment: recipe))
                 XCTAssertTrue(rules.isPresent(selection))
                 XCTAssertTrue(rules.measured(selection))
-                XCTAssertEqual(rules.valid(selection), selection)
+                // Every cell stays in the data (a stock cell is a fallback's figures); a selection is judged as its request.
+                XCTAssertEqual(rules.valid(selection), selection.request)
+                XCTAssertEqual(rules.valid(selection).path, .optimized)
                 XCTAssertNil(rules.cellRefusal(selection))
             }
         }

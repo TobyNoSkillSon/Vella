@@ -51,33 +51,36 @@ final class RecipeRuntimeTests: XCTestCase {
         func recipes() -> [String] { ((try? String(contentsOf: log, encoding: .utf8)) ?? "").split(separator: "\n").map(String.init) }
         func config() throws -> Configuration { try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: runtime.configURL)) }
 
-        // Load at Standard 16: the worker runs stock; config.json records the selection.
+        // A Load carrying 2.0's Standard 16 · Exact: the worker is asked for the optimized request (never `standard`; its
+        // gate falls back to stock by itself); config.json records the request.
         let standard = ModelSelection(tier: .t16, path: .standard, mode: .exact)
+        let exact = ModelSelection(tier: .t16, mode: .exact)
         bridge.load(family: alpha, precision: "BF16", variant: alpha.variants["BF16"]!, path: source.path, selection: standard)
-        try await waitUntil { runtime.status.models["alpha"]?.selection == standard && (try? self.selections(runtime)) == ["alpha": standard] }
-        XCTAssertEqual(recipes(), ["standard"])
+        try await waitUntil { runtime.status.models["alpha"]?.selection == exact && (try? self.selections(runtime)) == ["alpha": exact] }
+        XCTAssertEqual(recipes(), ["optimized_exact"])
         let firstPID = runtime.status.models["alpha"]?.pid
-        XCTAssertEqual(controller.runtime?.loaded["alpha"]?.selection, standard, "the table sees what the worker was launched with")
+        XCTAssertEqual(controller.runtime?.loaded["alpha"]?.selection, exact, "the table sees what the worker was launched with")
 
-        // Same files, Optimized · Exact: a new worker with the new recipe.
-        let exact = ModelSelection(tier: .t16, path: .optimized, mode: .exact)
-        bridge.reload(family: alpha, precision: "BF16", variant: alpha.variants["BF16"]!, path: source.path, selection: exact)
-        try await waitUntil { runtime.status.models["alpha"]?.selection == exact }
-        XCTAssertEqual(recipes(), ["standard", "optimized_exact"])
+        // Same files, 16 · Fast: a new worker with the new recipe.
+        let fast = ModelSelection(tier: .t16, mode: .fast)
+        bridge.reload(family: alpha, precision: "BF16", variant: alpha.variants["BF16"]!, path: source.path, selection: fast)
+        try await waitUntil { runtime.status.models["alpha"]?.selection == fast }
+        XCTAssertEqual(recipes(), ["optimized_exact", "optimized_fast"])
         XCTAssertNotEqual(runtime.status.models["alpha"]?.pid, firstPID)
-        XCTAssertEqual(try config().selections["alpha"], exact)
+        XCTAssertEqual(try config().selections["alpha"], fast)
 
-        // The same selection again: nothing reloads.
-        bridge.load(family: alpha, precision: "BF16", variant: alpha.variants["BF16"]!, path: source.path, selection: exact)
+        // The same selection again, also as 2.0's Standard spelling of it: nothing reloads.
+        bridge.load(family: alpha, precision: "BF16", variant: alpha.variants["BF16"]!, path: source.path, selection: fast)
+        bridge.load(family: alpha, precision: "BF16", variant: alpha.variants["BF16"]!, path: source.path, selection: ModelSelection(tier: .t16, path: .standard, mode: .fast))
         try await Task.sleep(nanoseconds: 300_000_000)
-        XCTAssertEqual(recipes(), ["standard", "optimized_exact"])
+        XCTAssertEqual(recipes(), ["optimized_exact", "optimized_fast"])
 
         // An on-demand load (a dictation of the mode's model) runs the recorded selection.
         await runtime.unload("alpha")
         try await waitUntil { runtime.status.models["alpha"] == nil }
         let ref = runtime.resolve(source.path, mode: .dictation)
-        XCTAssertEqual(ref.selection, exact)
-        XCTAssertEqual(ref.recipe, .optimized_exact)
+        XCTAssertEqual(ref.selection, fast)
+        XCTAssertEqual(ref.recipe, .optimized_fast)
     }
 
     @MainActor private func selections(_ runtime: Runtime) throws -> [String: ModelSelection] {
@@ -91,13 +94,18 @@ final class RecipeRuntimeTests: XCTestCase {
     }
 
     func testDefaultSelectionRule() {
-        let fast = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
-        XCTAssertEqual(defaultSelection(recorded: nil, precision: "BF16"), .fallback, "never loaded: Optimized 16 · Fast")
+        let fast = ModelSelection(tier: .t8, mode: .fast)
+        XCTAssertEqual(defaultSelection(recorded: nil, precision: "BF16"), .fallback, "never loaded: 16 · Fast")
         XCTAssertEqual(ModelSelection.fallback, ModelSelection(tier: .t16, path: .optimized, mode: .fast), "fresh installs never land on Standard")
+        // A recorded 2.0 Standard choice is the optimized request at its tier and switch position.
+        XCTAssertEqual(
+            defaultSelection(recorded: ModelSelection(tier: .t16, path: .standard, mode: .exact), precision: "4b"), ModelSelection(tier: .t4, mode: .exact))
+        XCTAssertEqual(workerRecipe(ModelSelection(tier: .t16, path: .standard, mode: .exact)), .optimized_exact, "VELLA_RECIPE is never standard")
+        XCTAssertEqual(workerRecipe(ModelSelection(tier: .t16, path: .standard, mode: .fast)), .optimized_fast)
         XCTAssertEqual(defaultSelection(recorded: nil, precision: "8b"), fast, "used before selections: what it ran")
         XCTAssertEqual(
             defaultSelection(recorded: ModelSelection(tier: .t16, path: .optimized, mode: .exact), precision: "8b"),
-            ModelSelection(tier: .t8, path: .optimized, mode: .exact), "the recorded path and switch at the loaded tier")
+            ModelSelection(tier: .t8, mode: .exact), "the recorded switch at the loaded tier")
         XCTAssertEqual(workerRecipe(nil), .optimized_fast)
         XCTAssertEqual(effectiveSelection(ModelSelection(tier: .t16, path: .optimized, mode: .fast), engine: "mlx").segmentKey, .standard)
         XCTAssertEqual(effectiveSelection(ModelSelection(tier: .t16, path: .optimized, mode: .fast), engine: "optimized").segmentKey, .optimized_fast)

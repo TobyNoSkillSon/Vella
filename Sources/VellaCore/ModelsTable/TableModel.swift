@@ -191,50 +191,15 @@ public let slowSpeedFloor = 20.0
 
 // MARK: Engine label
 
-/// The loaded recipe’s label, with its chip on the optimized path.
-/// With the loaded selection: `Standard` on stock MLX as chosen, `Optimized Exact \u{00b7} M5 Max` / `Optimized Fast \u{00b7} M5 Max`.
+/// The loaded recipe’s label, with its chip on the optimized path, for agent-facing reports (`vella diagnose`): the
+/// app's own UI names no path (Toby, 15 Oct: "I would just say that they are always optimized").
+/// With the loaded selection: `Standard` on stock MLX, `Optimized Exact \u{00b7} M5 Max` / `Optimized Fast \u{00b7} M5 Max`.
 public func engineLabel(engine: String?, chip: String?, selection: ModelSelection? = nil) -> String {
     guard engine == Engine.optimized.rawValue else { return selection?.path == .standard ? "Standard" : "MLX" }
     let name = selection.map { $0.mode == .exact ? "Optimized Exact" : "Optimized Fast" } ?? "Optimized"
     guard let chip = displayChip(chip) else { return name }
     return name + " \u{00b7} " + chip
 }
-/// Tooltip for the engine label: which path answers, the optimized components as the worker reports them
-/// (component → active) and, off the optimized path, the worker's reason. Never invents a cause.
-public func engineHelp(engine: String?, reason: String?, optimizations: [String: Bool]?, chip: String?, precision: String, stock baseline: String? = nil) -> String {
-    var lines: [String] = []
-    let active = (optimizations ?? [:]).filter(\.value).keys.sorted()
-    let stock = (optimizations ?? [:]).filter { !$0.value }.keys.sorted()
-    let why = reason.map { " Why: \($0)." } ?? ""
-    if engine == Engine.optimized.rawValue {
-        lines.append("Optimized path, self-tested at load on this Mac" + (displayChip(chip).map { " (\($0))" } ?? "") + ".")
-        if !active.isEmpty { lines.append("Optimized: " + active.joined(separator: ", ") + (stock.isEmpty ? "." : "; stock: " + stock.joined(separator: ", ") + ".")) }
-    } else if !active.isEmpty {
-        lines.append("Partly optimized \u{2014} optimized: " + active.joined(separator: ", ") + "; stock: " + (stock.isEmpty ? "none" : stock.joined(separator: ", ")) + "." + why)
-    } else {
-        lines.append("Stock MLX path: the same model without Vella's optimizations; slower." + why)
-    }
-    lines.append("Precision: \(precisionInProse(precision))")
-    if let baseline { lines.append(baseline) } // stockLine(_:) of the loaded precision
-    return lines.joined(separator: "\n")
-}
-
-/// The reported component remains identifiable, while the failure reads as ordinary tooltip prose.
-public func fallbackEngineHelp(reason: String?) -> String {
-    let raw = reason?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    var plain = raw.isEmpty ? "no reason was reported" : raw
-    if let range = raw.range(of: " self-test failed: ") {
-        let component = String(raw[..<range.lowerBound])
-        let detail = String(raw[range.upperBound...])
-        plain = (detail == "streamed text did not match Standard" ? "its output didn't match Standard" : detail) + " (" + component + ")"
-    }
-    for (upper, lower) in [("BF16", "bf16"), ("FP16", "fp16"), ("FP32", "fp32"), ("INT8", "int8"), ("INT4", "int4")] {
-        plain = plain.replacingOccurrences(of: upper, with: lower)
-    }
-    return
-        "Vella's optimized path didn't pass its self-test on this Mac: \(plain). This model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
-}
-
 // MARK: Hardware note
 
 /// `Apple M5 Max` → `M5 Max`. Nil when empty.
@@ -268,7 +233,7 @@ public func measurementChip(_ file: BenchmarkFile) -> String? {
 public func hardwareNote(thisChip: String?, measuredOn: String?, gpuCores: Int? = nil) -> (text: String, help: String)? {
     let hardware = BenchmarkHardware(chip: thisChip, gpuCores: gpuCores)
     guard let help = hardware.caveat else { return nil }
-    return ("Measured on M5 Max · J / min not known", help)
+    return ("Speed and J / min measured on M5 Max", help)
 }
 
 // MARK: Runtime state the table shows

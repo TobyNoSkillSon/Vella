@@ -18,7 +18,7 @@ import VellaCore
         return f
     }
     func object(_ f: ModelFamily) -> [String: Any] {
-        let asked = controller.loaded(f)?.selection ?? controller.committedSelection(f)
+        let asked = controller.loaded(f)?.selection?.request ?? controller.committedSelection(f)
         let running = effectiveSelection(asked, engine: runtime.status.models[f.id]?.engine)
         let precision = controller.committed(f)
         var o: [String: Any] = [
@@ -60,13 +60,31 @@ import VellaCore
                 "deletable": f.variants[precision].map { library.deletionBlockReason($0.id) == nil } ?? false
             ]
         }
+        // The table's advice per switch position: recommended for this Mac (gold) and cells without matrix hardware here.
+        let advice = Dictionary(
+            uniqueKeysWithValues: OptimizedMode.allCases.map { mode in
+                let position: OptimizedMode = controller.switchAvailable(f) ? mode : .fast
+                return (
+                    mode,
+                    precisionAdvice(
+                        f, controller.benchmark(f), mode: position, tiers: controller.measuredPrecisions(f, position),
+                        gpu: controller.gpu, measuredHere: controller.benchmarkHardware.isMeasuredConfiguration)
+                )
+            })
+        let shownMode: OptimizedMode = controller.switchAvailable(f) ? controller.currentSelection(f).mode : .fast
+        if let tier = advice[shownMode]?.recommended { o["recommended_precision"] = tierDTypeLabel(f, tier) }
         o["cells"] = ModelTier.allCases.flatMap { tier -> [[String: Any]] in
-            EnginePath.allCases.flatMap { path -> [[String: Any]] in
-                (path == .standard ? [OptimizedMode.fast] : OptimizedMode.allCases).map { mode in
-                    let s = ModelSelection(tier: tier, path: path, mode: mode)
+            OptimizedMode.allCases.map { mode in
+                    let s = ModelSelection(tier: tier, mode: mode)
                     var cell = selectionObject(s)
                     cell["precision"] = tierDTypeLabel(f, tier)
                     if let reason = controller.rules(f).cellRefusal(s, loaded: controller.loadedSelection(f)) { cell["reason"] = reason }
+                    // Advice for the cells that can be chosen (an unavailable cell has its `reason` instead).
+                    if let a = advice[mode], cell["reason"] == nil {
+                        cell["recommended"] = a.recommended == tier
+                        cell["hardware"] = a.software[tier] == nil ? "matrix" : "software"
+                        if let warning = a.software[tier] { cell["hardware_note"] = warning }
+                    }
                     if !controller.benchmarks.figuresPending, let measured = benchmarkCell(controller.benchmark(f), s), !measured.isPending {
                         cell["figures"] = controller.benchmarkHardware.figures(measured.result)
                         cell["measurement"] = jsonObject(measured.measured)
@@ -77,7 +95,6 @@ import VellaCore
                         if !loss.isEmpty { cell["loss"] = loss }
                     }
                     return cell
-                }
             }
         }
         return o
@@ -108,12 +125,7 @@ import VellaCore
             }
             s.tier = tier
         }
-        if let value = fields["path"] {
-            guard let string = value as? String, let path = EnginePath(rawValue: string.lowercased()) else {
-                throw APIError(400, "Path must be Standard or Optimized", param: "path")
-            }
-            s.path = path
-        }
+        if fields["path"] != nil { throw APIError(400, Self.pathRemovedHelp, param: "path") }
         if let value = fields["mode"] {
             guard let string = value as? String, let mode = OptimizedMode(rawValue: string.lowercased()) else {
                 throw APIError(400, "Mode must be Fast or Exact", param: "mode")
@@ -124,10 +136,12 @@ import VellaCore
     }
     func perform(_ action: String, id: String, fields: [String: Any]) async throws -> [String: Any] {
         let f = try family(id)
-        let allowed: Set<String> = action == "select" ? ["precision", "path", "mode"] : action == "delete" ? ["precision", "yes"] : ["yes"]
+        // A 2.0 client's `path` gets its own answer, never silently honoured (one capability, one interface).
+        if fields["path"] != nil { throw APIError(400, Self.pathRemovedHelp, param: "path") }
+        let allowed: Set<String> = action == "select" ? ["precision", "mode"] : action == "delete" ? ["precision", "yes"] : ["yes"]
         guard Set(fields.keys).isSubset(of: allowed) else { throw APIError(400, "Unknown model control field") }
         if action == "select" {
-            guard !fields.isEmpty else { throw APIError(400, "Select needs at least one JSON field: precision, path or mode.") }
+            guard !fields.isEmpty else { throw APIError(400, "Select needs at least one JSON field: precision or mode.") }
             let chosen = try selection(fields, family: f)
             if Set(fields.keys) == ["mode"] { try controller.setModeForControl(f, mode: chosen.mode) } else { try controller.selectForControl(f, selection: chosen) }
         } else {
@@ -150,6 +164,9 @@ import VellaCore
         }
         return object(f)
     }
+    /// The answer to a `path` field (removed in 2.1).
+    static let pathRemovedHelp =
+        "path is no longer a choice: Vella always runs the optimized path and falls back to stock MLX by itself. Send precision and/or mode."
     func settings() -> [String: Any] {
         let s = runtime.settings
         func title(_ minutes: Int) -> String { keepHotChoices.first(where: { $0.minutes == minutes })?.title ?? "\(minutes) min idle" }

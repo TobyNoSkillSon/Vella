@@ -32,8 +32,8 @@ public struct ModelRef: Codable, Hashable {
     public var memoryMB: Double?
     /// Every precision this family offers, any order; used to suggest a smaller one in a refusal.
     public var precisionOptions: [String]?
-    /// What the worker runs: tier × Standard/Optimized × Exact/Fast (Selection.swift). Nil (an older launch set, a
-    /// model outside the catalog): Optimized · Fast, the behaviour before the selection existed.
+    /// What the worker is asked to run: tier × Exact/Fast on the optimized path (Selection.swift). Nil (an older launch
+    /// set, a model outside the catalog): 16 · Fast, the behaviour before the selection existed.
     public var selection: ModelSelection?
     public init(
         id: String, precision: String = "", path: String, mode: RecognitionMode = .dictation, name: String? = nil,
@@ -52,15 +52,15 @@ public struct ModelRef: Codable, Hashable {
 /// The recipe a worker runs for a selection (`VELLA_RECIPE`): Standard = stock MLX (the VELLA_FORCE_STOCK path);
 /// Optimized · Exact = only the components whose output equals stock's; Optimized · Fast = those plus the inexact
 /// components that passed the gate. Nil selection = Optimized · Fast (the behaviour before selections existed).
-public func workerRecipe(_ selection: ModelSelection?) -> Recipe { selection?.segmentKey ?? .optimized_fast }
+public func workerRecipe(_ selection: ModelSelection?) -> Recipe { selection?.request.segmentKey ?? .optimized_fast }
 /// The selection a load runs when none is passed (an on-demand dictation, an API request, the first-dictation Get):
 /// the family's recorded selection (config.json `selections`) at the precision's tier; else Optimized · Fast, both for
 /// a family used before selections existed (what it ran) and for a model never loaded (family ruling, 29 Sep: fresh
 /// installs and on-demand agent loads never land on Standard).
 public func defaultSelection(recorded: ModelSelection?, precision: String) -> ModelSelection {
     let tier = modelTier(ofPrecision: precision) ?? recorded?.tier ?? .t16
-    if var recorded { recorded.tier = tier; return recorded }
-    return ModelSelection(tier: tier, path: .optimized, mode: .fast)
+    if var recorded { recorded.tier = tier; return recorded.request }
+    return ModelSelection(tier: tier, mode: .fast)
 }
 /// `defaultSelection` from config.json (nil = none): what a load of `family` at `precision` runs when no selection is
 /// passed.
@@ -74,7 +74,8 @@ public func effectiveSelection(_ requested: ModelSelection, engine: String?) -> 
     guard engine == Engine.mlx.rawValue, requested.path == .optimized else { return requested }
     var running = requested; running.path = .standard; return running
 }
-/// `Standard`, `Optimized Exact`, `Optimized Fast`.
+/// `Standard`, `Optimized Exact`, `Optimized Fast`: agent-facing only (`vella status`, `vella models`, diagnose), where
+/// the true effective path is reported; the app's own UI never names a path.
 public func recipeLabel(_ selection: ModelSelection) -> String {
     switch selection.segmentKey {
     case .standard: return "Standard"
