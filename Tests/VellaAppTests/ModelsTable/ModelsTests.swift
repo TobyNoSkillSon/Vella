@@ -400,7 +400,7 @@ final class ModelsTests: XCTestCase {
             Array(blocks.dropFirst()),
             [
                 ["Models…", "Keep Hot", "Memory"],
-                ["Start Dictation", "Mode", "Microphone", "Shortcuts", "Copy Last Transcript", "Recover Saved Recording…", "Open Saved Recordings"],
+                ["Start Dictation", "Mode", "Microphone", "Shortcuts", "Copy Last Transcript", "Transcripts…", "Recover Saved Recording…", "Open Saved Recordings"],
                 ["Copy Skill for Your Agent", "Open Vella Files", "Launch at Login"],
                 ["Support the Developer…", "Quit Vella"]
             ])
@@ -435,7 +435,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(header.toolTip, menuHeaderToolTip(failed: false, message: "", needsPermission: !model.insertionPermission.granted, idle: true, pending: nil))
         XCTAssertEqual(Set(tipped.keys.filter { !$0.hasPrefix("Models…") && $0 != header.title }), survivors, "every other item says what it does in its title")
         for title in [
-            "Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Last Transcript",
+            "Mode", "Microphone", "Shortcuts", "Models…", "Keep Hot", "Memory", "Copy Last Transcript", "Transcripts…",
             "Open Vella Files", "Launch at Login", "Support the Developer…", "Quit Vella", "Start Dictation"
         ] {
             let item = try XCTUnwrap(delegate.menu.item(withTitle: title), title)

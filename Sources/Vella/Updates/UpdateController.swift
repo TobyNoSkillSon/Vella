@@ -55,7 +55,7 @@ import VellaUpdate
         defaults.removeObject(forKey: "releaseCheck.lastAttempt"); defaults.removeObject(forKey: "releaseCheck.availableTag")
         if let result = UpdateResult.take(support: support), !result.ok {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [self] in
-                showAlert(title: "Update to \(result.to) failed", result.message.hasSuffix(".") ? result.message : result.message + ".")
+                showAlert(title: "Update failed", result.message.hasSuffix(".") ? result.message : result.message + ".")
             }
         }
         restoreOffer()
@@ -139,7 +139,7 @@ import VellaUpdate
         alert.messageText = "Update to Vella \(release.version)?"
         let notes = release.shortNotes()
         alert.informativeText =
-            "You have \(current?.description ?? "an earlier version"). Settings, models and recordings are kept; Vella restarts."
+            "Vella restarts; settings, models and recordings stay."
             + (notes.isEmpty ? "" : "\n\n" + notes)
         alert.addButton(withTitle: "Update Now")
         alert.addButton(withTitle: "Later")
@@ -149,7 +149,7 @@ import VellaUpdate
     private func refuse(_ reason: String, _ release: ReleaseInfo) {
         let message = "Vella is \(reason)"
         machine.handle(.failed(message)); onChange?()
-        showAlert(title: "Update to \(release.version) not started", message + ". Update when it has finished; nothing was downloaded or changed.")
+        showAlert(title: "Update not started", message + ". Try again when it’s done.")
     }
 
     // MARK: Install
@@ -177,7 +177,7 @@ import VellaUpdate
             if let staged { try? FileManager.default.removeItem(atPath: staged.directory) }
             let reason = (error as? UpdateError)?.message ?? error.localizedDescription
             machine.handle(.failed(reason)); onChange?()
-            showAlert(title: "Update to \(release.version) failed", sentence(reason) + " Vella \(current) is unchanged.")
+            showAlert(title: "Update failed", sentence(reason) + " Nothing changed.")
         }
     }
 

@@ -37,13 +37,9 @@ struct ModelDeletionPlan {
     let title: String
     var earlierDownload = false
     var body: String {
-        if earlierDownload {
-            return
-                "Moves these unused earlier weights to the Trash. They cannot be downloaded again from Vella’s catalog. No recipe files depend on them. Recordings and transcripts are kept. Size: "
-                + formatBytes(bytes) + " (" + formatExactBytes(bytes) + ")."
-        }
-        return "Moves its downloaded weights to the Trash. If it is loaded it is unloaded first. You can download it again later. Recordings and transcripts are kept. "
-            + "Size: " + formatBytes(bytes) + " (" + formatExactBytes(bytes) + "). Precisions made from these weights lose their recipe files too."
+        earlierDownload
+            ? "Moves \(formatBytes(bytes)) of unused weights to the Trash. They can’t be downloaded again."
+            : "Moves \(formatBytes(bytes)) to the Trash."
     }
 }
 
@@ -762,7 +758,7 @@ struct ModelDeletionPlan {
         let earlierDownload = installed && variant.isDerived && registeredCheckpoint(f, precision, installedPath: { lib.installed[$0]?.path }) == nil
         return ModelDeletionPlan(
             familyID: f.id, precision: precision, variantID: variant.id, path: path, wasInstalled: installed,
-            bytes: bytes, title: installed ? "Delete " + name + (earlierDownload ? " earlier download (not used)?" : "?") : "Delete unfinished " + name + " download?",
+            bytes: bytes, title: installed ? (earlierDownload ? "Delete unused " + name + "?" : "Delete " + name + "?") : "Delete unfinished " + name + " download?",
             earlierDownload: earlierDownload)
     }
 

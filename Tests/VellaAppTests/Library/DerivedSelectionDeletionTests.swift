@@ -45,7 +45,7 @@ final class DerivedSelectionDeletionTests: XCTestCase {
         host.rootView.requestDelete(f.zeta)
         try await waitUntil { !alerts.isEmpty }
         try await Task.sleep(nanoseconds: 200_000_000)
-        XCTAssertEqual(alerts, ["Model cannot be deleted here"])
+        XCTAssertEqual(alerts, ["Can’t delete this model"])
         XCTAssertEqual(trashed, [])
         XCTAssertEqual(try f.config().model, selected)
         XCTAssertTrue(FileManager.default.fileExists(atPath: selected))

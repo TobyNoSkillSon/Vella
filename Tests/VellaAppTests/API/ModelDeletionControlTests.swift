@@ -26,8 +26,8 @@ final class ModelDeletionControlTests: XCTestCase {
             XCTFail("Delete without yes must refuse")
         } catch let error as APIError {
             XCTAssertEqual(error.code, "deletion_consent_required")
-            XCTAssertTrue(error.message.contains("Alpha") && error.message.contains(formatExactBytes(size)))
-            XCTAssertTrue(error.message.contains("Trash") && error.message.contains("Recordings and transcripts are kept"))
+            XCTAssertTrue(error.message.contains("Alpha") && error.message.contains(formatBytes(size)))
+            XCTAssertTrue(error.message.contains("Trash"))
         }
         XCTAssertTrue(FileManager.default.fileExists(atPath: path))
         XCTAssertEqual(try Data(contentsOf: f.controller.dictation.registryURL), registry)

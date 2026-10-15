@@ -26,8 +26,8 @@ final class HardwareEventTests: XCTestCase {
             center.post(name: NSWorkspace.willSleepNotification, object: nil)
             XCTAssertEqual(model.phase, .failed); XCTAssertTrue(model.message.contains("went to sleep"))
             center.post(name: NSWorkspace.didWakeNotification, object: nil)
-            XCTAssertEqual(model.phase, .failed); XCTAssertTrue(model.message.contains("Mac woke"))
-            XCTAssertTrue(model.message.contains("Retry copies only")); XCTAssertFalse(model.insertionWasAutomatic)
+            XCTAssertEqual(model.phase, .failed); XCTAssertTrue(model.message.contains("went to sleep"))
+            XCTAssertTrue(model.message.contains("Retry copies the text")); XCTAssertFalse(model.insertionWasAutomatic)
             XCTAssertEqual(model.savedSession?.directory, session.directory)
             XCTAssertEqual(try Data(contentsOf: session.directory.appendingPathComponent(session.manifest.segments[0].filename)), before)
             XCTAssertEqual(try RecordingSession(directory: session.directory).manifest.state, "interrupted")
@@ -81,9 +81,9 @@ final class HardwareEventTests: XCTestCase {
         let model = DictationController(monitorDefaultInput: false); defer { model.shutdown() }
         model.phase = .preparing; model.hardwareEvent(.willSleep); model.hardwareEvent(.didWake)
         XCTAssertNil(model.savedSession)
-        XCTAssertTrue(model.message.contains("Recording did not start"))
-        XCTAssertFalse(model.message.contains("audio and recognized text are saved"))
-        XCTAssertFalse(model.message.contains("Retry copies only"))
+        XCTAssertTrue(model.message.contains("before recording started"))
+        XCTAssertFalse(model.message.contains("Audio is saved"))
+        XCTAssertFalse(model.message.contains("Retry copies"))
     }
     @MainActor func testSystemDefaultChoiceClearsAnUpgradersRetainedFallbackAndPreservesOtherSettings() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-mic-upgrade-\(UUID())")

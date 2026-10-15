@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import QuartzCore
 import ServiceManagement
@@ -388,6 +389,7 @@ import VellaCore
                 selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
                 openSettings: #selector(accessibility)))
         if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast)) }
+        item("Transcripts…", "list.bullet.rectangle", #selector(showTranscripts))
         item("Recover Saved Recording…", "arrow.clockwise", #selector(recoverSaved), enabled: !model.busy && model.phase != .recording)
         item("Open Saved Recordings", "folder", #selector(savedRecordings), help: Self.privacyHelp)
         menu.addItem(.separator())
@@ -458,15 +460,22 @@ import VellaCore
     }
     @objc private func deleteSaved() {
         DispatchQueue.main.async {
-            let alert = NSAlert(); alert.messageText = "Delete this saved recording?"
-            alert.informativeText = "This permanently deletes its audio and saved transcript. Other recordings are untouched."
-            alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Delete")
-            if alert.runModal() == .alertSecondButtonReturn {
+            if Self.deleteSavedAlert().runModal() == .alertSecondButtonReturn {
                 do { try self.model.deleteSavedRecording() } catch { self.model.update(.failed, error.localizedDescription) }
             }
         }
     }
+    static func deleteSavedAlert() -> NSAlert {
+        let alert = NSAlert(); alert.messageText = "Delete this saved recording?"
+        alert.informativeText = "Its audio and transcript are deleted for good."
+        alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Delete")
+        return alert
+    }
     @objc private func copyLast() { model.copyLast() }
+    /// The Transcripts window: one instance, created on first use; it reloads when a dictation leaves new text.
+    private(set) lazy var transcriptsWindow = TranscriptsWindowController(
+        root: RecordingSession.root, changes: model.$lastText.map { _ in () }.eraseToAnyPublisher())
+    @objc func showTranscripts() { transcriptsWindow.show() }
     /// The bundled Resources/SKILL.md, the same file `vella skill` prints.
     @objc private func copySkill() {
         NSPasteboard.general.clearContents()
@@ -685,8 +694,8 @@ import VellaCore
         }
     }
     static func loginFailureAlert(_ error: Error) -> NSAlert {
-        let alert = NSAlert(); alert.messageText = "Could not change Launch at Login"
-        alert.informativeText = sentence(error.localizedDescription) + " Check System Settings → General → Login Items & Extensions."
+        let alert = NSAlert(); alert.messageText = "Launch at Login not changed"
+        alert.informativeText = sentence(error.localizedDescription) + " See Login Items & Extensions in System Settings."
         alert.addButton(withTitle: "OK"); return alert
     }
     @objc private func toggleLogin() {
@@ -784,13 +793,7 @@ import VellaCore
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard model.phase == .recording || model.busy || librariesBusy else { return .terminateNow }
-        let alert = NSAlert(); alert.messageText = "Quit Vella?"
-        alert.informativeText =
-            librariesBusy
-            ? "The model download will stop and its partial files will be removed. Saved recordings and installed models are kept. Unfinished text will not be inserted."
-            : "Saved audio and completed text will be kept. Unfinished text will not be inserted."
-        alert.addButton(withTitle: "Keep Vella Open"); alert.addButton(withTitle: "Quit")
-        guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
+        guard Self.quitAlert(downloading: librariesBusy).runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         if model.captureIsFinalizing {
             Task {
                 await model.shutdownAfterCaptureDrain()
@@ -799,6 +802,12 @@ import VellaCore
             return .terminateLater
         }
         return .terminateNow
+    }
+    static func quitAlert(downloading: Bool) -> NSAlert {
+        let alert = NSAlert(); alert.messageText = "Quit Vella?"
+        alert.informativeText = downloading ? "The model download stops." : "The audio is kept; nothing is pasted."
+        alert.addButton(withTitle: "Keep Vella Open"); alert.addButton(withTitle: "Quit")
+        return alert
     }
     func applicationWillTerminate(_ notification: Notification) {
         if let applicationFocusObserver { NSWorkspace.shared.notificationCenter.removeObserver(applicationFocusObserver) }

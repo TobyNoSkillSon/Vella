@@ -1,0 +1,281 @@
+import AppKit
+import Combine
+import SwiftUI
+
+// Transcripts…: a dedicated window over the saved transcripts, newest first, ten at a time. Built like Mobius's windows
+// (no visible title bar; the content's top line sits level with the traffic lights; one canvas, hairlines, quiet
+// controls) in Vella's own colours: the icon's near-black and its lavender. One instance, kept by AppDelegate.
+
+enum TranscriptsPalette {
+    static let canvas = rgb(0x131418)
+    static let hairline = Color.white.opacity(0.07)
+    static let t1 = rgb(0xF1F2F4), t2 = rgb(0xA3A8B1), t3 = rgb(0x767C86)
+    /// The icon's bars.
+    static let lavender = rgb(0xC4B8FF)
+    static let amber = rgb(0xF2BD66)
+    static let nsCanvas = NSColor(srgbRed: 0x13 / 255, green: 0x14 / 255, blue: 0x18 / 255, alpha: 1)
+    static func rgb(_ v: UInt32) -> Color {
+        Color(.sRGB, red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
+    }
+}
+
+/// ⌘W closes, Esc closes, and the edit keys reach the selected text: a menu-bar app has no main menu to carry them.
+final class TranscriptsWindow: NSWindow {
+    /// Renders and tests build the window far off every screen; AppKit would otherwise pull it back on screen.
+    nonisolated(unsafe) static var keepOffscreen = false
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        Self.keepOffscreen ? frameRect : super.constrainFrameRect(frameRect, to: screen)
+    }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags == .command, let key = event.charactersIgnoringModifiers?.lowercased() else { return super.performKeyEquivalent(with: event) }
+        let action: Selector?
+        switch key {
+        case "w": performClose(nil); return true
+        case "c": action = #selector(NSText.copy(_:))
+        case "a": action = #selector(NSText.selectAll(_:))
+        default: action = nil
+        }
+        if let action, NSApp.sendAction(action, to: nil, from: self) { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+    override func cancelOperation(_ sender: Any?) { performClose(nil) }
+}
+
+@MainActor final class TranscriptsWindowController: NSWindowController, NSWindowDelegate {
+    let model: TranscriptsModel
+    static let title = "Transcripts"
+    static let defaultSize = NSSize(width: 640, height: 720), minSize = NSSize(width: 420, height: 320)
+    static let autosave = "Transcripts"
+    /// Off for renders and tests, which place the window offscreen: that frame must never be remembered.
+    static var autosaves = true
+    private var observers: Set<AnyCancellable> = []
+    private var lastReload = Date.distantPast
+    /// Makes Vella the active app (an accessory app is not active on its own). Tests count it instead.
+    static var activateApp: () -> Void = { NSApp.activate(ignoringOtherApps: true) }
+    var copy: (String) -> Void = { text in
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    /// `changes`: fires when a dictation leaves new text (the window, if open, reloads its rows).
+    init(root: URL, changes: AnyPublisher<Void, Never> = Empty().eraseToAnyPublisher()) {
+        model = TranscriptsModel(root: root)
+        let window = TranscriptsWindow(
+            contentRect: NSRect(origin: .zero, size: Self.defaultSize),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        window.title = Self.title
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.minSize = Self.minSize
+        window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = TranscriptsPalette.nsCanvas
+        super.init(window: window)
+        let host = NSHostingController(rootView: TranscriptsView(model: model, copy: { [weak self] in self?.copy($0) }))
+        host.sizingOptions = []
+        window.contentViewController = host
+        window.setContentSize(Self.defaultSize)
+        window.delegate = self
+        window.center()
+        if Self.autosaves { window.setFrameAutosaveName(Self.autosave) }
+        if TranscriptsWindow.keepOffscreen { window.setFrameOrigin(NSPoint(x: -9000, y: -9000)) }
+        changes.receive(on: DispatchQueue.main).sink { [weak self] in
+            guard let self, self.window?.isVisible == true else { return }
+            self.reload(force: true)
+        }.store(in: &observers)
+    }
+    required init?(coder: NSCoder) { nil }
+
+    /// Rows are read before the window shows, so its first frame already has them.
+    func show() {
+        reload(force: true)
+        showWindow(nil)
+        Self.activateApp()
+        window?.makeKeyAndOrderFront(nil)
+    }
+    /// Coming back to the window picks up what changed while it was in the background (one folder listing).
+    func windowDidBecomeKey(_ notification: Notification) { reload(force: false) }
+    /// Reopening starts again at the newest ten.
+    func windowWillClose(_ notification: Notification) { model.reset() }
+    private func reload(force: Bool) {
+        guard force || Date().timeIntervalSince(lastReload) > 1 else { return }
+        lastReload = Date()
+        model.reload()
+    }
+}
+
+struct TranscriptsView: View {
+    @ObservedObject var model: TranscriptsModel
+    let copy: (String) -> Void
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(TranscriptsWindowController.title)
+                .font(.system(size: 13, weight: .semibold)).foregroundStyle(TranscriptsPalette.t1)
+                .frame(maxWidth: .infinity, alignment: .center).frame(height: 32)
+                .contentShape(Rectangle()).gesture(WindowDragGesture())
+            Rectangle().fill(TranscriptsPalette.hairline).frame(height: 1)
+            if model.entries.isEmpty {
+                TranscriptsEmptyView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                TranscriptList(model: model, copy: copy)
+            }
+        }
+        .ignoresSafeArea(.container, edges: .top)
+        .background(TranscriptsPalette.canvas.ignoresSafeArea())
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+struct TranscriptsEmptyView: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "waveform").font(.system(size: 26, weight: .medium)).foregroundStyle(TranscriptsPalette.lavender.opacity(0.85))
+            Text("No transcripts yet").font(.system(size: 13)).foregroundStyle(TranscriptsPalette.t2)
+        }
+        .padding(.bottom, 40)
+    }
+}
+
+/// Day sections in the shown order.
+struct TranscriptDay: Identifiable {
+    let id: Date
+    let title: String
+    let entries: [TranscriptEntry]
+    static func group(_ entries: [TranscriptEntry], now: Date = Date(), calendar: Calendar = .current) -> [TranscriptDay] {
+        var days: [TranscriptDay] = []
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.created)
+            if let last = days.last, last.id == day {
+                days[days.count - 1] = TranscriptDay(id: day, title: last.title, entries: last.entries + [entry])
+            } else {
+                days.append(TranscriptDay(id: day, title: title(day, now: now, calendar: calendar), entries: [entry]))
+            }
+        }
+        return days
+    }
+    static func title(_ day: Date, now: Date, calendar: Calendar) -> String {
+        if calendar.isDate(day, inSameDayAs: now) { return "Today" }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(day, inSameDayAs: yesterday) { return "Yesterday" }
+        let sameYear = calendar.component(.year, from: day) == calendar.component(.year, from: now)
+        var style = Date.FormatStyle(calendar: calendar).weekday(.wide).day().month(.wide)
+        if !sameYear { style = style.year() }
+        return day.formatted(style)
+    }
+}
+
+struct TranscriptList: View {
+    @ObservedObject var model: TranscriptsModel
+    let copy: (String) -> Void
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(TranscriptDay.group(model.entries)) { day in
+                    Section {
+                        ForEach(day.entries) { entry in
+                            TranscriptRow(
+                                entry: entry, expanded: model.expanded.contains(entry.id),
+                                toggle: { model.toggle(entry.id) }, copy: copy)
+                        }
+                    } header: {
+                        Text(day.title)
+                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(TranscriptsPalette.t2)
+                            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 2)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                }
+                if model.hasMore {
+                    Button("Show more") { model.showMore() }
+                        .buttonStyle(QuietButtonStyle())
+                        .frame(maxWidth: .infinity).padding(.vertical, 20)
+                }
+            }
+            .padding(.bottom, 8)
+        }
+        .scrollIndicators(.automatic)
+    }
+}
+
+struct TranscriptRow: View {
+    let entry: TranscriptEntry
+    let expanded: Bool
+    let toggle: () -> Void
+    let copy: (String) -> Void
+    static let clampLines = 4
+    @VellaState private var copied = false
+    @VellaState private var fullHeight: CGFloat = 0
+    @VellaState private var clampedHeight: CGFloat = 0
+    private var truncated: Bool { fullHeight > clampedHeight + 1 }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(entry.created.formatted(date: .omitted, time: .shortened))
+                    .font(.system(size: 12).monospacedDigit()).foregroundStyle(TranscriptsPalette.t3)
+                if entry.incomplete {
+                    Text("Incomplete").font(.system(size: 12, weight: .medium)).foregroundStyle(TranscriptsPalette.amber)
+                }
+                Spacer(minLength: 8)
+                Button(copied ? "Copied" : "Copy") {
+                    copy(entry.text); copied = true
+                    Task { try? await Task.sleep(for: .seconds(1.2)); copied = false }
+                }
+                .buttonStyle(CopyButtonStyle())
+                .padding(.trailing, -8) // the label's text, not its hover fill, lines up with the row's edge
+                .accessibilityLabel("Copy transcript")
+            }
+            Text(entry.text)
+                .font(.system(size: 13)).lineSpacing(2.5).foregroundStyle(TranscriptsPalette.t1)
+                .textSelection(.enabled)
+                .lineLimit(expanded ? nil : Self.clampLines)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if !expanded { clampedHeight = $0 } }
+                .background(alignment: .topLeading) {
+                    Text(entry.text).font(.system(size: 13)).lineSpacing(2.5)
+                        .fixedSize(horizontal: false, vertical: true).hidden()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
+                        .accessibilityHidden(true)
+                }
+            if truncated {
+                Button(expanded ? "Show less" : "Show all", action: toggle)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(TranscriptsPalette.lavender)
+            }
+        }
+        .padding(.horizontal, 20).padding(.vertical, 12)
+        .overlay(alignment: .bottom) { Rectangle().fill(TranscriptsPalette.hairline).frame(height: 1).padding(.horizontal, 20) }
+        .contextMenu {
+            Button("Copy") { copy(entry.text) }
+            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([entry.directory]) }
+        }
+    }
+}
+
+/// A quiet outlined text button (Mobius's Remove style): secondary text, hairline border, filled while pressed.
+struct QuietButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(configuration.isPressed ? TranscriptsPalette.t1 : TranscriptsPalette.t2)
+            .padding(.horizontal, 10).padding(.vertical, 3)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(configuration.isPressed ? 0.10 : 0.0)))
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+            .contentShape(Rectangle())
+    }
+}
+
+/// Copy on every row stays visible but quiet: plain secondary text, brighter with a soft fill under the pointer.
+struct CopyButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { CopyLabel(configuration: configuration) }
+    private struct CopyLabel: View {
+        let configuration: ButtonStyleConfiguration
+        @VellaState private var hovering = false
+        var body: some View {
+            configuration.label
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(hovering || configuration.isPressed ? TranscriptsPalette.t1 : TranscriptsPalette.t3)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(configuration.isPressed ? 0.12 : hovering ? 0.07 : 0)))
+                .contentShape(Rectangle())
+                .onHover { hovering = $0 }
+        }
+    }
+}

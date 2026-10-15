@@ -227,7 +227,7 @@ import CryptoKit
         // The next start is refused before the microphone opens; the shortcut path goes through the same check.
         XCTAssertFalse(model.ensureAutomaticInsertion())
         XCTAssertEqual(
-            model.message, "macOS has not granted this running Vella build Accessibility access. Click “Accessibility required” in Vella’s menu. Recording has not started.")
+            model.message, "Accessibility is off. Allow Vella in System Settings, then start again.")
         var starts = 0
         let manager = ShortcutManager(
             engine: ShortcutEngine(configuration: .default, sinks: .init(start: { starts += 1 }, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false })),

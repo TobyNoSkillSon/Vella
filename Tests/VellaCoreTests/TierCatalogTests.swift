@@ -145,41 +145,31 @@ final class TierCatalogTests: XCTestCase {
 
     // MARK: Get pop-up
 
-    func testGetPopUpStatesDownloadConversionAndStoredSize() throws {
+    /// Short name, size and what follows (Toby, 15 Oct 2026): no repository, revision, exact bytes or conversion narration.
+    func testGetPopUpStatesNameSizeAndWhatFollows() throws {
         let c = try catalog()
         let v3 = try XCTUnwrap(c.family("parakeet-v3"))
         let bf16 = try XCTUnwrap(downloadPrompt(family: v3, precision: "BF16", followUp: .load, freeBytes: 812_000_000_000))
-        XCTAssertEqual(bf16.title, "Download Parakeet v3 · 16 (BF16)?")
+        XCTAssertEqual(bf16.title, "Download Parakeet v3?")
         XCTAssertEqual(bf16.variantID, "parakeet-tdt-0.6b-v3-mlx-bf16-local")
-        XCTAssertEqual(
-            bf16.body,
-            """
-            Parakeet v3 is published as FP32 (float32) on Hugging Face: animaslabs/parakeet-tdt-0.6b-v3-mlx at revision b3f0e8a. Vella converts it once to BF16 (bfloat16) and keeps only those weights.
-
-            Download: 2.51 GB (2,509,016,021 bytes). Conversion: about 3 s once. Stored: 1.25 GB; disk needed while converting: 3.76 GB; 812 GB free.
-
-            When the download finishes, it loads for dictation.
-            """)
+        XCTAssertEqual(bf16.body, "2.51 GB download, then it loads.")
         let ultra = try XCTUnwrap(c.family("parakeet-v3-ultra"))
         let eight = try XCTUnwrap(downloadPrompt(family: ultra, precision: "8b", followUp: .reload(from: "BF16"), freeBytes: nil))
-        XCTAssertEqual(eight.title, "Download Parakeet v3 Ultra · 16 (BF16) to make 8 (8-bit)?")
+        XCTAssertEqual(eight.title, "Download Parakeet v3 Ultra?")
         XCTAssertEqual(eight.variantID, "parakeet-ultra-mlx-bf16")
-        XCTAssertEqual(
-            eight.body,
-            """
-            Parakeet v3 Ultra at BF16 (bfloat16), as published on Hugging Face: selcukkubur/parakeet-ultra-mlx at revision b554592.
-
-            8-bit (affine, group 64) is made on this Mac from the 16-bit weights each time it loads; only a small recipe file is added.
-
-            Download: 1.25 GB (1,254,840,214 bytes). Conversion: about 2 s at each load. Stored: 1.25 GB.
-
-            When the download finishes, it loads for dictation in place of the loaded BF16.
-            """)
+        XCTAssertEqual(eight.body, "1.25 GB download, then it replaces the loaded BF16.")
+        XCTAssertEqual(downloadPrompt(family: ultra, precision: "8b", followUp: .load, freeBytes: nil)?.body, "1.25 GB download, then it loads as 8-bit.")
         let whisper = try XCTUnwrap(c.family("whisper-large-v3"))
         let sixteen = try XCTUnwrap(downloadPrompt(family: whisper, precision: "FP16", followUp: .transcribe, freeBytes: 100))
-        XCTAssertTrue(sixteen.body.contains("Download: 3.09 GB (3,087,748,437 bytes). Stored: 3.09 GB; 100 bytes free. Not enough free disk space."), sixteen.body)
-        // Every measured tier is offered (6 Oct): 4-bit is made from the 16-bit download like 8; fp32 is never a tier.
-        XCTAssertEqual(downloadPrompt(family: whisper, precision: "4b", followUp: .load, freeBytes: nil)?.title, "Download Whisper large-v3 · 16 (FP16) to make 4 (4-bit)?")
+        XCTAssertEqual(sixteen.body, "3.09 GB download, then it transcribes your saved recording. Not enough disk space: 100 bytes free, 3.09 GB needed.")
+        // A stored conversion needs room for the source and the converted copy while it runs.
+        XCTAssertTrue(try XCTUnwrap(downloadPrompt(family: v3, precision: "BF16", followUp: .load, freeBytes: 3_000_000_000)).body.contains("3.76 GB needed"))
+        for prompt in [bf16, eight, sixteen] {
+            XCTAssertFalse(prompt.body.contains("/"), "no repository identifier: \(prompt.body)")
+            XCTAssertFalse(prompt.body.contains("bytes)"), "no exact byte count: \(prompt.body)")
+            XCTAssertLessThanOrEqual(prompt.title.split(separator: " ").count, 6, prompt.title)
+        }
+        XCTAssertEqual(downloadPrompt(family: whisper, precision: "4b", followUp: .load, freeBytes: nil)?.title, "Download Whisper large-v3?")
         XCTAssertEqual(downloadPrompt(family: v3, precision: "4b", followUp: .load, freeBytes: nil)?.variantID, "parakeet-tdt-0.6b-v3-mlx-bf16-local")
         XCTAssertNil(downloadPrompt(family: v3, precision: "FP32", followUp: .load, freeBytes: nil))
     }

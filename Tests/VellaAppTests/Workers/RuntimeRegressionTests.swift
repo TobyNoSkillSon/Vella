@@ -110,7 +110,7 @@ final class RuntimeRegressionTests: XCTestCase {
         }
         delegate.getPendingModel()
         XCTAssertEqual(prompts.map(\.variantID), [variant.id])
-        XCTAssertTrue(prompts[0].body.contains("transcribes the saved recording"), prompts[0].body)
+        XCTAssertTrue(prompts[0].body.contains("transcribes your saved recording"), prompts[0].body)
         try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertTrue(served.isEmpty, "Cancel downloads nothing")
         XCTAssertNil(dictation.downloadingID)
@@ -396,7 +396,7 @@ final class RuntimeRegressionTests: XCTestCase {
             trashedWhileAlive.append(kill(alphaPID, 0) == 0); throw CocoaError(.fileWriteNoPermission)
         }
         delete(alpha)
-        try await waitUntil { alerts.contains("Model was not deleted") }
+        try await waitUntil { alerts.contains("Model not deleted") }
         XCTAssertEqual(trashedWhileAlive, [false], "the worker had exited (its slow exit awaited) before files were touched")
         try await waitUntil { runtime.status.models["alpha"] != nil }
         XCTAssertEqual(Set(runtime.settings.launchSet.map(\.id)), ["alpha", "beta"])

@@ -127,7 +127,7 @@ private final class CleanupRegistrar: ShortcutRegistrar {
             configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).json"))
         XCTAssertFalse(model.ensureAutomaticInsertion())
         XCTAssertEqual(prompts, 0)
-        XCTAssertTrue(model.message.contains("Click “Accessibility required” in Vella’s menu."))
+        XCTAssertTrue(model.message.contains("Accessibility is off. Allow Vella in System Settings"))
         XCTAssertFalse(model.message.contains("Enable Automatic Insertion"))
         XCTAssertEqual(model.phase, .idle)
         XCTAssertNil(model.recorder.url)

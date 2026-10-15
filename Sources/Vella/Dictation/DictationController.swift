@@ -172,7 +172,7 @@ import VellaCore
     @discardableResult func ensureAutomaticInsertion() -> Bool {
         guard insertionPermission.ensure() else {
             if phase != .recording && !busy {
-                update(.idle, "macOS has not granted this running Vella build Accessibility access. Click “Accessibility required” in Vella’s menu. Recording has not started.")
+                update(.idle, "Accessibility is off. Allow Vella in System Settings, then start again.")
             }
             return false
         }
@@ -306,16 +306,16 @@ import VellaCore
         case .willSleep:
             guard phase == .recording || phase == .preparing else { return }
             interruptedForSleep = true
-            if phase == .preparing { cancel(); update(.failed, "Recording did not start because the Mac went to sleep. Start again after waking."); return }
+            if phase == .preparing { cancel(); update(.failed, "The Mac went to sleep before recording started."); return }
             recordingTick(error: "Recording ended because the Mac went to sleep.")
         case .didWake:
             if phase == .recording {
                 recordingTick(error: "Recording ended after the Mac woke; capture was interrupted.")
             } else if interruptedForSleep {
                 if savedSession != nil {
-                    update(.failed, "Mac woke. Recording ended for sleep; audio and recognized text are saved. Retry copies only. Start a new recording to continue.")
+                    update(.failed, "Recording stopped when the Mac went to sleep. Audio is saved; Retry copies the text.")
                 } else {
-                    update(.failed, "Mac woke. Recording did not start before sleep. Start a new recording to continue.")
+                    update(.failed, "The Mac went to sleep before recording started.")
                 }
             }
             interruptedForSleep = false

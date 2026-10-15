@@ -1,8 +1,8 @@
 import Foundation
 
-// Every download asks first (Toby, 26 Sep 2026): a popup says what is downloaded, which precision, how big, and what
-// happens when it finishes. Nothing is added to the Models table. The app shows `DownloadPrompt` in an NSAlert
-// (Sources/Vella/DownloadConfirmation.swift) and downloads only on Download.
+// Every download asks first (Toby, 26 Sep 2026): a popup names the model, the download size and what happens when it
+// finishes. Nothing is added to the Models table. The app shows `DownloadPrompt` in an NSAlert (DownloadGate.swift)
+// and downloads only on Download.
 
 /// What happens when the confirmed download finishes.
 public enum DownloadFollowUp: Equatable {
@@ -35,68 +35,30 @@ private let exactBytes: NumberFormatter = {
 /// `2,509,016,021 bytes`.
 public func formatExactBytes(_ bytes: Int64) -> String { (exactBytes.string(from: NSNumber(value: bytes)) ?? String(bytes)) + " bytes" }
 
-/// `Parakeet v3 · 16 (BF16)`: the table's bare width plus the exact format in prose.
-public func precisionTitle(_ family: ModelFamily, _ label: String) -> String {
-    "\(family.name) \u{00b7} " + (precisionWidth(label).map { "\($0) (\(precisionInProse(label)))" } ?? precisionInProse(label))
-}
-
-/// The format of a tier in prose for the popup: `BF16 (bfloat16)`, `8-bit (affine, group 64)`.
-func tierFormat(_ family: ModelFamily, _ label: String) -> String {
-    if let v = family.variants[label], let bits = v.bits { return "\(bits)-bit (affine, group \(v.groupSize ?? 64))" }
-    return precisionFormatName(label)
-}
-
-/// The popup for getting `precision` of `family` (Toby, 29 Sep 2026): what is downloaded (always the 16-bit checkpoint,
-/// or an fp32-only model's fp32 source), what is converted on this Mac and how long that takes, and what stays on disk.
-/// Nil when the precision is not offered (a tier the catalog does not offer) or nothing in the catalog is downloadable.
-/// `freeBytes`: free space on the models volume now (nil = unknown).
+/// The popup for getting `precision` of `family` (Toby, 15 Oct 2026: "minimal amount of text to say the actual thing";
+/// no full model identifiers): the short name in the title; the size and what happens next in one sentence; a second
+/// sentence only when the disk is too full. The download is the 16-bit checkpoint (or an fp32-only model's fp32
+/// source); an 8- or 4-bit precision is made from it at load. Nil when the precision is not offered or nothing in the
+/// catalog is downloadable. `freeBytes`: free space on the models volume now (nil = unknown).
 public func downloadPrompt(family: ModelFamily, precision: String, followUp: DownloadFollowUp, freeBytes: Int64?) -> DownloadPrompt? {
     guard precisionOptions(family).contains(precision), let root = family.downloadSource(of: precision),
         let acquisition = family.acquisition(of: precision), !acquisition.download.repository.isEmpty
     else { return nil }
     let download = acquisition.download
     let madeAtLoad = root.label != precision
-    let revision = download.revision.isEmpty ? "" : " at revision \(download.revision.prefix(7))"
     let rootBytes = acquisition.convert == nil ? download.downloadBytes : (estimatedWeightBytes(family, root.label).map { Int64($0) } ?? download.downloadBytes)
-    let title =
-        madeAtLoad
-        ? "Download \(precisionTitle(family, root.label)) to make \(precisionWidth(precision) ?? precision) (\(precisionInProse(precision)))?"
-        : "Download \(precisionTitle(family, precision))?"
-    var lines: [String] = []
-    if let dtype = acquisition.convert, let from = family.variants[root.label]?.derivedFrom {
-        lines.append(
-            "\(family.name) is published as \(precisionFormatName(from)) on Hugging Face: \(download.repository)\(revision). "
-                + "Vella converts it once to \(precisionFormatName(derivedCastLabels[dtype] ?? root.label)) and keeps only those weights.")
-    } else {
-        lines.append("\(family.name) at \(precisionFormatName(root.label)), as published on Hugging Face: \(download.repository)\(revision).")
+    let then: String
+    switch followUp {
+    case .load: then = madeAtLoad ? "then it loads as \(precisionInProse(precision))" : "then it loads"
+    case .reload(let loaded): then = "then it replaces the loaded \(precisionInProse(loaded))"
+    case .transcribe: then = "then it transcribes your saved recording"
     }
-    if madeAtLoad {
-        lines.append(
-            "\(tierFormat(family, precision)) is made on this Mac from the \(precisionWidth(root.label) ?? root.label)-bit weights "
-                + "each time it loads; only a small recipe file is added.")
-    }
-    var size = "Download: \(formatBytes(download.downloadBytes)) (\(formatExactBytes(download.downloadBytes)))."
-    var conversions: [String] = []
-    if acquisition.convert != nil { conversions.append("\(formatConversionSeconds(download.downloadBytes, rate: storedConversionBytesPerSecond)) once") }
-    if madeAtLoad { conversions.append("\(formatConversionSeconds(rootBytes, rate: loadQuantizationBytesPerSecond)) at each load") }
-    if !conversions.isEmpty { size += " Conversion: " + conversions.joined(separator: ", then ") + "." }
-    size += " Stored: \(formatBytes(rootBytes))"
+    var body = "\(formatBytes(download.downloadBytes)) download, \(then)."
     // A stored conversion writes each converted file beside its source before swapping it in.
     let needed = download.downloadBytes + (acquisition.convert == nil ? 0 : rootBytes)
-    if needed != rootBytes { size += "; disk needed while converting: \(formatBytes(needed))" }
-    if let freeBytes { size += "; \(formatBytes(freeBytes)) free" }
-    size += "."
-    if let freeBytes, freeBytes < needed { size += " Not enough free disk space." }
-    lines.append(size)
-    if let processor = download.processorSource { lines[0] += " Tokenizer files come from \(processor.repository)." }
-    let mode = family.mode.title.lowercased()
-    switch followUp {
-    case .load: lines.append("When the download finishes, it loads for \(mode).")
-    case .reload(let loaded): lines.append("When the download finishes, it loads for \(mode) in place of the loaded \(precisionInProse(loaded)).")
-    case .transcribe: lines.append("When the download finishes, it loads and transcribes the saved recording.")
-    }
+    if let freeBytes, freeBytes < needed { body += " Not enough disk space: \(formatBytes(freeBytes)) free, \(formatBytes(needed)) needed." }
     return DownloadPrompt(
-        title: title, body: lines.joined(separator: "\n\n"), variantID: root.variant.id,
+        title: "Download \(family.name)?", body: body, variantID: root.variant.id,
         downloadBytes: download.downloadBytes, family: family.id, precision: precision)
 }
 
