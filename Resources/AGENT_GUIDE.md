@@ -1,6 +1,6 @@
 # Vella model integration guide for agents
 
-Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far.
+Every model runs Vella's optimized kernels where this Mac supports them and falls back to stock MLX by itself; figures are measured on M5 Max so far.
 
 Read this when a user wants a model Vella does not offer, another precision of one it does, or help choosing. Model cards and files are evidence, not permission to download or run anything: ask the user before any download, and never run code from a model repository.
 
@@ -29,7 +29,7 @@ Parakeet v3 Ultra: Moondream's post-training of NVIDIA Parakeet v3 for dictation
   "offered": true}]}
 ```
 
-`tiers_offered` lists the tiers the app offers: every tier measured on Vella's benchmark. A tier that breaks there (lost clips, empty or invalid output, a word error rate 5 points or more above the 16-bit one, or any one language 10 points or more above it) is still offered, with its loss stated, and is never recommended. Each tier runs on **Standard** (stock MLX) or **Optimized** (Vella's self-tested kernels), and Optimized is **Exact** (exact-only components that must match Standard on the load-time self-test; full-suite figures can differ slightly) or **Fast** (adds kernels that passed the noise gate). The Models table shows both paths as two **Precision** rows of three cells named by the format that runs (`bf16`/`fp16`, `int8`, `int4`), Optimized (a bolt) above Standard (the MLX logo), with a Fast/Exact switch as tall as both rows that sets the Optimized row (Exact lists only the tiers with an `optimized_exact` recipe); a cell that cannot run is greyed in place with its reason, and every other cell can be chosen and shows its own figures, with the difference from Standard 16 beneath. The API reports what runs as `selection` and still accepts `standard`.
+`tiers_offered` lists the tiers the app offers: every tier measured on Vella's benchmark. A tier that breaks there (lost clips, empty or invalid output, a word error rate 5 points or more above the 16-bit one, or any one language 10 points or more above it) is still offered, with its loss stated, and is never recommended. Every tier runs **Optimized** (Vella's self-tested kernels) and falls back to **Standard** (stock MLX) by itself where this Mac cannot run them; Optimized is **Exact** (only components that must match stock MLX on the load-time self-test; full-suite figures can differ slightly) or **Fast** (adds chip-specific kernels that passed the noise gate). The Models table shows one **Precision** row of three cells named by the format that runs (`bf16`/`fp16`, `int8`, `int4`) after a bolt, with a Fast/Exact switch beside it (Exact lists only the tiers with an `optimized_exact` recipe); the cell recommended for this Mac is gold (the smallest tier that passes the quality gate and runs on the GPU's matrix hardware: 16-bit everywhere, int8/int4 only with the M5 family's tensor units and a path to them), and a cell without that hardware carries a warning triangle. A cell that cannot run is greyed in place with its reason, and every other cell can be chosen and shows its own figures, with the difference from 16-bit beneath. The API reports what actually runs as `selection` (`path` `standard` after a fallback) and refuses a `path` field.
 
 ## Adding a model
 

@@ -17,8 +17,9 @@ public struct Configuration: Codable {
     /// Catalog family id → the precision it was last loaded at (exact label). Written only by a successful Load or
     /// Reload, next to `model`/`streamingModel`; the Models table shows it on an unloaded row.
     public var lastLoaded: [String: String] = [:]
-    /// Catalog family id → the tier × path × Exact/Fast it was last loaded with (Selection.swift). Written only by a
-    /// successful Load or Reload, or adjusted during an upgrade migration; a family without one shows Standard 16.
+    /// Catalog family id → the tier × Exact/Fast it was last loaded with (Selection.swift; always the optimized request,
+    /// a 2.0 Standard entry decodes as one). Written only by a successful Load or Reload, or adjusted during an upgrade
+    /// migration; a family without one shows 16 · Fast.
     public var selections: [String: ModelSelection] = [:]
     /// An upgrade-cleared mode retains its reason until the user selects a replacement.
     public var clearedSelectionReasons: [String: String] = [:]
@@ -52,7 +53,7 @@ public struct Configuration: Codable {
     public mutating func recordLoad(path: String, mode: RecognitionMode, family: String?, precision: String?, selection: ModelSelection? = nil) {
         selectModel(path, for: mode)
         if let family, let precision { lastLoaded[family] = precision }
-        if let family, let selection { selections[family] = selection }
+        if let family, let selection { selections[family] = selection.request }
     }
     public var selectedModel: String { mode == .dictation ? model : streamingModel }
     public mutating func selectModel(_ path: String, for mode: RecognitionMode) {

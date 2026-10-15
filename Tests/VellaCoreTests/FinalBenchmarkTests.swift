@@ -205,17 +205,21 @@ final class FinalBenchmarkTests: XCTestCase {
                 XCTAssertEqual(fastCell.recipe.gate_revision, "whisper-4")
                 XCTAssertFalse(fastCell.recipe.kernels.contains("encoder")); XCTAssertTrue(fastCell.recipe.inexact.isEmpty)
                 if entry.presence.offered {
+                    // A stock (Standard) selection is judged as its request: the same tier and mode, optimized.
                     let standard = ModelSelection(tier: tier, path: .standard, mode: .fast)
-                    let exact = ModelSelection(tier: tier, path: .optimized, mode: .exact)
+                    let exact = ModelSelection(tier: tier, mode: .exact)
                     XCTAssertTrue(rules.isPresent(standard))
                     XCTAssertTrue(rules.isPresent(exact))
                     XCTAssertNil(rules.cellRefusal(standard))
                     XCTAssertNil(rules.cellRefusal(exact))
                     XCTAssertNil(rules.cellRefusal(standard, loaded: standard))
                     XCTAssertNil(rules.cellRefusal(fast))
-                    XCTAssertEqual(rules.valid(standard), standard)
+                    XCTAssertEqual(rules.valid(standard), standard.request)
+                    XCTAssertEqual(rules.valid(standard).path, .optimized)
                     XCTAssertEqual(rules.valid(exact), exact)
-                    XCTAssertTrue(tierCellHelp(family, benchmark, tier: tier, segment: .optimized_fast).contains("vs Standard fp16:"))
+                    let help = tierCellHelp(family, benchmark, tier: tier, mode: .fast)
+                    XCTAssertTrue(tier == .t16 ? help.contains("Reference for the deltas") : help.contains("vs fp16:"), help)
+                    XCTAssertFalse(help.contains("Standard"), help)
                 }
             }
         }

@@ -2,8 +2,7 @@ import AppKit
 import SwiftUI
 
 // The Models table's Exact/Fast switch: a vertical two-position switch, up = Fast, down = Exact, beside the Precision
-// control. It spans both segment rows (`TierControl.height`) and is centred on the pair, but applies to the Optimized
-// row only (Standard has no recipe to choose): its knob carries that row's bolt, and its tooltip starts by saying so.
+// control, as tall as the row's controls (Toby, 30 Sep: larger, full height); its knob carries the Precision row's bolt.
 // Shared verbatim by Verdict, Vella and Vireo (like TooltipCell.swift): AppKit and SwiftUI only, no app types; plain
 // values in, one callback out.
 //
@@ -23,9 +22,7 @@ struct ExactFastSwitch: View {
     /// The column header: none beside the words (they name the positions), else the two positions, top first.
     static var title: String { showsWords ? "" : "Fast/Exact" }
     /// The switch's tooltip (Toby, 29 Sep), after `rowHelp`; state lines follow it on their own lines.
-    static let help = "Exact: exact-only components that must match Standard on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise."
-    /// The tooltip's first line: the switch spans both rows but sets only the Optimized one (Toby, 30 Sep).
-    static let rowHelp = "Sets the Optimized row only"
+    static let help = "Exact: only components that must match plain MLX on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise."
     static let pinnedUnmeasuredHelp = "Fast is pinned on; Exact has no separate measurement"
     static let sameHelp = "Always on: Fast runs the same recipe as Exact for this model"
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
@@ -33,8 +30,9 @@ struct ExactFastSwitch: View {
     static let exactNotMeasuredHelp = "Exact: not measured yet"
     static let pillWidth: CGFloat = TableMetrics.pt(24)
     static let width: CGFloat = showsWords ? TableMetrics.pt(62) : pillWidth
-    /// Both segment rows high: the switch is centred on the pair (Toby, 30 Sep: larger, full two-row height).
-    static let height: CGFloat = TierControl.height
+    /// Unchanged since the two-row Precision control (Toby, 30 Sep: larger, full two-row height): two regular segment
+    /// heights and the gap that was between them; the table row is this tall and centres the one Precision row on it.
+    static let height: CGFloat = 2 * TableMetrics.pt(24) + TableMetrics.pt(6)
 
     let position: Position
     /// False: Fast measures identically to Exact for this model (greyed, pinned up).
@@ -44,13 +42,13 @@ struct ExactFastSwitch: View {
     /// False: no Exact recipe of this model has a measurement yet; the Exact position is greyed and a click does nothing
     /// (from Exact itself a click still goes to Fast).
     var exactAvailable = true
-    /// The model is loaded (its row is blue): the knob's bolt takes the loaded tint (TierControl.boltColor).
+    /// The model is loaded (its row is blue).
     var hot = false
     let onChange: (Position) -> Void
 
     /// The tooltip as shown for a state.
     static func tooltip(available: Bool, enabled: Bool, exactAvailable: Bool = true) -> String {
-        [rowHelp, help, available ? nil : (exactAvailable ? sameHelp : pinnedUnmeasuredHelp), !exactAvailable ? exactNotMeasuredHelp : nil, enabled ? nil : inUseHelp]
+        [help, available ? nil : (exactAvailable ? sameHelp : pinnedUnmeasuredHelp), !exactAvailable ? exactNotMeasuredHelp : nil, enabled ? nil : inUseHelp]
             .compactMap { $0 }.joined(separator: "\n")
     }
 
@@ -122,7 +120,7 @@ final class SwitchView: NSView {
         let current = knob(at: position)
         NSColor.white.setFill()
         NSBezierPath(ovalIn: current).fill()
-        // The Optimized row's bolt on the knob: the switch belongs to that row.
+        // The Precision row's bolt on the knob.
         if let bolt = Self.bolt(hot: hot) {
             let size = bolt.size
             bolt.draw(
@@ -143,11 +141,10 @@ final class SwitchView: NSView {
         return NSRect(
             x: track.minX + Self.inset, y: position == .fast ? track.minY + Self.inset : track.maxY - Self.inset - knobSize, width: knobSize, height: knobSize)
     }
-    /// The knob's bolt, sized for the knob, in the row's bolt hue: the white knob needs a deeper shade of the same hue
-    /// to read (blue 221° 75 % 45 %, 6.7:1 on white; amber 41° 90 % 38 %, 3.3:1).
+    /// The knob's bolt, sized for the knob: the bolt's blue, deepened to read on the white knob (221° 75 % 45 %, 6.7:1).
+    /// The same on a loaded row: gold and amber now mean recommended.
     static let knobBolt = image(NSColor(srgbRed: 29 / 255, green: 83 / 255, blue: 201 / 255, alpha: 1))
-    static let hotKnobBolt = image(NSColor(srgbRed: 184 / 255, green: 128 / 255, blue: 10 / 255, alpha: 1))
-    static func bolt(hot: Bool) -> NSImage? { hot ? hotKnobBolt : knobBolt }
+    static func bolt(hot: Bool) -> NSImage? { knobBolt }
     private static func image(_ color: NSColor) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: TableMetrics.font(9), weight: .bold)
             .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
@@ -169,7 +166,7 @@ final class SwitchView: NSView {
     // Accessibility: a two-state switch reading "Fast" or "Exact".
     override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .checkBox }
-    override func accessibilityLabel() -> String? { "Optimized row: Exact or Fast" }
+    override func accessibilityLabel() -> String? { "Exact or Fast" }
     override func accessibilityValue() -> Any? { position == .fast ? "Fast" : "Exact" }
     override func isAccessibilityEnabled() -> Bool { active }
     override func accessibilityPerformPress() -> Bool {

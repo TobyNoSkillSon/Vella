@@ -154,8 +154,12 @@ public func fastDiffersFromExact(_ benchmark: FamilyBenchmark?) -> Bool {
 }
 
 /// The cell a selection shows: its segment's cell; Fast without an inexact component is the Exact cell (the same recipe).
+/// An optimized request at a tier without any optimized recipe runs stock MLX: its Standard cell.
 public func benchmarkCell(_ benchmark: FamilyBenchmark?, _ selection: ModelSelection) -> BenchmarkCell? {
     guard let tier = benchmark?.tiers[selection.tier] else { return nil }
+    if selection.path == .optimized, tier.cells[.optimized_exact] == nil, tier.cells[.optimized_fast] == nil {
+        return tier.cells[.standard]
+    }
     if let canonical = tier.displayCells[selection.segmentKey] { return tier.cells[canonical] }
     if selection.segmentKey == .optimized_fast, let fast = tier.cells[.optimized_fast], fast.recipe.inexact.isEmpty {
         // Equal recipes need not have equal measurement status (Whisper 2.0 withdrew Exact only).

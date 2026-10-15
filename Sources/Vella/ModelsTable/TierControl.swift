@@ -1,29 +1,31 @@
 import AppKit
 import SwiftUI
 
-// The Models table's Precision control: two segment rows, Optimized (a bolt) above Standard (the MLX logo), each with
-// the same three cells, e.g. `⚡ [bf16][int8][int4]` over `MLX [bf16][int8][int4]`.
-// Shared verbatim by Verdict, Vella and Vireo (like TooltipCell.swift): AppKit and SwiftUI only, no app types; plain
-// values in, one callback out.
+// The Models table's Precision control: one row of three cells after a bolt, e.g. `⚡ [bf16][int8][int4]` (Toby, 15 Oct:
+// "we should just have the lightning option. And then BF16, int 8, and int 4, like just one row"). Every model runs the
+// optimized path and falls back to stock MLX by itself, so there is no path to choose.
+// AppKit and SwiftUI only, no app types; plain values in, one callback out. (Vella's own variant: Verdict and Vireo
+// still carry the two-row control this one replaced.)
 //
-// - Every row shows all three columns (16, 8, 4), equal width, labelled with the dtype that runs (`labels`, e.g. bf16,
-//   fp16, int8, int4). A cell that cannot be chosen (a tier the catalog does not offer, a recipe the switch position
-//   lacks, a cell without a measurement) is greyed in place, never hidden: the grid never shifts. `unavailable` maps it
-//   to its one-line reason, which is its tooltip; a click on it does nothing.
-// - Exactly one cell is selected across both rows. Clicking a cell reports it; what that means (preview, deltas,
-//   Reload) is the app's business. No cell is coloured as recommended.
-// - The rows are named by icons in the text colour, each with a one-line tooltip naming its path: a plain bolt for
-//   Optimized, the MLX logo (`mlx-logo.pdf` in the app's Resources, a template image; ml-explore/mlx, MIT) for Standard.
-// - `enabled == false` is the in-use interlock (dictating, speaking, rendering, judging, loading): both rows are
-//   disabled and every segment's tooltip gains `inUseHelp`.
+// - The row always shows all three columns (16, 8, 4), equal width, labelled with the dtype that runs (`labels`, e.g.
+//   bf16, fp16, int8, int4). A cell that cannot be chosen (a tier the catalog does not offer, a recipe the switch
+//   position lacks, a cell without a measurement) is greyed in place, never hidden: the row never shifts. `unavailable`
+//   maps it to its one-line reason, which is its tooltip; a click on it does nothing.
+// - Exactly one cell is selected. Clicking a cell reports it; what that means (preview, deltas, Reload) is the app's
+//   business.
+// - `recommended`: the cell recommended for this Mac, its label and ring in gold (Toby, 15 Oct: highlighted "in gold").
+// - `warnings`: cells that run without the GPU's matrix hardware on this Mac carry the table's orange triangle after
+//   their label; the warning is the first line of their tooltip.
+// - `enabled == false` is the in-use interlock (dictating, loading): the row is disabled and every segment's tooltip
+//   gains `inUseHelp`.
 // - Segment tooltips are NSSegmentedControl per-segment tooltips: they work inside an NSMenu, where SwiftUI `.help`
 //   never shows (TooltipCell.swift).
-// - The geometry is explicit (two regular segmented controls, `segmentHeight` each, `rowSpacing` apart, `cellWidth`
-//   per column): a hosted NSControl can take the environment's control size until its first update, so nothing here
-//   asks the control for its size and the FIRST layout of a menu already has both rows apart.
+// - The geometry is explicit (a regular segmented control, `segmentHeight` high, `cellWidth` per column): a hosted
+//   NSControl can take the environment's control size until its first update, so nothing here asks the control for its
+//   size and the FIRST layout of a menu is already right.
 // - Scale: every size here, in ExactFastSwitch.swift, RowAction.swift and the table is a base size times
 //   `TableMetrics.scale`. The segments are the exception in mechanism, not in result: AppKit draws a regular segment's
-//   bezel 24 pt high whatever its frame (the small size is 20 pt), so each segmented control keeps that natural geometry
+//   bezel 24 pt high whatever its frame (the small size is 20 pt), so the segmented control keeps that natural geometry
 //   (`natural`) as its own bounds and its frame is the scaled size. Bezel, labels, tint and ring scale with it, and hit
 //   testing stays AppKit's own (a control's bounds are its coordinate system), unlike a scaled view around the hosting view.
 
@@ -38,32 +40,12 @@ enum TableMetrics {
 }
 
 struct TierControl: View {
-    /// Build with -Xswiftc -DVELLA_MLX_WORDMARK for Toby's review variant. Production keeps the approved logo.
-    #if VELLA_MLX_WORDMARK
-        static let standardUsesWordmark = true
-    #else
-        static let standardUsesWordmark = false
-    #endif
-    enum Row: String, CaseIterable {
-        case optimized, standard
-        var title: String { self == .optimized ? "Optimized" : "Standard" }
-        /// The row icon's tooltip: one line naming the path.
-        var help: String {
-            self == .optimized
-                ? "Optimized: the same weights with custom kernels for this Mac's chip"
-                : "Standard: the plain MLX runtime, same weights, no custom kernels"
-        }
-    }
-    struct Cell: Hashable {
-        var row: Row
-        var tier: String
-        init(_ row: Row, _ tier: String) { self.row = row; self.tier = tier }
-    }
-
     /// The column header and its tooltip.
     static let title = "Precision"
     static let headerHelp =
-        "The running weight format: bf16 or fp16 from the checkpoint; int8 and int4 are quantized on your Mac to reduce weight size. Speed, peak RAM and accuracy depend on the model and path."
+        "The running weight format: bf16 or fp16 from the checkpoint; int8 and int4 are quantized on your Mac to reduce weight size. Gold: recommended for this Mac. Speed, peak RAM and accuracy depend on the model and precision."
+    /// The bolt's tooltip: true on every Mac, whichever path the worker ends up on.
+    static let boltHelp = "Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails"
     /// The selected cell's fill on a loaded row.
     static let hotSelection = NSColor(white: 0.1, alpha: 0.85)
     /// The one interlock line, shared by the Precision segments and the Exact/Fast switch in every app.
@@ -71,111 +53,78 @@ struct TierControl: View {
     /// Columns, highest precision first: 16, 8, 4 bits (the cells' identity; `labels` names them).
     static let columns = ["16", "8", "4"]
     /// A segmented control's own coordinate space (its bounds): a regular NSSegmentedControl as AppKit draws it, 24 pt
-    /// high (macOS 26), 46 pt per column, labels at 13 pt medium. Its frame is this times `TableMetrics.scale`.
+    /// high (macOS 26), 52 pt per column (a four-letter dtype and the warning triangle), labels at 13 pt medium. Its frame
+    /// is this times `TableMetrics.scale`.
     enum Natural {
         static let segmentHeight: CGFloat = 24
-        static let cellWidth: CGFloat = 46
+        static let cellWidth: CGFloat = 52
         static func segmentsWidth(_ count: Int) -> CGFloat { count == 0 ? 0 : CGFloat(count) * (cellWidth - 1) - 1 }
         static var font: NSFont { .systemFont(ofSize: 13, weight: .medium) }
+        /// The warning triangle's point size and its gap after the label.
+        static let triangleSize: CGFloat = 10, triangleGap: CGFloat = 3
     }
-    /// One segment row's height on screen (the regular 24 pt, scaled).
+    /// The row's height on screen (the regular 24 pt, scaled); the control's own height.
     static let segmentHeight: CGFloat = TableMetrics.pt(Natural.segmentHeight)
-    /// Air between the Optimized and the Standard row.
-    static let rowSpacing: CGFloat = TableMetrics.pt(6)
-    /// Both rows: the control's own height, which the table row and the Exact/Fast switch beside it use.
-    static let height: CGFloat = 2 * segmentHeight + rowSpacing
-    /// Width of one column on screen: room for a four-letter dtype (`bf16`, `int8`). Every cell is this wide.
+    static let height: CGFloat = segmentHeight
+    /// Width of one column on screen. Every cell is this wide.
     static let cellWidth: CGFloat = TableMetrics.pt(Natural.cellWidth)
-    /// The row icon's slot (the MLX logo at `logoHeight` is about 3.1 times as wide as high) and the gap after it.
-    static let iconWidth: CGFloat = TableMetrics.pt(36), iconGap: CGFloat = TableMetrics.pt(8)
-    static let logoHeight: CGFloat = TableMetrics.pt(11)
-    /// Width of a row's segments on screen: each segment is `cellWidth - 2` wide plus a 1 pt divider, less the outer one.
+    /// The bolt's slot and the gap after it.
+    static let iconWidth: CGFloat = TableMetrics.pt(24), iconGap: CGFloat = TableMetrics.pt(6)
+    /// Width of the segments on screen: each segment is `cellWidth - 2` wide plus a 1 pt divider, less the outer one.
     static func segmentsWidth(_ count: Int) -> CGFloat { count == 0 ? 0 : CGFloat(count) * (cellWidth - 1) - 1 }
-    /// Icon plus three columns.
+    /// Bolt plus three columns.
     static let width: CGFloat = iconWidth + iconGap + CGFloat(columns.count) * cellWidth
     /// The segment labels in the control's own (natural) space; on screen 13 × scale.
     static var font: NSFont { Natural.font }
 
-    /// The Standard row's icon: the MLX logo as a template image, from the app's Resources (or ./Resources when run from
-    /// the package, as in tests). Nil when the file is missing: the row then shows the letters MLX.
-    static let mlxLogo: NSImage? = {
-        let name = "mlx-logo.pdf"
-        let places = [
-            Bundle.main.resourceURL?.appendingPathComponent(name),
-            URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("Resources").appendingPathComponent(name)
-        ]
-        for url in places.compactMap({ $0 }) where FileManager.default.fileExists(atPath: url.path) {
-            if let image = NSImage(contentsOf: url) { image.isTemplate = true; return image }
-        }
-        return nil
-    }()
-
     /// The label of each column, in `columns` order: the dtype that runs (`bf16`, `int8`, `int4`); bare bits by default.
     var labels: [String] = columns
-    let selected: Cell?
+    let selected: String?
     let enabled: Bool
     /// Cells that cannot be chosen, each with its one-line reason (shown as its tooltip): greyed in place, never
     /// selectable. A cell becomes selectable as soon as the app stops listing it.
-    var unavailable: [Cell: String] = [:]
-    /// The model is loaded: the selected segment uses the accent colour.
+    var unavailable: [String: String] = [:]
+    /// The model is loaded: the row sits on the loaded (blue) background.
     var hot = false
-    /// The actual running cell, independent of a preview. Nil defaults to the selected cell for standalone controls.
-    var loaded: Cell?
-    /// Tooltip per available cell (the app's flavour and "vs Standard" lines).
-    let help: (Cell) -> String
-    let onSelect: (Cell) -> Void
+    /// The cell recommended for this Mac (gold).
+    var recommended: String?
+    /// Cells running without matrix hardware on this Mac → their warning (the triangle; the tooltip's first line).
+    var warnings: [String: String] = [:]
+    /// Tooltip per available cell (the app's flavour, delta and loss lines).
+    let help: (String) -> String
+    let onSelect: (String) -> Void
 
     /// A segment's tooltip as shown: the app's text, plus the interlock line while in use.
     static func tooltip(_ text: String, enabled: Bool) -> String { enabled ? text : text + "\n" + inUseHelp }
-    /// The tooltip of a cell with no measurement (family rule, 29 Sep).
-    static let notMeasuredHelp = "Not measured yet"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Self.rowSpacing) {
-            row(.optimized)
-            row(.standard)
-        }.frame(width: Self.width, height: Self.height, alignment: .topLeading)
+        HStack(spacing: Self.iconGap) {
+            Self.bolt(hot: hot).frame(width: Self.iconWidth, height: Self.segmentHeight)
+                .appKitTooltip(Self.boltHelp)
+                .accessibilityElement().accessibilityLabel("Optimized")
+            TierSegments(
+                tiers: Self.columns, labels: labels, selected: selected, enabled: enabled, hot: hot,
+                unavailable: Set(unavailable.keys), recommended: recommended, warned: Set(warnings.keys),
+                help: { tier in unavailable[tier] ?? Self.tooltip([warnings[tier], help(tier)].compactMap { $0 }.joined(separator: "\n"), enabled: enabled) },
+                onSelect: { tier in if unavailable[tier] == nil { onSelect(tier) } }
+            )
+            .frame(width: Self.segmentsWidth(Self.columns.count), height: Self.segmentHeight)
+        }.frame(width: Self.width, height: Self.height, alignment: .leading)
             .fixedSize()
     }
 
-    private func row(_ row: Row) -> some View {
-        var off: [String: String] = [:]
-        for tier in Self.columns { if let reason = unavailable[Cell(row, tier)] { off[tier] = reason } }
-        return HStack(spacing: Self.iconGap) {
-            Self.icon(row, hot: isHot(row)).frame(width: Self.iconWidth, height: Self.segmentHeight)
-                .appKitTooltip(row.help)
-                .accessibilityElement().accessibilityLabel(row.title)
-            TierSegments(
-                tiers: Self.columns, labels: labels, selected: selected?.row == row ? selected?.tier : nil, enabled: enabled, hot: isHot(row),
-                unavailable: Set(off.keys), tint: Self.tint(row, hot: isHot(row)),
-                help: { off[$0] ?? Self.tooltip(help(Cell(row, $0)), enabled: enabled) },
-                onSelect: { tier in if off[tier] == nil { onSelect(Cell(row, tier)) } }
-            )
-            .frame(width: Self.segmentsWidth(Self.columns.count), height: Self.segmentHeight)
-        }.frame(width: Self.width, height: Self.segmentHeight, alignment: .leading)
-    }
-
-    func isHot(_ row: Row) -> Bool { hot && (loaded ?? selected)?.row == row }
-    static func tint(_ row: Row, hot: Bool) -> NSColor? {
-        row == .optimized ? boltColor(hot: hot) : hot ? hotBoltTint : nil
-    }
-
-    /// The bolt's tint (Toby, 30 Sep): light blue on an unloaded row; on the loaded row, whose background is blue (hue
-    /// ≈ 221°), a warm yellow at the complementary hue (≈ 41°) with matched lightness, so it sits on that blue.
-    /// HSL: blue 221° 85 % 76 % (#8EAFF6), yellow 41° 85 % 72 % (#F4CE7B); both ≥ 5.8:1 on their row.
+    /// The bolt's tint (Toby, 30 Sep): light blue on an unloaded row; white on the loaded (blue) row, where gold now
+    /// means recommended and the former yellow would read as it.
     static let boltTint = NSColor(srgbRed: 142 / 255, green: 175 / 255, blue: 246 / 255, alpha: 1)
-    static let hotBoltTint = NSColor(srgbRed: 244 / 255, green: 206 / 255, blue: 123 / 255, alpha: 1)
+    static let hotBoltTint = NSColor.white
     static func boltColor(hot: Bool) -> NSColor { hot ? hotBoltTint : boltTint }
+    /// Recommended for this Mac: a warm gold, ≥ 7:1 on the dark menu and ≥ 4.5:1 on the loaded row's blue.
+    static let gold = NSColor(srgbRed: 236 / 255, green: 190 / 255, blue: 72 / 255, alpha: 1)
+    /// The warning triangle's colour, as in the table's Speed column.
+    static let warningColor = NSColor.systemOrange
 
-    /// The row's icon: the bolt in its tint, or the MLX logo in the text colour.
-    @ViewBuilder static func icon(_ row: Row, hot: Bool = false) -> some View {
-        if row == .optimized {
-            Image(systemName: "bolt.fill").font(.system(size: TableMetrics.font(15), weight: .semibold)).foregroundStyle(Color(nsColor: boltColor(hot: hot)))
-        } else if !standardUsesWordmark, let logo = mlxLogo {
-            Image(nsImage: logo).renderingMode(.template).resizable().scaledToFit().frame(height: logoHeight)
-        } else {
-            Text("MLX").font(.system(size: TableMetrics.font(13), weight: .medium))
-        }
+    @ViewBuilder static func bolt(hot: Bool = false) -> some View {
+        Image(systemName: "bolt.fill").font(.system(size: TableMetrics.font(15), weight: .semibold)).foregroundStyle(Color(nsColor: boltColor(hot: hot)))
     }
 }
 
@@ -196,7 +145,7 @@ enum HostRefresh {
     }
 }
 
-/// One row's segments: a regular NSSegmentedControl with per-segment tooltips.
+/// The row's segments: a regular NSSegmentedControl with per-segment tooltips, drawn in the bolt's tint.
 private struct TierSegments: NSViewRepresentable {
     let tiers: [String]
     let labels: [String]
@@ -204,9 +153,8 @@ private struct TierSegments: NSViewRepresentable {
     let enabled: Bool
     let hot: Bool
     var unavailable: Set<String> = []
-    /// The Optimized row takes the bolt's tint (Toby, 30 Sep): a wash behind its cells and its labels in that colour,
-    /// light blue on an unloaded row, the warm yellow on the loaded one. The Standard row stays neutral (nil).
-    var tint: NSColor?
+    var recommended: String?
+    var warned: Set<String> = []
     let help: (String) -> String
     let onSelect: (String) -> Void
 
@@ -236,67 +184,76 @@ private struct TierSegments: NSViewRepresentable {
             super.setFrameSize(newSize)
             naturalBounds()
         }
-        /// Bounds = the natural size, so a frame of `TableMetrics.scale` of it scales the stock drawing and its hit testing.
+        /// Bounds = the natural size, so a frame of `TableMetrics.scale` of it scales the drawing and its hit testing.
         func naturalBounds() {
             let natural = NSSize(width: TierControl.Natural.segmentsWidth(segmentCount), height: TierControl.Natural.segmentHeight)
             if frame.width > 0, frame.height > 0, natural.width > 0, bounds.size != natural { setBoundsSize(natural) }
         }
-        /// A loaded row rings its selected cell in white: on the accent-blue row a fill alone does not stand out.
-        var ringsSelection = false { didSet { if ringsSelection != oldValue { needsDisplay = true } } }
-        /// The Optimized row is drawn tinted as a whole (Toby, 30 Sep): the cells washed in the bolt's colour, the selected
-        /// cell solid in it with a dark label, the others white, greyed cells dimmed. Stock drawing for the Standard row.
-        var tint: NSColor? { didSet { if tint != oldValue { needsDisplay = true } } }
-        static let hotWash = NSColor(srgbRed: 208 / 255, green: 162 / 255, blue: 81 / 255, alpha: 1)
+        /// The row is loaded (blue background): a neutral wash, the selected cell near-black with a white ring.
+        var hot = false { didSet { if hot != oldValue { needsDisplay = true } } }
+        var recommendedSegment = -1 { didSet { if recommendedSegment != oldValue { needsDisplay = true } } }
+        var warnedSegments: Set<Int> = [] { didSet { if warnedSegments != oldValue { needsDisplay = true } } }
+
+        static let triangle: NSImage? = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "runs without matrix hardware")?
+            .withSymbolConfiguration(
+                NSImage.SymbolConfiguration(pointSize: TierControl.Natural.triangleSize, weight: .semibold)
+                    .applying(NSImage.SymbolConfiguration(paletteColors: [TierControl.warningColor])))
+
         override func draw(_ dirtyRect: NSRect) {
-            guard let tint else { return drawStock(dirtyRect) }
             NSGraphicsContext.current?.cgContext.setAlpha(isEnabled ? 1 : 0.5)
             let pitch = TierControl.Natural.cellWidth - 1
-            // On the loaded row the yellow must win over the blue behind it, so the wash is strong and labels are dark.
-            let hotRow = ringsSelection
-            // Yellow over the complementary blue greys out when blended, so the loaded row's wash is an opaque, deeper
-            // shade of the same yellow (41° 62 % 58 %).
-            (hotRow ? Self.hotWash : tint.withAlphaComponent(0.36)).setFill()
+            let tint = TierControl.boltTint
+            // Unloaded: the bolt's light blue washes the row and fills the selected cell. Loaded: a neutral wash on the
+            // blue row, the selected cell near-black (gold stays the one warm colour: recommended).
+            (hot ? NSColor.white.withAlphaComponent(0.16) : tint.withAlphaComponent(0.36)).setFill()
             NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6).fill()
             for i in 0..<segmentCount {
                 let cell = NSRect(x: CGFloat(i) * pitch, y: 0, width: pitch, height: bounds.height)
                 let selected = i == selectedSegment
+                let recommended = i == recommendedSegment
+                let available = isEnabled(forSegment: i)
                 if selected {
-                    tint.setFill()
+                    (hot ? TierControl.hotSelection : tint).setFill()
                     NSBezierPath(roundedRect: cell.insetBy(dx: 1.5, dy: 2), xRadius: 5, yRadius: 5).fill()
                 } else if i > 0, i - 1 != selectedSegment {
-                    (hotRow ? NSColor(white: 0.1, alpha: 0.25) : NSColor.white.withAlphaComponent(0.18)).setFill()
+                    NSColor.white.withAlphaComponent(0.18).setFill()
                     NSRect(x: cell.minX - 0.5, y: cell.minY + 6, width: 1, height: cell.height - 12).fill()
                 }
                 let text = label(forSegment: i) ?? ""
                 let color: NSColor =
-                    !isEnabled(forSegment: i)
-                    ? (hotRow ? NSColor(white: 0.1, alpha: 0.35) : NSColor.white.withAlphaComponent(0.3))
-                    : selected || hotRow ? NSColor(white: 0.1, alpha: 1) : NSColor.white.withAlphaComponent(0.92)
-                let attributes: [NSAttributedString.Key: Any] = [.font: font ?? TierControl.font, .foregroundColor: color]
+                    !available ? NSColor.white.withAlphaComponent(0.3)
+                    : selected && !hot ? NSColor(white: 0.1, alpha: 1)
+                    : recommended ? TierControl.gold
+                    : NSColor.white.withAlphaComponent(0.92)
+                let font = recommended && available ? NSFont.systemFont(ofSize: TierControl.Natural.font.pointSize, weight: .semibold) : (self.font ?? TierControl.font)
+                let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
                 let size = (text as NSString).size(withAttributes: attributes)
-                (text as NSString).draw(at: NSPoint(x: cell.midX - size.width / 2, y: cell.midY - size.height / 2), withAttributes: attributes)
+                let warn = available && warnedSegments.contains(i) ? Self.triangle : nil
+                let extra = warn.map { $0.size.width + TierControl.Natural.triangleGap } ?? 0
+                let x = cell.midX - (size.width + extra) / 2
+                (text as NSString).draw(at: NSPoint(x: x, y: cell.midY - size.height / 2), withAttributes: attributes)
+                if let warn {
+                    let w = warn.size
+                    warn.draw(
+                        in: NSRect(x: x + size.width + TierControl.Natural.triangleGap, y: cell.midY - w.height / 2, width: w.width, height: w.height),
+                        from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                }
+                // Recommended: a gold ring; the selected cell of a loaded row keeps its white ring unless it is the gold one.
+                if recommended && available {
+                    let ring = NSBezierPath(roundedRect: cell.insetBy(dx: 1, dy: 1.5), xRadius: 5, yRadius: 5)
+                    ring.lineWidth = 1.5
+                    TierControl.gold.setStroke()
+                    ring.stroke()
+                } else if selected && hot {
+                    let ring = NSBezierPath(roundedRect: cell.insetBy(dx: 1, dy: 1.5), xRadius: 5, yRadius: 5)
+                    ring.lineWidth = 1.5
+                    NSColor.white.withAlphaComponent(0.95).setStroke()
+                    ring.stroke()
+                }
             }
-            if ringsSelection, selectedSegment >= 0 {
-                let cell = NSRect(x: CGFloat(selectedSegment) * pitch, y: 0, width: pitch, height: bounds.height).insetBy(dx: 1, dy: 1.5)
-                let ring = NSBezierPath(roundedRect: cell, xRadius: 5, yRadius: 5)
-                ring.lineWidth = 1.5
-                NSColor.white.withAlphaComponent(0.95).setStroke()
-                ring.stroke()
-            }
-        }
-        private func drawStock(_ dirtyRect: NSRect) {
-            super.draw(dirtyRect)
-            guard ringsSelection, selectedSegment >= 0, selectedSegment < segmentCount else { return }
-            let x = CGFloat(selectedSegment) * (TierControl.Natural.cellWidth - 1)
-            let cell = NSRect(x: x, y: 0, width: TierControl.Natural.cellWidth - 1, height: bounds.height).insetBy(dx: 1, dy: 1.5)
-            let ring = NSBezierPath(roundedRect: cell, xRadius: 5, yRadius: 5)
-            ring.lineWidth = 1.5
-            NSColor.white.withAlphaComponent(isEnabled ? 0.95 : 0.5).setStroke()
-            ring.stroke()
         }
     }
 
-    /// Draws an enabled segment's label in the row's tint; everything else (bezels, selection, greyed cells) is stock.
     func makeNSView(context: Context) -> NSSegmentedControl {
         let control = Control()
         control.controlSize = .regular
@@ -328,11 +285,11 @@ private struct TierSegments: NSViewRepresentable {
         (control as? Control)?.naturalBounds()
         control.selectedSegment = selected.flatMap { tiers.firstIndex(of: $0) } ?? -1
         control.isEnabled = enabled
-        // On a loaded (accent-blue) row an accent selection disappears into the row; a near-black selection with the
-        // white label stands out from the light unselected cells there.
-        control.selectedSegmentBezelColor = hot ? TierControl.hotSelection : nil
-        (control as? Control)?.ringsSelection = hot
-        (control as? Control)?.tint = tint
+        if let control = control as? Control {
+            control.hot = hot
+            control.recommendedSegment = recommended.flatMap { tiers.firstIndex(of: $0) } ?? -1
+            control.warnedSegments = Set(warned.compactMap { tiers.firstIndex(of: $0) })
+        }
         control.needsDisplay = true
     }
 }

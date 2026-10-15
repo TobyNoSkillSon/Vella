@@ -199,7 +199,7 @@ import VellaCore
         ModelRef(
             id: family.id, precision: precision, path: path, mode: family.mode, name: family.name,
             diskBytes: estimatedWeightBytes(family, precision).map { Int64($0) } ?? family.diskBytes(precision), memoryMB: admissionMemoryMB(family, precision),
-            precisionOptions: precisionOptions(family), selection: selection ?? recordedSelection(family, precision))
+            precisionOptions: precisionOptions(family), selection: (selection ?? recordedSelection(family, precision)).request)
     }
     func recordedSelection(_ family: ModelFamily, _ precision: String) -> ModelSelection {
         let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }

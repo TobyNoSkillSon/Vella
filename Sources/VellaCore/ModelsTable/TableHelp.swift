@@ -41,9 +41,6 @@ public func modelHelp(_ f: ModelFamily, loaded: LoadedFamily? = nil) -> String {
     if let loaded {
         let how = loaded.residency == "on_demand" ? ", on demand" : loaded.residency == "manual" ? ", kept hot" : ""
         lines.append("Loaded at \(humanDType(precision: loaded.precision, familyID: f.id))" + how)
-        if let requested = loaded.selection, effectiveSelection(requested, engine: loaded.engine) != requested {
-            lines.append("\(recipeLabel(requested)) was requested, but the worker is using Standard. Reload \(recipeLabel(requested)) to retry its self-test.")
-        }
     }
     return lines.joined(separator: "\n")
 }
@@ -65,21 +62,9 @@ public func suiteDescription(_ key: String?, suites: [String: SuiteInfo]?) -> St
 /// Speed, energy and memory come from one run of the quick suite per precision; accuracy from the row's own suite.
 public let performanceSuite = "v2-quick"
 
-/// Line 1 `<what> on <suite>, <detail>: <which way is better>`, line 2 the provenance, and for Speed, J / min and
-/// Memory a third line with the stock-MLX baseline when one was measured (`stockLine`).
-private func figure(_ what: String, on suite: String?, _ detail: String? = nil, better: String, _ r: PrecisionResult, stock: Bool = false) -> String {
+/// Line 1 `<what> on <suite>, <detail>: <which way is better>`, line 2 the provenance.
+private func figure(_ what: String, on suite: String?, _ detail: String? = nil, better: String, _ r: PrecisionResult) -> String {
     what + (suite.map { " on \($0)" } ?? "") + (detail.map { ", \($0)" } ?? "") + ": \(better)\n" + measuredProvenance(r)
-        + ((stock ? stockLine(r) : nil).map { "\n" + $0 } ?? "")
-}
-
-/// The Standard reference in one line, named by its measurement hardware and date (speed, joules per audio minute, peak
-/// memory; a figure that was not measured is left out). Nil when the precision has no stock baseline.
-public func stockLine(_ r: PrecisionResult?) -> String? {
-    guard let s = r?.stock else { return nil }
-    let parts = [formatSpeed(s.speed_x), formatEnergy(s.j_per_min), formatMemory(s.memory_mb)].compactMap { $0 }
-    guard !parts.isEmpty else { return nil }
-    return "Standard " + (s.hardware.flatMap { displayChip($0.components(separatedBy: ",").first) }.map { "on " + $0 } ?? "reference measurements") + ": "
-        + parts.joined(separator: " \u{00b7} ") + (s.date.map { " (measured " + $0 + ")" } ?? "") + (s.note == nil ? "" : " (remeasure pending)")
 }
 
 public func werHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
@@ -104,23 +89,23 @@ public func speedHelp(_ mode: RecognitionMode, _ r: PrecisionResult?, suites: [S
     guard let r, let x = r.speed_x else { return notMeasuredHelp }
     let suite = suites?[performanceSuite] != nil ? suiteDescription(performanceSuite, suites: suites) : nil
     if mode == .streaming {
-        return figure("Streaming replay speed in \u{00d7} real time", on: suite, "not microphone-to-text latency", better: "higher is faster", r, stock: true)
+        return figure("Streaming replay speed in \u{00d7} real time", on: suite, "not microphone-to-text latency", better: "higher is faster", r)
     }
     return figure(
         "Speed in \u{00d7} real time", on: suite, "timed after loading",
-        better: "higher is faster" + (x < slowSpeedFloor ? "; under 20\u{00d7} is very slow for dictation" : ""), r, stock: true)
+        better: "higher is faster" + (x < slowSpeedFloor ? "; under 20\u{00d7} is very slow for dictation" : ""), r)
 }
 
 public func energyHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
     guard let r, r.j_per_min != nil else { return notMeasuredHelp }
     let suite = suites?[performanceSuite] != nil ? suiteDescription(performanceSuite, suites: suites) : nil
-    return figure("Whole-chip joules per audio minute", on: suite, "net of loaded idle power", better: "lower is better", r, stock: true)
+    return figure("Whole-chip joules per audio minute", on: suite, "net of loaded idle power", better: "lower is better", r)
 }
 
 public func memoryHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
     guard let r, r.memory_mb != nil else { return notMeasuredHelp }
     let suite = suites?[performanceSuite] != nil ? suiteDescription(performanceSuite, suites: suites) : nil
-    return figure("Peak memory of Vella's model worker", on: suite, "loading included", better: "lower is better", r, stock: true)
+    return figure("Peak memory of Vella's model worker", on: suite, "loading included", better: "lower is better", r)
 }
 
 // MARK: Cloud reference rows
@@ -151,7 +136,7 @@ public func referenceWERTooltip(_ r: ReferenceEntry) -> String {
     return what + ": lower is better\n" + [from, r.date].compactMap { $0 }.joined(separator: " \u{00b7} ")
 }
 
-// MARK: Tier cells (Optimized / Standard rows × 16 / 8 / 4)
+// MARK: Precision cells (16 / 8 / 4 in the shown Exact/Fast position)
 
 /// Line 1 of a tier cell's tooltip: the flavour of the weights. `bf16, as published`; `bf16, converted once from the
 /// published fp32`; `8-bit weights throughout (affine-8 g64)`; a per-layer recipe `8-bit decoder, 16-bit encoder (affine-8 g64)`.
@@ -190,41 +175,42 @@ public func cellBasis(_ cell: BenchmarkCell?) -> String? {
     return parts.isEmpty ? nil : parts.joined(separator: ", ")
 }
 
-/// Line 2 of a tier cell's tooltip: the change against Standard at 16 bits (stock MLX; `baseName` is its dtype, `bf16`
-/// or `fp16`) with its basis, `vs Standard bf16: +2.0× speed · −35 % energy · WER +0.05 · M5 Max, 28 Sep`. The Standard
-/// 16-bit cell itself is the reference.
-public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: Bool, baseName: String = "16") -> String {
+/// Line 2 of a tier cell's tooltip: the change against the 16-bit cell of the same switch position (`baseName` is its
+/// dtype, `bf16` or `fp16`) with its basis, `vs bf16: Speed: 2.0× faster · Energy: 35% less · WER +0.05 pt · M5 Max, 28 Sep`.
+/// The 16-bit cell itself is the reference. `hardwareDeltas` false (a Mac other than the measured one): speed and energy
+/// are left out, since another Mac's change is not this one's (Toby, 15 Oct: no relative claims there); WER stays.
+public func tierDeltaLine(_ cell: BenchmarkCell?, base: BenchmarkCell?, isBase: Bool, baseName: String = "16", hardwareDeltas: Bool = true) -> String {
     guard let cell, !cell.isPending else { return unmeasuredReasonHelp(cell) }
     let basis = cellBasis(cell)
     if isBase { return (["Reference for the deltas", basis].compactMap { $0 }).joined(separator: " \u{00b7} ") }
     guard let base, !base.isPending else {
-        return (["No Standard \(baseName) measurement to compare with yet", basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
+        return (["No \(baseName) measurement to compare with yet", basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
     }
     var parts: [String] = []
     let r = cell.result, b = base.result
-    if let delta = speedDelta(r.speed_x, base: b.speed_x) { parts.append("Speed: " + delta.text) }
-    if let delta = energyDelta(r.j_per_min, base: b.j_per_min) { parts.append("Energy: " + delta.text) }
+    if hardwareDeltas, let delta = speedDelta(r.speed_x, base: b.speed_x) { parts.append("Speed: " + delta.text) }
+    if hardwareDeltas, let delta = energyDelta(r.j_per_min, base: b.j_per_min) { parts.append("Energy: " + delta.text) }
     if let x = r.wer, let y = b.wer {
         let d = x - y
         parts.append(abs(d) < 0.005 ? "same WER" : "WER " + (d < 0 ? "\u{2212}" : "+") + String(format: "%.2f pt", abs(d)))
     }
-    return "vs Standard \(baseName): " + (parts + [basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
+    return "vs \(baseName): " + (parts + [basis].compactMap { $0 }).joined(separator: " \u{00b7} ")
 }
 
-/// A tier cell's tooltip: flavour; delta vs Standard 16 with its basis; for a cell that loses anything against 16, the
-/// loss (`cellLoss`). With `figuresPending` (benchmarks.json `figures_pending`) the flavour only: no delta and no loss
-/// until the final build is measured.
-public func tierCellHelp(_ family: ModelFamily, _ benchmark: FamilyBenchmark?, tier: ModelTier, segment: Recipe, figuresPending: Bool = false) -> String {
-    let cell = benchmarkCell(
-        benchmark,
-        ModelSelection(
-            tier: tier, path: segment == .standard ? .standard : .optimized,
-            mode: segment == .optimized_fast ? .fast : .exact))
+/// A tier cell's tooltip: flavour; delta vs the 16-bit cell of the same switch position with its basis; for a cell that
+/// loses anything against 16, the loss (`cellLoss`). With `figuresPending` (benchmarks.json `figures_pending`) the
+/// flavour only: no delta and no loss until the final build is measured.
+public func tierCellHelp(
+    _ family: ModelFamily, _ benchmark: FamilyBenchmark?, tier: ModelTier, mode: OptimizedMode, figuresPending: Bool = false, hardwareDeltas: Bool = true
+) -> String {
+    let selection = ModelSelection(tier: tier, mode: mode)
+    let cell = benchmarkCell(benchmark, selection)
     var lines = [tierFlavour(family, tier: tier, cell: cell)]
     if figuresPending { return lines[0] }
     let baseName = tierDTypeLabel(family, .t16)
-    lines.append(tierDeltaLine(cell, base: benchmark?.tiers[.t16]?.cells[.standard], isBase: tier == .t16 && segment == .standard, baseName: baseName))
-    let loss = cellLoss(benchmark, tier: tier, segment: segment)
+    let base = benchmarkCell(benchmark, ModelSelection(tier: .t16, mode: mode))
+    lines.append(tierDeltaLine(cell, base: base, isBase: tier == .t16, baseName: baseName, hardwareDeltas: hardwareDeltas))
+    let loss = cellLoss(benchmark, tier: tier, segment: selection.segmentKey)
     if !loss.isEmpty { lines.append("Loss vs \(baseName): " + loss.joined(separator: ", ")) }
     return lines.joined(separator: "\n")
 }
@@ -260,7 +246,5 @@ public let modelDeletionBusyHelp = "Finish dictation, downloading or calibration
 /// A greyed Precision cell of a tier the catalog does not offer. A failed presence verdict never greys a cell (6 Oct):
 /// the offered cell states it as its loss.
 public func tierAbsentHelp(_ benchmark: FamilyBenchmark?, tier: ModelTier) -> String { "Not offered for this model" }
-/// A greyed Optimized cell under Exact whose tier has only a Fast recipe (family coupling rule).
+/// A greyed cell under Exact whose tier has only a Fast recipe (family coupling rule).
 public func exactRecipeMissingHelp(_ dtype: String) -> String { "No Exact recipe at \(dtype); Fast offers it" }
-/// A greyed Optimized row of a model without an Optimized path.
-public let noOptimizedPathHelp = "No Optimized path for this model"

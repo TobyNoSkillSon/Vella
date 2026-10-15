@@ -2,7 +2,7 @@ import Foundation
 import VellaCore
 
 let usage = """
-    Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far.
+    Every model runs Vella's optimized kernels where this Mac supports them and falls back to stock MLX by itself; figures are measured on M5 Max so far.
     vella: transcribe audio files offline with Vella’s downloaded Dictation models.
 
         vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]
@@ -12,7 +12,7 @@ let usage = """
             `vella models` (a downloaded Dictation model; Streaming models do not transcribe files); without it the current dictation model is used. Dictation always goes first.
         vella status                 one line: running, dictation model, loaded models, API address
         vella models [--json]        all local Models table rows, including not downloaded; --json includes per-cell measured figures, provenance and refusals
-        vella select ID [--precision bf16|fp16|int8|int4] [--path Standard|Optimized] [--mode Fast|Exact]
+        vella select ID [--precision bf16|fp16|int8|int4] [--mode Fast|Exact]
             previews a cell under the table's rules; Load / Reload / Get commits it. An unavailable cell says why.
         vella get ID [--yes]         Get and Load; --yes consents to the displayed source/size; without it nothing downloads
         vella load ID               Load downloaded weights; never downloads
@@ -83,7 +83,7 @@ struct VellaCLI {
             "transcribe": "Usage: vella transcribe FILE [--model ID] [--language CODE] [--text|--json|--verbose-json|--srt|--vtt]",
             "status": "Usage: vella status",
             "models": "Usage: vella models [--json]",
-            "select": "Usage: vella select ID [--precision bf16|fp16|int8|int4] [--path Standard|Optimized] [--mode Fast|Exact]",
+            "select": "Usage: vella select ID [--precision bf16|fp16|int8|int4] [--mode Fast|Exact]",
             "get": "Usage: vella get ID [--yes]",
             "load": "Usage: vella load ID",
             "reload": "Usage: vella reload ID",
@@ -181,8 +181,11 @@ struct VellaCLI {
     }
 
     func modelControl(_ command: String, _ rest: [String]) async throws {
+        if rest.contains(where: { $0 == "--path" || $0.hasPrefix("--path=") }) {
+            throw CLIError("--path was removed in Vella 2.1: every model runs the optimized path and falls back to stock MLX by itself. Use --precision and --mode.")
+        }
         let args = try Arguments(
-            rest, values: command == "select" ? ["--precision", "--path", "--mode"] : command == "delete" ? ["--precision"] : [],
+            rest, values: command == "select" ? ["--precision", "--mode"] : command == "delete" ? ["--precision"] : [],
             flags: ["get", "delete"].contains(command) ? ["--yes"] : [])
         guard args.positional.count == 1 else { throw CLIError("vella \(command) ID; see vella --help") }
         var fields: [String: Any] = [:]
@@ -336,7 +339,8 @@ struct VellaCLI {
         if m["loaded"] as? Bool == true { parts.append("loaded") }
         if m["current"] as? Bool == true { parts.append("current \((m["mode"] as? String)?.lowercased() ?? "dictation") model") }
         if let action = m["action"] as? String { parts.append(action) }
-        if m["hardware_note"] is String { parts.append("Speed measured on M5 Max (40-core GPU), not this Mac · J / min not known") }
+        if let recommended = m["recommended_precision"] as? String { parts.append("recommended \(recommended)") }
+        if m["hardware_note"] is String { parts.append("Speed and J / min measured on M5 Max (40-core GPU), not this Mac") }
         return "\(m["id"] as? String ?? "?")  " + parts.joined(separator: " · ")
     }
 

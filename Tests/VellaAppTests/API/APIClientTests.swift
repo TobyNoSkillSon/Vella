@@ -71,7 +71,9 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(hCode, 0)
         // Measured-chip line first, then the synopsis (CLIReleaseTests pins the same order).
         XCTAssertTrue(help.components(separatedBy: "\n")[1].hasPrefix("vella:"), help)
-        XCTAssertEqual(help.components(separatedBy: "\n")[0], "Standard is optimized for your Mac through MLX; Optimized adds our custom kernels, measured on M5 Max so far.")
+        XCTAssertEqual(
+            help.components(separatedBy: "\n")[0],
+            "Every model runs Vella's optimized kernels where this Mac supports them and falls back to stock MLX by itself; figures are measured on M5 Max so far.")
         XCTAssertTrue(help.contains("vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]"), help)
 
         // Errors: one line on stderr, exit 1, no stdout.

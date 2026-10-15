@@ -17,7 +17,7 @@ import SwiftUI
     func delete(family: ModelFamily, path: String, delete: @escaping @MainActor () -> Bool) async -> Bool { false }
 }
 
-/// Clicks on the Models table's two Precision rows, the Exact/Fast switch and the action button reach the controller and change the
+/// Clicks on the Models table's Precision row, the Exact/Fast switch and the action button reach the controller and change the
 /// row, through real mouse events on the hosted table (as in the menu), not only through the controller's API
 /// (29 Sep: Toby's installed table ignored clicks).
 @MainActor final class TableClickTests: XCTestCase {
@@ -36,6 +36,9 @@ import SwiftUI
             streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
             benchmarksURL: URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("SwitchRuleFixture.json"))
         c.runtime = TableRuntime()
+        // Fixed hardware, whatever Mac runs the tests: the measured M5 Max with its tensor units.
+        c.benchmarkHardware = .measured
+        c.gpu = GPUCapability(appleFamily: 10, architecture: "applegpu_g17s", osMajor: 26, osMinor: 6)
         return c
     }
     /// As after a night window: every Exact cell of `id` measured (a copy of its Fast numbers), so Exact is selectable.
@@ -101,13 +104,13 @@ import SwiftUI
         spin()
     }
 
-    /// Each model's two segment controls, Optimized then Standard, in row order (every shipped model has both rows).
-    private func segmentRows(_ c: ModelsController, _ view: NSView) throws -> [String: (optimized: NSSegmentedControl, standard: NSSegmentedControl)] {
+    /// Each model's Precision row (one segment control per model, no Standard row), in row order.
+    private func segmentRows(_ c: ModelsController, _ view: NSView) throws -> [String: NSSegmentedControl] {
         let controls = topDown(all(NSSegmentedControl.self, in: view))
         let order = familiesInRowOrder(c)
-        XCTAssertEqual(controls.count, 2 * order.count, "two Precision rows per model: Optimized above Standard")
-        var rows: [String: (NSSegmentedControl, NSSegmentedControl)] = [:]
-        for (i, family) in order.enumerated() where 2 * i + 1 < controls.count { rows[family.id] = (controls[2 * i], controls[2 * i + 1]) }
+        XCTAssertEqual(controls.count, order.count, "one Precision row per model")
+        var rows: [String: NSSegmentedControl] = [:]
+        for (i, family) in order.enumerated() where i < controls.count { rows[family.id] = controls[i] }
         return rows
     }
     /// A real click on segment `index` of a control.
@@ -116,41 +119,37 @@ import SwiftUI
         click(window, at: NSPoint(x: r.minX + (TierControl.cellWidth - 1) * (CGFloat(index) + 0.5), y: r.midY))
     }
 
-    /// Both rows are directly clickable, and each cell shows its own numbers: Optimized 8, then Standard 16 (the
-    /// reference: its own figures, no deltas), then Optimized 16 again.
-    func testEveryCellOfBothRowsIsClickableAndShowsItsNumbers() throws {
+    /// Every cell of the row is directly clickable and shows its own numbers: int8 (deltas vs 16-bit), then bf16 (the
+    /// reference: its own figures, no deltas), then int8 again.
+    func testEveryCellIsClickableAndShowsItsNumbers() throws {
         let c = try controller()
         let (window, view) = host(c)
         let rows = try segmentRows(c, view)
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
-        let (optimized, standard) = try XCTUnwrap(rows[ultra.id])
-        XCTAssertEqual(optimized.segmentCount, 3, "Ultra offers 16, 8 and 4 on Optimized")
-        XCTAssertEqual(standard.segmentCount, 3, "and on Standard")
-        XCTAssertEqual((0..<3).map { optimized.label(forSegment: $0) }, ["bf16", "int8", "int4"], "the dtype that runs")
+        let row = try XCTUnwrap(rows[ultra.id])
+        XCTAssertEqual(row.segmentCount, 3, "Ultra offers 16, 8 and 4")
+        XCTAssertEqual((0..<3).map { row.label(forSegment: $0) }, ["bf16", "int8", "int4"], "the dtype that runs")
         XCTAssertNil(c.previews[ultra.id])
-        click(window, segment: 1, of: optimized)
-        XCTAssertEqual(c.previews[ultra.id], ModelSelection(tier: .t8, path: .optimized, mode: .fast), "Optimized 8, Fast kept")
-        XCTAssertEqual(optimized.selectedSegment, 1, "the row re-rendered with 8 selected")
-        XCTAssertEqual(standard.selectedSegment, -1, "one cell selected across both rows")
-        let optimized8 = try XCTUnwrap(c.shownResult(ultra)?.speed_x)
-        click(window, segment: 0, of: standard)
-        XCTAssertEqual(c.currentSelection(ultra), ModelSelection(tier: .t16, path: .standard, mode: .fast), "a Standard cell, the switch position kept")
-        XCTAssertEqual(standard.selectedSegment, 0)
-        XCTAssertEqual(optimized.selectedSegment, -1)
-        let standard16 = try XCTUnwrap(c.shownResult(ultra)?.speed_x)
-        XCTAssertNotEqual(standard16, optimized8, "Standard 16 shows its own numbers")
-        XCTAssertEqual(standard16, c.baseResult(ultra)?.speed_x)
-        XCTAssertFalse(c.showsDeltas(ultra), "Standard 16 is the deltas' base: none under its figures")
-        click(window, segment: 0, of: optimized)
-        XCTAssertEqual(c.currentSelection(ultra), ModelSelection(tier: .t16, path: .optimized, mode: .fast))
-        XCTAssertNotEqual(c.shownResult(ultra)?.speed_x, standard16, "back on Optimized: its numbers")
+        click(window, segment: 1, of: row)
+        XCTAssertEqual(c.previews[ultra.id], ModelSelection(tier: .t8, mode: .fast), "8, Fast kept, the optimized request")
+        XCTAssertEqual(row.selectedSegment, 1, "the row re-rendered with 8 selected")
+        let int8 = try XCTUnwrap(c.shownResult(ultra)?.speed_x)
         XCTAssertTrue(c.showsDeltas(ultra))
+        click(window, segment: 0, of: row)
+        XCTAssertEqual(c.currentSelection(ultra), ModelSelection(tier: .t16, mode: .fast))
+        XCTAssertNil(c.previews[ultra.id], "the committed cell ends the preview")
+        XCTAssertEqual(row.selectedSegment, 0)
+        let bf16 = try XCTUnwrap(c.shownResult(ultra)?.speed_x)
+        XCTAssertNotEqual(bf16, int8, "bf16 shows its own numbers")
+        XCTAssertEqual(bf16, c.baseResult(ultra)?.speed_x)
+        XCTAssertFalse(c.showsDeltas(ultra), "16-bit is the deltas' base: none under its figures")
+        click(window, segment: 1, of: row)
+        XCTAssertEqual(c.shownResult(ultra)?.speed_x, int8, "back on int8: its numbers")
         XCTAssertEqual(c.action(ultra), .get)
     }
 
-    /// The Optimized row follows the switch (Exact lists only the precisions with an exact recipe); the Standard row
-    /// keeps every precision Standard has.
-    func testThePrecisionRowsUnderEachSwitchPosition() throws {
+    /// The row follows the switch: Exact lists only the precisions with an exact recipe, Fast every measured one.
+    func testThePrecisionRowUnderEachSwitchPosition() throws {
         let c = try controller()
         measureExact(c, "whisper-large-v3-turbo")
         c.benchmarks.models["whisper-large-v3-turbo"]?.tiers[.t8]?.cells[.optimized_exact] = nil
@@ -158,27 +157,26 @@ import SwiftUI
         let turbo = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
         let order = familiesInRowOrder(c)
         let index = try XCTUnwrap(order.firstIndex { $0.id == turbo.id })
-        var (optimized, standard) = try XCTUnwrap(try segmentRows(c, view)[turbo.id])
-        XCTAssertEqual([optimized.segmentCount, standard.segmentCount], [3, 3], "every row keeps its three cells")
-        XCTAssertEqual((0..<3).map { standard.label(forSegment: $0) }, ["fp16", "int8", "int4"], "Whisper's 16 is fp16")
-        XCTAssertEqual((0..<3).map { optimized.isEnabled(forSegment: $0) }, [true, true, true], "Fast: fp16, int8 and int4, each measured")
-        click(window, segment: 1, of: optimized)
-        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t8, path: .optimized, mode: .fast))
+        var row = try XCTUnwrap(try segmentRows(c, view)[turbo.id])
+        XCTAssertEqual(row.segmentCount, 3, "the row keeps its three cells")
+        XCTAssertEqual((0..<3).map { row.label(forSegment: $0) }, ["fp16", "int8", "int4"], "Whisper's 16 is fp16")
+        XCTAssertEqual((0..<3).map { row.isEnabled(forSegment: $0) }, [true, true, true], "Fast: fp16, int8 and int4, each measured")
+        click(window, segment: 1, of: row)
+        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t8, mode: .fast))
         let s = topDown(all(SwitchView.self, in: view))[index]
         let r = s.convert(s.bounds, to: nil)
         click(window, at: NSPoint(x: r.midX, y: r.midY))
-        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t16, path: .optimized, mode: .exact), "Exact moved 8 to 16")
+        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t16, mode: .exact), "Exact moved 8 to 16")
         XCTAssertEqual(c.couplingNote(turbo), "Exact: fp16 and int4, was int8")
-        (optimized, standard) = try XCTUnwrap(try segmentRows(c, view)[turbo.id])
-        XCTAssertEqual([optimized.segmentCount, standard.segmentCount], [3, 3], "the grid never shifts")
-        XCTAssertEqual((0..<3).map { optimized.isEnabled(forSegment: $0) }, [true, false, true], "Exact: fp16 and int4, not int8 (no Exact recipe)")
-        XCTAssertEqual(optimized.toolTip(forSegment: 1), "No Exact recipe at int8; Fast offers it")
-        XCTAssertEqual((0..<3).map { standard.isEnabled(forSegment: $0) }, [true, true, false], "the Standard row is not restricted by the switch")
+        row = try XCTUnwrap(try segmentRows(c, view)[turbo.id])
+        XCTAssertEqual(row.segmentCount, 3, "the grid never shifts")
+        XCTAssertEqual((0..<3).map { row.isEnabled(forSegment: $0) }, [true, false, true], "Exact: fp16 and int4, not int8 (no Exact recipe)")
+        XCTAssertEqual(row.toolTip(forSegment: 1), "No Exact recipe at int8; Fast offers it")
         let exact16 = c.currentSelection(turbo)
-        click(window, segment: 1, of: optimized)
-        XCTAssertEqual(c.currentSelection(turbo), exact16, "a real click on the greyed Optimized int8 changes nothing")
-        click(window, segment: 1, of: standard)
-        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t8, path: .standard, mode: .exact), "Standard 8 stays reachable under Exact")
+        click(window, segment: 1, of: row)
+        XCTAssertEqual(c.currentSelection(turbo), exact16, "a real click on the greyed int8 changes nothing")
+        click(window, segment: 2, of: row)
+        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t4, mode: .exact), "int4 stays reachable under Exact")
         XCTAssertNil(c.couplingNote(turbo), "a cell click ends the note")
     }
 
@@ -190,7 +188,7 @@ import SwiftUI
         let (window, view) = host(c)
         let order = familiesInRowOrder(c)
         let switches = topDown(all(SwitchView.self, in: view))
-        XCTAssertEqual(switches.count, order.count, "one switch per model (every Vella model has an Optimized path)")
+        XCTAssertEqual(switches.count, order.count, "one switch per model")
         let turboIndex = try XCTUnwrap(order.firstIndex { $0.id == "whisper-large-v3-turbo" })
         let turbo = order[turboIndex], s = switches[turboIndex]
         XCTAssertEqual(c.currentSelection(turbo).mode, .fast)
@@ -204,9 +202,9 @@ import SwiftUI
         XCTAssertEqual(c.currentSelection(turbo).mode, .fast, "a click on the pill flipped it back")
         click(window, at: NSPoint(x: r.maxX - 3, y: r.maxY - 6))
         XCTAssertEqual(c.currentSelection(turbo).mode, .exact, "the upper right flips too: the whole area toggles")
-        // The switch is as tall as both rows: its top and bottom edges (level with the Optimized and the Standard row) and
-        // the middle between them all flip it.
-        XCTAssertEqual(r.height, TierControl.height, accuracy: 0.5, "full two-row height")
+        // The switch keeps its full height (unchanged since the two-row control): its top and bottom edges and the
+        // middle all flip it.
+        XCTAssertEqual(r.height, ExactFastSwitch.height, accuracy: 0.5, "full height")
         for (point, expected) in [
             (NSPoint(x: r.minX + 2, y: r.maxY - 2), OptimizedMode.fast), (NSPoint(x: r.minX + 2, y: r.minY + 2), .exact),
             (NSPoint(x: r.midX, y: r.midY), .fast), (NSPoint(x: r.maxX - 2, y: r.minY + 2), .exact)
@@ -214,10 +212,10 @@ import SwiftUI
             click(window, at: point)
             XCTAssertEqual(c.currentSelection(turbo).mode, expected, "a click at \(point) flipped it")
         }
-        // From a Standard cell, the switch moves the row to that precision's Optimized cell.
-        c.select(turbo, tier: .t8, path: .standard)
+        // From int8 the switch keeps int8 where Exact has it.
+        c.select(turbo, tier: .t8)
         click(window, at: NSPoint(x: r.midX, y: r.midY))
-        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t8, path: .optimized, mode: .fast))
+        XCTAssertEqual(c.currentSelection(turbo), ModelSelection(tier: .t8, mode: .fast))
         // Greyed (Fast = Exact, Qwen): pinned up, a click does nothing.
         let qwenIndex = try XCTUnwrap(order.firstIndex { $0.id == "qwen3-asr-1.7b" })
         let qwen = order[qwenIndex], q = switches[qwenIndex]
@@ -229,12 +227,15 @@ import SwiftUI
         XCTAssertEqual(c.currentSelection(qwen), before)
     }
 
-    /// The action button: always visible with one word; a click performs it; a Standard cell on a loaded model turns it
-    /// into the green Reload, which reloads on Standard; a click on the trash glyph asks to delete.
+    /// The action button: always visible with one word; a click performs it; another switch position or cell on a
+    /// loaded model turns it into the green Reload, which reloads that request (always optimized); a click on the trash
+    /// glyph asks to delete.
     func testTheActionButtonPerformsReloadsAndDeletes() throws {
         let c = try controller()
+        measureExact(c, "whisper-large-v3-turbo")
         let spy = ClickSpy(); c.actions = spy
         c.dictation.installed["Qwen3-ASR-1.7B-bf16"] = InstalledModel(path: "/fixture/q16")
+        c.dictation.installed["whisper-large-v3-turbo-asr-fp16"] = InstalledModel(path: "/fixture/t16")
         var deleted: [String] = []
         let (window, view) = host(c, requestDelete: { deleted.append($0.id) })
         let order = familiesInRowOrder(c)
@@ -242,32 +243,34 @@ import SwiftUI
         XCTAssertEqual(actions.count, order.count)
         XCTAssertTrue(actions.allSatisfy { $0.frame.size == NSSize(width: RowAction.width, height: RowAction.height) }, "fixed size")
         let index = try XCTUnwrap(order.firstIndex { $0.id == "qwen3-asr-1.7b" })
-        let qwen = order[index], a = actions[index]
+        let a = actions[index]
         XCTAssertEqual(a.spec?.title, "Load")
         XCTAssertTrue(a.spec?.deletable ?? false)
         let r = a.convert(a.bounds, to: nil)
         click(window, at: NSPoint(x: r.minX + a.buttonRect.midX, y: r.midY))
         XCTAssertEqual(spy.calls, ["load qwen3-asr-1.7b BF16"], "a click on the button performed Load")
+        XCTAssertEqual(spy.selections.last, ModelSelection(tier: .t16, mode: .fast))
         click(window, at: NSPoint(x: r.minX + a.trashRect.midX, y: r.midY))
         XCTAssertEqual(deleted, ["qwen3-asr-1.7b"], "a click on the trash glyph asked to delete")
         XCTAssertEqual(spy.calls.count, 1, "and did not also load")
-        // Loaded on Optimized 16: Unload; its Standard 16 cell previewed: the green Reload, which reloads on Standard.
+        // Turbo loaded at 16 · Fast: Unload; the switch flipped to Exact: the green Reload of 16 · Exact.
+        let turboIndex = try XCTUnwrap(order.firstIndex { $0.id == "whisper-large-v3-turbo" })
         c.runtime = TableRuntime(loaded: [
-            "qwen3-asr-1.7b": LoadedFamily(
-                precision: "BF16", engine: "optimized",
-                selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast))
+            "whisper-large-v3-turbo": LoadedFamily(precision: "FP16", engine: "optimized", selection: ModelSelection(tier: .t16, mode: .fast))
         ])
         spin()
-        func button() -> RowActionView { topDown(all(RowActionView.self, in: view))[index] }
+        func button() -> RowActionView { topDown(all(RowActionView.self, in: view))[turboIndex] }
         XCTAssertEqual(button().spec?.title, "Unload")
-        let standard = try XCTUnwrap(try segmentRows(c, view)[qwen.id]?.standard)
-        click(window, segment: 0, of: standard)
+        let s = topDown(all(SwitchView.self, in: view))[turboIndex]
+        let sr = s.convert(s.bounds, to: nil)
+        click(window, at: NSPoint(x: sr.midX, y: sr.midY))
         XCTAssertEqual(button().spec?.title, "Reload")
         XCTAssertEqual(button().spec?.emphasized, true, "green")
         let b = button().convert(button().bounds, to: nil)
         click(window, at: NSPoint(x: b.minX + button().buttonRect.midX, y: b.midY))
-        XCTAssertEqual(spy.calls.last, "reload qwen3-asr-1.7b BF16")
-        XCTAssertEqual(spy.selections.last, ModelSelection(tier: .t16, path: .standard, mode: .fast), "Standard, as VELLA_RECIPE=standard")
+        XCTAssertEqual(spy.calls.last, "reload whisper-large-v3-turbo FP16")
+        XCTAssertEqual(spy.selections.last, ModelSelection(tier: .t16, mode: .exact), "VELLA_RECIPE=optimized_exact, never standard")
+        XCTAssertEqual(workerRecipe(spy.selections.last), .optimized_exact)
         // Not downloaded: Get, nothing to delete.
         let ultraIndex = try XCTUnwrap(order.firstIndex { $0.id == "parakeet-v3-ultra" })
         XCTAssertEqual(actions[ultraIndex].spec?.title, "Get")
@@ -298,58 +301,60 @@ import SwiftUI
         XCTAssertEqual(a.toolTipText(at: NSPoint(x: a.buttonRect.midX, y: a.buttonRect.midY)).components(separatedBy: "\n").first, "Not downloaded")
     }
 
-    /// A tier that fails the presence gate is offered where it is measured (Toby, 6 Oct): its measured Optimized cells
-    /// are selectable by a real click; its unmeasured Standard cells stay greyed in place with their reason, and a click
-    /// on them selects nothing. The grid never shifts.
+    /// A tier that fails the presence gate is offered where it is measured (Toby, 6 Oct): its measured cells are
+    /// selectable by a real click; an unmeasured cell stays greyed in place with its reason, and a click on it selects
+    /// nothing. The grid never shifts.
     func testFormerlyGateRemovedTiersAreSelectableWhereMeasured() throws {
         let c = try controller()
         let (window, view) = host(c)
         let rows = try segmentRows(c, view)
         let qwen = try XCTUnwrap(c.catalog.family("qwen3-asr-1.7b"))
-        let (optimized, standard) = try XCTUnwrap(rows[qwen.id])
-        for control in [optimized, standard] {
-            XCTAssertEqual(control.segmentCount, 3, "all three cells shown")
-            XCTAssertEqual((0..<3).map { control.label(forSegment: $0) }, ["bf16", "int8", "int4"])
-        }
-        XCTAssertEqual((0..<3).map { optimized.isEnabled(forSegment: $0) }, [true, true, true], "measured: selectable")
-        XCTAssertEqual((0..<3).map { standard.isEnabled(forSegment: $0) }, [true, false, false], "Standard 8 and 4 unmeasured: greyed")
-        XCTAssertEqual(standard.toolTip(forSegment: 1), unmeasuredCellHelp)
-        let before = c.currentSelection(qwen)
-        for index in [1, 2] {
-            click(window, segment: index, of: standard)
-            XCTAssertEqual(c.currentSelection(qwen), before, "a click on greyed segment \(index) changes nothing")
-            XCTAssertNil(c.previews[qwen.id])
-        }
-        click(window, segment: 1, of: optimized)
-        XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t8, path: .optimized, mode: .fast), "a real click selects int8")
-        // Every model's two rows keep the same three columns, so the grid never shifts from row to row.
-        let frames = rows.values.flatMap { [$0.optimized, $0.standard] }.map { $0.convert($0.bounds, to: nil) }
+        let row = try XCTUnwrap(rows[qwen.id])
+        XCTAssertEqual(row.segmentCount, 3, "all three cells shown")
+        XCTAssertEqual((0..<3).map { row.label(forSegment: $0) }, ["bf16", "int8", "int4"])
+        XCTAssertEqual((0..<3).map { row.isEnabled(forSegment: $0) }, [true, true, true], "measured: selectable")
+        click(window, segment: 1, of: row)
+        XCTAssertEqual(c.currentSelection(qwen), ModelSelection(tier: .t8, mode: .fast), "a real click selects int8")
+        // Ultra under Exact: its 16 has no Exact measurement, greyed with the reason; a click does nothing.
+        let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        c.setMode(ultra, .exact)
+        spin()
+        let ultraRow = try XCTUnwrap(try segmentRows(c, view)[ultra.id])
+        XCTAssertFalse(ultraRow.isEnabled(forSegment: 0))
+        XCTAssertTrue(ultraRow.toolTip(forSegment: 0)?.hasPrefix(unmeasuredCellHelp) == true)
+        let before = c.currentSelection(ultra)
+        click(window, segment: 0, of: ultraRow)
+        XCTAssertEqual(c.currentSelection(ultra), before, "a click on the greyed segment changes nothing")
+        // Every model's row keeps the same three columns, so the grid never shifts from row to row.
+        let frames = try segmentRows(c, view).values.map { $0.convert($0.bounds, to: nil) }
         XCTAssertEqual(Set(frames.map { Int($0.minX.rounded()) }).count, 1, "one left edge")
         XCTAssertEqual(Set(frames.map { Int($0.width.rounded()) }).count, 1, "one width")
         // The API path refuses a greyed cell too.
-        c.discardPreviews()
-        c.select(qwen, tier: .t8, path: .standard)
-        XCTAssertEqual(c.currentSelection(qwen), before)
+        c.select(ultra, tier: .t16)
+        XCTAssertEqual(c.currentSelection(ultra), before)
     }
 
-    /// benchmarks.json `figures_pending` (the shipped file until the final build is measured): every figure and delta
-    /// shows `—`, the rows keep the catalog order, and selection works exactly as without it.
+    /// benchmarks.json `figures_pending` (the fixture's state until the final build is measured): every figure and
+    /// delta shows `—`, no cell is recommended or warned, the rows keep the catalog order, and selection works exactly
+    /// as without it.
     func testPendingFiguresHideFiguresButNotSelection() throws {
         let c = try controller()
-        XCTAssertTrue(c.benchmarks.figuresPending, "the shipped benchmarks.json predates the final build")
+        XCTAssertTrue(c.benchmarks.figuresPending, "the fixture predates the final build")
         let (window, view) = host(c)
         let table = ModelTable(controller: c)
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
-        let (optimized, _) = try XCTUnwrap(try segmentRows(c, view)[ultra.id])
-        click(window, segment: 1, of: optimized)
-        XCTAssertEqual(c.currentSelection(ultra), ModelSelection(tier: .t8, path: .optimized, mode: .fast), "a measured cell is selectable")
+        let row = try XCTUnwrap(try segmentRows(c, view)[ultra.id])
+        click(window, segment: 1, of: row)
+        XCTAssertEqual(c.currentSelection(ultra), ModelSelection(tier: .t8, mode: .fast), "a measured cell is selectable")
         XCTAssertNotNil(c.shownResult(ultra), "the controller still has the numbers")
+        XCTAssertEqual(c.advice(ultra), PrecisionAdvice(), "no gold and no triangle on figures that are pending")
         let tips = Dictionary(table.tooltips(ultra).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
         for column in ["WER", "Format", "Speed", "J / min", "Peak RAM"] { XCTAssertEqual(tips[column], figuresPendingHelp, column) }
-        XCTAssertEqual(tips["Precision Optimized int8"], "8-bit weights throughout (affine-8 g64)", "no delta and no loss while pending")
-        XCTAssertEqual(tips["Precision Standard int8"], TierControl.notMeasuredHelp, "an unmeasured cell stays refused")
-        c.select(ultra, tier: .t8, path: .standard)
-        XCTAssertEqual(c.currentSelection(ultra).path, .optimized, "'Not measured yet' still refuses")
+        XCTAssertEqual(tips["Precision int8"], "8-bit weights throughout (affine-8 g64)", "no delta and no loss while pending")
+        c.setMode(ultra, .exact)
+        let exact = Dictionary(table.tooltips(ultra).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
+        XCTAssertTrue(exact["Precision bf16"]?.hasPrefix(unmeasuredCellHelp) == true, "an unmeasured cell stays refused")
+        c.setMode(ultra, .fast)
         XCTAssertEqual(
             ModelTable.rows(c, .dictation, sort: .wer, ascending: true).map(\.id),
             c.families(.dictation).map(\.id) + c.references(.dictation).map { "reference:" + $0.id },
@@ -358,7 +363,8 @@ import SwiftUI
         c.benchmarks.figuresPending = false
         let measured = Dictionary(table.tooltips(ultra).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
         XCTAssertNotEqual(measured["WER"], figuresPendingHelp)
-        XCTAssertTrue(measured["Precision Optimized int8"]?.contains("vs Standard bf16: ") == true)
+        XCTAssertTrue(measured["Precision int8"]?.contains("vs bf16: ") == true)
+        XCTAssertNotNil(c.advice(ultra).recommended)
     }
 
     /// Family rule (29 Sep): a cell or switch position without a measurement is unavailable: greyed with "Not measured
@@ -366,14 +372,14 @@ import SwiftUI
     func testUnmeasuredCellsAndExactAreUnavailable() throws {
         let c = try controller()
         let ultra = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
-        let fast16 = ModelSelection(tier: .t16, path: .optimized, mode: .fast)
+        let fast16 = ModelSelection(tier: .t16, mode: .fast)
         XCTAssertEqual(c.currentSelection(ultra), fast16)
         // Ultra's Exact recipes: 16 unmeasured, 8/4 measured (Exact = Fast there), so Exact is available and moves to 8.
-        XCTAssertFalse(c.measured(ultra, ModelSelection(tier: .t16, path: .optimized, mode: .exact)))
-        // Standard 8 of Ultra has no measurement: refused.
-        XCTAssertFalse(c.measured(ultra, ModelSelection(tier: .t8, path: .standard, mode: .fast)))
-        c.select(ultra, tier: .t8, path: .standard)
-        XCTAssertEqual(c.currentSelection(ultra), fast16, "an unmeasured cell is never selected")
+        XCTAssertFalse(c.measured(ultra, ModelSelection(tier: .t16, mode: .exact)))
+        c.setMode(ultra, .exact)
+        XCTAssertEqual(c.currentSelection(ultra), ModelSelection(tier: .t8, mode: .exact))
+        c.select(ultra, tier: .t16)
+        XCTAssertEqual(c.currentSelection(ultra), ModelSelection(tier: .t8, mode: .exact), "an unmeasured cell is never selected")
         // A model with no measured Exact recipe at all: the Exact position is unavailable.
         let turbo = try XCTUnwrap(c.catalog.family("whisper-large-v3-turbo"))
         XCTAssertFalse(c.exactAvailable(turbo))
@@ -394,9 +400,10 @@ import SwiftUI
         c.setMode(turbo, .exact)
         XCTAssertEqual(c.currentSelection(turbo).mode, .exact)
         // The greyed segment itself: disabled with the tooltip.
-        let (_, standardRow) = try XCTUnwrap(try segmentRows(c, view)[ultra.id])
-        XCTAssertFalse(standardRow.isEnabled(forSegment: 1), "Ultra Standard 8 greyed")
-        XCTAssertEqual(standardRow.toolTip(forSegment: 1), TierControl.notMeasuredHelp)
-        XCTAssertTrue(standardRow.isEnabled(forSegment: 0), "Standard 16 is measured")
+        spin()
+        let ultraRow = try XCTUnwrap(try segmentRows(c, view)[ultra.id])
+        XCTAssertFalse(ultraRow.isEnabled(forSegment: 0), "Ultra Exact 16 greyed")
+        XCTAssertTrue(ultraRow.toolTip(forSegment: 0)?.hasPrefix(unmeasuredCellHelp) == true)
+        XCTAssertTrue(ultraRow.isEnabled(forSegment: 1), "Exact 8 is measured")
     }
 }

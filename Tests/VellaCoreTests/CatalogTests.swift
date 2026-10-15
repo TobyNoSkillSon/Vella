@@ -454,48 +454,58 @@ final class CatalogTests: XCTestCase {
             XCTAssertFalse(hardware.isMeasuredConfiguration)
             XCTAssertEqual(hardware.speedReferenceLabel, "M5 Max")
             XCTAssertEqual(hardware.speedText(507), "507×")
-            XCTAssertEqual(hardware.energyText(4.6), "not known")
-            XCTAssertEqual(hardwareNote(thisChip: hardware.chip, measuredOn: "M5 Max", gpuCores: hardware.gpuCores)?.text, "Measured on M5 Max · J / min not known")
+            // Another Mac sees the M5 Max figure as a plain number (Toby, 15 Oct), never "not known" or a relative claim.
+            XCTAssertEqual(hardware.energyText(4.6), "4.6 J")
+            XCTAssertEqual(hardware.referenceLine(speed: 507.1), "Not measured on your Mac. M5 Max: 507× real time.")
+            XCTAssertEqual(hardware.referenceLine(energy: 4.58), "Not measured on your Mac. M5 Max: 4.6 J per audio minute.")
+            XCTAssertNil(hardware.referenceLine(speed: nil)); XCTAssertNil(hardware.referenceLine(energy: nil))
+            XCTAssertEqual(hardwareNote(thisChip: hardware.chip, measuredOn: "M5 Max", gpuCores: hardware.gpuCores)?.text, "Speed and J / min measured on M5 Max")
             let figures = hardware.figures(PrecisionResult(wer: 5, format: 9, speed_x: 507, j_per_min: 4.6, memory_mb: 1000))
-            XCTAssertEqual(figures["speed_x"] as? Double, 507); XCTAssertTrue(figures["j_per_min"] is NSNull)
+            XCTAssertEqual(figures["speed_x"] as? Double, 507); XCTAssertEqual(figures["j_per_min"] as? Double, 4.6)
+            XCTAssertEqual(figures["speed_kind"] as? String, "measured on M5 Max, not this Mac")
+            XCTAssertEqual(figures["energy_kind"] as? String, "measured on M5 Max, not this Mac")
             XCTAssertEqual(figures["wer"] as? Double, 5); XCTAssertEqual(figures["format"] as? Double, 9)
             XCTAssertEqual(figures["memory_mb"] as? Double, 1000)
             XCTAssertEqual(hardware.caveat, "Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it.")
             XCTAssertEqual(figures["measured_on_this_mac"] as? Bool, false)
         }
         XCTAssertNil(BenchmarkHardware.measured.speedReferenceLabel)
+        XCTAssertNil(BenchmarkHardware.measured.referenceLine(speed: 507)); XCTAssertNil(BenchmarkHardware.measured.referenceLine(energy: 4.6))
+        XCTAssertEqual(BenchmarkHardware.measured.figures(PrecisionResult(j_per_min: 4.6))["energy_kind"] as? String, "measured")
         XCTAssertEqual(BenchmarkHardware.measured.speedText(507), "507×")
         XCTAssertEqual(BenchmarkHardware.measured.energyText(4.6), "4.6 J")
         XCTAssertEqual(chipGeneration("Apple M5 Pro"), "M5"); XCTAssertEqual(displayChip("Apple M5 Max"), "M5 Max")
     }
-    func testFallbackTooltipUsesPlainReasonWithoutRepeatingPrecision() {
-        XCTAssertEqual(
-            fallbackEngineHelp(reason: "fused conformer self-test failed: streamed text did not match Standard"),
-            "Vella's optimized path didn't pass its self-test on this Mac: its output didn't match Standard (fused conformer). This model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
-        )
-        XCTAssertTrue(fallbackEngineHelp(reason: "decoder self-test failed: BF16 output was non-finite").contains("bf16 output was non-finite (decoder)"))
-        XCTAssertFalse(fallbackEngineHelp(reason: nil).contains("Precision:"))
-        XCTAssertTrue(fallbackEngineHelp(reason: nil).contains("no reason was reported"))
+    /// A worker that fell back to stock MLX is not named in the user's tooltips (Toby, 15 Oct: "I would just say that
+    /// they are always optimized"), and nothing promises a retry the sticky stock verdict would not make.
+    func testModelTooltipNamesNoPathAfterAFallback() throws {
+        let family = try XCTUnwrap(decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json"))).family("parakeet-v3"))
+        let loaded = LoadedFamily(
+            precision: "BF16", engine: "mlx", engineReason: "decoder self-test failed: BF16 output was non-finite", residency: "manual",
+            selection: ModelSelection(tier: .t16, mode: .fast))
+        let help = modelHelp(family, loaded: loaded)
+        for word in ["Standard", "Optimized", "optimized", "retry", "Reload", "MLX"] { XCTAssertFalse(help.contains(word), "\(word) in \(help)") }
+        XCTAssertTrue(help.hasSuffix("Loaded at bf16, kept hot"))
     }
 
-    func testEngineLabelAndHelp() {
+    func testEngineLabelAndDeltaLines() {
+        // Agent-facing (`vella diagnose`): the true engine.
         XCTAssertEqual(engineLabel(engine: "optimized", chip: "Apple M5 Max"), "Optimized \u{00b7} M5 Max")
         XCTAssertEqual(engineLabel(engine: "optimized", chip: nil), "Optimized")
         XCTAssertEqual(engineLabel(engine: "mlx", chip: "M5 Max"), "MLX")
         XCTAssertEqual(engineLabel(engine: nil, chip: "M5 Max"), "MLX")
-        let partly = engineHelp(engine: "mlx", reason: "self-test failed", optimizations: ["decoder": true, "prefill": false], chip: "M5 Max", precision: "8b")
-        XCTAssertTrue(partly.hasPrefix("Partly optimized"))
-        XCTAssertTrue(partly.contains("stock: prefill")); XCTAssertTrue(partly.contains("Why: self-test failed."))
-        let stock = engineHelp(engine: "mlx", reason: nil, optimizations: nil, chip: nil, precision: "4b")
-        XCTAssertTrue(stock.hasPrefix("Stock MLX path")); XCTAssertFalse(stock.contains("Why"), "never invents a cause")
-        let baseline = PrecisionResult(speed_x: 364.6, stock: StockBaseline(speed_x: 58.04, j_per_min: 95.2, memory_mb: 2412))
-        XCTAssertEqual(stockLine(baseline), "Standard reference measurements: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
+        XCTAssertEqual(engineLabel(engine: "mlx", chip: "M5 Max", selection: ModelSelection(tier: .t16, path: .standard, mode: .fast)), "Standard")
+        XCTAssertEqual(engineLabel(engine: "optimized", chip: "M5 Max", selection: ModelSelection(tier: .t8, mode: .exact)), "Optimized Exact \u{00b7} M5 Max")
+        // A cell's change vs 16-bit: speed and energy only where they were measured on this Mac; WER everywhere.
+        let measured = CellMeasured(hardware: "Apple M5 Max, macOS 26.6", date: "2026-10-01")
+        let cell = BenchmarkCell(result: PrecisionResult(wer: 16.30, speed_x: 504.4, j_per_min: 5.405), recipe: CellRecipe(layers: [:]), measured: measured)
+        let base = BenchmarkCell(result: PrecisionResult(wer: 16.42, speed_x: 494.3, j_per_min: 4.703), recipe: CellRecipe(layers: [:]), measured: measured)
         XCTAssertEqual(
-            stockLine(PrecisionResult(stock: StockBaseline(speed_x: 228.8, memory_mb: 1732))), "Standard reference measurements: 229\u{00d7} \u{00b7} 1.73 GB",
-            "an unmeasured figure is left out")
-        XCTAssertNil(stockLine(PrecisionResult(speed_x: 364.6))); XCTAssertNil(stockLine(nil))
-        let loaded = engineHelp(engine: "optimized", reason: nil, optimizations: nil, chip: "M5 Max", precision: "BF16", stock: stockLine(baseline))
-        XCTAssertEqual(loaded.components(separatedBy: "\n").last, "Standard reference measurements: 58.0\u{00d7} \u{00b7} 95 J \u{00b7} 2.41 GB")
+            tierDeltaLine(cell, base: base, isBase: false, baseName: "bf16"),
+            "vs bf16: Speed: 2% faster \u{00b7} Energy: 15% more \u{00b7} WER \u{2212}0.12 pt \u{00b7} M5 Max, 1 Oct")
+        XCTAssertEqual(tierDeltaLine(cell, base: base, isBase: false, baseName: "bf16", hardwareDeltas: false), "vs bf16: WER \u{2212}0.12 pt \u{00b7} M5 Max, 1 Oct")
+        XCTAssertEqual(tierDeltaLine(base, base: base, isBase: true, baseName: "bf16"), "Reference for the deltas \u{00b7} M5 Max, 1 Oct")
+        XCTAssertEqual(tierDeltaLine(cell, base: nil, isBase: false, baseName: "fp16"), "No fp16 measurement to compare with yet \u{00b7} M5 Max, 1 Oct")
     }
     func testStockBaselineDecodes() throws {
         let json =
@@ -546,7 +556,11 @@ final class CatalogTests: XCTestCase {
             all.contains("Vella's quality gate") && all.contains("within 0.1 points of 16") && all.contains("up to 0.2 points"),
             "the quality gate and its English tolerance")
         XCTAssertTrue(docs[0].contains("Every measured tier is offered") && docs[1].contains("Every measured tier is offered"), "presence rule")
-        XCTAssertTrue(docs[0].contains("No tier is recommended") && docs[1].contains("Nothing is marked as recommended"), "no recommended cell")
+        // 2.1 (Toby, 15 Oct): the precision recommended for this Mac is gold; a tier failing the gate never is.
+        XCTAssertTrue(
+            docs[0].contains("The precision recommended for your Mac is gold") && docs[1].contains("The cell **recommended for this Mac** is in gold")
+                && docs[1].contains("A tier that fails the gate is never recommended"), "recommended cell")
+        XCTAssertFalse(all.contains("Nothing is marked as recommended") || all.contains("No tier is recommended"), "retired: no recommended cell")
         XCTAssertFalse(all.contains("0.5 points"), "retired 0.5-point margin")
         XCTAssertTrue(docs[0].contains("Mode · Microphone · Shortcuts") && docs[0].contains("Models… · Keep Hot · Memory"), "menu order")
         XCTAssertEqual(keepHotChoices.map(\.minutes), [5, 15, 30, 60, 0])
@@ -564,23 +578,29 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(docs[1].contains("divided by a thick line") && docs[1].contains("its languages"), "USAGE group line and languages in the tooltip")
         // Table pass v3 (Toby, 30 Sep): six equal cells named by the dtype, icons for the rows, greyed never hidden, the
         // switch as tall as both rows, Peak RAM, one globe, figures pending until the final build is measured.
+        // 2.1 (Toby, 15 Oct: "just one row"): a bolt and one row of three cells; no Standard row, no MLX logo.
         XCTAssertTrue(
-            docs[1].contains("| Precision | Two rows of three equal cells, named by the format that runs: **Optimized** (a bolt")
-                && docs[1].contains("above **Standard** (the MLX logo")
-                && docs[1].contains("| (switch) | Beside both rows and as tall as the pair, a switch, up **Fast**, down **Exact**; a click anywhere on it flips it."),
-            "USAGE Precision rows and switch")
+            docs[1].contains("| Precision | A bolt and one row of three equal cells, named by the format that runs.")
+                && docs[1].contains("so there is no path to choose")
+                && docs[1].contains("| (switch) | Beside the row, a switch, up **Fast**, down **Exact**; a click anywhere on it flips it."),
+            "USAGE Precision row and switch")
+        XCTAssertTrue(docs[1].contains("A cell with an orange triangle runs without that hardware on this Mac"), "USAGE warning triangle")
+        XCTAssertTrue(docs[1].contains("the M5 Max figure is shown for reference"), "USAGE reference figures on other Macs")
+        for stale in ["Two rows of three equal cells", "above **Standard** (the MLX logo", "Choose Standard or Optimized", "on Standard or Optimized", "two **Precision** rows"] {
+            XCTAssertFalse(all.contains(stale), "retired two-row wording: \(stale)")
+        }
         XCTAssertTrue(docs[0].contains("unavailable cells explain why") && docs[1].contains("greyed in place, never hidden") && docs[2].contains("greyed in place"), "greyed cells")
         XCTAssertTrue(
             docs[0].contains("Choosing a cell previews its figures") && docs[1].contains("Every other cell is clickable and shows its own figures"),
             "both rows clickable")
-        XCTAssertTrue(docs[1].contains("`Exact: bf16 only, was int8`") && docs[0].contains("Fast and Exact select the Optimized recipe"), "Exact coupling documented")
+        XCTAssertTrue(docs[1].contains("`Exact: bf16 only, was int8`") && docs[0].contains("Fast and Exact select the recipe"), "Exact coupling documented")
         XCTAssertTrue(docs[1].contains("`figures_pending`") && docs[0].contains("Whisper Standard runs faithful fp16"), "pending schema and faithful Whisper documented")
         for stale in ["字", "Chinese, Japanese and Korean)", "Europe globe", "| Memory | Loaded", "Two rows of segments `16 8 4`"] {
             XCTAssertFalse(all.contains(stale), "retired table v2 wording: \(stale)")
         }
         XCTAssertTrue(
             docs[1].contains("| (last) | The button: **Get**, **Load**, **Unload** or **Reload**") && docs[0].contains("Load, Reload or Get applies it"), "the action button")
-        XCTAssertTrue(docs[0].contains("In Models…, choose a precision") && docs[2].contains("two **Precision** rows"), "one line per model, two Precision rows")
+        XCTAssertTrue(docs[0].contains("In Models…, choose a precision") && docs[2].contains("one **Precision** row"), "one line per model, one Precision row")
         for stale in ["● loaded, ○ on disk, ↓ not downloaded", "state glyph", "| On disk |", "**Path** switch", "**Path** is a switch"] {
             XCTAssertFalse(all.contains(stale), "retired table v2 wording: \(stale)")
         }
@@ -590,7 +610,7 @@ final class CatalogTests: XCTestCase {
         // One state and download confirmation (Toby, 26 Sep 2026).
         XCTAssertTrue(
             docs[1].contains("always shows the precision it is loaded at") && docs[1].contains("Closing the menu without Reload discards the preview")
-                && docs[1].contains("else Optimized 16 · Fast"),
+                && docs[1].contains("else 16 · Fast") && docs[1].contains("A choice of Standard saved by Vella 2.0 becomes the same precision and switch position"),
             "USAGE: loaded precision wins; previews are transient")
         XCTAssertTrue(docs[1].contains("the one its next dictation (or streaming session) loads"), "USAGE: dictation uses what was last loaded")
         XCTAssertTrue(docs[1].contains("nothing downloads without **Download**") && docs[1].contains("**Cancel** is the default"), "USAGE: download popup")

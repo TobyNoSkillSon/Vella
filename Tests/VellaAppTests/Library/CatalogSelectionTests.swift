@@ -77,13 +77,14 @@ final class CatalogSelectionTests: XCTestCase {
         c.benchmarks.models[family.id] = benchmark
         var config = Configuration(model: p.derived)
         config.lastLoaded = [family.id: "8b"]
-        config.selections[family.id] = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+        config.selections[family.id] = ModelSelection(tier: .t8, mode: .fast)
         try JSONEncoder().encode(config).write(to: configURL)
         let manifestURL = URL(fileURLWithPath: p.derived).appendingPathComponent("vella-derived.json")
         let manifest = try Data(contentsOf: manifestURL)
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
         let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
-        XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, path: .standard, mode: .fast))
+        // The request at the offered tier: with no optimized recipe left, the worker runs it on stock MLX by itself.
+        XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, mode: .fast))
         XCTAssertEqual(saved.model, p.ultra, "migration switches the active path to the offered installed precision")
         XCTAssertEqual(saved.lastLoaded, config.lastLoaded, "migration is not a successful Load")
         XCTAssertEqual(c.committedSelection(family), saved.selections[family.id])
@@ -109,22 +110,31 @@ final class CatalogSelectionTests: XCTestCase {
         let (c, p) = try controller()
         let family = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
         try offerOnlyNativeStandard(c, family: family)
-        // Both implicit shapes are supported: a derived tier, and native weights whose default recipe was withdrawn.
+        // Both implicit shapes: a derived tier migrates to the offered native one; native weights whose optimized recipe
+        // was withdrawn keep their request (2.1: the path is not a choice; the worker runs stock MLX by itself).
         for oldPath in [p.derived, p.ultra] {
             var original = Configuration(model: oldPath)
             original.lastLoaded = [family.id: "8b"]
             try JSONEncoder().encode(original).write(to: configURL)
             let manifestURL = URL(fileURLWithPath: p.derived).appendingPathComponent("vella-derived.json")
             let manifest = try Data(contentsOf: manifestURL)
+            let before = try Data(contentsOf: configURL)
             XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
             let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
             XCTAssertEqual(saved.model, p.ultra)
-            XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, path: .standard, mode: .fast))
             XCTAssertEqual(saved.lastLoaded, original.lastLoaded)
-            XCTAssertEqual(c.migrationNotices.count, 1)
-            XCTAssertTrue(c.migrationNotices.first?.contains("Dictation now uses") == true)
-            XCTAssertTrue(c.migrationNotices.first?.contains("bf16 · Standard") == true)
             XCTAssertEqual(try Data(contentsOf: manifestURL), manifest)
+            if oldPath == p.derived {
+                XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, mode: .fast))
+                XCTAssertEqual(c.migrationNotices.count, 1)
+                XCTAssertTrue(c.migrationNotices.first?.contains("Dictation now uses Parakeet v3 Ultra at bf16 because") == true, c.migrationNotices.first ?? "")
+                XCTAssertFalse(c.migrationNotices.first?.contains("Standard") == true, "no path is named")
+            } else {
+                XCTAssertNil(saved.selections[family.id], "a still-valid implicit request is not persisted")
+                XCTAssertTrue(c.migrationNotices.isEmpty)
+                XCTAssertEqual(try Data(contentsOf: configURL), before)
+                XCTAssertEqual(c.committedSelection(family), ModelSelection(tier: .t16, mode: .fast))
+            }
             let bytes = try Data(contentsOf: configURL)
             XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
             XCTAssertTrue(c.migrationNotices.isEmpty)
@@ -138,12 +148,13 @@ final class CatalogSelectionTests: XCTestCase {
         try offerOnlyNativeStandard(c, family: family)
         for activePath in [p.stored, ""] {
             var original = Configuration(model: activePath)
-            original.selections[family.id] = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+            original.selections[family.id] = ModelSelection(tier: .t8, mode: .fast)
             try JSONEncoder().encode(original).write(to: configURL)
             XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
             let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
             XCTAssertEqual(saved.model, activePath)
-            XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, path: .standard, mode: .fast))
+            XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, mode: .fast))
+            XCTAssertFalse(c.migrationNotices.first?.contains("Standard") == true, "no path is named")
             XCTAssertEqual(c.migrationNotices.count, 1)
             XCTAssertTrue(c.migrationNotices.first?.contains("saved selection for Parakeet v3 Ultra") == true)
             XCTAssertFalse(c.migrationNotices.first?.contains("now uses") == true)
@@ -170,7 +181,7 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
         XCTAssertTrue(c.migrationNotices.isEmpty)
         XCTAssertEqual(try Data(contentsOf: configURL), bytes, "config.json is untouched")
-        XCTAssertTrue(c.isPresent(family, ModelSelection(tier: .t4, path: .optimized, mode: .fast)))
+        XCTAssertTrue(c.isPresent(family, ModelSelection(tier: .t4, mode: .fast)))
         XCTAssertNotEqual(recommendedPrecision(for: family, in: c.benchmarks), "4b", "offered, never recommended")
     }
 
@@ -186,7 +197,7 @@ final class CatalogSelectionTests: XCTestCase {
         try Data("fixture".utf8).write(to: source.appendingPathComponent("model.safetensors"))
         c.streaming.installed[nemotron.variants["BF16"]!.id] = InstalledModel(path: source.path)
         let derived = try prepareDerivedModel(family: nemotron, precision: "8b", sourcePath: source.path, modelsDirectory: source.deletingLastPathComponent())
-        let selected = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+        let selected = ModelSelection(tier: .t8, mode: .fast)
         for explicit in [true, false] {
             var config = Configuration(model: p.ultra, streamingModel: derived)
             if explicit { config.selections[nemotron.id] = selected }
@@ -219,12 +230,12 @@ final class CatalogSelectionTests: XCTestCase {
         c.dictation.installed.removeValue(forKey: "parakeet-ultra-mlx-bf16")
         var config = Configuration(model: p.derived)
         config.lastLoaded = [family.id: "8b"]
-        config.selections[family.id] = ModelSelection(tier: .t8, path: .optimized, mode: .fast)
+        config.selections[family.id] = ModelSelection(tier: .t8, mode: .fast)
         try JSONEncoder().encode(config).write(to: configURL)
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [p.derived])
         let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
         XCTAssertEqual(saved.model, "")
-        XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, path: .standard, mode: .fast))
+        XCTAssertEqual(saved.selections[family.id], ModelSelection(tier: .t16, mode: .fast))
         XCTAssertEqual(saved.lastLoaded, config.lastLoaded)
         XCTAssertTrue(saved.clearedSelectionReasons["dictation"]?.contains("Get or Load") == true)
         XCTAssertTrue(FileManager.default.fileExists(atPath: p.derived + "/vella-derived.json"))
@@ -349,7 +360,7 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(migrated.model, dictation)
         XCTAssertNotEqual(migrated.streamingModel, old)
         XCTAssertEqual(migrated.streamingModel, models.appendingPathComponent(names[0] + ".derived").path)
-        XCTAssertEqual(migrated.selections["nemotron-3.5-streaming-0.6b"], ModelSelection(tier: .t8, path: .optimized, mode: .fast))
+        XCTAssertEqual(migrated.selections["nemotron-3.5-streaming-0.6b"], ModelSelection(tier: .t8, mode: .fast))
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: old + "/model.safetensors")), Data("legacy-weight-fixture".utf8))
         // Parakeet v3 int4 is offered (6 Oct): its published 4-bit file is an earlier download, not the offered tier.
         let absent = try XCTUnwrap(c.catalog.family("parakeet-v3"))

@@ -190,7 +190,7 @@ struct WorkerExited: LocalizedError {
 
     private func ensureSlot(_ ref: ModelRef, residency: ResidencyClass, generation: UUID) async throws -> DictationSlot {
         if let slot = slots[ref.id], slot.process.isRunning, !slot.retiring {
-            // Same files and recipe: nothing to do. Another Standard/Exact/Fast recipe is a reload (a new worker).
+            // Same files and recipe: nothing to do. Another Exact/Fast recipe is a reload (a new worker).
             if sameFiles(slot.ref.path, ref.path), slot.ref.recipe == ref.recipe {
                 if !slot.loaded { try await awaitLoaded(slot, generation: generation) }
                 return slot

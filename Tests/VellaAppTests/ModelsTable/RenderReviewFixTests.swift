@@ -6,23 +6,26 @@ import ServiceManagement
 @testable import VellaCore
 
 @MainActor final class RenderReviewFixTests: XCTestCase {
-    func testOnlyTheActualRunningPathGetsTheWarmTint() throws {
-        for row in TierControl.Row.allCases {
-            let control = TierControl(selected: .init(.optimized, "8"), enabled: true, hot: true, loaded: .init(row, "16"), help: { _ in "" }, onSelect: { _ in })
-            XCTAssertEqual(control.isHot(.optimized), row == .optimized)
-            XCTAssertEqual(control.isHot(.standard), row == .standard)
-            XCTAssertEqual(TierControl.tint(row, hot: true), TierControl.hotBoltTint)
-        }
-        XCTAssertEqual(TierControl.tint(.optimized, hot: false), TierControl.boltTint)
-        XCTAssertNil(TierControl.tint(.standard, hot: false))
+    /// A worker that fell back to stock MLX: the row names no path (Toby, 15 Oct: "I would just say that they are always
+    /// optimized"), keeps its request as the loaded cell, and shows the measured stock figures, never the optimized ones.
+    func testAFallbackNamesNoPathAndShowsTheFiguresOfWhatRuns() throws {
         let state = try XCTUnwrap(TableRenderDelegate.states().first { $0.name == "mlx-fallback" })
         let controller = TableRenderDelegate.controller(state)
         let family = try XCTUnwrap(controller.catalog.family("parakeet-v3"))
-        XCTAssertTrue(controller.fellBack(family))
-        XCTAssertTrue(controller.loadedEngineHelp(family).contains("non-finite"))
-        XCTAssertTrue(controller.loadedEngineHelp(family).contains("Optimized is tried again the next time the model loads."))
-        controller.runtime?.loaded[family.id]?.selection?.path = .standard
-        XCTAssertFalse(controller.fellBack(family), "Explicit Standard is not a fallback")
+        XCTAssertEqual(controller.loadedSelection(family), ModelSelection(tier: .t16, mode: .fast), "the request")
+        XCTAssertEqual(controller.runningSelection(family), ModelSelection(tier: .t16, path: .standard, mode: .fast), "what runs")
+        XCTAssertEqual(controller.shownCell(family), ModelSelection(tier: .t16, mode: .fast))
+        let stock = try XCTUnwrap(controller.benchmark(family)?.tiers[.t16]?.cells[.standard]?.result.speed_x)
+        XCTAssertEqual(controller.shownResult(family)?.speed_x, stock, "a stock run never shows optimized figures")
+        XCTAssertEqual(controller.action(family), .unload, "no Reload to retry a sticky stock verdict")
+        let table = ModelTable(controller: controller)
+        for (column, text) in table.tooltips(family) {
+            for word in ["Standard", "Optimized", "Fell back", "tried again", "retry"] { XCTAssertFalse(text.contains(word), "\(column): \(text)") }
+        }
+        XCTAssertNil(table.tooltips(family).first { $0.0 == "Engine" }, "no engine line under the name")
+        // The bolt is white on the loaded row (gold means recommended), light blue elsewhere.
+        XCTAssertEqual(TierControl.boltColor(hot: true), .white)
+        XCTAssertEqual(TierControl.boltColor(hot: false), TierControl.boltTint)
     }
 
     func testAllMeasuredDeltasFitTheirColumnsAtTheNarrowestTableSize() {
@@ -137,15 +140,14 @@ import ServiceManagement
         state.runtime.loaded = [
             "nemotron-3.5-streaming-0.6b": LoadedFamily(
                 precision: "BF16", engine: "mlx", engineReason: "fused conformer self-test failed: streamed text did not match Standard",
-                selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast))
+                selection: ModelSelection(tier: .t16, mode: .fast))
         ]
         let controller = TableRenderDelegate.controller(state)
         let family = try XCTUnwrap(controller.catalog.family("nemotron-3.5-streaming-0.6b"))
-        let expected =
-            "Vella's optimized path didn't pass its self-test on this Mac: its output didn't match Standard (fused conformer). This model runs on plain MLX: same accuracy, slower. Optimized is tried again the next time the model loads."
-        XCTAssertEqual(controller.loadedEngineHelp(family), expected)
+        let expected = modelHelp(family, loaded: controller.loaded(family))
+        XCTAssertFalse(expected.contains("Standard"))
         let views: [(String, NSView)] =
-            [("fallback-tooltip", TooltipSheet(pairs: [("Fell back to Standard", expected)], width: 620))]
+            [("fallback-tooltip", TooltipSheet(pairs: [(family.name, expected)], width: 620))]
             + (try ["installer-signing-terminal-declined", "installer-signing-public-declined", "installer-signing-noninteractive", "installer-launch-failure"].map { name in
                 (name, CLIOutputView(try String(contentsOf: directory.appendingPathComponent(name + ".txt"), encoding: .utf8)))
             })
@@ -186,12 +188,12 @@ import ServiceManagement
         selfTest.runtime.loaded = [
             "nemotron-3.5-streaming-0.6b": LoadedFamily(
                 precision: "BF16", engine: "mlx", engineReason: "fused conformer self-test failed: streamed text did not match Standard",
-                selection: ModelSelection(tier: .t16, path: .optimized, mode: .fast))
+                selection: ModelSelection(tier: .t16, mode: .fast))
         ]
         let fallback = TableRenderDelegate.controller(selfTest)
         render("models-self-test-fallback") { TableRenderDelegate.renderTable(fallback, to: $0, done: $1) }
         let family = try XCTUnwrap(fallback.catalog.family("nemotron-3.5-streaming-0.6b"))
-        render("fallback-tooltip") { MenuMock.capture(TooltipSheet(pairs: [("Fell back to Standard", fallback.loadedEngineHelp(family))], width: 620), to: $0, done: $1) }
+        render("fallback-tooltip") { MenuMock.capture(TooltipSheet(pairs: [(family.name, modelHelp(family, loaded: fallback.loaded(family)))], width: 620), to: $0, done: $1) }
         for name in ["installer-signing-terminal-declined", "installer-signing-noninteractive", "installer-launch-failure"] {
             let text = try String(contentsOf: directory.appendingPathComponent(name + ".txt"), encoding: .utf8)
             render(name) { MenuMock.capture(CLIOutputView(text), to: $0, done: $1) }

@@ -50,14 +50,16 @@ struct ModelDeletionPlan {
 /// The Models table's state: catalog families of both modes, measured numbers, what is downloaded (the two mode
 /// libraries) and what is loaded (the runtime).
 ///
-/// ONE state per model (Toby, 26 Sep 2026): a row shows what is loaded (tier × Standard/Optimized × Exact/Fast); a
-/// cell the user picks or a switch flip is a transient preview (its numbers, deltas vs Standard 16 and the green
+/// ONE state per model (Toby, 26 Sep 2026): a row shows what is loaded (tier × Exact/Fast; the path is never a choice,
+/// 15 Oct); a cell the user picks or a switch flip is a transient preview (its numbers, deltas vs 16-bit and the green
 /// Reload) that closing the menu discards; an unloaded row shows what it was last loaded with (config.json
-/// `selections`), else Optimized 16 Fast. Only Load/Reload changes what dictation uses, and only while the model is not in
+/// `selections`), else 16 · Fast. Only Load/Reload changes what dictation uses, and only while the model is not in
 /// use. Every download asks first (`confirmDownload`).
 @MainActor final class ModelsController: ObservableObject {
     var previousModelNames: [String: String] = [:]
     var benchmarkHardware = HostInfo.benchmarkHardware
+    /// This Mac's GPU, for the recommended precision and the warning triangles (renders and tests set another).
+    var gpu = GPUCapability.current
     let dictation: ModelLibrary
     let streaming: ModelLibrary
     @Published var catalog: ModelCatalog
@@ -209,13 +211,13 @@ struct ModelDeletionPlan {
             }
             edited.selections[id] = replacement
             changed = true
-            let path = replacement.path == .standard ? "Standard" : "Optimized \(replacement.mode == .fast ? "Fast" : "Exact")"
+            let cell = tierDTypeLabel(family, replacement.tier) + (rules(family).switchAvailable ? " · \(replacement.mode == .fast ? "Fast" : "Exact")" : "")
             let notice =
                 missingReplacement
-                ? "\(mode.title)'s earlier cell is no longer offered. Its files are kept. Get or Load \(family.name) at \(tierDTypeLabel(family, replacement.tier)) · \(path) in Models…."
+                ? "\(mode.title)'s earlier cell is no longer offered. Its files are kept. Get or Load \(family.name) at \(cell) in Models…."
                 : selectedPrecision != nil
-                    ? "\(mode.title) now uses \(family.name) at \(tierDTypeLabel(family, replacement.tier)) · \(path) because the earlier cell is no longer offered. Model files are kept."
-                    : "The saved selection for \(family.name) is now \(tierDTypeLabel(family, replacement.tier)) · \(path) because the earlier cell is no longer offered. The active \(mode.title) model is unchanged. Model files are kept."
+                    ? "\(mode.title) now uses \(family.name) at \(cell) because the earlier cell is no longer offered. Model files are kept."
+                    : "The saved selection for \(family.name) is now \(cell) because the earlier cell is no longer offered. The active \(mode.title) model is unchanged. Model files are kept."
             if missingReplacement { edited.clearedSelectionReasons[mode.rawValue] = notice }
             notices.append(notice)
             lastError = notice
@@ -228,7 +230,7 @@ struct ModelDeletionPlan {
                 let found = catalog.locate(variant: id), found.family.mode == mode,
                 found.family.variants[found.precision]?.isDerived == true
             {
-                var previous = edited.selections[found.family.id] ?? ModelSelection(tier: .t16, path: .optimized, mode: .fast)
+                var previous = edited.selections[found.family.id] ?? ModelSelection.fallback
                 previous.tier = modelTier(ofPrecision: found.precision) ?? .t16
                 let selection = rules(found.family).valid(previous)
                 let precision = rules(found.family).precision(of: selection) ?? (precisionLabel(found.family, tier: .t16) ?? found.family.native)
@@ -290,8 +292,15 @@ struct ModelDeletionPlan {
     func disk(_ f: ModelFamily, _ precision: String) -> Int64? { tableDiskBytes(f, precision, result(f, precision)) }
 
     func recommended(_ f: ModelFamily) -> String? { recommendedPrecision(for: f, in: benchmarks) }
-    /// What the first dictation without a model offers: the catalog's first offered family at 16 (the default
-    /// selection is Standard 16; no precision is recommended), else native.
+    /// The row's advice on this Mac in its shown switch position (Acceleration.swift): the gold recommended tier and the
+    /// tiers that run without matrix hardware here (warning triangles). Only cells that can be chosen take part.
+    func advice(_ f: ModelFamily) -> PrecisionAdvice {
+        // Figures that predate the final build (benchmarks.json `figures_pending`) recommend and warn nothing.
+        guard !benchmarks.figuresPending else { return PrecisionAdvice() }
+        let mode: OptimizedMode = switchAvailable(f) ? currentSelection(f).mode : .fast
+        return precisionAdvice(f, benchmark(f), mode: mode, tiers: measuredPrecisions(f, mode), gpu: gpu, measuredHere: benchmarkHardware.isMeasuredConfiguration)
+    }
+    /// What the first dictation without a model offers: the catalog's first offered family at 16, else native.
     func firstOffered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
         guard let family = catalog.offered(mode).first else { return nil }
         let precision = precisionLabel(family, tier: .t16) ?? family.native
@@ -325,20 +334,9 @@ struct ModelDeletionPlan {
         let s = currentSelection(f)
         return precisionLabel(f, tier: s.tier) == selected(f) && (isPresent(f, s) || s == loadedSelection(f)) ? s : nil
     }
-    /// An optimized request is still remembered, but the worker is actually running Standard.
-    func fellBack(_ f: ModelFamily) -> Bool {
-        guard let loaded = loaded(f), loaded.engine == "mlx" else { return false }
-        return (loaded.selection ?? config?.selections[f.id])?.path == .optimized
-    }
-    func loadedEngineHelp(_ f: ModelFamily) -> String {
-        guard let loaded = loaded(f) else { return "" }
-        if fellBack(f) { return fallbackEngineHelp(reason: loaded.engineReason) }
-        return engineHelp(engine: loaded.engine, reason: loaded.engineReason, optimizations: loaded.optimizations, chip: runtime?.chip, precision: loaded.precision)
-    }
-
     func isPreviewing(_ f: ModelFamily) -> Bool { previews[f.id] != nil }
 
-    // MARK: Tier × path × Exact/Fast (TierControl, ExactFastSwitch)
+    // MARK: Tier × Exact/Fast (TierControl, ExactFastSwitch)
 
     func benchmark(_ f: ModelFamily) -> FamilyBenchmark? { benchmarks.models[f.id] }
     /// The catalog precision of a selection's tier; the committed precision rule when the catalog has none.
@@ -348,40 +346,40 @@ struct ModelDeletionPlan {
     }
     /// The cell rules (VellaCore `SelectionRules`, shared with the runtime and the API).
     func rules(_ f: ModelFamily) -> SelectionRules { SelectionRules(family: f, benchmark: benchmark(f)) }
-    /// Tiers a row offers: the catalog's options whose cell is present (`cellPresent`, the one presence rule).
-    func tiers(_ f: ModelFamily, _ path: EnginePath) -> [ModelTier] { rules(f).tiers(path) }
-    /// The Optimized row's segments for a switch position (family coupling rule, `SelectionRules.precisions`).
+    /// The segments a switch position offers (family coupling rule, `SelectionRules.precisions`).
     func precisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] { rules(f).precisions(mode) }
     /// A cell has numbers (`SelectionRules.measured`).
     func measured(_ f: ModelFamily, _ s: ModelSelection) -> Bool { rules(f).measured(s) }
-    /// Tiers of the Optimized row for a switch position that have a measurement.
+    /// Tiers of a switch position that have a measurement.
     func measuredPrecisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] {
-        precisions(f, mode).filter { measured(f, ModelSelection(tier: $0, path: .optimized, mode: mode)) }
+        precisions(f, mode).filter { measured(f, ModelSelection(tier: $0, mode: mode)) }
     }
     /// The Exact position can be chosen: some Exact recipe is measured (where Fast = Exact the switch is pinned anyway).
     func exactAvailable(_ f: ModelFamily) -> Bool { !measuredPrecisions(f, .exact).isEmpty }
-    /// The Optimized row's segments as the row shows them (the current switch position).
+    /// The segments as the row shows them (the current switch position).
     func precisions(_ f: ModelFamily) -> [ModelTier] { precisions(f, currentSelection(f).mode) }
-    /// The model has an Optimized row (and so the Exact/Fast switch); every shipped Vella model does.
+    /// The model has optimized recipes (and so a live or pinned Exact/Fast switch); every shipped Vella model does.
     func hasOptimizedPath(_ f: ModelFamily) -> Bool { rules(f).hasOptimizedPath }
     func isPresent(_ f: ModelFamily, _ s: ModelSelection) -> Bool { rules(f).isPresent(s) }
     /// The Exact/Fast switch is live (`SelectionRules.switchAvailable`).
     func switchAvailable(_ f: ModelFamily) -> Bool { rules(f).switchAvailable }
-    /// The loaded model's selection: as the worker reports it, else from the engine (optimized → Optimized with the
-    /// remembered switch, default Fast; anything else → Standard) at the loaded tier.
+    /// The loaded model's request (tier × Exact/Fast on the optimized path): as the worker reports it, else the
+    /// remembered switch position (default Fast) at the loaded tier. A worker that fell back to stock MLX still shows its
+    /// request: the path is never a choice (Toby, 15 Oct: "I would just say that they are always optimized").
     func loadedSelection(_ f: ModelFamily) -> ModelSelection? {
         guard let loaded = loaded(f) else { return nil }
-        if let s = loaded.selection { return effectiveSelection(s, engine: loaded.engine) }
+        if let s = loaded.selection { return s.request }
         let tier = modelTier(ofPrecision: loaded.precision) ?? .t16
         let stored = config?.selections[f.id]
-        let optimized = loaded.engine == nil || loaded.engine == Engine.optimized.rawValue
-        if let stored, stored.tier == tier, optimized == (stored.path == .optimized) { return stored }
-        return ModelSelection(tier: tier, path: optimized ? .optimized : .standard, mode: stored?.mode ?? (optimized ? .fast : .exact))
+        return ModelSelection(tier: tier, mode: stored?.mode ?? .fast)
+    }
+    /// What the loaded model actually runs (`effectiveSelection`: Standard after a fallback to stock MLX), for its
+    /// figures: they are the measured figures of what runs, never the optimized ones of a stock run.
+    func runningSelection(_ f: ModelFamily) -> ModelSelection? {
+        loadedSelection(f).map { effectiveSelection($0, engine: loaded(f)?.engine) }
     }
     /// What the row returns to without a preview (ONE state): the loaded selection; else the last used (config.json
-    /// `selections`, or a legacy `lastLoaded` precision on the path it then ran: Optimized · Fast); else Optimized 16 ·
-    /// Fast where that cell exists, else Standard 16 (`valid`).
-    /// An unloaded selection whose cell is no longer present falls back to Standard at its tier, then Standard 16.
+    /// `selections`, or a legacy `lastLoaded` precision: Fast); else 16 · Fast where that cell exists (`valid`).
     func committedSelection(_ f: ModelFamily) -> ModelSelection {
         if let s = loadedSelection(f) { return s }
         // The same rule as the runtime's on-demand loads and the API (VellaCore `SelectionRules.runnable`).
@@ -391,11 +389,12 @@ struct ModelDeletionPlan {
     func valid(_ f: ModelFamily, _ s: ModelSelection) -> ModelSelection { rules(f).valid(s) }
     /// What the row shows: a running confirmed download's selection, else the preview, else the committed one.
     func currentSelection(_ f: ModelFamily) -> ModelSelection { pendingSelections[f.id] ?? previews[f.id] ?? committedSelection(f) }
-    /// A segment click: preview that cell (its numbers, deltas and button). Picking the committed cell ends the preview.
+    /// A segment click (the table, the API, tests): preview that cell (its numbers, deltas and button). Picking the
+    /// committed cell ends the preview.
     static let log = Logger(subsystem: "dev.vella.dictation", category: "models-table")
-    func select(_ f: ModelFamily, tier: ModelTier, path: EnginePath) {
-        Self.log.notice("segment click \(f.id, privacy: .public) \(tier.rawValue, privacy: .public) \(path == .standard ? "standard" : "optimized", privacy: .public)")
-        let s = ModelSelection(tier: tier, path: path, mode: currentSelection(f).mode)
+    func select(_ f: ModelFamily, tier: ModelTier) {
+        Self.log.notice("segment click \(f.id, privacy: .public) \(tier.rawValue, privacy: .public)")
+        let s = ModelSelection(tier: tier, mode: currentSelection(f).mode)
         // A greyed cell (a tier the catalog does not offer, a recipe the switch position lacks, malformed data) is never
         // selected, whatever reaches here.
         guard isPresent(f, s) || s == loadedSelection(f) else { Self.log.notice("click refused (not offered)"); return }
@@ -403,21 +402,18 @@ struct ModelDeletionPlan {
         guard setPreview(f, s) else { return }
         couplingNotes[f.id] = nil
     }
-    /// A precision pick without a row (API, tests): the Optimized cell at that tier (Standard only for a model without
-    /// an Optimized path). The table's segments call `select(_:tier:path:)` with their row.
-    func select(_ f: ModelFamily, tier: ModelTier) { select(f, tier: tier, path: hasOptimizedPath(f) ? .optimized : .standard) }
-    /// A switch flip: the Optimized cell of the shown tier in that mode (from a Standard cell too). Exact offers only
-    /// the tiers with an Exact recipe: a tier without one moves to 16 (else the first Exact tier), and the row says
-    /// which tier it left. Applies at the next load, like a segment click.
+    /// A switch flip: the cell of the shown tier in that mode. Exact offers only the tiers with an Exact recipe: a tier
+    /// without one moves to 16 (else the first Exact tier), and the row says which tier it left. Applies at the next
+    /// load, like a segment click.
     func setMode(_ f: ModelFamily, _ mode: OptimizedMode) {
         Self.log.notice("switch click \(f.id, privacy: .public) \(mode == .fast ? "fast" : "exact", privacy: .public)")
         let current = currentSelection(f)
-        var next = ModelSelection(tier: current.tier, path: .optimized, mode: mode)
+        var next = ModelSelection(tier: current.tier, mode: mode)
         var moved: ModelTier?
         if mode == .exact, switchAvailable(f), !exactAvailable(f) { Self.log.notice("switch refused (Exact not measured)"); return }
         if !isPresent(f, next) || !measured(f, next) {
             let offered = measuredPrecisions(f, mode).isEmpty ? precisions(f, mode) : measuredPrecisions(f, mode)
-            if hasOptimizedPath(f), let tier = offered.contains(.t16) ? .t16 : offered.first { moved = current.tier; next.tier = tier } else { next.path = current.path }
+            if let tier = offered.contains(.t16) ? .t16 : offered.first { moved = current.tier; next.tier = tier }
         }
         guard setPreview(f, next) else { return }
         couplingNotes[f.id] = moved
@@ -431,7 +427,8 @@ struct ModelDeletionPlan {
         let offered = (measured.isEmpty ? precisions(f, .exact) : measured).map { tierDTypeLabel(f, $0) }
         return "Exact: " + (offered.count == 1 ? "\(offered[0]) only" : offered.joined(separator: " and ")) + ", was \(tierDTypeLabel(f, from))"
     }
-    @discardableResult private func setPreview(_ f: ModelFamily, _ s: ModelSelection) -> Bool {
+    @discardableResult private func setPreview(_ f: ModelFamily, _ selection: ModelSelection) -> Bool {
+        let s = selection.request
         guard !inUse(f) else {
             let loading = runtime?.loading ?? "-"
             Self.log.notice(
@@ -448,27 +445,35 @@ struct ModelDeletionPlan {
         !controlOperations.isEmpty || previewInUse || isLoading(f) || runtime?.loading != nil || !library(f.mode).mayChangeModel()
             || f.variants.values.contains { library(f.mode).modelInUse($0.id) }
     }
-    /// The shown cell's figures: schema 2 → the selection's cell; a schema-1 file → the precision's result.
+    /// The benchmark cell whose figures the row shows: the shown cell's; for the loaded model without a preview, what
+    /// it actually runs (`runningSelection`), so a fallback to stock MLX shows the stock figures.
+    func shownBenchmarkCell(_ f: ModelFamily) -> BenchmarkCell? {
+        guard let cell = shownCell(f) else { return nil }
+        let figures = previews[f.id] == nil && pendingSelections[f.id] == nil ? runningSelection(f) ?? cell : cell
+        return benchmarkCell(benchmark(f), figures.tier == cell.tier ? figures : cell)
+    }
+    /// The shown cell's figures: schema 2 → the selection's cell (`shownBenchmarkCell`); a schema-1 file → the
+    /// precision's result.
     func shownResult(_ f: ModelFamily) -> PrecisionResult? {
         guard let b = benchmark(f), !b.tiers.isEmpty else { return result(f, selected(f)) }
-        guard let cell = shownCell(f), let measured = benchmarkCell(b, cell), !measured.isPending else { return nil }
+        guard let measured = shownBenchmarkCell(f), !measured.isPending else { return nil }
         return measured.result
     }
-    /// The deltas' base: Standard 16 (schema 2); the recommended precision in a schema-1 file.
+    /// The deltas' base: the 16-bit cell in the row's switch position (schema 2); the recommended precision in a
+    /// schema-1 file.
     func baseResult(_ f: ModelFamily) -> PrecisionResult? {
         guard let b = benchmark(f), !b.tiers.isEmpty else { return result(f, base(f)) }
-        return b.tiers[.t16]?.cells[.standard].flatMap { $0.isPending ? nil : $0.result }
+        return benchmarkCell(b, ModelSelection(tier: .t16, mode: currentSelection(f).mode)).flatMap { $0.isPending ? nil : $0.result }
     }
-    /// Deltas show unless the row shows Standard 16 itself.
+    /// Deltas show unless the row shows its 16-bit cell itself.
     func showsDeltas(_ f: ModelFamily) -> Bool {
         guard let b = benchmark(f), !b.tiers.isEmpty else { return selected(f) != base(f) }
-        let s = currentSelection(f)
-        return !(s.tier == .t16 && s.path == .standard)
+        return currentSelection(f).tier != .t16
     }
-    func tierHelp(_ f: ModelFamily, tier: ModelTier, path: EnginePath) -> String {
-        let mode = currentSelection(f).mode
-        let segment: Recipe = path == .standard ? .standard : mode == .exact ? .optimized_exact : .optimized_fast
-        return tierCellHelp(f, benchmark(f), tier: tier, segment: segment, figuresPending: benchmarks.figuresPending)
+    func tierHelp(_ f: ModelFamily, tier: ModelTier) -> String {
+        tierCellHelp(
+            f, benchmark(f), tier: tier, mode: currentSelection(f).mode, figuresPending: benchmarks.figuresPending,
+            hardwareDeltas: benchmarkHardware.isMeasuredConfiguration)
     }
     /// The deltas' base in a schema-1 file (no tiers): the recommended precision, else native.
     func base(_ f: ModelFamily) -> String { recommended(f) ?? f.native }
@@ -535,7 +540,7 @@ struct ModelDeletionPlan {
         guard let tier = modelTier(ofPrecision: precision) else { return }
         let current = currentSelection(f)
         previews[f.id] = {
-            let s = ModelSelection(tier: tier, path: current.path, mode: current.mode); return s == committedSelection(f) ? nil : s
+            let s = ModelSelection(tier: tier, mode: current.mode); return s == committedSelection(f) ? nil : s
         }()
     }
     /// The menu closed: previews end without effect.
@@ -652,8 +657,7 @@ struct ModelDeletionPlan {
     /// A mode-only request is the table's switch flip, including its coupling to an Exact tier.
     func setModeForControl(_ f: ModelFamily, mode: OptimizedMode) throws {
         guard !inUse(f), !anyBusy else { throw APIError(409, ExactFastSwitch.inUseHelp) }
-        guard hasOptimizedPath(f) else { throw APIError(409, noOptimizedPathHelp) }
-        guard switchAvailable(f) else { throw APIError(409, ExactFastSwitch.sameHelp) }
+        guard hasOptimizedPath(f), switchAvailable(f) else { throw APIError(409, ExactFastSwitch.sameHelp) }
         guard mode != .exact || exactAvailable(f) else { throw APIError(409, ExactFastSwitch.exactNotMeasuredHelp) }
         setMode(f, mode)
     }
