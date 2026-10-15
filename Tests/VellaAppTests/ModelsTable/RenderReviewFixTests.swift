@@ -123,7 +123,7 @@ import ServiceManagement
         app.registerLogin = { throw VellaError.message("fixture registration failed") }
         XCTAssertThrowsError(try app.changeLogin()) { error in
             let alert = AppDelegate.loginFailureAlert(error)
-            XCTAssertEqual(alert.messageText, "Could not change Launch at Login")
+            XCTAssertEqual(alert.messageText, "Launch at Login not changed")
             XCTAssertTrue(alert.informativeText.contains("Login Items & Extensions"))
         }
     }

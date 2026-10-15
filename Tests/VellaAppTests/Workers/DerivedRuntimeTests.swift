@@ -100,7 +100,7 @@ final class DerivedRuntimeTests: XCTestCase {
             aliveAtFailure.append(kill(firstPID, 0) == 0); throw CocoaError(.fileWriteNoPermission)
         }
         delete()
-        try await waitUntil { alerts.contains("Model was not deleted") }
+        try await waitUntil { alerts.contains("Model not deleted") }
         XCTAssertEqual(aliveAtFailure, [false], "the derived worker had exited before the source was touched")
         try await waitUntil { runtime.status.models["alpha"] != nil }
         XCTAssertEqual(runtime.loadedRef("alpha")?.path, derived)

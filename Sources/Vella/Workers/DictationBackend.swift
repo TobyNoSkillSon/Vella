@@ -7,7 +7,7 @@ extension Backend {
     /// A model the worker could not load. For a catalog model that is almost always its files (a truncated or damaged
     /// download): trying again cannot help, getting it again does.
     nonisolated static func loadFailed(_ name: String) -> String {
-        "\(name) failed to load: its files may be damaged. Load another model for this mode first, then delete these weights in Models… and Get them again. If no other model is installed, Get one first. Saved recordings are kept."
+        "\(name) failed to load; its files may be damaged. Delete it in Models… and Get it again."
     }
 }
 

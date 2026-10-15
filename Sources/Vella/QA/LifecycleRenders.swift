@@ -51,22 +51,16 @@ import VellaCore
             SavedRecordingChoice(directory: URL(fileURLWithPath: "/fixture-stream"), title: "3 Oct 2026 at 12:02 · Streaming · 1:08 · interrupted")
         ]
         alert("recovery", AppDelegate.savedRecordingAlert(choices))
-        alert(
-            "login-failure", title: "Could not change Launch at Login", body: "The operation could not be completed. Check System Settings → General → Login Items & Extensions.",
-            buttons: ["OK"])
-        alert(
-            "quit-download", title: "Quit Vella?", body: "The model download will stop and its partial files will be removed. Saved recordings and installed models are kept.",
-            buttons: ["Keep Vella Open", "Quit"])
-        alert(
-            "quit-recording", title: "Quit Vella?", body: "Saved audio and completed text will be kept. Unfinished text will not be inserted.", buttons: ["Keep Vella Open", "Quit"]
-        )
+        alert("login-failure", AppDelegate.loginFailureAlert(VellaError.message("The operation could not be completed")))
+        alert("quit-download", AppDelegate.quitAlert(downloading: true))
+        alert("quit-recording", AppDelegate.quitAlert(downloading: false))
         alert(
             "microphone-purpose", title: "Microphone access",
-            body: "Vella records your voice only when you start Dictation or Streaming. Speech recognition runs locally on your Mac.", buttons: ["OK"])
+            body: "Vella listens only while you dictate; speech stays on your Mac.", buttons: ["OK"])
         alert(
-            "update-rollback", title: "Update did not become ready", body: "Vella 2.0.1 did not become ready: a configured model could not load. Vella 2.0.0 was restored.",
+            "update-rollback", title: "Update failed", body: "Vella 2.0.1 did not become ready: a configured model could not load. Vella 2.0.0 was restored.",
             buttons: ["OK"])
-        alert("update-network", title: "Update to 2.0.1 failed", body: "The network connection was lost. Vella 2.0.0 is unchanged.", buttons: ["OK"])
+        alert("update-network", title: "Update failed", body: "The network connection was lost. Nothing changed.", buttons: ["OK"])
         let pairs = [
             ("Speed on other Macs", BenchmarkHardware(chip: "M5 Pro", gpuCores: 20).caveat!),
             ("Precision", TierControl.headerHelp), ("Peak RAM", ModelTable.memoryHeaderHelp), ("Loaded on demand", onDemandLoadHelp),

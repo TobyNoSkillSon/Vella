@@ -73,7 +73,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         DispatchQueue.main.async { [self] in
             let plan: ModelDeletionPlan
             do { plan = try controller.deletionPlan(family, precision: precision) } catch {
-                let blocked = NSAlert(); blocked.messageText = "Model cannot be deleted here"
+                let blocked = NSAlert(); blocked.messageText = "Can’t delete this model"
                 blocked.informativeText = (error as? APIError)?.message ?? error.localizedDescription
                 blocked.addButton(withTitle: "OK")
                 _ = presentDeletionConfirmation(blocked)
@@ -86,7 +86,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
             guard presentDeletionConfirmation(alert) == .alertSecondButtonReturn else { return }
             Task { @MainActor in
                 do { try await controller.performDeletion(family, plan: plan) } catch {
-                    let failure = NSAlert(); failure.messageText = "Model was not deleted"
+                    let failure = NSAlert(); failure.messageText = "Model not deleted"
                     failure.informativeText = (error as? APIError)?.message ?? error.localizedDescription
                     _ = presentDeletionConfirmation(failure)
                 }

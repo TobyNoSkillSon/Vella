@@ -83,7 +83,7 @@ final class UpdateControllerTests: XCTestCase {
     @MainActor func testPopupNamesTheVersionAndNotes() {
         let alert = controller().confirmation(release)
         XCTAssertEqual(alert.messageText, "Update to Vella 1.0.1?")
-        XCTAssertTrue(alert.informativeText.hasPrefix("You have 1.0.0. Settings, models and recordings are kept; Vella restarts."))
+        XCTAssertTrue(alert.informativeText.hasPrefix("Vella restarts; settings, models and recordings stay."))
         XCTAssertTrue(alert.informativeText.hasSuffix("Faster loads."))
         XCTAssertEqual(alert.buttons.map(\.title), ["Update Now", "Later"])
     }

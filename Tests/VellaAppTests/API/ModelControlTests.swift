@@ -451,8 +451,8 @@ final class ModelControlTests: XCTestCase {
             XCTFail("Get without yes must refuse")
         } catch let error as APIError {
             XCTAssertEqual(error.code, "download_consent_required")
-            XCTAssertTrue(error.message.contains("org/a"))
-            XCTAssertTrue(error.message.contains("1,000 bytes"))
+            XCTAssertTrue(error.message.contains(formatBytes(1000) + " download"), error.message)
+            XCTAssertTrue(error.message.contains("vella get alpha --yes"), error.message)
         }
         XCTAssertNil(f.controller.dictation.downloadingID)
         XCTAssertFalse(f.runtime.isLoaded("alpha"))
@@ -611,7 +611,7 @@ final class ModelControlTests: XCTestCase {
             APIClientTests.cli,
             ["delete", "zeta", "--precision", "bf16"], environment: environment)
         XCTAssertEqual(deleteRefused, 1)
-        XCTAssertTrue(deletedPrompt.contains("Size:") && deletedPrompt.contains("Trash"))
+        XCTAssertTrue(deletedPrompt.contains("Moves ") && deletedPrompt.contains("Trash"), deletedPrompt)
         XCTAssertTrue(f.controller.available(f.zeta, "BF16"))
         let audio = f.root.appendingPathComponent("test.wav")
         try writeTestWAV(audio, bursts: [0.1], gap: 0.01)

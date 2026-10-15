@@ -245,10 +245,10 @@ final class OneStateTests: XCTestCase {
         XCTAssertEqual(c.action(alpha), .reload)
         c.perform(alpha)
 
-        XCTAssertEqual(prompts.map(\.title), ["Download Alpha · 16 (BF16)?", "Download Alpha · 16 (BF16) to make 4 (4-bit)?", "Download Alpha · 16 (BF16)?"])
-        XCTAssertTrue(prompts.allSatisfy { $0.variantID == "alpha-bf16" && $0.body.contains("4,200 bytes") })
-        XCTAssertTrue(prompts[1].body.contains("is made on this Mac from the 16-bit weights each time it loads"), prompts[1].body)
-        XCTAssertTrue(prompts[2].body.contains("in place of the loaded 4-bit"), prompts[2].body)
+        XCTAssertEqual(prompts.map(\.title), ["Download Alpha?", "Download Alpha?", "Download Alpha?"])
+        XCTAssertTrue(prompts.allSatisfy { $0.variantID == "alpha-bf16" && $0.body.hasPrefix(formatBytes(4200) + " download, then ") })
+        XCTAssertTrue(prompts[1].body.contains("then it loads as 4-bit"), prompts[1].body)
+        XCTAssertTrue(prompts[2].body.contains("then it replaces the loaded 4-bit"), prompts[2].body)
         try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertTrue(served.isEmpty, "Cancel: no request reached the Hub")
         XCTAssertNil(c.dictation.downloadingID)
@@ -283,7 +283,7 @@ final class OneStateTests: XCTestCase {
         }
         c.perform(alpha)
         try await waitUntil { !shown.isEmpty }
-        XCTAssertEqual(shown, ["Download Alpha · 16 (BF16)?"])
+        XCTAssertEqual(shown, ["Download Alpha?"])
         try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertTrue(served.isEmpty); XCTAssertNil(c.dictation.downloadingID); XCTAssertTrue(spy.calls.isEmpty)
         withExtendedLifetime(menus) {}
