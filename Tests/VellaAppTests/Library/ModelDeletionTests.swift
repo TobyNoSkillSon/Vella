@@ -127,7 +127,8 @@ final class ModelDeletionTests: XCTestCase {
             confirmations += 1; return .alertSecondButtonReturn
         }
         host.rootView.requestDelete(family)
-        for _ in 0..<100 { if confirmations > 1 { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        // Confirmation precedes asynchronous deletion. Wait for the effect being asserted, not the prompt.
+        for _ in 0..<100 { if library.installed[id] == nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertEqual(confirmations, 2)
         XCTAssertNil(library.installed[id])
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))

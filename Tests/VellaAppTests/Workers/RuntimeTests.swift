@@ -208,7 +208,7 @@ final class RuntimeTests: XCTestCase {
         let alpha = runtime.resolve(try model("alpha").path, mode: .dictation)
         let beta = runtime.resolve(try model("beta").path, mode: .dictation)
         runtime.requireStockRecovery(alpha)
-        let directory = root.appendingPathComponent("Worker")
+        let directory = runtime.support.appendingPathComponent("Worker")
         let record = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
             .first { $0.lastPathComponent.hasPrefix("stock-recovery-") })
         try Data("{broken".utf8).write(to: record)
