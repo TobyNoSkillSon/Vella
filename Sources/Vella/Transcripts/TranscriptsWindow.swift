@@ -23,6 +23,25 @@ enum TranscriptsPalette {
 final class TranscriptsWindow: NSWindow {
     /// Renders and tests build the window far off every screen; AppKit would otherwise pull it back on screen.
     nonisolated(unsafe) static var keepOffscreen = false
+    /// A plain click (no drag, single click) at a point of the window. The text's own selection handles the same events
+    /// first: a drag still selects, and a click still places the caret.
+    var onClick: ((NSPoint) -> Void)?
+    private var downAt: NSPoint?
+    /// Further than this between down and up is a drag (a selection), not a click.
+    static let clickSlop: CGFloat = 3
+    override func sendEvent(_ event: NSEvent) {
+        super.sendEvent(event)
+        switch event.type {
+        case .leftMouseDown: downAt = event.clickCount == 1 && event.modifierFlags.intersection([.shift, .command, .control, .option]).isEmpty ? event.locationInWindow : nil
+        case .leftMouseDragged:
+            if let down = downAt, hypot(event.locationInWindow.x - down.x, event.locationInWindow.y - down.y) > Self.clickSlop { downAt = nil }
+        case .leftMouseUp:
+            defer { downAt = nil }
+            guard let down = downAt, hypot(event.locationInWindow.x - down.x, event.locationInWindow.y - down.y) <= Self.clickSlop else { return }
+            onClick?(down)
+        default: break
+        }
+    }
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         Self.keepOffscreen ? frameRect : super.constrainFrameRect(frameRect, to: screen)
     }
@@ -71,7 +90,17 @@ final class TranscriptsWindow: NSWindow {
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = TranscriptsPalette.nsCanvas
         super.init(window: window)
-        let host = NSHostingController(rootView: TranscriptsView(model: model, copy: { [weak self] in self?.copy($0) }))
+        let host = NSHostingController(rootView: TranscriptsView(model: model, copy: { [weak self] in self?.copyRow($0) }))
+        // A click on a row's text copies it (Toby, 15 Oct: "we just click on the text or copy to actually copy it").
+        // The window sees the click because the selectable text's own view takes the mouse before any SwiftUI gesture.
+        window.onClick = { [weak self, weak host] point in
+            guard let self, let view = host?.view else { return }
+            var local = view.convert(point, from: nil)
+            if !view.isFlipped { local.y = view.bounds.height - local.y }
+            // The pinned day heading covers the rows scrolled under it.
+            guard local.y > TranscriptLayout.band, let entry = self.model.entry(atText: local) else { return }
+            self.copyRow(entry)
+        }
         host.sizingOptions = []
         window.contentViewController = host
         window.setContentSize(Self.defaultSize)
@@ -86,6 +115,11 @@ final class TranscriptsWindow: NSWindow {
     }
     required init?(coder: NSCoder) { nil }
 
+    /// Copies a row and shows "Copied" on it.
+    func copyRow(_ entry: TranscriptEntry) {
+        copy(entry.text)
+        model.markCopied(entry.id)
+    }
     /// Rows are read before the window shows, so its first frame already has them.
     func show() {
         reload(force: true)
@@ -106,7 +140,7 @@ final class TranscriptsWindow: NSWindow {
 
 struct TranscriptsView: View {
     @ObservedObject var model: TranscriptsModel
-    let copy: (String) -> Void
+    let copy: (TranscriptEntry) -> Void
     var body: some View {
         // No drawn title bar (Mobius DESIGN.md): the list's top line, the pinned day heading, sits level with the
         // traffic lights; the window keeps its title for Mission Control and the Window menu.
@@ -176,7 +210,7 @@ enum TranscriptLayout {
 
 struct TranscriptList: View {
     @ObservedObject var model: TranscriptsModel
-    let copy: (String) -> Void
+    let copy: (TranscriptEntry) -> Void
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
@@ -184,8 +218,9 @@ struct TranscriptList: View {
                     Section {
                         ForEach(day.entries) { entry in
                             TranscriptRow(
-                                entry: entry, expanded: model.expanded.contains(entry.id),
-                                toggle: { model.toggle(entry.id) }, copy: copy)
+                                entry: entry, expanded: model.expanded.contains(entry.id), copied: model.copiedID == entry.id,
+                                toggle: { model.toggle(entry.id) }, copy: { copy(entry) },
+                                textFrame: { model.textFrames[entry.id] = $0 })
                         }
                     } header: {
                         Text(day.title)
@@ -212,14 +247,18 @@ struct TranscriptList: View {
 struct TranscriptRow: View {
     let entry: TranscriptEntry
     let expanded: Bool
+    /// Just copied: the Copy label reads "Copied".
+    let copied: Bool
     let toggle: () -> Void
-    let copy: (String) -> Void
+    let copy: () -> Void
+    /// Where the text sits in the window (SwiftUI's global space: the hosting view's top-left coordinates): a click
+    /// there copies the row (TranscriptsWindow.onClick).
+    let textFrame: (CGRect) -> Void
     static let clampLines = 4
     static let incompleteHelp = "Some audio wasn’t transcribed. Recover Saved Recording… in the menu tries again."
-    @VellaState private var copied = false
     @VellaState private var fullHeight: CGFloat = 0
     @VellaState private var clampedHeight: CGFloat = 0
-    /// Longer than four lines at this width: a click on the text opens or closes it.
+    /// Longer than four lines at this width: the chevron under Copy opens or closes it.
     private var long: Bool { fullHeight > clampedHeight + 1 }
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 0) {
@@ -235,34 +274,49 @@ struct TranscriptRow: View {
             .padding(.trailing, 10)
             Text(entry.text)
                 .font(.system(size: 13)).lineSpacing(2.5).foregroundStyle(TranscriptsPalette.t1)
-                .textSelection(.enabled)
+                .textSelection(.enabled) // a drag selects part of it for ⌘C; a click copies it whole
                 .lineLimit(expanded ? nil : Self.clampLines)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if !expanded { clampedHeight = $0 } }
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { textFrame($0) }
                 .background(alignment: .topLeading) {
                     Text(entry.text).font(.system(size: 13)).lineSpacing(2.5)
                         .fixedSize(horizontal: false, vertical: true).hidden()
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
                         .accessibilityHidden(true)
                 }
-                // A click opens or closes a long transcript; a drag still selects text (it is not a tap).
-                .simultaneousGesture(TapGesture().onEnded { if long { toggle() } })
-                .accessibilityAction(named: expanded ? "Collapse" : "Expand") { if long { toggle() } }
-            Button(copied ? "Copied" : "Copy") {
-                copy(entry.text); copied = true
-                Task { try? await Task.sleep(for: .seconds(1.2)); copied = false }
+                .accessibilityAction(named: "Copy") { copy() }
+            Button(action: copy) {
+                // As wide as "Copied" either way, so the text beside it never reflows when it changes.
+                ZStack(alignment: .trailing) {
+                    Text("Copied").hidden()
+                    Text(copied ? "Copied" : "Copy")
+                }
             }
-            .buttonStyle(CopyButtonStyle())
+            .buttonStyle(CopyButtonStyle(lit: copied))
             .padding(.leading, 12)
             .padding(.trailing, -8) // the label's text, not its hover fill, lines up with the row's edge
-            .accessibilityLabel("Copy transcript")
+            .accessibilityLabel(copied ? "Copied" : "Copy transcript")
         }
         .padding(.horizontal, TranscriptLayout.inset).padding(.vertical, 8)
+        .overlay(alignment: .bottomTrailing) {
+            // A long transcript opens and closes from a chevron under Copy, level with its last line.
+            if long || expanded {
+                Button(action: toggle) {
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.system(size: 10, weight: .semibold))
+                        .frame(width: 18, height: 14)
+                }
+                .buttonStyle(CopyButtonStyle())
+                .help(expanded ? "Show less" : "Show all")
+                .accessibilityLabel(expanded ? "Show less" : "Show all")
+                .padding(.trailing, TranscriptLayout.inset - 8).padding(.bottom, 6)
+            }
+        }
         .overlay(alignment: .bottom) {
             Rectangle().fill(TranscriptsPalette.hairline).frame(height: 1).padding(.leading, TranscriptLayout.textLeading).padding(.trailing, TranscriptLayout.inset)
         }
         .contextMenu {
-            Button("Copy") { copy(entry.text) }
+            Button("Copy", action: copy)
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([entry.directory]) }
         }
     }
@@ -282,15 +336,18 @@ struct QuietButtonStyle: ButtonStyle {
 }
 
 /// Copy on every row stays visible but quiet: plain secondary text, brighter with a soft fill under the pointer.
+/// `lit`: just copied, the label reads in the primary text colour without a fill.
 struct CopyButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { CopyLabel(configuration: configuration) }
+    var lit = false
+    func makeBody(configuration: Configuration) -> some View { CopyLabel(configuration: configuration, lit: lit) }
     private struct CopyLabel: View {
         let configuration: ButtonStyleConfiguration
+        let lit: Bool
         @VellaState private var hovering = false
         var body: some View {
             configuration.label
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(hovering || configuration.isPressed ? TranscriptsPalette.t1 : TranscriptsPalette.t3)
+                .foregroundStyle(lit || hovering || configuration.isPressed ? TranscriptsPalette.t1 : TranscriptsPalette.t3)
                 .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(configuration.isPressed ? 0.12 : hovering ? 0.07 : 0)))
                 .contentShape(Rectangle())

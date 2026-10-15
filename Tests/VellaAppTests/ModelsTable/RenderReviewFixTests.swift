@@ -23,9 +23,6 @@ import ServiceManagement
             for word in ["Standard", "Optimized", "Fell back", "tried again", "retry"] { XCTAssertFalse(text.contains(word), "\(column): \(text)") }
         }
         XCTAssertNil(table.tooltips(family).first { $0.0 == "Engine" }, "no engine line under the name")
-        // The bolt is white on the loaded row (gold means recommended), light blue elsewhere.
-        XCTAssertEqual(TierControl.boltColor(hot: true), .white)
-        XCTAssertEqual(TierControl.boltColor(hot: false), TierControl.boltTint)
     }
 
     func testAllMeasuredDeltasFitTheirColumnsAtTheNarrowestTableSize() {

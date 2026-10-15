@@ -13,8 +13,9 @@ import SwiftUI
 //   maps it to its one-line reason, which is its tooltip; a click on it does nothing.
 // - Exactly one cell is selected. Clicking a cell reports it; what that means (preview, deltas, Reload) is the app's
 //   business.
-// - `recommended`: the cell recommended for this Mac in gold (Toby, 15 Oct: highlighted "in gold"): a gold label and ring,
-//   a gold fill with a dark label when selected on an unloaded row.
+// - Cell states (Toby, 15 Oct): not chosen, the Get button's neutral background; chosen, light blue; chosen and
+//   recommended, gold; loaded, that same fill edged in white on the row's blue. `recommended`, not chosen: a gold
+//   label and ring (Toby, 15 Oct: highlighted "in gold").
 // - `warnings`: cells that run without the GPU's matrix hardware on this Mac carry the table's orange triangle after
 //   their label; the warning is the first line of their tooltip.
 // - `enabled == false` is the in-use interlock (dictating, loading): the row is disabled and every segment's tooltip
@@ -47,8 +48,6 @@ struct TierControl: View {
         "The running weight format: bf16 or fp16 from the checkpoint; int8 and int4 are quantized on your Mac to reduce weight size. Gold: recommended for this Mac. Speed, peak RAM and accuracy depend on the model and precision."
     /// The bolt's tooltip: true on every Mac, whichever path the worker ends up on.
     static let boltHelp = "Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails"
-    /// The selected cell's fill on a loaded row.
-    static let hotSelection = NSColor(white: 0.1, alpha: 0.85)
     /// The one interlock line, shared by the Precision segments and the Exact/Fast switch in every app.
     static let inUseHelp = "Locked while the model is in use; a change applies at the next load"
     /// Columns, highest precision first: 16, 8, 4 bits (the cells' identity; `labels` names them).
@@ -100,7 +99,7 @@ struct TierControl: View {
 
     var body: some View {
         HStack(spacing: Self.iconGap) {
-            Self.bolt(hot: hot).frame(width: Self.iconWidth, height: Self.segmentHeight)
+            Self.bolt().frame(width: Self.iconWidth, height: Self.segmentHeight)
                 .appKitTooltip(Self.boltHelp)
                 .accessibilityHidden(true) // decorative: the path is not a choice
             TierSegments(
@@ -114,18 +113,44 @@ struct TierControl: View {
             .fixedSize()
     }
 
-    /// The bolt's tint (Toby, 30 Sep): light blue on an unloaded row; white on the loaded (blue) row, where gold now
-    /// means recommended and the former yellow would read as it.
-    static let boltTint = NSColor(srgbRed: 142 / 255, green: 175 / 255, blue: 246 / 255, alpha: 1)
-    static let hotBoltTint = NSColor.white
-    static func boltColor(hot: Bool) -> NSColor { hot ? hotBoltTint : boltTint }
+    /// The bolt's colour: ONE switch for the Precision bolt and the Exact/Fast knob (Toby, 15 Oct: "lightning should be
+    /// like yellow. So that it's fast"). Flip it here and both follow.
+    static let boltPalette: BoltPalette = .yellow
+    enum BoltPalette {
+        case yellow, blue
+        /// The Precision row's bolt, on the dark menu and on the loaded (blue) row alike.
+        var row: NSColor {
+            switch self {
+            // A lemon yellow, 54° 100 % 63 % (#FFE840): 7:1 on the loaded blue, 13:1 on the menu. The 30 Sep yellow
+            // (#F4CE7B, 41°) read as a pale copy of the recommended gold (43°) beside it; this one reads as yellow.
+            case .yellow: NSColor(srgbRed: 255 / 255, green: 232 / 255, blue: 64 / 255, alpha: 1)
+            case .blue: NSColor(srgbRed: 142 / 255, green: 175 / 255, blue: 246 / 255, alpha: 1)
+            }
+        }
+        /// The same hue deepened to read on the switch's white knob.
+        var knob: NSColor {
+            switch self {
+            // 41° 90 % 38 % (#B8800A), 3.3:1 on white (the 30 Sep knob amber).
+            case .yellow: NSColor(srgbRed: 184 / 255, green: 128 / 255, blue: 10 / 255, alpha: 1)
+            // 221° 75 % 45 % (#1D53C9), 6.7:1 on white.
+            case .blue: NSColor(srgbRed: 29 / 255, green: 83 / 255, blue: 201 / 255, alpha: 1)
+            }
+        }
+    }
+    static var boltTint: NSColor { boltPalette.row }
+    /// The selected cell that is not the recommended one (Toby, 15 Oct: "it should actually turn the exact shade of blue
+    /// that we currently have"): light blue, 221° 85 % 76 % (#8EAFF6), dark label.
+    static let selectionBlue = NSColor(srgbRed: 142 / 255, green: 175 / 255, blue: 246 / 255, alpha: 1)
     /// Recommended for this Mac: a warm gold, ≥ 7:1 on the dark menu and ≥ 4.5:1 on the loaded row's blue.
     static let gold = NSColor(srgbRed: 236 / 255, green: 190 / 255, blue: 72 / 255, alpha: 1)
+    /// The loaded cell's edge and the faint light around it.
+    static let loadedEdge = NSColor.white
+    static let loadedLight = NSColor.white.withAlphaComponent(0.35)
     /// The warning triangle's colour, as in the table's Speed column.
     static let warningColor = NSColor.systemOrange
 
-    @ViewBuilder static func bolt(hot: Bool = false) -> some View {
-        Image(systemName: "bolt.fill").font(.system(size: TableMetrics.font(15), weight: .semibold)).foregroundStyle(Color(nsColor: boltColor(hot: hot)))
+    @ViewBuilder static func bolt() -> some View {
+        Image(systemName: "bolt.fill").font(.system(size: TableMetrics.font(15), weight: .semibold)).foregroundStyle(Color(nsColor: boltTint))
     }
 }
 
@@ -146,7 +171,7 @@ enum HostRefresh {
     }
 }
 
-/// The row's segments: a regular NSSegmentedControl with per-segment tooltips, drawn in the bolt's tint.
+/// The row's segments: a regular NSSegmentedControl with per-segment tooltips, drawn by hand (`Control.draw`).
 private struct TierSegments: NSViewRepresentable {
     let tiers: [String]
     let labels: [String]
@@ -190,7 +215,7 @@ private struct TierSegments: NSViewRepresentable {
             let natural = NSSize(width: TierControl.Natural.segmentsWidth(segmentCount), height: TierControl.Natural.segmentHeight)
             if frame.width > 0, frame.height > 0, natural.width > 0, bounds.size != natural { setBoundsSize(natural) }
         }
-        /// The row is loaded (blue background): a neutral wash, the selected cell near-black with a white ring.
+        /// The row is loaded (blue background): a lighter track, the selected cell's fill edged in white.
         var hot = false { didSet { if hot != oldValue { needsDisplay = true } } }
         var recommendedSegment = -1 { didSet { if recommendedSegment != oldValue { needsDisplay = true } } }
         var warnedSegments: Set<Int> = [] { didSet { if warnedSegments != oldValue { needsDisplay = true } } }
@@ -201,23 +226,32 @@ private struct TierSegments: NSViewRepresentable {
                     .applying(NSImage.SymbolConfiguration(paletteColors: [TierControl.warningColor])))
 
         override func draw(_ dirtyRect: NSRect) {
-            NSGraphicsContext.current?.cgContext.setAlpha(isEnabled ? 1 : 0.5)
+            // In use (disabled): the track and labels at half strength; the chosen cell's fill and loaded edge stay
+            // opaque, since gold or blue at half strength over the loaded row's blue turns muddy.
+            let dimmed: CGFloat = isEnabled ? 1 : 0.5
+            let context = NSGraphicsContext.current?.cgContext
+            context?.setAlpha(dimmed)
             let pitch = TierControl.Natural.cellWidth - 1
-            let tint = TierControl.boltTint
-            // Unloaded: the bolt's light blue washes the row and fills the selected cell. Loaded: a neutral wash on the
-            // blue row, the selected cell near-black (gold stays the one warm colour: recommended).
-            (hot ? NSColor.white.withAlphaComponent(0.16) : tint.withAlphaComponent(0.36)).setFill()
-            NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6).fill()
+            // The track is the Get/Load button's own background (RowAction): a faint fill and a hairline, lighter on
+            // the loaded row. No colour until a cell is chosen (Toby, 15 Oct: "something that we haven't chose is just
+            // like the default color").
+            let track = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
+            NSColor.white.withAlphaComponent(hot ? 0.20 : 0.10).setFill(); track.fill()
+            NSColor.white.withAlphaComponent(hot ? 0.35 : 0.22).setStroke(); track.lineWidth = 1; track.stroke()
             for i in 0..<segmentCount {
                 let cell = NSRect(x: CGFloat(i) * pitch, y: 0, width: pitch, height: bounds.height)
                 let selected = i == selectedSegment
                 let recommended = i == recommendedSegment
                 let available = isEnabled(forSegment: i)
+                let fill = cell.insetBy(dx: 1.5, dy: 2)
                 if selected {
-                    // Unloaded: the recommended cell selected is gold with a dark label; blue is the user's own other
-                    // pick. Loaded: near-black with the label in gold or white.
-                    (hot ? TierControl.hotSelection : recommended && available ? TierControl.gold : tint).setFill()
-                    NSBezierPath(roundedRect: cell.insetBy(dx: 1.5, dy: 2), xRadius: 5, yRadius: 5).fill()
+                    // Chosen: blue, or gold when it is the recommended cell; loaded: the same fill with a white edge
+                    // (Toby, 15 Oct: "when we choose the recommended one it's yellow. And once we actually load it, it
+                    // should be white").
+                    context?.setAlpha(1)
+                    (recommended && available ? TierControl.gold : TierControl.selectionBlue).setFill()
+                    NSBezierPath(roundedRect: fill, xRadius: 5, yRadius: 5).fill()
+                    context?.setAlpha(dimmed)
                 } else if i > 0, i - 1 != selectedSegment {
                     NSColor.white.withAlphaComponent(0.18).setFill()
                     NSRect(x: cell.minX - 0.5, y: cell.minY + 6, width: 1, height: cell.height - 12).fill()
@@ -225,7 +259,7 @@ private struct TierSegments: NSViewRepresentable {
                 let text = label(forSegment: i) ?? ""
                 let color: NSColor =
                     !available ? NSColor.white.withAlphaComponent(0.3)
-                    : selected && !hot ? NSColor(white: 0.1, alpha: 1)
+                    : selected ? NSColor(white: 0.1, alpha: 1)
                     : recommended ? TierControl.gold
                     : NSColor.white.withAlphaComponent(0.92)
                 let font = recommended && available ? NSFont.systemFont(ofSize: TierControl.Natural.font.pointSize, weight: .semibold) : (self.font ?? TierControl.font)
@@ -241,18 +275,24 @@ private struct TierSegments: NSViewRepresentable {
                         in: NSRect(x: x + size.width + TierControl.Natural.triangleGap, y: cell.midY - w.height / 2, width: w.width, height: w.height),
                         from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
                 }
-                // Recommended: a gold ring (a gold fill when selected on an unloaded row); the selected cell of a loaded
-                // row keeps its white ring unless it is the gold one.
-                if recommended && available && !(selected && !hot) {
+                // Recommended, not chosen: a gold ring around the gold label. Loaded: a white edge on the chosen
+                // cell's fill and a faint light just outside it, so the loaded cell reads as lit, not as another fill.
+                if recommended && available && !selected {
                     let ring = NSBezierPath(roundedRect: cell.insetBy(dx: 1, dy: 1.5), xRadius: 5, yRadius: 5)
                     ring.lineWidth = 1.5
                     TierControl.gold.setStroke()
                     ring.stroke()
                 } else if selected && hot {
-                    let ring = NSBezierPath(roundedRect: cell.insetBy(dx: 1, dy: 1.5), xRadius: 5, yRadius: 5)
-                    ring.lineWidth = 1.5
-                    NSColor.white.withAlphaComponent(0.95).setStroke()
-                    ring.stroke()
+                    context?.setAlpha(1)
+                    defer { context?.setAlpha(dimmed) }
+                    let edge = NSBezierPath(roundedRect: fill, xRadius: 5, yRadius: 5)
+                    edge.lineWidth = 1.5
+                    TierControl.loadedEdge.setStroke()
+                    edge.stroke()
+                    let light = NSBezierPath(roundedRect: fill.insetBy(dx: -1.25, dy: -1.25), xRadius: 6.25, yRadius: 6.25)
+                    light.lineWidth = 1
+                    TierControl.loadedLight.setStroke()
+                    light.stroke()
                 }
             }
         }
