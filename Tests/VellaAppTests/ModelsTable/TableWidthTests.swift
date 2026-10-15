@@ -20,10 +20,10 @@ import SwiftUI
         XCTAssertEqual(TableMetrics.scale, 0.9)
         // 2.1: one Precision row with wider cells (room for the warning triangle) and a bolt-only icon slot: +4 pt.
         XCTAssertEqual(ModelTable.width, 911)
-        XCTAssertEqual(ModelTable.rowHeight, 54)
+        XCTAssertEqual(ModelTable.rowHeight, 44, "sized for the one Precision row (review, 15 Oct)")
         XCTAssertEqual(ModelTable.referenceRowHeight, 34)
         XCTAssertEqual(TierControl.height, 21.5, "one segment row")
-        XCTAssertEqual(ExactFastSwitch.height, 48.5, "the switch keeps its height, and with it the row")
+        XCTAssertEqual(ExactFastSwitch.height, 38.5, "the switch, scaled to the one row: an even margin around the 21.5 pt segments")
     }
 
     /// The declared width is the sum of the layout constants, and the table's own content is exactly that wide.

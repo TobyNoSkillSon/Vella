@@ -17,8 +17,13 @@ public struct BenchmarkHardware: Equatable, Sendable {
     public var label: String {
         (displayChip(chip) ?? "unknown chip") + (gpuCores.map { ", \($0) GPU cores" } ?? ", GPU core count unknown")
     }
-    /// The small label under a reference speed or energy figure on another Mac.
-    public var speedReferenceLabel: String? { isMeasuredConfiguration ? nil : Self.measuredName }
+    /// The measured configuration as this Mac's reference names it: "M5 Max", or "M5 Max 40-core" on an M5 Max with
+    /// another GPU core count, so the same chip name does not read as this Mac's figure.
+    public var referenceName: String {
+        displayChip(chip) == displayChip(Self.measured.chip) ? "\(Self.measuredName) \(Self.measured.gpuCores ?? 40)-core" : Self.measuredName
+    }
+    /// The reference's name on any Mac but the measured one (nil there).
+    public var speedReferenceLabel: String? { isMeasuredConfiguration ? nil : referenceName }
     public var caveat: String? {
         isMeasuredConfiguration ? nil : "Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it."
     }
@@ -29,11 +34,11 @@ public struct BenchmarkHardware: Equatable, Sendable {
     /// measured configuration or without a figure.
     public func referenceLine(speed: Double?) -> String? {
         guard !isMeasuredConfiguration, let text = formatSpeed(speed) else { return nil }
-        return "Not measured on your Mac. \(Self.measuredName): \(text) real time."
+        return "Not measured on your Mac. \(referenceName): \(text) real time."
     }
     public func referenceLine(energy: Double?) -> String? {
         guard !isMeasuredConfiguration, let text = formatEnergy(energy) else { return nil }
-        return "Not measured on your Mac. \(Self.measuredName): \(text) per audio minute."
+        return "Not measured on your Mac. \(referenceName): \(text) per audio minute."
     }
     public func figures(_ result: PrecisionResult) -> [String: Any] {
         let bytes = try? JSONEncoder().encode(result)

@@ -56,6 +56,12 @@ struct ModelDeletionPlan {
     var benchmarkHardware = HostInfo.benchmarkHardware
     /// This Mac's GPU, for the recommended precision and the warning triangles (renders and tests set another).
     var gpu = GPUCapability.current
+    /// The worker's persisted self-test verdicts (<support>/Worker/FastPath, as FastPathGate stores them), reread with
+    /// config.json; this worker's gate version (the bundled diagnose reference) and this Mac's OS build to match them.
+    var verdictDirectory: URL?
+    private(set) var verdicts: [QualificationVerdict] = []
+    var gateVersion: String?
+    var osBuild = HostInfo.osBuild
     let dictation: ModelLibrary
     let streaming: ModelLibrary
     @Published var catalog: ModelCatalog
@@ -100,6 +106,8 @@ struct ModelDeletionPlan {
                 ? ModelLibrary(mode: .streaming)
                 : ModelLibrary(mode: .streaming, resources: dictation.resources, registryURL: dictation.registryURL))
         self.configURL = configURL ?? (dictation.registryURL == ModelLibrary.registry ? Backend.configURL : nil)
+        verdictDirectory = self.configURL?.deletingLastPathComponent().appendingPathComponent("Worker/FastPath")
+        gateVersion = (try? Data(contentsOf: dictation.resources.appendingPathComponent("diagnose-reference.json"))).flatMap(DiagnoseReference.decode)?.gate_version
         catalog = (try? decodeCatalog(Data(contentsOf: dictation.resources.appendingPathComponent("models.json")))) ?? ModelCatalog(families: [])
         benchmarks = decodeBenchmarks(try? Data(contentsOf: benchmarksURL ?? Self.benchmarksURL(resources: dictation.resources)))
         // Download progress and registry changes redraw the table.
@@ -123,6 +131,7 @@ struct ModelDeletionPlan {
     /// Rereads config.json (after a Load, and when the menu opens).
     func reloadConfig() {
         guard !previewing, let configURL else { return }
+        verdicts = verdictDirectory.map(QualificationVerdict.read) ?? []
         config = (try? Data(contentsOf: configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
     }
     /// Render harness: a config without touching disk.
@@ -291,20 +300,38 @@ struct ModelDeletionPlan {
     /// The row's advice on this Mac in its shown switch position (Acceleration.swift): the gold recommended tier and the
     /// tiers that run without matrix hardware here (warning triangles). Only cells that can be chosen take part.
     func advice(_ f: ModelFamily) -> PrecisionAdvice {
-        // Figures that predate the final build (benchmarks.json `figures_pending`) recommend and warn nothing.
-        guard !benchmarks.figuresPending else { return PrecisionAdvice() }
-        let mode: OptimizedMode = switchAvailable(f) ? currentSelection(f).mode : .fast
-        return precisionAdvice(f, benchmark(f), mode: mode, tiers: measuredPrecisions(f, mode), gpu: gpu, measuredHere: benchmarkHardware.isMeasuredConfiguration)
+        advice(f, mode: currentSelection(f).mode)
     }
     /// The tier recommended for this Mac at the default switch position (Fast): what a family nothing was chosen for
     /// previews, offers and loads (Toby, 15 Oct: "we want to suggest them the most efficient model ... they just may not
     /// know"). Nil while the figures are pending (then 16).
-    func recommendedTier(_ f: ModelFamily) -> ModelTier? {
-        guard !benchmarks.figuresPending else { return nil }
-        let mode: OptimizedMode = .fast
-        return precisionAdvice(f, benchmark(f), mode: mode, tiers: measuredPrecisions(f, mode), gpu: gpu, measuredHere: benchmarkHardware.isMeasuredConfiguration)
-            .recommended
+    func recommendedTier(_ f: ModelFamily) -> ModelTier? { advice(f, mode: .fast).recommended }
+    /// The advice in one switch position (where Fast = Exact the switch is pinned to Fast). Figures that predate the final
+    /// build (benchmarks.json `figures_pending`) recommend and warn nothing.
+    func advice(_ f: ModelFamily, mode requested: OptimizedMode) -> PrecisionAdvice {
+        guard !benchmarks.figuresPending else { return PrecisionAdvice() }
+        let mode: OptimizedMode = switchAvailable(f) ? requested : .fast
+        return precisionAdvice(
+            f, benchmark(f), mode: mode, tiers: measuredPrecisions(f, mode), gpu: gpu, measuredHere: benchmarkHardware.isMeasuredConfiguration,
+            qualification: { self.qualification(f, tier: $0, mode: mode) })
     }
+    /// This Mac's qualification of a precision (Acceleration.swift): the worker's report while that precision is loaded
+    /// in that switch position (stock MLX, or the components it left off), else the persisted self-test verdicts for its
+    /// files, else nil (no verdict yet: the derivation decides).
+    func qualification(_ f: ModelFamily, tier: ModelTier, mode: OptimizedMode) -> Qualification? {
+        if let loaded = loaded(f), let request = loadedSelection(f), request.tier == tier, request.mode == mode || !switchAvailable(f),
+            let engine = loaded.engine
+        {
+            return engine == Engine.optimized.rawValue ? .optimized(disabled: Set((loaded.optimizations ?? [:]).filter { !$0.value }.keys)) : .stock
+        }
+        guard !verdicts.isEmpty, let label = precisionLabel(f, tier: tier), let variant = f.variants[label] else { return nil }
+        let lib = library(f.mode)
+        var folders: Set<String> = [variant.id, variant.id + ".derived"]
+        if let path = lib.installed[variant.id]?.path { folders.insert(URL(fileURLWithPath: path).lastPathComponent) }
+        return VellaCore.qualification(folders: folders, verdicts: verdicts, workerVersion: gateVersion, gpu: gpu, osBuild: osBuild)
+    }
+    /// Render harness and tests: verdicts without a directory.
+    func previewVerdicts(_ values: [QualificationVerdict]) { verdicts = values }
     /// What the first dictation without a model offers: the catalog's first offered family at the precision its row
     /// shows unloaded (`committed`: a saved choice, else the recommended one for this Mac), else 16, else native.
     func firstOffered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {

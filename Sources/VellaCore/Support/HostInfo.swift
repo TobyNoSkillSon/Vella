@@ -20,6 +20,8 @@ public enum HostInfo {
         return (IORegistryEntryCreateCFProperty(service, "gpu-core-count" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? NSNumber)?.intValue
     }()
     public static let benchmarkHardware = BenchmarkHardware(chip: cpuBrand, gpuCores: gpuCoreCount)
+    /// The macOS build ("25G72"), as the worker's self-test verdicts record it.
+    public static let osBuild: String? = sysctlString("kern.osversion")
     /// The CPU brand string, e.g. "Apple M5 Max".
     public static let cpuBrand: String? = sysctlString("machdep.cpu.brand_string")
 }

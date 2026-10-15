@@ -50,9 +50,10 @@ import VellaCore
             let controller = TableRenderDelegate.controller(state); controller.benchmarkHardware = hardware
             let view = NSHostingView(rootView: ModelTable(controller: controller))
             XCTAssertEqual(view.fittingSize.width, ModelTable.width)
-            XCTAssertEqual(hardware.speedReferenceLabel, "M5 Max")
+            let ref = hardware.chip == "M5 Max" ? "M5 Max 40-core" : "M5 Max"
+            XCTAssertEqual(hardware.speedReferenceLabel, ref)
             XCTAssertEqual(hardware.energyText(10), "10 J", "the M5 Max figure, for reference")
-            XCTAssertEqual(hardware.referenceLine(energy: 10), "Not measured on your Mac. M5 Max: 10 J per audio minute.")
+            XCTAssertEqual(hardware.referenceLine(energy: 10), "Not measured on your Mac. \(ref): 10 J per audio minute.")
         }
     }
 }

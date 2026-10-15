@@ -107,3 +107,65 @@ import XCTest
         XCTAssertEqual(rules.runnable(recorded: nil, precision: "BF16", recommended: .t8), ModelSelection(tier: .t16, mode: .fast))
     }
 }
+
+/// This Mac's qualification result decides the hardware facts once it exists (review, 15 Oct): a loaded precision on
+/// stock MLX, or a persisted verdict that left `int8_gemm` off, takes int8 off the matrix hardware: software, the
+/// triangle, never recommended, and the tooltip claims no matrix hardware.
+@MainActor final class QualificationAdviceTests: XCTestCase {
+    private func controller() throws -> ModelsController {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-qualification-\(UUID())")
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let resources = ModelLibrary.resourceDirectory()
+        let registry = root.appendingPathComponent("models-installed.json")
+        let c = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, resources: resources, registryURL: registry),
+            streaming: ModelLibrary(mode: .streaming, resources: resources, registryURL: registry),
+            benchmarksURL: resources.appendingPathComponent("benchmarks.json"))
+        c.gpu = RecommendedDefaultTests.m5; c.benchmarkHardware = .measured; c.osBuild = "25G72"; c.gateVersion = "native-kernels-10"
+        c.runtime = TableRuntime()
+        return c
+    }
+
+    func testALoadedStockRunTakesInt8OffTheMatrixHardware() throws {
+        let c = try controller()
+        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        XCTAssertEqual(c.advice(parakeet).hardware[.t8], true, "no verdict yet: the derivation")
+        c.runtime = TableRuntime(loaded: ["parakeet-v3": LoadedFamily(precision: "8b", engine: "mlx", selection: ModelSelection(tier: .t8, mode: .fast))])
+        XCTAssertEqual(c.qualification(parakeet, tier: .t8, mode: .fast), .stock)
+        let advice = c.advice(parakeet)
+        XCTAssertEqual(advice.hardware[.t8], false)
+        XCTAssertEqual(advice.recommended, .t16)
+        XCTAssertNotNil(advice.warnings[.t8])
+        let tips = Dictionary(ModelTable(controller: c).tooltips(parakeet).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
+        XCTAssertTrue(tips["Precision int8"]?.hasPrefix("Runs int8 without the matrix hardware on this Mac") == true, tips["Precision int8"] ?? "")
+        XCTAssertFalse(tips["Precision int8"]?.contains("runs on this Mac's matrix hardware") == true)
+        // The worker reports the component it left off: the same.
+        c.runtime = TableRuntime(loaded: [
+            "parakeet-v3": LoadedFamily(
+                precision: "8b", engine: "optimized", optimizations: ["encoder": true, "decoder": true, "int8_gemm": false],
+                selection: ModelSelection(tier: .t8, mode: .fast))
+        ])
+        XCTAssertEqual(c.qualification(parakeet, tier: .t8, mode: .fast), .optimized(disabled: ["int8_gemm"]))
+        XCTAssertEqual(c.advice(parakeet).hardware[.t8], false)
+    }
+
+    func testAPersistedVerdictForThisMacCounts() throws {
+        let c = try controller()
+        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        let folder = try XCTUnwrap(parakeet.variants["8b"]?.id)
+        c.previewVerdicts([
+            QualificationVerdict(
+                status: "fast", model: folder, disabled: ["int8_gemm"], workerVersion: "native-kernels-10", gpuArchitecture: "applegpu_g17s", osBuild: "25G72")
+        ])
+        XCTAssertEqual(c.advice(parakeet).hardware[.t8], false)
+        XCTAssertEqual(c.recommendedTier(parakeet), .t16, "the default follows the verdict too")
+        XCTAssertEqual(c.currentSelection(parakeet), .fallback)
+        // A verdict from another GPU (or worker version) is not this Mac's.
+        c.previewVerdicts([
+            QualificationVerdict(
+                status: "stock", model: folder, workerVersion: "native-kernels-10", gpuArchitecture: "applegpu_g16s", osBuild: "25G72")
+        ])
+        XCTAssertEqual(c.advice(parakeet).hardware[.t8], true)
+        XCTAssertEqual(c.recommendedTier(parakeet), .t8)
+    }
+}

@@ -48,43 +48,72 @@ public struct GPUCapability: Equatable, Sendable {
     }()
 }
 
-/// Components of a quantized cell's recipe that move its matrix products onto the tensor units: Vella's native integer
-/// kernels (Parakeet) and 16-bit linears (Nemotron Fast, whose quantized layers then take bf16 activations).
-public let tensorQuantizedComponents: Set<String> = ["int8_gemm", "int4_gemm", "bf16_linears"]
+/// Components of a quantized cell's recipe that put its matrix products on the tensor units: Vella's native integer
+/// kernels (Parakeet Fast), which feed the stored codes to the tensor unit. (Nemotron's `bf16_linears` is not one: it
+/// prepares dense BF16 linears; its quantized linears stay `quantizedMM` with float32 activations,
+/// VellaNemotronFused.swift.)
+public let tensorQuantizedComponents: Set<String> = ["int8_gemm", "int4_gemm"]
 
-/// How a family's quantized layers feed MLX on the stock path: with 16-bit activations (MLX's quantized tensor-unit
-/// kernel takes them) or with float32 activations (it does not; only `tensorQuantizedComponents` reach the units).
-/// Every catalog family is listed (CatalogTests); an unknown family counts as float32, so it is never over-claimed.
+/// How a family's quantized layers feed MLX: with 16-bit activations (MLX's quantized tensor-unit kernel takes them,
+/// on the optimized and the stock path alike) or with float32 activations (it does not; only
+/// `tensorQuantizedComponents` reach the units). Whisper's decoder runs fp16 and Qwen's text decoder bf16 (its audio
+/// tower, f32 on the optimized path, is never quantized). Every catalog family is listed (AccelerationTests); an unknown
+/// family counts as float32, so it is never over-claimed.
 public enum QuantizedActivations: Sendable { case half, float32 }
 public let quantizedActivations: [String: QuantizedActivations] = [
     "parakeet-v3": .float32, "parakeet-v3-ultra": .float32, "nemotron-3.5-streaming-0.6b": .float32,
     "whisper-large-v3": .half, "whisper-large-v3-turbo": .half, "qwen3-asr-1.7b": .half, "qwen3-asr-0.6b": .half
 ]
 
+/// What this Mac's qualification decided for a precision's files: the worker's report for a loaded model, else the
+/// persisted self-test verdict. Nil before any verdict exists (the derivation decides).
+public enum Qualification: Equatable, Sendable {
+    /// The whole model runs stock MLX (self-test failed, family unsupported, or a runtime fallback).
+    case stock
+    /// The optimized path runs, without these components (each failed its own self-test).
+    case optimized(disabled: Set<String>)
+}
+
 /// Whether `tier` runs on the GPU's matrix hardware in `cell` (its recipe) on `gpu`: 16-bit always; 8- and 4-bit only
-/// with tensor units and a path to them (16-bit activations on stock MLX, or a tensor component in the recipe).
-public func runsOnMatrixHardware(_ family: ModelFamily, tier: ModelTier, cell: BenchmarkCell?, gpu: GPUCapability) -> Bool {
+/// with tensor units and a path to them (16-bit activations, which MLX's own quantized kernel takes on any path, or a
+/// tensor component in the recipe that this Mac's qualification left on).
+public func runsOnMatrixHardware(
+    _ family: ModelFamily, tier: ModelTier, cell: BenchmarkCell?, gpu: GPUCapability, qualification: Qualification? = nil
+) -> Bool {
     if tier == .t16 { return true }
     guard gpu.tensorOps else { return false }
     if quantizedActivations[family.id] == .half { return true }
-    return !tensorQuantizedComponents.isDisjoint(with: cell?.recipe.kernels ?? [])
+    var kernels = Set(cell?.recipe.kernels ?? [])
+    switch qualification {
+    case .stock: kernels = []
+    case .optimized(let disabled): kernels.subtract(disabled)
+    case nil: break
+    }
+    return !tensorQuantizedComponents.isDisjoint(with: kernels)
 }
 
 // MARK: Recommended precision and software warnings
 
 /// The Models table's advice for one family in one switch position on this Mac (Toby, 15 Oct: "the recommended option
-/// would be always the smallest one that has the best accelerator ... if the quality is okay"): the recommended tier
-/// (gold, with `recommendedHelp`) and the tiers that run without matrix hardware here (the orange triangle, with their
-/// warning line).
+/// would be always the smallest one that has the best accelerator ... if the quality is okay"). Two separate facts per
+/// precision: `hardware` (matrix or software, truthful in the API and the only basis for recommendation) and `warnings`
+/// (the orange triangle, a speed warning; left off on the measured Mac where that precision measured faster than 16-bit,
+/// where "may be slower" would be false).
 public struct PrecisionAdvice: Equatable {
     public var recommended: ModelTier?
     public var recommendedHelp: String?
-    /// Tier → its one-line warning; absent for tiers on the matrix hardware or measured faster than 16-bit here.
-    public var software: [ModelTier: String]
-    /// Tiers whose advice rests on a measurement on this exact Mac that overrides the derivation.
-    public var measuredOverride: Set<ModelTier>
-    public init(recommended: ModelTier? = nil, recommendedHelp: String? = nil, software: [ModelTier: String] = [:], measuredOverride: Set<ModelTier> = []) {
-        self.recommended = recommended; self.recommendedHelp = recommendedHelp; self.software = software; self.measuredOverride = measuredOverride
+    /// Tier → runs on the GPU's matrix hardware here (true) or in software (false).
+    public var hardware: [ModelTier: Bool]
+    /// Tier → its triangle line.
+    public var warnings: [ModelTier: String]
+    /// Tier → why it runs in software here (the API's `hardware_note`), for every software tier.
+    public var softwareNotes: [ModelTier: String]
+    public init(
+        recommended: ModelTier? = nil, recommendedHelp: String? = nil, hardware: [ModelTier: Bool] = [:], warnings: [ModelTier: String] = [:],
+        softwareNotes: [ModelTier: String] = [:]
+    ) {
+        self.recommended = recommended; self.recommendedHelp = recommendedHelp; self.hardware = hardware; self.warnings = warnings
+        self.softwareNotes = softwareNotes
     }
 }
 
@@ -98,62 +127,121 @@ public func keepsQuality(_ benchmark: FamilyBenchmark?, tier: ModelTier, cell: B
 }
 
 /// The advice for `family` in switch position `mode`. `tiers` are the offered tiers of that position; `measuredHere`
-/// says this Mac is the measured configuration, where a cell measured faster than the 16-bit cell of the same position
-/// counts as accelerated and carries no warning whatever the derivation says.
+/// says this Mac is the measured configuration (a precision measured faster than the 16-bit cell of the same position
+/// carries no triangle there); `qualification` gives this Mac's verdict per tier (nil: none yet).
 public func precisionAdvice(
-    _ family: ModelFamily, _ benchmark: FamilyBenchmark?, mode: OptimizedMode, tiers: [ModelTier], gpu: GPUCapability, measuredHere: Bool
+    _ family: ModelFamily, _ benchmark: FamilyBenchmark?, mode: OptimizedMode, tiers: [ModelTier], gpu: GPUCapability, measuredHere: Bool,
+    qualification: (ModelTier) -> Qualification? = { _ in nil }
 ) -> PrecisionAdvice {
     guard let benchmark, !benchmark.tiers.isEmpty, tiers.contains(.t16) else { return PrecisionAdvice() }
     let base = benchmarkCell(benchmark, ModelSelection(tier: .t16, mode: mode))
     let baseName = tierDTypeLabel(family, .t16)
     var advice = PrecisionAdvice()
-    var native: Set<ModelTier> = [.t16]
+    advice.hardware[.t16] = true
     var quality: Set<ModelTier> = [.t16]
     for tier in tiers where tier != .t16 {
         let cell = benchmarkCell(benchmark, ModelSelection(tier: tier, mode: mode))
-        let derived = runsOnMatrixHardware(family, tier: tier, cell: cell, gpu: gpu)
+        let matrix = runsOnMatrixHardware(family, tier: tier, cell: cell, gpu: gpu, qualification: qualification(tier))
+        advice.hardware[tier] = matrix
+        if keepsQuality(benchmark, tier: tier, cell: cell) { quality.insert(tier) }
+        guard !matrix else { continue }
+        // The measured figures are those of the recipe as derived; once this Mac's qualification changed what runs,
+        // they no longer describe it.
+        var ranAsMeasured = true
+        switch qualification(tier) {
+        case .stock: ranAsMeasured = false
+        case .optimized(let disabled): ranAsMeasured = disabled.isDisjoint(with: cell?.recipe.kernels ?? [])
+        case nil: break
+        }
         var faster: Bool?
-        if measuredHere, let x = cell.flatMap({ $0.isPending ? nil : $0.result.speed_x }), let y = base.flatMap({ $0.isPending ? nil : $0.result.speed_x }) {
+        if measuredHere, ranAsMeasured, let x = cell.flatMap({ $0.isPending ? nil : $0.result.speed_x }),
+            let y = base.flatMap({ $0.isPending ? nil : $0.result.speed_x })
+        {
             faster = x > y
         }
-        if keepsQuality(benchmark, tier: tier, cell: cell) { quality.insert(tier) }
-        if derived || faster == true {
-            native.insert(tier)
-            if !derived { advice.measuredOverride.insert(tier) }
-        } else {
-            let dtype = tierDTypeLabel(family, tier)
-            let lead =
-                gpu.tensorOps
-                ? (mode == .exact ? "Exact runs \(dtype) without the matrix hardware on this Mac" : "Runs \(dtype) without the matrix hardware on this Mac")
-                : "No hardware support for \(dtype) on this Mac"
-            let speed = faster == false ? "measured slower than \(baseName) here" : "may be slower than \(baseName)"
-            advice.software[tier] = "\(lead): saves memory, \(speed)"
+        let dtype = tierDTypeLabel(family, tier)
+        let lead =
+            gpu.tensorOps
+            ? (mode == .exact ? "Exact runs \(dtype) without the matrix hardware on this Mac" : "Runs \(dtype) without the matrix hardware on this Mac")
+            : "No hardware support for \(dtype) on this Mac"
+        advice.softwareNotes[tier] = lead
+        // The triangle is a speed warning: false where this exact Mac measured the precision faster than 16-bit.
+        if faster != true {
+            advice.warnings[tier] = "\(lead): saves memory, " + (faster == false ? "measured slower than \(baseName) here" : "may be slower than \(baseName)")
         }
     }
     // Smallest first (4, 8, 16): the first that keeps quality on the matrix hardware.
-    let pick = tiers.sorted { $0.bits < $1.bits }.first { quality.contains($0) && native.contains($0) } ?? .t16
+    let pick = tiers.sorted { $0.bits < $1.bits }.first { quality.contains($0) && advice.hardware[$0] == true } ?? .t16
     advice.recommended = pick
     let name = tierDTypeLabel(family, pick)
     if pick != .t16 {
-        let how = advice.measuredOverride.contains(pick) ? "measured faster than \(baseName) on this Mac" : "runs on this Mac's matrix hardware"
-        advice.recommendedHelp = "Recommended for this Mac: \(name) keeps \(baseName) accuracy, uses less memory and \(how)"
+        advice.recommendedHelp = "Recommended for this Mac: \(name) keeps \(baseName) accuracy, uses less memory and runs on this Mac's matrix hardware"
     } else {
-        let smaller = tiers.filter { $0 != .t16 }.sorted { $0.bits > $1.bits }
-        let lossy = smaller.filter { !quality.contains($0) }.map { tierDTypeLabel(family, $0) }
-        let soft = smaller.filter { quality.contains($0) && !native.contains($0) }.map { tierDTypeLabel(family, $0) }
-        func list(_ names: [String]) -> String { names.joined(separator: " and ") }
-        // One clause per reason, in tier order (int8 before int4).
-        var why: [String] = []
-        let lossClause = lossy.isEmpty ? nil : "\(list(lossy)) \(lossy.count == 1 ? "loses" : "lose") accuracy against \(baseName)"
-        let softClause =
-            soft.isEmpty
-            ? nil
-            : gpu.tensorOps
-                ? "\(list(soft)) \(soft.count == 1 ? "runs" : "run") without the matrix hardware here"
-                : "\(list(soft)) \(soft.count == 1 ? "has" : "have") no hardware support here"
-        let lossFirst = smaller.first.map { !quality.contains($0) } ?? true
-        why = (lossFirst ? [lossClause, softClause] : [softClause, lossClause]).compactMap { $0 }
-        advice.recommendedHelp = "Recommended for this Mac" + (why.isEmpty ? "" : ": " + why.joined(separator: "; "))
+        // One clause per smaller precision, int8 first: the measure that failed the quality gate, else no hardware.
+        let clauses: [String] = tiers.filter { $0 != .t16 }.sorted { $0.bits > $1.bits }.map { tier in
+            let dtype = tierDTypeLabel(family, tier)
+            if !quality.contains(tier) {
+                let segment = ModelSelection(tier: tier, mode: mode).segmentKey
+                let loss = cellLoss(benchmark, tier: tier, segment: segment).first ?? benchmark.tiers[tier]?.gate.loss.first
+                return "\(dtype) fails the quality gate" + (loss.map { " (\($0))" } ?? "")
+            }
+            return gpu.tensorOps ? "\(dtype) runs without the matrix hardware here" : "\(dtype) has no hardware support here"
+        }
+        advice.recommendedHelp = "Recommended for this Mac" + (clauses.isEmpty ? "" : ": " + clauses.joined(separator: "; "))
     }
     return advice
+}
+
+// MARK: This Mac's qualification verdicts
+
+/// One persisted self-test verdict (the worker's FastPath/*.json, written by FastPathGate.persist): what it decided for a
+/// model folder, on which worker version, GPU and OS build.
+public struct QualificationVerdict: Equatable, Sendable {
+    public var status: String
+    /// The model folder's name (a derived precision's own folder); nil for verdicts written before it was recorded.
+    public var model: String?
+    /// Tolerant components left off (`disabled.<component>` keys).
+    public var disabled: Set<String>
+    public var workerVersion: String?
+    public var gpuArchitecture: String?
+    public var osBuild: String?
+    public init(
+        status: String, model: String?, disabled: Set<String> = [], workerVersion: String? = nil, gpuArchitecture: String? = nil, osBuild: String? = nil
+    ) {
+        self.status = status; self.model = model; self.disabled = disabled; self.workerVersion = workerVersion
+        self.gpuArchitecture = gpuArchitecture; self.osBuild = osBuild
+    }
+
+    /// Every verdict file in `directory` (unreadable ones skipped).
+    public static func read(_ directory: URL) -> [QualificationVerdict] {
+        let files = ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []).filter { $0.pathExtension == "json" }
+        return files.compactMap { url in
+            guard let data = try? Data(contentsOf: url), let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: String],
+                let status = o["status"]
+            else { return nil }
+            let disabled = Set(o.keys.filter { $0.hasPrefix("disabled.") }.map { String($0.dropFirst("disabled.".count)) })
+            return QualificationVerdict(
+                status: status, model: o["model"], disabled: disabled, workerVersion: o["workerVersion"], gpuArchitecture: o["gpuArchitecture"],
+                osBuild: o["osBuild"])
+        }
+    }
+}
+
+/// This Mac's qualification of a precision's files from the persisted verdicts: those for one of `folders`, written by
+/// this worker version (when known) on this GPU and OS build (when recorded). A stock verdict wins (the files exist for
+/// Exact and Fast alike and the files do not record which; claiming less acceleration is the safe side); else the
+/// optimized verdicts' disabled components together. Nil without a matching verdict.
+public func qualification(
+    folders: Set<String>, verdicts: [QualificationVerdict], workerVersion: String?, gpu: GPUCapability, osBuild: String?
+) -> Qualification? {
+    let mine = verdicts.filter { v in
+        guard let model = v.model, folders.contains(model) else { return false }
+        if let workerVersion, let version = v.workerVersion, version != workerVersion { return false }
+        if let arch = v.gpuArchitecture, !gpu.architecture.isEmpty, arch != gpu.architecture { return false }
+        if let build = v.osBuild, let osBuild, build != osBuild { return false }
+        return v.status == "fast" || v.status == "stock"
+    }
+    guard !mine.isEmpty else { return nil }
+    if mine.contains(where: { $0.status == "stock" }) { return .stock }
+    return .optimized(disabled: mine.reduce(into: Set<String>()) { $0.formUnion($1.disabled) })
 }

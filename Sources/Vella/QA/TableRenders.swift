@@ -13,6 +13,10 @@ import VellaUpdate
 @MainActor enum RenderFixture {
     static let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-render-\(ProcessInfo.processInfo.processIdentifier)")
     static var chip: String { displayChip(ProcessInfo.processInfo.environment["VELLA_RENDER_CHIP"]) ?? "M5 Max" }
+    /// VELLA_RENDER_GPU_CORES='32' renders another bin of the chip; default 40 for an M5 Max, else 18.
+    static func gpuCores(for chip: String?) -> Int {
+        ProcessInfo.processInfo.environment["VELLA_RENDER_GPU_CORES"].flatMap(Int.init) ?? (chip == "M5 Max" ? 40 : 18)
+    }
     /// The GPU a render shows for a chip (QA only; the app reads its own GPU from Metal): M1 → Apple family 7 and
     /// `applegpu_g13s`, M2 → 8 and g14, M3 → 9 and g15, M4 → 9 and g16, M5 → 10 and g17 (Apple's Metal feature set
     /// tables and the architecture names Metal reports), on this Mac's OS. `VELLA_RENDER_GPU` overrides the architecture.
@@ -35,7 +39,7 @@ import VellaUpdate
         let streaming = ModelLibrary(mode: .streaming, resources: resources, registryURL: registry)
         let controller = ModelsController(dictation: dictation, streaming: streaming)
         controller.previewing = true
-        controller.benchmarkHardware = BenchmarkHardware(chip: chip, gpuCores: chip == "M5 Max" ? 40 : 18)
+        controller.benchmarkHardware = BenchmarkHardware(chip: chip, gpuCores: gpuCores(for: chip))
         controller.gpu = gpu(for: chip)
         controller.actions = previewActions // buttons render enabled, as with a running runtime; perform() is a no-op in preview
         setInstalled(controller, installed)
@@ -268,7 +272,7 @@ import VellaUpdate
         if let b = state.benchmarks { controller.benchmarks = b }
         if let pending = state.figuresPending { controller.benchmarks.figuresPending = pending }
         controller.runtime = state.runtime
-        controller.benchmarkHardware = BenchmarkHardware(chip: state.runtime.chip, gpuCores: state.gpuCores ?? (state.runtime.chip == "M5 Max" ? 40 : 18))
+        controller.benchmarkHardware = BenchmarkHardware(chip: state.runtime.chip, gpuCores: state.gpuCores ?? RenderFixture.gpuCores(for: state.runtime.chip))
         controller.previewConfig(state.config)
         controller.previewSelections(state.selections)
         for (id, mode) in state.flips { if let f = controller.catalog.family(id) { controller.setMode(f, mode) } }

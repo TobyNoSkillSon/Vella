@@ -13,7 +13,8 @@ import SwiftUI
 //   maps it to its one-line reason, which is its tooltip; a click on it does nothing.
 // - Exactly one cell is selected. Clicking a cell reports it; what that means (preview, deltas, Reload) is the app's
 //   business.
-// - `recommended`: the cell recommended for this Mac, its label and ring in gold (Toby, 15 Oct: highlighted "in gold").
+// - `recommended`: the cell recommended for this Mac in gold (Toby, 15 Oct: highlighted "in gold"): a gold label and ring,
+//   a gold fill with a dark label when selected on an unloaded row.
 // - `warnings`: cells that run without the GPU's matrix hardware on this Mac carry the table's orange triangle after
 //   their label; the warning is the first line of their tooltip.
 // - `enabled == false` is the in-use interlock (dictating, loading): the row is disabled and every segment's tooltip
@@ -101,7 +102,7 @@ struct TierControl: View {
         HStack(spacing: Self.iconGap) {
             Self.bolt(hot: hot).frame(width: Self.iconWidth, height: Self.segmentHeight)
                 .appKitTooltip(Self.boltHelp)
-                .accessibilityElement().accessibilityLabel("Optimized")
+                .accessibilityHidden(true) // decorative: the path is not a choice
             TierSegments(
                 tiers: Self.columns, labels: labels, selected: selected, enabled: enabled, hot: hot,
                 unavailable: Set(unavailable.keys), recommended: recommended, warned: Set(warnings.keys),
@@ -213,7 +214,9 @@ private struct TierSegments: NSViewRepresentable {
                 let recommended = i == recommendedSegment
                 let available = isEnabled(forSegment: i)
                 if selected {
-                    (hot ? TierControl.hotSelection : tint).setFill()
+                    // Unloaded: the recommended cell selected is gold with a dark label; blue is the user's own other
+                    // pick. Loaded: near-black with the label in gold or white.
+                    (hot ? TierControl.hotSelection : recommended && available ? TierControl.gold : tint).setFill()
                     NSBezierPath(roundedRect: cell.insetBy(dx: 1.5, dy: 2), xRadius: 5, yRadius: 5).fill()
                 } else if i > 0, i - 1 != selectedSegment {
                     NSColor.white.withAlphaComponent(0.18).setFill()
@@ -238,8 +241,9 @@ private struct TierSegments: NSViewRepresentable {
                         in: NSRect(x: x + size.width + TierControl.Natural.triangleGap, y: cell.midY - w.height / 2, width: w.width, height: w.height),
                         from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
                 }
-                // Recommended: a gold ring; the selected cell of a loaded row keeps its white ring unless it is the gold one.
-                if recommended && available {
+                // Recommended: a gold ring (a gold fill when selected on an unloaded row); the selected cell of a loaded
+                // row keeps its white ring unless it is the gold one.
+                if recommended && available && !(selected && !hot) {
                     let ring = NSBezierPath(roundedRect: cell.insetBy(dx: 1, dy: 1.5), xRadius: 5, yRadius: 5)
                     ring.lineWidth = 1.5
                     TierControl.gold.setStroke()

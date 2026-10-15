@@ -507,7 +507,8 @@ final class ModelControlTests: XCTestCase {
             guard quantized["reason"] == nil else { XCTAssertNil(quantized["hardware"], "an unavailable cell has its reason, no advice"); continue }
             let dtype = tier == "8" ? "int8" : "int4"
             XCTAssertEqual(quantized["hardware"] as? String, "software", dtype)
-            XCTAssertEqual(quantized["hardware_note"] as? String, "No hardware support for \(dtype) on this Mac: saves memory, may be slower than bf16")
+            XCTAssertEqual(quantized["hardware_note"] as? String, "No hardware support for \(dtype) on this Mac")
+            XCTAssertEqual(quantized["warning"] as? String, "No hardware support for \(dtype) on this Mac: saves memory, may be slower than bf16")
             XCTAssertEqual(quantized["recommended"] as? Bool, false)
         }
         let m4bf16 = try XCTUnwrap(m4Cells.first { $0["recipe"] as? String == "optimized_fast" && $0["tier"] as? String == "16" })

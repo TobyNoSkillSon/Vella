@@ -67,7 +67,7 @@ import SwiftUI
                     // Half-point sizes (TableMetrics) land on whole points where the host draws at 1x.
                     XCTAssertEqual(switchView.frame.width, ExactFastSwitch.width, accuracy: 0.5, label)
                     XCTAssertEqual(switchView.frame.height, ExactFastSwitch.height, accuracy: 0.5, label)
-                    XCTAssertEqual(ExactFastSwitch.height, 2 * TableMetrics.pt(24) + TableMetrics.pt(6), "the switch keeps its two-row height")
+                    XCTAssertEqual(ExactFastSwitch.height, TableMetrics.pt(43), "the switch scaled to the one row")
                     let s = switchView.convert(switchView.bounds, to: host)
                     XCTAssertEqual(s.midY, row.midY, accuracy: 0.5, "\(label): the row is centred on the switch")
                     let action = try XCTUnwrap(all(RowActionView.self, in: host).first)

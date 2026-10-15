@@ -61,16 +61,7 @@ import VellaCore
             ]
         }
         // The table's advice per switch position: recommended for this Mac (gold) and cells without matrix hardware here.
-        let advice = Dictionary(
-            uniqueKeysWithValues: OptimizedMode.allCases.map { mode in
-                let position: OptimizedMode = controller.switchAvailable(f) ? mode : .fast
-                return (
-                    mode,
-                    precisionAdvice(
-                        f, controller.benchmark(f), mode: position, tiers: controller.measuredPrecisions(f, position),
-                        gpu: controller.gpu, measuredHere: controller.benchmarkHardware.isMeasuredConfiguration)
-                )
-            })
+        let advice = Dictionary(uniqueKeysWithValues: OptimizedMode.allCases.map { ($0, controller.advice(f, mode: $0)) })
         let shownMode: OptimizedMode = controller.switchAvailable(f) ? controller.currentSelection(f).mode : .fast
         if let tier = advice[shownMode]?.recommended { o["recommended_precision"] = tierDTypeLabel(f, tier) }
         o["cells"] = ModelTier.allCases.flatMap { tier -> [[String: Any]] in
@@ -82,8 +73,10 @@ import VellaCore
                     // Advice for the cells that can be chosen (an unavailable cell has its `reason` instead).
                     if let a = advice[mode], cell["reason"] == nil {
                         cell["recommended"] = a.recommended == tier
-                        cell["hardware"] = a.software[tier] == nil ? "matrix" : "software"
-                        if let warning = a.software[tier] { cell["hardware_note"] = warning }
+                        // Truthful hardware, independent of the triangle (which a faster measurement on this Mac can lift).
+                        cell["hardware"] = a.hardware[tier] == false ? "software" : "matrix"
+                        if let note = a.softwareNotes[tier] { cell["hardware_note"] = note }
+                        if let warning = a.warnings[tier] { cell["warning"] = warning }
                     }
                     if !controller.benchmarks.figuresPending, let measured = benchmarkCell(controller.benchmark(f), s), !measured.isPending {
                         cell["figures"] = controller.benchmarkHardware.figures(measured.result)

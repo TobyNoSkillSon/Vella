@@ -30,9 +30,9 @@ struct ExactFastSwitch: View {
     static let exactNotMeasuredHelp = "Exact: not measured yet"
     static let pillWidth: CGFloat = TableMetrics.pt(24)
     static let width: CGFloat = showsWords ? TableMetrics.pt(62) : pillWidth
-    /// Unchanged since the two-row Precision control (Toby, 30 Sep: larger, full two-row height): two regular segment
-    /// heights and the gap that was between them; the table row is this tall and centres the one Precision row on it.
-    static let height: CGFloat = 2 * TableMetrics.pt(24) + TableMetrics.pt(6)
+    /// The same vertical shape, scaled to the one-row table (38.5 pt, an even half-point margin around the 21.5 pt row; it was the two-row control's height): the
+    /// table row is this tall plus air, and centres the one Precision row on it.
+    static let height: CGFloat = TableMetrics.pt(43)
 
     let position: Position
     /// False: Fast measures identically to Exact for this model (greyed, pinned up).
@@ -102,9 +102,9 @@ final class SwitchView: NSView {
     static let trackWidth: CGFloat = TableMetrics.pt(20)
     /// The pill's inset in the view and the knob's inset in the pill.
     static let inset: CGFloat = TableMetrics.pt(2)
-    static let font = NSFont.systemFont(ofSize: TableMetrics.font(12))
+    static let font = NSFont.systemFont(ofSize: TableMetrics.font(11))
     /// The words' line height (centred on the knob) and their gap after the pill.
-    static let lineHeight: CGFloat = TableMetrics.pt(15), wordGap: CGFloat = TableMetrics.pt(5)
+    static let lineHeight: CGFloat = TableMetrics.pt(13), wordGap: CGFloat = TableMetrics.pt(5)
 
     /// The pill's rectangle (the words sit to its right).
     var track: NSRect { NSRect(x: Self.inset, y: Self.inset, width: Self.trackWidth, height: bounds.height - 2 * Self.inset) }

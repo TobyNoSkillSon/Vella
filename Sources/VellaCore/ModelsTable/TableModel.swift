@@ -233,7 +233,7 @@ public func measurementChip(_ file: BenchmarkFile) -> String? {
 public func hardwareNote(thisChip: String?, measuredOn: String?, gpuCores: Int? = nil) -> (text: String, help: String)? {
     let hardware = BenchmarkHardware(chip: thisChip, gpuCores: gpuCores)
     guard let help = hardware.caveat else { return nil }
-    return ("Speed and J / min measured on M5 Max", help)
+    return ("Speed and J / min measured on \(hardware.referenceName)", help)
 }
 
 // MARK: Runtime state the table shows

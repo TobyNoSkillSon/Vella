@@ -214,11 +214,11 @@ struct ModelTable: View {
             metric(formatErrorRate(bench?.format), compare ? errorRateDelta(bench?.format, base: base?.format) : nil, W.format, hot: hot)
                 .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, formatHelp(bench, suites: suites)))
             // Speed and J / min depend on the Mac: elsewhere they show the M5 Max figure as a reference, marked by the
-            // triangle and its label (Toby, 15 Oct: "for the reference this was the speed on M5 Max").
+            // triangle; the tooltip and the one footer line name it (Toby, 15 Oct: "for the reference ... on the very bottom").
             metric(
                 hardware.speedText(bench?.speed_x),
                 compare && !reference ? speedDelta(bench?.speed_x, base: base?.speed_x) : nil, W.speed, hot: hot,
-                referenceLabel: bench?.speed_x == nil ? nil : hardware.speedReferenceLabel,
+                subdued: reference,
                 warning: Self.speedWarning(family.mode, speed: bench?.speed_x, hardware: hardware)
             )
             .appKitTooltip(
@@ -226,7 +226,7 @@ struct ModelTable: View {
             metric(
                 hardware.energyText(bench?.j_per_min),
                 compare && !reference ? energyDelta(bench?.j_per_min, base: base?.j_per_min) : nil, W.energy, hot: hot,
-                referenceLabel: bench?.j_per_min == nil ? nil : hardware.speedReferenceLabel,
+                subdued: reference,
                 warning: Self.energyWarning(bench?.j_per_min, hardware: hardware)
             )
             .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, energyHelp(bench, suites: suites), reference: hardware.referenceLine(energy: bench?.j_per_min)))
@@ -378,7 +378,7 @@ struct ModelTable: View {
             selected: controller.shownCell(family)?.tier.rawValue,
             enabled: !controller.inUse(family), unavailable: off, hot: hot,
             recommended: advice.recommended?.rawValue,
-            warnings: Dictionary(uniqueKeysWithValues: advice.software.map { ($0.key.rawValue, $0.value) }),
+            warnings: Dictionary(uniqueKeysWithValues: advice.warnings.map { ($0.key.rawValue, $0.value) }),
             help: { tier in cellHelp(family, tier: ModelTier(rawValue: tier) ?? .t16, advice: advice) },
             onSelect: { tier in
                 if let tier = ModelTier(rawValue: tier) { controller.select(family, tier: tier) }
@@ -436,7 +436,7 @@ struct ModelTable: View {
         for tier in ModelTier.allCases {
             let text =
                 off[tier.rawValue]
-                ?? TierControl.tooltip([advice.software[tier], cellHelp(family, tier: tier, advice: advice)].compactMap { $0 }.joined(separator: "\n"), enabled: enabled)
+                ?? TierControl.tooltip([advice.warnings[tier], cellHelp(family, tier: tier, advice: advice)].compactMap { $0 }.joined(separator: "\n"), enabled: enabled)
             cells.append(("Precision \(tierDTypeLabel(family, tier))", text))
         }
         if controller.hasOptimizedPath(family) {

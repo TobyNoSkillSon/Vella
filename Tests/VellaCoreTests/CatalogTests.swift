@@ -452,14 +452,16 @@ final class CatalogTests: XCTestCase {
             BenchmarkHardware(chip: "M5 Max", gpuCores: nil), BenchmarkHardware(chip: nil, gpuCores: nil)
         ] {
             XCTAssertFalse(hardware.isMeasuredConfiguration)
-            XCTAssertEqual(hardware.speedReferenceLabel, "M5 Max")
+            // Another bin of the measured chip names the measured core count, so "M5 Max" never reads as this Mac's figure.
+            let ref = displayChip(hardware.chip) == "M5 Max" ? "M5 Max 40-core" : "M5 Max"
+            XCTAssertEqual(hardware.speedReferenceLabel, ref)
             XCTAssertEqual(hardware.speedText(507), "507×")
             // Another Mac sees the M5 Max figure as a plain number (Toby, 15 Oct), never "not known" or a relative claim.
             XCTAssertEqual(hardware.energyText(4.6), "4.6 J")
-            XCTAssertEqual(hardware.referenceLine(speed: 507.1), "Not measured on your Mac. M5 Max: 507× real time.")
-            XCTAssertEqual(hardware.referenceLine(energy: 4.58), "Not measured on your Mac. M5 Max: 4.6 J per audio minute.")
+            XCTAssertEqual(hardware.referenceLine(speed: 507.1), "Not measured on your Mac. \(ref): 507× real time.")
+            XCTAssertEqual(hardware.referenceLine(energy: 4.58), "Not measured on your Mac. \(ref): 4.6 J per audio minute.")
             XCTAssertNil(hardware.referenceLine(speed: nil)); XCTAssertNil(hardware.referenceLine(energy: nil))
-            XCTAssertEqual(hardwareNote(thisChip: hardware.chip, measuredOn: "M5 Max", gpuCores: hardware.gpuCores)?.text, "Speed and J / min measured on M5 Max")
+            XCTAssertEqual(hardwareNote(thisChip: hardware.chip, measuredOn: "M5 Max", gpuCores: hardware.gpuCores)?.text, "Speed and J / min measured on \(ref)")
             let figures = hardware.figures(PrecisionResult(wer: 5, format: 9, speed_x: 507, j_per_min: 4.6, memory_mb: 1000))
             XCTAssertEqual(figures["speed_x"] as? Double, 507); XCTAssertEqual(figures["j_per_min"] as? Double, 4.6)
             XCTAssertEqual(figures["speed_kind"] as? String, "measured on M5 Max, not this Mac")

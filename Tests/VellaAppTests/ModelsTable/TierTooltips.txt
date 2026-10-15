@@ -2,7 +2,7 @@
 Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
 
 [Parakeet v3 Ultra · Precision bf16 · Exact · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.14 pt); int4 fails the quality gate (English WER +0.19 pt)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -22,7 +22,7 @@ Loss vs bf16: English WER +0.19 pt, multilingual mean +0.88 pt, Swedish +2.80 pt
 Exact: only components that must match plain MLX on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
 
 [Parakeet v3 Ultra · Precision bf16 · Fast · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.24 pt); int4 fails the quality gate (English WER +0.11 pt)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -40,7 +40,7 @@ Loss vs bf16: English WER +0.11 pt, multilingual mean +0.80 pt, Swedish +2.37 pt
 Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
 
 [Parakeet v3 · Precision bf16 · Exact · M5 Max]
-Recommended for this Mac: int8 runs without the matrix hardware here; int4 loses accuracy against bf16
+Recommended for this Mac: int8 runs without the matrix hardware here; int4 fails the quality gate (3 test clips came back empty or cut short)
 bf16, converted once from the published fp32
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -76,7 +76,7 @@ Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.57 pt, S
 Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
 
 [Qwen3 ASR 1.7B · Precision bf16 · Exact · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (1 test clip came back empty or cut short); int4 fails the quality gate (1 test clip came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -95,7 +95,7 @@ Exact: only components that must match plain MLX on the load-time self-test. Fas
 Always on: Fast runs the same recipe as Exact for this model
 
 [Qwen3 ASR 1.7B · Precision bf16 · Fast · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (1 test clip came back empty or cut short); int4 fails the quality gate (1 test clip came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -113,7 +113,7 @@ Loss vs bf16: 1 test clip came back empty or cut short, English WER +3.32 pt, mu
 Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
 
 [Qwen3 ASR 0.6B · Precision bf16 · Exact · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.15 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -132,7 +132,7 @@ Exact: only components that must match plain MLX on the load-time self-test. Fas
 Always on: Fast runs the same recipe as Exact for this model
 
 [Qwen3 ASR 0.6B · Precision bf16 · Fast · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.15 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -150,7 +150,7 @@ Loss vs bf16: 2 test clips came back empty or cut short, English WER +1.67 pt, m
 Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
 
 [Whisper large-v3 · Precision fp16 · Exact · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against fp16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.22 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -169,7 +169,7 @@ Exact: only components that must match plain MLX on the load-time self-test. Fas
 Always on: Fast runs the same recipe as Exact for this model
 
 [Whisper large-v3 · Precision fp16 · Fast · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against fp16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.22 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -222,7 +222,7 @@ Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, mu
 Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
 
 [Nemotron 3.5 Streaming · Precision bf16 · Exact · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.16 pt); int4 fails the quality gate (21 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -240,7 +240,7 @@ Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.40 pt, 
 Exact: only components that must match plain MLX on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
 
 [Nemotron 3.5 Streaming · Precision bf16 · Fast · M5 Max]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.19 pt); int4 fails the quality gate (21 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -255,7 +255,7 @@ vs bf16: Speed: 14% faster · Energy: 21% less · WER +9.45 pt · M5 Max, 1 Oct
 Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.41 pt, multilingual mean +8.88 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.70 pt, Japanese +10.46 pt, German +8.72 pt, Korean +4.34 pt, French +3.66 pt, Spanish +3.27 pt, format CER +5.61 pt
 
 [Parakeet v3 Ultra · Precision bf16 · Exact · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.14 pt); int4 fails the quality gate (English WER +0.19 pt)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -272,7 +272,7 @@ vs bf16: WER +0.16 pt · M5 Max, 1 Oct
 Loss vs bf16: English WER +0.19 pt, multilingual mean +0.88 pt, Swedish +2.80 pt
 
 [Parakeet v3 Ultra · Precision bf16 · Fast · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.24 pt); int4 fails the quality gate (English WER +0.11 pt)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -289,7 +289,7 @@ vs bf16: WER +0.07 pt · M5 Max, 1 Oct
 Loss vs bf16: English WER +0.11 pt, multilingual mean +0.80 pt, Swedish +2.37 pt
 
 [Parakeet v3 · Precision bf16 · Exact · M4 Pro]
-Recommended for this Mac: int8 has no hardware support here; int4 loses accuracy against bf16
+Recommended for this Mac: int8 has no hardware support here; int4 fails the quality gate (3 test clips came back empty or cut short)
 bf16, converted once from the published fp32
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -305,7 +305,7 @@ vs bf16: WER +0.48 pt · M5 Max, 1 Oct
 Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.53 pt, Swedish +2.80 pt
 
 [Parakeet v3 · Precision bf16 · Fast · M4 Pro]
-Recommended for this Mac: int8 has no hardware support here; int4 loses accuracy against bf16
+Recommended for this Mac: int8 has no hardware support here; int4 fails the quality gate (3 test clips came back empty or cut short)
 bf16, converted once from the published fp32
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -321,7 +321,7 @@ vs bf16: WER +0.53 pt · M5 Max, 1 Oct
 Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.57 pt, Swedish +2.80 pt
 
 [Qwen3 ASR 1.7B · Precision bf16 · Exact · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (1 test clip came back empty or cut short); int4 fails the quality gate (1 test clip came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -338,7 +338,7 @@ vs bf16: WER +3.32 pt · M5 Max, 1 Oct
 Loss vs bf16: 1 test clip came back empty or cut short, English WER +3.32 pt, multilingual mean +1.93 pt, Swedish +7.10 pt, Turkish +3.32 pt, Polish +2.44 pt, format CER +0.35 pt
 
 [Qwen3 ASR 1.7B · Precision bf16 · Fast · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (1 test clip came back empty or cut short); int4 fails the quality gate (1 test clip came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -355,7 +355,7 @@ vs bf16: WER +3.32 pt · M5 Max, 1 Oct
 Loss vs bf16: 1 test clip came back empty or cut short, English WER +3.32 pt, multilingual mean +1.93 pt, Swedish +7.10 pt, Turkish +3.32 pt, Polish +2.44 pt, format CER +0.35 pt
 
 [Qwen3 ASR 0.6B · Precision bf16 · Exact · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.15 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -372,7 +372,7 @@ vs bf16: WER +1.67 pt · M5 Max, 1 Oct
 Loss vs bf16: 2 test clips came back empty or cut short, English WER +1.67 pt, multilingual mean +4.79 pt, Swedish +7.74 pt, Polish +7.67 pt, Spanish +5.93 pt, Japanese +5.90 pt, Turkish +5.76 pt, French +3.82 pt, Korean +2.38 pt, German +2.07 pt, format CER +1.09 pt
 
 [Qwen3 ASR 0.6B · Precision bf16 · Fast · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.15 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -389,7 +389,7 @@ vs bf16: WER +1.67 pt · M5 Max, 1 Oct
 Loss vs bf16: 2 test clips came back empty or cut short, English WER +1.67 pt, multilingual mean +4.79 pt, Swedish +7.74 pt, Polish +7.67 pt, Spanish +5.93 pt, Japanese +5.90 pt, Turkish +5.76 pt, French +3.82 pt, Korean +2.38 pt, German +2.07 pt, format CER +1.09 pt
 
 [Whisper large-v3 · Precision fp16 · Exact · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against fp16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.22 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -406,7 +406,7 @@ vs fp16: WER +0.04 pt · M5 Max, 3 Oct
 Loss vs fp16: 2 test clips came back empty or cut short
 
 [Whisper large-v3 · Precision fp16 · Fast · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against fp16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.22 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -423,7 +423,7 @@ vs fp16: WER +0.04 pt · M5 Max, 3 Oct
 Loss vs fp16: 2 test clips came back empty or cut short
 
 [Whisper large-v3 turbo · Precision fp16 · Exact · M4 Pro]
-Recommended for this Mac: int8 has no hardware support here; int4 loses accuracy against fp16
+Recommended for this Mac: int8 has no hardware support here; int4 fails the quality gate (1 test clip came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -439,7 +439,7 @@ vs fp16: WER +0.39 pt · M5 Max, 3 Oct
 Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
 [Whisper large-v3 turbo · Precision fp16 · Fast · M4 Pro]
-Recommended for this Mac: int8 has no hardware support here; int4 loses accuracy against fp16
+Recommended for this Mac: int8 has no hardware support here; int4 fails the quality gate (1 test clip came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -455,7 +455,7 @@ vs fp16: WER +0.39 pt · M5 Max, 3 Oct
 Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
 [Nemotron 3.5 Streaming · Precision bf16 · Exact · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.16 pt); int4 fails the quality gate (21 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -472,7 +472,7 @@ vs bf16: WER +9.39 pt · M5 Max, 1 Oct
 Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.40 pt, multilingual mean +8.89 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.99 pt, Japanese +10.34 pt, German +8.72 pt, Korean +4.34 pt, French +3.58 pt, Spanish +3.27 pt, format CER +5.63 pt
 
 [Nemotron 3.5 Streaming · Precision bf16 · Fast · M4 Pro]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.19 pt); int4 fails the quality gate (21 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -489,7 +489,7 @@ vs bf16: WER +9.45 pt · M5 Max, 1 Oct
 Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.41 pt, multilingual mean +8.88 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.70 pt, Japanese +10.46 pt, German +8.72 pt, Korean +4.34 pt, French +3.66 pt, Spanish +3.27 pt, format CER +5.61 pt
 
 [Parakeet v3 Ultra · Precision bf16 · Exact · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.14 pt); int4 fails the quality gate (English WER +0.19 pt)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -506,7 +506,7 @@ vs bf16: WER +0.16 pt · M5 Max, 1 Oct
 Loss vs bf16: English WER +0.19 pt, multilingual mean +0.88 pt, Swedish +2.80 pt
 
 [Parakeet v3 Ultra · Precision bf16 · Fast · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.24 pt); int4 fails the quality gate (English WER +0.11 pt)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -523,7 +523,7 @@ vs bf16: WER +0.07 pt · M5 Max, 1 Oct
 Loss vs bf16: English WER +0.11 pt, multilingual mean +0.80 pt, Swedish +2.37 pt
 
 [Parakeet v3 · Precision bf16 · Exact · M1]
-Recommended for this Mac: int8 has no hardware support here; int4 loses accuracy against bf16
+Recommended for this Mac: int8 has no hardware support here; int4 fails the quality gate (3 test clips came back empty or cut short)
 bf16, converted once from the published fp32
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -539,7 +539,7 @@ vs bf16: WER +0.48 pt · M5 Max, 1 Oct
 Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.53 pt, Swedish +2.80 pt
 
 [Parakeet v3 · Precision bf16 · Fast · M1]
-Recommended for this Mac: int8 has no hardware support here; int4 loses accuracy against bf16
+Recommended for this Mac: int8 has no hardware support here; int4 fails the quality gate (3 test clips came back empty or cut short)
 bf16, converted once from the published fp32
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -555,7 +555,7 @@ vs bf16: WER +0.53 pt · M5 Max, 1 Oct
 Loss vs bf16: 3 test clips came back empty or cut short, English WER +0.57 pt, Swedish +2.80 pt
 
 [Qwen3 ASR 1.7B · Precision bf16 · Exact · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (1 test clip came back empty or cut short); int4 fails the quality gate (1 test clip came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -572,7 +572,7 @@ vs bf16: WER +3.32 pt · M5 Max, 1 Oct
 Loss vs bf16: 1 test clip came back empty or cut short, English WER +3.32 pt, multilingual mean +1.93 pt, Swedish +7.10 pt, Turkish +3.32 pt, Polish +2.44 pt, format CER +0.35 pt
 
 [Qwen3 ASR 1.7B · Precision bf16 · Fast · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (1 test clip came back empty or cut short); int4 fails the quality gate (1 test clip came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -589,7 +589,7 @@ vs bf16: WER +3.32 pt · M5 Max, 1 Oct
 Loss vs bf16: 1 test clip came back empty or cut short, English WER +3.32 pt, multilingual mean +1.93 pt, Swedish +7.10 pt, Turkish +3.32 pt, Polish +2.44 pt, format CER +0.35 pt
 
 [Qwen3 ASR 0.6B · Precision bf16 · Exact · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.15 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -606,7 +606,7 @@ vs bf16: WER +1.67 pt · M5 Max, 1 Oct
 Loss vs bf16: 2 test clips came back empty or cut short, English WER +1.67 pt, multilingual mean +4.79 pt, Swedish +7.74 pt, Polish +7.67 pt, Spanish +5.93 pt, Japanese +5.90 pt, Turkish +5.76 pt, French +3.82 pt, Korean +2.38 pt, German +2.07 pt, format CER +1.09 pt
 
 [Qwen3 ASR 0.6B · Precision bf16 · Fast · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.15 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -623,7 +623,7 @@ vs bf16: WER +1.67 pt · M5 Max, 1 Oct
 Loss vs bf16: 2 test clips came back empty or cut short, English WER +1.67 pt, multilingual mean +4.79 pt, Swedish +7.74 pt, Polish +7.67 pt, Spanish +5.93 pt, Japanese +5.90 pt, Turkish +5.76 pt, French +3.82 pt, Korean +2.38 pt, German +2.07 pt, format CER +1.09 pt
 
 [Whisper large-v3 · Precision fp16 · Exact · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against fp16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.22 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -640,7 +640,7 @@ vs fp16: WER +0.04 pt · M5 Max, 3 Oct
 Loss vs fp16: 2 test clips came back empty or cut short
 
 [Whisper large-v3 · Precision fp16 · Fast · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against fp16
+Recommended for this Mac: int8 fails the quality gate (English WER +0.22 pt); int4 fails the quality gate (2 test clips came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -657,7 +657,7 @@ vs fp16: WER +0.04 pt · M5 Max, 3 Oct
 Loss vs fp16: 2 test clips came back empty or cut short
 
 [Whisper large-v3 turbo · Precision fp16 · Exact · M1]
-Recommended for this Mac: int8 has no hardware support here; int4 loses accuracy against fp16
+Recommended for this Mac: int8 has no hardware support here; int4 fails the quality gate (1 test clip came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -673,7 +673,7 @@ vs fp16: WER +0.39 pt · M5 Max, 3 Oct
 Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
 [Whisper large-v3 turbo · Precision fp16 · Fast · M1]
-Recommended for this Mac: int8 has no hardware support here; int4 loses accuracy against fp16
+Recommended for this Mac: int8 has no hardware support here; int4 fails the quality gate (1 test clip came back empty or cut short)
 fp16, as published
 Reference for the deltas · M5 Max, 3 Oct
 
@@ -689,7 +689,7 @@ vs fp16: WER +0.39 pt · M5 Max, 3 Oct
 Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
 [Nemotron 3.5 Streaming · Precision bf16 · Exact · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.16 pt); int4 fails the quality gate (21 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
@@ -706,7 +706,7 @@ vs bf16: WER +9.39 pt · M5 Max, 1 Oct
 Loss vs bf16: 21 test clips came back empty or cut short, English WER +9.40 pt, multilingual mean +8.89 pt, Swedish +13.33 pt, Polish +13.15 pt, Turkish +12.29 pt, Chinese +10.99 pt, Japanese +10.34 pt, German +8.72 pt, Korean +4.34 pt, French +3.58 pt, Spanish +3.27 pt, format CER +5.63 pt
 
 [Nemotron 3.5 Streaming · Precision bf16 · Fast · M1]
-Recommended for this Mac: int8 and int4 lose accuracy against bf16
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.19 pt); int4 fails the quality gate (21 test clips came back empty or cut short)
 bf16, as published
 Reference for the deltas · M5 Max, 1 Oct
 
