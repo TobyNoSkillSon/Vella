@@ -53,7 +53,7 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
         if !legacy.isEmpty {
             menu.addItem(.separator())
             for (family, precision) in legacy {
-                let entry = NSMenuItem(title: "Delete " + family.name + " " + legacyQuantization(precision) + "…", action: #selector(deleteLegacy(_:)), keyEquivalent: "")
+                let entry = NSMenuItem(title: "Delete " + family.name + " " + tableLabel(family, precision) + "…", action: #selector(deleteLegacy(_:)), keyEquivalent: "")
                 entry.target = self; entry.representedObject = [family.id, precision]
                 menu.addItem(entry)
             }
@@ -81,9 +81,8 @@ final class MenuTableHostingView: NSHostingView<ModelTable> {
             }
             let alert = NSAlert(); alert.alertStyle = .warning
             alert.messageText = plan.title; alert.informativeText = plan.body
-            alert.addButton(withTitle: "Cancel")
-            alert.addButton(withTitle: "Move to Trash")
-            guard presentDeletionConfirmation(alert) == .alertSecondButtonReturn else { return }
+            alert.addConfirmation("Move to Trash", returnConfirms: false)
+            guard presentDeletionConfirmation(alert) == .alertFirstButtonReturn else { return }
             Task { @MainActor in
                 do { try await controller.performDeletion(family, plan: plan) } catch {
                     let failure = NSAlert(); failure.messageText = "Model not deleted"

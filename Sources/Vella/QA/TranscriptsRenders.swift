@@ -127,7 +127,7 @@ import VellaUpdate
         for (name, earlier) in [("delete-model", false), ("delete-unused-model", true)] {
             let plan = ModelDeletionPlan(
                 familyID: "parakeet-v3-ultra", precision: "BF16", variantID: "parakeet-ultra-mlx-bf16", path: "/render", wasInstalled: true,
-                bytes: 1_254_840_214, title: earlier ? "Delete unused Parakeet v3 8-bit?" : "Delete Parakeet v3 Ultra BF16?", earlierDownload: earlier)
+                bytes: 1_254_840_214, title: earlier ? "Delete unused Parakeet v3 int8?" : "Delete Parakeet v3 Ultra bf16?", earlierDownload: earlier)
             let alert = NSAlert(); alert.alertStyle = .warning
             alert.messageText = plan.title; alert.informativeText = plan.body
             alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Move to Trash")
@@ -136,6 +136,10 @@ import VellaUpdate
         list.append(("quit-download", AppDelegate.quitAlert(downloading: true)))
         list.append(("quit-recording", AppDelegate.quitAlert(downloading: false)))
         list.append(("delete-saved-recording", AppDelegate.deleteSavedAlert()))
+        list.append((
+            "recover-saved-recording",
+            AppDelegate.savedRecordingAlert([SavedRecordingChoice(directory: URL(fileURLWithPath: "/fixture"), title: "15 Oct 2026 at 11:42 · Dictation · 0:42 · interrupted")])
+        ))
         list.append(("login-failure", AppDelegate.loginFailureAlert(VellaError.message("The operation couldn’t be completed"))))
         let updates = UpdateController(current: "2.0.1", enabled: false)
         if let version = SemanticVersion("2.1.0") {

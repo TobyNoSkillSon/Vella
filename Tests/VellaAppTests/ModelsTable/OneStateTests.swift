@@ -247,8 +247,8 @@ final class OneStateTests: XCTestCase {
 
         XCTAssertEqual(prompts.map(\.title), ["Download Alpha?", "Download Alpha?", "Download Alpha?"])
         XCTAssertTrue(prompts.allSatisfy { $0.variantID == "alpha-bf16" && $0.body.hasPrefix(formatBytes(4200) + " download, then ") })
-        XCTAssertTrue(prompts[1].body.contains("then it loads as 4-bit"), prompts[1].body)
-        XCTAssertTrue(prompts[2].body.contains("then it replaces the loaded 4-bit"), prompts[2].body)
+        XCTAssertTrue(prompts[1].body.contains("then it loads as int4"), prompts[1].body)
+        XCTAssertTrue(prompts[2].body.contains("then it replaces the loaded int4"), prompts[2].body)
         try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertTrue(served.isEmpty, "Cancel: no request reached the Hub")
         XCTAssertNil(c.dictation.downloadingID)

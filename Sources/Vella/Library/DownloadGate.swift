@@ -9,24 +9,23 @@ struct DownloadApproval: Equatable {
 }
 
 @MainActor enum DownloadGate {
-    /// Shows the prompt; an approval only when the answer is Download.
+    /// Shows the prompt; an approval only when the answer is Download. A refusal (not enough disk space) is shown and
+    /// never approves, whatever the presenter answers.
     static func ask(_ prompt: DownloadPrompt, present: (DownloadPrompt) -> Bool) -> DownloadApproval? {
-        present(prompt) ? DownloadApproval(variantID: prompt.variantID) : nil
+        let answer = present(prompt)
+        return answer && !prompt.refusal ? DownloadApproval(variantID: prompt.variantID) : nil
     }
-    /// Download / Cancel with Cancel the default button (Return and Escape both cancel).
+    /// Cancel | Download in the system layout; Return does nothing, Escape cancels. A refusal has OK only.
     static func alert(_ prompt: DownloadPrompt) -> NSAlert {
         let alert = NSAlert()
         alert.messageText = prompt.title
         alert.informativeText = prompt.body
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Download")
-        alert.buttons[0].keyEquivalent = "\r"
-        alert.buttons[1].keyEquivalent = ""
+        if prompt.refusal { alert.addButton(withTitle: "OK") } else { alert.addConfirmation("Download", returnConfirms: false) }
         return alert
     }
     /// The real presenter: activate (a menu-bar app is not frontmost), then ask modally.
     static func presentAlert(_ prompt: DownloadPrompt) -> Bool {
         NSApp.activate(ignoringOtherApps: true)
-        return alert(prompt).runModal() == .alertSecondButtonReturn
+        return alert(prompt).runModal() == .alertFirstButtonReturn && !prompt.refusal
     }
 }

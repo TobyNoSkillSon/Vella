@@ -157,13 +157,18 @@ final class TierCatalogTests: XCTestCase {
         let eight = try XCTUnwrap(downloadPrompt(family: ultra, precision: "8b", followUp: .reload(from: "BF16"), freeBytes: nil))
         XCTAssertEqual(eight.title, "Download Parakeet v3 Ultra?")
         XCTAssertEqual(eight.variantID, "parakeet-ultra-mlx-bf16")
-        XCTAssertEqual(eight.body, "1.25 GB download, then it replaces the loaded BF16.")
-        XCTAssertEqual(downloadPrompt(family: ultra, precision: "8b", followUp: .load, freeBytes: nil)?.body, "1.25 GB download, then it loads as 8-bit.")
+        XCTAssertEqual(eight.body, "1.25 GB download, then it replaces the loaded bf16.")
+        XCTAssertEqual(downloadPrompt(family: ultra, precision: "8b", followUp: .load, freeBytes: nil)?.body, "1.25 GB download, then it loads as int8.")
         let whisper = try XCTUnwrap(c.family("whisper-large-v3"))
         let sixteen = try XCTUnwrap(downloadPrompt(family: whisper, precision: "FP16", followUp: .transcribe, freeBytes: 100))
-        XCTAssertEqual(sixteen.body, "3.09 GB download, then it transcribes your saved recording. Not enough disk space: 100 bytes free, 3.09 GB needed.")
+        XCTAssertEqual(downloadPrompt(family: whisper, precision: "FP16", followUp: .transcribe, freeBytes: nil)?.body, "3.09 GB download, then it transcribes your saved recording.")
+        // Too little free space: a refusal that says so (the download would only fail partway), not a Download offer.
+        XCTAssertEqual(sixteen.title, "Not enough disk space")
+        XCTAssertEqual(sixteen.body, "Whisper large-v3 needs 3.09 GB; 100 bytes free.")
+        XCTAssertTrue(sixteen.refusal)
+        XCTAssertFalse(bf16.refusal || eight.refusal)
         // A stored conversion needs room for the source and the converted copy while it runs.
-        XCTAssertTrue(try XCTUnwrap(downloadPrompt(family: v3, precision: "BF16", followUp: .load, freeBytes: 3_000_000_000)).body.contains("3.76 GB needed"))
+        XCTAssertEqual(downloadPrompt(family: v3, precision: "BF16", followUp: .load, freeBytes: 3_000_000_000)?.body, "Parakeet v3 needs 3.76 GB; 3 GB free.")
         for prompt in [bf16, eight, sixteen] {
             XCTAssertFalse(prompt.body.contains("/"), "no repository identifier: \(prompt.body)")
             XCTAssertFalse(prompt.body.contains("bytes)"), "no exact byte count: \(prompt.body)")

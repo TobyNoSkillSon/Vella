@@ -23,9 +23,11 @@ public struct DownloadPrompt: Equatable {
     public var downloadBytes: Int64
     public var family: String
     public var precision: String
-    public init(title: String, body: String, variantID: String, downloadBytes: Int64, family: String, precision: String) {
+    /// Not enough free disk space: the popup only says so (OK), and nothing can be approved from it.
+    public var refusal: Bool
+    public init(title: String, body: String, variantID: String, downloadBytes: Int64, family: String, precision: String, refusal: Bool = false) {
         self.title = title; self.body = body; self.variantID = variantID; self.downloadBytes = downloadBytes
-        self.family = family; self.precision = precision
+        self.family = family; self.precision = precision; self.refusal = refusal
     }
 }
 
@@ -36,8 +38,9 @@ private let exactBytes: NumberFormatter = {
 public func formatExactBytes(_ bytes: Int64) -> String { (exactBytes.string(from: NSNumber(value: bytes)) ?? String(bytes)) + " bytes" }
 
 /// The popup for getting `precision` of `family` (Toby, 15 Oct 2026: "minimal amount of text to say the actual thing";
-/// no full model identifiers): the short name in the title; the size and what happens next in one sentence; a second
-/// sentence only when the disk is too full. The download is the 16-bit checkpoint (or an fp32-only model's fp32
+/// no full model identifiers): the short name in the title; the size and what happens next in one sentence; precisions
+/// as the table names them (`int8`). Too little free disk space makes it a refusal instead: a download that cannot fit
+/// would only fail partway. The download is the 16-bit checkpoint (or an fp32-only model's fp32
 /// source); an 8- or 4-bit precision is made from it at load. Nil when the precision is not offered or nothing in the
 /// catalog is downloadable. `freeBytes`: free space on the models volume now (nil = unknown).
 public func downloadPrompt(family: ModelFamily, precision: String, followUp: DownloadFollowUp, freeBytes: Int64?) -> DownloadPrompt? {
@@ -49,16 +52,19 @@ public func downloadPrompt(family: ModelFamily, precision: String, followUp: Dow
     let rootBytes = acquisition.convert == nil ? download.downloadBytes : (estimatedWeightBytes(family, root.label).map { Int64($0) } ?? download.downloadBytes)
     let then: String
     switch followUp {
-    case .load: then = madeAtLoad ? "then it loads as \(precisionInProse(precision))" : "then it loads"
-    case .reload(let loaded): then = "then it replaces the loaded \(precisionInProse(loaded))"
+    case .load: then = madeAtLoad ? "then it loads as \(tableLabel(family, precision))" : "then it loads"
+    case .reload(let loaded): then = "then it replaces the loaded \(tableLabel(family, loaded))"
     case .transcribe: then = "then it transcribes your saved recording"
     }
-    var body = "\(formatBytes(download.downloadBytes)) download, \(then)."
     // A stored conversion writes each converted file beside its source before swapping it in.
     let needed = download.downloadBytes + (acquisition.convert == nil ? 0 : rootBytes)
-    if let freeBytes, freeBytes < needed { body += " Not enough disk space: \(formatBytes(freeBytes)) free, \(formatBytes(needed)) needed." }
+    if let freeBytes, freeBytes < needed {
+        return DownloadPrompt(
+            title: "Not enough disk space", body: "\(family.name) needs \(formatBytes(needed)); \(formatBytes(freeBytes)) free.",
+            variantID: root.variant.id, downloadBytes: download.downloadBytes, family: family.id, precision: precision, refusal: true)
+    }
     return DownloadPrompt(
-        title: "Download \(family.name)?", body: body, variantID: root.variant.id,
+        title: "Download \(family.name)?", body: "\(formatBytes(download.downloadBytes)) download, \(then).", variantID: root.variant.id,
         downloadBytes: download.downloadBytes, family: family.id, precision: precision)
 }
 

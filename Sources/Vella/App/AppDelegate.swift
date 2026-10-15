@@ -435,7 +435,7 @@ import VellaCore
             let choices = SavedRecordingChoice.list(root: RecordingSession.root)
             guard !choices.isEmpty else { self.model.update(.idle, "No saved recordings to recover."); return }
             let alert = Self.savedRecordingAlert(choices)
-            guard alert.runModal() == .alertSecondButtonReturn,
+            guard alert.runModal() == .alertFirstButtonReturn,
                 let popup = alert.accessoryView as? NSPopUpButton, choices.indices.contains(popup.indexOfSelectedItem)
             else { return }
             self.model.recover(choices[popup.indexOfSelectedItem].directory)
@@ -444,7 +444,7 @@ import VellaCore
     static func savedRecordingAlert(_ choices: [SavedRecordingChoice]) -> NSAlert {
         let alert = NSAlert(); alert.messageText = "Transcribe a saved recording?"
         alert.informativeText = "The transcript is copied to the clipboard."
-        alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Transcribe")
+        alert.addConfirmation("Transcribe", returnConfirms: true)
         let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 460, height: 28))
         popup.addItems(withTitles: choices.map(\.title)); alert.accessoryView = popup
         return alert
@@ -460,7 +460,7 @@ import VellaCore
     }
     @objc private func deleteSaved() {
         DispatchQueue.main.async {
-            if Self.deleteSavedAlert().runModal() == .alertSecondButtonReturn {
+            if Self.deleteSavedAlert().runModal() == .alertFirstButtonReturn {
                 do { try self.model.deleteSavedRecording() } catch { self.model.update(.failed, error.localizedDescription) }
             }
         }
@@ -468,7 +468,7 @@ import VellaCore
     static func deleteSavedAlert() -> NSAlert {
         let alert = NSAlert(); alert.messageText = "Delete this saved recording?"
         alert.informativeText = "Its audio and transcript are deleted for good."
-        alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Delete")
+        alert.addConfirmation("Delete", returnConfirms: false)
         return alert
     }
     @objc private func copyLast() { model.copyLast() }
