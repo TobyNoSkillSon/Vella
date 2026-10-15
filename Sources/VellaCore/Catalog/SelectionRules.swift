@@ -79,12 +79,14 @@ public struct SelectionRules {
         return s
     }
     /// What an unloaded family runs: the recorded selection (config.json `selections`) at the recorded precision (the
-    /// mode's model or `lastLoaded`), else 16 · Fast, made valid. `available` (a precision's weights are on
+    /// mode's model or `lastLoaded`), else the recommended tier at Fast (else 16 · Fast), made valid. `available` (a precision's weights are on
     /// this Mac) keeps a working setup working: the valid cell when its weights are here, else the first valid cell whose
     /// weights are (the same order as `valid`). Installed weights never make a rejected cell runnable; when no offered
     /// cell's weights are available, return the valid choice and let the caller explain that Get or Load is needed.
-    public func runnable(recorded: ModelSelection?, precision: String?, available: ((String) -> Bool)? = nil) -> ModelSelection {
-        let candidate = precision.map { defaultSelection(recorded: recorded, precision: $0) } ?? recorded ?? .fallback
+    /// `recommended`: the tier recommended for this Mac (`precisionAdvice`), the default of a family nothing was chosen
+    /// for (no recorded selection and no recorded precision), at Fast; 16 · Fast without one.
+    public func runnable(recorded: ModelSelection?, precision: String?, available: ((String) -> Bool)? = nil, recommended: ModelTier? = nil) -> ModelSelection {
+        let candidate = precision.map { defaultSelection(recorded: recorded, precision: $0) } ?? recorded ?? recommended.map { ModelSelection(tier: $0, mode: .fast) } ?? .fallback
         let chosen = valid(candidate)
         guard let available, let label = self.precision(of: chosen), !available(label) else { return chosen }
         for tier in [candidate.tier] + ModelTier.allCases {

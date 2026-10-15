@@ -375,8 +375,8 @@ import VellaCore
         else { throw VellaError.message("\(family.name) at \(precisionFormatName(precision)) has no files on this Mac.") }
         return path
     }
-    /// The first-dictation Get row's selection: the family's recorded one, else Optimized · Fast at the offered tier
-    /// (the default for a model never loaded).
+    /// The first-dictation Get row's selection: the family's recorded one, else Fast at the offered tier (the precision
+    /// recommended for this Mac, the default for a model never loaded).
     private func offerSelection(_ offer: DictationController.ModelOffer) -> ModelSelection? {
         guard let (family, precision) = offered(offer.mode) else { return nil }
         let config = (try? Data(contentsOf: runtime.configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }

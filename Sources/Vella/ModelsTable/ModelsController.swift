@@ -49,7 +49,7 @@ struct ModelDeletionPlan {
 /// ONE state per model (Toby, 26 Sep 2026): a row shows what is loaded (tier × Exact/Fast; the path is never a choice,
 /// 15 Oct); a cell the user picks or a switch flip is a transient preview (its numbers, deltas vs 16-bit and the green
 /// Reload) that closing the menu discards; an unloaded row shows what it was last loaded with (config.json
-/// `selections`), else 16 · Fast. Only Load/Reload changes what dictation uses, and only while the model is not in
+/// `selections`), else the precision recommended for this Mac at Fast. Only Load/Reload changes what dictation uses, and only while the model is not in
 /// use. Every download asks first (`confirmDownload`).
 @MainActor final class ModelsController: ObservableObject {
     var previousModelNames: [String: String] = [:]
@@ -296,11 +296,23 @@ struct ModelDeletionPlan {
         let mode: OptimizedMode = switchAvailable(f) ? currentSelection(f).mode : .fast
         return precisionAdvice(f, benchmark(f), mode: mode, tiers: measuredPrecisions(f, mode), gpu: gpu, measuredHere: benchmarkHardware.isMeasuredConfiguration)
     }
-    /// What the first dictation without a model offers: the catalog's first offered family at 16, else native.
+    /// The tier recommended for this Mac at the default switch position (Fast): what a family nothing was chosen for
+    /// previews, offers and loads (Toby, 15 Oct: "we want to suggest them the most efficient model ... they just may not
+    /// know"). Nil while the figures are pending (then 16).
+    func recommendedTier(_ f: ModelFamily) -> ModelTier? {
+        guard !benchmarks.figuresPending else { return nil }
+        let mode: OptimizedMode = .fast
+        return precisionAdvice(f, benchmark(f), mode: mode, tiers: measuredPrecisions(f, mode), gpu: gpu, measuredHere: benchmarkHardware.isMeasuredConfiguration)
+            .recommended
+    }
+    /// What the first dictation without a model offers: the catalog's first offered family at the precision its row
+    /// shows unloaded (`committed`: a saved choice, else the recommended one for this Mac), else 16, else native.
     func firstOffered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
         guard let family = catalog.offered(mode).first else { return nil }
-        let precision = precisionLabel(family, tier: .t16) ?? family.native
-        return family.variants[precision] != nil ? (family, precision) : family.variants[family.native] != nil ? (family, family.native) : nil
+        for precision in [committed(family), precisionLabel(family, tier: .t16), family.native].compactMap({ $0 }) where family.variants[precision] != nil {
+            return (family, precision)
+        }
+        return nil
     }
     /// The Get row's download: the offered precision's own weights, or for a precision made on this Mac its source's.
     func firstOffer(_ mode: RecognitionMode) -> DictationController.ModelOffer? {
@@ -375,11 +387,13 @@ struct ModelDeletionPlan {
         loadedSelection(f).map { effectiveSelection($0, engine: loaded(f)?.engine) }
     }
     /// What the row returns to without a preview (ONE state): the loaded selection; else the last used (config.json
-    /// `selections`, or a legacy `lastLoaded` precision: Fast); else 16 · Fast where that cell exists (`valid`).
+    /// `selections`, or a legacy `lastLoaded` precision: Fast); else, nothing chosen yet, the precision recommended for
+    /// this Mac at Fast (`recommendedTier`; 16 · Fast without one), made valid. A saved choice is never overridden.
     func committedSelection(_ f: ModelFamily) -> ModelSelection {
         if let s = loadedSelection(f) { return s }
         // The same rule as the runtime's on-demand loads and the API (VellaCore `SelectionRules.runnable`).
-        return rules(f).runnable(recorded: config?.selections[f.id], precision: lastLoaded(f), available: { self.available(f, $0) })
+        return rules(f).runnable(
+            recorded: config?.selections[f.id], precision: lastLoaded(f), available: { self.available(f, $0) }, recommended: recommendedTier(f))
     }
     /// `s` when its cell is present and measured, else the fallback cell (`SelectionRules.valid`).
     func valid(_ f: ModelFamily, _ s: ModelSelection) -> ModelSelection { rules(f).valid(s) }

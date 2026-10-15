@@ -3,7 +3,7 @@
 ## Unreleased
 
 - **Models table: one row per model.** A bolt and `bf16`/`fp16`, `int8`, `int4`; the Standard row is gone. Every model runs the optimized path and falls back to plain MLX by itself when your Mac cannot run it. A Standard choice saved by 2.0 becomes the same precision and switch position. The Exact/Fast switch is unchanged.
-- **Recommended for your Mac, in gold:** the smallest precision that keeps 16-bit accuracy and runs on your GPU's matrix hardware. An orange triangle marks precisions your Mac runs in software.
+- **Recommended for your Mac, in gold:** the smallest precision that keeps 16-bit accuracy and runs on your GPU's matrix hardware. An orange triangle marks precisions your Mac runs in software. A model you have not chosen a precision for starts on the recommended one, and Get downloads and loads that; saved choices are kept.
 - **Figures on every Mac.** Peak RAM, WER and Format always show. Speed and J / min show the M5 Max figure for reference, with a triangle, where your Mac was not measured.
 - `vella select --path` and the API's `path` field are refused: send precision and mode. `vella models --json` adds the recommended precision and each cell's hardware support; `vella status` still reports the path that actually runs.
 - Homebrew: `brew install --cask tobynoskillson/tap/vella`. Publishing a release updates the cask in [TobyNoSkillSon/homebrew-tap](https://github.com/TobyNoSkillSon/homebrew-tap) (`.github/workflows/homebrew.yml`).
