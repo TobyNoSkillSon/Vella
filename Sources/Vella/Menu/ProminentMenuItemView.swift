@@ -13,15 +13,17 @@ import AppKit
 // - A click performs the item's action after the menu closes, as a native item does; Return on a highlighted item and
 //   accessibility presses go through NSMenu's own `performActionForItem(at:)`.
 // - Geometry measured from the real macOS 26 menu (docs/images/menu-current.png, 2×): rows 24 pt, icon centred 23 pt
-//   from the leading edge, title at 38.5 pt, content margins 16 pt.
+//   from the leading edge, title at 38.5 pt, content margins 16 pt. When any item in the menu shows a checkmark
+//   (Launch at Login on), AppKit reserves a state column and shifts every native icon and title right by
+//   `stateColumn`; this view follows (Toby's screenshot, 15 Oct: the row sat 14 pt left of its neighbours).
 
 @MainActor final class ProminentMenuItemView: NSView {
     static let height: CGFloat = 24
-    static let iconCentre: CGFloat = 23, titleX: CGFloat = 38.5, trailing: CGFloat = 16
+    static let iconCentre: CGFloat = 23, titleX: CGFloat = 38.5, trailing: CGFloat = 16, stateColumn: CGFloat = 14
     /// The highlight's (and the resting background's) inset from the menu's edges, and its corner radius.
     static let inset: CGFloat = 5, radius: CGFloat = 6
     /// The resting background: the label colour at a few percent, slightly lighter than the menu in dark mode.
-    static let restingAlpha: CGFloat = 0.07
+    static let restingAlpha: CGFloat = 0.13
     static var font: NSFont { .menuFont(ofSize: 0) }
 
     private let selection = NSVisualEffectView()
@@ -34,7 +36,7 @@ import AppKit
 
     /// Becomes `item`'s view.
     init(item: NSMenuItem) {
-        let width = Self.titleX + ceil((item.title as NSString).size(withAttributes: [.font: Self.font]).width) + Self.trailing + 24
+        let width = Self.stateColumn + Self.titleX + ceil((item.title as NSString).size(withAttributes: [.font: Self.font]).width) + Self.trailing + 24
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: Self.height))
         autoresizingMask = [.width]
         selection.material = .selection
@@ -55,6 +57,8 @@ import AppKit
     var highlighted: Bool { forcesHighlight || menuItem?.isHighlighted == true }
     /// The rounded row both backgrounds fill.
     var rowRect: NSRect { bounds.insetBy(dx: Self.inset, dy: 0) }
+    /// The native content shift: the state column, present while any item in the menu has a state.
+    var leading: CGFloat { menuItem?.menu?.items.contains { $0.state != .off } == true ? Self.stateColumn : 0 }
 
     override func viewWillDraw() {
         super.viewWillDraw()
@@ -76,12 +80,12 @@ import AppKit
         if let image = item?.image.map(Self.menuSized), let tinted = Self.tinted(image, color) {
             let size = tinted.size
             tinted.draw(
-                in: NSRect(x: Self.iconCentre - size.width / 2, y: (bounds.height - size.height) / 2, width: size.width, height: size.height),
+                in: NSRect(x: leading + Self.iconCentre - size.width / 2, y: (bounds.height - size.height) / 2, width: size.width, height: size.height),
                 from: .zero, operation: .sourceOver, fraction: 1)
         }
         let title = NSAttributedString(string: item?.title ?? "", attributes: [.font: Self.font, .foregroundColor: color])
         let size = title.size()
-        title.draw(at: NSPoint(x: Self.titleX, y: (bounds.height - size.height) / 2))
+        title.draw(at: NSPoint(x: leading + Self.titleX, y: (bounds.height - size.height) / 2))
     }
     /// A symbol at the size a native menu row draws it (10 pt wide for doc.on.doc in the real menu).
     static func menuSized(_ image: NSImage) -> NSImage {

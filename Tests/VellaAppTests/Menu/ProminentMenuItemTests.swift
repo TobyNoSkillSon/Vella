@@ -46,6 +46,19 @@ import XCTest
         XCTAssertFalse(app.menu.items.contains { $0.view is ProminentMenuItemView }, "no item without a transcript")
     }
 
+    /// Native icons and titles shift right by the state column while any item shows a checkmark (Toby's screenshot,
+    /// 15 Oct: Launch at Login on, the row sat 14 pt left of its neighbours).
+    func testFollowsTheStateColumnOfItsMenu() {
+        let menu = NSMenu()
+        let item = NSMenuItem(title: "Copy Last Transcript", action: nil, keyEquivalent: "")
+        let view = ProminentMenuItemView(item: item)
+        let login = NSMenuItem(title: "Launch at Login", action: nil, keyEquivalent: "")
+        menu.addItem(item); menu.addItem(login)
+        XCTAssertEqual(view.leading, 0)
+        login.state = .on
+        XCTAssertEqual(view.leading, ProminentMenuItemView.stateColumn)
+    }
+
     /// Draws the view at the menu's width over the dark menu colour and samples a point of the row away from the text.
     private func sample(highlighted: Bool) throws -> (row: NSColor, menu: NSColor, title: NSColor) {
         let item = NSMenuItem(title: "Copy Last Transcript", action: nil, keyEquivalent: "")
@@ -72,7 +85,7 @@ import XCTest
         let rest = try sample(highlighted: false)
         let lift = rest.row.brightnessComponent - rest.menu.brightnessComponent
         XCTAssertGreaterThan(lift, 0.03, "visibly lighter at rest")
-        XCTAssertLessThan(lift, 0.12, "but only slightly")
+        XCTAssertLessThan(lift, 0.16, "but only slightly (Toby, 15 Oct: \"even lighter than it is right now\")")
         XCTAssertGreaterThan(rest.title.brightnessComponent, 0.75, "the title in the label colour")
         let lit = try sample(highlighted: true)
         // The accent (blue by default; the bitmap's colour space shifts it a little).
