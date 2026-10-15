@@ -71,7 +71,7 @@ import VellaCore
                 "Could not prepare the local precision: Vella does not have permission to write the recipe. The current selection is unchanged. Check the model folder and try Load again in Models…."
             ),
             ("Word timestamps", "Word timestamps are not supported. Use timestamp_granularities[]=segment with response_format=verbose_json."),
-            ("Direct control API", "Select needs at least one JSON field: precision, path or mode. Deletion needs explicit consent: yes=true (CLI: --yes).")
+            ("Direct control API", "Select needs at least one JSON field: precision or mode. Deletion needs explicit consent: yes=true (CLI: --yes).")
         ]
         actions.append { [self] in MenuMock.capture(TooltipSheet(pairs: pairs, width: 640), to: directory.appendingPathComponent("changed-tooltips.png"), done: next) }
         actions.append { [self] in MenuMock.capture(DMGLayoutView(), to: directory.appendingPathComponent("dmg-window-settings.png"), done: next) }

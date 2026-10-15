@@ -395,6 +395,16 @@ final class TableTooltipTests: XCTestCase {
             table.tooltips(ultra).first { $0.0 == "Action" }?.1,
             "Not downloaded\nAsks, then downloads the BF16 (bfloat16) weights (\(formatBytes(ultra.variants["BF16"]!.downloadBytes))) it is made from; then loads it for dictation. The quantized weights are made in memory each time this precision loads."
         )
+        // Parakeet v3's bf16 is converted from the fp32 download: the tooltip gives that download, never Zero kB
+        // (lifecycle audit 2.1, A6).
+        let v3 = try XCTUnwrap(c.catalog.family("parakeet-v3"))
+        let fetched = try XCTUnwrap(v3.acquisition(of: "8b")).download.downloadBytes
+        XCTAssertGreaterThan(fetched, 0)
+        for tier in [ModelTier.t16, .t8] {
+            c.select(v3, tier: tier)
+            let action = try XCTUnwrap(table.tooltips(v3).first { $0.0 == "Action" }?.1)
+            XCTAssertTrue(action.contains(formatBytes(fetched)) && !action.contains("Zero"), action)
+        }
         let nemotron = try XCTUnwrap(c.catalog.family("nemotron-3.5-streaming-0.6b"))
         XCTAssertNotNil(c.result(nemotron, "8b"), "corrected int8 cells supply measured shipping figures despite recommendation failure")
         XCTAssertTrue(speedHelp(nemotron.mode, c.result(nemotron, "8b"), suites: c.benchmarks.suites).hasPrefix("Streaming replay speed"))

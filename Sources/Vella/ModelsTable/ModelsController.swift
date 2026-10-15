@@ -412,7 +412,9 @@ struct ModelDeletionPlan {
     /// The Get row's download: the offered precision's own weights, or for a precision made on this Mac its source's.
     func firstOffer(_ mode: RecognitionMode) -> DictationController.ModelOffer? {
         guard let (family, precision) = firstOffered(mode), let source = family.downloadSource(of: precision) else { return nil }
-        return DictationController.ModelOffer(id: source.variant.id, name: family.name, downloadBytes: source.variant.downloadBytes, mode: mode)
+        // The size is what Get transfers: a stored conversion (Parakeet v3's bf16) has no download of its own.
+        let bytes = family.acquisition(of: precision)?.download.downloadBytes ?? source.variant.downloadBytes
+        return DictationController.ModelOffer(id: source.variant.id, name: family.name, downloadBytes: bytes, mode: mode)
     }
     /// The precision the row returns to without a preview: the committed selection's tier.
     /// ONE state: a loaded model shows its loaded precision (offered or not); an unloaded one the committed selection's

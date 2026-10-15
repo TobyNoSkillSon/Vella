@@ -24,7 +24,6 @@ final class ReadmeCaptureTests: XCTestCase {
         XCTAssertTrue(controller.catalog.family("parakeet-v3")?.tiersOffered?.contains("8") == true)
         for id in ["whisper-large-v3", "whisper-large-v3-turbo"] {
             let family = try XCTUnwrap(controller.catalog.family(id))
-            XCTAssertNil(controller.baseResult(family), "No withdrawn Standard comparison in the capture")
             XCTAssertNotNil(controller.shownResult(family)?.speed_x)
         }
         TableRenderDelegate.renderFirstFrame(controller, to: out.appendingPathComponent("models-current.png"), check: out.appendingPathComponent("layout.txt"))

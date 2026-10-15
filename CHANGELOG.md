@@ -6,6 +6,10 @@
 - **Recommended for your Mac, in gold:** the smallest precision that keeps 16-bit accuracy and runs on your GPU's matrix hardware. An orange triangle marks precisions your Mac runs in software. A model you have not chosen a precision for starts on the recommended one, and Get downloads and loads that; saved choices are kept.
 - **Figures on every Mac.** Peak RAM, WER and Format always show. Speed and J / min show the M5 Max figure for reference, with a triangle, where your Mac was not measured.
 - `vella select --path` and the API's `path` field are refused: send precision and mode. `vella models --json` adds the recommended precision and each cell's hardware support; `vella status` still reports the path that actually runs.
+- **Transcripts…** in the menu opens your past transcripts, newest first. Click a transcript or Copy to copy it; long ones expand, and Show more loads older ones.
+- Shorter download, recovery, delete, quit and update prompts.
+- The first-dictation Get offer clears once its model is ready, also when it falls back to plain MLX.
+- Parakeet v3's Get tooltip and first-dictation offer show its real download size instead of Zero kB.
 - **Support the Developer…** opens the support page on [tobynoskillson.com](https://tobynoskillson.com/#support): GitHub Sponsors and Buy Me a Coffee.
 - Homebrew: `brew install --cask tobynoskillson/tap/vella`. Publishing a release updates the cask in [TobyNoSkillSon/homebrew-tap](https://github.com/TobyNoSkillSon/homebrew-tap) (`.github/workflows/homebrew.yml`).
 - Benchmark references with restrictive or unclear redistribution terms are fetched locally, with the frozen text hashes checked before scoring. Suite clips and scoring rules are unchanged.
@@ -40,7 +44,7 @@
 - **Keep Hot** per kind of load: manually loaded models stay loaded (default Always) and load again at launch; models loaded for a dictation unload after 15 idle minutes by default.
 - **Memory**: *Fit in free memory* (default) unloads idle models or refuses a load with the numbers and remedies; *Allow swap (slower)* skips the check.
 - **Engine label** `Optimized Fast · <chip>`, `Optimized Exact · <chip>` or `Standard` under a loaded model, backed by a self-test at load and a fallback that redoes a failed optimized transcription on the stock path.
-- **First dictation without a model** keeps the recording and offers **Get <model> (<size>)**; the recording is transcribed once the model is ready.
+- **First dictation without a model** keeps the recording and offers **Get** *model* **(***size***)**; the recording is transcribed once the model is ready.
 - **In-app updates.** A newer release shows an orange **Update to X…** item under **Support the Developer…**. **Update Now** downloads the release, verifies its SHA-256, contents, version and that it is signed like the running app, installs it when Vella is idle and restarts; if the new version does not become ready, the previous one is restored. It replaces the notice that only opened the release page.
 - **Audio files, for you and your agents.** `vella transcribe <file>` (text, `--srt`, `--vtt`, `--json`) and an OpenAI-compatible local API (`POST /v1/audio/transcriptions`, `GET /v1/models`, `GET /status`) on 127.0.0.1, so the OpenAI SDKs work with only the base URL changed. Any audio macOS decodes, up to 3 hours; dictation always goes first; nothing is pasted or kept. The installer links `vella` into `~/.local/bin`; **Copy Skill for Your Agent** and `vella skill` provide the agent skill.
 - **One-command install without git.** `curl -fsSL https://raw.githubusercontent.com/TobyNoSkillSon/Vella/main/scripts/install-public.sh | bash` now installs the prebuilt release with the same checks as `scripts/install.sh` (it built 0.8.8 from source with Python). `bash -s -- --dry-run` verifies without installing.

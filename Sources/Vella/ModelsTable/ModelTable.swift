@@ -329,10 +329,17 @@ struct ModelTable: View {
     }
 
     /// What a download fetches for a precision: its own weights, or for a derived precision the weights it is made from.
+    /// Sizes come from what Get actually transfers (`acquisition`), so a stored conversion shows its source download.
     private func downloadText(_ family: ModelFamily, _ precision: String) -> String {
-        guard let root = controller.downloadRoot(family, precision), let v = family.variants[root] else { return "Download" }
-        let size = formatBytes(v.downloadBytes)
-        return root == precision ? "Asks, then downloads \(size) from Hugging Face" : "Asks, then downloads the \(precisionFormatName(root)) weights (\(size)) it is made from"
+        guard let source = family.acquisition(of: precision) else { return "Download" }
+        let size = formatBytes(source.download.downloadBytes)
+        let root = precisionFormatName(source.root)
+        if source.root == precision {
+            return "Asks, then downloads \(size) from Hugging Face" + (source.convert == nil ? "" : " and converts it to \(root)")
+        }
+        return source.convert == nil
+            ? "Asks, then downloads the \(root) weights (\(size)) it is made from"
+            : "Asks, then downloads \(size) from Hugging Face and converts it to the \(root) weights it is made from"
     }
     /// What the row's action does (the action cell's tooltip, second line).
     private func actionHelp(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?) -> String {

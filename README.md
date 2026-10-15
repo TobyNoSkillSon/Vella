@@ -13,9 +13,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/menu-current.png" alt="Vella's menu while dictating: status, Models, Keep Hot, Memory, Finish Dictation, Stop and Keep Audio, Mode, Microphone, Shortcuts, Copy Last Transcript, Recover Saved Recording, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Launch at Login, Support the Developer, Quit Vella" width="256">
+  <img src="docs/images/menu-current.png" alt="Vella's menu while dictating: status, Models, Keep Hot, Memory, Finish Dictation, Stop and Keep Audio, Mode, Microphone, Shortcuts, Copy Last Transcript, Transcripts, Recover Saved Recording, Open Saved Recordings, Copy Skill for Your Agent, Open Vella Files, Launch at Login, Support the Developer, Quit Vella" width="256">
   &nbsp;
-  <img width="519" src="docs/images/models-current.png" alt="Vella Models table with Dictation and Streaming sections, six precision cells per model, Exact/Fast, Get/Load/Unload, and final M5 Max benchmark figures" width="904">
+  <img width="519" src="docs/images/models-current.png" alt="Vella Models table: one precision row per model, gold recommendations, a Fast/Exact switch, Get buttons and M5 Max benchmark figures">
 </p>
 
 Offline dictation and transcription for Mac: local Whisper, Parakeet and Qwen speech-to-text, tuned for Apple Silicon. Scripts and coding agents get an OpenAI-compatible local API: `POST /v1/audio/transcriptions`.
@@ -130,13 +130,13 @@ Commit SHAs are those of the published history (rewritten 3 Oct to remove the wi
 
 <!-- BENCHMARK_TABLE_END -->
 
-- **Precision** is the running weight format: bf16 or fp16 for the 16-bit checkpoint, and int8 or int4 for affine quantization made on your Mac. Parakeet v3’s fp32 download is converted once to bf16 at Get. **Standard** and **Optimized** are the two ways to run a precision; **Exact** and **Fast** are Optimized's two recipes.
+- **Precision** is the running weight format: bf16 or fp16 for the 16-bit checkpoint, and int8 or int4 for affine quantization made on your Mac. Parakeet v3’s fp32 download is converted once to bf16 at Get. Every precision runs the optimized path and falls back to plain MLX by itself; **Exact** and **Fast** are its two recipes.
 - **WER** is English word error rate on the 167 English minutes of the 239.7-minute v2 suite: the percentage of words wrong (substituted, missed or added) out of the words spoken, ignoring case and punctuation. The nine other languages are scored separately and never pooled into this figure. It is the industry-standard metric, as on the Hugging Face Open ASR Leaderboard; our v2 set is hard (meetings, far-field microphones, accents, earnings calls), so rates run higher than on public leaderboards. **Format** is our own measure, with no industry standard: character error rate with case and punctuation kept, i.e. how much editing the finished text needs. Lower is better for both. Multilingual word error rates, per language, are in the WER tooltip.
 - **Speed** is the real-time factor (RTFx): audio seconds per processing second, after the model is loaded; 100× means a minute of audio in 0.6 s. **J / min** is the energy the whole chip (CPU, GPU, Neural Engine and memory) used per minute of audio, idle power subtracted. **Peak RAM** is the peak footprint of the model worker, including loading.
 Speed differences use “N× faster” at a ratio of 2× or above and “N% faster” below; decreases use “N% slower”. Energy differences always use percentages (“N% less” or “N% more”). Noise-level WER/Format differences read same.
 
 - **Which tiers are offered.** Every measured tier is offered, with its figures. Where a tier loses anything against 16, its tooltip says what, starting with test clips it left empty or cut short, which an average word error rate hides; Vella's quality gate (English word error rate within 0.1 points of 16, up to 0.2 points for a model whose measured run-to-run noise is larger, the other languages within a similar limit, no dropped or cut-off segments) says whether a tier loses nothing measurable. The precision recommended for your Mac is gold: the smallest that passes the gate and runs on its GPU's matrix hardware. A tier that fails the gate is never recommended.
-- Measurements are from an M5 Max with a 40-core GPU; other M5 configurations have not yet been tested. Other Apple Silicon chips run the fallback paths qualified by self-test. Only M5 Max with 40 GPU cores matches the measured configuration. On every other Mac (including M5, M5 Pro and other M5 Max core counts), Speed stays the **M5 Max measurement**, lighter grey with a small **M5 Max** label; it is not an estimate for that Mac. J / min is `not known`. WER, Format and Peak RAM stay as measured. Tooltip: “Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it.”
+- Measurements are from an M5 Max with a 40-core GPU; other M5 configurations have not yet been tested. Other Apple Silicon chips run the fallback paths qualified by self-test. Only M5 Max with 40 GPU cores matches the measured configuration. On every other Mac (including M5, M5 Pro and other M5 Max core counts), Speed and J / min show the **M5 Max measurement** with a warning triangle, and the footer names the measured Mac; they are not estimates for that Mac. WER, Format and Peak RAM stay as measured. Tooltip: “Measured on an M5 Max (40-core GPU). Your Mac will differ; vella diagnose measures it.”
 
 Every figure is in [`Resources/benchmarks.json`](Resources/benchmarks.json); the [benchmark methods](docs/BENCHMARKS.md) cover suites, scoring, timing, energy and build provenance. Benchmark your Mac or tune a model with the [public benchmark kit](Benchmarks/README.md).
 
@@ -160,7 +160,7 @@ Or from a checkout: `git clone https://github.com/TobyNoSkillSon/Vella && cd Vel
 
 **Optional DMG.** The release also carries a disk image, `Vella-2.0.0.dmg`, wrapped from the same release ZIP; the ZIP remains the primary asset. Open the image and drag Vella to Applications. For Terminal and agents, use `/Applications/Vella.app/Contents/Helpers/vella`, or use the command-line installer, which links `vella`. The app is self-signed and not notarized: after macOS blocks its first launch, use **System Settings → Privacy & Security → Open Anyway**, then confirm. The command-line installer above needs no Gatekeeper step.
 
-Open Vella from the menu bar (after a Homebrew install, start it from Applications first), approve Microphone and Accessibility access, and press **Control + Command + N**. The first dictation without a model keeps the recording and offers **Get <model> (<size>)**; after the download it transcribes the waiting recording.
+Open Vella from the menu bar (after a Homebrew install, start it from Applications first), approve Microphone and Accessibility access, and press **Control + Command + N**. The first dictation without a model keeps the recording and offers **Get** *model* **(***size***)**; after the download it transcribes the waiting recording.
 
 <details>
 <summary>Updating, verification and uninstalling</summary>
