@@ -33,8 +33,9 @@ import VellaCore
             let delegate: NSApplicationDelegate =
                 CommandLine.arguments[1] == "--render-table"
                 ? TableRenderDelegate(directory: directory)
-                : CommandLine.arguments[1] == "--render-lifecycle" ? LifecycleRenderDelegate(directory: directory)
-                : CommandLine.arguments[1] == "--render-transcripts" ? TranscriptsRenderDelegate(directory: directory) : MenuRenderDelegate(directory: directory)
+                : CommandLine.arguments[1] == "--render-lifecycle"
+                    ? LifecycleRenderDelegate(directory: directory)
+                    : CommandLine.arguments[1] == "--render-transcripts" ? TranscriptsRenderDelegate(directory: directory) : MenuRenderDelegate(directory: directory)
             application.delegate = delegate
             withExtendedLifetime(delegate) { application.run() }
             return

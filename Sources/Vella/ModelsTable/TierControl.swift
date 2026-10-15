@@ -258,10 +258,13 @@ private struct TierSegments: NSViewRepresentable {
                 }
                 let text = label(forSegment: i) ?? ""
                 let color: NSColor =
-                    !available ? NSColor.white.withAlphaComponent(0.3)
-                    : selected ? NSColor(white: 0.1, alpha: 1)
-                    : recommended ? TierControl.gold
-                    : NSColor.white.withAlphaComponent(0.92)
+                    !available
+                    ? NSColor.white.withAlphaComponent(0.3)
+                    : selected
+                        ? NSColor(white: 0.1, alpha: 1)
+                        : recommended
+                            ? TierControl.gold
+                            : NSColor.white.withAlphaComponent(0.92)
                 let font = recommended && available ? NSFont.systemFont(ofSize: TierControl.Natural.font.pointSize, weight: .semibold) : (self.font ?? TierControl.font)
                 let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
                 let size = (text as NSString).size(withAttributes: attributes)

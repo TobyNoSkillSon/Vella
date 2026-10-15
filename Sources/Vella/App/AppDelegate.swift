@@ -416,7 +416,9 @@ import VellaCore
         "Your audio and transcripts never leave your Mac. Vella checks the GitHub releases API at most once a day (at launch when due; failed checks retry about hourly). Models and updates download only when you ask. No telemetry."
 
     @discardableResult
-    private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = [], help: String? = nil) -> NSMenuItem {
+    private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = [], help: String? = nil)
+        -> NSMenuItem
+    {
         let entry = NSMenuItem(title: title, action: action, keyEquivalent: key)
         entry.target = self; entry.isEnabled = enabled; entry.keyEquivalentModifierMask = modifiers; entry.toolTip = help
         entry.image = NSImage(systemSymbolName: icon, accessibilityDescription: nil)

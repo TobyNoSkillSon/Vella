@@ -104,13 +104,16 @@ import VellaCore
         guard !busy, phase != .recording, let session = savedSession,
             session.manifest.failureCode == "no_model", session.manifest.config.model.isEmpty,
             let data = try? Data(contentsOf: configurationURL),
-            let config = try? JSONDecoder().decode(Configuration.self, from: data) else { return }
+            let config = try? JSONDecoder().decode(Configuration.self, from: data)
+        else { return }
         let mode = session.manifest.config.mode
         let path = mode == .streaming ? config.streamingModel : config.model
         let runtime = mode == .streaming ? streamingBackend.runtime : backend.runtime
-        guard let ref = runtime.status.models.keys.compactMap({ runtime.loadedRef($0) }).first(where: {
-            $0.mode == mode && sameFiles($0.path, path)
-        }) else { return }
+        guard
+            let ref = runtime.status.models.keys.compactMap({ runtime.loadedRef($0) }).first(where: {
+                $0.mode == mode && sameFiles($0.path, path)
+            })
+        else { return }
         session.manifest.config.model = ref.path
         if ref.mode == .streaming { session.manifest.config.streamingModel = ref.path }
         session.manifest.failureCode = nil

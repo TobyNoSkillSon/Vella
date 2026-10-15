@@ -42,7 +42,9 @@ import XCTest
         XCTAssertEqual(c.action(parakeet), .get)
         // Get asks for what that precision needs: its source's download, then loads int8 (made on this Mac).
         var asked: DownloadPrompt?
-        c.confirmDownload = { prompt, answer in asked = prompt; answer(nil) }
+        c.confirmDownload = { prompt, answer in
+            asked = prompt; answer(nil)
+        }
         c.perform(parakeet)
         XCTAssertEqual(asked?.precision, "8b")
         XCTAssertEqual(asked?.variantID, parakeet.downloadSource(of: "8b")?.variant.id)

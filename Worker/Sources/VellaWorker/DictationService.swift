@@ -163,8 +163,9 @@ final class Worker {
         let output = try withError { model.generate(audio: input, generationParameters: parameters) }
         // Silence is valid on stock; an empty optimized result first gets one stock check so a broken decoder
         // cannot silently mark speech as completed. Stock remains authoritative, including an empty transcript.
-        try Self.validateOptimizedOutput(optimizedFault == "empty" ? "" : output.text,
-                                         finite: optimizedFault != "nonfinite" && capable.fastPathFinite)
+        try Self.validateOptimizedOutput(
+            optimizedFault == "empty" ? "" : output.text,
+            finite: optimizedFault != "nonfinite" && capable.fastPathFinite)
         return output
     }
     /// Runtime fallback: the optimized path throws or returns non-finite values → the whole request reruns on stock.
@@ -186,35 +187,38 @@ final class Worker {
                         if let gateURL { FastPathGate.persist("stock", to: gateURL, model: path, reason: stockReason) }
                         push?(status("fallback"))
                     }
-                    do { output = try StockFallback.run(
-                        optimized: { try runOptimized(model, capable, input, parameters) },
-                        prepareStock: { error in
-                            if case .empty? = error as? FastPathNonFinite { checkingEmpty = true }
-                            // Ordinary failures are sticky before recovery. Empty text is compared with stock first:
-                            // a confirmed silent segment must not permanently disqualify a healthy optimized model.
-                            if !checkingEmpty { commitStock() }
-                            try withError {
-                                _ = capable.configureFastPath(enabled: false, component: "both")
-                                Stream.gpu.synchronize()
-                                clearCompilationCaches()
-                                trackCompilationCache()
-                            }
-                        },
-                        stock: {
-                            let stock = try runStock(model, input, parameters)
-                            if checkingEmpty {
-                                if stock.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    // Both paths agree on silence. Failed reconfiguration still leaves usable stock.
-                                    do {
-                                        guard try withError({ capable.configureFastPath(enabled: true, component: "both") }) else { throw FastPathNonFinite.invalid }
-                                    } catch {
+                    do {
+                        output = try StockFallback.run(
+                            optimized: { try runOptimized(model, capable, input, parameters) },
+                            prepareStock: { error in
+                                if case .empty? = error as? FastPathNonFinite { checkingEmpty = true }
+                                // Ordinary failures are sticky before recovery. Empty text is compared with stock first:
+                                // a confirmed silent segment must not permanently disqualify a healthy optimized model.
+                                if !checkingEmpty { commitStock() }
+                                try withError {
+                                    _ = capable.configureFastPath(enabled: false, component: "both")
+                                    Stream.gpu.synchronize()
+                                    clearCompilationCaches()
+                                    trackCompilationCache()
+                                }
+                            },
+                            stock: {
+                                let stock = try runStock(model, input, parameters)
+                                if checkingEmpty {
+                                    if stock.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        // Both paths agree on silence. Failed reconfiguration still leaves usable stock.
+                                        do {
+                                            guard try withError({ capable.configureFastPath(enabled: true, component: "both") }) else { throw FastPathNonFinite.invalid }
+                                        } catch {
+                                            commitStock()
+                                            try withError { _ = capable.configureFastPath(enabled: false, component: "both") }
+                                        }
+                                    } else {
                                         commitStock()
-                                        try withError { _ = capable.configureFastPath(enabled: false, component: "both") }
                                     }
-                                } else { commitStock() }
-                            }
-                            return stock
-                        })
+                                }
+                                return stock
+                            })
                     } catch {
                         if checkingEmpty { commitStock() }
                         throw error

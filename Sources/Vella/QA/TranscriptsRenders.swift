@@ -101,7 +101,9 @@ import VellaUpdate
                         if let event = NSEvent.mouseEvent(
                             with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                             windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)
-                        { window.sendEvent(event) }
+                        {
+                            window.sendEvent(event)
+                        }
                     }
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [self] in
@@ -150,10 +152,11 @@ import VellaUpdate
         list.append(("quit-download", AppDelegate.quitAlert(downloading: true)))
         list.append(("quit-recording", AppDelegate.quitAlert(downloading: false)))
         list.append(("delete-saved-recording", AppDelegate.deleteSavedAlert()))
-        list.append((
-            "recover-saved-recording",
-            AppDelegate.savedRecordingAlert([SavedRecordingChoice(directory: URL(fileURLWithPath: "/fixture"), title: "15 Oct 2026 at 11:42 · Dictation · 0:42 · interrupted")])
-        ))
+        list.append(
+            (
+                "recover-saved-recording",
+                AppDelegate.savedRecordingAlert([SavedRecordingChoice(directory: URL(fileURLWithPath: "/fixture"), title: "15 Oct 2026 at 11:42 · Dictation · 0:42 · interrupted")])
+            ))
         list.append(("login-failure", AppDelegate.loginFailureAlert(VellaError.message("The operation couldn’t be completed"))))
         let updates = UpdateController(current: "2.0.1", enabled: false)
         if let version = SemanticVersion("2.1.0") {

@@ -158,11 +158,12 @@ struct ModelDeletionPlan {
         benchmarks = decodeBenchmarks(try? Data(contentsOf: benchmarksURL ?? Self.benchmarksURL(resources: dictation.resources)))
         // Download progress and registry changes redraw the table.
         for library in [self.dictation, self.streaming] {
-            forwarding.append(library.objectWillChange.sink { [weak self] _ in
-                guard let self else { return }
-                self.adviceCache = [:]; self.localPaths = [:]
-                self.objectWillChange.send()
-            })
+            forwarding.append(
+                library.objectWillChange.sink { [weak self] _ in
+                    guard let self else { return }
+                    self.adviceCache = [:]; self.localPaths = [:]
+                    self.objectWillChange.send()
+                })
         }
         reloadConfig()
     }
@@ -203,7 +204,9 @@ struct ModelDeletionPlan {
             return installed(found.family, found.precision) == nil ? nil : found
         }
         let manifest: DerivedModelManifest?
-        if let cached = configuredManifests[path] { manifest = cached.value } else {
+        if let cached = configuredManifests[path] {
+            manifest = cached.value
+        } else {
             observeWork?("manifestRead")
             manifest = derivedModelManifest(at: URL(fileURLWithPath: path))
         }

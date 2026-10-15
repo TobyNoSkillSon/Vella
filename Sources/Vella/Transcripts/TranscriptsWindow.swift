@@ -32,7 +32,7 @@ final class TranscriptsWindow: NSWindow {
     override func sendEvent(_ event: NSEvent) {
         super.sendEvent(event)
         switch event.type {
-        case .leftMouseDown: downAt = event.clickCount == 1 && event.modifierFlags.intersection([.shift, .command, .control, .option]).isEmpty ? event.locationInWindow : nil
+        case .leftMouseDown: downAt = event.clickCount == 1 && event.modifierFlags.isDisjoint(with: [.shift, .command, .control, .option]) ? event.locationInWindow : nil
         case .leftMouseDragged:
             if let down = downAt, hypot(event.locationInWindow.x - down.x, event.locationInWindow.y - down.y) > Self.clickSlop { downAt = nil }
         case .leftMouseUp:
@@ -277,12 +277,24 @@ struct TranscriptRow: View {
                 .textSelection(.enabled) // a drag selects part of it for ⌘C; a click copies it whole
                 .lineLimit(expanded ? nil : Self.clampLines)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if !expanded { clampedHeight = $0 } }
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { textFrame($0) }
+                .onGeometryChange(for: CGFloat.self) {
+                    $0.size.height
+                } action: {
+                    if !expanded { clampedHeight = $0 }
+                }
+                .onGeometryChange(for: CGRect.self) {
+                    $0.frame(in: .global)
+                } action: {
+                    textFrame($0)
+                }
                 .background(alignment: .topLeading) {
                     Text(entry.text).font(.system(size: 13)).lineSpacing(2.5)
                         .fixedSize(horizontal: false, vertical: true).hidden()
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
+                        .onGeometryChange(for: CGFloat.self) {
+                            $0.size.height
+                        } action: {
+                            fullHeight = $0
+                        }
                         .accessibilityHidden(true)
                 }
                 .accessibilityAction(named: "Copy") { copy() }

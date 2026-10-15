@@ -120,7 +120,10 @@ final class DocsTests: XCTestCase {
         let expected: [[String]] = [
             ["**Status**", "current state"],
             ["**Models…**", "**Keep Hot**", "**Memory**"],
-            ["**Start Dictation**", "**Mode**", "**Microphone**", "**Shortcuts**", "**Copy Last Transcript**", "**Transcripts…**", "**Recover Saved Recording…**", "**Open Saved Recordings**"],
+            [
+                "**Start Dictation**", "**Mode**", "**Microphone**", "**Shortcuts**", "**Copy Last Transcript**", "**Transcripts…**", "**Recover Saved Recording…**",
+                "**Open Saved Recordings**"
+            ],
             ["**Copy Skill for Your Agent**", "**Open Vella Files**", "**Launch at Login**"],
             ["**Support the Developer…**", "**Update to X…**", "**Quit Vella**"]
         ]

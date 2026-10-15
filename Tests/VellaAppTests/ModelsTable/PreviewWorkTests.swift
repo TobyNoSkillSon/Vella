@@ -21,8 +21,10 @@ import VellaCore
         if source == nil {
             try JSONEncoder().encode(Configuration(model: "/fixture/native", streamingModel: "/fixture/derived")).write(to: root.appendingPathComponent("config.json"))
         }
-        let c = ModelsController(dictation: ModelLibrary(mode: .dictation, registryURL: root.appendingPathComponent("models-installed.json")), configURL: root.appendingPathComponent("config.json"))
-        c.runtime = loaded
+        let c = ModelsController(
+            dictation: ModelLibrary(mode: .dictation, registryURL: root.appendingPathComponent("models-installed.json")), configURL: root.appendingPathComponent("config.json"))
+        c.runtime =
+            loaded
             ? TableRuntime(loaded: ["parakeet-v3-ultra": LoadedFamily(precision: "BF16", engine: "optimized")]) : TableRuntime()
         let family = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
         let view = MenuTableHostingView(rootView: ModelTable(controller: c, requestDelete: { _ in }))

@@ -216,28 +216,28 @@ final class TableTooltipTests: XCTestCase {
         XCTAssertEqual(families.count, 7)
         var checked = 0
         for mac in Self.macs {
-        c.benchmarkHardware = mac.hardware; c.gpu = mac.gpu
-        for pending in [true, false] {
-            c.benchmarks.figuresPending = pending
-            for family in families {
-                for loaded in [
-                    nil, LoadedFamily(precision: c.options(family)[0], engine: "optimized", optimizations: ["decoder": true], residency: "manual"),
-                    LoadedFamily(precision: c.options(family).last!, engine: "mlx", engineReason: "no optimized path for this model", residency: "on_demand")
-                ] {
-                    c.runtime = TableRuntime(loaded: loaded.map { [family.id: $0] } ?? [:], chip: "Apple M5 Max")
-                    for mode in [OptimizedMode.exact, .fast] {
-                        for tier in c.precisions(family, mode) {
-                            c.discardPreviews()
-                            c.setMode(family, mode)
-                            c.select(family, tier: tier)
-                            checkRow(table, family, loaded: loaded, state: "\(tier.rawValue) \(mode)\(loaded.map { " loaded \($0.precision)" } ?? "")")
-                            checked += 1
+            c.benchmarkHardware = mac.hardware; c.gpu = mac.gpu
+            for pending in [true, false] {
+                c.benchmarks.figuresPending = pending
+                for family in families {
+                    for loaded in [
+                        nil, LoadedFamily(precision: c.options(family)[0], engine: "optimized", optimizations: ["decoder": true], residency: "manual"),
+                        LoadedFamily(precision: c.options(family).last!, engine: "mlx", engineReason: "no optimized path for this model", residency: "on_demand")
+                    ] {
+                        c.runtime = TableRuntime(loaded: loaded.map { [family.id: $0] } ?? [:], chip: "Apple M5 Max")
+                        for mode in [OptimizedMode.exact, .fast] {
+                            for tier in c.precisions(family, mode) {
+                                c.discardPreviews()
+                                c.setMode(family, mode)
+                                c.select(family, tier: tier)
+                                checkRow(table, family, loaded: loaded, state: "\(tier.rawValue) \(mode)\(loaded.map { " loaded \($0.precision)" } ?? "")")
+                                checked += 1
+                            }
                         }
+                        c.discardPreviews()
                     }
-                    c.discardPreviews()
                 }
             }
-        }
         }
         XCTAssertGreaterThan(checked, 3 * 2 * 3 * 2 * families.count)
         for r in c.references(.dictation) + c.references(.streaming) {
@@ -266,8 +266,7 @@ final class TableTooltipTests: XCTestCase {
                     c.discardPreviews()
                     c.setMode(family, mode)
                     for (column, text) in table.tooltips(family)
-                    where column.hasPrefix("Precision ") || (mac.name == "M5 Max" && mode == .exact && (column == "Bolt" || column == "Exact/Fast"))
-                    {
+                    where column.hasPrefix("Precision ") || (mac.name == "M5 Max" && mode == .exact && (column == "Bolt" || column == "Exact/Fast")) {
                         let tag = column.hasPrefix("Precision ") ? " · \(mode == .exact ? "Exact" : "Fast") · \(mac.name)" : ""
                         blocks.append("[\(family.name) · \(column)\(tag)]\n\(text)\n")
                     }

@@ -174,8 +174,12 @@ import VellaCore
             for y in stride(from: Int(rows.lowerBound * Double(h)), to: Int(rows.upperBound * Double(h)), by: 2) {
                 for x in stride(from: 0, to: w, by: 2) {
                     guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
-                    if lavender ? (c.blueComponent > 0.75 && c.redComponent > 0.55 && c.greenComponent < c.blueComponent - 0.15)
-                        : (c.redComponent > 0.85 && c.greenComponent > 0.85 && c.blueComponent > 0.85) { n += 1 }
+                    if lavender
+                        ? (c.blueComponent > 0.75 && c.redComponent > 0.55 && c.greenComponent < c.blueComponent - 0.15)
+                        : (c.redComponent > 0.85 && c.greenComponent > 0.85 && c.blueComponent > 0.85)
+                    {
+                        n += 1
+                    }
                 }
             }
             return n
@@ -265,7 +269,9 @@ import VellaCore
         let pasteboard = NSPasteboard.withUniqueName()
         defer { pasteboard.releaseGlobally() }
         let controller = TranscriptsWindowController(root: root)
-        controller.copy = { pasteboard.clearContents(); pasteboard.setString($0, forType: .string) }
+        controller.copy = {
+            pasteboard.clearContents(); pasteboard.setString($0, forType: .string)
+        }
         controller.model.reload()
         controller.copy(try XCTUnwrap(controller.model.entries.first).text)
         XCTAssertEqual(pasteboard.string(forType: .string), "copy me")
@@ -298,7 +304,10 @@ import VellaCore
             title: "Not enough disk space", body: "Alpha needs 4 kB; 1 kB free.", variantID: "a", downloadBytes: 4_000, family: "alpha", precision: "BF16", refusal: true)
         XCTAssertEqual(DownloadGate.alert(refusal).buttons.map(\.title), ["OK"])
         var shown = 0
-        XCTAssertNil(DownloadGate.ask(refusal) { _ in shown += 1; return true })
+        XCTAssertNil(
+            DownloadGate.ask(refusal) { _ in
+                shown += 1; return true
+            })
         XCTAssertEqual(shown, 1, "the refusal is still shown")
     }
 }

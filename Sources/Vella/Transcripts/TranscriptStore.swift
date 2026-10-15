@@ -55,7 +55,9 @@ struct TranscriptStore {
         let fm = FileManager.default
         if ["transcript.txt", "partial-transcript.txt", StreamingJournal.filename].contains(where: {
             fm.fileExists(atPath: slot.directory.appendingPathComponent($0).path)
-        }) { return true }
+        }) {
+            return true
+        }
         guard let data = try? Data(contentsOf: slot.directory.appendingPathComponent("session.json")),
             let json = String(data: data, encoding: .utf8)
         else { return false }

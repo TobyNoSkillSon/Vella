@@ -66,28 +66,28 @@ import VellaCore
         if let tier = advice[shownMode]?.recommended { o["recommended_precision"] = tierDTypeLabel(f, tier) }
         o["cells"] = ModelTier.allCases.flatMap { tier -> [[String: Any]] in
             OptimizedMode.allCases.map { mode in
-                    let s = ModelSelection(tier: tier, mode: mode)
-                    var cell = selectionObject(s)
-                    cell["precision"] = tierDTypeLabel(f, tier)
-                    if let reason = controller.rules(f).cellRefusal(s, loaded: controller.loadedSelection(f)) { cell["reason"] = reason }
-                    // Advice for the cells that can be chosen (an unavailable cell has its `reason` instead).
-                    if let a = advice[mode], cell["reason"] == nil {
-                        cell["recommended"] = a.recommended == tier
-                        // Truthful hardware, independent of the triangle (which a faster measurement on this Mac can lift).
-                        cell["hardware"] = a.hardware[tier] == false ? "software" : "matrix"
-                        if let note = a.softwareNotes[tier] { cell["hardware_note"] = note }
-                        if let warning = a.warnings[tier] { cell["warning"] = warning }
-                    }
-                    if !controller.benchmarks.figuresPending, let measured = benchmarkCell(controller.benchmark(f), s), !measured.isPending {
-                        cell["figures"] = controller.benchmarkHardware.figures(measured.result)
-                        cell["measurement"] = jsonObject(measured.measured)
-                        cell["components"] = jsonObject(measured.recipe)
-                        cell["provenance"] = benchmarkProvenance(f.id, s)
-                        // The tooltip's `Loss vs …` items (lost clips first); absent when the cell loses nothing measurable.
-                        let loss = cellLoss(controller.benchmark(f), tier: tier, segment: s.segmentKey)
-                        if !loss.isEmpty { cell["loss"] = loss }
-                    }
-                    return cell
+                let s = ModelSelection(tier: tier, mode: mode)
+                var cell = selectionObject(s)
+                cell["precision"] = tierDTypeLabel(f, tier)
+                if let reason = controller.rules(f).cellRefusal(s, loaded: controller.loadedSelection(f)) { cell["reason"] = reason }
+                // Advice for the cells that can be chosen (an unavailable cell has its `reason` instead).
+                if let a = advice[mode], cell["reason"] == nil {
+                    cell["recommended"] = a.recommended == tier
+                    // Truthful hardware, independent of the triangle (which a faster measurement on this Mac can lift).
+                    cell["hardware"] = a.hardware[tier] == false ? "software" : "matrix"
+                    if let note = a.softwareNotes[tier] { cell["hardware_note"] = note }
+                    if let warning = a.warnings[tier] { cell["warning"] = warning }
+                }
+                if !controller.benchmarks.figuresPending, let measured = benchmarkCell(controller.benchmark(f), s), !measured.isPending {
+                    cell["figures"] = controller.benchmarkHardware.figures(measured.result)
+                    cell["measurement"] = jsonObject(measured.measured)
+                    cell["components"] = jsonObject(measured.recipe)
+                    cell["provenance"] = benchmarkProvenance(f.id, s)
+                    // The tooltip's `Loss vs …` items (lost clips first); absent when the cell loses nothing measurable.
+                    let loss = cellLoss(controller.benchmark(f), tier: tier, segment: s.segmentKey)
+                    if !loss.isEmpty { cell["loss"] = loss }
+                }
+                return cell
             }
         }
         return o

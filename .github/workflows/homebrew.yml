@@ -64,7 +64,7 @@ jobs:
             echo "Cask already at $VERSION with matching SHA-256; nothing to push."
             exit 0
           fi
-          if [[ "$(printf '%s\n' "$CURRENT" "$VERSION" | sort -V | head -n 1)" == "$VERSION" ]]; then
+          if [[ "$(printf '%s\n' "$CURRENT" "$VERSION" | sort -V | sed -n 1p)" == "$VERSION" ]]; then
             echo "::error::Refusing to move the Vella cask from $CURRENT to older release $VERSION."; exit 1
           fi
           sed -i -E "s/^  version \"[^\"]*\"$/  version \"$VERSION\"/; s/^  sha256 \"[0-9a-f]{64}\"$/  sha256 \"$SHA\"/" Casks/vella.rb

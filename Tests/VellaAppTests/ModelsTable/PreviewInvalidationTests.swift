@@ -12,7 +12,8 @@ import VellaCore
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: root) }
     private func controller() -> ModelsController {
-        ModelsController(dictation: ModelLibrary(mode: .dictation, registryURL: root.appendingPathComponent("models-installed.json")), configURL: root.appendingPathComponent("config.json"))
+        ModelsController(
+            dictation: ModelLibrary(mode: .dictation, registryURL: root.appendingPathComponent("models-installed.json")), configURL: root.appendingPathComponent("config.json"))
     }
 
     func testAdviceInvalidatesForHardwareBenchmarksAndVerdicts() throws {

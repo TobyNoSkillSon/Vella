@@ -161,7 +161,8 @@ final class TierCatalogTests: XCTestCase {
         XCTAssertEqual(downloadPrompt(family: ultra, precision: "8b", followUp: .load, freeBytes: nil)?.body, "1.25 GB download, then it loads as int8.")
         let whisper = try XCTUnwrap(c.family("whisper-large-v3"))
         let sixteen = try XCTUnwrap(downloadPrompt(family: whisper, precision: "FP16", followUp: .transcribe, freeBytes: 100))
-        XCTAssertEqual(downloadPrompt(family: whisper, precision: "FP16", followUp: .transcribe, freeBytes: nil)?.body, "3.09 GB download, then it transcribes your saved recording.")
+        XCTAssertEqual(
+            downloadPrompt(family: whisper, precision: "FP16", followUp: .transcribe, freeBytes: nil)?.body, "3.09 GB download, then it transcribes your saved recording.")
         // Too little free space: a refusal that says so (the download would only fail partway), not a Download offer.
         XCTAssertEqual(sixteen.title, "Not enough disk space")
         XCTAssertEqual(sixteen.body, "Whisper large-v3 needs 3.09 GB; 100 bytes free.")

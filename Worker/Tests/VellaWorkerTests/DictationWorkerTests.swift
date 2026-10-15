@@ -25,9 +25,13 @@ extension WorkerTests {
                 var fastCalls = 0, stockCalls = 0, retired = false
                 do {
                     let text: String = try StockFallback.run(
-                        optimized: { () throws -> String in fastCalls += 1; throw Failure.optimized },
+                        optimized: { () throws -> String in
+                            fastCalls += 1; throw Failure.optimized
+                        },
                         prepareStock: { _ in retired = true },
-                        stock: { stockCalls += 1; if stockFails { throw Failure.stock }; return "stock result" })
+                        stock: {
+                            stockCalls += 1; if stockFails { throw Failure.stock }; return "stock result"
+                        })
                     #expect(!stockFails && text == "stock result")
                 } catch { #expect(stockFails && (error as? Failure) == .stock) }
                 #expect(fastCalls == 1 && stockCalls == 1 && retired)
@@ -38,8 +42,14 @@ extension WorkerTests {
             enum Failure: Error { case commandBuffer }
             var fastCalls = 0, stockCalls = 0
             #expect(throws: Failure.self) {
-                _ = try StockFallback.run(optimized: { () throws -> String in fastCalls += 1; throw Failure.commandBuffer },
-                    prepareStock: { _ in throw Failure.commandBuffer }, stock: { stockCalls += 1; return "" })
+                _ = try StockFallback.run(
+                    optimized: { () throws -> String in
+                        fastCalls += 1; throw Failure.commandBuffer
+                    },
+                    prepareStock: { _ in throw Failure.commandBuffer },
+                    stock: {
+                        stockCalls += 1; return ""
+                    })
             }
             #expect(fastCalls == 1 && stockCalls == 0)
         }
@@ -48,8 +58,13 @@ extension WorkerTests {
             for (text, finite) in [("words", false), ("", true), (" \n", true)] {
                 var stockCalls = 0
                 let output: String = try StockFallback.run(
-                    optimized: { try Worker.validateOptimizedOutput(text, finite: finite); return text },
-                    prepareStock: { _ in }, stock: { stockCalls += 1; return "" })
+                    optimized: {
+                        try Worker.validateOptimizedOutput(text, finite: finite); return text
+                    },
+                    prepareStock: { _ in },
+                    stock: {
+                        stockCalls += 1; return ""
+                    })
                 #expect(output.isEmpty && stockCalls == 1)
             }
             try Worker.validateOptimizedOutput("recognized speech", finite: true)
