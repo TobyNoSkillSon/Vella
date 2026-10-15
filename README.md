@@ -211,7 +211,7 @@ A source build needs the Command Line Tools Swift (`xcode-select --install`), fu
 
 **The recording is kept.** Audio is written to disk as you speak; if transcription fails, or no model is installed yet, the recording waits and can be transcribed or retried later. Vella inserts text and never presses Enter.
 
-**Shortcuts** (below **Microphone**) sets the key chord, a single modifier key or a mouse button, and **Toggle**, **Hold to Talk** or **Tap or Hold**. **Copy Last Transcript** recovers the most recent text; **Transcripts…** opens a window of past transcripts, newest first, ten at a time with **Show more** for older ones; **Open Vella Files** shows saved recordings and transcripts.
+**Shortcuts** (below **Microphone**) sets the key chord, a single modifier key or a mouse button, and **Toggle**, **Hold to Talk** or **Tap or Hold**. **Copy Last Transcript** recovers the most recent text; **Transcripts…** opens a window of past transcripts, newest first, ten at a time with **Show more** for older ones, where a click on a transcript copies it; **Open Vella Files** shows saved recordings and transcripts.
 
 **Audio files** go through the same models: `vella transcribe talk.m4a` (add `--srt` for subtitles). Your dictation always goes first.
 

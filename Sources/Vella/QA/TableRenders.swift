@@ -340,6 +340,8 @@ import VellaUpdate
             line("No hardware for int8/int4 (triangles)", [:], "16", warnings: ["8": soft, "4": soft], position: .fast)
             line("int8 · Fast · loaded, recommended", [:], "8", hot: true, recommended: "8", position: .fast, action: "Unload")
             line("Loaded, int4 previewed, triangles", [:], "4", hot: true, warnings: ["8": soft, "4": soft], position: .fast, action: "Reload", emphasized: true)
+            line("Loaded bf16, greyed int4, Fast = Exact", greyed(["4"]), "16", hot: true, recommended: "8", available: false, action: "Unload")
+            line("Loaded and in use (disabled)", [:], "8", enabled: false, hot: true, recommended: "8", position: .fast, action: "Unload")
             line("Fast = Exact (greyed, always on)", greyed(["8", "4"]), "16", available: false)
             line("Exact: no Exact recipe at int8/int4", ["8": "No Exact recipe at int8; Fast offers it", "4": "No Exact recipe at int4; Fast offers it"], "16")
             line("In use (disabled)", greyed(["4"]), "8", enabled: false, position: .fast)
@@ -349,7 +351,7 @@ import VellaUpdate
         let view = NSHostingView(rootView: sheet)
         view.frame = NSRect(
             x: 0, y: 0, width: 190 + 30 + TierControl.width + ExactFastSwitch.width + RowAction.width + 16 + 16,
-            height: 11 * (ModelTable.rowHeight + 4) + 16)
+            height: 13 * (ModelTable.rowHeight + 4) + 16)
         let container = NSView(frame: view.frame)
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(calibratedRed: 0.13, green: 0.13, blue: 0.14, alpha: 1).cgColor
@@ -587,6 +589,31 @@ import VellaUpdate
     private var app: AppDelegate!
     init(directory: URL) { self.directory = directory }
 
+    /// `copy-item.png`: the real Copy Last Transcript item view at rest (top) and highlighted (bottom; the accent colour
+    /// stands in for the selection material, which offscreen drawing cannot show), on the dark menu's colour at the
+    /// real menu's width, with a plain row between them for spacing.
+    private func renderCopyItem(done: @escaping () -> Void) {
+        guard let item = app.menu.items.first(where: { $0.view is ProminentMenuItemView }), let image = item.image else { done(); return }
+        let width: CGFloat = 374, h = ProminentMenuItemView.height
+        let panel = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 3 * h + 16))
+        panel.wantsLayer = true
+        panel.layer?.backgroundColor = NSColor(srgbRed: 32 / 255, green: 32 / 255, blue: 32 / 255, alpha: 1).cgColor
+        for (row, lit) in [(0, false), (2, true)] {
+            let twin = NSMenuItem(title: item.title, action: nil, keyEquivalent: ""); twin.image = image
+            let view = ProminentMenuItemView(item: twin)
+            view.forcesHighlight = lit; view.rendersSelectionFill = lit
+            // A menu item's view keeps its origin at zero: each sits in a row container.
+            let slot = NSView(frame: NSRect(x: 0, y: panel.bounds.height - 8 - CGFloat(row + 1) * h, width: width, height: h))
+            view.setFrameSize(slot.bounds.size)
+            slot.addSubview(view)
+            panel.addSubview(slot)
+            keep.append(twin)
+        }
+        panel.appearance = NSAppearance(named: .darkAqua)
+        MenuMock.capture(panel, to: directory.appendingPathComponent("copy-item.png"), done: done)
+    }
+    private var keep: [AnyObject] = []
+
     /// `worker`: a transcription worker is running (Restart Worker); false shows Start Worker.
     struct State { var prefix: String; var settings: DefaultMenuSettings; var fact: String?; var lastText: String; var pending: (title: String, help: String)?; var worker = true }
 
@@ -639,7 +666,7 @@ import VellaUpdate
                 guard state.prefix == "default-" else { render(states, index + 1); return }
                 // Main-menu tooltips plus the Keep Hot and Memory ones.
                 MenuMock.renderTooltips(of: app.menu, submenus: ["Keep Hot", "Memory"], to: directory.appendingPathComponent("tooltips.png")) { [self] in
-                    render(states, index + 1)
+                    renderCopyItem { [self] in render(states, index + 1) }
                 }
             }
         }

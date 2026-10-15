@@ -54,7 +54,7 @@ A fresh install has no model. If you dictate before getting one, Vella keeps the
 
 1. **Status** — names the mode and current state, for example `Dictation: ready` or `Streaming: listening`. Orange means permission is needed or a recording needs attention; click it for the relevant settings or error. **Open Vella Files** opens logs. Tooltips appear only when they add information.
 2. **Models…** · **Keep Hot** · **Memory**.
-3. **Start Dictation** · **Mode** (Dictation or Streaming) · **Microphone** · **Shortcuts** · **Copy Last Transcript** · **Transcripts…** (past transcripts, newest first, ten at a time; **Show more** loads older ones; each has **Copy**) · **Recover Saved Recording…** · **Open Saved Recordings**.
+3. **Start Dictation** · **Mode** (Dictation or Streaming) · **Microphone** · **Shortcuts** · **Copy Last Transcript** · **Transcripts…** (past transcripts, newest first, ten at a time; **Show more** loads older ones; a click on a transcript or its **Copy** copies it, and a long one opens from its chevron) · **Recover Saved Recording…** · **Open Saved Recordings**.
 4. **Copy Skill for Your Agent** · **Open Vella Files** · **Launch at Login**.
 5. **Support the Developer…** · **Update to X…** (when a newer release is out) · **Quit Vella**.
 

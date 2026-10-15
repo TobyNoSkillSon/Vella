@@ -108,7 +108,59 @@ import SwiftUI
             // No path names a user reads (Toby, 15 Oct): no Standard and no Optimized row.
             XCTAssertFalse(text.contains("Standard"), text); XCTAssertFalse(text.contains("Optimized"), text)
         }
-        // Gold reads as recommended on both backgrounds, distinct from the bolt's colours.
-        XCTAssertNotEqual(TierControl.gold, TierControl.boltColor(hot: true)); XCTAssertNotEqual(TierControl.gold, TierControl.boltColor(hot: false))
+        // Gold reads as recommended on both backgrounds, distinct from the bolt's colour.
+        XCTAssertNotEqual(TierControl.gold, TierControl.boltTint)
+    }
+}
+
+/// The bolt and the Precision cells' colours (Toby, 15 Oct): a yellow bolt everywhere ("lightning should be like yellow.
+/// So that it's fast"), one switch for the row and the knob; cells neutral until chosen, blue when chosen, gold when the
+/// chosen one is recommended, and edged in white once loaded, never black.
+@MainActor final class BoltAndCellColourTests: XCTestCase {
+    private func rgb(_ c: NSColor) -> (Int, Int, Int) {
+        let s = c.usingColorSpace(.sRGB)!
+        return (Int((s.redComponent * 255).rounded()), Int((s.greenComponent * 255).rounded()), Int((s.blueComponent * 255).rounded()))
+    }
+    func testBoltIsYellowOnTheRowAndAmberOnTheKnobFromOneSwitch() {
+        XCTAssertEqual(TierControl.boltPalette, .yellow)
+        XCTAssertTrue(rgb(TierControl.boltTint) == (255, 232, 64), "lemon yellow, apart from the gold")
+        XCTAssertTrue(rgb(TierControl.boltPalette.knob) == (184, 128, 10), "the 30 Sep knob amber")
+        XCTAssertNotEqual(TierControl.boltTint, TierControl.selectionBlue)
+        XCTAssertTrue(rgb(TierControl.selectionBlue) == (142, 175, 246), "the chosen cell keeps today's blue")
+    }
+
+    /// Draws a Precision row offscreen and samples the centre of the 16-bit cell and the track beside the labels.
+    private func pixel(selected: String?, recommended: String?, hot: Bool, at column: Int, dy: CGFloat = 0) throws -> NSColor {
+        let control = TierControl(
+            labels: ["bf16", "int8", "int4"], selected: selected, enabled: true, hot: hot, recommended: recommended, help: { _ in "" }, onSelect: { _ in })
+        let host = NSHostingView(rootView: control.background(Color(nsColor: hot ? NSColor(srgbRed: 0.14, green: 0.31, blue: 0.68, alpha: 1) : NSColor(white: 0.17, alpha: 1))))
+        host.frame = NSRect(x: 0, y: 0, width: TierControl.width, height: TierControl.height)
+        let window = NSWindow(contentRect: host.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: rep)
+        // A point inside the cell's fill, left of its label: x = bolt + gap + a few points into the column.
+        let x = TierControl.iconWidth + TierControl.iconGap + CGFloat(column) * (TierControl.cellWidth - 1) + 4
+        let y = TierControl.height / 2 + dy
+        let scale = CGFloat(rep.pixelsWide) / host.bounds.width
+        return try XCTUnwrap(rep.colorAt(x: Int(x * scale), y: Int((host.bounds.height - y) * scale))?.usingColorSpace(.sRGB))
+    }
+    func testCellGradationNeutralBlueGoldAndLoadedNeverBlack() throws {
+        // Not chosen: neutral grey (equal channels within a few levels), no blue wash.
+        let neutral = try pixel(selected: "8", recommended: "8", hot: false, at: 2)
+        XCTAssertLessThan(abs(neutral.blueComponent - neutral.redComponent), 0.03, "unchosen cells carry no blue: \(neutral)")
+        // Chosen, not recommended: the blue.
+        let blue = try pixel(selected: "16", recommended: "8", hot: false, at: 0)
+        XCTAssertGreaterThan(blue.blueComponent, 0.85); XCTAssertGreaterThan(blue.blueComponent - blue.redComponent, 0.25)
+        // Chosen and recommended: gold.
+        let gold = try pixel(selected: "16", recommended: "16", hot: false, at: 0)
+        XCTAssertGreaterThan(gold.redComponent, 0.85); XCTAssertLessThan(gold.blueComponent, 0.45)
+        // Loaded: the same fills, never the old near-black.
+        for (selected, recommended) in [("16", "16"), ("16", "8")] {
+            let loaded = try pixel(selected: selected, recommended: recommended, hot: true, at: 0)
+            XCTAssertGreaterThan(max(loaded.redComponent, loaded.blueComponent), 0.8, "loaded \(selected)/\(recommended): \(loaded)")
+        }
     }
 }

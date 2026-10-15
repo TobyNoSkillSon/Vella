@@ -388,7 +388,11 @@ import VellaCore
                 cancelCapture: #selector(cancelShortcutCapture), selectModifier: #selector(selectShortcutModifier(_:)),
                 selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
                 openSettings: #selector(accessibility)))
-        if !model.lastText.isEmpty { item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast)) }
+        if !model.lastText.isEmpty {
+            // The item reached for most often rests on a slightly lighter row (Toby, 15 Oct), native highlight kept.
+            let copy = item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast))
+            _ = ProminentMenuItemView(item: copy)
+        }
         item("Transcripts…", "list.bullet.rectangle", #selector(showTranscripts))
         item("Recover Saved Recording…", "arrow.clockwise", #selector(recoverSaved), enabled: !model.busy && model.phase != .recording)
         item("Open Saved Recordings", "folder", #selector(savedRecordings), help: Self.privacyHelp)
@@ -411,11 +415,13 @@ import VellaCore
     static let privacyHelp =
         "Your audio and transcripts never leave your Mac. Vella checks the GitHub releases API at most once a day (at launch when due; failed checks retry about hourly). Models and updates download only when you ask. No telemetry."
 
-    private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = [], help: String? = nil) {
+    @discardableResult
+    private func item(_ title: String, _ icon: String, _ action: Selector, enabled: Bool = true, key: String = "", modifiers: NSEvent.ModifierFlags = [], help: String? = nil) -> NSMenuItem {
         let entry = NSMenuItem(title: title, action: action, keyEquivalent: key)
         entry.target = self; entry.isEnabled = enabled; entry.keyEquivalentModifierMask = modifiers; entry.toolTip = help
         entry.image = NSImage(systemSymbolName: icon, accessibilityDescription: nil)
         menu.addItem(entry)
+        return entry
     }
     // Wait until native menu tracking ends before microphone capture or opening panels.
     @objc private func toggle() {

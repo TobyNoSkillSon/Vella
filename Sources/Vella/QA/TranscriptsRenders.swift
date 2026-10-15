@@ -28,6 +28,7 @@ import VellaUpdate
         window("transcripts-10-top", many)
         window("transcripts-10-bottom", many, scrollToBottom: true)
         window("transcripts-10-expanded", many, expandLongest: true)
+        window("transcripts-10-copied", many, copyTop: true)
         if let support = ProcessInfo.processInfo.environment["VELLA_SUPPORT_DIR"], support.hasPrefix("/") {
             window("transcripts-real", URL(fileURLWithPath: support).appendingPathComponent("Recordings"))
         }
@@ -76,9 +77,11 @@ import VellaUpdate
         return root
     }
 
-    private func window(_ name: String, _ root: URL, scrollToBottom: Bool = false, expandLongest: Bool = false) {
+    /// `copyTop`: the top row just copied by a click on its text (its Copy label reads "Copied").
+    private func window(_ name: String, _ root: URL, scrollToBottom: Bool = false, expandLongest: Bool = false, copyTop: Bool = false) {
         actions.append { [self] in
             let controller = TranscriptsWindowController(root: root)
+            controller.copy = { _ in } // renders never touch the pasteboard
             keep.append(controller)
             controller.model.reload()
             if expandLongest, let long = controller.model.entries.max(by: { $0.text.count < $1.text.count }) { controller.model.expanded = [long.id] }
@@ -89,6 +92,17 @@ import VellaUpdate
                 if scrollToBottom, let scroll = Self.scrollView(in: window.contentView), let document = scroll.documentView {
                     let y = document.isFlipped ? max(0, document.bounds.height - scroll.contentView.bounds.height) : 0
                     scroll.contentView.scroll(to: NSPoint(x: 0, y: y)); scroll.reflectScrolledClipView(scroll.contentView)
+                }
+                if copyTop, let top = controller.model.entries.first, let frame = controller.model.textFrames[top.id], let view = window.contentView {
+                    // Through the window's own click path: a down and an up on the top row's first line.
+                    let local = NSPoint(x: frame.minX + 30, y: frame.minY + 8)
+                    let point = view.convert(view.isFlipped ? local : NSPoint(x: local.x, y: view.bounds.height - local.y), to: nil)
+                    for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                        if let event = NSEvent.mouseEvent(
+                            with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)
+                        { window.sendEvent(event) }
+                    }
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [self] in
                     Self.capture(window, to: directory.appendingPathComponent(name + ".png"))

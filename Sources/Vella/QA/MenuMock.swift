@@ -90,6 +90,10 @@ final class MenuMock: NSView {
                 y -= 5.5; continue
             }
             y -= 26
+            if item.view is ProminentMenuItemView {
+                NSColor.white.withAlphaComponent(ProminentMenuItemView.restingAlpha).setFill()
+                NSBezierPath(roundedRect: NSRect(x: ProminentMenuItemView.inset, y: y + 1, width: bounds.width - 2 * ProminentMenuItemView.inset, height: 24), xRadius: ProminentMenuItemView.radius, yRadius: ProminentMenuItemView.radius).fill()
+            }
             let color: NSColor = item.isEnabled ? .white : NSColor.white.withAlphaComponent(0.4)
             let title =
                 item.attributedTitle.map {

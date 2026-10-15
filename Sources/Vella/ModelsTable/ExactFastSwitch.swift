@@ -141,9 +141,9 @@ final class SwitchView: NSView {
         return NSRect(
             x: track.minX + Self.inset, y: position == .fast ? track.minY + Self.inset : track.maxY - Self.inset - knobSize, width: knobSize, height: knobSize)
     }
-    /// The knob's bolt, sized for the knob: the bolt's blue, deepened to read on the white knob (221° 75 % 45 %, 6.7:1).
-    /// The same on a loaded row: gold and amber now mean recommended.
-    static let knobBolt = image(NSColor(srgbRed: 29 / 255, green: 83 / 255, blue: 201 / 255, alpha: 1))
+    /// The knob's bolt, sized for the knob: the Precision bolt's colour (`TierControl.boltPalette`), deepened to read on
+    /// the white knob; the same on every row and in every state.
+    static let knobBolt = image(TierControl.boltPalette.knob)
     static func bolt(hot: Bool) -> NSImage? { knobBolt }
     private static func image(_ color: NSColor) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: TableMetrics.font(9), weight: .bold)

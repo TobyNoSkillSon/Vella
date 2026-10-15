@@ -116,6 +116,13 @@ struct TranscriptStore {
     @Published private(set) var hasMore = false
     /// Expanded rows by id (kept across refreshes for the session).
     @Published var expanded: Set<String> = []
+    /// The row that was just copied (its Copy label reads "Copied" for `copiedFor`).
+    @Published private(set) var copiedID: String?
+    static let copiedFor: TimeInterval = 1.2
+    private var copies = 0
+    /// Where each shown row's text sits, in the hosting view's top-left coordinates: a click there
+    /// copies that row. Not published: it changes as the list scrolls and nothing draws from it.
+    var textFrames: [String: CGRect] = [:]
     private var slots: [TranscriptStore.Slot] = []
     /// Index of the next slot to read.
     private var cursor = 0
@@ -132,9 +139,25 @@ struct TranscriptStore {
         if next != entries { entries = next }
         updateHasMore()
         expanded.formIntersection(Set(entries.map(\.id)))
+        let ids = Set(entries.map(\.id))
+        textFrames = textFrames.filter { ids.contains($0.key) }
     }
     /// Forgets the shown rows (the window closed): the next reload reads the first page only.
-    func reset() { entries = []; expanded = []; slots = []; cursor = 0; hasMore = false }
+    func reset() { entries = []; expanded = []; slots = []; cursor = 0; hasMore = false; textFrames = [:]; copiedID = nil }
+    /// The row whose text is under a point of the window (top-left coordinates), if any.
+    func entry(atText point: CGPoint) -> TranscriptEntry? {
+        entries.first { textFrames[$0.id]?.contains(point) == true }
+    }
+    /// Marks a row copied; a later copy keeps its own full moment.
+    func markCopied(_ id: String) {
+        copies += 1
+        let mine = copies
+        copiedID = id
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.copiedFor) { [weak self] in
+            guard let self, self.copies == mine else { return }
+            self.copiedID = nil
+        }
+    }
     func showMore() {
         var next = entries
         append(upTo: entries.count + Self.morePage, into: &next)
