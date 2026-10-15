@@ -26,6 +26,7 @@ struct WorkerExited: LocalizedError {
     var pending: (UUID, CheckedContinuation<[String: Any], Error>)?
     var deadline: DispatchWorkItem?
     var retiring = false
+    var optimized = false
     /// The worker acknowledged `load`. Until then the slot exists but must not take a request.
     var loaded = false
     init(ref: ModelRef, process: Process, input: FileHandle) { self.ref = ref; self.process = process; self.input = input }
@@ -304,7 +305,9 @@ struct WorkerExited: LocalizedError {
             let line = slot.buffer.prefix(upTo: newline); slot.buffer.removeSubrange(...newline)
             guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { failProtocol(slot); return }
             if object["id"] == nil, let status = object["status"] as? [String: Any] {
-                runtime.update(slot.ref.id, worker: HelperStatus(json: status)); continue
+                let worker = HelperStatus(json: status)
+                slot.optimized = slot.process.environment?["VELLA_FORCE_STOCK"] != "1" && slot.ref.recipe != .standard && worker.engine == "optimized"
+                runtime.update(slot.ref.id, worker: worker); continue
             }
             guard let id = object["id"] as? String, id == slot.pending?.0.uuidString else { failProtocol(slot); return }
             finish(slot, .success(object))
@@ -322,7 +325,7 @@ struct WorkerExited: LocalizedError {
         // The waiting request resumes only after this main-actor turn, so the dead worker is fully forgotten (runtime
         // entry included) before its automatic retry can register a replacement for the same model; a late removal
         // must never unregister that replacement.
-        runtime.requireStockRecovery(slot.ref)
+        runtime.workerExited(slot.ref, optimized: slot.optimized)
         finish(slot, .failure(WorkerExited()))
         retire(slot, notify: busy)
         Task { @MainActor [weak self] in

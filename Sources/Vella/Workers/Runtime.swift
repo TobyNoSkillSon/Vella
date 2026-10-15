@@ -46,32 +46,69 @@ import VellaWire
     private var workerHooks: [String: String] = [:]
     private var restarts: [String: RestartPolicy] = [:]
     private var stockRecovery: Set<String> = []
-    /// Survive app relaunch too: a killed optimized worker must not run the same kernel on every Retry.
+    /// Only repeated, confirmed optimized exits survive relaunch. Timeouts and unknown/stock exits are session-only.
+    private struct StockRecoveryRecord: Codable {
+        var strikes: [String: Int] = [:]
+        var blocked = false
+    }
+    private var recoveryStoreFailed = false
+    private let recoveryEpochOverride: String?
     static func stockRecoveryEpoch(osBuild: String, hardware: String, build: String) -> String {
         SHA256.hash(data: Data([osBuild, hardware, build].joined(separator: "\n").utf8)).map { String(format: "%02x", $0) }.joined()
     }
     private var stockRecoveryURL: URL {
-        let epoch = Self.stockRecoveryEpoch(osBuild: HostInfo.sysctlString("kern.osversion") ?? "unknown",
-            hardware: (HostInfo.sysctlString("hw.model") ?? "unknown") + ":" + (HostInfo.cpuBrand ?? "unknown"),
-            build: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "development")
+        let epoch =
+            recoveryEpochOverride
+            ?? Self.stockRecoveryEpoch(
+                osBuild: HostInfo.sysctlString("kern.osversion") ?? "unknown",
+                hardware: (HostInfo.sysctlString("hw.model") ?? "unknown") + ":" + (HostInfo.cpuBrand ?? "unknown"),
+                build: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "development")
         return support.appendingPathComponent("Worker/stock-recovery-\(epoch).json")
     }
-    func requireStockRecovery(_ ref: ModelRef) {
-        stockRecovery.insert(ref.path)
-        if FileManager.default.fileExists(atPath: stockRecoveryURL.path),
-            (try? Data(contentsOf: stockRecoveryURL)).flatMap({ try? JSONDecoder().decode([String].self, from: $0) }) == nil { return }
-        let saved = (try? Data(contentsOf: stockRecoveryURL)).flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
-        try? FileManager.default.createDirectory(at: stockRecoveryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? JSONEncoder().encode(Array(Set(saved).union(stockRecovery)).sorted()).write(to: stockRecoveryURL, options: .atomic)
+    private func recoveryKey(_ ref: ModelRef) -> String {
+        SHA256.hash(data: Data(ref.path.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+    private func recoveryRecord() throws -> StockRecoveryRecord {
+        guard FileManager.default.fileExists(atPath: stockRecoveryURL.path) else { return StockRecoveryRecord() }
+        let attributes = try FileManager.default.attributesOfItem(atPath: stockRecoveryURL.path)
+        guard let size = attributes[.size] as? Int, size <= 65_536 else { throw CocoaError(.fileReadCorruptFile) }
+        let data = try Data(contentsOf: stockRecoveryURL)
+        let record = try JSONDecoder().decode(StockRecoveryRecord.self, from: data)
+        guard data.count <= 65_536, record.strikes.count <= 256,
+            record.strikes.allSatisfy({ $0.key.count == 64 && $0.key.allSatisfy({ "0123456789abcdef".contains($0) }) && (1...2).contains($0.value) })
+        else { throw CocoaError(.fileReadCorruptFile) }
+        return record
+    }
+    private func saveRecovery(_ record: StockRecoveryRecord) throws {
+        try FileManager.default.createDirectory(at: stockRecoveryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONEncoder().encode(record).write(to: stockRecoveryURL, options: .atomic)
+    }
+    /// Never re-enter a suspect path in this app session, even after a successful stock retry or manual reload.
+    /// Request deadlines cannot distinguish a hung helper from a busy one, so timeouts never add persisted strikes.
+    func requireStockRecovery(_ ref: ModelRef) { stockRecovery.insert(ref.path) }
+    /// Called exactly once per unexpected worker EOF, before retirement or a request can retry.
+    func workerExited(_ ref: ModelRef, optimized: Bool) {
+        requireStockRecovery(ref)
+        guard optimized else { return }
+        do {
+            var record = try recoveryRecord()
+            let key = recoveryKey(ref)
+            if record.strikes[key] == nil, record.strikes.count == 256 { record.blocked = true } else { record.strikes[key] = min(2, (record.strikes[key] ?? 0) + 1) }
+            try saveRecovery(record)
+        } catch { recoveryStoreFailed = true }
     }
     func workerEnvironment(_ ref: ModelRef) -> [String: String] {
         var env = WorkerProcess.environment(recipe: ref.recipe)
         // The runtime owns the support root; test and lab workers never use the user's gate store.
         env["VELLA_SUPPORT_DIR"] = support.path
-        let saved = (try? Data(contentsOf: stockRecoveryURL)).flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
-        let unreadable = FileManager.default.fileExists(atPath: stockRecoveryURL.path) &&
-            ((try? Data(contentsOf: stockRecoveryURL)).flatMap { try? JSONDecoder().decode([String].self, from: $0) } == nil)
-        if stockRecovery.contains(ref.path) || saved.contains(ref.path) || unreadable { env["VELLA_FORCE_STOCK"] = "1" }
+        var sticky = recoveryStoreFailed
+        do {
+            let record = try recoveryRecord()
+            // Verify durability before allowing optimized execution, including a fresh or unwritable store.
+            try saveRecovery(record)
+            sticky = sticky || record.blocked || record.strikes[recoveryKey(ref)] == 2
+        } catch { recoveryStoreFailed = true; sticky = true }
+        if stockRecovery.contains(ref.path) || sticky { env["VELLA_FORCE_STOCK"] = "1" }
         return env
     }
     private var registrations: [String: UUID] = [:]
@@ -92,8 +129,8 @@ import VellaWire
         }
     }
 
-    init(support: URL = Backend.support, environment: [String: String] = ProcessInfo.processInfo.environment) {
-        self.support = support; self.environment = environment
+    init(support: URL = Backend.support, environment: [String: String] = ProcessInfo.processInfo.environment, recoveryEpoch: String? = nil) {
+        self.support = support; self.environment = environment; recoveryEpochOverride = recoveryEpoch
         probe = MemoryProbe(environment: environment)
         minuteSeconds = environment["VELLA_TEST_MINUTE_SECONDS"].flatMap(Double.init).flatMap { $0 > 0 ? $0 : nil } ?? 60
         let config = (try? Data(contentsOf: support.appendingPathComponent("config.json"))).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
@@ -312,7 +349,8 @@ import VellaWire
         if let chip = worker.gpu.map({ GPUStatus(chip: $0.chip, family: $0.family) }) { gpu = chip }
         workerHooks.merge(worker.testHooks) { $1 }
         if worker.engine == "mlx", worker.event == "fallback",
-            let ref = entries[id]?.ref ?? worker.model.map({ resolve($0, mode: worker.worker == .streaming ? .streaming : .dictation) }) {
+            let ref = entries[id]?.ref ?? worker.model.map({ resolve($0, mode: worker.worker == .streaming ? .streaming : .dictation) })
+        {
             requireStockRecovery(ref)
         }
         if entries[id] != nil { entries[id]?.worker = worker } else { pendingWorker[id] = worker }
@@ -376,7 +414,6 @@ import VellaWire
     /// error is shown. On-demand models load again on the next request.
     func crashed(_ id: String, message: String) {
         let entry = entries[id]
-        if let entry { requireStockRecovery(entry.ref) }
         removed(id)
         error = message; writeStatus() // the exit line itself was logged by the backend; the summary goes to status only
         guard let entry, entry.residency == .manual else { return }

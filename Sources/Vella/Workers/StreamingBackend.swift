@@ -24,6 +24,7 @@ import VellaWire
     private var pending: (UUID, CheckedContinuation<Reply, Error>)?
     private var deadline: DispatchWorkItem?
     private var receivedDone = false
+    private var optimized = false
     private var incomplete = false
     var hasIncompleteExecution: Bool { incomplete }
     private(set) var frames = 0
@@ -113,7 +114,7 @@ import VellaWire
         child.executableURL = executable
         child.environment = runtime.workerEnvironment(ref); child.standardInput = stdin; child.standardOutput = stdout
         child.standardError = FileHandle.nullDevice
-        frames = 0; committed = ""; partial = ""; buffer.removeAll(); receivedDone = false
+        frames = 0; committed = ""; partial = ""; buffer.removeAll(); receivedDone = false; optimized = false
         do { try child.run() } catch {
             throw VellaError.message("Vella's native streaming helper could not start. Reinstall the app; saved audio is retained. (\(error.localizedDescription))")
         }
@@ -205,7 +206,11 @@ import VellaWire
             if let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any], object["id"] == nil,
                 let status = object["status"] as? [String: Any]
             {
-                if let id = (loadingRef ?? hotRef)?.id { runtime.update(id, worker: HelperStatus(json: status)) }
+                if let ref = loadingRef ?? hotRef {
+                    let worker = HelperStatus(json: status)
+                    optimized = process?.environment?["VELLA_FORCE_STOCK"] != "1" && ref.recipe != .standard && worker.engine == "optimized"
+                    runtime.update(ref.id, worker: worker)
+                }
                 continue
             }
             guard let reply = try? JSONDecoder().decode(Reply.self, from: line), reply.id == pending?.0 else {
@@ -248,13 +253,13 @@ import VellaWire
             if let id { runtime.removed(id) }
             return
         }
+        if let ref = loadingRef ?? hotRef { runtime.workerExited(ref, optimized: optimized) }
         if !sessionActive, pending == nil, let ref = hotRef {
             hotRef = nil; process = nil
             runtime.log("\(ref.id): streaming worker exited while idle")
             runtime.crashed(ref.id, message: "\(ref.displayName)'s streaming worker exited. It loads again when needed.")
             return
         }
-        if let ref = loadingRef ?? hotRef { runtime.requireStockRecovery(ref) }
         fail(VellaError.message("Streaming worker exited. Saved audio is retained."))
     }
     private func fail(_ error: Error) {
