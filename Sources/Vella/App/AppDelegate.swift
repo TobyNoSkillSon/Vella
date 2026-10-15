@@ -728,10 +728,11 @@ import VellaCore
     }
     @objc private func supportDeveloper() {
         DispatchQueue.main.async {
-            let url = URL(string: "https://github.com/sponsors/TobyNoSkillSon")!
+            // The support section of Toby's site (GitHub Sponsors and Buy Me a Coffee side by side).
+            let url = URL(string: "https://tobynoskillson.com/#support")!
             if !self.openExternalURL(url) {
                 let alert = NSAlert()
-                alert.messageText = "Could not open GitHub Sponsors"
+                alert.messageText = "Could not open the support page"
                 alert.informativeText = url.absoluteString
                 alert.runModal()
             }

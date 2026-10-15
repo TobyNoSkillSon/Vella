@@ -3,7 +3,7 @@ import AppKit
 @testable import Vella
 
 final class SponsorshipTests: XCTestCase {
-    @MainActor func testSupportImmediatelyPrecedesQuitAndOpensOnlySponsorsURL() async throws {
+    @MainActor func testSupportImmediatelyPrecedesQuitAndOpensOnlyTheSupportPage() async throws {
         let model = DictationController(
             configurationURL: FileManager.default.temporaryDirectory
                 .appendingPathComponent("unused-vella-config-\(UUID()).json"))
@@ -16,11 +16,11 @@ final class SponsorshipTests: XCTestCase {
         XCTAssertEqual(support.title, "Support the Developer…")
         XCTAssertEqual(support.keyEquivalent, "")
         XCTAssertNotNil(support.image)
-        let opened = expectation(description: "Sponsors opened after menu tracking")
+        let opened = expectation(description: "Support page opened after menu tracking")
         var calls = 0
         delegate.openExternalURL = { url in
             calls += 1
-            XCTAssertEqual(url.absoluteString, "https://github.com/sponsors/TobyNoSkillSon")
+            XCTAssertEqual(url.absoluteString, "https://tobynoskillson.com/#support")
             opened.fulfill()
             return true
         }

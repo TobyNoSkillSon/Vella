@@ -37,11 +37,12 @@ final class DocsTests: XCTestCase {
         XCTAssertTrue(try text("CODE_OF_CONDUCT.md").contains("https://github.com/TobyNoSkillSon/Vella/security/advisories/new"))
     }
 
-    /// FUNDING.yml names the same GitHub Sponsors account as the README's Support button and the app's Support item.
+    /// FUNDING.yml names the same GitHub Sponsors account as the README's Support button; the app's Support item opens
+    /// the support section of Toby's site, which links that account.
     func testFundingMatchesTheSupportLink() throws {
         XCTAssertEqual(try text(".github/FUNDING.yml"), "github: [TobyNoSkillSon]\n")
         XCTAssertTrue(try text("README.md").contains("https://github.com/sponsors/TobyNoSkillSon"))
-        XCTAssertTrue(try text("Sources/Vella/App/AppDelegate.swift").contains("https://github.com/sponsors/TobyNoSkillSon"))
+        XCTAssertTrue(try text("Sources/Vella/App/AppDelegate.swift").contains("https://tobynoskillson.com/#support"))
     }
 
     /// The standalone installer (the raw GitHub URL) installs this version's prebuilt release with the repository installer's
