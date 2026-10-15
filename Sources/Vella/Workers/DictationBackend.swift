@@ -236,7 +236,7 @@ struct WorkerExited: LocalizedError {
         let helper = try workerURL()
         let child = Process(), stdout = Pipe(), stdin = Pipe()
         child.executableURL = helper
-        child.environment = WorkerProcess.environment(recipe: ref.recipe); child.standardInput = stdin; child.standardOutput = stdout
+        child.environment = runtime.workerEnvironment(ref); child.standardInput = stdin; child.standardOutput = stdout
         // Third-party diagnostics can contain speech; never persist them.
         child.standardError = FileHandle.nullDevice
         do { try child.run() } catch {
@@ -283,6 +283,7 @@ struct WorkerExited: LocalizedError {
             slot.pending = (id, continuation)
             let work = DispatchWorkItem { [weak self, weak slot] in
                 guard let self, let slot, slot.pending?.0 == id else { return }
+                self.runtime.requireStockRecovery(slot.ref)
                 self.finish(slot, .failure(URLError(.timedOut))); self.retire(slot)
             }
             slot.deadline = work
@@ -321,6 +322,7 @@ struct WorkerExited: LocalizedError {
         // The waiting request resumes only after this main-actor turn, so the dead worker is fully forgotten (runtime
         // entry included) before its automatic retry can register a replacement for the same model; a late removal
         // must never unregister that replacement.
+        runtime.requireStockRecovery(slot.ref)
         finish(slot, .failure(WorkerExited()))
         retire(slot, notify: busy)
         Task { @MainActor [weak self] in

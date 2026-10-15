@@ -40,6 +40,7 @@ final class NemotronNative: StreamingNative {
         let derived = try DerivedPrecision.resolve(path)
         model = try NemotronASRModel.fromDirectory(derived?.source ?? path, derived: derived)
         VellaNemotronNumerics.useReferencePositionTable(model!)
+        var qualified = false
         if !VellaNemotronOptions.anyEnabled {
             stockReason = FastPathGate.forcedStock ? FastPathGate.forcedStockReason : "Every streaming optimization is disabled by environment."
         } else if !gate {
@@ -47,11 +48,26 @@ final class NemotronNative: StreamingNative {
         } else {
             gated = true
             switch FastPathGate.qualify(path, runtime: NemotronRuntime.self) {
-            case .fast: stockReason = ""; enableOptimized()
+            case .fast: stockReason = ""; qualified = true
             case .stock(let reason): stockReason = reason
             }
         }
-        try reset()
+        do {
+            try withError {
+                if qualified { enableOptimized() }
+                try reset()
+            }
+        } catch {
+            guard qualified else { throw error }
+            if let url = try? FastPathGate.statusURL(path, revision: NemotronRuntime.gateRevision) {
+                FastPathGate.persist("stock", to: url, model: path, reason: "optimized streaming configuration failed")
+            }
+            session = nil; model = nil; optimized = false; fusedPrepared = false
+            stockReason = "Optimized streaming configuration failed; using stock MLX."
+            model = try NemotronASRModel.fromDirectory(derived?.source ?? path, derived: derived)
+            VellaNemotronNumerics.useReferencePositionTable(model!)
+            try withError { try reset() }
+        }
     }
     func enableOptimized() {
         guard !optimized, let model else { return }
@@ -135,7 +151,12 @@ final class NemotronNative: StreamingNative {
             }
             if nonFinite || (!strict && Self.faultFired && Self.optimizedFault == "nonfinite" && optimized) { throw StreamingFailure.inference }
         } catch {
-            guard optimized, replayable, !strict else { throw error }
+            guard optimized, !strict else { throw error }
+            // Persist before replay or teardown: either can itself fail. Retry in a fresh helper must be stock.
+            if gated, let url = try? FastPathGate.statusURL(path, revision: NemotronRuntime.gateRevision) {
+                FastPathGate.persist("stock", to: url, model: path, reason: "optimized streaming execution failed")
+            }
+            guard replayable else { throw error }
             // The bytes of this utterance the app has already taken (drained as committed text).
             let consumed = Array(produced.utf8.prefix(max(0, produced.utf8.count - text.utf8.count)))
             disableOptimized(

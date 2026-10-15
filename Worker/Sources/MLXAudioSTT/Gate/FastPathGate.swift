@@ -64,7 +64,7 @@ public enum FastPathGate {
     }
     /// Why the stock path runs when it is forced: the Standard selection, or a diagnosis switch.
     public static var forcedStockReason: String {
-        recipe == .standard ? "Standard selected: stock MLX." : "Stock path forced for diagnosis (VELLA_FORCE_STOCK)."
+        recipe == .standard ? "Standard selected: stock MLX." : "Stock MLX forced for recovery or diagnosis (VELLA_FORCE_STOCK)."
     }
     /// Lab/test only: `VELLA_MLX_DEVICE=cpu` runs every MLX op on the CPU device (correctness smokes while the GPU is
     /// taken). Reported in the worker status `test_hooks`; forces stock (no custom Metal kernels).
@@ -211,23 +211,37 @@ public enum FastPathGate {
     /// Consecutive inconclusive self-tests recorded for this key (0 when none).
     public static func inconclusiveCount(_ url: URL) -> Int {
         guard let record = record(url), record.status == .inconclusive else { return 0 }
-        return record.count ?? 0
+        return max(0, min(inconclusiveLimit, record.count ?? 0))
     }
     /// After this many consecutive inconclusive self-tests for one key, the key is persisted as stock.
     public static let inconclusiveLimit = 2
     /// `model` and `reason` are for `vella diagnose` only (the model folder's name, never its path; why it is stock);
     /// the key alone decides reuse.
-    public static func persist(_ value: String, to url: URL, count: Int? = nil, model: URL? = nil, reason: String? = nil,
-                               disabled: [String: String] = [:]) {
-        guard let status = GateRecord.Status(rawValue: value) else { return }
+    @discardableResult public static func persist(_ value: String, to url: URL, count: Int? = nil, model: URL? = nil, reason: String? = nil,
+                               disabled: [String: String] = [:]) -> Bool {
+        guard let status = GateRecord.Status(rawValue: value) else { return false }
+        do { try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true) } catch { return false }
+        // Atomic rename protects readers; a separate nonblocking lock serializes writers without hanging a load.
+        let lock = open(url.appendingPathExtension("write-lock").path, O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+        guard lock >= 0 else { return false }
+        defer { close(lock) }
+        let until = ProcessInfo.processInfo.systemUptime + 0.25
+        while flock(lock, LOCK_EX | LOCK_NB) != 0 {
+            guard errno == EWOULDBLOCK, ProcessInfo.processInfo.systemUptime < until else { return false }
+            usleep(1_000)
+        }
+        defer { flock(lock, LOCK_UN) }
+        // A runtime failure wins over a late self-test success from another worker.
+        if status == .fast, Self.status(url) == "stock" { return false }
         let host = Host.current
         let record = GateRecord(status: status, workerVersion: version, gpuFamily: host.gpuFamily, gpuArchitecture: host.gpuArchitecture,
                                 gpuName: host.gpuName, osBuild: host.osBuild,
                                 date: ISO8601DateFormatter().string(from: Date()), count: count, model: model?.lastPathComponent,
                                 reason: reason, disabled: disabled)
-        guard let data = try? JSONSerialization.data(withJSONObject: record.json) else { return }
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? data.write(to: url, options: .atomic)
+        do {
+            try JSONSerialization.data(withJSONObject: record.json).write(to: url, options: .atomic)
+            return true
+        } catch { return false }
     }
 
     public enum Verdict: Equatable {
@@ -253,11 +267,33 @@ public enum FastPathGate {
     }
     /// `requiredFamily` nil: the optimized path uses no GPU-family-specific kernels (stock MLX ops only).
     public static func qualify(_ path: URL, revision: String, requiredFamily: String? = "apple9") -> Verdict {
+        qualify(path, revision: revision, requiredFamily: requiredFamily, timeout: 45, makeProcess: { Process() })
+    }
+    /// Injection boundary for CPU-only process supervision tests; shipping callers use the fixed 45-second limit.
+    static func qualify(_ path: URL, revision: String, requiredFamily: String?, timeout: TimeInterval, makeProcess: () -> Process) -> Verdict {
         if forcedStock { return .stock(forcedStockReason) }
         guard let url = try? statusURL(path, revision: revision) else {
             return .stock("The optimized path could not be qualified for these model files.")
         }
-        // "inconclusive" is not a verdict: the self-test runs again.
+        // One qualifier per key across workers. A contender loads stock immediately, never waits on another GPU job.
+        // An unwritable verdict directory must not launch a self-test again on every load.
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let lock = open(url.appendingPathExtension("lock").path, O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+        guard lock >= 0 else { return .stock("The self-test verdict cannot be saved; using stock MLX.") }
+        defer { close(lock) }
+        guard flock(lock, LOCK_EX | LOCK_NB) == 0 else { return .stock("Another worker is qualifying this model; using stock MLX.") }
+        defer { flock(lock, LOCK_UN) }
+        // Corrupt/unknown verdicts fail closed instead of repeatedly launching the child.
+        if FileManager.default.fileExists(atPath: url.path) {
+            let host = Host.current
+            guard let previous = record(url), previous.workerVersion == version,
+                previous.gpuFamily == host.gpuFamily, previous.gpuArchitecture == host.gpuArchitecture,
+                previous.gpuName == host.gpuName, previous.osBuild == host.osBuild else {
+                persist("stock", to: url, model: path, reason: "unreadable or incomplete self-test verdict")
+                return .stock("The self-test verdict is unreadable or incomplete; using stock MLX.")
+            }
+        }
+        // "inconclusive" is not a verdict: retry at most twice for this key.
         if let previous = status(url), previous != "inconclusive" {
             return previous == "fast" ? .fast(disabled: disabledComponents(url))
                                       : .stock("The optimized path failed its self-test against stock MLX on this Mac.")
@@ -266,9 +302,17 @@ public enum FastPathGate {
             persist("stock", to: url, model: path, reason: "GPU family \(gpuFamily), needs \(requiredFamily)")
             return .stock("The optimized kernels need Apple GPU family 9; this GPU reports \(gpuFamily).")
         }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
-        process.arguments = ["fast-selftest", "--model", path.path]
+        if inconclusiveCount(url) >= inconclusiveLimit {
+            persist("stock", to: url, model: path, reason: "self-test retry budget exhausted")
+            return .stock("The self-test retry budget is exhausted; using stock MLX.")
+        }
+        let attempt = inconclusiveCount(url) + 1
+        // Reserve the attempt before launching: a parent crash cannot reset the retry budget.
+        persist("inconclusive", to: url, count: attempt, model: path, reason: "self-test in progress")
+        guard inconclusiveCount(url) == attempt else { return .stock("The self-test result cannot be saved; using stock MLX.") }
+        let process = makeProcess()
+        if process.executableURL == nil { process.executableURL = URL(fileURLWithPath: CommandLine.arguments[0]) }
+        if process.arguments == nil { process.arguments = ["fast-selftest", "--model", path.path] }
         // QA-only instrumentation and runtime-fallback fault injection cannot weaken the production qualification.
         var environment = ProcessInfo.processInfo.environment.filter {
             !EnvironmentSwitch.names(where: \.strippedFromSelfTestChild).contains($0.key)
@@ -285,8 +329,8 @@ public enum FastPathGate {
         let exited = DispatchSemaphore(value: 0)
         process.terminationHandler = { _ in exited.signal() }
         let failed = Verdict.stock("The optimized path failed its self-test against stock MLX on this Mac.")
-        do { try process.run() } catch { return recordInconclusive(url, model: path) }
-        if exited.wait(timeout: .now() + 45) == .timedOut {
+        do { try process.run() } catch { return recordInconclusive(url, model: path, count: attempt) }
+        if exited.wait(timeout: .now() + timeout) == .timedOut {
             process.terminate()
             if exited.wait(timeout: .now() + 2) == .timedOut {
                 kill(process.processIdentifier, SIGKILL)
@@ -299,28 +343,30 @@ public enum FastPathGate {
         // Verdicts are exit 0 (exact components token-exact, tolerant ones within tolerance, finite on every clip),
         // exit 2 (an exact component mismatched, non-finite output or a kernel error) and exit 4 (exact components
         // passed; the tolerant components named in the result file failed and stay off). A timeout above is evidence
-        // too. Anything else (setup failure, crash, unexplained status, an unreadable result) is inconclusive: stock
+        // too, as is a child crash. Anything else (setup failure, unexplained status, an unreadable result) is inconclusive: stock
         // for this load, retried next load, persisted as stock after two in a row.
-        guard process.terminationReason == .exit, [0, verdictFailed, componentsFailed].contains(process.terminationStatus) else {
-            return recordInconclusive(url, model: path)
+        if process.terminationReason == .uncaughtSignal {
+            persist("stock", to: url, model: path, reason: "self-test crashed (signal \(process.terminationStatus))")
+            return failed
+        }
+        guard [0, verdictFailed, componentsFailed].contains(process.terminationStatus) else {
+            return recordInconclusive(url, model: path, count: attempt)
         }
         if process.terminationStatus == componentsFailed {
             guard let bytes = try? Data(contentsOf: result),
                   let disabled = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: String], !disabled.isEmpty else {
-                return recordInconclusive(url, model: path)
+                return recordInconclusive(url, model: path, count: attempt)
             }
-            persist("fast", to: url, model: path, reason: partialReason(disabled), disabled: disabled)
-            guard status(url) == "fast" else { return .stock("The self-test result could not be saved, so the optimized path stays off.") }
+            guard persist("fast", to: url, model: path, reason: partialReason(disabled), disabled: disabled) else { return .stock("The self-test result could not be saved, so the optimized path stays off.") }
             return .fast(disabled: disabled)
         }
         let success = process.terminationStatus == 0
-        persist(success ? "fast" : "stock", to: url, model: path, reason: success ? nil : "self-test: optimized output differs from stock MLX")
+        let saved = persist(success ? "fast" : "stock", to: url, model: path, reason: success ? nil : "self-test: optimized output differs from stock MLX")
         // If persistence failed, don't enable a path that won't be tested on restart.
         guard success else { return failed }
-        return status(url) == "fast" ? .fast(disabled: [:]) : .stock("The self-test result could not be saved, so the optimized path stays off.")
+        return saved && status(url) == "fast" ? .fast(disabled: [:]) : .stock("The self-test result could not be saved, so the optimized path stays off.")
     }
-    private static func recordInconclusive(_ url: URL, model: URL) -> Verdict {
-        let count = inconclusiveCount(url) + 1
+    private static func recordInconclusive(_ url: URL, model: URL, count: Int) -> Verdict {
         if count >= inconclusiveLimit {
             persist("stock", to: url, model: model, reason: "self-test could not complete \(count) times in a row")
             return .stock("The optimized path's self-test could not complete on this Mac \(count) times in a row; using stock MLX.")

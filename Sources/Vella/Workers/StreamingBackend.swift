@@ -111,7 +111,7 @@ import VellaWire
         let executable = try workerURL()
         let child = Process(), stdout = Pipe(), stdin = Pipe()
         child.executableURL = executable
-        child.environment = WorkerProcess.environment(recipe: ref.recipe); child.standardInput = stdin; child.standardOutput = stdout
+        child.environment = runtime.workerEnvironment(ref); child.standardInput = stdin; child.standardOutput = stdout
         child.standardError = FileHandle.nullDevice
         frames = 0; committed = ""; partial = ""; buffer.removeAll(); receivedDone = false
         do { try child.run() } catch {
@@ -254,9 +254,13 @@ import VellaWire
             runtime.crashed(ref.id, message: "\(ref.displayName)'s streaming worker exited. It loads again when needed.")
             return
         }
+        if let ref = loadingRef ?? hotRef { runtime.requireStockRecovery(ref) }
         fail(VellaError.message("Streaming worker exited. Saved audio is retained."))
     }
-    private func fail(_ error: Error) { resolve(.failure(error)); retire() }
+    private func fail(_ error: Error) {
+        if let urlError = error as? URLError, urlError.code == .timedOut, let ref = loadingRef ?? hotRef { runtime.requireStockRecovery(ref) }
+        resolve(.failure(error)); retire()
+    }
     private func retire() {
         if let ref = loadingRef { loadingRef = nil; runtime.loadFailed(ref.id, message: "\(ref.displayName) did not finish loading.") }
         if sessionActive, let id = hotRef?.id { runtime.unpin(id) }

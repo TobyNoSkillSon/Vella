@@ -287,6 +287,7 @@ import VellaCore
         try JSONEncoder().encode(config).write(to: url, options: .atomic)
         controller?.library(mode).activeModelPath = path
         controller?.reloadConfig()
+        model?.refreshPendingModel()
     }
 
     // MARK: MenuSettingsSource
@@ -344,6 +345,7 @@ import VellaCore
 
     private func publish(_ status: WorkerStatus) {
         guard let controller, !controller.previewing else { return }
+        model?.refreshPendingModel()
         var loaded: [String: LoadedFamily] = [:]
         for (id, entry) in status.models {
             loaded[id] = LoadedFamily(

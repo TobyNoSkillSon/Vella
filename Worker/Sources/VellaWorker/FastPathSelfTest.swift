@@ -3,7 +3,7 @@ import MLX
 import MLXAudioSTT
 import VellaWorkerSupport
 
-enum FastPathNonFinite: Error { case invalid }
+enum FastPathNonFinite: Error { case invalid, empty }
 
 extension FastPathGate {
     /// A bundled self-test clip, found explicitly. SwiftPM's generated resource accessor looks beside the app bundle and in the

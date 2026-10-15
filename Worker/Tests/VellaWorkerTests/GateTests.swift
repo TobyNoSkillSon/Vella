@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import Testing
 @testable import MLXAudioSTT
 import MLX
@@ -212,6 +213,93 @@ extension WorkerTests {
             #expect(FastPathGate.status(url) == "stock")
             #expect(FastPathGate.inconclusiveCount(url) == 0)
             #expect(FastPathGate.status(scratch.url.appendingPathComponent("missing.json")) == nil)
+        }
+
+        /// Real child processes, no MLX arrays/GPU: the same supervisor used by production qualification.
+        @Test func supervisorFailuresAreBoundedAndSticky() throws {
+            for scenario in ["timeout", "crash", "mismatch", "compile-error", "inconclusive", "partial-unreadable", "pass"] {
+                let scratch = try Scratch("gate-process")
+                let model = try checkpoint(scratch)
+                try withEnvironment(Self.clean) {
+                    try withEnvironment(["VELLA_WORKER_DATA_DIR": scratch.url.path]) {
+                        var children: [Process] = []
+                        let code: String
+                        switch scenario {
+                        case "timeout": code = "import signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(30)"
+                        case "crash": code = "import os,signal;os.kill(os.getpid(),signal.SIGKILL)"
+                        case "mismatch", "compile-error": code = "raise SystemExit(2)"
+                        case "inconclusive": code = "raise SystemExit(9)"
+                        case "partial-unreadable": code = "raise SystemExit(4)"
+                        default: code = "raise SystemExit(0)"
+                        }
+                        func qualify() -> FastPathGate.Verdict {
+                            FastPathGate.qualify(model, revision: "supervisor", requiredFamily: nil, timeout: scenario == "timeout" ? 0.3 : 5) {
+                                let process = Process()
+                                process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+                                process.arguments = ["-c", code]; children.append(process)
+                                return process
+                            }
+                        }
+                        let first = qualify()
+                        let second = qualify()
+                        let third = qualify()
+                        let url = try FastPathGate.statusURL(model, revision: "supervisor")
+                        if scenario == "pass" {
+                            #expect(first == .fast(disabled: [:]) && second == first && third == first)
+                            #expect(children.count == 1)
+                        } else {
+                            if case .fast = first { Issue.record("failure enabled optimization") }
+                            #expect(FastPathGate.status(url) == "stock")
+                            #expect(children.count == (["inconclusive", "partial-unreadable"].contains(scenario) ? 2 : 1))
+                        }
+                        #expect(children.allSatisfy { !$0.isRunning })
+                    }
+                }
+            }
+        }
+
+        @Test func corruptUnwritableAndConcurrentQualificationFailClosed() throws {
+            let scratch = try Scratch("gate-storage")
+            let model = try checkpoint(scratch)
+            try withEnvironment(Self.clean) {
+                try withEnvironment(["VELLA_WORKER_DATA_DIR": scratch.url.path]) {
+                    let url = try FastPathGate.statusURL(model, revision: "storage")
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try Data("{broken".utf8).write(to: url)
+                    func qualify() -> FastPathGate.Verdict {
+                        FastPathGate.qualify(model, revision: "storage", requiredFamily: nil, timeout: 0.1) {
+                            Issue.record("storage refusal must not launch a child"); return Process()
+                        }
+                    }
+                    if case .fast = qualify() { Issue.record("corrupt verdict enabled optimization") }
+                    #expect(FastPathGate.status(url) == "stock")
+                    #expect(!FastPathGate.persist("fast", to: url), "late pass cannot replace stock failure")
+                    try Data(#"{"status":"fast"}"#.utf8).write(to: url)
+                    if case .fast = qualify() { Issue.record("incomplete verdict enabled optimization") }
+                    #expect(FastPathGate.status(url) == "stock")
+                    try FileManager.default.removeItem(at: url)
+                    let lock = open(url.appendingPathExtension("lock").path, O_CREAT | O_RDWR, 0o600)
+                    defer { close(lock) }
+                    #expect(flock(lock, LOCK_EX | LOCK_NB) == 0)
+                    if case .fast = qualify() { Issue.record("concurrent qualifier enabled optimization") }
+                    flock(lock, LOCK_UN)
+                    try FileManager.default.removeItem(at: url.appendingPathExtension("lock"))
+                    // A regular file where the verdict directory must be: deterministic even when tests run as root.
+                    try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+                    try Data("blocked".utf8).write(to: url.deletingLastPathComponent())
+                    if case .fast = qualify() { Issue.record("unwritable verdict enabled optimization") }
+                }
+            }
+        }
+
+        @Test func concurrentWritersKeepValidRecordsAndStockWins() throws {
+            let scratch = try Scratch("gate-writers")
+            let url = scratch.url.appendingPathComponent("key.json")
+            DispatchQueue.concurrentPerform(iterations: 16) { index in
+                FastPathGate.persist(index.isMultiple(of: 2) ? "fast" : "stock", to: url)
+            }
+            #expect(FastPathGate.status(url) == "stock")
+            #expect(FastPathGate.disabledComponents(url).isEmpty)
         }
 
         @Test func exitStatuses() {

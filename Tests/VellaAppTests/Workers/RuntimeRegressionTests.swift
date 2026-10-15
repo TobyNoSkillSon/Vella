@@ -467,6 +467,7 @@ final class RuntimeRegressionTests: XCTestCase {
         XCTAssertEqual(retries, [1])
         XCTAssertEqual(try RecordingSession(directory: first.directory).manifest.state, "transcribed")
         XCTAssertNotNil(runtime.status.models["crashonce"], "the retry's fresh worker is registered, not removed by the crash")
+        XCTAssertEqual(runtime.status.test_hooks?["VELLA_FORCE_STOCK"], "1", "the automatic retry runs stock")
 
         retries = []
         let always = path("crashalways"); try FileManager.default.createDirectory(atPath: always, withIntermediateDirectories: true)

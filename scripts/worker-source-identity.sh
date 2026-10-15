@@ -11,17 +11,19 @@
 # a Worker README-only change, refresh that declared full-tree identity and its published provenance references.
 set -euo pipefail
 SOURCE=9aad75cbac72dbc650669fe227fc273414db6c63 # informational measured-defaults commit, never a reachability gate
-WORKER_CODE_TREE=f91dc21579e795736daab3d6cb743bc3a5f4e621   # git tree of Worker/ with its README.md files removed
+WORKER_CODE_TREE=adfe0a9b3056050c9faa52fa765d5adc7bdb10d0   # git tree of Worker/ with its README.md files removed
 # 5 Oct: Worker/build-split.sh weak-links swift_initBorrow for Swift >= 6.4 builds only; with Swift 6.3.3 its commands are
 # unchanged.
 PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
 # 3 Oct chip-safety delta: macOS 26.2 tensor preflight; GPU architecture/name in gate keys and optional verdict metadata.
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
-# Full Worker tree including README.md files, as recorded in Resources/benchmarks.json builds.shipped.worker_source_trees.
+# Active 2.1 recovery-hardening source tree. Benchmark figures retain their historical source identity below;
+# this pin does not re-measure or claim new performance evidence.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c   # 6 Oct: model READMEs regenerated (every measured tier offered); code tree unchanged
+WORKER_FULL_TREE=0314a4a4fea06c2962bae389eb1ad84edce44cf9   # 15 Oct: bounded gate/recovery and regression tests
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
-# Recorded provenance: it must differ from WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
+HISTORICAL_WORKER_FULL_TREE=ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c
+# Recorded provenance: it must differ from HISTORICAL_WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
 # build-split.sh differs by the Swift 6.4-only link step, inactive with the reference's Swift 6.3.3).
 REFERENCE_WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
 # Recorded provenance, not a gate on history: the documentation-only delta from the measured Worker tree of 9aad75c
@@ -67,12 +69,12 @@ verify_index() {
     g cat-file blob ":Worker/Package.swift" | grep -F "\"${path#Sources/MLXAudioSTT/}\"" >/dev/null || { echo "Worker/Package.swift does not exclude $path" >&2; return 1; }
   done <<<"$WORKER_DOC_CHANGES"
   tree="$(g write-tree)" || return 1
-  [[ "$(g rev-parse "$tree:Worker")" == "$WORKER_FULL_TREE" ]] && full=identical || full='differs in README.md content only (not gated)'
+  [[ "$(g rev-parse "$tree:Worker")" == "$WORKER_FULL_TREE" ]] && full=identical || full='differs from the active pin (code identity checked below)'
   echo "worker source: published full Worker tree (README.md included) $full"
   if g cat-file -e "$REFERENCE_WORKER_FULL_TREE^{tree}" 2>/dev/null; then
-    refdiff="$(g diff --name-only "$REFERENCE_WORKER_FULL_TREE" "$WORKER_FULL_TREE")" || return 1
-    [[ -z "$(grep -Ev '(^|/)README\.md$|^build-split\.sh$' <<<"$refdiff" || true)" ]] || { echo 'reference capture tree differs from the shipped Worker tree beyond README.md files and build-split.sh' >&2; return 1; }
-    echo "worker source: diagnose reference capture tree differs from the shipped tree in README.md files and the Swift 6.4 link step only"
+    refdiff="$(g diff --name-only "$REFERENCE_WORKER_FULL_TREE" "$HISTORICAL_WORKER_FULL_TREE")" || return 1
+    [[ -z "$(grep -Ev '(^|/)README\.md$|^build-split\.sh$' <<<"$refdiff" || true)" ]] || { echo 'reference capture tree differs from the historical benchmark tree beyond README.md files and build-split.sh' >&2; return 1; }
+    echo "worker source: diagnose reference capture tree differs from the historical benchmark tree in README.md files and the Swift 6.4 link step only"
   fi
   while IFS= read -r path; do g update-index --force-remove -- "$path" || return 1; done <<<"$readmes"
   tree="$(g write-tree)" || return 1

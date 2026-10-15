@@ -9,6 +9,16 @@ import VellaWire
 
 enum InjectedFault: Error { case load, optimized, stock }
 
+/// Exactly one stock attempt. Errors in preparation or stock propagate; neither can re-enter optimized execution.
+enum StockFallback {
+    static func run<T>(optimized: () throws -> T, prepareStock: (Error) throws -> Void, stock: () throws -> T) throws -> T {
+        do { return try optimized() } catch {
+            try prepareStock(error)
+            return try stock()
+        }
+    }
+}
+
 /// One worker process serves one model at a time. The app runs one process per loaded model, so unloading is
 /// normally the process exiting; `unload` also works in place (load → unload returns MLX memory to baseline).
 /// Every change pushes one `{"status": …}` line before its response.
@@ -116,11 +126,18 @@ final class Worker {
                 disabledComponents = disabled
                 // Optimized · Exact: every inexact component stays off too (its own self-test verdict, FastPathGate.key).
                 capable.fastPathDisabledComponents = Set(disabled.keys).union(FastPathGate.exactOnly ? capable.fastPathTolerantComponents : [])
-                if capable.configureFastPath(enabled: true, component: "both") {
+                do {
+                    guard try withError({ capable.configureFastPath(enabled: true, component: "both") }) else {
+                        throw FastPathNonFinite.invalid
+                    }
                     stockReason = nil; optimizations = capable.fastPathComponents
-                } else {
-                    if let gateURL { FastPathGate.persist("stock", to: gateURL, model: path, reason: "optimized path unsupported for this checkpoint") }
-                    stockReason = "The optimized path does not support this checkpoint."
+                } catch {
+                    // Configuration may already have changed weights/caches. Reload clean stock rather than use a
+                    // partially configured model after a Metal pipeline or command-buffer error.
+                    if let gateURL { FastPathGate.persist("stock", to: gateURL, model: path, reason: "optimized configuration failed") }
+                    stockReason = "The optimized path could not be configured; using stock MLX."
+                    optimizations = capable.fastPathComponents.mapValues { _ in false }
+                    return try await loadStock(path, architecture: architecture)
                 }
             case .stock(let reason):
                 stockReason = reason
@@ -137,15 +154,22 @@ final class Worker {
         if stockFault { throw InjectedFault.stock }
         return try withError { model.generate(audio: input, generationParameters: parameters) }
     }
+    static func validateOptimizedOutput(_ text: String, finite: Bool) throws {
+        guard finite else { throw FastPathNonFinite.invalid }
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw FastPathNonFinite.empty }
+    }
     private func runOptimized(_ model: any STTGenerationModel, _ capable: any FastPathCapable, _ input: MLXArray, _ parameters: STTGenerateParameters) throws -> STTOutput {
         if optimizedFault == "throw" { throw InjectedFault.optimized }
         let output = try withError { model.generate(audio: input, generationParameters: parameters) }
-        if optimizedFault == "nonfinite" || !capable.fastPathFinite { throw FastPathNonFinite.invalid }
+        // Silence is valid on stock; an empty optimized result first gets one stock check so a broken decoder
+        // cannot silently mark speech as completed. Stock remains authoritative, including an empty transcript.
+        try Self.validateOptimizedOutput(optimizedFault == "empty" ? "" : output.text,
+                                         finite: optimizedFault != "nonfinite" && capable.fastPathFinite)
         return output
     }
     /// Runtime fallback: the optimized path throws or returns non-finite values → the whole request reruns on stock.
-    /// Stock succeeds → the model stays on stock until it reloads. Stock fails too → the request was at fault:
-    /// the optimized path is restored and the stock error returned.
+    /// Once optimized execution fails, stock stays selected even if the stock attempt also fails. That error
+    /// propagates once; the app retains the recording and a manual Retry also runs stock.
     func infer(_ audio: Audio) throws -> String {
         guard let model else { throw RequestError.invalid }
         return try autoreleasepool {
@@ -155,23 +179,45 @@ final class Worker {
                 let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30)
                 var output: STTOutput
                 if stockReason == nil, let capable = model as? any FastPathCapable {
-                    do { output = try runOptimized(model, capable, input, parameters) } catch {
-                        let cause = error is FastPathNonFinite ? "returned non-finite values" : "failed"
-                        _ = capable.configureFastPath(enabled: false, component: "both")
-                        Stream.gpu.synchronize()
-                        clearCompilationCaches()
-                        trackCompilationCache()
-                        do { output = try runStock(model, input, parameters) } catch {
-                            // fastPathDisabledComponents still holds the gate's verdict: restored without them.
-                            if !capable.configureFastPath(enabled: true, component: "both") {
-                                stockReason = "The optimized path could not be restored after a failed request."
-                            }
-                            push?(status("fallback-failed"))
-                            throw error
-                        }
-                        stockReason = "Runtime fallback: the optimized path \(cause) on a request; stock MLX until the model reloads."
+                    var checkingEmpty = false
+                    func commitStock() {
+                        stockReason = "Runtime fallback: optimized execution failed; using stock MLX."
                         optimizations = optimizations.mapValues { _ in false }
+                        if let gateURL { FastPathGate.persist("stock", to: gateURL, model: path, reason: stockReason) }
                         push?(status("fallback"))
+                    }
+                    do { output = try StockFallback.run(
+                        optimized: { try runOptimized(model, capable, input, parameters) },
+                        prepareStock: { error in
+                            if case .empty? = error as? FastPathNonFinite { checkingEmpty = true }
+                            // Ordinary failures are sticky before recovery. Empty text is compared with stock first:
+                            // a confirmed silent segment must not permanently disqualify a healthy optimized model.
+                            if !checkingEmpty { commitStock() }
+                            try withError {
+                                _ = capable.configureFastPath(enabled: false, component: "both")
+                                Stream.gpu.synchronize()
+                                clearCompilationCaches()
+                                trackCompilationCache()
+                            }
+                        },
+                        stock: {
+                            let stock = try runStock(model, input, parameters)
+                            if checkingEmpty {
+                                if stock.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    // Both paths agree on silence. Failed reconfiguration still leaves usable stock.
+                                    do {
+                                        guard try withError({ capable.configureFastPath(enabled: true, component: "both") }) else { throw FastPathNonFinite.invalid }
+                                    } catch {
+                                        commitStock()
+                                        try withError { _ = capable.configureFastPath(enabled: false, component: "both") }
+                                    }
+                                } else { commitStock() }
+                            }
+                            return stock
+                        })
+                    } catch {
+                        if checkingEmpty { commitStock() }
+                        throw error
                     }
                 } else {
                     output = try runStock(model, input, parameters)

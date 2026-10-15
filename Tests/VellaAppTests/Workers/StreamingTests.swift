@@ -152,6 +152,7 @@ final class StreamingTests: XCTestCase {
         do { try await timed.value; XCTFail("Missing deadline") } catch { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
         try await backend.releaseAndWait()
         XCTAssertNotEqual(kill(pid, 0), 0)
+        XCTAssertEqual(backend.runtime.workerEnvironment(backend.runtime.resolve(config().streamingModel, mode: .streaming))["VELLA_FORCE_STOCK"], "1")
         try await backend.start(config: config().forRecording())
         deadline = nil
         let pending = Task { try await backend.feed(Data(repeating: 0, count: 4)) }

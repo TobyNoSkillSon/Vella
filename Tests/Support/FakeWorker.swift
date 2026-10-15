@@ -15,6 +15,7 @@ public enum FakeWorker {
             fp=float(os.environ.get('FAKE_FOOTPRINT_MB','1000'))
             st={'worker':'dictation','pid':os.getpid(),'event':event,'model':model,'engine':'mlx' if model else None,
                 'engine_reason':'No optimized path for this model yet.' if model else None,'optimizations':{},
+                'test_hooks':{k:os.environ[k] for k in ['VELLA_FORCE_STOCK'] if k in os.environ},
                 'load_s':0.01,'memory':{'footprint_mb':fp if model else 50.0},'gpu':{'chip':'Fake M','family':'apple9'}}
             print(json.dumps({'status':st}),flush=True)
         for line in sys.stdin:

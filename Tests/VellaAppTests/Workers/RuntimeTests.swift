@@ -203,6 +203,29 @@ final class RuntimeTests: XCTestCase {
         XCTAssertEqual(try config(runtime).residency.launchSet.map(\.precision), ["8b"])
     }
 
+    @MainActor func testCorruptRecoveryRecordFailsClosedForEveryModel() throws {
+        let runtime = try Runtime.isolated(root)
+        let alpha = runtime.resolve(try model("alpha").path, mode: .dictation)
+        let beta = runtime.resolve(try model("beta").path, mode: .dictation)
+        runtime.requireStockRecovery(alpha)
+        let directory = root.appendingPathComponent("Worker")
+        let record = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasPrefix("stock-recovery-") })
+        try Data("{broken".utf8).write(to: record)
+        runtime.requireStockRecovery(alpha)
+        XCTAssertEqual(runtime.workerEnvironment(beta)["VELLA_FORCE_STOCK"], "1")
+        let relaunched = try Runtime.isolated(root)
+        XCTAssertEqual(relaunched.workerEnvironment(beta)["VELLA_FORCE_STOCK"], "1")
+    }
+
+    @MainActor func testRecoveryEpochChangesWithOSHardwareOrAppBuild() {
+        let key = Runtime.stockRecoveryEpoch(osBuild: "a", hardware: "M4 Pro", build: "1")
+        XCTAssertEqual(key, Runtime.stockRecoveryEpoch(osBuild: "a", hardware: "M4 Pro", build: "1"))
+        XCTAssertNotEqual(key, Runtime.stockRecoveryEpoch(osBuild: "b", hardware: "M4 Pro", build: "1"))
+        XCTAssertNotEqual(key, Runtime.stockRecoveryEpoch(osBuild: "a", hardware: "M5 Max", build: "1"))
+        XCTAssertNotEqual(key, Runtime.stockRecoveryEpoch(osBuild: "a", hardware: "M4 Pro", build: "2"))
+    }
+
     @MainActor func testCrashedManualWorkerRestartsAndOnDemandDoesNot() async throws {
         let runtime = try Runtime.isolated(root)
         let backend = try pair(runtime); defer { backend.shutdown() }
@@ -226,6 +249,13 @@ final class RuntimeTests: XCTestCase {
         XCTAssertTrue(log.contains("stopped restarting after 3 attempts"))
         XCTAssertFalse(log.contains("Worker exited ("), "summaries (which embed the tail) go to status, not back into the log")
         XCTAssertEqual(log.components(separatedBy: "exited (signal 9)").count - 1, 4, "one exit line per crash")
+        let ref = runtime.resolve(try model("alpha").path, mode: .dictation)
+        XCTAssertEqual(runtime.workerEnvironment(ref)["VELLA_FORCE_STOCK"], "1")
+        let relaunched = try Runtime.isolated(root)
+        XCTAssertEqual(relaunched.workerEnvironment(ref)["VELLA_FORCE_STOCK"], "1", "relaunch must not clear crash recovery")
+        try await backend.preload(ref, residency: .manual)
+        XCTAssertEqual(runtime.status.models["alpha"]?.engine, "mlx")
+        XCTAssertEqual(runtime.status.test_hooks?["VELLA_FORCE_STOCK"], "1", "the actual launched worker received recovery")
     }
 
     @MainActor func testFirstDictationWithoutModelKeepsRecordingAndOffersGet() async throws {

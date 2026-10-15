@@ -96,6 +96,33 @@ import VellaCore
         let action = pendingModelRequest.map { "Choose \($0.title) in the menu to transcribe it." } ?? "Get a \(mode.title.lowercased()) model in Models…, then Retry."
         let reason = missingSelectionReason?(mode) ?? "No \(mode.title.lowercased()) model is selected."
         update(.failed, "Recording saved. " + reason + " " + action)
+        refreshPendingModel()
+    }
+    /// Readiness belongs to the runtime, regardless of whether Get began in the menu or Models.
+    /// Update only a recording that was waiting without a model; never replace a recording's original model.
+    func refreshPendingModel() {
+        guard !busy, phase != .recording, let session = savedSession,
+            session.manifest.failureCode == "no_model", session.manifest.config.model.isEmpty,
+            let data = try? Data(contentsOf: configurationURL),
+            let config = try? JSONDecoder().decode(Configuration.self, from: data) else { return }
+        let mode = session.manifest.config.mode
+        let path = mode == .streaming ? config.streamingModel : config.model
+        let runtime = mode == .streaming ? streamingBackend.runtime : backend.runtime
+        guard let ref = runtime.status.models.keys.compactMap({ runtime.loadedRef($0) }).first(where: {
+            $0.mode == mode && sameFiles($0.path, path)
+        }) else { return }
+        session.manifest.config.model = ref.path
+        if ref.mode == .streaming { session.manifest.config.streamingModel = ref.path }
+        session.manifest.failureCode = nil
+        do { try session.save() } catch {
+            session.manifest.config.model = ""
+            if ref.mode == .streaming { session.manifest.config.streamingModel = "" }
+            session.manifest.failureCode = "no_model"
+            update(.failed, "Model ready. Could not update saved recording; Retry to try again.")
+            return
+        }
+        pendingModelRequest = nil
+        update(.failed, "Model ready. Retry Saved Recording to transcribe it.")
     }
     /// One click: download the offered model, then transcribe the saved recording (clipboard only, like recovery).
     func getRecommendedModel() {
@@ -495,6 +522,7 @@ import VellaCore
     }
     private func runTranscription(_ session: RecordingSession, liveStream: Bool = false) {
         if session.manifest.config.model.isEmpty { awaitModel(session); return }
+        pendingModelRequest = nil
         if session.manifest.config.mode == .streaming { runStreamingTranscription(session, live: liveStream); return }
         let operation = self.operation
         processingProgress = ""
@@ -661,7 +689,7 @@ import VellaCore
     func deleteSavedRecording() throws {
         guard !busy, phase != .recording, let savedSession else { return }
         try FileManager.default.removeItem(at: savedSession.directory)
-        self.savedSession = nil; recorder.discard(); lastText = ""
+        self.savedSession = nil; pendingModelRequest = nil; recorder.discard(); lastText = ""
         update(.idle, "Saved recording deleted.")
     }
     private static func focused(_ attribute: CFString, in target: NSRunningApplication) -> AXUIElement? {
