@@ -86,6 +86,12 @@ struct WorkerExited: LocalizedError {
         if let override = ProcessInfo.processInfo.environment["VELLA_SUPPORT_DIR"], override.hasPrefix("/") {
             return URL(fileURLWithPath: override, isDirectory: true)
         }
+        // XCTest can instantiate a default Backend without calling Runtime.isolated(). Such a fake helper
+        // launch still probes the recovery store before Process.run(), so isolate even direct xctest invocations.
+        if NSClassFromString("XCTestCase") != nil {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("vella-xctest-\(ProcessInfo.processInfo.globallyUniqueString)", isDirectory: true)
+        }
+        precondition(ProcessInfo.processInfo.environment["VELLA_SUPPORT_DIR"] == nil, "VELLA_SUPPORT_DIR must be an absolute path")
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Vella", isDirectory: true)
     }()
     static var configURL: URL { support.appendingPathComponent("config.json") }

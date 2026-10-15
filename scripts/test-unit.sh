@@ -11,20 +11,22 @@ if [[ $# != 0 ]]; then
   [[ $# == 2 && $1 == --package-path ]] || { echo 'usage: test-unit.sh [--package-path PATH]'; exit 2; }
   PACKAGE="$2"
 fi
+SUPPORT="$(mktemp -d -t vella-unit-support)"
+export VELLA_SUPPORT_DIR="$SUPPORT"
 LOG="$(mktemp -t vella-unit-tests)"
-trap 'rm -f "$LOG"' EXIT
+trap 'rm -f "$LOG"; rm -rf "$SUPPORT"' EXIT
 # Build the bundle without SwiftPM's launcher (which cannot use the CLT SDK).
-DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" test --package-path "$PACKAGE" --build-system native --disable-swift-testing \
-  -Xswiftc -F -Xswiftc "$PLATFORM/Library/Frameworks" \
+DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" test -c "${VELLA_TEST_CONFIGURATION:-debug}" --package-path "$PACKAGE" --build-system native --disable-swift-testing \
+  -Xswiftc -DDEBUG -Xswiftc -F -Xswiftc "$PLATFORM/Library/Frameworks" \
   -Xswiftc -I -Xswiftc "$PLATFORM/usr/lib" \
   -Xlinker -F -Xlinker "$PLATFORM/Library/Frameworks" \
   -Xlinker -L -Xlinker "$PLATFORM/usr/lib" \
   -Xlinker -rpath -Xlinker "$PLATFORM/Library/Frameworks" \
   -Xlinker -rpath -Xlinker "$PLATFORM/usr/lib" \
   -Xlinker -rpath -Xlinker "$CLT/Library/Developer/usr/lib"
-BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build --package-path "$PACKAGE" --build-system native --show-bin-path)"
+BIN="$(DEVELOPER_DIR="$CLT" "$CLT/usr/bin/swift" build -c "${VELLA_TEST_CONFIGURATION:-debug}" --package-path "$PACKAGE" --build-system native --show-bin-path)"
 BUNDLES=()
 while IFS= read -r bundle; do BUNDLES+=("$bundle"); done < <(find "$BIN" -maxdepth 1 -name '*PackageTests.xctest')
 [[ ${#BUNDLES[@]} == 1 ]] || { echo 'Expected exactly one XCTest bundle'; exit 1; }
-DEVELOPER_DIR="$XCODE" xcrun xctest "${BUNDLES[0]}" 2>&1 | tee "$LOG"
+DEVELOPER_DIR="$XCODE" xcrun xctest ${VELLA_TEST_FILTER:+-XCTest "$VELLA_TEST_FILTER"} "${BUNDLES[0]}" 2>&1 | tee "$LOG"
 grep -Eq 'Executed [1-9][0-9]* tests?' "$LOG" || { echo 'No XCTest tests executed'; exit 1; }

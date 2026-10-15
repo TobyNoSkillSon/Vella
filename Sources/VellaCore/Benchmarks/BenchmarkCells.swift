@@ -125,19 +125,28 @@ public func presenceLossItems(_ cell: BenchmarkCell?) -> [String] {
     return plainLossItems(presence.reasons)
 }
 
+// Swift's regex literals are parsed when this function executes. These immutable patterns are shared by
+// recommendation and tooltip generation; compiling four of them for every reason dominated preview redraws.
+private enum LossPatterns {
+    nonisolated(unsafe) static let clips = /(\d+) clips? empty or cut short where (?:same-layout Standard )?16 had the words(?: \(limit [^)]*\))?/
+    nonisolated(unsafe) static let limits = #/ \((presence limit|absent from|limit) [^)]*\)/#
+    nonisolated(unsafe) static let baseline = #/ vs (same-layout Standard )?16$/#
+    nonisolated(unsafe) static let metric = #/ [+\u{2212}-][0-9]/#
+}
+
 /// Gate reasons in the tooltip's words, lost clips first: `2 clips empty or cut short where 16 had the words (limit 0)`
 /// → `2 test clips came back empty or cut short`; `English WER +0.65 pt vs 16 (limit 0.10)` → `English WER +0.65 pt`.
 /// The limits are left out (the tooltip states the loss, not the verdict); one item per metric, the first kept.
 public func plainLossItems(_ reasons: [String]) -> [String] {
     var clips: [String] = [], others: [String] = [], seen = Set<String>()
     for reason in reasons where !reason.isEmpty {
-        if let match = reason.wholeMatch(of: /(\d+) clips? empty or cut short where (?:same-layout Standard )?16 had the words(?: \(limit [^)]*\))?/) {
+        if let match = reason.wholeMatch(of: LossPatterns.clips) {
             let n = Int(match.1) ?? 0
             if seen.insert("clips").inserted { clips.append("\(n) test clip\(n == 1 ? "" : "s") came back empty or cut short") }
         } else {
-            let item = reason.replacing(#/ \((presence limit|absent from|limit) [^)]*\)/#, with: "")
-                .replacing(#/ vs (same-layout Standard )?16$/#, with: "")
-            let metric = item.firstRange(of: #/ [+\u{2212}-][0-9]/#).map { String(item[..<$0.lowerBound]) } ?? item
+            let item = reason.replacing(LossPatterns.limits, with: "")
+                .replacing(LossPatterns.baseline, with: "")
+            let metric = item.firstRange(of: LossPatterns.metric).map { String(item[..<$0.lowerBound]) } ?? item
             if seen.insert(metric).inserted { others.append(item) }
         }
     }

@@ -52,20 +52,22 @@ struct ModelDeletionPlan {
 /// `selections`), else the precision recommended for this Mac at Fast. Only Load/Reload changes what dictation uses, and only while the model is not in
 /// use. Every download asks first (`confirmDownload`).
 @MainActor final class ModelsController: ObservableObject {
+    /// Optional work counter for in-process regression probes; nil in the app.
+    var observeWork: ((String) -> Void)?
     var previousModelNames: [String: String] = [:]
-    var benchmarkHardware = HostInfo.benchmarkHardware
+    var benchmarkHardware = HostInfo.benchmarkHardware { didSet { adviceCache = [:] } }
     /// This Mac's GPU, for the recommended precision and the warning triangles (renders and tests set another).
-    var gpu = GPUCapability.current
-    /// The worker's persisted self-test verdicts (<support>/Worker/FastPath, as FastPathGate stores them), reread with
-    /// config.json; this worker's gate version (the bundled diagnose reference) and this Mac's OS build to match them.
-    var verdictDirectory: URL?
+    var gpu = GPUCapability.current { didSet { adviceCache = [:] } }
+    /// Persisted worker self-test verdicts, read once and refreshed after its loaded/components state changes;
+    /// match this worker's gate version and this Mac's OS build.
+    var verdictDirectory: URL? { didSet { verdictsLoaded = false; adviceCache = [:] } }
     private(set) var verdicts: [QualificationVerdict] = []
-    var gateVersion: String?
-    var osBuild = HostInfo.osBuild
+    var gateVersion: String? { didSet { adviceCache = [:] } }
+    var osBuild = HostInfo.osBuild { didSet { adviceCache = [:] } }
     let dictation: ModelLibrary
     let streaming: ModelLibrary
-    @Published var catalog: ModelCatalog
-    @Published var benchmarks: BenchmarkFile
+    @Published var catalog: ModelCatalog { didSet { adviceCache = [:]; localPaths = [:] } }
+    @Published var benchmarks: BenchmarkFile { didSet { adviceCache = [:] } }
     /// Family id → previewed selection (a segment click or a switch flip, not yet loaded); never persisted.
     @Published private(set) var previews: [String: ModelSelection] = [:]
     /// Family id → the selection a confirmed download will load when it finishes.
@@ -82,20 +84,64 @@ struct ModelDeletionPlan {
     /// Family id → the precision whose confirmed download is running; it loads when the download finishes.
     @Published private(set) var pendingLoads: [String: String] = [:]
     /// config.json as last read: the modes' models and `lastLoaded`. Nil without one (isolated tests, renders).
-    @Published private(set) var config: Configuration?
+    @Published private(set) var config: Configuration? { didSet { adviceCache = [:]; snapshotConfiguredManifests() } }
     /// Runtime state from the worker status; nil = no runtime attached (loaded = the mode's selected model).
-    @Published var runtime: TableRuntime?
+    @Published var runtime: TableRuntime? {
+        didSet {
+            guard oldValue?.loaded != runtime?.loaded else { return }
+            adviceCache = [:]
+            refreshVerdictsAfterWorkerChange()
+        }
+    }
     @Published var lastError: String?
     @Published private(set) var migrationNotices: [String] = []
     /// True in the render harness: nothing is written, no worker is asked.
     var previewing = false
     weak var actions: ModelRuntimeActions?
     /// The app's config.json (the runtime's); nil = none.
-    var configURL: URL?
+    var configURL: URL? {
+        didSet { verdictDirectory = configURL?.deletingLastPathComponent().appendingPathComponent("Worker/FastPath") }
+    }
     /// Asks before a download: shows the prompt and answers with an approval only when the user chose Download.
     /// Without a presenter nothing downloads.
     var confirmDownload: ((DownloadPrompt, @escaping (DownloadApproval?) -> Void) -> Void)?
     private var forwarding: [AnyCancellable] = []
+    // Preview selections do not change advice. Invalidate only its actual inputs, never during a render.
+    private var adviceCache: [String: [OptimizedMode: PrecisionAdvice]] = [:]
+    private struct PathSnapshot { let value: String? }
+    private var localPaths: [String: PathSnapshot] = [:]
+    private struct ManifestSnapshot { let value: DerivedModelManifest? }
+    private var configuredManifests: [String: ManifestSnapshot] = [:]
+    private var verdictsLoaded = false
+    private var verdictGeneration = 0
+
+    /// Configured derived paths are resolved once when config changes, including missing manifests. Repeated
+    /// lastLoaded() calls while drawing every row must never open files (the streaming path is often derived).
+    private func snapshotConfiguredManifests() {
+        configuredManifests = [:]
+        for path in [config?.model, config?.streamingModel].compactMap({ $0 }) where !path.isEmpty {
+            observeWork?("manifestRead")
+            configuredManifests[path] = ManifestSnapshot(value: derivedModelManifest(at: URL(fileURLWithPath: path)))
+        }
+    }
+
+    /// The worker writes gate verdicts before publishing its loaded/components state. Refresh on that event,
+    /// off the main thread; memory/status ticks and precision previews reuse the snapshot.
+    private func refreshVerdictsAfterWorkerChange() {
+        guard !previewing, let directory = verdictDirectory else { return }
+        verdictGeneration += 1
+        let generation = verdictGeneration
+        observeWork?("verdictScanScheduled")
+        Task { [weak self] in
+            let values = await Task.detached(priority: .utility) { QualificationVerdict.read(directory) }.value
+            guard let self, self.verdictGeneration == generation, self.verdictDirectory == directory else { return }
+            if self.verdicts != values {
+                self.objectWillChange.send()
+                self.verdicts = values; self.adviceCache = [:]
+            }
+            self.verdictsLoaded = true
+        }
+    }
 
     init(dictation: ModelLibrary? = nil, streaming: ModelLibrary? = nil, benchmarksURL: URL? = nil, configURL: URL? = nil) {
         let dictation = dictation ?? ModelLibrary(mode: .dictation)
@@ -112,7 +158,11 @@ struct ModelDeletionPlan {
         benchmarks = decodeBenchmarks(try? Data(contentsOf: benchmarksURL ?? Self.benchmarksURL(resources: dictation.resources)))
         // Download progress and registry changes redraw the table.
         for library in [self.dictation, self.streaming] {
-            forwarding.append(library.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() })
+            forwarding.append(library.objectWillChange.sink { [weak self] _ in
+                guard let self else { return }
+                self.adviceCache = [:]; self.localPaths = [:]
+                self.objectWillChange.send()
+            })
         }
         reloadConfig()
     }
@@ -131,7 +181,12 @@ struct ModelDeletionPlan {
     /// Rereads config.json (after a Load, and when the menu opens).
     func reloadConfig() {
         guard !previewing, let configURL else { return }
-        verdicts = verdictDirectory.map(QualificationVerdict.read) ?? []
+        if !verdictsLoaded {
+            observeWork?("verdictScan")
+            verdicts = verdictDirectory.map(QualificationVerdict.read) ?? []
+            verdictsLoaded = true
+            adviceCache = [:]
+        }
         config = (try? Data(contentsOf: configURL)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) }
     }
     /// Render harness: a config without touching disk.
@@ -147,7 +202,12 @@ struct ModelDeletionPlan {
             // A checkpoint registered under a mixed tier's id is not that recipe: it identifies as nothing.
             return installed(found.family, found.precision) == nil ? nil : found
         }
-        guard let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = catalog.family(manifest.family),
+        let manifest: DerivedModelManifest?
+        if let cached = configuredManifests[path] { manifest = cached.value } else {
+            observeWork?("manifestRead")
+            manifest = derivedModelManifest(at: URL(fileURLWithPath: path))
+        }
+        guard let manifest, let family = catalog.family(manifest.family),
             family.mode == mode, family.variants[manifest.precision]?.isDerived == true,
             // Only while the precision resolves (its source is registered): a stale manifest whose source is not in
             // this library identifies as nothing, like the table's Get.
@@ -309,11 +369,16 @@ struct ModelDeletionPlan {
     /// The advice in one switch position (where Fast = Exact the switch is pinned to Fast). Figures that predate the final
     /// build (benchmarks.json `figures_pending`) recommend and warn nothing.
     func advice(_ f: ModelFamily, mode requested: OptimizedMode) -> PrecisionAdvice {
+        observeWork?("advice")
         guard !benchmarks.figuresPending else { return PrecisionAdvice() }
         let mode: OptimizedMode = switchAvailable(f) ? requested : .fast
-        return precisionAdvice(
+        if let cached = adviceCache[f.id]?[mode] { return cached }
+        observeWork?("adviceCalculation")
+        let value = precisionAdvice(
             f, benchmark(f), mode: mode, tiers: measuredPrecisions(f, mode), gpu: gpu, measuredHere: benchmarkHardware.isMeasuredConfiguration,
             qualification: { self.qualification(f, tier: $0, mode: mode) })
+        adviceCache[f.id, default: [:]][mode] = value
+        return value
     }
     /// This Mac's qualification of a precision (Acceleration.swift): the worker's report while that precision is loaded
     /// in that switch position (stock MLX, or the components it left off), else the persisted self-test verdicts for its
@@ -331,7 +396,10 @@ struct ModelDeletionPlan {
         return VellaCore.qualification(folders: folders, verdicts: verdicts, workerVersion: gateVersion, gpu: gpu, osBuild: osBuild)
     }
     /// Render harness and tests: verdicts without a directory.
-    func previewVerdicts(_ values: [QualificationVerdict]) { verdicts = values }
+    func previewVerdicts(_ values: [QualificationVerdict]) {
+        verdictGeneration += 1
+        verdicts = values; verdictsLoaded = true; adviceCache = [:]
+    }
     /// What the first dictation without a model offers: the catalog's first offered family at the precision its row
     /// shows unloaded (`committed`: a saved choice, else the recommended one for this Mac), else 16, else native.
     func firstOffered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
@@ -527,7 +595,16 @@ struct ModelDeletionPlan {
         precisionAvailable(f, precision) { self.library(f.mode).installed[$0]?.path }
     }
     /// Any downloaded precision of the family (its partial downloads too), for the trash button.
-    func localPath(_ f: ModelFamily, _ precision: String) -> String? { f.variants[precision].flatMap { library(f.mode).modelFilePath($0.id) } }
+    func localPath(_ f: ModelFamily, _ precision: String) -> String? {
+        guard let variant = f.variants[precision] else { return nil }
+        if let cached = localPaths[variant.id] { return cached.value }
+        // Snapshot all of this row's precisions together, before any preview click can ask for another one.
+        for variant in f.variants.values {
+            observeWork?("localPathLookup")
+            localPaths[variant.id] = PathSnapshot(value: library(f.mode).modelFilePath(variant.id))
+        }
+        return localPaths[variant.id]?.value
+    }
 
     /// The loaded precision: from the runtime, or without one the variant selected for the family's mode.
     func loaded(_ f: ModelFamily) -> LoadedFamily? {

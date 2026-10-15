@@ -421,6 +421,7 @@ struct VellaClient: Sendable {
 
     /// The running app's status file (nil when its app is gone).
     func runningStatus() -> WorkerStatus? {
+        if let dir = environment["VELLA_SUPPORT_DIR"], !dir.hasPrefix("/") { return nil }
         guard let data = try? Data(contentsOf: supportDirectory.appendingPathComponent("worker-status.json")),
             let status = try? JSONDecoder().decode(WorkerStatus.self, from: data),
             let port = status.api_port, port > 0, let pid = status.app_pid, pid > 0, kill(pid, 0) == 0
@@ -431,6 +432,7 @@ struct VellaClient: Sendable {
     func runningPort() -> Int? { runningStatus()?.api_port }
 
     func ensureRunning() async throws -> Int {
+        if let dir = environment["VELLA_SUPPORT_DIR"], !dir.hasPrefix("/") { throw CLIError("VELLA_SUPPORT_DIR must be an absolute path") }
         if let port = runningPort() { return port }
         guard environment["VELLA_NO_LAUNCH"] != "1" else { throw CLIError("Vella is not running") }
         if environment["VELLA_SUPPORT_DIR"] != nil, environment["VELLA_APP"] == nil {

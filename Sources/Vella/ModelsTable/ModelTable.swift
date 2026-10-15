@@ -115,6 +115,7 @@ struct ModelTable: View {
     /// The table is exactly as wide as its columns (`width`): header, rows and footer each take `W.row`, and nothing
     /// widens the stack, so the item view, the menu window and the content agree in every state.
     var body: some View {
+        let _ = controller.observeWork?("render")
         VStack(alignment: .leading, spacing: 0) {
             header.frame(width: W.row, height: Self.headerHeight)
             Divider().opacity(0.35).padding(.vertical, Self.dividerPadding)

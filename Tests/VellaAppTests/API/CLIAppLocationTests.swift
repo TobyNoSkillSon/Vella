@@ -23,6 +23,16 @@ final class CLIAppLocationTests: XCTestCase {
         XCTAssertNil(VellaClient.app(containing: bin.appendingPathComponent("other").path))
     }
 
+    func testInvalidIsolatedSupportNeverConnectsToTheRealApp() async {
+        for directory in ["", "relative"] {
+            let client = VellaClient(environment: ["VELLA_SUPPORT_DIR": directory])
+            XCTAssertNil(client.runningStatus())
+            do { _ = try await client.ensureRunning(); XCTFail("accepted invalid isolation root") } catch {
+                XCTAssertEqual((error as? CLIError)?.message, "VELLA_SUPPORT_DIR must be an absolute path")
+            }
+        }
+    }
+
     func testExecutablePathIsAbsolute() {
         XCTAssertTrue(VellaClient.executablePath().hasPrefix("/"))
     }

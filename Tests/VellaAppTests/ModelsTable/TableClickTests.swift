@@ -130,6 +130,8 @@ import SwiftUI
         XCTAssertEqual(row.segmentCount, 3, "Ultra offers 16, 8 and 4")
         XCTAssertEqual((0..<3).map { row.label(forSegment: $0) }, ["bf16", "int8", "int4"], "the dtype that runs")
         XCTAssertNil(c.previews[ultra.id])
+        var work: [String: Int] = [:]
+        c.observeWork = { work[$0, default: 0] += 1 }
         click(window, segment: 1, of: row)
         XCTAssertEqual(c.previews[ultra.id], ModelSelection(tier: .t8, mode: .fast), "8, Fast kept, the optimized request")
         XCTAssertEqual(row.selectedSegment, 1, "the row re-rendered with 8 selected")
@@ -146,6 +148,11 @@ import SwiftUI
         click(window, segment: 1, of: row)
         XCTAssertEqual(c.shownResult(ultra)?.speed_x, int8, "back on int8: its numbers")
         XCTAssertEqual(c.action(ultra), .get)
+        XCTAssertNil(work["adviceCalculation"], "native event handling reuses the initial advice")
+        XCTAssertNil(work["manifestRead"])
+        XCTAssertNil(work["verdictScan"])
+        XCTAssertNil(work["localPathLookup"])
+        XCTAssertLessThanOrEqual(work["render", default: 0], 6, "three clicks cause bounded updates")
     }
 
     /// The row follows the switch: Exact lists only the precisions with an exact recipe, Fast every measured one.
