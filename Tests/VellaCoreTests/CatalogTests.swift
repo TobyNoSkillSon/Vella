@@ -610,7 +610,8 @@ final class CatalogTests: XCTestCase {
         // One state and download confirmation (Toby, 26 Sep 2026).
         XCTAssertTrue(
             docs[1].contains("always shows the precision it is loaded at") && docs[1].contains("Closing the menu without Reload discards the preview")
-                && docs[1].contains("else 16 · Fast") && docs[1].contains("A choice of Standard saved by Vella 2.0 becomes the same precision and switch position"),
+                && docs[1].contains("else the precision recommended for this Mac (the gold cell) at Fast")
+                && docs[1].contains("A choice of Standard saved by Vella 2.0 becomes the same precision and switch position"),
             "USAGE: loaded precision wins; previews are transient")
         XCTAssertTrue(docs[1].contains("the one its next dictation (or streaming session) loads"), "USAGE: dictation uses what was last loaded")
         XCTAssertTrue(docs[1].contains("nothing downloads without **Download**") && docs[1].contains("**Cancel** is the default"), "USAGE: download popup")
