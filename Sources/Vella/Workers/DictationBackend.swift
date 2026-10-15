@@ -7,7 +7,7 @@ extension Backend {
     /// A model the worker could not load. Usually its files (a truncated or damaged download), so the remedy ends in
     /// getting it again; a selected model can only be deleted once another one is chosen for that mode.
     nonisolated static func loadFailed(_ name: String) -> String {
-        "\(name) failed to load. Try Load again; if it keeps failing, load another model, then delete this one in Models… and Get it again."
+        "\(name) failed to load. Try Load again. If it keeps failing, choose another model for its mode, then delete this one in Models… and Get it again."
     }
 }
 

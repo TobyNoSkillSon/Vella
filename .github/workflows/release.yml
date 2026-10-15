@@ -51,17 +51,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Only a missing release is recoverable; authentication and network errors must stop the build.
-          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" > "$RUNNER_TEMP/release.json" 2> "$RUNNER_TEMP/release-error"; then
-            DRAFT="$(jq -r '.draft' "$RUNNER_TEMP/release.json")"
-            [[ "$DRAFT" == true || "$DRAFT" == false ]] || { echo '::error::Invalid release response'; exit 1; }
-            if [[ "$DRAFT" == false ]]; then
-              echo "Release $GITHUB_REF_NAME is already published; assets left unchanged."
-              echo "published=true" >> "$GITHUB_OUTPUT"
+          # Release state for the tag: missing, empty-draft, draft-with-assets or published. `gh release view` also
+          # finds drafts (the REST tag endpoint does not); anything but "release not found" stops the build.
+          release_state() {
+            if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft,assets > "$RUNNER_TEMP/release.json" 2> "$RUNNER_TEMP/release-error"; then
+              jq -r 'if .isDraft == false then "published" elif .isDraft == true then (if (.assets | length) == 0 then "empty-draft" else "draft-with-assets" end) else "invalid" end' "$RUNNER_TEMP/release.json"
+            elif grep -q 'release not found' "$RUNNER_TEMP/release-error"; then
+              echo missing
+            else
+              cat "$RUNNER_TEMP/release-error" >&2; echo error
             fi
-          elif ! jq -e '.status == "404"' "$RUNNER_TEMP/release.json" >/dev/null 2>&1; then
-            cat "$RUNNER_TEMP/release-error" >&2; exit 1
-          fi
+          }
+          case "$(release_state)" in
+            missing|empty-draft) ;;
+            published)
+              echo "Release $GITHUB_REF_NAME is already published; assets left unchanged."
+              echo "published=true" >> "$GITHUB_OUTPUT" ;;
+            draft-with-assets)
+              # Assets are never replaced: a rebuild differs byte for byte, and the draft could be published mid-upload.
+              echo "::error::Draft release $GITHUB_REF_NAME already has assets. Delete the draft (gh release delete $GITHUB_REF_NAME) and rerun."; exit 1 ;;
+            *) echo '::error::Could not read the release for this tag'; exit 1 ;;
+          esac
 
       - name: Version from the tag
         if: steps.existing.outputs.published != 'true'
@@ -177,22 +187,27 @@ jobs:
             echo
             echo "Signed with Vella's own certificate \"Vella Release Signing\" (SHA-1 \`$VELLA_SIGNING_SHA1\`), the same in every release. Microphone and Accessibility permissions carry over between releases signed with this pinned identity; the first migration from a development or other identity requires granting them again."
           } >> "$NOTES"
-          # Recheck after the build: the maintainer may have published an existing draft in the meantime.
-          if ! gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" > "$RUNNER_TEMP/release.json" 2> "$RUNNER_TEMP/release-error"; then
-            if jq -e '.status == "404"' "$RUNNER_TEMP/release.json" >/dev/null 2>&1; then
-              gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Vella $VERSION" --notes-file "$NOTES"
+          # Release state for the tag: missing, empty-draft, draft-with-assets or published. `gh release view` also
+          # finds drafts (the REST tag endpoint does not); anything but "release not found" stops the build.
+          release_state() {
+            if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft,assets > "$RUNNER_TEMP/release.json" 2> "$RUNNER_TEMP/release-error"; then
+              jq -r 'if .isDraft == false then "published" elif .isDraft == true then (if (.assets | length) == 0 then "empty-draft" else "draft-with-assets" end) else "invalid" end' "$RUNNER_TEMP/release.json"
+            elif grep -q 'release not found' "$RUNNER_TEMP/release-error"; then
+              echo missing
             else
-              cat "$RUNNER_TEMP/release-error" >&2; exit 1
+              cat "$RUNNER_TEMP/release-error" >&2; echo error
             fi
-          fi
-          # Upload deliberately replaces assets only while the release is still a draft.
-          DRAFT="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)"
-          if [[ "$DRAFT" == false ]]; then
-            echo "Release $GITHUB_REF_NAME is already published; assets left unchanged."
-            exit 0
-          fi
-          [[ "$DRAFT" == true ]] || { echo '::error::Invalid release response'; exit 1; }
-          gh release upload "$GITHUB_REF_NAME" --clobber \
+          }
+          # Recheck after the build: the maintainer may have created or published the release in the meantime.
+          case "$(release_state)" in
+            missing) gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Vella $VERSION" --notes-file "$NOTES" ;;
+            empty-draft) ;;
+            published) echo "Release $GITHUB_REF_NAME is already published; assets left unchanged."; exit 0 ;;
+            draft-with-assets) echo "::error::Draft release $GITHUB_REF_NAME already has assets. Delete the draft (gh release delete $GITHUB_REF_NAME) and rerun."; exit 1 ;;
+            *) echo '::error::Could not read the release for this tag'; exit 1 ;;
+          esac
+          # Never --clobber: existing assets are refused above, so an upload only ever adds files.
+          gh release upload "$GITHUB_REF_NAME" \
             "$OUT/Vella-$VERSION-arm64.zip" "$OUT/Vella-$VERSION-arm64-symbols.zip" "$OUT/Vella-$VERSION.dmg" "$OUT/SHA256SUMS"
 
       - name: Remove the temporary keychain
