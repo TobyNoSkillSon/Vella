@@ -262,7 +262,7 @@ public final class NativeInstaller {
             let version =
                 (try? PropertyListSerialization.propertyList(
                     from: Data(contentsOf: destination.appendingPathComponent("Contents/Info.plist")), format: nil) as? [String: Any])?["CFBundleShortVersionString"] as? String
-                ?? "2.0.1"
+                ?? "2.1.0"
             let displayVersion = version.split(separator: ".").prefix(2).joined(separator: ".")
             let message = "Vella \(displayVersion) was installed but didn't start (\(error.localizedDescription))."
             let recovery =

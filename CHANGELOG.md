@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 (15 October 2026)
 
 - **Models table: one row per model.** A bolt and `bf16`/`fp16`, `int8`, `int4`; the Standard row is gone. Every model runs the optimized path and falls back to plain MLX by itself when your Mac cannot run it. A Standard choice saved by 2.0 becomes the same precision and switch position. The Exact/Fast switch is unchanged.
 - **Recommended for your Mac, in gold:** the smallest precision that keeps 16-bit accuracy and runs on your GPU's matrix hardware. An orange triangle marks precisions your Mac runs in software. A model you have not chosen a precision for starts on the recommended one, and Get downloads and loads that; saved choices are kept.
