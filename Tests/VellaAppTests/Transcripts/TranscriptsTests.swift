@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import XCTest
 @testable import Vella
+import VellaCore
 
 /// The Transcripts window (2.1): newest first, ten at a time, text read only for the rows shown.
 @MainActor final class TranscriptsTests: XCTestCase {
@@ -82,6 +83,42 @@ import XCTest
         model.reload()
         XCTAssertEqual(model.entries.map(\.text), ["finished text", "live words", "first part\n[Pending transcription — segment 2]"])
         XCTAssertEqual(model.entries.map(\.incomplete), [false, true, true], "a retried recording's finished transcript wins")
+    }
+
+    /// Crash state as the app leaves it, through the real writers: a streaming session that died with its journal
+    /// open, and a dictation that died after some segments were recognized. Neither has a transcript file.
+    func testTextLeftByACrashShowsAsIncompleteWithoutTouchingTheRecording() throws {
+        let streaming = try RecordingSession(root: root, config: Configuration(model: "/qa/stream", mode: .streaming, streamingModel: "/qa/stream"))
+        let journal = try StreamingJournal(directory: streaming.directory)
+        try journal.append(committed: "hello there", partial: "", frames: 16_000)
+        try journal.append(committed: "general", partial: "kenobi you are", frames: 32_000)
+        // Process death: no finish, no partial file, no archive. (Closing the descriptor writes nothing.)
+        journal.close()
+        let dictation = try RecordingSession(root: root, config: Configuration(model: "/qa/dictation"))
+        dictation.manifest.segments = [
+            RecordingSession.Segment(index: 0, frames: 16_000, finalized: true, text: "first part of the note"),
+            RecordingSession.Segment(index: 1, frames: 16_000, overlapFrames: 8_000, finalized: true),
+            RecordingSession.Segment(index: 2, frames: 16_000, overlapFrames: 8_000, finalized: true, text: "the last part")
+        ]
+        try dictation.save()
+        let nothingYet = try RecordingSession(root: root, config: Configuration(model: "/qa/dictation"))
+        nothingYet.manifest.segments = [RecordingSession.Segment(index: 0, frames: 16_000, finalized: true)]
+        try nothingYet.save()
+        for (session, minutes) in [(streaming, 1.0), (dictation, 2.0), (nothingYet, 3.0)] {
+            try FileManager.default.setAttributes([.creationDate: base.addingTimeInterval(minutes * 60)], ofItemAtPath: session.directory.path)
+        }
+        func snapshot(_ directory: URL) throws -> [String: Data] {
+            let names = try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted()
+            return Dictionary(uniqueKeysWithValues: try names.map { ($0, try Data(contentsOf: directory.appendingPathComponent($0))) })
+        }
+        let before = try [streaming, dictation, nothingYet].map { try snapshot($0.directory) }
+
+        let model = TranscriptsModel(root: root)
+        model.reload()
+        XCTAssertEqual(model.entries.map(\.text), ["first part of the note the last part", "hello there general kenobi you are"])
+        XCTAssertEqual(model.entries.map(\.incomplete), [true, true])
+        XCTAssertFalse(model.hasMore)
+        XCTAssertEqual(try [streaming, dictation, nothingYet].map { try snapshot($0.directory) }, before, "the window only reads")
     }
 
     func testRecordingsWithoutTextAreSkippedAndPagesStillFill() throws {
@@ -232,5 +269,36 @@ import XCTest
         controller.model.reload()
         controller.copy(try XCTUnwrap(controller.model.entries.first).text)
         XCTAssertEqual(pasteboard.string(forType: .string), "copy me")
+    }
+}
+
+/// Pop-up buttons follow the system layout (first added = right = the action; Cancel left with Escape); a download
+/// that cannot fit is refused with OK only and approves nothing.
+@MainActor final class AlertButtonTests: XCTestCase {
+    func testConfirmationsPutTheActionFirstAndCancelSecond() {
+        let prompt = DownloadPrompt(title: "Download Alpha?", body: "4 kB download, then it loads.", variantID: "a", downloadBytes: 4_000, family: "alpha", precision: "BF16")
+        let download = DownloadGate.alert(prompt)
+        XCTAssertEqual(download.buttons.map(\.title), ["Download", "Cancel"])
+        XCTAssertEqual(download.buttons[0].keyEquivalent, "", "Return never starts a download")
+        XCTAssertEqual(download.buttons[1].keyEquivalent, "\u{1b}", "Escape cancels")
+        let delete = AppDelegate.deleteSavedAlert()
+        XCTAssertEqual(delete.buttons.map(\.title), ["Delete", "Cancel"])
+        XCTAssertEqual(delete.buttons[0].keyEquivalent, "")
+        let recover = AppDelegate.savedRecordingAlert([SavedRecordingChoice(directory: URL(fileURLWithPath: "/r"), title: "r")])
+        XCTAssertEqual(recover.buttons.map(\.title), ["Transcribe", "Cancel"])
+        XCTAssertEqual(recover.buttons[0].keyEquivalent, "\r", "transcribing a saved recording is safe on Return")
+        for alert in [download, delete, recover] {
+            alert.layout()
+            XCTAssertGreaterThan(alert.buttons[0].frame.minX, alert.buttons[1].frame.minX, "\(alert.messageText): action on the right")
+        }
+    }
+
+    func testNotEnoughDiskSpaceIsARefusalThatApprovesNothing() {
+        let refusal = DownloadPrompt(
+            title: "Not enough disk space", body: "Alpha needs 4 kB; 1 kB free.", variantID: "a", downloadBytes: 4_000, family: "alpha", precision: "BF16", refusal: true)
+        XCTAssertEqual(DownloadGate.alert(refusal).buttons.map(\.title), ["OK"])
+        var shown = 0
+        XCTAssertNil(DownloadGate.ask(refusal) { _ in shown += 1; return true })
+        XCTAssertEqual(shown, 1, "the refusal is still shown")
     }
 }

@@ -69,7 +69,7 @@ final class DerivedRuntimeTests: XCTestCase {
         let host = try XCTUnwrap(menus.modelItem().submenu?.items.first?.view as? MenuTableHostingView)
         var alerts: [String] = []
         menus.presentDeletionConfirmation = { alert in
-            alerts.append(alert.messageText); return .alertSecondButtonReturn
+            alerts.append(alert.messageText); return .alertFirstButtonReturn
         }
 
         // Load the derived 4b: the worker gets its own directory, which resolves back to alpha 4b.

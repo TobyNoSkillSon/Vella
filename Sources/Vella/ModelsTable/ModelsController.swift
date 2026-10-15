@@ -690,6 +690,7 @@ struct ModelDeletionPlan {
             guard let prompt = downloadPrompt(family: f, precision: precision, followUp: .load, freeBytes: freeDiskBytes(at: lib.modelsDirectory)) else {
                 throw APIError(409, "Not offered for this model")
             }
+            if prompt.refusal { throw APIError(507, prompt.title + ". " + prompt.body, code: "insufficient_storage") }
             throw APIError(
                 409,
                 (prompt.title + " " + prompt.body).components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " · ")
@@ -702,6 +703,7 @@ struct ModelDeletionPlan {
                     family: f, precision: precision, followUp: loaded(f).map { .reload(from: $0.precision) } ?? .load,
                     freeBytes: freeDiskBytes(at: lib.modelsDirectory))
             else { throw APIError(409, "Not offered for this model") }
+            if prompt.refusal { throw APIError(507, prompt.title + ". " + prompt.body, code: "insufficient_storage") }
             guard action == "get", let approval = DownloadGate.ask(prompt, present: { _ in yes }) else {
                 throw APIError(
                     409,
@@ -768,7 +770,7 @@ struct ModelDeletionPlan {
         guard let path = lib.modelFilePath(variant.id) else { throw APIError(409, "This model has no local files.") }
         guard let bytes = Runtime.folderBytes(path) else { throw APIError(409, "Cannot verify these weights' size; nothing deleted.") }
         let installed = lib.installed[variant.id] != nil
-        let name = f.name + " " + legacyQuantization(precision)
+        let name = f.name + " " + tableLabel(f, precision)
         let earlierDownload = installed && variant.isDerived && registeredCheckpoint(f, precision, installedPath: { lib.installed[$0]?.path }) == nil
         return ModelDeletionPlan(
             familyID: f.id, precision: precision, variantID: variant.id, path: path, wasInstalled: installed,

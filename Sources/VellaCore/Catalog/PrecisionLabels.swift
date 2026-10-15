@@ -65,6 +65,12 @@ public func tierDTypeLabel(_ family: ModelFamily, _ tier: ModelTier) -> String {
     }
 }
 
+/// A catalog precision as the Models table's segments name it (`bf16`, `fp16`, `int8`, `int4`), for pop-ups about a
+/// row; a label that is not a tier (FP32) in lower case.
+public func tableLabel(_ family: ModelFamily, _ label: String) -> String {
+    modelTier(ofPrecision: label).map { tierDTypeLabel(family, $0) } ?? label.lowercased()
+}
+
 /// Offered precisions for a family, highest first. With `tiers_offered` (the shipped catalog): the precision label of
 /// each offered tier (16 = the 16-bit variant, 8 = `8b`, 4 = `4b`); FP32 is never a tier. Without it (older catalogs,
 /// fixtures): every catalogued variant, never below 4 bits unless that is the model's native format.

@@ -39,7 +39,7 @@ final class DerivedSelectionDeletionTests: XCTestCase {
         let host = try XCTUnwrap(menus.modelItem().submenu?.items.first?.view as? MenuTableHostingView)
         var alerts: [String] = []
         menus.presentDeletionConfirmation = { alert in
-            alerts.append(alert.messageText); return .alertSecondButtonReturn
+            alerts.append(alert.messageText); return .alertFirstButtonReturn
         }
         f.controller.preview(f.zeta, "BF16")
         host.rootView.requestDelete(f.zeta)

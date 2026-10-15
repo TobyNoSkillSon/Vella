@@ -7,12 +7,12 @@ struct TranscriptEntry: Identifiable, Equatable {
     let directory: URL
     let created: Date
     let text: String
-    /// Written from `partial-transcript.txt`: some audio was never transcribed.
+    /// Not a finished transcript (a partial file, or text recovered after a crash): some audio was never transcribed.
     let incomplete: Bool
 }
 
 /// Reads saved transcripts page by page. Opening lists the Recordings folder once (names and creation dates only, one
-/// directory read however many recordings there are) and reads text only for the rows on screen; nothing else is decoded.
+/// directory read however many recordings there are) and reads text only for the rows on screen.
 struct TranscriptStore {
     let root: URL
     /// Every recording folder, newest first.
@@ -32,22 +32,60 @@ struct TranscriptStore {
         }.sorted { $0.created != $1.created ? $0.created > $1.created : $0.directory.lastPathComponent > $1.directory.lastPathComponent }
     }
 
-    /// The finished transcript, else the partial one; nil for a recording with no text yet (still recording, or failed
-    /// before any segment was recognized).
+    /// The finished transcript, else the partial one, else what a crash left behind: a streaming session's journal
+    /// (`StreamingJournal.recover`, read-only) or the segment texts a dictation saved in session.json before it was
+    /// finalized. Nil for a recording with no text yet (still recording, or stopped before anything was recognized).
+    /// Never writes, archives or finalizes anything: recovery itself stays with Retry / Recover Saved Recording.
     func entry(_ slot: Slot) -> TranscriptEntry? {
-        let complete = slot.directory.appendingPathComponent("transcript.txt")
-        let partial = slot.directory.appendingPathComponent("partial-transcript.txt")
-        if let text = Self.read(complete) { return TranscriptEntry(directory: slot.directory, created: slot.created, text: text, incomplete: false) }
-        if let text = Self.read(partial).map(Self.withoutPartialHeader), !text.isEmpty {
-            return TranscriptEntry(directory: slot.directory, created: slot.created, text: text, incomplete: true)
+        let directory = slot.directory
+        func entry(_ text: String, incomplete: Bool) -> TranscriptEntry {
+            TranscriptEntry(directory: directory, created: slot.created, text: text, incomplete: incomplete)
         }
+        if let text = Self.read(directory.appendingPathComponent("transcript.txt")) { return entry(text, incomplete: false) }
+        if let text = Self.read(directory.appendingPathComponent("partial-transcript.txt")).map(Self.withoutPartialHeader), !text.isEmpty {
+            return entry(text, incomplete: true)
+        }
+        if let text = Self.journalText(directory) { return entry(text, incomplete: true) }
+        if let text = Self.segmentText(directory) { return entry(text, incomplete: true) }
         return nil
     }
-    /// Whether the slot has text, without reading it (existence checks only).
+    /// Whether the slot has text, cheaply: file existence, and for session.json one small read looking for a saved
+    /// segment text (no decoding), so a run of recordings without text costs little.
     func hasText(_ slot: Slot) -> Bool {
         let fm = FileManager.default
-        return fm.fileExists(atPath: slot.directory.appendingPathComponent("transcript.txt").path)
-            || fm.fileExists(atPath: slot.directory.appendingPathComponent("partial-transcript.txt").path)
+        if ["transcript.txt", "partial-transcript.txt", StreamingJournal.filename].contains(where: {
+            fm.fileExists(atPath: slot.directory.appendingPathComponent($0).path)
+        }) { return true }
+        guard let data = try? Data(contentsOf: slot.directory.appendingPathComponent("session.json")),
+            let json = String(data: data, encoding: .utf8)
+        else { return false }
+        return json.range(of: #""text"\s*:\s*"[^"]"#, options: .regularExpression) != nil
+    }
+    /// A streaming session that died before its transcript was written: the committed and last partial text in its
+    /// journal. Read-only (StreamingJournal.recover opens it O_RDONLY); a torn or invalid journal shows nothing.
+    static func journalText(_ directory: URL) -> String? {
+        guard FileManager.default.fileExists(atPath: directory.appendingPathComponent(StreamingJournal.filename).path) else { return nil }
+        reads += 1
+        guard let recovered = try? StreamingJournal.recover(directory: directory) else { return nil }
+        let text = withoutPartialHeader(recovered)
+        return text.isEmpty ? nil : text
+    }
+    /// A dictation that died while transcribing: the texts its segments saved, joined as `RecordingSession.assemble`
+    /// joins them (overlap trimmed only between neighbours). Missing segments are left out; the row is Incomplete.
+    static func segmentText(_ directory: URL) -> String? {
+        let url = directory.appendingPathComponent("session.json")
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        reads += 1
+        guard let data = try? Data(contentsOf: url), let manifest = try? JSONDecoder().decode(RecordingSession.Manifest.self, from: data) else { return nil }
+        var pieces: [String] = [], tail = "", previous: Int?
+        for segment in manifest.segments.sorted(by: { $0.index < $1.index }) {
+            guard let text = segment.text else { tail = ""; previous = nil; continue }
+            let next = RecordingSession.trimOverlap(tail, text, overlaps: previous == segment.index - 1 && segment.overlapFrames > 0)
+            if !next.isEmpty { pieces.append(next); tail = String((tail + " " + next).suffix(2048)) }
+            previous = segment.index
+        }
+        let text = pieces.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
     }
 
     /// Reads counted for tests (lazy loading is a contract: only the rows on screen are read).

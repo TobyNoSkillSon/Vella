@@ -378,7 +378,7 @@ final class RuntimeRegressionTests: XCTestCase {
         let host = try XCTUnwrap(menus.modelItem().submenu?.items.first?.view as? MenuTableHostingView)
         var alerts: [String] = []
         menus.presentDeletionConfirmation = { alert in
-            alerts.append(alert.messageText); return .alertSecondButtonReturn
+            alerts.append(alert.messageText); return .alertFirstButtonReturn
         }
         func delete(_ family: ModelFamily) { host.rootView.requestDelete(family) }
 

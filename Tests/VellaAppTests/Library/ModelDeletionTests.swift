@@ -116,15 +116,16 @@ final class ModelDeletionTests: XCTestCase {
         var confirmations = 0
         menus.presentDeletionConfirmation = { alert in
             confirmations += 1
-            XCTAssertEqual(alert.buttons.map(\.title), ["Cancel", "Move to Trash"])
-            return .alertFirstButtonReturn
+            XCTAssertEqual(alert.buttons.map(\.title), ["Move to Trash", "Cancel"], "action first: drawn on the right, Cancel on the left")
+            XCTAssertEqual(alert.buttons[0].keyEquivalent, "", "Return never confirms a deletion")
+            return .alertSecondButtonReturn
         }
         host.rootView.requestDelete(family)
         for _ in 0..<100 { if confirmations > 0 { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertEqual(confirmations, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
         menus.presentDeletionConfirmation = { _ in
-            confirmations += 1; return .alertSecondButtonReturn
+            confirmations += 1; return .alertFirstButtonReturn
         }
         host.rootView.requestDelete(family)
         // Confirmation precedes asynchronous deletion. Wait for the effect being asserted, not the prompt.

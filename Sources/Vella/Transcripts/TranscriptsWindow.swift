@@ -108,14 +108,15 @@ struct TranscriptsView: View {
     @ObservedObject var model: TranscriptsModel
     let copy: (String) -> Void
     var body: some View {
-        VStack(spacing: 0) {
-            Text(TranscriptsWindowController.title)
-                .font(.system(size: 13, weight: .semibold)).foregroundStyle(TranscriptsPalette.t1)
-                .frame(maxWidth: .infinity, alignment: .center).frame(height: 32)
-                .contentShape(Rectangle()).gesture(WindowDragGesture())
-            Rectangle().fill(TranscriptsPalette.hairline).frame(height: 1)
+        // No drawn title bar (Mobius DESIGN.md): the list's top line, the pinned day heading, sits level with the
+        // traffic lights; the window keeps its title for Mission Control and the Window menu.
+        Group {
             if model.entries.isEmpty {
                 TranscriptsEmptyView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(alignment: .top) {
+                        // The band still moves the window when there is no pinned heading in it.
+                        Color.clear.frame(height: TranscriptLayout.band).contentShape(Rectangle()).gesture(WindowDragGesture())
+                    }
             } else {
                 TranscriptList(model: model, copy: copy)
             }
@@ -163,12 +164,22 @@ struct TranscriptDay: Identifiable {
     }
 }
 
+/// Row geometry: the time sits in a left gutter on the text's first line; day headings and text share one left edge,
+/// which clears the traffic lights, so a pinned heading can sit on their line.
+enum TranscriptLayout {
+    static let inset: CGFloat = 20
+    static let gutter: CGFloat = 76
+    static var textLeading: CGFloat { inset + gutter }
+    /// The title bar's band (macOS 26): the pinned heading is centred in it, level with the traffic lights.
+    static let band: CGFloat = 32
+}
+
 struct TranscriptList: View {
     @ObservedObject var model: TranscriptsModel
     let copy: (String) -> Void
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
+            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                 ForEach(TranscriptDay.group(model.entries)) { day in
                     Section {
                         ForEach(day.entries) { entry in
@@ -179,14 +190,17 @@ struct TranscriptList: View {
                     } header: {
                         Text(day.title)
                             .font(.system(size: 12, weight: .semibold)).foregroundStyle(TranscriptsPalette.t2)
-                            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 2)
+                            .frame(maxWidth: .infinity, minHeight: TranscriptLayout.band, alignment: .leading)
+                            .padding(.leading, TranscriptLayout.textLeading)
+                            .background(TranscriptsPalette.canvas)
+                            .contentShape(Rectangle()).gesture(WindowDragGesture())
                             .accessibilityAddTraits(.isHeader)
                     }
                 }
                 if model.hasMore {
                     Button("Show more") { model.showMore() }
                         .buttonStyle(QuietButtonStyle())
-                        .frame(maxWidth: .infinity).padding(.vertical, 20)
+                        .frame(maxWidth: .infinity).padding(.vertical, 16)
                 }
             }
             .padding(.bottom, 8)
@@ -201,27 +215,24 @@ struct TranscriptRow: View {
     let toggle: () -> Void
     let copy: (String) -> Void
     static let clampLines = 4
+    static let incompleteHelp = "Some audio wasn’t transcribed. Recover Saved Recording… in the menu tries again."
     @VellaState private var copied = false
     @VellaState private var fullHeight: CGFloat = 0
     @VellaState private var clampedHeight: CGFloat = 0
-    private var truncated: Bool { fullHeight > clampedHeight + 1 }
+    /// Longer than four lines at this width: a click on the text opens or closes it.
+    private var long: Bool { fullHeight > clampedHeight + 1 }
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(entry.created.formatted(date: .omitted, time: .shortened))
                     .font(.system(size: 12).monospacedDigit()).foregroundStyle(TranscriptsPalette.t3)
                 if entry.incomplete {
-                    Text("Incomplete").font(.system(size: 12, weight: .medium)).foregroundStyle(TranscriptsPalette.amber)
+                    Text("Incomplete").font(.system(size: 11, weight: .medium)).foregroundStyle(TranscriptsPalette.amber)
+                        .help(Self.incompleteHelp)
                 }
-                Spacer(minLength: 8)
-                Button(copied ? "Copied" : "Copy") {
-                    copy(entry.text); copied = true
-                    Task { try? await Task.sleep(for: .seconds(1.2)); copied = false }
-                }
-                .buttonStyle(CopyButtonStyle())
-                .padding(.trailing, -8) // the label's text, not its hover fill, lines up with the row's edge
-                .accessibilityLabel("Copy transcript")
             }
+            .frame(width: TranscriptLayout.gutter - 10, alignment: .leading)
+            .padding(.trailing, 10)
             Text(entry.text)
                 .font(.system(size: 13)).lineSpacing(2.5).foregroundStyle(TranscriptsPalette.t1)
                 .textSelection(.enabled)
@@ -234,14 +245,22 @@ struct TranscriptRow: View {
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
                         .accessibilityHidden(true)
                 }
-            if truncated {
-                Button(expanded ? "Show less" : "Show all", action: toggle)
-                    .buttonStyle(.plain)
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(TranscriptsPalette.lavender)
+                // A click opens or closes a long transcript; a drag still selects text (it is not a tap).
+                .simultaneousGesture(TapGesture().onEnded { if long { toggle() } })
+                .accessibilityAction(named: expanded ? "Collapse" : "Expand") { if long { toggle() } }
+            Button(copied ? "Copied" : "Copy") {
+                copy(entry.text); copied = true
+                Task { try? await Task.sleep(for: .seconds(1.2)); copied = false }
             }
+            .buttonStyle(CopyButtonStyle())
+            .padding(.leading, 12)
+            .padding(.trailing, -8) // the label's text, not its hover fill, lines up with the row's edge
+            .accessibilityLabel("Copy transcript")
         }
-        .padding(.horizontal, 20).padding(.vertical, 12)
-        .overlay(alignment: .bottom) { Rectangle().fill(TranscriptsPalette.hairline).frame(height: 1).padding(.horizontal, 20) }
+        .padding(.horizontal, TranscriptLayout.inset).padding(.vertical, 8)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(TranscriptsPalette.hairline).frame(height: 1).padding(.leading, TranscriptLayout.textLeading).padding(.trailing, TranscriptLayout.inset)
+        }
         .contextMenu {
             Button("Copy") { copy(entry.text) }
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([entry.directory]) }
