@@ -1,8 +1,8 @@
 name: Release
 
-# A tag vX.Y.Z builds the release zip with scripts/package-release.sh, attests its build provenance and attaches the
-# zip and SHA256SUMS to a DRAFT release. Nothing is published: the maintainer checks the draft (and the build on the
-# reference Mac) and publishes it by hand. Users can check the zip with
+# A tag vX.Y.Z builds the release zip and disk image, attests the zip's build provenance and attaches the
+# zip, symbols, disk image and SHA256SUMS to a DRAFT release. Nothing is published: the maintainer checks the draft
+# (and the build on the reference Mac) and publishes it by hand. Users can check the zip with
 #   gh attestation verify Vella-X.Y.Z-arm64.zip --repo TobyNoSkillSon/Vella
 on:
   push:
@@ -46,7 +46,25 @@ jobs:
           fetch-depth: 0 # The defaults-source guard compares Worker/Packages to its named source commit.
           persist-credentials: false
 
+      - name: Check for an existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Only a missing release is recoverable; authentication and network errors must stop the build.
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" > "$RUNNER_TEMP/release.json" 2> "$RUNNER_TEMP/release-error"; then
+            DRAFT="$(jq -r '.draft' "$RUNNER_TEMP/release.json")"
+            [[ "$DRAFT" == true || "$DRAFT" == false ]] || { echo '::error::Invalid release response'; exit 1; }
+            if [[ "$DRAFT" == false ]]; then
+              echo "Release $GITHUB_REF_NAME is already published; assets left unchanged."
+              echo "published=true" >> "$GITHUB_OUTPUT"
+            fi
+          elif ! jq -e '.status == "404"' "$RUNNER_TEMP/release.json" >/dev/null 2>&1; then
+            cat "$RUNNER_TEMP/release-error" >&2; exit 1
+          fi
+
       - name: Version from the tag
+        if: steps.existing.outputs.published != 'true'
         id: version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -59,6 +77,7 @@ jobs:
           echo "out=$RUNNER_TEMP/release/$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Select Xcode and require the release Swift
+        if: steps.existing.outputs.published != 'true'
         run: |
           sudo xcode-select -s "$XCODE_APP/Contents/Developer"
           xcodebuild -version
@@ -68,6 +87,7 @@ jobs:
           fi
 
       - name: Metal Toolchain
+        if: steps.existing.outputs.published != 'true'
         run: |
           if ! xcodebuild -showComponent MetalToolchain 2>/dev/null | grep 'Status: installed' >/dev/null; then
             xcodebuild -downloadComponent MetalToolchain
@@ -75,6 +95,7 @@ jobs:
           xcrun metal --version
 
       - name: Signing identity (environment release-signing)
+        if: steps.existing.outputs.published != 'true'
         env:
           VELLA_SIGNING_P12_BASE64: ${{ secrets.VELLA_SIGNING_P12_BASE64 }}
           VELLA_SIGNING_P12_PASSWORD: ${{ secrets.VELLA_SIGNING_P12_PASSWORD }}
@@ -87,6 +108,7 @@ jobs:
           scripts/ci-keychain.sh import
 
       - name: Package (scripts/package-release.sh)
+        if: steps.existing.outputs.published != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           # scripts/build.sh signs the helpers, then the bundles, then the app, and verifies it.
@@ -95,10 +117,12 @@ jobs:
           VELLA_RELEASE_OUTPUT_DIR: ${{ steps.version.outputs.out }}
         run: |
           scripts/package-release.sh "$VERSION"
+          scripts/package-dmg.sh "$VELLA_RELEASE_OUTPUT_DIR" "$VERSION"
           cat Worker/.build/split-build-provenance.txt
           cd "$VELLA_RELEASE_OUTPUT_DIR" && shasum -a 256 -c SHA256SUMS
 
       - name: Check the signature in the zip
+        if: steps.existing.outputs.published != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           OUT: ${{ steps.version.outputs.out }}
@@ -122,17 +146,18 @@ jobs:
       # GitHub stores attestations for public repositories only (user-owned private ones get "Feature not available").
       # A private copy of this repository (a CI scratch run) still builds and drafts the release, without the attestation.
       - name: Attest build provenance
-        if: ${{ !github.event.repository.private }}
+        if: ${{ steps.existing.outputs.published != 'true' && !github.event.repository.private }}
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: ${{ steps.version.outputs.out }}/Vella-${{ steps.version.outputs.version }}-arm64.zip
 
       - name: No attestation in a private repository
-        if: ${{ github.event.repository.private }}
+        if: ${{ steps.existing.outputs.published != 'true' && github.event.repository.private }}
         run: |
           echo "::warning::Private repository: build provenance is not attested (GitHub stores attestations for public repositories only)"
 
       - name: Draft release
+        if: steps.existing.outputs.published != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -152,9 +177,24 @@ jobs:
             echo
             echo "Signed with Vella's own certificate \"Vella Release Signing\" (SHA-1 \`$VELLA_SIGNING_SHA1\`), the same in every release. Microphone and Accessibility permissions carry over between releases signed with this pinned identity; the first migration from a development or other identity requires granting them again."
           } >> "$NOTES"
-          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Vella $VERSION" --notes-file "$NOTES" \
-            "$OUT/Vella-$VERSION-arm64.zip" "$OUT/Vella-$VERSION-arm64-symbols.zip" "$OUT/SHA256SUMS"
+          # Recheck after the build: the maintainer may have published an existing draft in the meantime.
+          if ! gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" > "$RUNNER_TEMP/release.json" 2> "$RUNNER_TEMP/release-error"; then
+            if jq -e '.status == "404"' "$RUNNER_TEMP/release.json" >/dev/null 2>&1; then
+              gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Vella $VERSION" --notes-file "$NOTES"
+            else
+              cat "$RUNNER_TEMP/release-error" >&2; exit 1
+            fi
+          fi
+          # Upload deliberately replaces assets only while the release is still a draft.
+          DRAFT="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)"
+          if [[ "$DRAFT" == false ]]; then
+            echo "Release $GITHUB_REF_NAME is already published; assets left unchanged."
+            exit 0
+          fi
+          [[ "$DRAFT" == true ]] || { echo '::error::Invalid release response'; exit 1; }
+          gh release upload "$GITHUB_REF_NAME" --clobber \
+            "$OUT/Vella-$VERSION-arm64.zip" "$OUT/Vella-$VERSION-arm64-symbols.zip" "$OUT/Vella-$VERSION.dmg" "$OUT/SHA256SUMS"
 
       - name: Remove the temporary keychain
-        if: ${{ always() }}
+        if: ${{ always() && steps.existing.outputs.published != 'true' }}
         run: scripts/ci-keychain.sh delete
