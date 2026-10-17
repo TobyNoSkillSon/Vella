@@ -27,6 +27,7 @@ final class Worker {
     var path: URL?
     var push: (([String: Any]) -> Void)?
     private var architecture: Architecture?
+    private var vocabularyError: String?
     private var loadSeconds: Double?
     /// nil = optimized path active; otherwise why the model runs on stock MLX.
     private var stockReason: String? = "No model loaded."
@@ -178,6 +179,12 @@ final class Worker {
                 trackCompilationCache()
                 let input = (architecture.flatMap(Self.runtime)?.input ?? { $0 })(MLXArray(audio.samples))
                 let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30)
+                if let parakeet = model as? ParakeetModel {
+                    do {
+                        try parakeet.setVocabulary(ParakeetVocabulary.read())
+                        vocabularyError = nil
+                    } catch { vocabularyError = "Invalid vocabulary.json; retaining the previous vocabulary." }
+                }
                 var output: STTOutput
                 if stockReason == nil, let capable = model as? any FastPathCapable {
                     var checkingEmpty = false
@@ -247,7 +254,7 @@ final class Worker {
         if model is StubModel, let stub = ProcessInfo.processInfo.environment["VELLA_TEST_STUB_FOOTPRINT_MB"].flatMap(Double.init) {
             memory.footprintMB = stub
         }
-        return HelperStatus(
+        var result = HelperStatus(
             worker: .dictation, pid: Int(getpid()), version: FastPathGate.version, event: event, model: path?.path,
             architecture: architecture?.rawValue, engine: model == nil ? nil : (stockReason == nil ? Engine.optimized : Engine.mlx).rawValue,
             engineReason: model == nil ? nil : stockReason, optimizations: optimizations, loadSeconds: loadSeconds,
@@ -257,6 +264,12 @@ final class Worker {
             // Per-component self-test result: components off because their own tolerance test failed, and why.
             disabledComponents: disabledComponents
         ).jsonObject
+        if let parakeet = model as? ParakeetModel {
+            result["vocabulary"] = ["count": parakeet.contextualVocabulary.words.count,
+                                    "boost": parakeet.contextualVocabulary.boost,
+                                    "error": vocabularyError as Any? ?? NSNull()]
+        }
+        return result
     }
 
     private func loadIfNeeded(_ local: URL, architecture: Architecture, metrics: inout [String: Any]) async throws {

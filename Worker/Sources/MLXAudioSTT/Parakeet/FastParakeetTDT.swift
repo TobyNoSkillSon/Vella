@@ -1,12 +1,15 @@
 import MLX
 import MLXNN
 
-/// Single-row TDT greedy decode. One compiled graph contains 32 steps × five kernels.
+/// Single-row TDT greedy decode. The core has five custom kernels per step;
+/// configured vocabulary adds MLX GPU operations inside the same compiled block.
 /// All checkpoint-derived arrays (including duration choices) are explicit compile arguments.
 final class FastParakeetTDT {
     private weak var model: ParakeetModel?
     private let hidden, dimension, outputs, projection, blank: Int
     private let weights: [MLXArray]
+    private var vocabularyConfiguration: ParakeetVocabulary?
+    private var vocabularyTables: [MLXArray] = []
     private(set) var lastFinite = true
     private(set) var lastError: String?
     /// 32-step blocks run by the last decode (profile only).
@@ -16,6 +19,9 @@ final class FastParakeetTDT {
     private let lstm1 = MLXFast.metalKernel(name: "vella_tdt_lstm1", inputNames: ["emit", "tok", "h", "c", "ch", "cc", "table", "Wh"], outputNames: ["h_o", "c_o", "ch_o", "cc_o"], source: FastParakeetMetal.lstm1, header: FastParakeetMetal.header)
     private let lstm2 = MLXFast.metalKernel(name: "vella_tdt_lstm2", inputNames: ["emit", "x", "h", "c", "ch", "cc", "Wx", "Wh", "bias"], outputNames: ["h_o", "c_o", "ch_o", "cc_o"], source: FastParakeetMetal.lstm2, header: FastParakeetMetal.header)
     private let predict = MLXFast.metalKernel(name: "vella_tdt_pred", inputNames: ["emit", "x", "W", "b", "old"], outputNames: ["out"], source: FastParakeetMetal.pred, header: FastParakeetMetal.header)
+    private lazy var runBiased: @Sendable ([MLXArray]) -> [MLXArray] = makeRun(biased: true)
+    private lazy var runBiased16: @Sendable ([MLXArray]) -> [MLXArray] = makeRun(steps: 16, biased: true)
+    private lazy var runBiased8: @Sendable ([MLXArray]) -> [MLXArray] = makeRun(steps: 8, biased: true)
     private lazy var run: @Sendable ([MLXArray]) -> [MLXArray] = makeRun()
     /// Shorter blocks for a segment's tail (VELLA_PARAKEET_TAILBLOCK), traced on first use.
     private lazy var run16: @Sendable ([MLXArray]) -> [MLXArray] = makeRun(steps: 16)
@@ -62,7 +68,7 @@ final class FastParakeetTDT {
     }
 
     // State layout: h0,c0,ch0,cc0,h1,c1,ch1,cc1,pred. Weights start at offset 14.
-    private func makeRun(steps: Int = 32) -> @Sendable ([MLXArray]) -> [MLXArray] {
+    private func makeRun(steps: Int = 32, biased: Bool = false) -> @Sendable ([MLXArray]) -> [MLXArray] {
         // Capture only kernel objects and integer dimensions: never this decoder,
         // the model, or checkpoint arrays in a TLS compilation cache.
         let joint = joint, argmax = argmax, lstm1 = lstm1, lstm2 = lstm2, predict = predict
@@ -71,6 +77,8 @@ final class FastParakeetTDT {
         let feature = a[0], n = a[1]
         var time = a[2], last = a[3], syms = a[4]
         var state = Array(a[5..<14]); let w = Array(a[14...]); let dtype = feature.dtype
+        var prefix = biased ? a[25] : MLXArray([Int32(0)])
+        var lastFrame = biased ? a[26] : MLXArray([Int32(0)])
         var records: [[MLXArray]] = []
         var finite: [MLXArray] = []
         for _ in 0..<steps {
@@ -79,7 +87,14 @@ final class FastParakeetTDT {
                                grid: (32, ((outputs + 7) / 8) * 8, 1), threadGroup: (32, 8, 1),
                                outputShapes: [[outputs]], outputDTypes: [.float32])[0]
             finite.append(MLX.all(MLX.isFinite(logits)))
-            let step = argmax([logits, time, n, syms, last, w[9], w[10]],
+            var selectedLogits = logits
+            if biased {
+                let selection = ParakeetVocabularyGPU.select(logits, time: time, lastFrame: lastFrame,
+                    prefix: prefix, bonus: a[27], complete: a[29], blank: blank)
+                prefix = selection.1
+                selectedLogits = selection.0
+            }
+            let step = argmax([selectedLogits, time, n, syms, last, w[9], w[10]],
                               template: [("V", blank + 1), ("NDUR", w[9].size), ("BLANK", blank), ("RT", state[8].dtype)],
                               grid: (1024, 1, 1), threadGroup: (1024, 1, 1),
                               outputShapes: Array(repeating: [1], count: 6), outputDTypes: Array(repeating: .int32, count: 6))
@@ -94,13 +109,18 @@ final class FastParakeetTDT {
                                template: [("H", hidden), ("P", projection), ("OT", state[8].dtype), ("RT", state[8].dtype)],
                                grid: (32, projection, 1), threadGroup: (32, 8, 1),
                                outputShapes: [[projection]], outputDTypes: [dtype])[0]
+            if biased {
+                let target = MLX.take(a[28], prefix * (blank + 1) + step[0])
+                prefix = MLX.where(step[2] .!= 0, target, prefix)
+                lastFrame = MLX.where(step[2] .!= 0, time, lastFrame)
+            }
             records.append([step[0], time, step[1], step[2]])
             state = first + second + [pred]
             time = step[3]; syms = step[4]; last = step[5]
         }
         let stacked = (0..<4).map { index in MLX.concatenated(records.map { $0[index] }, axis: 0) }
         finite.append(contentsOf: state.map { MLX.all(MLX.isFinite($0)) })
-        return stacked + [time, last, syms] + state + [MLX.all(MLX.stacked(finite)), MLX.stacked(finite)]
+        return stacked + [time, last, syms] + state + [MLX.all(MLX.stacked(finite)), MLX.stacked(finite)] + (biased ? [prefix, lastFrame] : [])
         }
     }
 
@@ -128,13 +148,22 @@ final class FastParakeetTDT {
         var time = MLXArray([Int32(0)]), last = MLXArray([Int32(blank)]), syms = MLXArray([Int32(0)])
         let n = MLXArray([Int32(length)])
         let sec = Double(model.encoderConfig.subsamplingFactor * model.preprocessConfig.hopLength) / Double(model.preprocessConfig.sampleRate)
+        let trie = model.vocabularyTrie
+        let biased = trie != nil
+        if vocabularyConfiguration != model.contextualVocabulary {
+            vocabularyTables = trie.map { [MLXArray($0.bonus), MLXArray($0.next), MLXArray($0.complete)] } ?? []
+            vocabularyConfiguration = model.contextualVocabulary
+        }
+        let tables = vocabularyTables
+        var prefix = MLXArray([Int32(0)]), lastFrame = MLXArray([Int32(0)])
         var tokens: [ParakeetAlignedToken] = []
         while true {
             let result: [MLXArray]
             do {
                 result = try MLX.withError {
                     let block = model.keptLevers.contains("VELLA_PARAKEET_TAILBLOCK") ? FastParakeetDecodeOptions.blockSteps(remainingFrames: length - frame) : 32
-                    let arrays = (block == 8 ? run8 : block == 16 ? run16 : run)([enc, n, time, last, syms] + state + weights)
+                    let execute = biased ? (block == 8 ? runBiased8 : block == 16 ? runBiased16 : runBiased) : (block == 8 ? run8 : block == 16 ? run16 : run)
+                    let arrays = execute([enc, n, time, last, syms] + state + weights + (biased ? [prefix, lastFrame] + tables : []))
                     MLX.eval(arrays)
                     return arrays
                 }
@@ -143,6 +172,7 @@ final class FastParakeetTDT {
                 lastError = String(describing: error)
                 return ParakeetAlignment.sentencesToResult(ParakeetAlignment.tokensToSentences([]))
             }
+            if biased { prefix = result[18]; lastFrame = result[19] }
             lastBlocks += 1
             let blockFinite = result[16].item(Bool.self)
             if !blockFinite && lastError == nil {
@@ -164,6 +194,22 @@ final class FastParakeetTDT {
             frame = Int(time.item(Int32.self))
             if frame >= length { break }
         }
-        return ParakeetAlignment.sentencesToResult(ParakeetAlignment.tokensToSentences(tokens))
+        return ParakeetAlignment.sentencesToResult(ParakeetAlignment.tokensToSentences(trie?.format(tokens, pieces: model.vocabulary, frameSeconds: sec) ?? tokens))
+    }
+}
+
+/// Shared by the compiled decoder and fixed-logit GPU regression checks.
+enum ParakeetVocabularyGPU {
+    static func select(_ logits: MLXArray, time: MLXArray, lastFrame: MLXArray, prefix: MLXArray,
+                       bonus: MLXArray, complete: MLXArray, blank: Int) -> (MLXArray, MLXArray) {
+        let node = MLX.where(time - lastFrame .> 8, MLXArray([Int32(0)]), prefix)
+        let offsets = node * (blank + 1) + MLXArray(0..<(blank + 1)).asType(.int32)
+        let bonuses = MLX.take(bonus, offsets)
+        let completions = MLX.take(complete, offsets)
+        let acoustic = logits[0..<(blank + 1)]
+        let blankWins = acoustic.argMax() .== blank
+        let allowed = MLX.logicalOr(MLX.logicalNot(blankWins), completions)
+        let tokens = acoustic + MLX.where(allowed, bonuses, MLXArray(Float(0)))
+        return (MLX.concatenated([tokens, logits[(blank + 1)...]]), node)
     }
 }

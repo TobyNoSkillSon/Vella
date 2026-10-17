@@ -11,6 +11,14 @@ public final class ParakeetModel: Module, STTGenerationModel {
     public let encoderConfig: ParakeetConformerConfig
 
     public let vocabulary: [String]
+    public private(set) var contextualVocabulary = ParakeetVocabulary()
+    var vocabularyTrie: ParakeetVocabularyTrie?
+    public func setVocabulary(_ configuration: ParakeetVocabulary) throws {
+        guard configuration != contextualVocabulary else { return }
+        let trie = try ParakeetVocabularyTrie(configuration, pieces: vocabulary)
+        contextualVocabulary = configuration
+        vocabularyTrie = configuration.words.isEmpty || configuration.boost == 0 ? nil : trie
+    }
     public let durations: [Int]
     public let maxSymbols: Int?
 
@@ -227,6 +235,9 @@ public final class ParakeetModel: Module, STTGenerationModel {
         blankTokenId: self.blankTokenId
     )
 
+    private lazy var compiledVocabularyStep = makeCompiledTDTStep(
+        decoder: self.decoder, joint: self.joint, blankTokenId: self.blankTokenId, includeLogits: true)
+
     private init(
         preprocessConfig: ParakeetPreprocessConfig,
         encoderConfig: ParakeetConformerConfig,
@@ -403,6 +414,8 @@ public final class ParakeetModel: Module, STTGenerationModel {
             var lastToken = blankToken
             var hypothesis: [ParakeetAlignedToken] = []
 
+            var prefix = 0, lastFrame = 0
+            let trie = vocabularyTrie
             var t = 0
             var newSymbols = 0
             var state = makeInitialDecoderState(batchSize: 1, dtype: featureSeq.dtype)
@@ -411,7 +424,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
             while t < maxLength {
                 let frame = featureSeq[0..., t..<(t + 1), 0...]
 
-                let stepOutputs = compiledTDTStep([
+                let stepOutputs = (trie == nil ? compiledTDTStep : compiledVocabularyStep)([
                     frame,
                     currentToken,
                     state.hidden!,
@@ -425,7 +438,19 @@ public final class ParakeetModel: Module, STTGenerationModel {
                 qualificationObserver?([frame, currentToken, state.hidden!, state.cell!], decisions)
                 #endif
                 let decisionPair = decisions.asArray(Int32.self)
-                let token = Int(decisionPair[0])
+                var token = Int(decisionPair[0])
+                if let trie {
+                    if t - lastFrame > 8 { prefix = 0 }
+                    let logits = stepOutputs[3].reshaped([-1])[0..<(blankToken + 1)].asArray(Float.self)
+                    let blankWins = token == blankToken
+                    var best = -Float.infinity
+                    for candidate in logits.indices {
+                        let offset = prefix * trie.width + candidate
+                        let value = logits[candidate] + ((!blankWins || trie.complete[offset]) ? trie.bonus[offset] : 0)
+                        if value > best { best = value; token = candidate }
+                    }
+                    if token != blankToken { prefix = Int(trie.next[prefix * trie.width + token]); lastFrame = t }
+                }
                 let decisionIndex = Int(decisionPair[1])
                 let step = ParakeetDecodingLogic.tdtStep(
                     predictedToken: token,
@@ -472,7 +497,7 @@ public final class ParakeetModel: Module, STTGenerationModel {
 
             results.append(
                 ParakeetAlignment.sentencesToResult(
-                    ParakeetAlignment.tokensToSentences(hypothesis)
+                    ParakeetAlignment.tokensToSentences(trie?.format(hypothesis, pieces: vocabulary, frameSeconds: frameTimeSeconds(frameIndex: 1)) ?? hypothesis)
                 )
             )
         }

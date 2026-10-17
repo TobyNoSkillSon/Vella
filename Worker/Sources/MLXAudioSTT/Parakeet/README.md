@@ -4,6 +4,9 @@ Runtime of Parakeet v3 and Parakeet v3 Ultra: the Dictation models Vella starts 
 TDT decoder and the optimized path (`FastParakeet*`); the catalog entries are in `Resources/models.json`, the shared
 kernels in `Worker/Sources/SmallMGEMM`.
 
+Private contextual vocabulary is configured outside the app and model checkpoint; see
+[Parakeet vocabulary](../../../../docs/vocabulary.md) for live updates, decoder guards and empty defaults.
+
 **Screening numbers.** Every speed, energy and memory figure in the text below is a screening number: a v2-mini A/B
 (21 clips, 3.6 min of audio) on an M5 Max, macOS 26.6, one clean measure pair per lever unless noted, on the date given.
 Screening picks levers; it is not the release measurement. The release figures are the generated block at the end.
