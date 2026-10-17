@@ -192,10 +192,26 @@ struct ParakeetVocabularyTrie {
                 replace(index, (index == first ? leading : "") + remaining.prefix(count))
                 remaining = remaining.dropFirst(count)
             }
-            if last + 1 < result.count, result[last + 1].text.first?.isLetter == true {
+            if last + 1 < result.count, result[last + 1].text.first?.isLetter == true,
+               !isSuffix(tokens[(last + 1)...], pieces: pieces) {
                 replace(last + 1, " " + result[last + 1].text)
             }
         }
         return result
+    }
+
+    /// Read the whole joined tail: `e` + `s` is a suffix, but `s` + `ystem` is a word.
+    /// An explicit SentencePiece boundary or punctuation ends the tail.
+    private func isSuffix(_ tokens: ArraySlice<ParakeetAlignedToken>, pieces: [String]) -> Bool {
+        var tail = ""
+        scan: for token in tokens {
+            guard pieces.indices.contains(token.id) else { break }
+            for character in pieces[token.id] {
+                guard character.isLetter || character == "'" || character == "’" else { break scan }
+                tail += character.lowercased()
+                if tail.count > 4 { return false }
+            }
+        }
+        return ["s", "es", "ed", "d", "ing", "er", "ers", "est", "ly", "'s", "’s"].contains(tail)
     }
 }

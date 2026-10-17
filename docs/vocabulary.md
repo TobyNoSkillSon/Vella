@@ -14,6 +14,7 @@ files select an empty list; public builds contain no personal vocabulary.
 biasing and vocabulary formatting. Write the file atomically. A malformed,
 oversized or over-capacity update retains the last valid configuration; the helper's
 status reports an error without returning the words. Removing the file clears it.
+Unloading or replacing the model clears its configuration error.
 `VELLA_SUPPORT_DIR` redirects the file along with the worker's other local state
 for isolated testing.
 
@@ -51,7 +52,10 @@ are unchanged.
 
 Completed long decoder paths receive canonical spelling and capitalization,
 including configured acoustic entry paths. A joined following alphabetic token
-gets a word boundary. Token IDs and timestamps are retained. Partial entries and
+gets a word boundary unless the complete joined tail is an ordinary suffix
+(`s`, `es`, `ed`, `d`, `ing`, `er`, `ers`, `est`, `ly`, or possessive apostrophe-s).
+The check spans token pieces; an explicit SentencePiece boundary still starts a
+new word. Token IDs and timestamps are retained. Partial entries and
 similar-looking unrelated transcript words are never rewritten.
 
 The optimized TDT decoder gathers its current table row on the GPU inside each

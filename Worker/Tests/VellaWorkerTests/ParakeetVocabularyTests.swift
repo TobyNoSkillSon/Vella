@@ -59,6 +59,28 @@ extension WorkerTests {
                 text: ParakeetTokenizer.decode(tokens: [$0.element], vocabulary: pieces), start: Double($0.offset) * 0.08, duration: 0.08) }
             #expect(trie.format(tokens, pieces: pieces, frameSeconds: 0.08).map(\.text).joined() == " Zephyr")
         }
+        @Test func completedWordsKeepWholeSuffixesAndSplitJoinedWords() throws {
+            func format(_ pieces: [String], word: String) throws -> String {
+                let trie = try ParakeetVocabularyTrie(.init(words: [word]), pieces: pieces)
+                let tokens = pieces.indices.map { ParakeetAlignedToken(id: $0,
+                    text: ParakeetTokenizer.decode(tokens: [$0], vocabulary: pieces), start: Double($0) * 0.08, duration: 0.08) }
+                let output = trie.format(tokens, pieces: pieces, frameSeconds: 0.08)
+                #expect(output.map(\.id) == tokens.map(\.id))
+                #expect(output.map(\.start) == tokens.map(\.start))
+                #expect(output.map(\.duration) == tokens.map(\.duration))
+                return output.map(\.text).joined()
+            }
+            #expect(try format(["▁har", "ness", "e", "s"], word: "harness") == " harnesses")
+            #expect(try format(["▁optimization", "s"], word: "optimization") == " optimizations")
+            for suffix in ["s", "es", "ed", "d", "ing", "er", "ers", "est", "ly", "'s", "’s"] {
+                #expect(try format(["▁ze", "ph", "yr"] + suffix.map(String.init) + [","], word: "Zephyr") == " Zephyr" + suffix + ",")
+            }
+            #expect(try format(["▁ze", "ph", "yr", "s", "ystem"], word: "Zephyr") == " Zephyr system")
+            #expect(try format(["▁ze", "ph", "yr", "s", "ystem", "▁works"], word: "Zephyr") == " Zephyr system works")
+            #expect(try format(["▁ze", "ph", "yr", "▁s"], word: "Zephyr") == " Zephyr s")
+            #expect(try format(["▁ze", "ph", "yr", "e", "s", "▁work"], word: "Zephyr") == " Zephyres work")
+            #expect(try format(["▁ze", "ph", "yr", "b", "ug"], word: "Zephyr") == " Zephyr bug")
+        }
         @Test func validationAndBoundedFiles() throws {
             for value in [ParakeetVocabulary(words: ["two words"]), .init(words: ["a-b"]),
                           .init(words: [""]), .init(words: [String(repeating: "a", count: 65)]),

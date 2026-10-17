@@ -78,7 +78,7 @@ final class Worker {
             let references = qualificationReferences(model)
             let cacheThreads = Array(compilationCaches.keys)
         #endif
-        model = nil; path = nil; architecture = nil; loadSeconds = nil; gateURL = nil
+        model = nil; path = nil; architecture = nil; loadSeconds = nil; gateURL = nil; vocabularyError = nil
         stockReason = "No model loaded."; optimizations = [:]; disabledComponents = [:]
         try withError {
             Stream.gpu.synchronize()
