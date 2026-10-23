@@ -92,6 +92,21 @@ jobs:
           sudo xcode-select -s "$XCODE_APP/Contents/Developer"
           xcodebuild -version
           "$CLT_SWIFT" --version
+          # Image 20261013 moved Command Line Tools from 26.6 (Swift 6.3.3) to 27.0 (Swift 6.4). Reinstall 26.6 from
+          # Apple's software update catalog; never build a release with another Swift.
+          if ! "$CLT_SWIFT" --version 2>&1 | grep 'Apple Swift version 6\.3\.3 ' >/dev/null; then
+            sudo touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+            softwareupdate --list 2>&1 | tee "$RUNNER_TEMP/softwareupdate.txt"
+            LABEL="$(sed -n 's/^\* Label: \(Command Line Tools for Xcode[- ]26\.6.*\)$/\1/p' "$RUNNER_TEMP/softwareupdate.txt" | head -1)"
+            if [[ -z "$LABEL" ]]; then
+              echo "::error::Apple's catalog offers no Command Line Tools for Xcode 26.6 (Swift 6.3.3); see the list above"; exit 1
+            fi
+            sudo mv /Library/Developer/CommandLineTools "$RUNNER_TEMP/CommandLineTools-replaced"
+            sudo softwareupdate --install "$LABEL" --verbose
+            sudo rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+            sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+            "$CLT_SWIFT" --version
+          fi
           if ! "$CLT_SWIFT" --version 2>&1 | grep 'Apple Swift version 6\.3\.3 ' >/dev/null; then
             echo "::error::Releases are built with Command Line Tools Swift 6.3.3"; exit 1
           fi
