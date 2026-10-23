@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.1 (23 October 2026)
+
+- **Updating from 0.8 keeps your model.** A Parakeet v3 4-bit or 8-bit download from Vella 0.8 stays your dictation model and runs as it is, with no download. 2.0 and 2.1.0 dropped it when its 16-bit source wasn't on the Mac, and the next dictation offered to download a model. If that happened to you, 2.1.1 selects your earlier download again the first time it opens and says so. Get the 16-bit source in Models… to move to the measured precision; your earlier download is kept.
+
 ## 2.1.0 (15 October 2026)
 
 - **Models table: one row per model.** A bolt and `bf16`/`fp16`, `int8`, `int4`; the Standard row is gone. Every model runs the optimized path and falls back to plain MLX by itself when your Mac cannot run it. A Standard choice saved by 2.0 becomes the same precision and switch position. The Exact/Fast switch is unchanged.
