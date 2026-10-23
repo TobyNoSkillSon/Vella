@@ -142,6 +142,14 @@ import VellaCore
     /// no entry point (table, on-demand dictation, launch preload, API) runs another recipe under the tier's name.
     func recipeRefusal(path: String, mode: RecognitionMode) -> String? {
         guard let controller else { return nil }
+        // An earlier version's download kept as the mode's model loads as it is, under its own folder name (only while
+        // it is that model).
+        if controller.keptLegacyCheckpoint(path: path, mode: mode) != nil,
+            let config = (try? Data(contentsOf: runtime.configURL)).flatMap({ try? JSONDecoder().decode(Configuration.self, from: $0) }),
+            sameFiles(mode == .dictation ? config.model : config.streamingModel, path)
+        {
+            return nil
+        }
         let library = controller.library(mode)
         let named: (family: ModelFamily, precision: String)?
         if let id = library.installed.first(where: { sameFiles($0.value.path, path) })?.key, let found = controller.catalog.locate(variant: id) {

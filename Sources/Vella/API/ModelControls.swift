@@ -56,7 +56,11 @@ import VellaCore
             return [
                 "precision": legacy ? "legacy published quantization" : tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16),
                 "catalog_precision": tierDTypeLabel(f, modelTier(ofPrecision: precision) ?? .t16),
-                "legacy": legacy, "used": !legacy && controller.available(f, precision), "offered": !legacy && controller.options(f).contains(precision),
+                "legacy": legacy,
+                "used": legacy
+                    ? controller.localPath(f, precision).map { sameFiles($0, selectedPath) && controller.keptLegacyCheckpoint(path: $0, mode: f.mode) != nil } ?? false
+                    : controller.available(f, precision),
+                "offered": !legacy && controller.options(f).contains(precision),
                 "deletable": f.variants[precision].map { library.deletionBlockReason($0.id) == nil } ?? false
             ]
         }

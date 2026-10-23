@@ -285,18 +285,17 @@ final class CatalogSelectionTests: XCTestCase {
         XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [], "nothing left to clear")
     }
 
-    @MainActor func testLegacyPublishedQuantSelectionClearsButKeepsItsWeights() throws {
+    /// Without its 16-bit source an earlier published download stays the mode's model (23 Oct: clearing it made an
+    /// update look like it had deleted the model). UpgradeKeepsInstalledModelTests covers the load paths.
+    @MainActor func testLegacyPublishedQuantStaysSelectedWithoutItsSource() throws {
         let (c, p) = try controller()
         try JSONEncoder().encode(Configuration(model: p.plain)).write(to: configURL)
-        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [p.plain])
-        XCTAssertTrue(c.lastError?.contains("16-bit source") == true)
-        XCTAssertEqual(c.migrationNotices.count, 1)
-        let saved = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL))
-        XCTAssertTrue(saved.clearedSelectionReasons["dictation"]?.contains("16-bit source") == true)
-        var replacement = saved
-        replacement.selectModel(p.stored, for: .dictation)
-        XCTAssertNil(replacement.clearedSelectionReasons["dictation"])
-        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: configURL)).model, "")
+        let bytes = try Data(contentsOf: configURL)
+        XCTAssertEqual(c.clearSelectionsOutsideTheCatalog(), [])
+        XCTAssertTrue(c.migrationNotices.isEmpty)
+        XCTAssertEqual(try Data(contentsOf: configURL), bytes, "config.json is not rewritten")
+        XCTAssertNotNil(c.keptLegacyCheckpoint(path: p.plain, mode: .dictation))
+        XCTAssertNil(c.identify(path: p.plain, mode: .dictation), "still not the measured tier")
         XCTAssertTrue(FileManager.default.fileExists(atPath: p.plain + "/model.safetensors"))
     }
 

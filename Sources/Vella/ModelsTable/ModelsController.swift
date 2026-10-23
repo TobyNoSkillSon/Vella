@@ -218,6 +218,21 @@ struct ModelDeletionPlan {
         else { return nil }
         return (family, manifest.precision)
     }
+    /// An earlier version's published low-bit download (0.8's Parakeet v3 4-bit or 8-bit) whose tier is now made on this
+    /// Mac from a 16-bit source that is not here. 2.0 gave the made tier the download's id, so these files name a tier
+    /// they are not; clearing them took a working dictation model away and offered a download. They stay the mode's
+    /// model and load as they are, never under the tier's name, until the source is installed (the launch migration
+    /// then moves to the measured tier). Nil for anything else.
+    func keptLegacyCheckpoint(path: String, mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
+        guard !path.isEmpty else { return nil }
+        let lib = library(mode)
+        guard let id = lib.installed.first(where: { sameFiles($0.value.path, path) })?.key, let found = catalog.locate(variant: id),
+            found.family.mode == mode, registeredCheckpoint(found.family, found.precision, installedPath: { lib.installed[$0]?.path }) == nil,
+            let root = found.family.downloadSource(of: found.precision), lib.installed[root.variant.id] == nil,
+            lib.checkpointMatches(URL(fileURLWithPath: path), family: found.family, precision: found.precision)
+        else { return nil }
+        return found
+    }
     /// The precision the family was last loaded at: the mode's model (what the next dictation loads) when it is this
     /// family, else config.json's `lastLoaded`.
     func lastLoaded(_ f: ModelFamily) -> String? {
@@ -292,7 +307,7 @@ struct ModelDeletionPlan {
         }
         for mode in RecognitionMode.allCases {
             let path = mode == .dictation ? edited.model : edited.streamingModel
-            guard !path.isEmpty, identify(path: path, mode: mode) == nil else { continue }
+            guard !path.isEmpty, identify(path: path, mode: mode) == nil, keptLegacyCheckpoint(path: path, mode: mode) == nil else { continue }
             let lib = library(mode)
             if let id = lib.installed.first(where: { sameFiles($0.value.path, path) })?.key,
                 let found = catalog.locate(variant: id), found.family.mode == mode,
@@ -333,6 +348,19 @@ struct ModelDeletionPlan {
             edited.selectModel("", for: mode)
             changed = true
             cleared.append(path)
+        }
+        // 2.0 to 2.1.0 cleared such a download (`keptLegacyCheckpoint`): select it again, once, when the mode is still
+        // empty for that reason and it is the mode's only one.
+        for mode in RecognitionMode.allCases {
+            let path = mode == .dictation ? edited.model : edited.streamingModel
+            guard path.isEmpty, edited.clearedSelectionReasons[mode.rawValue]?.contains("legacy published quantization") == true else { continue }
+            let kept = library(mode).installed.values.map(\.path).filter { keptLegacyCheckpoint(path: $0, mode: mode) != nil }
+            guard kept.count == 1, let restored = kept.first, let found = keptLegacyCheckpoint(path: restored, mode: mode) else { continue }
+            edited.selectModel(restored, for: mode)
+            changed = true
+            let notice = "\(mode.title) uses your earlier \(found.family.name) download again. Nothing was downloaded."
+            notices.append(notice)
+            lastError = notice
         }
         guard changed else { return [] }
         do { try JSONEncoder().encode(edited).write(to: configURL, options: .atomic) } catch { return [] }
