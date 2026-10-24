@@ -85,26 +85,31 @@ import XCTest
         slot.cacheDisplay(in: slot.bounds, to: rep)
         let s = CGFloat(rep.pixelsWide) / slot.bounds.width
         func at(_ x: CGFloat, _ y: CGFloat) throws -> NSColor { try XCTUnwrap(rep.colorAt(x: Int(x * s), y: Int(y * s))?.usingColorSpace(.sRGB)) }
-        // The ink: the brightest pixel of the first glyph. One fixed pixel reads a "C" stem but misses an "S" (Support).
+        // The ink: the glyph pixel with the highest lowest channel. Brightness is no measure here: the blue highlight has
+        // brightness 1.0, so the brightest pixel of the box would be the background, not the text.
         var title = try at(ProminentMenuItemView.titleX, 12)
         for dx in stride(from: CGFloat(0), through: 9, by: 0.5) {
             for y in stride(from: CGFloat(6), through: 18, by: 0.5) {
                 let pixel = try at(ProminentMenuItemView.titleX + dx, y)
-                if pixel.brightnessComponent > title.brightnessComponent { title = pixel }
+                if ink(pixel) > ink(title) { title = pixel }
             }
         }
         return (try at(300, 12), try at(2, 12), title)
     }
+    /// How neutral and light a colour is: a white or grey ink has a high lowest channel, the blue highlight does not.
+    private func ink(_ color: NSColor) -> CGFloat { min(color.redComponent, color.greenComponent, color.blueComponent) }
     func testRestsSlightlyLighterAndHighlightsInTheAccentWithWhiteText() throws {
         let rest = try sample(highlighted: false)
         let lift = rest.row.brightnessComponent - rest.menu.brightnessComponent
         XCTAssertGreaterThan(lift, 0.03, "visibly lighter at rest")
         XCTAssertLessThan(lift, 0.16, "but only slightly (Toby, 15 Oct: \"even lighter than it is right now\")")
-        XCTAssertGreaterThan(rest.title.brightnessComponent, 0.75, "the title in the label colour")
+        XCTAssertGreaterThan(ink(rest.title), 0.75, "the title in the label colour")
         let lit = try sample(highlighted: true)
         // The accent (blue by default; the bitmap's colour space shifts it a little).
         XCTAssertGreaterThan(lit.row.blueComponent, 0.8); XCTAssertGreaterThan(lit.row.blueComponent - lit.row.redComponent, 0.4)
-        XCTAssertGreaterThan(lit.title.brightnessComponent, 0.9, "white title on the highlight")
+        XCTAssertLessThan(ink(lit.row), 0.5, "the highlight is blue, not neutral")
+        XCTAssertGreaterThan(ink(lit.title), 0.9, "white title on the highlight")
+        XCTAssertGreaterThan(ink(lit.title) - ink(lit.row), 0.5, "the title stands out from the highlight, so the measure is not the background")
     }
 
     /// Support the Developer rests and highlights exactly as Copy Last Transcript does. Heimdall's Support row is the
@@ -116,10 +121,13 @@ import XCTest
             let support = try sample("Support the Developer…", icon: "heart", highlighted: lit)
             XCTAssertEqual(support.row.brightnessComponent, copy.row.brightnessComponent, accuracy: 0.01, lit ? "highlight" : "rest")
             XCTAssertEqual(support.row.redComponent, copy.row.redComponent, accuracy: 0.01, lit ? "highlight" : "rest")
-            XCTAssertEqual(support.title.brightnessComponent, copy.title.brightnessComponent, accuracy: 0.05, lit ? "highlight title" : "rest title")
+            XCTAssertEqual(ink(support.title), ink(copy.title), accuracy: 0.05, lit ? "highlight title" : "rest title")
         }
         let rest = try sample("Support the Developer…", icon: "heart", highlighted: false)
         XCTAssertGreaterThan(rest.row.brightnessComponent - rest.menu.brightnessComponent, 0.03, "visibly lighter at rest")
+        XCTAssertGreaterThan(ink(rest.title), 0.75, "Support's title in the label colour at rest")
+        let lit = try sample("Support the Developer…", icon: "heart", highlighted: true)
+        XCTAssertGreaterThan(ink(lit.title), 0.9, "Support's title white on the highlight")
     }
 
     func testAClickAndAnAccessibilityPressSendTheItemsAction() throws {

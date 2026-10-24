@@ -75,20 +75,54 @@ import XCTest
         XCTAssertEqual(model.lastText, "Kept.")
     }
 
-    /// An unfinished transcript (a partial file after a failed dictation) copies as Incomplete, without the bracketed note
-    /// its file starts with.
-    func testAnIncompleteTranscriptCopiesAsIncomplete() throws {
+    /// An unfinished transcript (a partial file after a failed dictation) copies as Incomplete, and the clipboard gets what
+    /// the session copied: the partial file as written, bracketed note included (the window strips the note; the menu does not).
+    func testAnIncompleteTranscriptCopiesAsTheSessionDid() throws {
+        let partial = "[Incomplete transcript — retry missing audio segments]\nPart of the words\n[Pending transcription — segment 3]"
         try recording("R0", minutes: 0, text: "Finished.")
-        try recording("R1", minutes: 5, partial: "[Incomplete transcript — retry missing audio segments]\nPart of the words")
+        try recording("R1", minutes: 5, partial: partial)
         let model = try launchedModel(); defer { model.shutdown() }
         model.restoreLastTranscript(from: recordings)
-        XCTAssertEqual(model.lastText, "Part of the words")
+        XCTAssertEqual(model.lastText, partial)
         XCTAssertTrue(model.lastTranscriptIncomplete)
         let app = menu(model)
         XCTAssertNotNil(app.menu.item(withTitle: "Copy Recognized Text (Incomplete)"))
         XCTAssertNil(app.menu.item(withTitle: "Copy Last Transcript"))
         model.copyLast()
-        XCTAssertEqual(pasteboard.string(forType: .string), "Part of the words")
+        XCTAssertEqual(pasteboard.string(forType: .string), partial)
+    }
+
+    /// The launch path: applicationDidFinishLaunching in headless QA mode (no status item) restores the newest saved
+    /// transcript from the app's Recordings folder, the one Backend.support points at (a temporary folder under XCTest).
+    func testLaunchRestoresTheNewestSavedTranscript() throws {
+        _ = NSApplication.shared
+        let folder = RecordingSession.root.appendingPathComponent("launch-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: folder.appendingPathComponent("session.json"))
+        try Data("Launch restored text.".utf8).write(to: folder.appendingPathComponent("transcript.txt"))
+        try FileManager.default.setAttributes([.creationDate: Date().addingTimeInterval(3_600)], ofItemAtPath: folder.path)
+        setenv("VELLA_QA_HEADLESS", "1", 1)
+        defer { unsetenv("VELLA_QA_HEADLESS") }
+        let model = try launchedModel(); defer { model.shutdown() }
+        XCTAssertEqual(model.lastText, "")
+        AppDelegate(model: model).applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+        XCTAssertEqual(model.lastText, "Launch restored text.")
+        XCTAssertFalse(model.lastTranscriptIncomplete)
+    }
+
+    /// Restoring stays quick on a Recordings folder with thousands of recordings that have no text yet (failed or
+    /// audio-only): the newest transcript is found after checking each folder's session.json once. Measured, not assumed.
+    func testRestoreStaysQuickAmongThousandsOfRecordingsWithoutText() throws {
+        try recording("Old", minutes: -10_000, text: "The only transcript.")
+        for i in 0..<3_000 { try recording(String(format: "N%05d", i), minutes: Double(i)) }
+        let model = try launchedModel(); defer { model.shutdown() }
+        let started = Date()
+        model.restoreLastTranscript(from: recordings)
+        let elapsed = Date().timeIntervalSince(started)
+        print("restoreLastTranscript: 3,000 recordings without text, one with: \(String(format: "%.3f", elapsed)) s")
+        XCTAssertEqual(model.lastText, "The only transcript.")
+        XCTAssertLessThan(elapsed, 2, "launch must not stall on a large Recordings folder")
     }
 
     /// No saved transcript (a fresh install, or a Recordings folder with only audio): no Copy item, and Copy keeps the
@@ -106,7 +140,7 @@ import XCTest
         XCTAssertEqual(model.lastText, "")
     }
 
-    /// A very long transcript (about 170,000 characters, two hours of talk) is copied whole, as one plain-text item: no
+    /// A very long transcript (195,000 characters, about 219,000 bytes; two hours of talk) is copied whole, as one plain-text item: no
     /// rich text, file, image or PDF alongside it.
     func testCopyOfAVeryLongTranscriptIsExactAndPlainTextOnly() throws {
         let long = String(repeating: "A long dictated sentence with ąęłńóśźż and more words to follow. ", count: 3_000)

@@ -143,6 +143,7 @@ import CryptoKit
             try await settle(model) { $0.phase == .success }
             XCTAssertEqual(model.lastText, text)
             XCTAssertTrue(menu(for: model).titles.contains("Copy Last Transcript"))
+            pasteboard.clearContents()
             model.copyLast()
             XCTAssertEqual(pasteboard.string(forType: .string), text, "the latest dictation, not an earlier one")
         }
@@ -154,6 +155,36 @@ import CryptoKit
         pasteboard.clearContents()
         relaunched.copyLast()
         XCTAssertEqual(pasteboard.string(forType: .string), said.last)
+    }
+
+    /// Deleting a failed saved recording that never got text (Delete This Saved Recording…) leaves the last transcript
+    /// copyable: the restore reads the Recordings folder the saved recording sat in, so it finds the dictation before it.
+    func testDeletingAFailedSavedRecordingKeepsTheLastTranscript() async throws {
+        final class Lines {
+            private var left = ["Ostatnia wypowiedź przed usunięciem."]
+            func next() -> String { left.removeFirst() }
+        }
+        let lines = Lines()
+        let pasteboard = NSPasteboard(name: .init("vella-qa-delete-\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        let model = try model(request: { _, _ in lines.next() }, pasteboard: pasteboard)
+        model.recorder.adoptForTesting(try recording(seconds: 2, userStopped: false))
+        model.phase = .recording
+        model.recordingTick(error: "The microphone stopped delivering audio. Check its connection and start again.")
+        model.retry()
+        try await settle(model) { $0.phase == .success }
+        XCTAssertEqual(model.lastText, "Ostatnia wypowiedź przed usunięciem.")
+        model.recorder.adoptForTesting(try recording(seconds: 2, userStopped: false))
+        model.phase = .recording
+        model.recordingTick(error: "The microphone stopped delivering audio. Check its connection and start again.")
+        XCTAssertEqual(model.phase, .failed)
+        XCTAssertNotNil(model.savedSession)
+        try model.deleteSavedRecording()
+        XCTAssertEqual(model.lastText, "Ostatnia wypowiedź przed usunięciem.")
+        XCTAssertTrue(menu(for: model).titles.contains("Copy Last Transcript"))
+        pasteboard.clearContents()
+        model.copyLast()
+        XCTAssertEqual(pasteboard.string(forType: .string), "Ostatnia wypowiedź przed usunięciem.")
     }
 
     // MARK: Sleep / wake (seam: NSWorkspace.willSleepNotification posted in-process to the manager's observers)

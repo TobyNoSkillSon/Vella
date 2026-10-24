@@ -691,8 +691,9 @@ import VellaCore
     }
     func deleteSavedRecording() throws {
         guard !busy, phase != .recording, let savedSession else { return }
+        let recordings = savedSession.directory.deletingLastPathComponent()
         try FileManager.default.removeItem(at: savedSession.directory)
-        self.savedSession = nil; pendingModelRequest = nil; recorder.discard(); restoreLastTranscript()
+        self.savedSession = nil; pendingModelRequest = nil; recorder.discard(); restoreLastTranscript(from: recordings)
         update(.idle, "Saved recording deleted.")
     }
     private static func focused(_ attribute: CFString, in target: NSRunningApplication) -> AXUIElement? {
@@ -821,12 +822,18 @@ import VellaCore
         pasteboard.clearContents(); pasteboard.setString(lastText, forType: .string)
     }
     /// `lastText` lives only in memory, and an update restarts Vella, so a relaunch would lose the last transcript. This
-    /// takes the newest saved transcript in `root` (the Transcripts window's top row), or nothing. Read-only.
+    /// takes the newest saved transcript in `root` (the Transcripts window's top row), or nothing. Read-only. An incomplete
+    /// one copies its partial file as the session did (the bracketed note included), not the window's stripped text.
     func restoreLastTranscript(from root: URL = RecordingSession.root) {
         let store = TranscriptStore(root: root)
-        let newest = store.index().lazy.filter { store.hasText($0) }.compactMap { store.entry($0) }.first
-        lastText = newest?.text ?? ""
-        lastTranscriptIncomplete = newest?.incomplete ?? false
+        guard let newest = store.index().lazy.filter({ store.hasText($0) }).compactMap({ store.entry($0) }).first else {
+            lastText = ""; lastTranscriptIncomplete = false
+            return
+        }
+        let partial = newest.incomplete ? (try? String(contentsOf: newest.directory.appendingPathComponent("partial-transcript.txt"), encoding: .utf8)) : nil
+        let session = partial?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        lastText = session.isEmpty ? newest.text : session
+        lastTranscriptIncomplete = newest.incomplete
     }
     func accessibility() { insertionPermission.openSettings() }
     func chooseMicrophone(_ name: String) {
