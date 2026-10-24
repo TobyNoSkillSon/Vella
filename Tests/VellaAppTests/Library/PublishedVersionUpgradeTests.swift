@@ -26,9 +26,9 @@ final class PublishedVersionUpgradeTests: XCTestCase {
 
     /// One download as a version wrote it.
     private struct Download {
-        let id: String           // folder name and registry key that version used
+        let id: String // folder name and registry key that version used
         let quantization: String // registry `quantization`
-        var registered = true    // false: a folder holding only vella-derived.json
+        var registered = true // false: a folder holding only vella-derived.json
         var manifestOnly = false // a precision made on this Mac from its source, which must also be installed
     }
 
@@ -56,7 +56,7 @@ final class PublishedVersionUpgradeTests: XCTestCase {
         Download(id: "SenseVoiceSmall", quantization: "FP32"),
         Download(id: "SenseVoiceSmall-4bit", quantization: "4-bit"),
         Download(id: "granite-4.0-1b-speech-4bit", quantization: "4-bit"),
-        Download(id: "granite-4.0-1b-speech-8bit", quantization: "8-bit"),
+        Download(id: "granite-4.0-1b-speech-8bit", quantization: "8-bit")
     ]
 
     /// 2.0.0 to 2.1.1 shipped one catalog (22 ids, unchanged across these tags). Published roots are downloads; a
@@ -70,12 +70,12 @@ final class PublishedVersionUpgradeTests: XCTestCase {
         Download(id: "whisper-large-v3-turbo-asr-fp16", quantization: "FP16"),
         Download(id: "nemotron-3.5-asr-streaming-0.6b-bf16", quantization: "BF16"),
         Download(id: "nemotron-3.5-asr-streaming-0.6b-8bit", quantization: "8-bit"),
-        Download(id: "Qwen3-ASR-1.7B-8bit", quantization: "8-bit", registered: false, manifestOnly: true),
+        Download(id: "Qwen3-ASR-1.7B-8bit", quantization: "8-bit", registered: false, manifestOnly: true)
     ]
 
     /// Catalog ids that 2.0 removed. Their files are kept on disk and never deleted by an upgrade.
     private static let removedFromCatalog: Set<String> = [
-        "SenseVoiceSmall", "SenseVoiceSmall-4bit", "granite-4.0-1b-speech-4bit", "granite-4.0-1b-speech-8bit",
+        "SenseVoiceSmall", "SenseVoiceSmall-4bit", "granite-4.0-1b-speech-4bit", "granite-4.0-1b-speech-8bit"
     ]
 
     private static let published: [Published] = [
@@ -89,7 +89,7 @@ final class PublishedVersionUpgradeTests: XCTestCase {
         Published(tag: "2.0.0", config: .swift20, defaultSelection: "Qwen3-ASR-1.7B-bf16", downloads: twoDownloads),
         Published(tag: "2.0.1", config: .swift20, defaultSelection: "Qwen3-ASR-1.7B-bf16", downloads: twoDownloads),
         Published(tag: "2.1.0", config: .swift20, defaultSelection: "Qwen3-ASR-1.7B-bf16", downloads: twoDownloads),
-        Published(tag: "2.1.1", config: .swift20, defaultSelection: "Qwen3-ASR-1.7B-bf16", downloads: twoDownloads),
+        Published(tag: "2.1.1", config: .swift20, defaultSelection: "Qwen3-ASR-1.7B-bf16", downloads: twoDownloads)
     ]
 
     // MARK: Tests
@@ -100,7 +100,8 @@ final class PublishedVersionUpgradeTests: XCTestCase {
         let c = controller(root.appendingPathComponent("catalog-check"))
         for version in Self.published {
             for download in version.downloads {
-                XCTAssertEqual(c.catalog.locate(variant: download.id) == nil, Self.removedFromCatalog.contains(download.id),
+                XCTAssertEqual(
+                    c.catalog.locate(variant: download.id) == nil, Self.removedFromCatalog.contains(download.id),
                     "\(version.tag) \(download.id)")
             }
         }
@@ -144,7 +145,8 @@ final class PublishedVersionUpgradeTests: XCTestCase {
         XCTAssertEqual(try snapshot(Array(folders.values)), before, "\(label): every file is still there, unchanged")
 
         for download in downloads where !Self.removedFromCatalog.contains(download.id) {
-            try assertListed(download, folder: try XCTUnwrap(folders[download.id]), controller: c, selected: download.id == selected,
+            try assertListed(
+                download, folder: try XCTUnwrap(folders[download.id]), controller: c, selected: download.id == selected,
                 support: support, label: label)
         }
         if let selected, let folder = folders[selected] {
@@ -199,9 +201,9 @@ final class PublishedVersionUpgradeTests: XCTestCase {
             let sourceFolder = support.appendingPathComponent("Models/\(source.variant.id)").path
             let bits = located.family.variants[located.precision]?.bits ?? 8
             let manifest = """
-            {"bits": \(bits), "family": "\(located.family.id)", "groupSize": 64, "precision": "\(located.precision)", \
-            "schema": 1, "source": "\(sourceFolder)", "sourcePrecision": "\(source.label)", "sourceVariant": "\(source.variant.id)"}
-            """
+                {"bits": \(bits), "family": "\(located.family.id)", "groupSize": 64, "precision": "\(located.precision)", \
+                "schema": 1, "source": "\(sourceFolder)", "sourcePrecision": "\(source.label)", "sourceVariant": "\(source.variant.id)"}
+                """
             try Data(manifest.utf8).write(to: folder.appendingPathComponent(DerivedModelManifest.fileName))
             return folder
         }
@@ -259,8 +261,10 @@ final class PublishedVersionUpgradeTests: XCTestCase {
         let url = support.appendingPathComponent("config.json")
         switch version.config {
         case .v06, .python08:
-            var config: [String: Any] = ["executable": "/py", "model": streaming ? "" : path, "streamingModel": streaming ? path : "",
-                "preferredMicrophone": "", "fallbackMicrophone": ""]
+            var config: [String: Any] = [
+                "executable": "/py", "model": streaming ? "" : path, "streamingModel": streaming ? path : "",
+                "preferredMicrophone": "", "fallbackMicrophone": ""
+            ]
             if version.config == .python08 { config["mode"] = streaming ? "streaming" : "dictation" }
             try JSONSerialization.data(withJSONObject: config, options: [.sortedKeys]).write(to: url)
         case .swift20:
@@ -316,7 +320,7 @@ final class PublishedVersionUpgradeTests: XCTestCase {
 }
 
 /// Fails every request: an upgrade downloads nothing.
-private final class NoNetwork: URLProtocol {
+private class NoNetwork: URLProtocol {
     private static let lock = NSLock()
     private static var seen: [URL] = []
 
