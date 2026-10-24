@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.1.2 (24 October 2026)
 
 - **Copy Last Transcript is back after a relaunch or update.** Vella keeps the last transcript in memory only, so a restart hid the item until the next dictation. It now copies the newest saved transcript from Recordings, the top row of Transcripts…, and it is hidden only when no recording has text. Copying with no transcript leaves the clipboard alone.
 - **Support the Developer…** rests on the same lighter row as Copy Last Transcript.
