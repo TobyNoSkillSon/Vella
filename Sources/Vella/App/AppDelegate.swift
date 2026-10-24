@@ -191,6 +191,7 @@ import VellaCore
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         NSApp.appearance = NSAppearance(named: .darkAqua)
+        model.restoreLastTranscript()
         if Self.qaHeadless() {
             configureHUDPanel()
             model.onChange = { [weak self] in self?.refresh() }
@@ -388,8 +389,9 @@ import VellaCore
                 cancelCapture: #selector(cancelShortcutCapture), selectModifier: #selector(selectShortcutModifier(_:)),
                 selectMouse: #selector(selectShortcutMouse(_:)), resetDefault: #selector(resetShortcutDefault),
                 openSettings: #selector(accessibility)))
+        // Shown once there is a transcript to copy, saved ones included (`restoreLastTranscript` after a relaunch).
         if !model.lastText.isEmpty {
-            // The item reached for most often rests on a slightly lighter row (Toby, 15 Oct), native highlight kept.
+            // The items reached for most often rest on a slightly lighter row (Toby, 15 Oct; Support, 24 Oct), native highlight kept.
             let copy = item(model.lastTranscriptIncomplete ? "Copy Recognized Text (Incomplete)" : "Copy Last Transcript", "doc.on.doc", #selector(copyLast))
             _ = ProminentMenuItemView(item: copy)
         }
@@ -407,7 +409,8 @@ import VellaCore
         login.toolTip = loginStatus() == .requiresApproval ? "Allow Vella in System Settings → General → Login Items & Extensions." : nil
         menu.addItem(login)
         menu.addItem(.separator())
-        item("Support the Developer…", "heart", #selector(supportDeveloper))
+        let support = item("Support the Developer…", "heart", #selector(supportDeveloper))
+        _ = ProminentMenuItemView(item: support)
         if let update = updates.menuItem() { menu.addItem(update) }
         item("Quit Vella", "power", #selector(quit), key: "q", modifiers: [.command])
         MenuImages.show(in: menu)

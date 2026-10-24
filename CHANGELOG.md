@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Copy Last Transcript is back after a relaunch or update.** Vella keeps the last transcript in memory only, so a restart hid the item until the next dictation. It now copies the newest saved transcript from Recordings, the top row of Transcripts…, and it is hidden only when no recording has text. Copying with no transcript leaves the clipboard alone.
+- **Support the Developer…** rests on the same lighter row as Copy Last Transcript.
+
 ## 2.1.1 (23 October 2026)
 
 - **Updating from 0.8 keeps your model.** A Parakeet v3 4-bit or 8-bit download from Vella 0.8 stays your dictation model and runs as it is, with no download. 2.0 and 2.1.0 dropped it when its 16-bit source wasn't on the Mac, and the next dictation offered to download a model. If that happened to you, 2.1.1 selects your earlier download again the first time it opens and says so. Get the 16-bit source in Models… to move to the measured precision; your earlier download is kept.

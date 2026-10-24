@@ -91,7 +91,8 @@ final class MenuMock: NSView {
             }
             y -= 26
             if item.view is ProminentMenuItemView {
-                NSColor.white.withAlphaComponent(ProminentMenuItemView.restingAlpha).setFill()
+                // The real row's fill: the label colour at the resting alpha (ProminentMenuItemView.draw).
+                NSColor.labelColor.withAlphaComponent(ProminentMenuItemView.restingAlpha).setFill()
                 NSBezierPath(
                     roundedRect: NSRect(x: ProminentMenuItemView.inset, y: y + 1, width: bounds.width - 2 * ProminentMenuItemView.inset, height: 24),
                     xRadius: ProminentMenuItemView.radius, yRadius: ProminentMenuItemView.radius

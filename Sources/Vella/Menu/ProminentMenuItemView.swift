@@ -1,8 +1,9 @@
 import AppKit
 
-// The one menu item that rests on a slightly lighter background (Toby, 15 Oct, on Copy Last Transcript: "without
-// hovering over it, it is slightly, slightly lighter ... so that when I'm just skimming ... this is the thing that you
-// click when you want the last transcript"). AppKit has no resting background for a native item, so the item carries
+// The menu items that rest on a slightly lighter background: Copy Last Transcript (Toby, 15 Oct: "without hovering over
+// it, it is slightly, slightly lighter ... so that when I'm just skimming ... this is the thing that you click when you
+// want the last transcript") and Support the Developer (Toby, 24 Oct: "not highlighted white like the one in Heimdall";
+// Heimdall's ProminentRow uses the same fill and ink). AppKit has no resting background for a native item, so the item carries
 // this view, which draws what the native item draws, at the native geometry:
 //
 // - Title and icon come from the item (`title`, `image`) at every draw, so the title variants and the macOS 27 image

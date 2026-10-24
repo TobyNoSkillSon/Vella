@@ -87,7 +87,9 @@ final class BackendTests: XCTestCase {
         let delegate = AppDelegate(
             model: DictationController(configurationURL: FileManager.default.temporaryDirectory.appendingPathComponent("unused-vella-config-\(UUID()).json")))
         delegate.rebuildMenu()
-        XCTAssertTrue(delegate.menu.items.allSatisfy { $0.view == nil })
+        // Native items, except the two that rest on the lighter row (ProminentMenuItemView). Copy Last Transcript is absent
+        // here (no transcript yet), so Support is the one view.
+        XCTAssertEqual(delegate.menu.items.filter { $0.view != nil }.map(\.title), ["Support the Developer…"])
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Start Dictation" })
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Quit Vella" })
         XCTAssertTrue(delegate.menu.items.contains { $0.title == "Microphone" && $0.submenu != nil })

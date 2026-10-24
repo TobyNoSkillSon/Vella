@@ -115,6 +115,47 @@ import CryptoKit
         XCTAssertTrue(model.message.hasPrefix("Copied to clipboard."), "a recovered recording is clipboard-only: \(model.message)")
     }
 
+    // MARK: Copy Last Transcript on a fresh profile (seams: Retry on a saved recording, restoreLastTranscript, the real menu)
+
+    /// A fresh profile has nothing to copy: no Copy item, Support on its row. Three dictations, each saved and then
+    /// transcribed through Retry (the path that sets `lastText` as a dictation does), each copy the latest. A relaunch
+    /// restores the newest saved transcript and the item comes back with it.
+    func testFreshProfileCopiesTheLatestDictationAndKeepsItAcrossARelaunch() async throws {
+        final class Lines {
+            private var left: [String]
+            init(_ lines: [String]) { left = lines }
+            func next() -> String { left.removeFirst() }
+        }
+        let said = ["Pierwsze zdanie. Zażółć gęślą jaźń.", "Drugie: ąęłńóśźż, a second sentence.", "Trzecie i ostatnie 你好 🎙️."]
+        let lines = Lines(said)
+        let pasteboard = NSPasteboard(name: .init("vella-qa-fresh-\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        let model = try model(request: { _, _ in lines.next() }, pasteboard: pasteboard)
+        let fresh = menu(for: model)
+        XCTAssertFalse(fresh.titles.contains("Copy Last Transcript"), "nothing to copy on a fresh profile")
+        XCTAssertTrue(fresh.titles.contains("Support the Developer…"))
+        for text in said {
+            model.recorder.adoptForTesting(try recording(seconds: 2, userStopped: false))
+            model.phase = .recording
+            model.recordingTick(error: "The microphone stopped delivering audio. Check its connection and start again.")
+            XCTAssertEqual(model.phase, .failed)
+            model.retry()
+            try await settle(model) { $0.phase == .success }
+            XCTAssertEqual(model.lastText, text)
+            XCTAssertTrue(menu(for: model).titles.contains("Copy Last Transcript"))
+            model.copyLast()
+            XCTAssertEqual(pasteboard.string(forType: .string), text, "the latest dictation, not an earlier one")
+        }
+        let relaunched = try self.model(pasteboard: pasteboard)
+        XCTAssertEqual(relaunched.lastText, "", "a relaunch starts with nothing in memory")
+        relaunched.restoreLastTranscript(from: root.appendingPathComponent("Recordings"))
+        XCTAssertEqual(relaunched.lastText, said.last)
+        XCTAssertTrue(menu(for: relaunched).titles.contains("Copy Last Transcript"), "back in the menu after the relaunch")
+        pasteboard.clearContents()
+        relaunched.copyLast()
+        XCTAssertEqual(pasteboard.string(forType: .string), said.last)
+    }
+
     // MARK: Sleep / wake (seam: NSWorkspace.willSleepNotification posted in-process to the manager's observers)
 
     func testSleepDuringRecordingEndsBothActivationModesAndKeepsAudio() async throws {

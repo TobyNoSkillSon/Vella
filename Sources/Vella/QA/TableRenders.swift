@@ -589,28 +589,31 @@ import VellaUpdate
     private var app: AppDelegate!
     init(directory: URL) { self.directory = directory }
 
-    /// `copy-item.png`: the real Copy Last Transcript item view at rest (top) and highlighted (bottom; the accent colour
-    /// stands in for the selection material, which offscreen drawing cannot show), on the dark menu's colour at the
-    /// real menu's width, with a plain row between them for spacing.
-    private func renderCopyItem(done: @escaping () -> Void) {
-        guard let item = app.menu.items.first(where: { $0.view is ProminentMenuItemView }), let image = item.image else { done(); return }
-        let width: CGFloat = 374, h = ProminentMenuItemView.height
-        let panel = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 3 * h + 16))
+    /// `prominent-rows.png`: the real item views of Copy Last Transcript and Support the Developer, each at rest and then
+    /// highlighted (the accent colour stands in for the selection material, which offscreen drawing cannot show), on the
+    /// dark menu's colour at the real menu's width, with a gap between rows.
+    private func renderProminentRows(done: @escaping () -> Void) {
+        let items = app.menu.items.filter { $0.view is ProminentMenuItemView && $0.image != nil }
+        let rows = items.flatMap { item in [(item, false), (item, true)] }
+        guard !rows.isEmpty else { done(); return }
+        let width: CGFloat = 374, h = ProminentMenuItemView.height, gap: CGFloat = 8
+        let height = CGFloat(rows.count) * (h + gap) + gap
+        let panel = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
         panel.wantsLayer = true
         panel.layer?.backgroundColor = NSColor(srgbRed: 32 / 255, green: 32 / 255, blue: 32 / 255, alpha: 1).cgColor
-        for (row, lit) in [(0, false), (2, true)] {
-            let twin = NSMenuItem(title: item.title, action: nil, keyEquivalent: ""); twin.image = image
+        for (row, (item, lit)) in rows.enumerated() {
+            let twin = NSMenuItem(title: item.title, action: nil, keyEquivalent: ""); twin.image = item.image
             let view = ProminentMenuItemView(item: twin)
             view.forcesHighlight = lit; view.rendersSelectionFill = lit
             // A menu item's view keeps its origin at zero: each sits in a row container.
-            let slot = NSView(frame: NSRect(x: 0, y: panel.bounds.height - 8 - CGFloat(row + 1) * h, width: width, height: h))
+            let slot = NSView(frame: NSRect(x: 0, y: height - gap - CGFloat(row + 1) * h - CGFloat(row) * gap, width: width, height: h))
             view.setFrameSize(slot.bounds.size)
             slot.addSubview(view)
             panel.addSubview(slot)
             keep.append(twin)
         }
         panel.appearance = NSAppearance(named: .darkAqua)
-        MenuMock.capture(panel, to: directory.appendingPathComponent("copy-item.png"), done: done)
+        MenuMock.capture(panel, to: directory.appendingPathComponent("prominent-rows.png"), done: done)
     }
     private var keep: [AnyObject] = []
 
@@ -666,7 +669,7 @@ import VellaUpdate
                 guard state.prefix == "default-" else { render(states, index + 1); return }
                 // Main-menu tooltips plus the Keep Hot and Memory ones.
                 MenuMock.renderTooltips(of: app.menu, submenus: ["Keep Hot", "Memory"], to: directory.appendingPathComponent("tooltips.png")) { [self] in
-                    renderCopyItem { [self] in render(states, index + 1) }
+                    renderProminentRows { [self] in render(states, index + 1) }
                 }
             }
         }

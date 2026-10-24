@@ -692,7 +692,7 @@ import VellaCore
     func deleteSavedRecording() throws {
         guard !busy, phase != .recording, let savedSession else { return }
         try FileManager.default.removeItem(at: savedSession.directory)
-        self.savedSession = nil; pendingModelRequest = nil; recorder.discard(); lastText = ""
+        self.savedSession = nil; pendingModelRequest = nil; recorder.discard(); restoreLastTranscript()
         update(.idle, "Saved recording deleted.")
     }
     private static func focused(_ attribute: CFString, in target: NSRunningApplication) -> AXUIElement? {
@@ -815,7 +815,19 @@ import VellaCore
             }
         }
     }
-    func copyLast() { pasteboard.clearContents(); pasteboard.setString(lastText, forType: .string) }
+    /// Copies the last transcript as plain text. With none, the clipboard keeps what it had.
+    func copyLast() {
+        guard !lastText.isEmpty else { return }
+        pasteboard.clearContents(); pasteboard.setString(lastText, forType: .string)
+    }
+    /// `lastText` lives only in memory, and an update restarts Vella, so a relaunch would lose the last transcript. This
+    /// takes the newest saved transcript in `root` (the Transcripts window's top row), or nothing. Read-only.
+    func restoreLastTranscript(from root: URL = RecordingSession.root) {
+        let store = TranscriptStore(root: root)
+        let newest = store.index().lazy.filter { store.hasText($0) }.compactMap { store.entry($0) }.first
+        lastText = newest?.text ?? ""
+        lastTranscriptIncomplete = newest?.incomplete ?? false
+    }
     func accessibility() { insertionPermission.openSettings() }
     func chooseMicrophone(_ name: String) {
         if phase == .recording { hardwareEvent(.microphoneChanged) }
