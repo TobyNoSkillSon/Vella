@@ -161,6 +161,16 @@ tests() {
   if [[ $MODE == ci ]]; then CI=true NSUnbufferedIO=YES scripts/test-unit.sh; else NSUnbufferedIO=YES scripts/test-unit.sh; fi
 }
 
+# Foster's regression (e98011e): every published version's model layout, seeded and upgraded without a download. Local
+# runs seed config.json and small files from the Models folder of the installed Vella when there is one (read-only; the
+# weights are hardlinked into a temporary folder); CI and clean machines seed placeholder files.
+upgrade_from_published() {
+  local store="${VELLA_UPGRADE_STORE:-}"
+  if [[ -z $store && $MODE != ci && -d "$HOME/Library/Application Support/Vella/Models" ]]; then store="$HOME/Library/Application Support/Vella/Models"; fi
+  echo "seeding from: ${store:-placeholder files}"
+  VELLA_UPGRADE_STORE="$store" VELLA_TEST_FILTER=PublishedVersionUpgradeTests NSUnbufferedIO=YES scripts/test-unit.sh
+}
+
 if [[ $MODE == --step-fixture ]]; then
   case "${VELLA_STEP_FIXTURE:?}" in
     archive)
@@ -218,6 +228,7 @@ step "SHA256SUMS" checksums
 step "release identity (nothing development-signed is uploadable)" upload_identity_guard
 if [[ $SIGNED == 1 ]]; then step "release signature" signature; fi
 step "swift test ($([[ $MODE == ci ]] && echo unit || echo 'unit and integration'))" tests
+step "published-version upgrade (every earlier model layout stays listed and usable)" upgrade_from_published
 step "documented CLI examples" scripts/check-cli-examples.sh
 step "worker unit tests" scripts/test-worker.sh
 step "VellaWire tests" scripts/test-unit.sh --package-path Packages/VellaWire
