@@ -105,9 +105,14 @@ public struct WorkerStatus: Codable, Equatable {
     /// Per-launch secret a JSON request naming a local file must send (`X-Vella-Token`). Readable only by processes that
     /// can read this file, which excludes sandboxed apps: they cannot make Vella read files outside their sandbox.
     public var api_token: String?
+    /// Heimdall's shared model as Vella sees it (docs/HEIMDALL.md); nil until the app reports it.
+    public var heimdall: HeimdallStatus?
+    /// Which path served the latest finished dictation.
+    public var last_dictation: LastDictationStatus?
     public init() {}
     private enum CodingKeys: String, CodingKey {
         case schema, updated, app_pid, models, loading, error, memory, settings, launch_set, evictions, refused, gpu, test_hooks, api, api_port, api_token
+        case heimdall, last_dictation
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -127,6 +132,8 @@ public struct WorkerStatus: Codable, Equatable {
         api = try? c.decodeIfPresent(Int.self, forKey: .api)
         api_port = try? c.decodeIfPresent(Int.self, forKey: .api_port)
         api_token = try? c.decodeIfPresent(String.self, forKey: .api_token)
+        heimdall = try? c.decodeIfPresent(HeimdallStatus.self, forKey: .heimdall)
+        last_dictation = try? c.decodeIfPresent(LastDictationStatus.self, forKey: .last_dictation)
     }
     /// Atomic: write a unique temporary file beside the target, then rename(2) over it. The file carries the API
     /// token, so every version is owner-only (0600, no inherited ACL entries) from before its first byte is written.

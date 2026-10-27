@@ -1,0 +1,285 @@
+import Foundation
+import Darwin
+
+/// Channel 2 of the Heimdall integration (docs/HEIMDALL.md): when Vella's dictation model is Parakeet v3 Ultra and
+/// Heimdall holds the same model, a finished dictation's audio goes to Heimdall over a Unix socket instead of to a
+/// copy of the model Vella would load itself. Anything that goes wrong falls back to Vella's own model.
+
+/// `dev.heimdall.asr` userInfo.
+public struct HeimdallAnnouncement: Equatable, Sendable {
+    public enum State: String, Sendable { case ready, gone }
+    public var state: State
+    public var socket: String
+    public var model: String
+    public var pid: Int?
+    public var sent: Double?
+    public init(state: State, socket: String, model: String, pid: Int? = nil, sent: Double? = nil) {
+        self.state = state; self.socket = socket; self.model = model; self.pid = pid; self.sent = sent
+    }
+    /// Nil for another protocol version, an unknown state, or a `ready` without an absolute socket path.
+    public init?(userInfo: [AnyHashable: Any]?) {
+        guard let info = userInfo, (info["v"] as? NSNumber)?.intValue == HeimdallNames.protocolVersion,
+            let raw = info["state"] as? String, let state = State(rawValue: raw)
+        else { return nil }
+        let socket = info["socket"] as? String ?? ""
+        if state == .ready, !socket.hasPrefix("/") || socket.utf8.count >= 104 { return nil }
+        self.state = state; self.socket = socket
+        model = info["model"] as? String ?? ""
+        pid = (info["pid"] as? NSNumber)?.intValue
+        sent = (info["sent"] as? NSNumber)?.doubleValue
+    }
+}
+
+/// Whether a dictation borrows Heimdall's model. Pure state; the app feeds it announcements and failures.
+public struct HeimdallBorrowState: Equatable, Sendable {
+    /// The last `ready` announcement (nil: absent, or announced gone).
+    public private(set) var ready: HeimdallAnnouncement?
+    /// A request failed since that `ready`: Vella's own model serves until the next one.
+    public private(set) var unavailable = false
+    public private(set) var lastFailure: String?
+    public init() {}
+    public mutating func receive(_ announcement: HeimdallAnnouncement) {
+        switch announcement.state {
+        case .ready: ready = announcement; unavailable = false; lastFailure = nil
+        case .gone:
+            // A `gone` from another Heimdall process must not end a newer one's readiness.
+            if let pid = announcement.pid, let readyPid = ready?.pid, pid != readyPid { return }
+            ready = nil; unavailable = false
+        }
+    }
+    public mutating func failed(_ reason: String) { if ready != nil { unavailable = true }; lastFailure = reason }
+    /// The socket to use for a dictation of `family`, or nil when Vella's own model serves it.
+    public func socket(for family: String?) -> String? {
+        guard let ready, !unavailable, family == HeimdallNames.sharedModel, ready.model == HeimdallNames.sharedModel else { return nil }
+        return ready.socket
+    }
+    /// "ready", "unavailable" (failed since its last ready) or "absent".
+    public var label: String { ready == nil ? "absent" : unavailable ? "unavailable" : "ready" }
+}
+
+/// A transcription Heimdall returned.
+public struct HeimdallTranscript: Equatable, Sendable {
+    public var text: String
+    public var queueMs: Double?
+    public var decodeMs: Double?
+    public var audioMs: Double?
+    public init(text: String, queueMs: Double? = nil, decodeMs: Double? = nil, audioMs: Double? = nil) {
+        self.text = text; self.queueMs = queueMs; self.decodeMs = decodeMs; self.audioMs = audioMs
+    }
+}
+
+/// Why a request to Heimdall did not produce text. Every case falls back to Vella's own model.
+public enum HeimdallASRError: Error, Equatable, LocalizedError {
+    case connect(String)
+    case timeout
+    case rejected(String)
+    case invalidReply
+    case cancelled
+    public var errorDescription: String? { "Heimdall: " + code }
+    /// Short machine form for status (`connect`, `timeout`, `busy`, `invalid_reply`…).
+    public var code: String {
+        switch self {
+        case .connect: return "connect"
+        case .timeout: return "timeout"
+        case .rejected(let code): return code
+        case .invalidReply: return "invalid_reply"
+        case .cancelled: return "cancelled"
+        }
+    }
+}
+
+public enum HeimdallASRWire {
+    /// The spec's reply deadline: 5 s plus a tenth of the audio length.
+    public static func timeout(audioSeconds: Double) -> Double { 5 + max(0, audioSeconds) / 10 }
+    /// Heimdall refuses more than this per request.
+    public static let maxSeconds = 600.0
+    public static func header(samples: Int, model: String = HeimdallNames.sharedModel) -> Data {
+        let object: [String: Any] = ["v": 1, "op": "transcribe", "model": model, "rate": 16_000, "samples": samples, "format": "f32le"]
+        var data = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()
+        data.append(10)
+        return data
+    }
+    public static let statusRequest = Data("{\"op\":\"status\",\"v\":1}\n".utf8)
+    public static func body(_ samples: [Float]) -> Data {
+        samples.withUnsafeBufferPointer { buffer in
+            var data = Data(capacity: buffer.count * 4)
+            for sample in buffer { var bits = sample.bitPattern.littleEndian; withUnsafeBytes(of: &bits) { data.append(contentsOf: $0) } }
+            return data
+        }
+    }
+    /// The reply line (without its newline).
+    public static func parse(_ line: Data) -> Result<HeimdallTranscript, HeimdallASRError> {
+        guard let object = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
+            (object["v"] as? NSNumber)?.intValue == HeimdallNames.protocolVersion, let ok = object["ok"] as? Bool
+        else { return .failure(.invalidReply) }
+        guard ok else {
+            let code = object["error"] as? String ?? ""
+            return .failure(.rejected(code.isEmpty ? "unavailable" : String(code.prefix(40))))
+        }
+        guard let text = object["text"] as? String else { return .failure(.invalidReply) }
+        func ms(_ key: String) -> Double? { (object[key] as? NSNumber)?.doubleValue }
+        return .success(HeimdallTranscript(text: text, queueMs: ms("queue_ms"), decodeMs: ms("decode_ms"), audioMs: ms("audio_ms")))
+    }
+}
+
+/// Mono 16 kHz samples from the canonical PCM16 or float32 WAV Vella writes for each recognition request.
+public func heimdallWAVSamples(_ data: Data) throws -> [Float] {
+    func u32(_ at: Int) -> UInt32 { data.withUnsafeBytes { UInt32(littleEndian: $0.loadUnaligned(fromByteOffset: at, as: UInt32.self)) } }
+    func u16(_ at: Int) -> UInt16 { data.withUnsafeBytes { UInt16(littleEndian: $0.loadUnaligned(fromByteOffset: at, as: UInt16.self)) } }
+    func tag(_ at: Int) -> String { String(decoding: data[data.startIndex + at..<data.startIndex + at + 4], as: UTF8.self) }
+    let bad = VellaError.message("The recognition request is not a mono 16 kHz WAV.")
+    guard data.count >= 12, tag(0) == "RIFF", tag(8) == "WAVE" else { throw bad }
+    var offset = 12, format: UInt16 = 0, channels: UInt16 = 0, rate: UInt32 = 0, bits: UInt16 = 0
+    while offset + 8 <= data.count {
+        let id = tag(offset), size = Int(u32(offset + 4)), body = offset + 8
+        guard body + size <= data.count else { throw bad }
+        if id == "fmt ", size >= 16 {
+            format = u16(body); channels = u16(body + 2); rate = u32(body + 4); bits = u16(body + 14)
+        } else if id == "data" {
+            guard channels == 1, rate == 16_000 else { throw bad }
+            return data.withUnsafeBytes { raw in
+                if format == 1, bits == 16 {
+                    return (0..<size / 2).map { Float(Int16(littleEndian: raw.loadUnaligned(fromByteOffset: body + $0 * 2, as: Int16.self))) / 32768 }
+                }
+                if format == 3, bits == 32 {
+                    return (0..<size / 4).map { Float(bitPattern: UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: body + $0 * 4, as: UInt32.self))) }
+                }
+                return []
+            }
+        }
+        offset = body + size + (size & 1)
+    }
+    throw bad
+}
+
+/// One request per connection, as the spec says: the JSON header line, the raw audio, then one reply line. Blocking
+/// POSIX I/O on a background thread with one overall deadline; cancellation is checked every 50 ms.
+public enum HeimdallASRClient {
+    public static func transcribe(socket path: String, samples: [Float], timeout: Double? = nil) async throws -> HeimdallTranscript {
+        let seconds = Double(samples.count) / 16_000
+        guard seconds <= HeimdallASRWire.maxSeconds else { throw HeimdallASRError.rejected("too_long") }
+        var request = HeimdallASRWire.header(samples: samples.count)
+        request.append(HeimdallASRWire.body(samples))
+        let line = try await exchange(socket: path, request: request, timeout: timeout ?? HeimdallASRWire.timeout(audioSeconds: seconds))
+        return try HeimdallASRWire.parse(line).get()
+    }
+    /// `{"op":"status"}`: whether Heimdall answers ok, within `timeout`.
+    public static func status(socket path: String, timeout: Double = 1) async -> Bool {
+        guard let line = try? await exchange(socket: path, request: HeimdallASRWire.statusRequest, timeout: timeout),
+            let object = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any]
+        else { return false }
+        return object["ok"] as? Bool == true
+    }
+
+    private final class Flag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = false
+        func set() { lock.lock(); value = true; lock.unlock() }
+        var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
+    }
+    public static func exchange(socket path: String, request: Data, timeout: Double) async throws -> Data {
+        let cancelled = Flag()
+        return try await withTaskCancellationHandler(
+            operation: {
+                try await withCheckedThrowingContinuation { continuation in
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        continuation.resume(with: Result(catching: { try blockingExchange(path, request, deadline: Date().timeIntervalSince1970 + timeout, cancelled: cancelled) }))
+                    }
+                }
+            }, onCancel: { cancelled.set() })
+    }
+
+    private static func blockingExchange(_ path: String, _ request: Data, deadline: Double, cancelled: Flag) throws -> Data {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { throw HeimdallASRError.connect("socket") }
+        defer { close(fd) }
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+        var address = sockaddr_un()
+        address.sun_family = sa_family_t(AF_UNIX)
+        let bytes = Array(path.utf8)
+        guard bytes.count < MemoryLayout.size(ofValue: address.sun_path) else { throw HeimdallASRError.connect("path") }
+        withUnsafeMutableBytes(of: &address.sun_path) { raw in
+            for (i, byte) in bytes.enumerated() { raw[i] = byte }
+        }
+        address.sun_len = UInt8(MemoryLayout<sockaddr_un>.size)
+        let connected = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+        if connected != 0 {
+            guard errno == EINPROGRESS || errno == EAGAIN else { throw HeimdallASRError.connect(String(cString: strerror(errno))) }
+            try wait(fd, POLLOUT, deadline: deadline, cancelled: cancelled)
+            var error: Int32 = 0, length = socklen_t(MemoryLayout<Int32>.size)
+            getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length)
+            guard error == 0 else { throw HeimdallASRError.connect(String(cString: strerror(error))) }
+        }
+        var sent = 0
+        while sent < request.count {
+            let n = request.withUnsafeBytes { send(fd, $0.baseAddress! + sent, request.count - sent, 0) }
+            if n > 0 { sent += n; continue }
+            if n < 0, errno == EAGAIN || errno == EINTR { try wait(fd, POLLOUT, deadline: deadline, cancelled: cancelled); continue }
+            // Heimdall may refuse early (busy, too_long) and close: its reply can still be read below.
+            break
+        }
+        var reply = Data()
+        var chunk = [UInt8](repeating: 0, count: 4096)
+        while true {
+            if let newline = reply.firstIndex(of: 10) { return reply.prefix(upTo: newline) }
+            guard reply.count <= 1_000_000 else { throw HeimdallASRError.invalidReply }
+            let n = chunk.withUnsafeMutableBytes { recv(fd, $0.baseAddress!, $0.count, 0) }
+            if n > 0 { reply.append(contentsOf: chunk[0..<n]); continue }
+            if n == 0 {
+                guard !reply.isEmpty else { throw sent < request.count ? HeimdallASRError.connect("closed") : HeimdallASRError.invalidReply }
+                return reply // a reply without its newline, then close
+            }
+            guard errno == EAGAIN || errno == EINTR else { throw HeimdallASRError.connect(String(cString: strerror(errno))) }
+            try wait(fd, POLLIN, deadline: deadline, cancelled: cancelled)
+        }
+    }
+    private static func wait(_ fd: Int32, _ events: Int32, deadline: Double, cancelled: Flag) throws {
+        while true {
+            if cancelled.isSet { throw HeimdallASRError.cancelled }
+            let remaining = deadline - Date().timeIntervalSince1970
+            guard remaining > 0 else { throw HeimdallASRError.timeout }
+            var descriptor = pollfd(fd: fd, events: Int16(events), revents: 0)
+            let ready = poll(&descriptor, 1, Int32(min(50, max(1, remaining * 1000))))
+            if ready > 0 { return }
+            if ready < 0, errno != EINTR { throw HeimdallASRError.connect("poll") }
+        }
+    }
+}
+
+// MARK: - Status
+
+/// `heimdall` in worker-status.json and /status: what Vella knows about Heimdall's model.
+public struct HeimdallStatus: Codable, Equatable, Sendable {
+    /// "ready", "unavailable" (a request failed since its last ready) or "absent".
+    public var state: String
+    public var socket: String?
+    public var model: String?
+    public var pid: Int?
+    /// The next dictation goes to Heimdall (its model is Vella's selected one and it is ready).
+    public var borrowing: Bool
+    /// Why the last request fell back (connect, timeout, busy, invalid_reply…).
+    public var last_failure: String?
+    public init(state: String, socket: String? = nil, model: String? = nil, pid: Int? = nil, borrowing: Bool, last_failure: String? = nil) {
+        self.state = state; self.socket = socket; self.model = model; self.pid = pid; self.borrowing = borrowing; self.last_failure = last_failure
+    }
+}
+
+/// `last_dictation`: which path served the latest finished dictation.
+public struct LastDictationStatus: Codable, Equatable, Sendable {
+    /// "heimdall", "vella", or "mixed" (some segments each, after a fallback).
+    public var path: String
+    public var model: String?
+    public var at: Double
+    /// Seconds from the end of recording to the final text.
+    public var seconds: Double?
+    public var audio_seconds: Double?
+    /// Why Heimdall did not serve it all, when it was asked.
+    public var fallback: String?
+    public init(path: String, model: String? = nil, at: Double, seconds: Double? = nil, audio_seconds: Double? = nil, fallback: String? = nil) {
+        self.path = path; self.model = model; self.at = at; self.seconds = seconds; self.audio_seconds = audio_seconds; self.fallback = fallback
+    }
+}
