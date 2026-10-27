@@ -83,9 +83,11 @@ Limits: at most 10 minutes of audio per request, at most one request decoding an
 never holds Heimdall's microphone queue (1.6 s per source) long enough to overflow, and live listening never holds a
 dictation for more than one live step.
 
-**Vella's fallback:** Vella borrows only when its selected dictation model is Parakeet v3 Ultra and Heimdall has
-announced `ready`. Any connect failure, `ok:false` or no reply within 5 s plus a tenth of the audio length falls back to Vella's own model for that
-dictation (loading it if needed) and marks Heimdall unavailable until its next `ready`. While borrowing, Vella keeps
-its own Parakeet Ultra unloaded and does not need it downloaded.
-
-**Vella side (as built):** Vella sends one request per finished dictation (the whole recording, overlaps removed) and borrows when its Models table's "Parakeet v3 Ultra · from Heimdall" row is the dictation choice: chosen explicitly, the default for a user who never chose, or a pre-existing own-Ultra selection moved over when Heimdall is present; an explicit own model never borrows.
+**Vella's choice and fallback:** Vella's Models table has a "Parakeet v3 Ultra · from Heimdall" row, a normal
+selectable row. It is the default for a user who never chose, and a selection of Vella's own Ultra made before this
+integration moves to it when Heimdall is present; any explicit choice afterwards stands. While that row is chosen,
+Vella sends one request per finished dictation and keeps its own Ultra unloaded and undownloaded. Any connect failure,
+`ok:false` or no reply within 5 s plus a tenth of the audio length falls back, for that dictation, to Vella's own Ultra
+if it is already downloaded (otherwise its usual Get offer; never a silent download), and marks Heimdall unavailable
+until its next `ready`. With Heimdall absent the row is greyed; its link to Heimdall's public page opens nothing until
+that URL is configured.
