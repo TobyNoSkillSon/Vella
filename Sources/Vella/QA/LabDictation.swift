@@ -12,6 +12,7 @@ import VellaCore
 ///     --lab-rounds N            rounds (default 3; the first own round includes loading the model)
 ///     --lab-hold S              stay up S seconds after the last round (memory sampling), then quit
 ///     --lab-out FILE.jsonl      also append each result line here
+///     --lab-announce            post dev.vella.dictation.state as the menu-bar app does (start, heartbeats, stop, quit)
 ///     --lab-socket PATH         treat PATH as Heimdall's ready socket (local only; nothing is broadcast), instead of
 ///                               waiting for Heimdall's own announcement
 ///
@@ -19,6 +20,14 @@ import VellaCore
 /// (the saved recording handed to transcription, as Finish does) to the final text, the audio length and the text.
 @MainActor enum LabDictation {
     static func requested(_ arguments: [String] = CommandLine.arguments) -> Bool { arguments.contains("--lab-dictate") }
+    /// `--lab-announce` with a lab run: post `dev.vella.dictation.state` and answer Heimdall's query exactly as the
+    /// menu-bar app does, so Heimdall's observer can be checked end to end. Off otherwise: a lab or QA copy never speaks
+    /// for the user's Vella by default.
+    static func announces(
+        _ arguments: [String] = CommandLine.arguments, environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        requested(arguments) && AppDelegate.qaHeadless(environment) && arguments.contains("--lab-announce")
+    }
     static func value(_ flag: String, _ arguments: [String]) -> String? {
         guard let i = arguments.firstIndex(of: flag), arguments.count > i + 1 else { return nil }
         return arguments[i + 1]
@@ -98,8 +107,17 @@ import VellaCore
                     try audio.withUnsafeBufferPointer { try writer.append($0) }
                     try writer.finish(userStopped: true)
                     // Wait for the previous run's success flash to settle (it never blocks a new transcription).
+                    // Announcing (--lab-announce): the shipping phases around it, a press that prepares, then records for the clip's real
+                    // length (heartbeats every 15 s), then Finish (stop, before transcription).
+                    if link.announcer != nil {
+                        model.beginCaptureSignal()
+                        model.update(.preparing, "Lab: preparing")
+                        try await Task.sleep(nanoseconds: 100_000_000)
+                        model.update(.recording, "Lab: recording")
+                        try await Task.sleep(nanoseconds: UInt64(Double(audio.count) / 16_000 * 1e9))
+                    }
                     let start = ProcessInfo.processInfo.systemUptime
-                    guard model.labTranscribe(session) else {
+                    guard model.labTranscribe(session, fromRecording: link.announcer != nil) else {
                         emit(["round": round, "via": via, "error": "Vella was busy; round skipped"], to: out); continue
                     }
                     while model.phase == .transcribing || model.phase == .preparing { try await Task.sleep(nanoseconds: 1_000_000) }

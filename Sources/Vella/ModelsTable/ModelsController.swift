@@ -94,6 +94,32 @@ struct ModelDeletionPlan {
         }
     }
     @Published var lastError: String?
+    /// The "from Heimdall" row (docs/HEIMDALL.md): Heimdall's Parakeet v3 Ultra as a dictation model Vella never
+    /// downloads or loads. Nil: no row (renders and tests of other rows).
+    struct HeimdallRow: Equatable {
+        var presence: HeimdallPresence
+        /// It is the dictation choice (explicitly, or as the default while the user never chose).
+        var chosen: Bool
+    }
+    @Published var heimdall: HeimdallRow?
+    /// Make Heimdall's row the dictation choice (wired by the runtime bridge).
+    var useHeimdall: (() -> Void)?
+    /// Heimdall's public project page (Info.plist `VellaHeimdallProjectURL`); unset: the absent row opens nothing.
+    var heimdallProjectURL: URL? = HeimdallApp.projectURL(Bundle.main.infoDictionary)
+    var openURL: (URL) -> Void = { NSWorkspace.shared.open($0) }
+    /// A click on Heimdall's row: present and not chosen, choose it; absent, its project page when one is configured;
+    /// otherwise nothing (offline cannot serve; chosen is already the choice). Refused while a dictation or a model
+    /// change is in progress, like Load.
+    func performHeimdall() {
+        guard let row = heimdall else { return }
+        switch row.presence {
+        case .present:
+            guard !row.chosen, !anyBusy, dictation.mayChangeModel() else { return }
+            useHeimdall?()
+        case .absent: if let url = heimdallProjectURL { openURL(url) }
+        case .offline: break
+        }
+    }
     @Published private(set) var migrationNotices: [String] = []
     /// True in the render harness: nothing is written, no worker is asked.
     var previewing = false
@@ -378,7 +404,7 @@ struct ModelDeletionPlan {
     /// Cloud reference rows of a section (estimated WER only; no controls). Shown only beside local models.
     func references(_ mode: RecognitionMode) -> [ReferenceEntry] { families(mode).isEmpty ? [] : benchmarks.references(mode) }
     /// Rows the table shows: every family and cloud row of both sections.
-    var rowCount: Int { RecognitionMode.allCases.reduce(0) { $0 + families($1).count + references($1).count } }
+    var rowCount: Int { RecognitionMode.allCases.reduce(0) { $0 + families($1).count + references($1).count } + (heimdall == nil ? 0 : 1) }
     var sectionCount: Int { [RecognitionMode.dictation, .streaming].filter { !families($0).isEmpty }.count }
 
     func options(_ f: ModelFamily) -> [String] { precisionOptions(f) }

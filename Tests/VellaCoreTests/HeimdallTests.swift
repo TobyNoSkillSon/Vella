@@ -356,3 +356,47 @@ final class HeimdallSocketClientTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(start), 1)
     }
 }
+
+/// The "from Heimdall" row's choice rules (HeimdallSelection.swift).
+final class HeimdallSelectionTests: XCTestCase {
+    func testOnlyAUserWhoNeverChoseGetsHeimdallByDefault() {
+        let fresh = Configuration(model: "")
+        XCTAssertEqual(effectiveDictationSource(fresh, heimdallDetected: true), .heimdall)
+        XCTAssertEqual(effectiveDictationSource(fresh, heimdallDetected: false), .own)
+        XCTAssertEqual(effectiveDictationSource(Configuration(model: "/m/whisper"), heimdallDetected: true), .own, "a model chosen before this setting")
+        var own = Configuration(model: ""); own.dictationSource = .own
+        XCTAssertEqual(effectiveDictationSource(own, heimdallDetected: true), .own, "an explicit choice survives Heimdall appearing")
+        var cleared = Configuration(model: ""); cleared.clearedSelectionReasons["dictation"] = "retired"
+        XCTAssertEqual(effectiveDictationSource(cleared, heimdallDetected: true), .own, "an upgrade-cleared choice is still a past choice")
+        var selected = Configuration(model: ""); selected.selectModel("/m/x", for: .dictation)
+        XCTAssertEqual(selected.dictationSource, .own, "every way of choosing an own dictation model records it")
+        var heimdall = Configuration(model: "/m/whisper"); heimdall.dictationSource = .heimdall
+        XCTAssertEqual(effectiveDictationSource(heimdall, heimdallDetected: false), .heimdall, "and Heimdall going away")
+    }
+    func testLoadingADictationModelRecordsOwnAndTheChoicePersists() throws {
+        var config = Configuration(model: ""); config.dictationSource = .heimdall
+        config.recordLoad(path: "/m/s", mode: .streaming, family: nil, precision: nil)
+        XCTAssertEqual(config.dictationSource, .heimdall, "a streaming load is not a dictation choice")
+        config.recordLoad(path: "/m/d", mode: .dictation, family: nil, precision: nil)
+        XCTAssertEqual(config.dictationSource, .own)
+        config.dictationSource = .heimdall
+        let decoded = try JSONDecoder().decode(Configuration.self, from: JSONEncoder().encode(config))
+        XCTAssertEqual(decoded.dictationSource, .heimdall, "kept across a restart")
+        XCTAssertNil(try JSONDecoder().decode(Configuration.self, from: Data(#"{"model":"/m"}"#.utf8)).dictationSource)
+    }
+    func testPresence() {
+        XCTAssertEqual(HeimdallPresence.of(installed: true, ready: true, unavailable: false), .present)
+        XCTAssertEqual(HeimdallPresence.of(installed: false, ready: true, unavailable: false), .present, "a development build answering")
+        XCTAssertEqual(HeimdallPresence.of(installed: true, ready: false, unavailable: false), .offline)
+        XCTAssertEqual(HeimdallPresence.of(installed: true, ready: true, unavailable: true), .offline, "busy or failing")
+        XCTAssertEqual(HeimdallPresence.of(installed: false, ready: false, unavailable: false), .absent)
+    }
+    func testProjectURLIsUnsetUntilConfigured() {
+        XCTAssertNil(HeimdallApp.projectURL(nil))
+        XCTAssertNil(HeimdallApp.projectURL(Bundle.main.infoDictionary), "no page exists yet")
+        XCTAssertNil(HeimdallApp.projectURL([HeimdallApp.projectURLKey: "http://example.com"]), "https only")
+        XCTAssertNil(HeimdallApp.projectURL([HeimdallApp.projectURLKey: "file:///etc"]))
+        XCTAssertEqual(HeimdallApp.projectURL([HeimdallApp.projectURLKey: "https://example.com/h"]), URL(string: "https://example.com/h"))
+        XCTAssertEqual(HeimdallApp.bundleIdentifiers, ["dev.heimdall.app", "com.tobynoskillson.heimdall"])
+    }
+}

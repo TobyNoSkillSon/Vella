@@ -133,6 +133,10 @@ struct ModelTable: View {
                     .padding(.leading, W.rowPadding).padding(.bottom, Self.sectionBottom)
                     .frame(height: Self.sectionHeight, alignment: .bottomLeading)
                     .appKitTooltip(mode == .dictation ? "Transcribes when you finish speaking" : "Types text while you speak")
+                // Heimdall's shared model: pinned first, never sorted, so no row moves when it appears or changes.
+                if mode == .dictation, let shared = controller.heimdall {
+                    heimdallRow(shared).padding(.bottom, Self.rowGap)
+                }
                 ForEach(sectionRows) { item in
                     Group {
                         switch item {
@@ -267,6 +271,74 @@ struct ModelTable: View {
             hovered: controller.previewHover == family.id,
             help: actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision),
             onPerform: { controller.perform(family) }, onDelete: { requestDelete(family) })
+    }
+
+    /// One line each: what the row is in each state (docs/HEIMDALL.md).
+    static func heimdallHelp(_ presence: HeimdallPresence) -> String {
+        switch presence {
+        case .present: return "Heimdall's Parakeet v3 Ultra, shared with Vella: nothing to download, no second copy in memory."
+        case .offline: return "Heimdall is on this Mac but its model is not answering. Dictation uses Vella's own Parakeet v3 Ultra if it is downloaded."
+        case .absent: return "With Heimdall on this Mac, Vella can use its Parakeet v3 Ultra instead of a copy of its own."
+        }
+    }
+    static let heimdallFiguresHelp = "Runs in Heimdall, so these figures are Heimdall's, not Vella's."
+    static let heimdallLoadHelp = "Use Heimdall's copy for dictation. Nothing downloads; Vella's own dictation model is unloaded."
+    static let heimdallOfflineHelp = "Heimdall's model is not answering. Vella asks again when Heimdall announces it."
+    static let heimdallAboutHelp = "Open Heimdall's project page"
+
+    /// Heimdall's Parakeet v3 Ultra as a dictation row. Present: Load makes it the choice, and the chosen row is filled
+    /// like a loaded one. Offline: "Offline" in the action cell. Absent: greyed, with a link only once a public page is
+    /// configured. Same height and columns as every row.
+    @ViewBuilder private func heimdallRow(_ shared: ModelsController.HeimdallRow) -> some View {
+        let hot = shared.chosen && shared.presence != .absent
+        let working = hot && shared.presence == .present
+        let family = controller.catalog.family(HeimdallNames.sharedModel)
+        HStack(spacing: W.spacing) {
+            HStack(spacing: W.iconGap) {
+                Image(systemName: "link").font(.system(size: size(12), weight: .medium)).frame(width: W.icon)
+                VStack(alignment: .leading, spacing: W.lineGap) {
+                    Text(family?.name ?? "Parakeet v3 Ultra").font(.system(size: Self.valueSize)).lineLimit(1)
+                    Text("from Heimdall").font(.system(size: Self.deltaSize, weight: .medium)).lineLimit(1)
+                        .foregroundStyle(working ? Self.hotText.opacity(0.8) : .secondary)
+                }
+            }.frame(width: W.model, alignment: .leading)
+                .appKitTooltip(Self.heimdallHelp(shared.presence))
+            Text(family.map { $0.params.isEmpty ? "\u{2014}" : $0.params } ?? "\u{2014}").frame(width: W.params)
+            Color.clear.frame(width: W.precision + W.spacing + W.path, height: 1)
+            Group {
+                metric(nil, nil, W.wer, hot: working)
+                metric(nil, nil, W.format, hot: working)
+                metric(nil, nil, W.speed, hot: working)
+                metric(nil, nil, W.energy, hot: working)
+                metric(nil, nil, W.memory, hot: working)
+            }.appKitTooltip(Self.heimdallFiguresHelp)
+            heimdallAction(shared, hot: working)
+        }.font(Self.valueFont)
+            .padding(.horizontal, W.rowPadding).frame(height: Self.rowHeight)
+            // Chosen but offline: still visibly the choice, but fainter than a working (loaded) row.
+            .background(
+                hot ? (shared.presence == .present ? Self.hotRow : Self.hotRow.opacity(0.35)) : .clear, in: RoundedRectangle(cornerRadius: Self.rowCorner)
+            )
+            .foregroundStyle(hot && shared.presence == .present ? Self.hotText : shared.presence == .absent ? Color.secondary : Color.primary)
+            .opacity(shared.presence == .absent ? 0.6 : 1)
+            .contentShape(Rectangle())
+    }
+    @ViewBuilder private func heimdallAction(_ shared: ModelsController.HeimdallRow, hot: Bool) -> some View {
+        switch shared.presence {
+        case .present where !shared.chosen:
+            RowAction(
+                title: Self.title(.load), enabled: !controller.anyBusy, deletable: false, help: Self.heimdallLoadHelp,
+                onPerform: { controller.performHeimdall() }, onDelete: {})
+        case .offline:
+            Text("Offline").font(.system(size: Self.valueSize)).foregroundStyle(hot ? Self.hotText.opacity(0.8) : .secondary)
+                .frame(width: W.action, height: RowAction.height).appKitTooltip(Self.heimdallOfflineHelp)
+        case .absent where controller.heimdallProjectURL != nil:
+            RowAction(
+                title: "About", enabled: true, deletable: false, help: Self.heimdallAboutHelp,
+                onPerform: { controller.performHeimdall() }, onDelete: {})
+        default:
+            Color.clear.frame(width: W.action, height: RowAction.height)
+        }
     }
 
     /// A cloud API for perspective, as a reference row: cloud glyph, greyed, no controls.

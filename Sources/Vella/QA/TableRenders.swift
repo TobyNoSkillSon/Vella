@@ -95,6 +95,8 @@ import VellaUpdate
         /// Override of benchmarks.json `figures_pending` (nil: as shipped).
         var figuresPending: Bool?
         var gpuCores: Int?
+        /// The "from Heimdall" row (nil: none).
+        var heimdall: ModelsController.HeimdallRow?
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -262,6 +264,13 @@ import VellaUpdate
             states.append(other)
         }
         states.append(State(name: "unmeasured-no-benchmarks", benchmarks: BenchmarkFile()))
+        // Heimdall's shared model in each state, over the same downloads (the table must not move between them).
+        let loadedV3 = TableRuntime(
+            loaded: ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")], chip: chip)
+        states.append(State(name: "heimdall-present", runtime: loadedV3, heimdall: .init(presence: .present, chosen: false)))
+        states.append(State(name: "heimdall-chosen", heimdall: .init(presence: .present, chosen: true)))
+        states.append(State(name: "heimdall-offline", heimdall: .init(presence: .offline, chosen: true)))
+        states.append(State(name: "heimdall-absent", runtime: loadedV3, heimdall: .init(presence: .absent, chosen: false)))
         return states
     }
 
@@ -272,6 +281,7 @@ import VellaUpdate
         if let b = state.benchmarks { controller.benchmarks = b }
         if let pending = state.figuresPending { controller.benchmarks.figuresPending = pending }
         controller.runtime = state.runtime
+        controller.heimdall = state.heimdall
         controller.benchmarkHardware = BenchmarkHardware(chip: state.runtime.chip, gpuCores: state.gpuCores ?? RenderFixture.gpuCores(for: state.runtime.chip))
         controller.previewConfig(state.config)
         controller.previewSelections(state.selections)
@@ -671,7 +681,7 @@ import VellaUpdate
         app.workersRunning = { state.worker }
         if state.heimdall {
             let link = HeimdallLink(bus: SilentBus(), announcesDictation: false)
-            link.familyOf = { _ in HeimdallNames.sharedModel }
+            link.findInstalled = { true }
             link.familyName = { [weak controller = app.modelsMenu.controller] in controller?.catalog.family($0)?.name }
             link.currentConfiguration = { Configuration(model: "") }
             link.receive(HeimdallAnnouncement(state: .ready, socket: "/render/asr.sock", model: HeimdallNames.sharedModel))

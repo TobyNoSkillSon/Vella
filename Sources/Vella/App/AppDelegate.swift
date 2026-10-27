@@ -212,7 +212,7 @@ import VellaCore
             configureHUDPanel()
             model.onChange = { [weak self] in self?.refresh() }
             // QA runs stay independent of a running Heimdall; only a lab measurement borrows its model.
-            if LabDictation.requested() { startHeimdall(announcesDictation: false) }
+            if LabDictation.requested() { startHeimdall(announcesDictation: LabDictation.announces()) }
             LabDictation.startIfRequested(delegate: self)
             return
         }
@@ -318,6 +318,7 @@ import VellaCore
     }
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard menu === self.menu, !settingsMenuIsTracking else { return }
+        heimdall?.refreshInstalled() // Heimdall installed or removed since launch: the Models row follows
         if checkPermission() { stopPermissionPolling() }
         rebuildMenu()
     }
@@ -566,7 +567,11 @@ import VellaCore
             }
             var summary = model.insertionPermission.granted ? "\(mode.title): ready" : "Accessibility is off — allow Vella in Settings"
             // The header keeps the loaded model, as rebuildMenu shows it.
-            if let activeModel = modelsMenu.controller.activeLabel(mode) { summary += " \u{00b7} \(activeModel)" }
+            if mode == .dictation, let borrowed = heimdall?.borrowLabel {
+                summary += " \u{00b7} \(borrowed)"
+            } else if let activeModel = modelsMenu.controller.activeLabel(mode) {
+                summary += " \u{00b7} \(activeModel)"
+            }
             if let header = menu.items.first {
                 header.title = summary
                 header.toolTip = menuHeaderToolTip(

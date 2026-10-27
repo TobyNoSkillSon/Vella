@@ -37,8 +37,19 @@ import VellaCore
     /// Channel 1; nil when this instance does not announce dictation (QA headless and lab runs).
     let announcer: DictationAnnouncer?
     private(set) var borrow = HeimdallBorrowState()
-    /// The catalog family a configuration dictates with (an empty selection: the model the first dictation offers).
-    var familyOf: (Configuration) -> String? = { _ in nil }
+    /// Whether a Heimdall app is on this Mac (LaunchServices; tests inject).
+    var findInstalled: () -> Bool = {
+        HeimdallApp.bundleIdentifiers.contains { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) != nil }
+    }
+    /// Cached; refreshed at start, on every announcement and when the Models table opens (`refreshInstalled`).
+    private(set) var installed = false
+    /// Heimdall answered during this session (a development build outside Applications): offline, not absent, once it
+    /// stops, so an explicit choice of it stays visible.
+    private var answered = false
+    /// Vella's own downloaded Parakeet v3 Ultra, if any: the offline fallback while Heimdall's row is the choice.
+    var ownSharedModelPath: () -> String? = { nil }
+    /// Called when the row's presence or the choice changes (the Models table and the menu redraw).
+    var onPresenceChange: (() -> Void)?
     /// The current configuration (config.json).
     var currentConfiguration: () -> Configuration? = { nil }
     /// The display name for a family ("Parakeet v3 Ultra").
@@ -79,6 +90,7 @@ import VellaCore
 
     /// Observe Heimdall, ask whether its model is ready, and say hello.
     func start() {
+        installed = findInstalled()
         bus.observe(HeimdallNames.asr, object: HeimdallNames.heimdallObject) { [weak self] info in
             guard let self, let announcement = HeimdallAnnouncement(userInfo: info) else { return }
             if announcement.state == .ready, !self.acceptSocket(announcement.socket) { return }
@@ -94,16 +106,31 @@ import VellaCore
     func receive(_ announcement: HeimdallAnnouncement) {
         if announcement.state == .ready { requery?.cancel(); requery = nil }
         borrow.receive(announcement)
+        if announcement.state == .ready { answered = true }
+        installed = findInstalled()
         reevaluate()
     }
+    func refreshInstalled() {
+        let now = findInstalled()
+        guard now != installed else { return }
+        installed = now
+        reevaluate(residency: false)
+    }
+    /// Heimdall's app is on this Mac, or its model answered (a development build outside Applications).
+    var detected: Bool { installed || answered }
+    var presence: HeimdallPresence { .of(installed: installed || answered, ready: borrow.ready != nil, unavailable: borrow.unavailable) }
+    /// The choice in effect for `config`.
+    func source(for config: Configuration) -> DictationSource { effectiveDictationSource(config, heimdallDetected: detected) }
+    /// The "from Heimdall" row is the dictation choice now.
+    var heimdallChosen: Bool { currentConfiguration().map { source(for: $0) == .heimdall } ?? false }
     /// Heimdall's state changed (`residency`: tell the runtime, which unloads Vella's copy or restores its launch set),
     /// or the selection did (state only: a model the user just chose and loaded is theirs until Heimdall next announces).
     func reevaluate(residency: Bool = true) {
         let before = borrowingFamily
-        let family = currentConfiguration().flatMap { familyOf($0) }
-        borrowingFamily = borrow.socket(for: family) != nil ? family : nil
+        borrowingFamily = heimdallChosen && borrow.socket(for: HeimdallNames.sharedModel) != nil ? HeimdallNames.sharedModel : nil
         if residency, borrowingFamily != before { onBorrowChange?(borrowingFamily, before) }
         publish()
+        onPresenceChange?()
     }
     private func publish() {
         let ready = borrow.ready
@@ -118,12 +145,23 @@ import VellaCore
         if labRoute == .own { return nil }
         guard config.mode == .dictation else { return nil }
         if labRoute == .heimdall { return borrow.ready?.socket }
-        return borrow.socket(for: familyOf(config))
+        guard source(for: config) == .heimdall else { return nil }
+        return borrow.socket(for: HeimdallNames.sharedModel)
     }
-    /// "Parakeet v3 Ultra via Heimdall" while dictation borrows Heimdall's model, for the menu header.
+    /// What a recording made now carries: with Heimdall's row chosen, that choice (so a later change cannot reroute
+    /// it) and, as the offline fallback, Vella's own Parakeet v3 Ultra only if it is downloaded; otherwise no model, so
+    /// an offline Heimdall leads to the usual Get offer, never a silent download or another model.
+    func recordingConfiguration(_ config: Configuration) -> Configuration {
+        guard config.mode == .dictation, source(for: config) == .heimdall else { return config }
+        var pinned = config
+        pinned.dictationSource = .heimdall
+        pinned.model = ownSharedModelPath() ?? ""
+        return pinned
+    }
+    /// The menu header while Heimdall's row is the choice: "Parakeet v3 Ultra via Heimdall", or "… · Heimdall offline".
     var borrowLabel: String? {
-        guard let family = borrowingFamily, let name = familyName(family) else { return nil }
-        return "\(name) via Heimdall"
+        guard heimdallChosen, let name = familyName(HeimdallNames.sharedModel) else { return nil }
+        return presence == .present ? "\(name) via Heimdall" : "\(name) · Heimdall offline"
     }
 
     /// One recognition request (a segment's WAV) over Heimdall's socket. A failure marks Heimdall unavailable until its

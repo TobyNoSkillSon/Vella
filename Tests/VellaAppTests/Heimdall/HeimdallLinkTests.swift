@@ -117,8 +117,10 @@ private final class TestRegistrar: ShortcutRegistrar {
     // MARK: Channel 2
 
     /// A finished one-segment dictation recorded with `model` (a path; empty: none selected).
-    private func session(model: String = "/models/parakeet-ultra", seconds: Double = 1) throws -> RecordingSession {
-        let session = try RecordingSession(root: root.appendingPathComponent("Recordings"), config: Configuration(model: model))
+    /// Recorded with Heimdall's row chosen unless `source` says otherwise.
+    private func session(model: String = "/models/parakeet-ultra", seconds: Double = 1, source: DictationSource? = .heimdall) throws -> RecordingSession {
+        var config = Configuration(model: model); config.dictationSource = source
+        let session = try RecordingSession(root: root.appendingPathComponent("Recordings"), config: config)
         let writer = try SegmentedPCMWriter(session: session)
         let samples = (0..<Int(seconds * 16_000)).map { Float(0.1 * sin(Double($0) * 0.17)) }
         try samples.withUnsafeBufferPointer { try writer.append($0) }
@@ -138,11 +140,11 @@ private final class TestRegistrar: ShortcutRegistrar {
         let lastDictation: () -> LastDictationStatus?
         let borrowChanges: () -> [String?]
     }
-    private func rig(family: String = "parakeet-v3-ultra", timeout: Double? = nil) throws -> Rig {
+    private func rig(timeout: Double? = nil) throws -> Rig {
         let bus = MemoryHeimdallBus()
         let link = HeimdallLink(bus: bus, announcesDictation: false)
-        link.familyOf = { _ in family }
-        link.currentConfiguration = { Configuration(model: "/models/parakeet-ultra") }
+        link.findInstalled = { false }
+        link.currentConfiguration = { var c = Configuration(model: "/models/parakeet-ultra"); c.dictationSource = .heimdall; return c }
         link.acceptSocket = { _ in true } // the fake server lives in /tmp, not Heimdall's support folder
         if let timeout { link.exchange = { try await HeimdallASRClient.transcribe(socket: $0, samples: $1, timeout: timeout, peer: $2) } }
         var last: LastDictationStatus?
@@ -155,8 +157,8 @@ private final class TestRegistrar: ShortcutRegistrar {
         link.start()
         return Rig(bus: bus, link: link, model: model, own: own, lastDictation: { last }, borrowChanges: { changes })
     }
-    private func dictate(_ rig: Rig, model path: String = "/models/parakeet-ultra") async throws {
-        let s = try session(model: path)
+    private func dictate(_ rig: Rig, model path: String = "/models/parakeet-ultra", source: DictationSource? = .heimdall) async throws {
+        let s = try session(model: path, source: source)
         rig.model.labTranscribe(s)
         for _ in 0..<1000 where rig.model.phase == .transcribing || rig.model.phase == .preparing { try await Task.sleep(nanoseconds: 5_000_000) }
     }
@@ -188,7 +190,8 @@ private final class TestRegistrar: ShortcutRegistrar {
     }
     /// Speech with pauses, cut by the recorder at the first pause after 5 s: several segments.
     private func segmentedSession() throws -> RecordingSession {
-        let session = try RecordingSession(root: root.appendingPathComponent("Recordings"), config: Configuration(model: "/models/parakeet-ultra"))
+        var config = Configuration(model: "/models/parakeet-ultra"); config.dictationSource = .heimdall
+        let session = try RecordingSession(root: root.appendingPathComponent("Recordings"), config: config)
         let writer = try SegmentedPCMWriter(session: session)
         var samples: [Float] = []
         for _ in 0..<3 {
@@ -219,13 +222,12 @@ private final class TestRegistrar: ShortcutRegistrar {
     }
     func testOtherModelsAndStreamingAreUnaffected() async throws {
         let server = try FakeHeimdallServer(reply: .ok("borrowed")); defer { server.stop() }
-        let r = try rig(family: "parakeet-v3"); defer { r.model.shutdown() }
+        let r = try rig(); defer { r.model.shutdown() }
         r.bus.ready(server.path)
-        try await dictate(r)
-        XCTAssertEqual(r.own.calls, 1)
+        try await dictate(r, source: .own)
+        XCTAssertEqual(r.own.calls, 1, "an explicit model of Vella's own never asks Heimdall")
         XCTAssertTrue(server.requests.isEmpty)
-        var streaming = Configuration(model: "/models/nemotron"); streaming.mode = .streaming
-        r.link.familyOf = { _ in "parakeet-v3-ultra" }
+        var streaming = Configuration(model: "/models/nemotron"); streaming.mode = .streaming; streaming.dictationSource = .heimdall
         XCTAssertNil(r.link.socket(for: streaming), "streaming never borrows")
     }
     private func assertFallsBack(_ reply: FakeHeimdallServer.Reply, code: String, timeout: Double? = nil) async throws {
@@ -280,14 +282,14 @@ private final class TestRegistrar: ShortcutRegistrar {
         let server = try FakeHeimdallServer(reply: .ok("first words")); defer { server.stop() }
         let r = try rig(); defer { r.model.shutdown() }
         r.bus.ready(server.path)
-        try await dictate(r, model: "")
-        XCTAssertEqual(r.model.phase, .success)
+        try await dictate(r, model: "", source: nil)
+        XCTAssertEqual(r.model.phase, .success, "never chose, Heimdall detected: its model is the default")
         XCTAssertEqual(r.model.lastText, "first words")
         XCTAssertNil(r.model.pendingModelRequest)
         // When Heimdall then fails, the recording waits for a model as it did before.
         server.setReply(.error("unavailable"))
         r.bus.ready(server.path)
-        try await dictate(r, model: "")
+        try await dictate(r, model: "", source: nil)
         XCTAssertEqual(r.model.phase, .failed)
         XCTAssertEqual(r.model.savedSession?.manifest.failureCode, "no_model")
         XCTAssertEqual(r.own.calls, 0)
@@ -410,7 +412,7 @@ private final class TestRegistrar: ShortcutRegistrar {
         let bus = MemoryHeimdallBus()
         delegate.startHeimdall(bus: bus, announcesDictation: false)
         let link = try XCTUnwrap(delegate.heimdall)
-        link.familyOf = { _ in "parakeet-v3-ultra" }
+        link.findInstalled = { false }
         link.familyName = { _ in "Parakeet v3 Ultra" }
         link.currentConfiguration = { Configuration(model: "") }
         link.acceptSocket = { _ in true }
@@ -419,6 +421,8 @@ private final class TestRegistrar: ShortcutRegistrar {
         XCTAssertTrue(delegate.menu.items.first?.title.hasSuffix(" · Parakeet v3 Ultra via Heimdall") == true, delegate.menu.items.first?.title ?? "")
         bus.gone()
         delegate.rebuildMenu()
-        XCTAssertFalse(delegate.menu.items.first?.title.contains("Heimdall") == true)
+        XCTAssertTrue(
+            delegate.menu.items.first?.title.hasSuffix(" · Parakeet v3 Ultra · Heimdall offline") == true,
+            "still the choice, shown offline: " + (delegate.menu.items.first?.title ?? ""))
     }
 }

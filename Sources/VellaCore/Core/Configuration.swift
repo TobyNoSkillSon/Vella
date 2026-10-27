@@ -23,6 +23,8 @@ public struct Configuration: Codable {
     public var selections: [String: ModelSelection] = [:]
     /// An upgrade-cleared mode retains its reason until the user selects a replacement.
     public var clearedSelectionReasons: [String: String] = [:]
+    /// The user's explicit choice between Heimdall's model and Vella's own (HeimdallSelection.swift); nil: never chosen.
+    public var dictationSource: DictationSource?
     public init(
         model: String,
         preferredMicrophone: String = "", fallbackMicrophone: String = "",
@@ -35,6 +37,7 @@ public struct Configuration: Codable {
     /// Earlier versions also stored `executable` (the Python runtime of 0.8.x); it is ignored when read.
     private enum CodingKeys: String, CodingKey {
         case model, mode, streamingModel, preferredMicrophone, fallbackMicrophone, residency, lastLoaded, selections, clearedSelectionReasons
+        case dictationSource
     }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -47,6 +50,7 @@ public struct Configuration: Codable {
         lastLoaded = (try? values.decodeIfPresent([String: String].self, forKey: .lastLoaded)) ?? [:]
         clearedSelectionReasons = (try? values.decodeIfPresent([String: String].self, forKey: .clearedSelectionReasons)) ?? [:]
         selections = (try? values.decodeIfPresent([String: ModelSelection].self, forKey: .selections)) ?? [:]
+        dictationSource = try? values.decodeIfPresent(DictationSource.self, forKey: .dictationSource)
     }
     /// A successful Load/Reload: the model becomes its mode's model (what the next dictation or streaming session
     /// loads) and its family remembers the precision.
@@ -58,6 +62,8 @@ public struct Configuration: Codable {
     public var selectedModel: String { mode == .dictation ? model : streamingModel }
     public mutating func selectModel(_ path: String, for mode: RecognitionMode) {
         if !path.isEmpty { clearedSelectionReasons[mode.rawValue] = nil }
+        // Choosing a dictation model of Vella's own is an explicit choice of it over Heimdall's.
+        if !path.isEmpty, mode == .dictation { dictationSource = .own }
         if mode == .dictation { model = path } else { streamingModel = path }
     }
     public func forRecording() throws -> Configuration {

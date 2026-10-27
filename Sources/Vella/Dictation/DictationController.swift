@@ -291,6 +291,8 @@ import VellaCore
                 let saved = try backend.configuration(requiresModel: false)
                 var config = saved
                 if saved.selectedModel.isEmpty { config.model = "" } else { config = try saved.forRecording() }
+                // Heimdall's row chosen: pin that choice, with Vella's own Ultra (if downloaded) as the offline fallback.
+                if let heimdall { config = heimdall.recordingConfiguration(config) }
                 mode = config.mode
                 try await CalibrationStore.shared.cancelAndWait()
                 try Task.checkCancellation()
@@ -766,8 +768,9 @@ import VellaCore
     }
     /// Lab runs (`--lab-dictate`): transcribe a finished recording exactly as Finish does, minus capture and insertion
     /// into another app (the lab's pasteboard is private).
-    @discardableResult func labTranscribe(_ session: RecordingSession) -> Bool {
-        guard !busy, phase != .recording else { return false }
+    /// `fromRecording`: the lab played a recording's phases first (VELLA_LAB_ANNOUNCE); this is its Finish.
+    @discardableResult func labTranscribe(_ session: RecordingSession, fromRecording: Bool = false) -> Bool {
+        guard !busy, phase != .recording || fromRecording else { return false }
         captureGeneration &+= 1
         operation = UUID(); destinationCheck = nil; allowAutomaticInsertion = false
         savedSession = session
