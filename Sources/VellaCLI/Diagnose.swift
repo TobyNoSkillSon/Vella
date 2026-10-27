@@ -40,6 +40,8 @@ struct DiagnoseCollector {
         let current = before["dictation_model"] as? [String: Any]
         d.dictationModel = current?["id"] as? String
         let status = Self.workerStatus(before)
+        d.heimdall = status.heimdall
+        d.lastDictation = status.last_dictation
 
         var timed = status.models.filter { $0.value.mode != .streaming }.keys.sorted()
         if load, let id = d.dictationModel, status.models[id] == nil {

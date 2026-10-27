@@ -10,7 +10,7 @@ let usage = """
             subtitles. --language CODE only labels verbose JSON; it does not change recognition in 2.0.
             FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
             `vella models` (a downloaded Dictation model; Streaming models do not transcribe files); without it the current dictation model is used. Dictation always goes first.
-        vella status                 one line: running, dictation model, loaded models, API address
+        vella status [--json]        one line: running, dictation model, loaded models, API address; --json: the full status
         vella models [--json]        all local Models table rows, including not downloaded; --json includes per-cell measured figures, provenance and refusals
         vella select ID [--precision bf16|fp16|int8|int4] [--mode Fast|Exact]
             previews a cell under the table's rules; Load / Reload / Get commits it. An unavailable cell says why.
@@ -81,7 +81,7 @@ struct VellaCLI {
     static func commandHelp(_ command: String) -> String? {
         let commands: [String: String] = [
             "transcribe": "Usage: vella transcribe FILE [--model ID] [--language CODE] [--text|--json|--verbose-json|--srt|--vtt]",
-            "status": "Usage: vella status",
+            "status": "Usage: vella status [--json]",
             "models": "Usage: vella models [--json]",
             "select": "Usage: vella select ID [--precision bf16|fp16|int8|int4] [--mode Fast|Exact]",
             "get": "Usage: vella get ID [--yes]",
@@ -135,9 +135,13 @@ struct VellaCLI {
             write("Vella \(info?["CFBundleShortVersionString"] as? String ?? "2.1.2")")
         case "transcribe": try await transcribe(rest)
         case "status":
-            let args = try Arguments(rest, values: [], flags: [])
-            if let extra = args.positional.first { throw CLIError("unexpected argument \(extra); usage: vella \(command)") }
+            let args = try Arguments(rest, values: [], flags: ["--json"])
+            if let extra = args.positional.first { throw CLIError("unexpected argument \(extra); usage: vella \(command) [--json]") }
             let (status, port) = try await client().status()
+            if args.flags.contains("--json") {
+                let data = try JSONSerialization.data(withJSONObject: status, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+                write(String(decoding: data, as: UTF8.self)); return
+            }
             write(Self.statusLine(status, port: port))
         case "select", "get", "load", "reload", "unload", "delete":
             try await modelControl(command, rest)
@@ -308,6 +312,7 @@ struct VellaCLI {
                 ?? (current["precision"] as? String).flatMap { $0.isEmpty ? nil : " (\(humanDType(precision: $0, familyID: current["id"] as? String ?? name)))" } ?? ""
             parts.append("dictation model \(name)\(precision)")
         }
+        if let heimdall = s["heimdall"] as? [String: Any], heimdall["borrowing"] as? Bool == true { parts.append("dictation via Heimdall") }
         if let state = s["dictation"] as? String, state != "idle" { parts.append(state) }
         if let jobs = s["api_jobs"] as? [String: Any], let running = (jobs["running"] as? NSNumber)?.intValue, running > 0 {
             let count = running + ((jobs["waiting"] as? NSNumber)?.intValue ?? 0)

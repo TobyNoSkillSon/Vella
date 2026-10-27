@@ -194,6 +194,7 @@ vella transcribe talk.m4a --srt > talk.srt       # subtitles; also --vtt, --json
 vella transcribe talk.m4a --model parakeet-v3    # another downloaded model
 vella models                                     # every catalog model, including not downloaded, one per line
 vella status                                     # one line: running, loaded models, API address
+vella status --json                              # the full status as JSON, e.g. which model served the last dictation
 vella skill --install ~/.agents/skills           # the agent skill (writes transcribe/SKILL.md)
 vella diagnose                                   # a report for bug reports (see Reporting a problem)
 ```
