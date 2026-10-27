@@ -106,12 +106,10 @@ public enum HeimdallASRWire {
         return data
     }
     public static let statusRequest = Data("{\"op\":\"status\",\"v\":1}\n".utf8)
+    /// f32le: one copy on a little-endian Mac (Apple silicon), a per-sample swap only on a big-endian one.
     public static func body(_ samples: [Float]) -> Data {
-        samples.withUnsafeBufferPointer { buffer in
-            var data = Data(capacity: buffer.count * 4)
-            for sample in buffer { var bits = sample.bitPattern.littleEndian; withUnsafeBytes(of: &bits) { data.append(contentsOf: $0) } }
-            return data
-        }
+        if 1.littleEndian == 1 { return samples.withUnsafeBufferPointer { Data(buffer: $0) } }
+        return Data(samples.flatMap { sample -> [UInt8] in withUnsafeBytes(of: sample.bitPattern.littleEndian) { Array($0) } })
     }
     /// The reply line (without its newline).
     public static func parse(_ line: Data) -> Result<HeimdallTranscript, HeimdallASRError> {

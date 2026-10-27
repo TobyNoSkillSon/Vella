@@ -579,7 +579,7 @@ import VellaCore
         }
     }
     /// Lab runs (`--lab-dictate`): the saved recording's latest transcription, its route and its time.
-    private(set) var lastRoute: (path: String?, seconds: Double, fallback: String?)?
+    private(set) var lastRoute: (path: String?, seconds: Double, fallback: String?, requests: Int)?
     private func runTranscription(_ session: RecordingSession, liveStream: Bool = false) {
         lastRoute = nil
         let borrows = session.manifest.config.mode == .dictation && heimdall?.socket(for: session.manifest.config) != nil
@@ -595,6 +595,23 @@ import VellaCore
             do {
                 let own: SessionTranscriber.Request = transcriptionRequest ?? { [backend] url, config in try await backend.transcribe(url, config: config) }
                 let runner = SessionTranscriber(request: routedRequest(own, log: route))
+                // Borrowing: the whole dictation in one request (docs/HEIMDALL.md), not one per 5-second segment.
+                runner.whole = { [weak self] audio in
+                    guard let link = self?.heimdall, let socket = link.socket(for: session.manifest.config),
+                        Double(audio.count) / 16_000 <= HeimdallASRWire.maxSeconds
+                    else { return nil }
+                    do {
+                        let text = try await link.transcribe(samples: audio, socket: socket)
+                        route.heimdall += 1; route.lastWasOwn = false
+                        return text
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch {
+                        route.fallback = (error as? HeimdallASRError)?.code ?? "error"
+                        if link.labRoute == .heimdall { throw error }
+                        return nil
+                    }
+                }
                 try Task.checkCancellation()
                 guard self.operation == operation else { return }
                 let speed =
@@ -659,7 +676,7 @@ import VellaCore
                 progressTimer?.invalidate(); progressTimer = nil; processingProgress = showEstimate ? "100%" : ""
                 lastText = text; lastTranscriptIncomplete = false
                 let seconds = ProcessInfo.processInfo.systemUptime - started
-                lastRoute = (route.path, seconds, route.fallback)
+                lastRoute = (route.path, seconds, route.fallback, route.heimdall + route.own)
                 if let path = route.path {
                     heimdall?.recordDictation(
                         LastDictationStatus(
@@ -673,7 +690,7 @@ import VellaCore
                 guard self.operation == operation else { return }
                 progressTimer?.invalidate(); progressTimer = nil
                 processingProgress = ""
-                lastRoute = (route.path, ProcessInfo.processInfo.systemUptime - started, route.fallback)
+                lastRoute = (route.path, ProcessInfo.processInfo.systemUptime - started, route.fallback, route.heimdall + route.own)
                 if error is NeedsOwnModel {
                     // Heimdall served what it could; the rest waits for a model of Vella's own (the Get row).
                     allowAutomaticInsertion = false

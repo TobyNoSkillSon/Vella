@@ -103,13 +103,24 @@ import VellaCore
                         emit(["round": round, "via": via, "error": "Vella was busy; round skipped"], to: out); continue
                     }
                     while model.phase == .transcribing || model.phase == .preparing { try await Task.sleep(nanoseconds: 1_000_000) }
-                    let ms = (ProcessInfo.processInfo.systemUptime - start) * 1000
+                    let done = ProcessInfo.processInfo.systemUptime
+                    let ms = (done - start) * 1000
                     let succeeded = model.phase == .success || model.phase == .idle
                     var line: [String: Any] = [
                         "round": round, "via": via, "served": model.lastRoute?.path ?? "none", "ms": NSDecimalNumber(string: String(format: "%.1f", ms)),
                         "audio_s": Double(audio.count) / 16_000, "phase": String(describing: model.phase), "text": succeeded ? model.lastText : ""
                     ]
                     if let fallback = model.lastRoute?.fallback { line["fallback"] = fallback }
+                    line["requests"] = model.lastRoute?.requests ?? 0
+                    if via != "own", let exchange = link.lastExchange {
+                        line["exchange_ms"] = NSDecimalNumber(string: String(format: "%.1f", exchange.ms))
+                        if let decode = exchange.decodeMs { line["heimdall_decode_ms"] = decode }
+                        if let queue = exchange.queueMs { line["heimdall_queue_ms"] = queue }
+                        // Vella's own work around the request: before it (reading the saved audio) and after (journal,
+                        // transcript, insertion).
+                        line["before_ms"] = NSDecimalNumber(string: String(format: "%.1f", (exchange.start - start) * 1000))
+                        line["after_ms"] = NSDecimalNumber(string: String(format: "%.1f", (done - exchange.end) * 1000))
+                    }
                     if model.phase == .failed { line["error"] = model.message }
                     emit(line, to: out)
                 }

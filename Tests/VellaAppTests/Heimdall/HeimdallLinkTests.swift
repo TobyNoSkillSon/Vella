@@ -186,6 +186,37 @@ private final class TestRegistrar: ShortcutRegistrar {
         XCTAssertEqual(r.lastDictation()?.path, "heimdall")
         XCTAssertEqual(r.lastDictation()?.model, "parakeet-v3-ultra")
     }
+    /// Speech with pauses, cut by the recorder at the first pause after 5 s: several segments.
+    private func segmentedSession() throws -> RecordingSession {
+        let session = try RecordingSession(root: root.appendingPathComponent("Recordings"), config: Configuration(model: "/models/parakeet-ultra"))
+        let writer = try SegmentedPCMWriter(session: session)
+        var samples: [Float] = []
+        for _ in 0..<3 {
+            samples += (0..<(6 * 16_000)).map { Float(0.1 * sin(Double($0) * 0.17)) }
+            samples += [Float](repeating: 0, count: 16_000)
+        }
+        try samples.withUnsafeBufferPointer { try writer.append($0) }
+        try writer.finish(userStopped: true)
+        return session
+    }
+    /// The whole dictation is one round trip: no request per segment, no overlap sent twice, nothing before it.
+    func testOneRequestPerDictation() async throws {
+        let server = try FakeHeimdallServer(reply: .ok("whole dictation")); defer { server.stop() }
+        let r = try rig(); defer { r.model.shutdown() }
+        r.bus.ready(server.path)
+        let s = try segmentedSession()
+        XCTAssertGreaterThan(s.manifest.segments.count, 2, "the fixture must cut into several segments")
+        let newFrames = s.manifest.segments.enumerated().reduce(0) { $0 + ($1.offset == 0 ? $1.element.frames : $1.element.frames - $1.element.overlapFrames) }
+        XCTAssertTrue(r.model.labTranscribe(s))
+        for _ in 0..<1000 where r.model.phase == .transcribing { try await Task.sleep(nanoseconds: 5_000_000) }
+        XCTAssertEqual(r.model.phase, .success)
+        XCTAssertEqual(r.model.lastText, "whole dictation")
+        XCTAssertEqual(server.requests.count, 1, "one connection, one request")
+        XCTAssertEqual(server.requests.first?.samples, newFrames, "every sample once")
+        XCTAssertEqual(r.model.lastRoute?.requests, 1)
+        XCTAssertEqual(r.own.calls, 0)
+        XCTAssertEqual(s.manifest.state, "transcribed")
+    }
     func testOtherModelsAndStreamingAreUnaffected() async throws {
         let server = try FakeHeimdallServer(reply: .ok("borrowed")); defer { server.stop() }
         let r = try rig(family: "parakeet-v3"); defer { r.model.shutdown() }
@@ -282,13 +313,16 @@ private final class TestRegistrar: ShortcutRegistrar {
         let r = try rig(); defer { r.model.shutdown() }
         r.bus.ready("/tmp/vh-old.sock", pid: Int(getpid()))
         // The request to the old socket fails while the new Heimdall announces.
-        r.link.exchange = { [bus = r.bus, path = server.path] _, _, _ in
-            bus.ready(path)
-            throw HeimdallASRError.connect("closed")
+        var calls = 0
+        r.link.exchange = { [bus = r.bus, path = server.path] socket, samples, peer in
+            calls += 1
+            guard calls > 1 else { bus.ready(path); throw HeimdallASRError.connect("closed") }
+            return try await HeimdallASRClient.transcribe(socket: socket, samples: samples, peer: peer)
         }
         try await dictate(r)
-        XCTAssertEqual(r.lastDictation()?.path, "vella")
         XCTAssertEqual(r.link.borrow.label, "ready", "the newer Heimdall is not marked unavailable")
+        XCTAssertEqual(r.lastDictation()?.path, "heimdall", "and it serves the rest of the dictation")
+        XCTAssertEqual(r.model.lastText, "new")
     }
     func testAfterAFailureVellaAsksHeimdallAgainLater() async throws {
         let server = try FakeHeimdallServer(reply: .error("busy")); defer { server.stop() }

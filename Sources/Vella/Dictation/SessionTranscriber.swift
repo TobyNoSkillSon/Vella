@@ -32,16 +32,51 @@ struct TranscriptionEstimate {
     /// A segment is retried after its worker crashed (1-based segment index, segment count).
     var onRetry: ((Int, Int) -> Void)?
     let request: Request
+    /// Optional: the whole recording (each segment's new audio, overlaps removed) in one request. Nil from it, or a
+    /// recording that already has text, falls back to the per-segment requests. Heimdall's socket uses this: one
+    /// round trip per dictation instead of one per 5-second segment.
+    var whole: (([Float]) async throws -> String?)?
     init(request: @escaping Request) { self.request = request }
+    /// Each segment's audio once, in order: the first in full, later ones without the overlap they repeat.
+    static func wholeAudio(_ session: RecordingSession) throws -> [Float] {
+        var audio: [Float] = []
+        audio.reserveCapacity(session.manifest.segments.reduce(0) { $0 + max(0, $1.frames - $1.overlapFrames) } + 16_000)
+        for (k, segment) in session.manifest.segments.enumerated() where segment.frames > (k == 0 ? 0 : segment.overlapFrames) {
+            let samples = try session.samples(for: segment)
+            audio += k == 0 ? samples[...] : samples.dropFirst(segment.overlapFrames)
+        }
+        return audio
+    }
 
     func run(_ session: RecordingSession, available: Range<Int>? = nil) async throws -> String {
         guard session.manifest.state != "recording" else {
             throw VellaError.message("Finish recording before transcription. Nothing has been pasted.")
         }
+        // Borrowing: send the whole recording first, so Heimdall decodes while the journal below is written.
+        var early: Task<String?, Error>?
+        if available == nil, let whole, !session.manifest.segments.isEmpty, session.manifest.segments.allSatisfy({ $0.text == nil }) {
+            let audio = try Self.wholeAudio(session)
+            if !audio.isEmpty { early = Task { @MainActor in try await whole(audio) } }
+        }
         session.manifest.state = "transcribing"; session.manifest.failureCode = nil
-        try session.save()
+        do { try session.save() } catch { early?.cancel(); throw error }
         var completed = session.manifest.segments.filter { $0.text != nil }.reduce(0.0) { $0 + $1.seconds }
         var requests = 0
+        if let early {
+            onChunk?(0, session.seconds, 1, session.manifest.segments.count)
+            let recognized = try await withTaskCancellationHandler(operation: { try await early.value }, onCancel: { early.cancel() })
+            if let recognized {
+                try Task.checkCancellation()
+                // In memory only: the transcript's final save below stores them with the transcribed state, so a crash
+                // before it leaves the recording untranscribed (Retry asks again), never half-saved.
+                for i in session.manifest.segments.indices {
+                    session.manifest.segments[i].text = i == 0 ? recognized.split(whereSeparator: \.isWhitespace).joined(separator: " ") : ""
+                    session.manifest.segments[i].textThroughIndex = nil
+                    session.manifest.segments[i].quietSlices = nil
+                }
+                completed = session.seconds
+            }
+        }
         func recognize(_ file: URL, frames: Int, segment i: Int) async throws -> String {
             var start = ProcessInfo.processInfo.systemUptime
             var retried = false

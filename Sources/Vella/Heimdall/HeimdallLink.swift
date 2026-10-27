@@ -129,10 +129,18 @@ import VellaCore
     /// One recognition request (a segment's WAV) over Heimdall's socket. A failure marks Heimdall unavailable until its
     /// next `ready` and rethrows; the caller falls back to Vella's own model. Cancellation is not a failure.
     func transcribe(wav: URL, socket: String) async throws -> String {
+        try await transcribe(samples: heimdallWAVSamples(Data(contentsOf: wav)), socket: socket)
+    }
+    /// One request with these 16 kHz mono samples (the whole dictation, straight from the saved Float32 audio).
+    /// The latest request's timings, for lab runs: the socket round trip and what Heimdall reported.
+    private(set) var lastExchange: (ms: Double, queueMs: Double?, decodeMs: Double?, start: Double, end: Double)?
+    func transcribe(samples: [Float], socket: String) async throws -> String {
         let asked = borrow.ready
         do {
-            let samples = try heimdallWAVSamples(Data(contentsOf: wav))
+            let start = ProcessInfo.processInfo.systemUptime
             let reply = try await exchange(socket, samples, asked?.socket == socket ? asked?.pid.map { Int32($0) } : nil)
+            let end = ProcessInfo.processInfo.systemUptime
+            lastExchange = ((end - start) * 1000, reply.queueMs, reply.decodeMs, start, end)
             return reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch let error as HeimdallASRError where error == .cancelled {
             throw CancellationError()
