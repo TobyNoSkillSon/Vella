@@ -370,6 +370,15 @@ final class HeimdallSelectionTests: XCTestCase {
         XCTAssertEqual(effectiveDictationSource(cleared, heimdallDetected: true), .own, "an upgrade-cleared choice is still a past choice")
         var selected = Configuration(model: ""); selected.selectModel("/m/x", for: .dictation)
         XCTAssertEqual(selected.dictationSource, .own, "every way of choosing an own dictation model records it")
+        let ultra = Configuration(model: "/m/ultra")
+        XCTAssertEqual(effectiveDictationSource(ultra, heimdallDetected: true, heimdallPresent: true, selectsSharedModel: true), .heimdall)
+        XCTAssertEqual(effectiveDictationSource(ultra, heimdallDetected: true, heimdallPresent: false, selectsSharedModel: true), .own)
+        XCTAssertTrue(upgradesToHeimdall(ultra, heimdallPresent: true, selectsSharedModel: true))
+        XCTAssertFalse(upgradesToHeimdall(ultra, heimdallPresent: false, selectsSharedModel: true))
+        XCTAssertFalse(upgradesToHeimdall(Configuration(model: "/m/qwen"), heimdallPresent: true, selectsSharedModel: false))
+        var markedOwn = ultra; markedOwn.dictationSource = .own
+        XCTAssertFalse(upgradesToHeimdall(markedOwn, heimdallPresent: true, selectsSharedModel: true))
+        XCTAssertEqual(effectiveDictationSource(markedOwn, heimdallDetected: true, heimdallPresent: true, selectsSharedModel: true), .own)
         var heimdall = Configuration(model: "/m/whisper"); heimdall.dictationSource = .heimdall
         XCTAssertEqual(effectiveDictationSource(heimdall, heimdallDetected: false), .heimdall, "and Heimdall going away")
     }

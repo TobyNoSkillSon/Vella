@@ -46,6 +46,10 @@ import VellaCore
     /// Heimdall answered during this session (a development build outside Applications): offline, not absent, once it
     /// stops, so an explicit choice of it stays visible.
     private var answered = false
+    /// Whether a model path is Vella's own Parakeet v3 Ultra, any precision (the upgrade rule).
+    var isSharedModel: (String) -> Bool = { _ in false }
+    /// The upgrade rule applies (HeimdallSelection.swift): record Heimdall's row and release Vella's Ultra.
+    var onUpgrade: (() -> Void)?
     /// Vella's own downloaded Parakeet v3 Ultra, if any: the offline fallback while Heimdall's row is the choice.
     var ownSharedModelPath: () -> String? = { nil }
     /// Called when the row's presence or the choice changes (the Models table and the menu redraw).
@@ -120,7 +124,11 @@ import VellaCore
     var detected: Bool { installed || answered }
     var presence: HeimdallPresence { .of(installed: installed || answered, ready: borrow.ready != nil, unavailable: borrow.unavailable) }
     /// The choice in effect for `config`.
-    func source(for config: Configuration) -> DictationSource { effectiveDictationSource(config, heimdallDetected: detected) }
+    func source(for config: Configuration) -> DictationSource {
+        effectiveDictationSource(
+            config, heimdallDetected: detected, heimdallPresent: presence == .present,
+            selectsSharedModel: !config.model.isEmpty && isSharedModel(config.model))
+    }
     /// The "from Heimdall" row is the dictation choice now.
     var heimdallChosen: Bool { currentConfiguration().map { source(for: $0) == .heimdall } ?? false }
     /// Heimdall's state changed (`residency`: tell the runtime, which unloads Vella's copy or restores its launch set),
@@ -129,6 +137,11 @@ import VellaCore
         let before = borrowingFamily
         borrowingFamily = heimdallChosen && borrow.socket(for: HeimdallNames.sharedModel) != nil ? HeimdallNames.sharedModel : nil
         if residency, borrowingFamily != before { onBorrowChange?(borrowingFamily, before) }
+        if let config = currentConfiguration(),
+            !config.model.isEmpty, upgradesToHeimdall(config, heimdallPresent: presence == .present, selectsSharedModel: isSharedModel(config.model))
+        {
+            onUpgrade?()
+        }
         publish()
         onPresenceChange?()
     }

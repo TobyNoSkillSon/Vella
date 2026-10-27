@@ -371,6 +371,8 @@ import VellaCore
             }
             return nil
         }
+        link.isSharedModel = { [weak self] path in self?.isSharedModel(path) ?? false }
+        link.onUpgrade = { [weak self] in Task { await self?.applyUpgradeRule() } }
         link.onPresenceChange = { [weak self, weak link] in
             guard let link, let controller = self?.controller else { return }
             let row = ModelsController.HeimdallRow(presence: link.presence, chosen: link.heimdallChosen)
@@ -406,6 +408,36 @@ import VellaCore
     /// The "from Heimdall" row's single selection action: record the explicit choice, then release Vella's own dictation
     /// models (their workers exit and they leave the launch set). Nothing is asked of Heimdall. Refused while a
     /// dictation records or transcribes, or a model is loading or in use, like Load.
+    private var sharedModelPaths: [String: Bool] = [:]
+    /// Vella's own Parakeet v3 Ultra at any precision (cached per path: the link asks on every check).
+    func isSharedModel(_ path: String) -> Bool {
+        guard !path.isEmpty else { return false }
+        if let known = sharedModelPaths[path] { return known }
+        let shared = runtime.resolve(path, mode: .dictation).id == HeimdallNames.sharedModel
+        sharedModelPaths[path] = shared
+        return shared
+    }
+    /// The upgrade rule (HeimdallSelection.swift), once: a selection of Vella's own Ultra made before this build, with
+    /// Heimdall present, becomes Heimdall's row, and Vella's own Ultra is released; other models stay as they are.
+    /// Waits for the next check while a dictation, a load or a switch is in progress.
+    func applyUpgradeRule() async {
+        guard let model, let link = heimdallLink, model.phase != .recording, !model.busy, runtime.status.loading == nil,
+            runtime.selectionsInFlight == 0, !switchingToHeimdall
+        else { return }
+        let url = runtime.configURL
+        guard var config = (try? Data(contentsOf: url)).flatMap({ try? JSONDecoder().decode(Configuration.self, from: $0) }),
+            upgradesToHeimdall(config, heimdallPresent: link.presence == .present, selectsSharedModel: link.isSharedModel(config.model))
+        else { return }
+        let family = runtime.resolve(config.model, mode: .dictation).id
+        switchingToHeimdall = true
+        defer { switchingToHeimdall = false }
+        config.dictationSource = .heimdall
+        guard (try? JSONEncoder().encode(config).write(to: url, options: .atomic)) != nil else { return }
+        controller?.reloadConfig()
+        runtime.log("heimdall: upgrade: Vella's own Parakeet v3 Ultra selection now uses Heimdall's copy")
+        _ = await runtime.unload(family)
+        link.reevaluate()
+    }
     private var switchingToHeimdall = false
     func useHeimdall() async throws {
         guard let model, model.phase != .recording, !model.busy, runtime.status.loading == nil, runtime.selectionsInFlight == 0, !switchingToHeimdall
