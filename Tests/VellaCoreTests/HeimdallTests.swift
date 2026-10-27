@@ -187,8 +187,12 @@ final class HeimdallASRCoreTests: XCTestCase {
         HeimdallAnnouncement(state: .ready, socket: socket, model: model, pid: pid)
     }
     func testAnnouncementParsing() {
-        let info: [AnyHashable: Any] = ["v": 1, "state": "ready", "socket": "/x/asr.sock", "model": "parakeet-v3-ultra", "pid": 12, "sent": 3.5]
+        let info: [AnyHashable: Any] = ["v": 1, "state": "ready", "socket": "/x/asr.sock", "model": "parakeet-v3-ultra", "pid": 12, "sent": 3.5, "app": "dev.heimdall.app"]
         XCTAssertEqual(HeimdallAnnouncement(userInfo: info), HeimdallAnnouncement(state: .ready, socket: "/x/asr.sock", model: "parakeet-v3-ultra", pid: 12, sent: 3.5))
+        var alpha = info; alpha["app"] = "com.tobynoskillson.heimdall"
+        XCTAssertEqual(HeimdallAnnouncement(userInfo: alpha)?.app, "com.tobynoskillson.heimdall")
+        var unknown = info; unknown["app"] = "com.example.other"
+        XCTAssertNil(HeimdallAnnouncement(userInfo: unknown), "a ready from an unknown app")
         XCTAssertNil(HeimdallAnnouncement(userInfo: ["v": 2, "state": "ready", "socket": "/x"]), "another protocol version")
         XCTAssertNil(HeimdallAnnouncement(userInfo: ["v": 1, "state": "ready", "socket": "relative.sock"]))
         XCTAssertNil(HeimdallAnnouncement(userInfo: ["v": 1, "state": "maybe"]))

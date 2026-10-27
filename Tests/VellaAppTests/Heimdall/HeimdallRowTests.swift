@@ -47,7 +47,7 @@ import VellaTestSupport
         let bus = MemoryHeimdallBus()
         let link = HeimdallLink(bus: bus, announcesDictation: false)
         link.findInstalled = { installed }
-        link.acceptSocket = { _ in true }
+        link.acceptAnnouncement = { _ in true }
         f.bridge.attachHeimdall(link)
         model.heimdall = link
         link.start()

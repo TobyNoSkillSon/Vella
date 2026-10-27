@@ -13,8 +13,10 @@ public struct HeimdallAnnouncement: Equatable, Sendable {
     public var model: String
     public var pid: Int?
     public var sent: Double?
-    public init(state: State, socket: String, model: String, pid: Int? = nil, sent: Double? = nil) {
-        self.state = state; self.socket = socket; self.model = model; self.pid = pid; self.sent = sent
+    /// The announcing edition's app ID (`HeimdallApp`).
+    public var app: String?
+    public init(state: State, socket: String, model: String, pid: Int? = nil, sent: Double? = nil, app: String? = HeimdallApp.personal) {
+        self.state = state; self.socket = socket; self.model = model; self.pid = pid; self.sent = sent; self.app = app
     }
     /// Nil for another protocol version, an unknown state, or a `ready` without an absolute socket path.
     public init?(userInfo: [AnyHashable: Any]?) {
@@ -27,28 +29,42 @@ public struct HeimdallAnnouncement: Equatable, Sendable {
         model = info["model"] as? String ?? ""
         pid = (info["pid"] as? NSNumber)?.intValue
         sent = (info["sent"] as? NSNumber)?.doubleValue
+        app = info["app"] as? String
+        // A `ready` must name a known edition (its socket path and signing identity follow from it).
+        if state == .ready, !HeimdallApp.bundleIdentifiers.contains(app ?? "") { return nil }
     }
 }
 
 /// Whether a dictation borrows Heimdall's model. Pure state; the app feeds it announcements and failures.
 public struct HeimdallBorrowState: Equatable, Sendable {
-    /// The last `ready` announcement (nil: absent, or announced gone).
-    public private(set) var ready: HeimdallAnnouncement?
+    /// Each edition's last `ready` (a Mac can run the personal build and the public alpha side by side).
+    public private(set) var readies: [String: HeimdallAnnouncement] = [:]
+    /// The `ready` Vella uses: the personal edition's when both are ready, else the one that is (nil: absent, or gone).
+    public var ready: HeimdallAnnouncement? { readies[HeimdallApp.personal] ?? readies[HeimdallApp.publicAlpha] }
     /// A request failed since that `ready`: Vella's own model serves until the next one.
     public private(set) var unavailable = false
     public private(set) var lastFailure: String?
     public init() {}
     public mutating func receive(_ announcement: HeimdallAnnouncement) {
+        let app = announcement.app ?? HeimdallApp.personal
+        let before = ready
         switch announcement.state {
-        case .ready: ready = announcement; unavailable = false; lastFailure = nil
+        case .ready:
+            readies[app] = announcement
         case .gone:
             // A `gone` from another Heimdall process must not end a newer one's readiness.
-            if let pid = announcement.pid, let readyPid = ready?.pid, pid != readyPid { return }
-            ready = nil; unavailable = false
+            if let pid = announcement.pid, let readyPid = readies[app]?.pid, pid != readyPid { return }
+            readies[app] = nil
+        }
+        // A failure belongs to the Heimdall in use: a new `ready` from it, or a change to another one, clears it; the
+        // other edition announcing leaves it standing.
+        if (announcement.state == .ready && ready?.app == app) || before?.app != ready?.app || before?.pid != ready?.pid {
+            unavailable = false
+            if announcement.state == .ready { lastFailure = nil }
         }
     }
     /// A request to `announcement`'s Heimdall failed. A failure from an earlier Heimdall (it restarted and announced
-    /// again while the request ran) leaves the newer one available.
+    /// again while the request ran), or from the other edition, leaves the one in use available.
     public mutating func failed(_ reason: String, for announcement: HeimdallAnnouncement? = nil) {
         // Same Heimdall process and socket; a re-announcement (`sent` differs, e.g. a reply to a query) is the same one.
         if let announcement, announcement.pid != ready?.pid || announcement.socket != ready?.socket { return }
@@ -290,8 +306,10 @@ public struct HeimdallStatus: Codable, Equatable, Sendable {
     public var borrowing: Bool
     /// Why the last request fell back (connect, timeout, busy, invalid_reply…).
     public var last_failure: String?
-    public init(state: String, socket: String? = nil, model: String? = nil, pid: Int? = nil, borrowing: Bool, last_failure: String? = nil) {
-        self.state = state; self.socket = socket; self.model = model; self.pid = pid; self.borrowing = borrowing; self.last_failure = last_failure
+    /// The edition in use (`dev.heimdall.app`, or `com.tobynoskillson.heimdall` for Heimdall Alpha).
+    public var app: String?
+    public init(state: String, socket: String? = nil, model: String? = nil, pid: Int? = nil, borrowing: Bool, last_failure: String? = nil, app: String? = nil) {
+        self.state = state; self.socket = socket; self.model = model; self.pid = pid; self.borrowing = borrowing; self.last_failure = last_failure; self.app = app
     }
 }
 

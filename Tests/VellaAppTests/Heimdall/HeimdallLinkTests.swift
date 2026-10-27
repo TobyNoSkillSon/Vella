@@ -13,10 +13,12 @@ import VellaTestSupport
     func deliver(_ name: String, _ info: [AnyHashable: Any]? = nil) { handlers[name]?(info) }
     func states() -> [[String: Any]] { posts.filter { $0.name == HeimdallNames.dictationState }.compactMap(\.info) }
     /// The fake server runs in this process, so the default pid passes the peer check.
-    func ready(_ socket: String, pid: Int = Int(getpid())) {
-        deliver(HeimdallNames.asr, ["v": 1, "state": "ready", "socket": socket, "model": "parakeet-v3-ultra", "pid": pid, "sent": 1.0])
+    func ready(_ socket: String, pid: Int = Int(getpid()), app: String = HeimdallApp.personal) {
+        deliver(HeimdallNames.asr, ["v": 1, "state": "ready", "socket": socket, "model": "parakeet-v3-ultra", "pid": pid, "sent": 1.0, "app": app])
     }
-    func gone(pid: Int = Int(getpid())) { deliver(HeimdallNames.asr, ["v": 1, "state": "gone", "socket": "", "model": "parakeet-v3-ultra", "pid": pid]) }
+    func gone(pid: Int = Int(getpid()), app: String = HeimdallApp.personal) {
+        deliver(HeimdallNames.asr, ["v": 1, "state": "gone", "socket": "", "model": "parakeet-v3-ultra", "pid": pid, "app": app])
+    }
 }
 
 private final class TestRegistrar: ShortcutRegistrar {
@@ -145,7 +147,7 @@ private final class TestRegistrar: ShortcutRegistrar {
         let link = HeimdallLink(bus: bus, announcesDictation: false)
         link.findInstalled = { false }
         link.currentConfiguration = { var c = Configuration(model: "/models/parakeet-ultra"); c.dictationSource = .heimdall; return c }
-        link.acceptSocket = { _ in true } // the fake server lives in /tmp, not Heimdall's support folder
+        link.acceptAnnouncement = { _ in true } // the fake server lives in /tmp, not Heimdall's support folder
         if let timeout { link.exchange = { try await HeimdallASRClient.transcribe(socket: $0, samples: $1, timeout: timeout, peer: $2) } }
         var last: LastDictationStatus?
         var changes: [String?] = []
@@ -295,16 +297,66 @@ private final class TestRegistrar: ShortcutRegistrar {
         XCTAssertEqual(r.own.calls, 0)
     }
 
+    /// Each edition is trusted only at its own fixed path and only from a process signed as that edition, so the
+    /// personal build and the public alpha can never be taken for each other.
+    func testEachEditionIsTrustedOnlyAtItsOwnPathWithItsOwnSignature() throws {
+        let home = "/tmp/vh-h-\(UUID().uuidString.prefix(6))" // short: socket paths stay under 104 bytes
+        defer { try? FileManager.default.removeItem(atPath: home) }
+        var servers: [String: FakeHeimdallServer] = [:]
+        defer { servers.values.forEach { $0.stop() } }
+        for app in HeimdallApp.bundleIdentifiers {
+            let path = HeimdallApp.socketPath(app: app, home: home)!
+            try FileManager.default.createDirectory(atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+            servers[app] = try FakeHeimdallServer(reply: .ok("x"), path: path)
+        }
+        let personal = HeimdallApp.socketPath(app: HeimdallApp.personal, home: home)!
+        let alpha = HeimdallApp.socketPath(app: HeimdallApp.publicAlpha, home: home)!
+        XCTAssertNotEqual(personal, alpha)
+        XCTAssertFalse(alpha.contains("/Heimdall/"), "the public alpha never uses the personal edition's folder")
+        let signedAs: (String) -> (Int) -> String? = { app in { _ in app } }
+        func a(_ socket: String, _ app: String) -> HeimdallAnnouncement { .init(state: .ready, socket: socket, model: HeimdallNames.sharedModel, pid: 42, app: app) }
+        XCTAssertTrue(HeimdallLink.trusted(a(personal, HeimdallApp.personal), home: home, identity: signedAs(HeimdallApp.personal)))
+        XCTAssertTrue(HeimdallLink.trusted(a(alpha, HeimdallApp.publicAlpha), home: home, identity: signedAs(HeimdallApp.publicAlpha)))
+        XCTAssertFalse(HeimdallLink.trusted(a(personal, HeimdallApp.publicAlpha), home: home, identity: signedAs(HeimdallApp.publicAlpha)),
+                       "the alpha announcing the personal socket")
+        XCTAssertFalse(HeimdallLink.trusted(a(alpha, HeimdallApp.personal), home: home, identity: signedAs(HeimdallApp.personal)),
+                       "the personal build announcing the alpha's socket")
+        XCTAssertFalse(HeimdallLink.trusted(a(personal, HeimdallApp.personal), home: home, identity: signedAs(HeimdallApp.publicAlpha)),
+                       "a process signed as the other edition")
+        XCTAssertFalse(HeimdallLink.trusted(a(personal, HeimdallApp.personal), home: home, identity: { _ in nil }), "an unsigned process")
+        XCTAssertNil(HeimdallAnnouncement(userInfo: ["v": 1, "state": "ready", "socket": personal, "model": "parakeet-v3-ultra", "pid": 42]),
+                     "a ready that names no edition")
+    }
+    /// Both editions ready: Vella borrows from the personal one and says so; the alpha announcing again or going away
+    /// changes nothing; when the personal one goes, the alpha serves and the status names it.
+    func testWithBothEditionsReadyThePersonalOneServesAndIsNamed() throws {
+        var state = HeimdallBorrowState()
+        state.receive(.init(state: .ready, socket: "/p", model: HeimdallNames.sharedModel, pid: 1, app: HeimdallApp.publicAlpha))
+        XCTAssertEqual(state.ready?.app, HeimdallApp.publicAlpha)
+        state.receive(.init(state: .ready, socket: "/q", model: HeimdallNames.sharedModel, pid: 2, app: HeimdallApp.personal))
+        XCTAssertEqual(state.socket(for: HeimdallNames.sharedModel), "/q")
+        state.failed("busy", for: state.ready)
+        state.receive(.init(state: .ready, socket: "/p", model: HeimdallNames.sharedModel, pid: 1, app: HeimdallApp.publicAlpha))
+        XCTAssertTrue(state.unavailable, "the other edition announcing does not clear the personal one's failure")
+        state.receive(.init(state: .gone, socket: "", model: HeimdallNames.sharedModel, pid: 1, app: HeimdallApp.publicAlpha))
+        XCTAssertEqual(state.ready?.app, HeimdallApp.personal, "the alpha leaving changes nothing")
+        state.receive(.init(state: .ready, socket: "/p", model: HeimdallNames.sharedModel, pid: 1, app: HeimdallApp.publicAlpha))
+        state.receive(.init(state: .gone, socket: "", model: HeimdallNames.sharedModel, pid: 2, app: HeimdallApp.personal))
+        XCTAssertFalse(state.unavailable, "a change of Heimdall clears the old one's failure")
+        XCTAssertEqual(state.socket(for: HeimdallNames.sharedModel), "/p")
+        XCTAssertEqual(HeimdallApp.name(app: state.ready?.app), "Heimdall Alpha")
+    }
+
     func testAnotherProcessCannotPoseAsHeimdall() async throws {
         let server = try FakeHeimdallServer(reply: .ok("forged")); defer { server.stop() }
         let r = try rig(); defer { r.model.shutdown() }
-        r.link.acceptSocket = { heimdallSocketAcceptable($0, expected: HeimdallLink.defaultSocket) }
+        r.link.acceptAnnouncement = { HeimdallLink.trusted($0) }
         r.bus.ready(server.path)
         XCTAssertEqual(r.link.borrow.label, "absent", "a socket outside Heimdall's folder is ignored")
         XCTAssertFalse(heimdallSocketAcceptable(server.path, expected: server.path + ".other"))
         XCTAssertTrue(heimdallSocketAcceptable(server.path, expected: server.path), "the real socket: user-owned, 0600")
         // A socket whose peer is not the announcing process.
-        r.link.acceptSocket = { _ in true }
+        r.link.acceptAnnouncement = { _ in true }
         r.bus.ready(server.path, pid: 1)
         try await dictate(r)
         XCTAssertEqual(r.lastDictation()?.fallback, "connect")
@@ -413,12 +465,12 @@ private final class TestRegistrar: ShortcutRegistrar {
     func testSettleWaitsOnlyWhenHeimdallsSocketExists() async throws {
         let link = HeimdallLink(bus: MemoryHeimdallBus(), announcesDictation: false)
         var start = Date()
-        await link.settle(socketPath: "/tmp/vh-none-\(UUID().uuidString.prefix(6))", wait: 2)
+        await link.settle(socketPaths: ["/tmp/vh-none-\(UUID().uuidString.prefix(6))"], wait: 2)
         XCTAssertLessThan(Date().timeIntervalSince(start), 0.2)
         let server = try FakeHeimdallServer(reply: .ok("")); defer { server.stop() }
         let other = HeimdallLink(bus: MemoryHeimdallBus(), announcesDictation: false)
         start = Date()
-        await other.settle(socketPath: server.path, wait: 0.3)
+        await other.settle(socketPaths: [server.path], wait: 0.3)
         XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(start), 0.25, "waits for the answer to its query")
     }
 
@@ -447,7 +499,7 @@ private final class TestRegistrar: ShortcutRegistrar {
         link.findInstalled = { false }
         link.familyName = { _ in "Parakeet v3 Ultra" }
         link.currentConfiguration = { Configuration(model: "") }
-        link.acceptSocket = { _ in true }
+        link.acceptAnnouncement = { _ in true }
         bus.ready("/tmp/vh-menu.sock")
         delegate.rebuildMenu()
         XCTAssertTrue(delegate.menu.items.first?.title.hasSuffix(" · Parakeet v3 Ultra via Heimdall") == true, delegate.menu.items.first?.title ?? "")

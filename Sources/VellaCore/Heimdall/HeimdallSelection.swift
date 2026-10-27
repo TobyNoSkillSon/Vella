@@ -18,7 +18,20 @@ public enum HeimdallPresence: String, Sendable {
 
 public enum HeimdallApp {
     /// The personal build and the public alpha ("Heimdall Alpha").
-    public static let bundleIdentifiers = ["dev.heimdall.app", "com.tobynoskillson.heimdall"]
+    public static let bundleIdentifiers = [personal, publicAlpha]
+    public static let personal = "dev.heimdall.app"
+    public static let publicAlpha = "com.tobynoskillson.heimdall"
+    /// Each edition's own fixed socket, relative to the user's home (docs/HEIMDALL.md): the two editions never share a
+    /// folder, so Vella can never take one for the other.
+    public static func socketPath(app: String, home: String) -> String? {
+        switch app {
+        case personal: return home + "/Library/Application Support/Heimdall/asr.sock"
+        case publicAlpha: return home + "/Library/Application Support/com.tobynoskillson.heimdall/asr.sock"
+        default: return nil
+        }
+    }
+    /// The edition's name in Vella's status ("via Heimdall", "via Heimdall Alpha").
+    public static func name(app: String?) -> String { app == publicAlpha ? "Heimdall Alpha" : "Heimdall" }
     /// Info.plist key for Heimdall's public project page. Unset until that page exists: the absent row then opens nothing.
     public static let projectURLKey = "VellaHeimdallProjectURL"
     /// An https URL from the key, else nil.

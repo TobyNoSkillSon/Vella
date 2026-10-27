@@ -28,11 +28,11 @@ public final class FakeHeimdallServer: @unchecked Sendable {
     private var received: [Request] = []
     private var stopped = false
 
-    public init(reply: Reply) throws {
+    public init(reply: Reply, path fixed: String? = nil) throws {
         self.reply = reply
         // A client that hangs up early must not kill the test process when this server answers.
         signal(SIGPIPE, SIG_IGN)
-        path = "/tmp/vh-\(UUID().uuidString.prefix(8)).sock"
+        path = fixed ?? "/tmp/vh-\(UUID().uuidString.prefix(8)).sock"
         unlink(path)
         listener = socket(AF_UNIX, SOCK_STREAM, 0)
         var address = sockaddr_un()

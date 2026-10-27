@@ -56,9 +56,23 @@ see the dictated run marked `[dictated to Vella: …]`; the archive keeps the wo
 
 Heimdall announces itself with `dev.heimdall.asr` (object `"dev.heimdall"`) when its listen model is ready and when
 it stops, and in reply to Vella's `dev.vella.asr.query`. userInfo: `v` 1, `state` (`ready` | `gone`), `socket`
-(absolute path; for the installed app always `~/Library/Application Support/Heimdall/asr.sock`, even when the
-public edition's data folder has moved; mode 0600), `model` (`parakeet-v3-ultra`),
-`pid`, `sent`.
+(absolute path, mode 0600), `model` (`parakeet-v3-ultra`), `pid`, `sent`, `app` (the announcing edition's app ID).
+
+The socket has one fixed folder per edition, chosen by the build's edition, never by the movable data folder, so the
+two editions never share app data or answer for each other:
+
+| edition | app ID | socket |
+|---|---|---|
+| personal | `dev.heimdall.app` | `~/Library/Application Support/Heimdall/asr.sock` (the original profile folder; after a home move it is the link to the new place) |
+| public | `com.tobynoskillson.heimdall` | `~/Library/Application Support/com.tobynoskillson.heimdall/asr.sock` (beside `home.json`) |
+
+A lab or test run on its own `--data` keeps the socket in that folder. Path limit: macOS socket paths are under 104
+bytes, which the public path meets for user names up to 31 characters; a longer name makes the socket refuse to start
+(logged, retried every 30 s) and Vella keeps its own model.
+
+Vella trusts a `ready` only when its socket is one of those two paths, `app` is the matching edition, the socket is
+owned by the user with mode 0600 and not a link, and the connected peer runs as the user with the announced pid. With
+both editions ready, Vella borrows from the personal edition and names the one it uses in its status.
 
 One connection per request. Request: one JSON line, then raw audio:
 
@@ -91,3 +105,5 @@ Vella sends one request per finished dictation and keeps its own Ultra unloaded 
 if it is already downloaded (otherwise its usual Get offer; never a silent download), and marks Heimdall unavailable
 until its next `ready`. With Heimdall absent the row is greyed; its link to Heimdall's public page opens nothing until
 that URL is configured.
+
+**Vella side (as built):** one request per finished dictation (the whole recording). The "Parakeet v3 Ultra · from Heimdall" row borrows when it is the dictation choice: chosen explicitly, or the default for an install with no selection yet. A selection stored before this build is kept as the user's choice. Trust per edition as above; the signing identity is read with `SecCodeCopyGuestWithAttributes` for the announcing pid.

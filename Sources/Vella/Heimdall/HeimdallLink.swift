@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Security
 import VellaCore
 
 /// The notification transport (distributed notifications in the app, an in-memory bus in tests).
@@ -72,9 +73,31 @@ import VellaCore
     var exchange: (_ socket: String, _ samples: [Float], _ peer: Int32?) async throws -> HeimdallTranscript = { socket, samples, peer in
         try await HeimdallASRClient.transcribe(socket: socket, samples: samples, peer: peer)
     }
-    /// Which announced `ready` sockets Vella will send audio to: only the spec's path, a socket owned by this user and
-    /// closed to others (any local process can post the notification).
-    var acceptSocket: (String) -> Bool = { heimdallSocketAcceptable($0, expected: HeimdallLink.defaultSocket) }
+    /// Which announced `ready`s Vella will send audio to (any local process can post the notification): the announcing
+    /// edition's own fixed socket path, a socket owned by this user and closed to others, from a process signed as that
+    /// edition. So the personal build and the public alpha can never be taken for each other.
+    var acceptAnnouncement: (HeimdallAnnouncement) -> Bool = { HeimdallLink.trusted($0) }
+    nonisolated static func trusted(_ a: HeimdallAnnouncement, home: String = NSHomeDirectory(),
+                                    identity: (Int) -> String? = HeimdallLink.signingIdentifier) -> Bool {
+        guard let app = a.app, let expected = HeimdallApp.socketPath(app: app, home: home), a.socket == expected,
+            heimdallSocketAcceptable(a.socket, expected: expected), let pid = a.pid
+        else { return false }
+        return identity(pid) == app
+    }
+    /// The code-signing identifier of a running process (Heimdall's bundle signs its executable with its app ID).
+    nonisolated static func signingIdentifier(pid: Int) -> String? {
+        var code: SecCode?
+        guard SecCodeCopyGuestWithAttributes(nil, [kSecGuestAttributePid: NSNumber(value: pid)] as CFDictionary, [], &code) == errSecSuccess,
+            let code, SecCodeCheckValidity(code, [], nil) == errSecSuccess
+        else { return nil }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return nil }
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
+            let dict = info as? [String: Any]
+        else { return nil }
+        return dict[kSecCodeInfoIdentifier as String] as? String
+    }
     /// After a failure, ask Heimdall again this much later (a transient `busy` should not keep Vella's own copy loaded
     /// until Heimdall restarts); longer after a timeout, which costs the next dictation the whole deadline.
     var requeryDelay: (_ failure: String) -> TimeInterval = { $0 == "timeout" ? 600 : 60 }
@@ -99,7 +122,7 @@ import VellaCore
         installed = findInstalled()
         bus.observe(HeimdallNames.asr, object: HeimdallNames.heimdallObject) { [weak self] info in
             guard let self, let announcement = HeimdallAnnouncement(userInfo: info) else { return }
-            if announcement.state == .ready, !self.acceptSocket(announcement.socket) { return }
+            if announcement.state == .ready, !self.acceptAnnouncement(announcement) { return }
             self.receive(announcement)
         }
         if let announcer {
@@ -148,7 +171,7 @@ import VellaCore
         onStatus?(
             HeimdallStatus(
                 state: borrow.label, socket: ready?.socket, model: ready?.model, pid: ready?.pid, borrowing: borrowingFamily != nil,
-                last_failure: borrow.lastFailure))
+                last_failure: borrow.lastFailure, app: ready?.app))
     }
 
     /// The socket a dictation recorded with `config` goes to, or nil for Vella's own model.
@@ -172,7 +195,8 @@ import VellaCore
     /// The menu header while Heimdall's row is the choice: "Parakeet v3 Ultra via Heimdall", or "… · Heimdall offline".
     var borrowLabel: String? {
         guard heimdallChosen, let name = familyName(HeimdallNames.sharedModel) else { return nil }
-        return presence == .present ? "\(name) via Heimdall" : "\(name) · Heimdall offline"
+        let heimdall = HeimdallApp.name(app: borrow.ready?.app)
+        return presence == .present ? "\(name) via \(heimdall)" : "\(name) · \(heimdall) offline"
     }
 
     /// One recognition request (a segment's WAV) over Heimdall's socket. A failure marks Heimdall unavailable until its
@@ -220,16 +244,15 @@ import VellaCore
         requery = work
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
-    /// Heimdall's socket by the spec's default path.
-    nonisolated static let defaultSocket = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Application Support/Heimdall/asr.sock").path
+    /// Each edition's socket path (personal first).
+    nonisolated static let editionSockets = HeimdallApp.bundleIdentifiers.compactMap { HeimdallApp.socketPath(app: $0, home: NSHomeDirectory()) }
     private var settled = false
     /// Once, before the first launch-set load: when Heimdall's socket exists but no `ready` arrived yet, wait up to
     /// 1.5 s for its answer to `dev.vella.asr.query`. Without a socket file this returns at once.
-    func settle(socketPath: String = HeimdallLink.defaultSocket, wait: Double = 1.5) async {
+    func settle(socketPaths: [String] = HeimdallLink.editionSockets, wait: Double = 1.5) async {
         guard !settled else { return }
         settled = true
-        guard borrow.ready == nil, FileManager.default.fileExists(atPath: socketPath) else { return }
+        guard borrow.ready == nil, socketPaths.contains(where: { FileManager.default.fileExists(atPath: $0) }) else { return }
         let until = ProcessInfo.processInfo.systemUptime + wait
         while borrow.ready == nil, ProcessInfo.processInfo.systemUptime < until { try? await Task.sleep(nanoseconds: 50_000_000) }
     }
