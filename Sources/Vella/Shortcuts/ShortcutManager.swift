@@ -195,10 +195,14 @@ public final class ShortcutManager: ObservableObject {
         return config.trigger.requiresEventTap ? eventTap : carbon
     }
 
+    /// The binding a press actually uses now: the stored one, or the default chord while it falls back.
+    public var workingConfiguration: ShortcutConfiguration { isUsingFallback ? (activeConfiguration ?? .default) : configuration }
+    /// After every registration, reload or apply (successful or rolled back): Heimdall's hello carries the binding.
+    public var onBindingChange: (() -> Void)?
     private func updateModelHints() {
         // Hints and Start equivalents always reflect the WORKING binding, never stale.
-        let working = isUsingFallback ? (activeConfiguration ?? .default) : configuration
-        modelRef?.shortcutHint = ShortcutLabels.triggerDisplay(working.trigger)
+        modelRef?.shortcutHint = ShortcutLabels.triggerDisplay(workingConfiguration.trigger)
+        onBindingChange?()
     }
 
     /// Load the owned file-backed store (production launch path) and adopt it.

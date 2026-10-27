@@ -92,7 +92,9 @@ import VellaCore
             withExtendedLifetime(recorder) { application.run() }
             return
         }
-        let delegate = AppDelegate()
+        // A lab measurement run (LabDictation) copies its transcripts to a private pasteboard, never the user's clipboard.
+        let lab = LabDictation.requested() && AppDelegate.qaHeadless()
+        let delegate = AppDelegate(model: lab ? DictationController(pasteboard: NSPasteboard.withUniqueName()) : nil)
         application.delegate = delegate
         // Menu and table ↔ runtime; then publish an empty worker status and load the launch set (manual loads only;
         // nothing on a fresh install).

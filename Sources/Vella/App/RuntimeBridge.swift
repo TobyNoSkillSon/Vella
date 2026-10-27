@@ -12,6 +12,7 @@ import VellaCore
     private weak var controller: ModelsController?
     private weak var model: DictationController?
     private var subscription: AnyCancellable?
+    private weak var heimdallLink: HeimdallLink?
     init(runtime: Runtime? = nil) { self.runtime = runtime ?? .shared }
 
     var migrationNotice: ((String) -> Void)?
@@ -342,6 +343,8 @@ import VellaCore
             let path = mode == .dictation ? config.model : config.streamingModel
             guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
             let ref = runtime.resolve(path, mode: mode)
+            // Heimdall serves this model's dictations; Vella's own copy stays unloaded.
+            if mode == .dictation, runtime.borrowedFamily() == ref.id { return }
             switch mode {
             case .dictation: try? await model.backend.preload(ref, residency: .onDemand)
             case .streaming: try? await model.streamingBackend.preload(ref, residency: .onDemand)
@@ -349,11 +352,46 @@ import VellaCore
         }
     }
 
+    // MARK: Heimdall
+
+    /// Heimdall's shared model (docs/HEIMDALL.md) ↔ residency, status and the catalog.
+    func attachHeimdall(_ link: HeimdallLink) {
+        heimdallLink = link
+        link.currentConfiguration = { [weak self] in
+            guard let url = self?.runtime.configURL else { return nil }
+            return (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) } ?? Configuration(model: "")
+        }
+        link.familyOf = { [weak self] config in
+            guard let self else { return nil }
+            // No dictation model yet: the one the first dictation offers (borrowing then needs no download).
+            if config.model.isEmpty { return self.controller?.firstOffered(.dictation)?.family.id }
+            return self.runtime.resolve(config.model, mode: .dictation).id
+        }
+        link.familyName = { [weak self] id in self?.controller?.catalog.family(id)?.name }
+        link.onBorrowChange = { [weak self] now, before in
+            guard let runtime = self?.runtime else { return }
+            if let now {
+                runtime.log("heimdall: dictation borrows Heimdall's \(now)")
+                Task { await runtime.releaseBorrowed(now) }
+            } else if let before {
+                // Heimdall is gone or failed: Vella's normal residency returns (its launch set loads again).
+                runtime.log("heimdall: stopped borrowing \(before)")
+                Task { await runtime.loadLaunchSet() }
+            }
+        }
+        link.onStatus = { [weak self] status in self?.runtime.heimdall = status }
+        link.onLastDictation = { [weak self] status in self?.runtime.lastDictation = status }
+        runtime.borrowedFamily = { [weak link] in link?.borrowingFamily }
+        runtime.settleBorrowing = { [weak link] in await link?.settle() }
+    }
+
     // MARK: Table state
 
     private func publish(_ status: WorkerStatus) {
         guard let controller, !controller.previewing else { return }
         model?.refreshPendingModel()
+        // A Load, Use or Delete may have changed the dictation selection: whether it borrows Heimdall's model.
+        heimdallLink?.reevaluate(residency: false)
         var loaded: [String: LoadedFamily] = [:]
         for (id, entry) in status.models {
             loaded[id] = LoadedFamily(
