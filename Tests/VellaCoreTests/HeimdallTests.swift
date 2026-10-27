@@ -381,22 +381,19 @@ final class HeimdallSelectionTests: XCTestCase {
         XCTAssertEqual(effectiveDictationSource(cleared, heimdallDetected: true), .own, "an upgrade-cleared choice is still a past choice")
         var loaded = Configuration(model: ""); loaded.recordLoad(path: "/m/x", mode: .dictation, family: nil, precision: nil)
         XCTAssertEqual(loaded.dictationSource, .own, "Load and Get record an own choice")
+        // A selection stored before this build is a known choice (Vella writes one only on Get or Load): it stays, even
+        // when it is Vella's own copy of the model Heimdall holds and Heimdall is present (Toby, 28 Oct).
         let ultra = Configuration(model: "/m/ultra")
-        XCTAssertEqual(effectiveDictationSource(ultra, heimdallDetected: true, heimdallPresent: true, selectsSharedModel: true), .heimdall)
-        XCTAssertEqual(effectiveDictationSource(ultra, heimdallDetected: true, heimdallPresent: false, selectsSharedModel: true), .own)
-        XCTAssertTrue(upgradesToHeimdall(ultra, heimdallPresent: true, selectsSharedModel: true))
-        XCTAssertFalse(upgradesToHeimdall(ultra, heimdallPresent: false, selectsSharedModel: true))
-        XCTAssertFalse(upgradesToHeimdall(Configuration(model: "/m/qwen"), heimdallPresent: true, selectsSharedModel: false))
+        XCTAssertEqual(effectiveDictationSource(ultra, heimdallDetected: true), .own)
+        XCTAssertEqual(effectiveDictationSource(Configuration(model: "/m/qwen"), heimdallDetected: true), .own)
         var migrated = Configuration(model: ""); migrated.dictationSource = .heimdall
         migrated.selectModel("/m/replacement", for: .dictation) // what an upgrade migration does
         XCTAssertEqual(migrated.dictationSource, .heimdall, "a migration never changes the choice")
         var untouched = Configuration(model: "/m/ultra-old"); untouched.selectModel("/m/ultra-new", for: .dictation)
         XCTAssertNil(untouched.dictationSource, "nor turns a never-chose user into an explicit one")
+        XCTAssertEqual(effectiveDictationSource(untouched, heimdallDetected: true), .own, "and a migrated legacy selection stays own")
         untouched.markOwnChoice(.dictation)
         XCTAssertEqual(untouched.dictationSource, .own)
-        var markedOwn = ultra; markedOwn.dictationSource = .own
-        XCTAssertFalse(upgradesToHeimdall(markedOwn, heimdallPresent: true, selectsSharedModel: true))
-        XCTAssertEqual(effectiveDictationSource(markedOwn, heimdallDetected: true, heimdallPresent: true, selectsSharedModel: true), .own)
         var heimdall = Configuration(model: "/m/whisper"); heimdall.dictationSource = .heimdall
         XCTAssertEqual(effectiveDictationSource(heimdall, heimdallDetected: false), .heimdall, "and Heimdall going away")
     }

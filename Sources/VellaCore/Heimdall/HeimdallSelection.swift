@@ -30,21 +30,12 @@ public enum HeimdallApp {
     }
 }
 
-/// The dictation source in effect. An explicit choice always wins and survives Heimdall coming and going. Without one:
-/// a fresh install gets Heimdall's model while Heimdall is on this Mac; a selection made before this setting existed
-/// stays, except Vella's own Parakeet v3 Ultra (`selectsSharedModel`), which is the very model Heimdall holds: it moves
-/// to Heimdall's row while Heimdall is present (the upgrade rule: one copy in memory). An upgrade-cleared selection is a
-/// past choice too.
-public func effectiveDictationSource(
-    _ config: Configuration, heimdallDetected: Bool, heimdallPresent: Bool = false, selectsSharedModel: Bool = false
-) -> DictationSource {
+/// The dictation source in effect. An explicit choice always wins and survives Heimdall coming and going. Without one,
+/// a selected model of Vella's own (chosen before this setting existed) stays; only a user who never chose (a fresh
+/// install) gets Heimdall's model while Heimdall is on this Mac.
+public func effectiveDictationSource(_ config: Configuration, heimdallDetected: Bool) -> DictationSource {
     if let chosen = config.dictationSource { return chosen }
-    if !config.model.isEmpty { return selectsSharedModel && heimdallPresent ? .heimdall : .own }
-    if config.clearedSelectionReasons[RecognitionMode.dictation.rawValue] != nil { return .own }
+    // A model chosen before this setting existed, or one an upgrade cleared (its reason is kept until a new choice).
+    if !config.model.isEmpty || config.clearedSelectionReasons[RecognitionMode.dictation.rawValue] != nil { return .own }
     return heimdallDetected ? .heimdall : .own
-}
-/// The upgrade rule applies now: a pre-existing (unmarked) selection of Vella's own Parakeet v3 Ultra, Heimdall present.
-/// The app then records Heimdall's row as the choice and releases Vella's copy, once.
-public func upgradesToHeimdall(_ config: Configuration, heimdallPresent: Bool, selectsSharedModel: Bool) -> Bool {
-    config.dictationSource == nil && !config.model.isEmpty && selectsSharedModel && heimdallPresent
 }

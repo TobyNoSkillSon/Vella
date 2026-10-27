@@ -212,67 +212,26 @@ import VellaTestSupport
         XCTAssertNotNil(e.f.controller.lastError, "a refused switch says so")
         e.f.runtime.endSelection()
     }
-    // MARK: Upgrade rule: a pre-existing selection of Vella's own Ultra (Alpha stands in for it here) moves to Heimdall.
+    // MARK: A selection stored before this build is a known choice (Vella writes one only on Get or Load).
 
-    /// Alpha loaded and selected as a build before this one left it: no explicit-choice marker.
+    /// Alpha (standing in for Vella's own Ultra) loaded and selected as a build before this one left it: no marker.
     private func preexisting(_ e: Env, _ family: ModelFamily) async throws {
         try await e.f.load(family, "BF16")
         var config = try e.f.config(); config.dictationSource = nil
         try JSONEncoder().encode(config).write(to: e.f.runtime.configURL)
-        e.link.isSharedModel = { $0.contains("alpha") }
     }
-    private func settle(_ e: Env) async throws {
-        for _ in 0..<100 where try e.f.config().dictationSource == nil && e.link.presence == .present {
-            try await Task.sleep(nanoseconds: 10_000_000)
-        }
-        try await Task.sleep(nanoseconds: 100_000_000)
-    }
-    func testUpgradeMovesAPreexistingUltraSelectionToHeimdall() async throws {
+    func testAPreexistingOwnUltraSelectionStaysOwnWhenHeimdallAppears() async throws {
         let e = try env(); defer { e.f.close() }
         try await preexisting(e, e.f.alpha)
         e.bus.ready("/tmp/vh-row.sock")
-        try await settle(e)
-        XCTAssertEqual(try source(e), .heimdall)
-        XCTAssertFalse(e.f.runtime.isLoaded("alpha"), "Vella's own copy released")
-        XCTAssertFalse(e.f.runtime.settings.launchSet.contains { $0.id == "alpha" }, "and out of the launch set")
-        XCTAssertEqual(e.counts.fetches, 0, "no download")
-        XCTAssertEqual(e.f.controller.heimdall, .init(presence: .present, chosen: true))
-        XCTAssertNotNil(e.link.socket(for: try e.f.config().forRecording()))
-    }
-    func testUpgradeLeavesAnyOtherPreexistingSelection() async throws {
-        let e = try env(); defer { e.f.close() }
-        try await preexisting(e, e.f.zeta) // Qwen, Parakeet v3, Whisper… anything but Ultra
-        e.bus.ready("/tmp/vh-row.sock")
-        try await settle(e)
-        XCTAssertNil(try source(e), "unchanged, no marker written")
-        XCTAssertTrue(e.f.runtime.isLoaded("zeta"))
-        XCTAssertEqual(e.f.controller.heimdall?.chosen, false)
-        XCTAssertNil(e.link.socket(for: try e.f.config().forRecording()))
-    }
-    func testUpgradeWaitsUntilHeimdallIsPresent() async throws {
-        let e = try env(installed: false); defer { e.f.close() }
-        try await preexisting(e, e.f.alpha)
         e.link.reevaluate()
         try await Task.sleep(nanoseconds: 200_000_000)
-        XCTAssertNil(try source(e), "Heimdall absent: unchanged")
-        XCTAssertTrue(e.f.runtime.isLoaded("alpha"))
-        e.bus.ready("/tmp/vh-row.sock")
-        try await settle(e)
-        XCTAssertEqual(try source(e), .heimdall, "the first time Heimdall is present")
-        XCTAssertFalse(e.f.runtime.isLoaded("alpha"))
-    }
-    func testAnExplicitOwnUltraAfterTheUpgradeStaysOwn() async throws {
-        let e = try env(); defer { e.f.close() }
-        try await preexisting(e, e.f.alpha)
-        e.bus.ready("/tmp/vh-row.sock")
-        try await settle(e)
-        XCTAssertEqual(try source(e), .heimdall)
-        try await e.f.load(e.f.alpha, "BF16") // the user picks Vella's own Ultra through the new flow
-        XCTAssertEqual(try source(e), .own)
-        e.bus.gone(); e.bus.ready("/tmp/vh-row.sock")
-        try await Task.sleep(nanoseconds: 200_000_000)
-        XCTAssertEqual(try source(e), .own, "an explicit choice wins forever")
-        XCTAssertTrue(e.f.runtime.isLoaded("alpha"))
+        XCTAssertNil(try source(e), "no choice is written for him")
+        XCTAssertEqual(e.link.source(for: try e.f.config()), .own, "his own model stays the choice")
+        XCTAssertTrue(e.f.runtime.isLoaded("alpha"), "and stays loaded")
+        XCTAssertEqual(e.f.controller.heimdall?.chosen, false, "the Heimdall row is offered, not chosen")
+        XCTAssertNil(e.link.socket(for: try e.f.config().forRecording()), "nothing is borrowed")
+        XCTAssertEqual(e.counts.fetches, 0)
     }
 
     func testOnlyHeimdallGoneOrAnOwnChoiceReloadsTheLaunchSet() async throws {
