@@ -12,10 +12,11 @@ import VellaTestSupport
     func observe(_ name: String, object: String?, _ handler: @escaping @MainActor ([AnyHashable: Any]?) -> Void) { handlers[name] = handler }
     func deliver(_ name: String, _ info: [AnyHashable: Any]? = nil) { handlers[name]?(info) }
     func states() -> [[String: Any]] { posts.filter { $0.name == HeimdallNames.dictationState }.compactMap(\.info) }
-    func ready(_ socket: String, pid: Int = 77) {
+    /// The fake server runs in this process, so the default pid passes the peer check.
+    func ready(_ socket: String, pid: Int = Int(getpid())) {
         deliver(HeimdallNames.asr, ["v": 1, "state": "ready", "socket": socket, "model": "parakeet-v3-ultra", "pid": pid, "sent": 1.0])
     }
-    func gone(pid: Int = 77) { deliver(HeimdallNames.asr, ["v": 1, "state": "gone", "socket": "", "model": "parakeet-v3-ultra", "pid": pid]) }
+    func gone(pid: Int = Int(getpid())) { deliver(HeimdallNames.asr, ["v": 1, "state": "gone", "socket": "", "model": "parakeet-v3-ultra", "pid": pid]) }
 }
 
 private final class TestRegistrar: ShortcutRegistrar {
@@ -66,7 +67,7 @@ private final class TestRegistrar: ShortcutRegistrar {
         XCTAssertTrue(manager.apply(hold))
         let states = bus.states()
         XCTAssertEqual(states.map { $0["reason"] as? String }, ["hello", "hello"])
-        XCTAssertEqual(states.last?["shortcut"] as? String, shortcutSignalFields(hold).json)
+        XCTAssertEqual(try JSONDecoder().decode(ShortcutConfiguration.self, from: Data((states.last?["shortcut"] as? String ?? "").utf8)), hold)
         XCTAssertEqual(states.last?["shortcutLabel"] as? String, ShortcutLabels.display(hold))
         XCTAssertTrue(manager.apply(hold))
         XCTAssertEqual(bus.states().count, 2, "re-applying the same binding sends no hello")
@@ -142,7 +143,8 @@ private final class TestRegistrar: ShortcutRegistrar {
         let link = HeimdallLink(bus: bus, announcesDictation: false)
         link.familyOf = { _ in family }
         link.currentConfiguration = { Configuration(model: "/models/parakeet-ultra") }
-        if let timeout { link.exchange = { try await HeimdallASRClient.transcribe(socket: $0, samples: $1, timeout: timeout) } }
+        link.acceptSocket = { _ in true } // the fake server lives in /tmp, not Heimdall's support folder
+        if let timeout { link.exchange = { try await HeimdallASRClient.transcribe(socket: $0, samples: $1, timeout: timeout, peer: $2) } }
         var last: LastDictationStatus?
         var changes: [String?] = []
         link.onLastDictation = { last = $0 }
@@ -260,6 +262,46 @@ private final class TestRegistrar: ShortcutRegistrar {
         XCTAssertEqual(r.own.calls, 0)
     }
 
+    func testAnotherProcessCannotPoseAsHeimdall() async throws {
+        let server = try FakeHeimdallServer(reply: .ok("forged")); defer { server.stop() }
+        let r = try rig(); defer { r.model.shutdown() }
+        r.link.acceptSocket = { heimdallSocketAcceptable($0, expected: HeimdallLink.defaultSocket) }
+        r.bus.ready(server.path)
+        XCTAssertEqual(r.link.borrow.label, "absent", "a socket outside Heimdall's folder is ignored")
+        XCTAssertFalse(heimdallSocketAcceptable(server.path, expected: server.path + ".other"))
+        XCTAssertTrue(heimdallSocketAcceptable(server.path, expected: server.path), "the real socket: user-owned, 0600")
+        // A socket whose peer is not the announcing process.
+        r.link.acceptSocket = { _ in true }
+        r.bus.ready(server.path, pid: 1)
+        try await dictate(r)
+        XCTAssertEqual(r.lastDictation()?.fallback, "connect")
+        XCTAssertEqual(r.model.lastText, "own model text")
+    }
+    func testAFailureFromAnEarlierHeimdallLeavesTheNewOneAvailable() async throws {
+        let server = try FakeHeimdallServer(reply: .ok("new")); defer { server.stop() }
+        let r = try rig(); defer { r.model.shutdown() }
+        r.bus.ready("/tmp/vh-old.sock", pid: Int(getpid()))
+        // The request to the old socket fails while the new Heimdall announces.
+        r.link.exchange = { [bus = r.bus, path = server.path] _, _, _ in
+            bus.ready(path)
+            throw HeimdallASRError.connect("closed")
+        }
+        try await dictate(r)
+        XCTAssertEqual(r.lastDictation()?.path, "vella")
+        XCTAssertEqual(r.link.borrow.label, "ready", "the newer Heimdall is not marked unavailable")
+    }
+    func testAfterAFailureVellaAsksHeimdallAgainLater() async throws {
+        let server = try FakeHeimdallServer(reply: .error("busy")); defer { server.stop() }
+        let r = try rig(); defer { r.model.shutdown() }
+        r.link.requeryDelay = { _ in 0.1 }
+        r.bus.ready(server.path)
+        let before = r.bus.posts.filter { $0.name == HeimdallNames.asrQuery }.count
+        try await dictate(r)
+        XCTAssertEqual(r.link.borrow.label, "unavailable")
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(r.bus.posts.filter { $0.name == HeimdallNames.asrQuery }.count, before + 1)
+    }
+
     // MARK: Residency
 
     func testBorrowedFamilyStaysUnloadedButKeepsItsLaunchSetEntry() async throws {
@@ -278,13 +320,19 @@ private final class TestRegistrar: ShortcutRegistrar {
         await f.runtime.loadLaunchSet()
         XCTAssertTrue(f.runtime.isLoaded("alpha"), "normal residency returns")
     }
-    func testABusyModelIsNotReleased() async throws {
+    func testABusyModelIsReleasedOnlyOnceIdle() async throws {
         let f = try TwoFamilyFixture(root); defer { f.close() }
         try await f.load(f.alpha, "BF16")
+        f.runtime.borrowReleaseDelay = 0.2
+        f.runtime.borrowedFamily = { "alpha" }
         f.runtime.pin("alpha")
         await f.runtime.releaseBorrowed("alpha")
-        XCTAssertTrue(f.runtime.isLoaded("alpha"))
+        XCTAssertTrue(f.runtime.isLoaded("alpha"), "never unloaded while it serves")
         f.runtime.unpin("alpha")
+        XCTAssertTrue(f.runtime.isLoaded("alpha"), "not at once: an API job's next segment would reload it")
+        for _ in 0..<100 where f.runtime.isLoaded("alpha") { try await Task.sleep(nanoseconds: 20_000_000) }
+        XCTAssertFalse(f.runtime.isLoaded("alpha"))
+        XCTAssertEqual(f.runtime.settings.launchSet.map(\.id), ["alpha"])
     }
     func testStatusCarriesHeimdallAndTheLastPath() throws {
         let runtime = try Runtime.isolated(root)
@@ -331,6 +379,7 @@ private final class TestRegistrar: ShortcutRegistrar {
         link.familyOf = { _ in "parakeet-v3-ultra" }
         link.familyName = { _ in "Parakeet v3 Ultra" }
         link.currentConfiguration = { Configuration(model: "") }
+        link.acceptSocket = { _ in true }
         bus.ready("/tmp/vh-menu.sock")
         delegate.rebuildMenu()
         XCTAssertTrue(delegate.menu.items.first?.title.hasSuffix(" · Parakeet v3 Ultra via Heimdall") == true, delegate.menu.items.first?.title ?? "")

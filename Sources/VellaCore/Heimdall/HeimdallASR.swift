@@ -47,7 +47,13 @@ public struct HeimdallBorrowState: Equatable, Sendable {
             ready = nil; unavailable = false
         }
     }
-    public mutating func failed(_ reason: String) { if ready != nil { unavailable = true }; lastFailure = reason }
+    /// A request to `announcement`'s Heimdall failed. A failure from an earlier Heimdall (it restarted and announced
+    /// again while the request ran) leaves the newer one available.
+    public mutating func failed(_ reason: String, for announcement: HeimdallAnnouncement? = nil) {
+        if let announcement, announcement != ready { return }
+        if ready != nil { unavailable = true }
+        lastFailure = reason
+    }
     /// The socket to use for a dictation of `family`, or nil when Vella's own model serves it.
     public func socket(for family: String?) -> String? {
         guard let ready, !unavailable, family == HeimdallNames.sharedModel, ready.model == HeimdallNames.sharedModel else { return nil }
@@ -137,15 +143,17 @@ public func heimdallWAVSamples(_ data: Data) throws -> [Float] {
             format = u16(body); channels = u16(body + 2); rate = u32(body + 4); bits = u16(body + 14)
         } else if id == "data" {
             guard channels == 1, rate == 16_000 else { throw bad }
-            return data.withUnsafeBytes { raw in
+            let samples = data.withUnsafeBytes { raw -> [Float]? in
                 if format == 1, bits == 16 {
                     return (0..<size / 2).map { Float(Int16(littleEndian: raw.loadUnaligned(fromByteOffset: body + $0 * 2, as: Int16.self))) / 32768 }
                 }
                 if format == 3, bits == 32 {
                     return (0..<size / 4).map { Float(bitPattern: UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: body + $0 * 4, as: UInt32.self))) }
                 }
-                return []
+                return nil
             }
+            guard let samples else { throw bad } // another sample format
+            return samples
         }
         offset = body + size + (size & 1)
     }
@@ -155,12 +163,13 @@ public func heimdallWAVSamples(_ data: Data) throws -> [Float] {
 /// One request per connection, as the spec says: the JSON header line, the raw audio, then one reply line. Blocking
 /// POSIX I/O on a background thread with one overall deadline; cancellation is checked every 50 ms.
 public enum HeimdallASRClient {
-    public static func transcribe(socket path: String, samples: [Float], timeout: Double? = nil) async throws -> HeimdallTranscript {
+    /// `peer`: Heimdall's announced pid; the connected socket's peer must be that process.
+    public static func transcribe(socket path: String, samples: [Float], timeout: Double? = nil, peer: Int32? = nil) async throws -> HeimdallTranscript {
         let seconds = Double(samples.count) / 16_000
         guard seconds <= HeimdallASRWire.maxSeconds else { throw HeimdallASRError.rejected("too_long") }
         var request = HeimdallASRWire.header(samples: samples.count)
         request.append(HeimdallASRWire.body(samples))
-        let line = try await exchange(socket: path, request: request, timeout: timeout ?? HeimdallASRWire.timeout(audioSeconds: seconds))
+        let line = try await exchange(socket: path, request: request, timeout: timeout ?? HeimdallASRWire.timeout(audioSeconds: seconds), peer: peer)
         return try HeimdallASRWire.parse(line).get()
     }
     /// `{"op":"status"}`: whether Heimdall answers ok, within `timeout`.
@@ -177,19 +186,20 @@ public enum HeimdallASRClient {
         func set() { lock.lock(); value = true; lock.unlock() }
         var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
     }
-    public static func exchange(socket path: String, request: Data, timeout: Double) async throws -> Data {
+    public static func exchange(socket path: String, request: Data, timeout: Double, peer: Int32? = nil) async throws -> Data {
         let cancelled = Flag()
         return try await withTaskCancellationHandler(
             operation: {
                 try await withCheckedThrowingContinuation { continuation in
                     DispatchQueue.global(qos: .userInitiated).async {
-                        continuation.resume(with: Result(catching: { try blockingExchange(path, request, deadline: Date().timeIntervalSince1970 + timeout, cancelled: cancelled) }))
+                        let deadline = Date().timeIntervalSince1970 + timeout
+                        continuation.resume(with: Result(catching: { try blockingExchange(path, request, deadline: deadline, peer: peer, cancelled: cancelled) }))
                     }
                 }
             }, onCancel: { cancelled.set() })
     }
 
-    private static func blockingExchange(_ path: String, _ request: Data, deadline: Double, cancelled: Flag) throws -> Data {
+    private static func blockingExchange(_ path: String, _ request: Data, deadline: Double, peer: Int32?, cancelled: Flag) throws -> Data {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw HeimdallASRError.connect("socket") }
         defer { close(fd) }
@@ -213,6 +223,10 @@ public enum HeimdallASRClient {
             var error: Int32 = 0, length = socklen_t(MemoryLayout<Int32>.size)
             getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length)
             guard error == 0 else { throw HeimdallASRError.connect(String(cString: strerror(error))) }
+        }
+        if let peer {
+            var pid: pid_t = 0, length = socklen_t(MemoryLayout<pid_t>.size)
+            guard getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &length) == 0, pid == peer else { throw HeimdallASRError.connect("peer") }
         }
         var sent = 0
         while sent < request.count {
@@ -248,6 +262,15 @@ public enum HeimdallASRClient {
             if ready < 0, errno != EINTR { throw HeimdallASRError.connect("poll") }
         }
     }
+}
+
+/// A `ready` socket Vella will send audio to: the spec's path, a Unix socket owned by this user and closed to others.
+/// Anything else (another process announcing its own socket) is ignored.
+public func heimdallSocketAcceptable(_ path: String, expected: String) -> Bool {
+    guard path == expected else { return false }
+    var info = stat()
+    guard lstat(path, &info) == 0 else { return false }
+    return (info.st_mode & S_IFMT) == S_IFSOCK && info.st_uid == getuid() && info.st_mode & 0o077 == 0
 }
 
 // MARK: - Status

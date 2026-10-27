@@ -194,8 +194,27 @@ import VellaWire
     /// Heimdall holds this family's model and Vella borrows it: unload Vella's idle copy, keeping its launch-set entry.
     /// A model serving a request or loading is left alone.
     func releaseBorrowed(_ id: String) async {
-        guard let entry = entries[id], (pinned[id] ?? 0) == 0, loading != id else { return }
+        guard let entry = entries[id] else { return }
+        // Busy (a request, an API job, a load): try again once it has been idle a while.
+        guard (pinned[id] ?? 0) == 0, loading != id else { scheduleBorrowRelease(id); return }
         await evict(id, reason: "heimdall: dictation borrows Heimdall's \(entry.ref.displayName); Vella's copy unloaded until Heimdall is gone")
+    }
+    /// How long Vella's copy of a borrowed family may stay idle after it served (an API file job loads it on demand;
+    /// releasing between its segments would reload it for every one).
+    var borrowReleaseDelay: TimeInterval = 30
+    private var borrowRelease: [String: DispatchWorkItem] = [:]
+    private func scheduleBorrowRelease(_ id: String) {
+        borrowRelease[id]?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.borrowRelease[id] = nil
+                guard self.borrowedFamily() == id else { return }
+                Task { await self.releaseBorrowed(id) }
+            }
+        }
+        borrowRelease[id] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + borrowReleaseDelay, execute: work)
     }
     /// A launch-set entry as on-demand dictation resolves its path; nil when it names a catalog precision its files no
     /// longer run (e.g. an imported uniform checkpoint recorded for a tier that is now a mixed recipe).
@@ -390,6 +409,7 @@ import VellaWire
     func unpin(_ id: String) {
         pinned[id] = max(0, (pinned[id] ?? 1) - 1)
         touch(id)
+        if borrowedFamily() == id, entries[id] != nil { scheduleBorrowRelease(id) }
     }
     /// Keeps a model out of eviction (and its idle timer paused) without counting as a use: the dictation model while
     /// an API job loads and runs another model. `unshield` re-arms the timer from the unchanged last use.
@@ -400,6 +420,7 @@ import VellaWire
     func unshield(_ id: String) {
         pinned[id] = max(0, (pinned[id] ?? 1) - 1)
         schedule(id)
+        if borrowedFamily() == id, entries[id] != nil { scheduleBorrowRelease(id) }
     }
     /// Load-then-select transactions in flight (the table's Load/Reload). Until one ends, the loaded precision and
     /// config.json's selection may disagree, so API work waits instead of acting on either.

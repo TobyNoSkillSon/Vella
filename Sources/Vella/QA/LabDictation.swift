@@ -12,6 +12,8 @@ import VellaCore
 ///     --lab-rounds N            rounds (default 3; the first own round includes loading the model)
 ///     --lab-hold S              stay up S seconds after the last round (memory sampling), then quit
 ///     --lab-out FILE.jsonl      also append each result line here
+///     --lab-socket PATH         treat PATH as Heimdall's ready socket (local only; nothing is broadcast), instead of
+///                               waiting for Heimdall's own announcement
 ///
 /// Each result is one JSON line on stdout: the path asked, the path that served, milliseconds from the end of the audio
 /// (the saved recording handed to transcription, as Finish does) to the final text, the audio length and the text.
@@ -68,6 +70,9 @@ import VellaCore
         guard let path = value("--lab-dictate", arguments), let link = delegate.heimdall else {
             emit(["error": "usage: --lab-dictate FILE.wav (QA headless only)"], to: out); return
         }
+        if let socket = value("--lab-socket", arguments) {
+            link.receive(HeimdallAnnouncement(state: .ready, socket: socket, model: HeimdallNames.sharedModel))
+        }
         do {
             let audio = try samples(URL(fileURLWithPath: path))
             // Let the runtime start and Heimdall answer the launch query.
@@ -94,12 +99,15 @@ import VellaCore
                     try writer.finish(userStopped: true)
                     // Wait for the previous run's success flash to settle (it never blocks a new transcription).
                     let start = ProcessInfo.processInfo.systemUptime
-                    model.labTranscribe(session)
+                    guard model.labTranscribe(session) else {
+                        emit(["round": round, "via": via, "error": "Vella was busy; round skipped"], to: out); continue
+                    }
                     while model.phase == .transcribing || model.phase == .preparing { try await Task.sleep(nanoseconds: 1_000_000) }
                     let ms = (ProcessInfo.processInfo.systemUptime - start) * 1000
+                    let succeeded = model.phase == .success || model.phase == .idle
                     var line: [String: Any] = [
-                        "round": round, "via": via, "served": model.lastRoute?.path ?? "none", "ms": (ms * 10).rounded() / 10,
-                        "audio_s": Double(audio.count) / 16_000, "phase": String(describing: model.phase), "text": model.lastText
+                        "round": round, "via": via, "served": model.lastRoute?.path ?? "none", "ms": NSDecimalNumber(string: String(format: "%.1f", ms)),
+                        "audio_s": Double(audio.count) / 16_000, "phase": String(describing: model.phase), "text": succeeded ? model.lastText : ""
                     ]
                     if let fallback = model.lastRoute?.fallback { line["fallback"] = fallback }
                     if model.phase == .failed { line["error"] = model.message }

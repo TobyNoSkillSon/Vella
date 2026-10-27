@@ -66,9 +66,11 @@ public struct DictationSignalPayload: Equatable, Sendable {
     }
 }
 
-/// The active binding as `shortcuts.json` stores it, and its display form (`⌃⌘N · Toggle`).
+/// The active binding as `shortcuts.json` stores it (the same object, keys sorted so equal bindings give equal text),
+/// and its display form (`⌃⌘N · Toggle`).
 public func shortcutSignalFields(_ config: ShortcutConfiguration) -> (json: String, label: String) {
-    let data = (try? JSONEncoder().encode(config)) ?? Data()
+    let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+    let data = (try? encoder.encode(config)) ?? Data()
     return (String(decoding: data, as: UTF8.self), ShortcutLabels.display(config))
 }
 
@@ -87,6 +89,16 @@ public func shortcutSignalFields(_ config: ShortcutConfiguration) -> (json: Stri
     public var mode: () -> String = { "dictation" }
     /// The working binding (`shortcuts.json` form, display label).
     public var shortcut: () -> (json: String, label: String) = { shortcutSignalFields(.default) }
+    /// While on: keep App Nap from throttling the heartbeat timer (a user-initiated activity; idle sleep stays allowed).
+    public var holdActivity: (Bool) -> Void = DictationAnnouncer.processActivity
+    nonisolated(unsafe) private static var activity: NSObjectProtocol?
+    public static let processActivity: (Bool) -> Void = { on in
+        if on, activity == nil {
+            activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "Vella dictation heartbeat")
+        } else if !on, let current = activity {
+            ProcessInfo.processInfo.endActivity(current); activity = nil
+        }
+    }
     private var tracker = DictationSignalTracker()
     private var cancelHeartbeat: (() -> Void)?
     private var announcedShortcut: String?
@@ -118,6 +130,7 @@ public func shortcutSignalFields(_ config: ShortcutConfiguration) -> (json: Stri
         } else {
             cancelHeartbeat?(); cancelHeartbeat = nil
         }
+        holdActivity(tracker.on)
     }
     /// A heartbeat timer tick; posts only while on.
     public func heartbeat() {
@@ -138,6 +151,7 @@ public func shortcutSignalFields(_ config: ShortcutConfiguration) -> (json: Stri
     public func quit() {
         guard !quitPosted else { return }
         cancelHeartbeat?(); cancelHeartbeat = nil
+        holdActivity(false)
         send(.quit, forceOff: true)
         quitPosted = true
     }

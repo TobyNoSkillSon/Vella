@@ -17,7 +17,7 @@ import VellaCore
     let updates: UpdateController
     private(set) var shortcutManager: ShortcutManager
     /// Heimdall's two channels (docs/HEIMDALL.md); set at launch.
-    private(set) var heimdall: HeimdallLink?
+    var heimdall: HeimdallLink?
     /// Launch: Heimdall's shared model in every instance; the dictation signal only in the real menu-bar app (a QA or lab
     /// instance never records, and must not speak for the user's Vella).
     func startHeimdall(bus: HeimdallBus? = nil, announcesDictation: Bool) {
@@ -211,7 +211,8 @@ import VellaCore
         if Self.qaHeadless() {
             configureHUDPanel()
             model.onChange = { [weak self] in self?.refresh() }
-            startHeimdall(announcesDictation: false)
+            // QA runs stay independent of a running Heimdall; only a lab measurement borrows its model.
+            if LabDictation.requested() { startHeimdall(announcesDictation: false) }
             LabDictation.startIfRequested(delegate: self)
             return
         }

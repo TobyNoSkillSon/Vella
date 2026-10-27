@@ -104,7 +104,12 @@ final class DocCLIExamplesTests: XCTestCase {
                     } else {
                         XCTAssertEqual(output[0], VellaCLI.modelLine(row), location)
                     }
-                case "status": XCTAssertEqual(output[0], VellaCLI.statusLine(status, port: 63080), location)
+                case "status":
+                    if args.contains("--json") {
+                        XCTAssertNotNil((try? JSONSerialization.jsonObject(with: Data(output[0].utf8))) as? [String: Any], location)
+                    } else {
+                        XCTAssertEqual(output[0], VellaCLI.statusLine(status, port: 63080), location)
+                    }
                 case "url": XCTAssertEqual(output, ["http://127.0.0.1:63080/v1"], location)
                 case "diagnose": XCTAssertTrue(output.last?.contains("prefilled GitHub bug report") == true, location)
                 case "select", "get", "load", "reload", "unload", "delete": XCTAssertEqual(output[0], VellaCLI.modelLine(row), location)

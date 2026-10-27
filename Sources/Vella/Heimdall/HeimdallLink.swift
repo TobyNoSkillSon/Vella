@@ -51,9 +51,17 @@ import VellaCore
     /// Lab runs: force a path (`own` never asks Heimdall; `heimdall` asks it and never falls back).
     enum Route: String { case own, heimdall }
     var labRoute: Route?
-    var exchange: (_ socket: String, _ samples: [Float]) async throws -> HeimdallTranscript = { socket, samples in
-        try await HeimdallASRClient.transcribe(socket: socket, samples: samples)
+    /// The connection's peer must be the announcing process when the announcement names one.
+    var exchange: (_ socket: String, _ samples: [Float], _ peer: Int32?) async throws -> HeimdallTranscript = { socket, samples, peer in
+        try await HeimdallASRClient.transcribe(socket: socket, samples: samples, peer: peer)
     }
+    /// Which announced `ready` sockets Vella will send audio to: only the spec's path, a socket owned by this user and
+    /// closed to others (any local process can post the notification).
+    var acceptSocket: (String) -> Bool = { heimdallSocketAcceptable($0, expected: HeimdallLink.defaultSocket) }
+    /// After a failure, ask Heimdall again this much later (a transient `busy` should not keep Vella's own copy loaded
+    /// until Heimdall restarts); longer after a timeout, which costs the next dictation the whole deadline.
+    var requeryDelay: (_ failure: String) -> TimeInterval = { $0 == "timeout" ? 600 : 60 }
+    private var requery: DispatchWorkItem?
     private(set) var borrowingFamily: String?
 
     init(bus: HeimdallBus, announcesDictation: Bool, announcer: DictationAnnouncer? = nil) {
@@ -72,8 +80,9 @@ import VellaCore
     /// Observe Heimdall, ask whether its model is ready, and say hello.
     func start() {
         bus.observe(HeimdallNames.asr, object: HeimdallNames.heimdallObject) { [weak self] info in
-            guard let announcement = HeimdallAnnouncement(userInfo: info) else { return }
-            self?.receive(announcement)
+            guard let self, let announcement = HeimdallAnnouncement(userInfo: info) else { return }
+            if announcement.state == .ready, !self.acceptSocket(announcement.socket) { return }
+            self.receive(announcement)
         }
         if let announcer {
             bus.observe(HeimdallNames.vellaQuery, object: HeimdallNames.heimdallObject) { [weak announcer] _ in announcer?.hello() }
@@ -83,6 +92,7 @@ import VellaCore
         publish()
     }
     func receive(_ announcement: HeimdallAnnouncement) {
+        if announcement.state == .ready { requery?.cancel(); requery = nil }
         borrow.receive(announcement)
         reevaluate()
     }
@@ -119,9 +129,10 @@ import VellaCore
     /// One recognition request (a segment's WAV) over Heimdall's socket. A failure marks Heimdall unavailable until its
     /// next `ready` and rethrows; the caller falls back to Vella's own model. Cancellation is not a failure.
     func transcribe(wav: URL, socket: String) async throws -> String {
+        let asked = borrow.ready
         do {
             let samples = try heimdallWAVSamples(Data(contentsOf: wav))
-            let reply = try await exchange(socket, samples)
+            let reply = try await exchange(socket, samples, asked?.socket == socket ? asked?.pid.map { Int32($0) } : nil)
             return reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch let error as HeimdallASRError where error == .cancelled {
             throw CancellationError()
@@ -130,12 +141,25 @@ import VellaCore
         } catch {
             if Task.isCancelled { throw CancellationError() }
             let code = (error as? HeimdallASRError)?.code ?? "error"
-            borrow.failed(code)
+            let before = borrow
+            borrow.failed(code, for: labRoute == .heimdall ? borrow.ready : asked)
             reevaluate()
+            if borrow.unavailable, !before.unavailable { scheduleRequery(after: requeryDelay(code)) }
             throw error
         }
     }
     func recordDictation(_ status: LastDictationStatus) { onLastDictation?(status) }
+    private func scheduleRequery(after delay: TimeInterval) {
+        requery?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, self.borrow.unavailable else { return }
+                self.bus.post(HeimdallNames.asrQuery, object: HeimdallNames.dictationObject, userInfo: nil)
+            }
+        }
+        requery = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
     /// Heimdall's socket by the spec's default path.
     nonisolated static let defaultSocket = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/Heimdall/asr.sock").path

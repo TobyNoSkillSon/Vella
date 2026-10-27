@@ -581,6 +581,7 @@ import VellaCore
     /// Lab runs (`--lab-dictate`): the saved recording's latest transcription, its route and its time.
     private(set) var lastRoute: (path: String?, seconds: Double, fallback: String?)?
     private func runTranscription(_ session: RecordingSession, liveStream: Bool = false) {
+        lastRoute = nil
         let borrows = session.manifest.config.mode == .dictation && heimdall?.socket(for: session.manifest.config) != nil
         if session.manifest.config.model.isEmpty && !borrows { awaitModel(session); return }
         pendingModelRequest = nil
@@ -590,7 +591,6 @@ import VellaCore
         update(.transcribing, "Transcribing saved segments locally. Estimates exclude unknown model-loading and queue delays.")
         let started = ProcessInfo.processInfo.systemUptime
         let route = RouteLog()
-        lastRoute = nil
         task = Task {
             do {
                 let own: SessionTranscriber.Request = transcriptionRequest ?? { [backend] url, config in try await backend.transcribe(url, config: config) }
@@ -633,8 +633,9 @@ import VellaCore
                 }
                 var observedAudio = 0.0, observedProcessing = 0.0
                 runner.onObservation = { _, audio, processing in
-                    // Heimdall's timings are not Vella's model speed.
-                    guard route.lastWasOwn else { return }
+                    // Heimdall's timings are not Vella's model speed, and the first own request after a fallback includes
+                    // loading the model.
+                    guard route.lastWasOwn, route.own > 1 || route.heimdall == 0 else { return }
                     observedAudio += audio; observedProcessing += processing
                 }
                 let used = session.manifest.config.model
@@ -748,12 +749,13 @@ import VellaCore
     }
     /// Lab runs (`--lab-dictate`): transcribe a finished recording exactly as Finish does, minus capture and insertion
     /// into another app (the lab's pasteboard is private).
-    func labTranscribe(_ session: RecordingSession) {
-        guard !busy, phase != .recording else { return }
+    @discardableResult func labTranscribe(_ session: RecordingSession) -> Bool {
+        guard !busy, phase != .recording else { return false }
         captureGeneration &+= 1
         operation = UUID(); destinationCheck = nil; allowAutomaticInsertion = false
         savedSession = session
         runTranscription(session)
+        return true
     }
     func cancel() {
         let liveTextWasSent = liveInsertion?.didSend == true

@@ -30,6 +30,8 @@ public final class FakeHeimdallServer: @unchecked Sendable {
 
     public init(reply: Reply) throws {
         self.reply = reply
+        // A client that hangs up early must not kill the test process when this server answers.
+        signal(SIGPIPE, SIG_IGN)
         path = "/tmp/vh-\(UUID().uuidString.prefix(8)).sock"
         unlink(path)
         listener = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -76,6 +78,7 @@ public final class FakeHeimdallServer: @unchecked Sendable {
         var line = Data()
         while let byte = readByte(fd), byte != 10 { line.append(byte) }
         let object = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] ?? [:]
+        guard !line.isEmpty else { return } // the client left before sending (e.g. a peer check failed)
         let samples = (object["samples"] as? NSNumber)?.intValue ?? 0
         var body = Data()
         var chunk = [UInt8](repeating: 0, count: 65_536)

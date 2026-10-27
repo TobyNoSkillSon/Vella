@@ -121,7 +121,7 @@ import VellaTestSupport
         // Exactly shortcuts.json's form: it decodes back to the binding.
         let decoded = try JSONDecoder().decode(ShortcutConfiguration.self, from: Data((info["shortcut"] as? String ?? "").utf8))
         XCTAssertEqual(decoded, .default)
-        XCTAssertEqual(info["shortcut"] as? String, String(decoding: try JSONEncoder().encode(ShortcutConfiguration.default), as: UTF8.self))
+        XCTAssertEqual(shortcutSignalFields(.default).json, shortcutSignalFields(.default).json, "stable text for an equal binding")
     }
 
     final class FakeTimer {
@@ -132,8 +132,11 @@ import VellaTestSupport
             { interval, fire in self.interval = interval; self.fire = fire; return { self.cancels += 1; self.fire = nil } }
         }
     }
+    var activity: [Bool] = []
     private func announcer(_ posts: @escaping ([String: Any]) -> Void, clock: @escaping () -> Double, timer: FakeTimer) -> DictationAnnouncer {
-        DictationAnnouncer(pid: 7, now: clock, startTimer: timer.start, post: posts)
+        let a = DictationAnnouncer(pid: 7, now: clock, startTimer: timer.start, post: posts)
+        a.holdActivity = { [unowned self] in self.activity.append($0) }
+        return a
     }
 
     func testHeartbeatEvery15SecondsWhileOnAndNoneAfter() {
@@ -154,6 +157,7 @@ import VellaTestSupport
         XCTAssertEqual(posts.map { $0["sent"] as? Double }, [100, 115, 130, 145, 145])
         XCTAssertEqual(Set(posts.map { $0["session"] as? String }).count, 1, "one session throughout")
         XCTAssertEqual(posts.first?["pid"] as? Int, 7)
+        XCTAssertEqual(activity, [true, false], "App Nap is held off only while on")
     }
     func testHelloQuitAndShortcutChange() throws {
         var posts: [[String: Any]] = []
@@ -213,6 +217,16 @@ final class HeimdallASRCoreTests: XCTestCase {
         XCTAssertEqual(state.socket(for: "parakeet-v3-ultra"), "/tmp/h.sock")
         XCTAssertNil(state.lastFailure)
     }
+    func testAStaleFailureDoesNotDisableANewerHeimdall() {
+        var state = HeimdallBorrowState()
+        let old = ready(pid: 1)
+        state.receive(old)
+        state.receive(ready(pid: 2))
+        state.failed("connect", for: old)
+        XCTAssertEqual(state.label, "ready")
+        state.failed("busy", for: ready(pid: 2))
+        XCTAssertEqual(state.label, "unavailable")
+    }
     func testGoneEndsBorrowingButNotAnotherHeimdallsReadiness() {
         var state = HeimdallBorrowState()
         state.receive(ready(pid: 9))
@@ -255,6 +269,7 @@ final class HeimdallASRCoreTests: XCTestCase {
         XCTAssertThrowsError(try heimdallWAVSamples(wav(format: 1, bits: 16, rate: 44_100, body: pcm)))
         XCTAssertThrowsError(try heimdallWAVSamples(wav(format: 1, bits: 16, channels: 2, body: pcm)))
         XCTAssertThrowsError(try heimdallWAVSamples(Data("garbage".utf8)))
+        XCTAssertThrowsError(try heimdallWAVSamples(wav(format: 1, bits: 24, body: Data(count: 6))), "never silence for another format")
     }
     func testStatusFieldsRoundTripAndOldFilesStillDecode() throws {
         var status = WorkerStatus()
@@ -279,6 +294,14 @@ final class HeimdallASRCoreTests: XCTestCase {
 /// The client against a fake Heimdall socket: ok, busy, garbage, silence (timeout), close mid-request, and no socket.
 final class HeimdallSocketClientTests: XCTestCase {
     let audio: [Float] = (0..<8000).map { Float($0 % 100) / 100 }
+    func testThePeerMustBeTheAnnouncedProcess() async throws {
+        let server = try FakeHeimdallServer(reply: .ok("x")); defer { server.stop() }
+        let ok = try await HeimdallASRClient.transcribe(socket: server.path, samples: audio, peer: getpid())
+        XCTAssertEqual(ok.text, "x")
+        do { _ = try await HeimdallASRClient.transcribe(socket: server.path, samples: audio, peer: 1); XCTFail() } catch let error as HeimdallASRError {
+            XCTAssertEqual(error, .connect("peer"))
+        }
+    }
     func testOkSendsTheHeaderAndEveryByte() async throws {
         let server = try FakeHeimdallServer(reply: .ok("hello there")); defer { server.stop() }
         let reply = try await HeimdallASRClient.transcribe(socket: server.path, samples: audio)
