@@ -217,6 +217,17 @@ final class HeimdallASRCoreTests: XCTestCase {
         XCTAssertEqual(state.socket(for: "parakeet-v3-ultra"), "/tmp/h.sock")
         XCTAssertNil(state.lastFailure)
     }
+    func testAReannouncementDuringARequestKeepsItsFailure() {
+        var state = HeimdallBorrowState()
+        let asked = HeimdallAnnouncement(state: .ready, socket: "/s", model: "parakeet-v3-ultra", pid: 4, sent: 1)
+        state.receive(asked)
+        state.receive(HeimdallAnnouncement(state: .ready, socket: "/s", model: "parakeet-v3-ultra", pid: 4, sent: 2)) // a query reply
+        state.failed("busy", for: asked)
+        XCTAssertEqual(state.label, "unavailable")
+    }
+    func testAReadyWithoutAPidIsIgnored() {
+        XCTAssertNil(HeimdallAnnouncement(userInfo: ["v": 1, "state": "ready", "socket": "/x/asr.sock", "model": "parakeet-v3-ultra"]))
+    }
     func testAStaleFailureDoesNotDisableANewerHeimdall() {
         var state = HeimdallBorrowState()
         let old = ready(pid: 1)
@@ -368,14 +379,21 @@ final class HeimdallSelectionTests: XCTestCase {
         XCTAssertEqual(effectiveDictationSource(own, heimdallDetected: true), .own, "an explicit choice survives Heimdall appearing")
         var cleared = Configuration(model: ""); cleared.clearedSelectionReasons["dictation"] = "retired"
         XCTAssertEqual(effectiveDictationSource(cleared, heimdallDetected: true), .own, "an upgrade-cleared choice is still a past choice")
-        var selected = Configuration(model: ""); selected.selectModel("/m/x", for: .dictation)
-        XCTAssertEqual(selected.dictationSource, .own, "every way of choosing an own dictation model records it")
+        var loaded = Configuration(model: ""); loaded.recordLoad(path: "/m/x", mode: .dictation, family: nil, precision: nil)
+        XCTAssertEqual(loaded.dictationSource, .own, "Load and Get record an own choice")
         let ultra = Configuration(model: "/m/ultra")
         XCTAssertEqual(effectiveDictationSource(ultra, heimdallDetected: true, heimdallPresent: true, selectsSharedModel: true), .heimdall)
         XCTAssertEqual(effectiveDictationSource(ultra, heimdallDetected: true, heimdallPresent: false, selectsSharedModel: true), .own)
         XCTAssertTrue(upgradesToHeimdall(ultra, heimdallPresent: true, selectsSharedModel: true))
         XCTAssertFalse(upgradesToHeimdall(ultra, heimdallPresent: false, selectsSharedModel: true))
         XCTAssertFalse(upgradesToHeimdall(Configuration(model: "/m/qwen"), heimdallPresent: true, selectsSharedModel: false))
+        var migrated = Configuration(model: ""); migrated.dictationSource = .heimdall
+        migrated.selectModel("/m/replacement", for: .dictation) // what an upgrade migration does
+        XCTAssertEqual(migrated.dictationSource, .heimdall, "a migration never changes the choice")
+        var untouched = Configuration(model: "/m/ultra-old"); untouched.selectModel("/m/ultra-new", for: .dictation)
+        XCTAssertNil(untouched.dictationSource, "nor turns a never-chose user into an explicit one")
+        untouched.markOwnChoice(.dictation)
+        XCTAssertEqual(untouched.dictationSource, .own)
         var markedOwn = ultra; markedOwn.dictationSource = .own
         XCTAssertFalse(upgradesToHeimdall(markedOwn, heimdallPresent: true, selectsSharedModel: true))
         XCTAssertEqual(effectiveDictationSource(markedOwn, heimdallDetected: true, heimdallPresent: true, selectsSharedModel: true), .own)

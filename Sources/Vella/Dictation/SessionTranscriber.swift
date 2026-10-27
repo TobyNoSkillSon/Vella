@@ -38,7 +38,7 @@ struct TranscriptionEstimate {
     var whole: (([Float]) async throws -> String?)?
     init(request: @escaping Request) { self.request = request }
     /// Each segment's audio once, in order: the first in full, later ones without the overlap they repeat.
-    static func wholeAudio(_ session: RecordingSession) throws -> [Float] {
+    nonisolated static func wholeAudio(_ session: RecordingSession) throws -> [Float] {
         var audio: [Float] = []
         audio.reserveCapacity(session.manifest.segments.reduce(0) { $0 + max(0, $1.frames - $1.overlapFrames) } + 16_000)
         for (k, segment) in session.manifest.segments.enumerated() where segment.frames > (k == 0 ? 0 : segment.overlapFrames) {
@@ -55,7 +55,8 @@ struct TranscriptionEstimate {
         // Borrowing: send the whole recording first, so Heimdall decodes while the journal below is written.
         var early: Task<String?, Error>?
         if available == nil, let whole, !session.manifest.segments.isEmpty, session.manifest.segments.allSatisfy({ $0.text == nil }) {
-            let audio = try Self.wholeAudio(session)
+            // Up to ~38 MB for a 10-minute recording: read and verified off the main actor.
+            let audio = try await Task.detached(priority: .userInitiated) { try Self.wholeAudio(session) }.value
             if !audio.isEmpty { early = Task { @MainActor in try await whole(audio) } }
         }
         session.manifest.state = "transcribing"; session.manifest.failureCode = nil

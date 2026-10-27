@@ -30,6 +30,12 @@ import VellaCore
     deinit { DistributedNotificationCenter.default().removeObserver(self) }
 }
 
+/// Drops everything: renders, and every app instance under XCTest (tests never speak to a real Heimdall).
+@MainActor final class SilentHeimdallBus: HeimdallBus {
+    func post(_ name: String, object: String, userInfo: [String: Any]?) {}
+    func observe(_ name: String, object: String?, _ handler: @escaping @MainActor ([AnyHashable: Any]?) -> Void) {}
+}
+
 /// Vella's side of both Heimdall channels (docs/HEIMDALL.md). Harmless without Heimdall: posting with no observer costs
 /// nothing, no connection is made until Heimdall has announced a socket, and nothing asks for a permission.
 @MainActor final class HeimdallLink {
@@ -122,7 +128,12 @@ import VellaCore
     }
     /// Heimdall's app is on this Mac, or its model answered (a development build outside Applications).
     var detected: Bool { installed || answered }
-    var presence: HeimdallPresence { .of(installed: installed || answered, ready: borrow.ready != nil, unavailable: borrow.unavailable) }
+    /// Whether the announcing process still runs (a crash posts no `gone`).
+    var processAlive: (Int) -> Bool = { pid in kill(pid_t(pid), 0) == 0 || errno == EPERM }
+    var presence: HeimdallPresence {
+        let answering = borrow.ready.map { $0.pid.map(processAlive) ?? true } ?? false
+        return .of(installed: installed || answered, ready: answering, unavailable: borrow.unavailable)
+    }
     /// The choice in effect for `config`.
     func source(for config: Configuration) -> DictationSource {
         effectiveDictationSource(
@@ -188,6 +199,9 @@ import VellaCore
     func transcribe(samples: [Float], socket: String) async throws -> String {
         let asked = borrow.ready
         do {
+            // Just before connecting: still a socket owned by this user, closed to others, not a link (lab runs name
+            // their own socket).
+            if labRoute == nil, !heimdallSocketAcceptable(socket, expected: socket) { throw HeimdallASRError.connect("socket") }
             let start = ProcessInfo.processInfo.systemUptime
             let reply = try await exchange(socket, samples, asked?.socket == socket ? asked?.pid.map { Int32($0) } : nil)
             let end = ProcessInfo.processInfo.systemUptime

@@ -310,10 +310,42 @@ private final class TestRegistrar: ShortcutRegistrar {
         XCTAssertEqual(r.lastDictation()?.fallback, "connect")
         XCTAssertEqual(r.model.lastText, "own model text")
     }
+    func testALinkToTheSocketIsRefusedJustBeforeConnecting() async throws {
+        let server = try FakeHeimdallServer(reply: .ok("via a link")); defer { server.stop() }
+        let r = try rig(); defer { r.model.shutdown() }
+        let link = "/tmp/vh-link-\(UUID().uuidString.prefix(6)).sock"
+        try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: server.path)
+        defer { try? FileManager.default.removeItem(atPath: link) }
+        r.bus.ready(link)
+        try await dictate(r)
+        XCTAssertEqual(r.lastDictation()?.fallback, "connect")
+        XCTAssertTrue(server.requests.isEmpty)
+    }
+    func testACrashedHeimdallIsNotReportedPresent() {
+        let r = try? rig(); defer { r?.model.shutdown() }
+        guard let r else { return XCTFail() }
+        r.bus.ready("/tmp/vh-crashed.sock", pid: 999_999) // no such process: it crashed without saying gone
+        XCTAssertEqual(r.link.presence, .offline)
+        r.bus.ready("/tmp/vh-crashed.sock")
+        XCTAssertEqual(r.link.presence, .present)
+    }
+    func testTestsAndBareBinariesNeverReachARealHeimdall() throws {
+        let model = try controller(); defer { model.shutdown() }
+        let delegate = AppDelegate(
+            model: model,
+            shortcutManager: ShortcutManager(
+                engine: ShortcutEngine(configuration: .default, sinks: .init(start: {}, finish: {}, cancel: {}, isRecording: { false }, isBusy: { false })),
+                store: ShortcutStore(), registrar: TestRegistrar()))
+        delegate.startHeimdall(announcesDictation: true)
+        let link = try XCTUnwrap(delegate.heimdall)
+        XCTAssertTrue(link.bus is SilentHeimdallBus, "under XCTest nothing is posted to the real center")
+        XCTAssertNil(link.announcer, "nor announced")
+    }
     func testAFailureFromAnEarlierHeimdallLeavesTheNewOneAvailable() async throws {
         let server = try FakeHeimdallServer(reply: .ok("new")); defer { server.stop() }
+        let old = try FakeHeimdallServer(reply: .ok("old")); defer { old.stop() }
         let r = try rig(); defer { r.model.shutdown() }
-        r.bus.ready("/tmp/vh-old.sock", pid: Int(getpid()))
+        r.bus.ready(old.path, pid: Int(getpid()))
         // The request to the old socket fails while the new Heimdall announces.
         var calls = 0
         r.link.exchange = { [bus = r.bus, path = server.path] socket, samples, peer in

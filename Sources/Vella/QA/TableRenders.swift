@@ -634,10 +634,6 @@ import VellaUpdate
         var heimdall = false
     }
     /// Renders never post or observe anything: Heimdall's link gets a bus that drops everything.
-    private final class SilentBus: HeimdallBus {
-        func post(_ name: String, object: String, userInfo: [String: Any]?) {}
-        func observe(_ name: String, object: String?, _ handler: @escaping @MainActor ([AnyHashable: Any]?) -> Void) {}
-    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -680,7 +676,7 @@ import VellaUpdate
         app.pendingModelRow = { state.pending }
         app.workersRunning = { state.worker }
         if state.heimdall {
-            let link = HeimdallLink(bus: SilentBus(), announcesDictation: false)
+            let link = HeimdallLink(bus: SilentHeimdallBus(), announcesDictation: false)
             link.findInstalled = { true }
             link.familyName = { [weak controller = app.modelsMenu.controller] in controller?.catalog.family($0)?.name }
             link.currentConfiguration = { Configuration(model: "") }

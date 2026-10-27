@@ -359,10 +359,7 @@ import VellaCore
     /// Heimdall's shared model (docs/HEIMDALL.md) ↔ residency, status and the catalog.
     func attachHeimdall(_ link: HeimdallLink) {
         heimdallLink = link
-        link.currentConfiguration = { [weak self] in
-            guard let url = self?.runtime.configURL else { return nil }
-            return (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) } ?? Configuration(model: "")
-        }
+        link.currentConfiguration = { [weak self] in self?.cachedConfiguration() }
         link.ownSharedModelPath = { [weak self] in
             // Vella's own Parakeet v3 Ultra only if its files are here: the committed precision first, then any.
             guard let self, let controller = self.controller, let family = controller.catalog.family(HeimdallNames.sharedModel) else { return nil }
@@ -388,15 +385,16 @@ import VellaCore
             controller.heimdall = ModelsController.HeimdallRow(presence: link.presence, chosen: link.heimdallChosen)
         }
         link.familyName = { [weak self] id in self?.controller?.catalog.family(id)?.name }
-        link.onBorrowChange = { [weak self] now, before in
-            guard let runtime = self?.runtime else { return }
+        link.onBorrowChange = { [weak self, weak link] now, before in
+            guard let runtime = self?.runtime, let link else { return }
             if let now {
                 runtime.log("heimdall: dictation borrows Heimdall's \(now)")
                 Task { await runtime.releaseBorrowed(now) }
             } else if let before {
-                // Heimdall is gone or failed: Vella's normal residency returns (its launch set loads again).
                 runtime.log("heimdall: stopped borrowing \(before)")
-                Task { await runtime.loadLaunchSet() }
+                // Heimdall gone, or an own model chosen: Vella's launch set loads again. A one-off failure does not:
+                // the next ready would unload it again.
+                if link.borrow.ready == nil || !link.heimdallChosen { Task { await runtime.loadLaunchSet() } }
             }
         }
         link.onStatus = { [weak self] status in self?.runtime.heimdall = status }
@@ -408,6 +406,17 @@ import VellaCore
     /// The "from Heimdall" row's single selection action: record the explicit choice, then release Vella's own dictation
     /// models (their workers exit and they leave the launch set). Nothing is asked of Heimdall. Refused while a
     /// dictation records or transcribes, or a model is loading or in use, like Load.
+    /// config.json, decoded again only when the file changed (the link asks on every status change).
+    private var configCache: (stamp: [FileAttributeKey: AnyHashable], config: Configuration)?
+    func cachedConfiguration() -> Configuration {
+        let url = runtime.configURL
+        let attributes = (try? FileManager.default.attributesOfItem(atPath: url.path)) ?? [:]
+        let stamp = attributes.filter { [.modificationDate, .size, .systemFileNumber].contains($0.key) }.compactMapValues { $0 as? AnyHashable }
+        if let configCache, !stamp.isEmpty, configCache.stamp == stamp { return configCache.config }
+        let config = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) } ?? Configuration(model: "")
+        configCache = stamp.isEmpty ? nil : (stamp, config)
+        return config
+    }
     private var sharedModelPaths: [String: Bool] = [:]
     /// Vella's own Parakeet v3 Ultra at any precision (cached per path: the link asks on every check).
     func isSharedModel(_ path: String) -> Bool {

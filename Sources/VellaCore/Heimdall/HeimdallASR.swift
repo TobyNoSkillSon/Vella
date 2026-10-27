@@ -22,7 +22,7 @@ public struct HeimdallAnnouncement: Equatable, Sendable {
             let raw = info["state"] as? String, let state = State(rawValue: raw)
         else { return nil }
         let socket = info["socket"] as? String ?? ""
-        if state == .ready, !socket.hasPrefix("/") || socket.utf8.count >= 104 { return nil }
+        if state == .ready, !socket.hasPrefix("/") || socket.utf8.count >= 104 || (info["pid"] as? NSNumber) == nil { return nil }
         self.state = state; self.socket = socket
         model = info["model"] as? String ?? ""
         pid = (info["pid"] as? NSNumber)?.intValue
@@ -50,7 +50,8 @@ public struct HeimdallBorrowState: Equatable, Sendable {
     /// A request to `announcement`'s Heimdall failed. A failure from an earlier Heimdall (it restarted and announced
     /// again while the request ran) leaves the newer one available.
     public mutating func failed(_ reason: String, for announcement: HeimdallAnnouncement? = nil) {
-        if let announcement, announcement != ready { return }
+        // Same Heimdall process and socket; a re-announcement (`sent` differs, e.g. a reply to a query) is the same one.
+        if let announcement, announcement.pid != ready?.pid || announcement.socket != ready?.socket { return }
         if ready != nil { unavailable = true }
         lastFailure = reason
     }
@@ -221,6 +222,11 @@ public enum HeimdallASRClient {
             var error: Int32 = 0, length = socklen_t(MemoryLayout<Int32>.size)
             getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length)
             guard error == 0 else { throw HeimdallASRError.connect(String(cString: strerror(error))) }
+        }
+        // The other end must run as this user.
+        var credentials = xucred(), credentialsLength = socklen_t(MemoryLayout<xucred>.size)
+        guard getsockopt(fd, SOL_LOCAL, LOCAL_PEERCRED, &credentials, &credentialsLength) == 0, credentials.cr_uid == geteuid() else {
+            throw HeimdallASRError.connect("peer")
         }
         if let peer {
             var pid: pid_t = 0, length = socklen_t(MemoryLayout<pid_t>.size)

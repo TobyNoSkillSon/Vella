@@ -56,14 +56,16 @@ public struct Configuration: Codable {
     /// loads) and its family remembers the precision.
     public mutating func recordLoad(path: String, mode: RecognitionMode, family: String?, precision: String?, selection: ModelSelection? = nil) {
         selectModel(path, for: mode)
+        markOwnChoice(mode)
         if let family, let precision { lastLoaded[family] = precision }
         if let family, let selection { selections[family] = selection.request }
     }
     public var selectedModel: String { mode == .dictation ? model : streamingModel }
+    /// The user chose a dictation model of Vella's own (Load, Get, Use): an explicit choice over Heimdall's row. Only user
+    /// actions call this; migrations re-select through `selectModel` and leave the choice as it was.
+    public mutating func markOwnChoice(_ mode: RecognitionMode) { if mode == .dictation { dictationSource = .own } }
     public mutating func selectModel(_ path: String, for mode: RecognitionMode) {
         if !path.isEmpty { clearedSelectionReasons[mode.rawValue] = nil }
-        // Choosing a dictation model of Vella's own is an explicit choice of it over Heimdall's.
-        if !path.isEmpty, mode == .dictation { dictationSource = .own }
         if mode == .dictation { model = path } else { streamingModel = path }
     }
     public func forRecording() throws -> Configuration {

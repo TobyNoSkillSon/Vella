@@ -47,12 +47,17 @@ a dictation that genuinely runs longer keeps its heartbeats and stays muted.
 delay, clamped to 0–2 s). An utterance whose audio overlaps dictation intervals for at least half its length is
 dictated: archived as usual, never sent early, never a spoken command, never decided on, never a wake; it enters
 the agent's context as `[dictated to Vella] …`.
+Triggers are judged per word, whatever the line's share: only words whose middle lies outside dictation can name
+Heimdall, say "send it", fall in the follow-up window, stop it or match a spoken command, so a few dictated words in a
+spoken line never wake it and words said after the stop wake as usual. In such a mixed line the decider and the agent
+see the dictated run marked `[dictated to Vella: …]`; the archive keeps the words as said.
 
 ## Channel 2: the transcription socket
 
 Heimdall announces itself with `dev.heimdall.asr` (object `"dev.heimdall"`) when its listen model is ready and when
 it stops, and in reply to Vella's `dev.vella.asr.query`. userInfo: `v` 1, `state` (`ready` | `gone`), `socket`
-(absolute path, `~/Library/Application Support/Heimdall/asr.sock`, mode 0600), `model` (`parakeet-v3-ultra`),
+(absolute path; for the installed app always `~/Library/Application Support/Heimdall/asr.sock`, even when the
+public edition's data folder has moved; mode 0600), `model` (`parakeet-v3-ultra`),
 `pid`, `sent`.
 
 One connection per request. Request: one JSON line, then raw audio:
@@ -82,3 +87,5 @@ dictation for more than one live step.
 announced `ready`. Any connect failure, `ok:false` or no reply within 5 s plus a tenth of the audio length falls back to Vella's own model for that
 dictation (loading it if needed) and marks Heimdall unavailable until its next `ready`. While borrowing, Vella keeps
 its own Parakeet Ultra unloaded and does not need it downloaded.
+
+**Vella side (as built):** Vella sends one request per finished dictation (the whole recording, overlaps removed) and borrows when its Models table's "Parakeet v3 Ultra · from Heimdall" row is the dictation choice: chosen explicitly, the default for a user who never chose, or a pre-existing own-Ultra selection moved over when Heimdall is present; an explicit own model never borrows.

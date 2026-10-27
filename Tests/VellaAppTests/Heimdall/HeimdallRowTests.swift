@@ -234,6 +234,7 @@ import VellaTestSupport
         try await settle(e)
         XCTAssertEqual(try source(e), .heimdall)
         XCTAssertFalse(e.f.runtime.isLoaded("alpha"), "Vella's own copy released")
+        XCTAssertFalse(e.f.runtime.settings.launchSet.contains { $0.id == "alpha" }, "and out of the launch set")
         XCTAssertEqual(e.counts.fetches, 0, "no download")
         XCTAssertEqual(e.f.controller.heimdall, .init(presence: .present, chosen: true))
         XCTAssertNotNil(e.link.socket(for: try e.f.config().forRecording()))
@@ -274,6 +275,39 @@ import VellaTestSupport
         XCTAssertTrue(e.f.runtime.isLoaded("alpha"))
     }
 
+    func testOnlyHeimdallGoneOrAnOwnChoiceReloadsTheLaunchSet() async throws {
+        let server = try FakeHeimdallServer(reply: .error("busy")); defer { server.stop() }
+        let e = try env(); defer { e.f.close() }
+        e.bus.ready(server.path)
+        try await e.f.bridge.useHeimdall()
+        var reloads = 0
+        e.f.runtime.settleBorrowing = { reloads += 1 } // runs at the start of every launch-set load
+        try await dictate(e) // busy: a one-off failure
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(e.link.presence, .offline)
+        XCTAssertEqual(reloads, 0, "the next ready would only unload it again")
+        e.bus.ready(server.path); e.bus.gone()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(reloads, 1, "gone: Vella's normal residency returns")
+    }
+    func testAMigrationKeepsAnExplicitHeimdallChoice() async throws {
+        let e = try env(); defer { e.f.close() }
+        var config = try e.f.config()
+        config.model = root.appendingPathComponent("retired-model").path // outside the catalog: the migration clears it
+        config.dictationSource = .heimdall
+        try JSONEncoder().encode(config).write(to: e.f.runtime.configURL)
+        e.f.controller.reloadConfig()
+        _ = e.f.controller.clearSelectionsOutsideTheCatalog()
+        XCTAssertEqual(try e.f.config().model, "", "the migration ran")
+        XCTAssertEqual(try source(e), .heimdall)
+    }
+    func testConfigurationCacheFollowsTheFile() throws {
+        let e = try env(); defer { e.f.close() }
+        XCTAssertNil(e.f.bridge.cachedConfiguration().dictationSource)
+        var config = try e.f.config(); config.dictationSource = .own
+        try JSONEncoder().encode(config).write(to: e.f.runtime.configURL)
+        XCTAssertEqual(e.f.bridge.cachedConfiguration().dictationSource, .own)
+    }
     func testHeimdallGoingOfflineMidSwitchLeavesAConsistentChoice() async throws {
         let e = try env(); defer { e.f.close() }
         try await e.f.load(e.f.alpha, "BF16")

@@ -102,8 +102,15 @@ import XCTest
         try Data("{}".utf8).write(to: folder.appendingPathComponent("session.json"))
         try Data("Launch restored text.".utf8).write(to: folder.appendingPathComponent("transcript.txt"))
         try FileManager.default.setAttributes([.creationDate: Date().addingTimeInterval(3_600)], ofItemAtPath: folder.path)
+        // Headless needs an absolute support folder too, else this takes the full launch path (status item, shortcut).
+        let hadSupport = ProcessInfo.processInfo.environment["VELLA_SUPPORT_DIR"] != nil
         setenv("VELLA_QA_HEADLESS", "1", 1)
-        defer { unsetenv("VELLA_QA_HEADLESS") }
+        if !hadSupport { setenv("VELLA_SUPPORT_DIR", Backend.support.path, 1) }
+        defer {
+            unsetenv("VELLA_QA_HEADLESS")
+            if !hadSupport { unsetenv("VELLA_SUPPORT_DIR") }
+        }
+        XCTAssertTrue(AppDelegate.qaHeadless())
         let model = try launchedModel(); defer { model.shutdown() }
         XCTAssertEqual(model.lastText, "")
         AppDelegate(model: model).applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))

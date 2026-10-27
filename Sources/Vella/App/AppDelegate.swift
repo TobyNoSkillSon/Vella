@@ -21,7 +21,12 @@ import VellaCore
     /// Launch: Heimdall's shared model in every instance; the dictation signal only in the real menu-bar app (a QA or lab
     /// instance never records, and must not speak for the user's Vella).
     func startHeimdall(bus: HeimdallBus? = nil, announcesDictation: Bool) {
-        let link = HeimdallLink(bus: bus ?? DistributedHeimdallBus(), announcesDictation: announcesDictation)
+        // Under XCTest nothing reaches a real Heimdall; a binary not running from an app bundle (a bare debug build)
+        // never announces dictation for the user.
+        let testing = NSClassFromString("XCTestCase") != nil
+        let bundled = Bundle.main.bundleURL.pathExtension == "app"
+        let link = HeimdallLink(
+            bus: bus ?? (testing ? SilentHeimdallBus() : DistributedHeimdallBus()), announcesDictation: announcesDictation && (bundled || testing && bus != nil))
         if let announcer = link.announcer {
             announcer.mode = { [weak model] in model?.mode.rawValue ?? "dictation" }
             announcer.shortcut = { [weak self] in shortcutSignalFields(self?.shortcutManager.workingConfiguration ?? .default) }
