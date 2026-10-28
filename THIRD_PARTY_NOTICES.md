@@ -2507,7 +2507,7 @@ LibriSpeech by Vassil Panayotov, Guoguo Chen, Daniel Povey and Sanjeev Khudanpur
 
 Vella.app contains no model weights. When you confirm a download, Vella fetches the pinned revision from Hugging Face, including its README.md model card. Apart from Nemotron 3.5 Transcribe, the model repositories provide no separate licence files; the model cards and linked upstream terms govern the weights. Precisions without a published download are made on your Mac from the downloaded weights and are not redistributed. Each model's licence also shows in its table tooltip.
 
-| Model | In the app | Licence | Licence URL / clarification | Upstream weights | MLX downloads (Hugging Face) |
+| Model | In the app | Licence | Licence URL / clarification | Upstream weights | Downloads (Hugging Face) |
 |---|---|---|---|---|---|
 | Parakeet v3 Ultra | yes | cc-by-4.0 | https://creativecommons.org/licenses/by/4.0/ | moondream/parakeet-ultra (post-trained from nvidia/parakeet-tdt-0.6b-v3) | `selcukkubur/parakeet-ultra-mlx` |
 | Parakeet v3 | yes | cc-by-4.0 | https://creativecommons.org/licenses/by/4.0/ | nvidia/parakeet-tdt-0.6b-v3 | `animaslabs/parakeet-tdt-0.6b-v3-mlx` |

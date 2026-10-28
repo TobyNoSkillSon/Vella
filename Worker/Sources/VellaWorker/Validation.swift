@@ -23,7 +23,7 @@ func admitCheckpoint(_ path: URL) throws -> Architecture {
     var architecture = config["model_type"] as? String
     // NeMo transducer checkpoints carry no model_type (the catalog's MLX Parakeet); only TDT ones load.
     if architecture == nil, config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" { architecture = "parakeet" }
-    // Nemotron 3.5 Transcribe: Vella's MLX tiers say so; NVIDIA's BF16 original is a NeMo SpeechLM with that class.
+    // Nemotron 3.5 Transcribe: NVIDIA's BF16 release (the download) is a NeMo SpeechLM with that class; an MLX export says so itself.
     if architecture == "nemo_speechlm", (config["architectures"] as? [String])?.contains("Nemotron3_5TranscribeForConditionalGeneration") == true {
         architecture = "nemotron_transcribe"
     }

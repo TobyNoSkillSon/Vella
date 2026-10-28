@@ -124,10 +124,11 @@ extension WorkerTests {
             return ratio
         }
 
-        /// MLX's affine bound, in steps: half a step of rounding, plus up to one step where the group's far edge is clipped
-        /// (MLX snaps the scale so the near edge, and zero, are exact), plus the BF16 rounding of the stored scale
-        /// (relative 2⁻⁹, times up to 2^bits − 1 levels).
-        static func affineBound(bits: Int) -> Float { 0.5 + 1 + Float((1 << bits) - 1) / 512 + 0.01 }
+        /// MLX's affine bound, in steps. MLX computes the codes with the full-precision scale and bias, then stores both
+        /// in BF16 (8 significant bits, relative rounding up to 2⁻⁸). So: half a step of rounding, plus up to one step
+        /// where the group's far edge is clipped (MLX snaps the scale so the near edge, and zero, are exact), plus the
+        /// stored scale's rounding times up to 2^bits − 1 levels and the stored bias's rounding (bounded the same way).
+        static func affineBound(bits: Int) -> Float { 0.5 + 1 + 2 * Float((1 << bits) - 1) / 256 + 0.05 }
 
         /// The layer holds exactly what MLX's own quantize makes of the source tensor (bits, group, layout).
         static func sameAsQuantize(_ source: MLXArray, weight: MLXArray, scales: MLXArray, biases: MLXArray?, bits: Int) -> Bool {
@@ -228,7 +229,9 @@ extension WorkerTests {
             let bf16 = home.appendingPathComponent("NVIDIA-Nemotron-3.5-Transcribe-30B-A4B")
             let references = [4: home.appendingPathComponent("Nemotron-3.5-Transcribe-30B-A4B-MLX-q4mix"),
                               8: home.appendingPathComponent("Nemotron-3.5-Transcribe-30B-A4B-MLX-q8mix")]
+            let savedCacheLimit = Memory.cacheLimit
             Memory.cacheLimit = 256 << 20
+            defer { Memory.cacheLimit = savedCacheLimit }
             let start = Date()
             Memory.peakMemory = 0
             let model = try NemotronTranscribeModel.skeleton(bf16)
@@ -252,7 +255,6 @@ extension WorkerTests {
             }
             var report: [String: Any] = [:]
             var mismatches: [Int: [String]] = [4: [], 8: []], compared: [Int: Int] = [4: 0, 8: 0]
-            var peakSystemCheck = 0
             for index in sources.indices {
                 var produced: [Int: Set<String>] = [4: [], 8: []]
                 for key in sources[index].tensors.keys.sorted() {
@@ -279,7 +281,6 @@ extension WorkerTests {
                         }
                     }
                     Memory.clearCache()
-                    peakSystemCheck += 1
                 }
                 for bits in [4, 8] {
                     // Whatever the reference holds that the derivation did not produce.

@@ -115,8 +115,9 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         }
         var config = checkpointQuantization.value
         if let derived {
-            guard let bits = derived.bits, let group = derived.groupSize, derived.dtype == nil, derived.floatModules.isEmpty else {
-                throw DerivedPrecision.Invalid.manifest("Nemotron Transcribe derives int8 or int4 only")
+            // The recipe (and its golden test) is group 64; the expert width 1856 does not divide by 128.
+            guard let bits = derived.bits, let group = derived.groupSize, group == 64, derived.dtype == nil, derived.floatModules.isEmpty else {
+                throw DerivedPrecision.Invalid.manifest("Nemotron Transcribe derives int8 or int4 at group 64 only")
             }
             let plan = NemotronTranscribeRecipe.decoderPlan(self, precisionBits: bits)
             config = NemotronTranscribeRecipe.quantize(&weights, plan: plan, groupSize: group)

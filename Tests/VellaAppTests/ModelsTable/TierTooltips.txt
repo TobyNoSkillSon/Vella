@@ -226,11 +226,11 @@ bf16, as published
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int8 · Exact · M5 Max]
-8-bit decoder projections, 16-bit embeddings and encoders (affine-8 g64)
+8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int4 · Exact · M5 Max]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings and encoders (affine-4 g64)
+4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Exact/Fast]
@@ -242,11 +242,11 @@ bf16, as published
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int8 · Fast · M5 Max]
-8-bit decoder projections, 16-bit embeddings and encoders (affine-8 g64)
+8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int4 · Fast · M5 Max]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings and encoders (affine-4 g64)
+4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
 Not measured yet
 
 [Nemotron 3.5 Streaming · Bolt]
@@ -490,11 +490,11 @@ bf16, as published
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int8 · Exact · M4 Pro]
-8-bit decoder projections, 16-bit embeddings and encoders (affine-8 g64)
+8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int4 · Exact · M4 Pro]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings and encoders (affine-4 g64)
+4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision bf16 · Fast · M4 Pro]
@@ -502,11 +502,11 @@ bf16, as published
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int8 · Fast · M4 Pro]
-8-bit decoder projections, 16-bit embeddings and encoders (affine-8 g64)
+8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int4 · Fast · M4 Pro]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings and encoders (affine-4 g64)
+4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
 Not measured yet
 
 [Nemotron 3.5 Streaming · Precision bf16 · Exact · M4 Pro]
@@ -748,11 +748,11 @@ bf16, as published
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int8 · Exact · M1]
-8-bit decoder projections, 16-bit embeddings and encoders (affine-8 g64)
+8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int4 · Exact · M1]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings and encoders (affine-4 g64)
+4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision bf16 · Fast · M1]
@@ -760,11 +760,11 @@ bf16, as published
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int8 · Fast · M1]
-8-bit decoder projections, 16-bit embeddings and encoders (affine-8 g64)
+8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
 Not measured yet
 
 [Nemotron 3.5 Transcribe · Precision int4 · Fast · M1]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings and encoders (affine-4 g64)
+4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
 Not measured yet
 
 [Nemotron 3.5 Streaming · Precision bf16 · Exact · M1]

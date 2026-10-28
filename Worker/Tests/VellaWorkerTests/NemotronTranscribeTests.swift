@@ -141,7 +141,7 @@ extension WorkerTests {
 
         /// NVIDIA's BF16 checkpoint carries the MTP head under llm.mtp.*; every one maps to the head (header only).
         @Test func nvidiaMTPKeysCoverTheCheckpoint() throws {
-            let file = URL(fileURLWithPath: Self.localFolders[2]).appendingPathComponent("model.safetensors")
+            let file = URL(fileURLWithPath: Self.localFolders[0]).appendingPathComponent("model.safetensors")
             guard let handle = try? FileHandle(forReadingFrom: file) else { return }
             defer { try? handle.close() }
             let size = try handle.read(upToCount: 8)!.withUnsafeBytes { $0.loadUnaligned(as: UInt64.self) }
@@ -163,8 +163,6 @@ extension WorkerTests {
         }
 
         static let localFolders = [
-            NSHomeDirectory() + "/Models/Nemotron-3.5-Transcribe-30B-A4B-MLX-q4mix",
-            NSHomeDirectory() + "/Models/Nemotron-3.5-Transcribe-30B-A4B-MLX-q8mix",
             NSHomeDirectory() + "/Models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B"
         ]
 
@@ -175,7 +173,9 @@ extension WorkerTests {
         @Test(.enabled(if: ProcessInfo.processInfo.environment["VELLA_NEMOTRON_TRANSCRIBE_MODEL"] != nil))
         func parityWithPythonReference() async throws {
             let env = ProcessInfo.processInfo.environment
-            let model = try await NemotronTranscribeModel.fromModelDirectory(URL(fileURLWithPath: env["VELLA_NEMOTRON_TRANSCRIBE_MODEL"]!))
+            // A model folder, or a derived precision's manifest-only directory (int4 made at load from the BF16 download).
+            let path = URL(fileURLWithPath: env["VELLA_NEMOTRON_TRANSCRIBE_MODEL"]!)
+            let model = try await NemotronTranscribeModel.fromModelDirectory(path, derived: try DerivedPrecision.resolve(path))
             let refDir = URL(fileURLWithPath: env["VELLA_NEMOTRON_TRANSCRIBE_REF"]!)
             let ref = try JSONSerialization.jsonObject(with: Data(contentsOf: refDir.appendingPathComponent("ref.json"))) as! [String: [String: Any]]
             var report: [String: Any] = [:]

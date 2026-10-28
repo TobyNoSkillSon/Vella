@@ -183,6 +183,8 @@ func footnoteLines(_ keys: [MeasureKey]) -> [String] {
 func recipeText(_ family: JSON, _ tier: String) -> String {
     if tier == "16" { return family["native_dtype"] as? String == "float32" ? "converted once from the fp32 download" : "the checkpoint as published" }
     let variant = (family["variants"] as? [String: JSON])?[tier == "8" ? "8b" : "4b"] ?? [:]
+    // A tier whose architecture's loader applies its own mix states it in the catalog (`recipe`).
+    if let recipe = variant["recipe"] as? String { return "made at load from the \(dtypeLabel(family, "16")) weights: \(recipe)" }
     guard let group = (variant["groupSize"] as? NSNumber)?.intValue else { fail("\(family["id"] ?? "?"): the \(tier == "8" ? "8b" : "4b") variant has no groupSize") }
     var text = "affine group \(group) from the \(dtypeLabel(family, "16")) weights"
     if let kept = variant["floatModules"] as? [String], !kept.isEmpty {
@@ -298,8 +300,8 @@ func renderBlock(_ folder: String, _ models: JSON, _ bench: JSON) -> String {
             "Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "
                 + "\"vs Standard\" compares the same tier's Optimized cell with its Standard cell. \"Offered\" is `tiers_offered` in "
                 + "`Resources/models.json`; \"Gate vs 16\" is the quality gate and presence verdict in `Resources/benchmarks.json`. "
-                + "A quantized tier rounds only the Linear and Embedding layers whose input width the group size divides; every other tensor "
-                + "and every kept module stays at the source dtype." + extra,
+                + "A quantized tier rounds only the Linear and Embedding layers whose input width the group size divides, unless its row "
+                + "states its own recipe; every other tensor and every kept module stays at the source dtype." + extra,
             ""
         ]
     for family in own { lines += renderFamily(family, bench, keys: keys) + [""] }

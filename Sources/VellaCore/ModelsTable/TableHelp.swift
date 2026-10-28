@@ -163,10 +163,9 @@ public func tierFlavour(_ family: ModelFamily, tier: ModelTier, cell: BenchmarkC
         }
         return "\(format), as published"
     }
-    // An architecture whose loader applies its own mix (Nemotron 3.5 Transcribe) states it until a measured recipe does.
-    if layers.isEmpty, let label = precisionLabel(family, tier: tier),
-        let recipe = family.variants[label].flatMap({ ModelRegistry.descriptor(architecture: $0.architecture) })?.tierRecipes?[tier]
-    {
+    // A tier whose architecture's loader applies its own mix (Nemotron 3.5 Transcribe) states the catalog's recipe until
+    // a measured recipe does.
+    if layers.isEmpty, let label = precisionLabel(family, tier: tier), let recipe = family.variants[label]?.recipe {
         return recipe
     }
     let affine = "affine-\(tier.rawValue) g64"

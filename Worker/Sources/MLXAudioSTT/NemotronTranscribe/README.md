@@ -51,8 +51,9 @@ quietest 100 ms in the last 20 s before 120 s, as a backstop.
 
 NVIDIA's BF16 checkpoint is the only download. int8 and int4 are made from it at load, like every other family's
 8 and 4: Vella writes a directory holding only `vella-derived.json`, and the worker quantizes tensor by tensor from
-the memory-mapped source. Each source tensor is read, quantized, evaluated and dropped before the next, so the peak is
-the derived model plus one source tensor; the largest is one layer's stacked experts, 1.3 GB. Nothing extra is stored.
+the source file. Each source tensor is read, quantized, evaluated and dropped before the next, so the peak is the
+derived model plus about two source tensors (the stacked experts are a transposed view, so quantizing one makes a
+contiguous copy: about 2.6 GB for the largest). Nothing extra is stored.
 
 - **16** is NVIDIA's BF16 original in NeMo layout, one `model.safetensors`. Keys are mapped at load
   (`NemotronTranscribeKeys`). The CTC-timestamp head is not loaded; the MTP head is loaded as shipped.
@@ -131,15 +132,15 @@ reference words the base transcribed correctly (`TAIL_WORDS`)); no request error
 
 Measured — on —. English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately. Accuracy: —; speed, energy and peak RAM: —.
 
-Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "vs Standard" compares the same tier's Optimized cell with its Standard cell. "Offered" is `tiers_offered` in `Resources/models.json`; "Gate vs 16" is the quality gate and presence verdict in `Resources/benchmarks.json`. A quantized tier rounds only the Linear and Embedding layers whose input width the group size divides; every other tensor and every kept module stays at the source dtype.
+Speed is × real time, energy is joules per minute of audio (whole chip, idle subtracted), peak RAM is the worker's peak footprint. "vs Standard" compares the same tier's Optimized cell with its Standard cell. "Offered" is `tiers_offered` in `Resources/models.json`; "Gate vs 16" is the quality gate and presence verdict in `Resources/benchmarks.json`. A quantized tier rounds only the Linear and Embedding layers whose input width the group size divides, unless its row states its own recipe; every other tensor and every kept module stays at the source dtype.
 
 #### Nemotron 3.5 Transcribe (`nemotron-3.5-transcribe`)
 
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (bf16) | the checkpoint as published | yes | — |
-| 8 (int8) | affine group 64 from the bf16 weights | yes | — |
-| 4 (int4) | affine group 64 from the bf16 weights | yes | — |
+| 8 (int8) | made at load from the bf16 weights: 8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64) | yes | — |
+| 4 (int4) | made at load from the bf16 weights: 4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64) | yes | — |
 
 | Tier | Path | English WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|

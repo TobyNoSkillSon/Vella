@@ -18,7 +18,4 @@ public struct ModelDescriptor: Equatable, Sendable {
     /// What Exact and Fast mean for this model, when they differ in a way the general switch tooltip does not say: one
     /// line under it (Nemotron 3.5 Transcribe: plain decoding vs draft-and-verify). Nil: the general tooltip only.
     public var switchHelp: String? = nil
-    /// The layers a derived tier quantizes when the architecture's loader applies its own mix (the Precision cell's
-    /// flavour while benchmarks.json has no recipe for it). Nil: the catalog's recipe says it.
-    public var tierRecipes: [ModelTier: String]? = nil
 }

@@ -51,8 +51,8 @@ public enum NemotronTranscribeRecipe {
 
     /// Replaces each planned `.weight` by its packed form plus `.scales`/`.biases`, one tensor at a time: each is
     /// read from the file, quantized, evaluated, and its BF16 source dropped before the next, so the peak is the derived
-    /// model plus one source tensor (largest: one layer's stacked experts, 1.3 GB). Returns the per-module entries the
-    /// installer reads.
+    /// model plus about two source tensors (the stacked experts are a transposed view, so quantizing one reads it and
+    /// makes a contiguous copy: about 2.6 GB for the largest). Returns the per-module entries the installer reads.
     static func quantize(_ weights: inout [String: MLXArray], plan: [String: Int], groupSize: Int) -> [String: Any] {
         var entries: [String: Any] = ["group_size": groupSize, "mode": "affine"]
         for (index, path) in plan.keys.sorted().enumerated() {

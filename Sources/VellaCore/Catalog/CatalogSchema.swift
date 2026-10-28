@@ -43,6 +43,9 @@ public struct CatalogVariant: Codable, Equatable {
     public var peakMemoryMB: Double?
     /// `peakMemoryMB` is an estimate, not a measurement (the table marks it `~` and says so).
     public var peakMemoryEstimated: Bool?
+    /// A derived tier's recipe in words, when its architecture's loader applies its own mix rather than one uniform
+    /// quantization (Nemotron 3.5 Transcribe). The Precision cell's flavour and the model README's tier row read it.
+    public var recipe: String?
     public init(id: String, repository: String, revision: String, downloadBytes: Int64, architecture: String, processorSource: ProcessorSource? = nil) {
         self.id = id; self.repository = repository; self.revision = revision; self.downloadBytes = downloadBytes
         self.architecture = architecture; self.processorSource = processorSource
@@ -57,7 +60,7 @@ public struct CatalogVariant: Codable, Equatable {
     public var isStored: Bool { derivedFrom != nil && stored == true }
     enum CodingKeys: String, CodingKey {
         case id, repository, revision, downloadBytes, architecture, processorSource, derivedFrom, bits, groupSize, dtype, floatModules, floatShare, stored, legacyIDs
-        case files, peakMemoryMB, peakMemoryEstimated
+        case files, peakMemoryMB, peakMemoryEstimated, recipe
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -74,6 +77,7 @@ public struct CatalogVariant: Codable, Equatable {
         files = try c.decodeIfPresent([String].self, forKey: .files)
         peakMemoryMB = try c.decodeIfPresent(Double.self, forKey: .peakMemoryMB)
         peakMemoryEstimated = try c.decodeIfPresent(Bool.self, forKey: .peakMemoryEstimated)
+        recipe = try c.decodeIfPresent(String.self, forKey: .recipe)
         processorSource = try c.decodeIfPresent(ProcessorSource.self, forKey: .processorSource)
         if derivedFrom == nil {
             repository = try c.decode(String.self, forKey: .repository)
@@ -100,6 +104,7 @@ public struct CatalogVariant: Codable, Equatable {
         try c.encodeIfPresent(stored, forKey: .stored); try c.encodeIfPresent(legacyIDs, forKey: .legacyIDs)
         try c.encodeIfPresent(files, forKey: .files); try c.encodeIfPresent(peakMemoryMB, forKey: .peakMemoryMB)
         try c.encodeIfPresent(peakMemoryEstimated, forKey: .peakMemoryEstimated)
+        try c.encodeIfPresent(recipe, forKey: .recipe)
     }
 }
 

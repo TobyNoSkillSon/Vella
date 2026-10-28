@@ -768,7 +768,8 @@
           "groupSize": 64,
           "architecture": "nemotron_transcribe",
           "peakMemoryMB": 40000,
-          "peakMemoryEstimated": true
+          "peakMemoryEstimated": true,
+          "recipe": "8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)"
         },
         "4b": {
           "id": "nemotron-3.5-transcribe-30b-a4b-4bit",
@@ -776,7 +777,8 @@
           "bits": 4,
           "groupSize": 64,
           "architecture": "nemotron_transcribe",
-          "peakMemoryMB": 24700
+          "peakMemoryMB": 24700,
+          "recipe": "4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)"
         }
       },
       "offered": true,

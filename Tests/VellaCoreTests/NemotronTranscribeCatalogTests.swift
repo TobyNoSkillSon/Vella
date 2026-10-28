@@ -170,12 +170,13 @@ final class NemotronTranscribeCatalogTests: XCTestCase {
         XCTAssertTrue(help.contains("30B-A4B parameters"), help)
         XCTAssertEqual(
             tierFlavour(f, tier: .t4, cell: nil),
-            "4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings and encoders (affine-4 g64)")
-        XCTAssertEqual(tierFlavour(f, tier: .t8, cell: nil), "8-bit decoder projections, 16-bit embeddings and encoders (affine-8 g64)")
+            "4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)")
+        XCTAssertEqual(tierFlavour(f, tier: .t8, cell: nil), "8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)")
         XCTAssertEqual(tierFlavour(f, tier: .t16, cell: nil), "bf16, as published")
         XCTAssertTrue(f.notes?.contains("made on this Mac from it at load") == true)
-        // No other architecture states a mix of its own.
-        XCTAssertTrue(ModelRegistry.all.filter { $0.architecture != .nemotronTranscribe }.allSatisfy { $0.tierRecipes == nil })
+        // No other family states a mix of its own: their recipes come from the uniform quantization fields.
+        let catalog = try decodeCatalog(Data(contentsOf: Repository.root.appendingPathComponent("Resources/models.json")))
+        XCTAssertTrue(catalog.families.filter { $0.id != "nemotron-3.5-transcribe" }.allSatisfy { $0.variants.values.allSatisfy { $0.recipe == nil } })
     }
 
     // MARK: Get (downloader), with local fixtures only
