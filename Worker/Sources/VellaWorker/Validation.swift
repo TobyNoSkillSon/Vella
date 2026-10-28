@@ -12,7 +12,7 @@ func admit(_ path: URL) throws -> Architecture {
     guard let derived = try DerivedPrecision.resolve(path) else { return try admitCheckpoint(path) }
     let architecture = try admitCheckpoint(derived.source)
     let source = try jsonObject(derived.source.appendingPathComponent("config.json"))
-    guard [.parakeet, .whisper, .qwen3ASR].contains(architecture), !pythonTruthy(source["quantization"]),
+    guard [.parakeet, .whisper, .qwen3ASR, .nemotronTranscribe].contains(architecture), !pythonTruthy(source["quantization"]),
         !pythonTruthy(source["quantization_config"])
     else { throw RequestError.invalid }
     return architecture

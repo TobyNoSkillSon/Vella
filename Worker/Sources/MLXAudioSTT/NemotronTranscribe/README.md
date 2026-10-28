@@ -14,7 +14,7 @@ which is the generated block at the end (empty until the v2 benchmark is run).
 | | |
 |---|---|
 | Catalog id | `nemotron-3.5-transcribe` |
-| Publisher, licence | NVIDIA (2026), OpenMDW-1.1. Every tier's folder carries `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licenses/`, and so must every redistribution |
+| Publisher, licence | NVIDIA (2026), OpenMDW-1.1. The BF16 download carries `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licenses/`; the derived precisions load from that folder |
 | Source checkpoint | `nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B` (BF16, SHA-256 `03142dde…acff2`) |
 | Parameters | 30B in total, about 4B active per token. A 52-layer Nemotron-H decoder (Mamba-2, attention and 128-expert MoE layers, 6 experts per token) is fed by a feature-stacking RoPE Transformer speech encoder (32 layers) and a Sortformer speaker encoder (31 layers) |
 
@@ -26,6 +26,7 @@ NeMo Speech (Apache-2.0):
   router is FP32 too.
 - `NemotronTranscribePerception.swift`: log-mels from the checkpoint's own filter bank and window, both encoders, the
   speaker model's FIFO and AOSC speaker cache over 40 s windows, and the sinusoidal speaker fusion.
+- `NemotronTranscribeRecipe.swift`: the int8/int4 recipe made at load.
 - `NemotronTranscribeModel.swift`: loading for all three tiers, the prompt, decoding, chunking and the vocabulary guard.
 - `NemotronTranscribeText.swift`: the parts that need no MLX, covered by `Worker/Tests/VellaWorkerTests/NemotronTranscribeTests.swift`.
 
@@ -48,22 +49,38 @@ quietest 100 ms in the last 20 s before 120 s, as a backstop.
 
 ## Tiers offered, and why
 
-Each tier is its own download; nothing is made on the Mac. This is an exception to the family rule, because the mixes
-keep the decoder's always-active paths at 8 bits:
+NVIDIA's BF16 checkpoint is the only download. int8 and int4 are made from it at load, like every other family's
+8 and 4: Vella writes a directory holding only `vella-derived.json`, and the worker quantizes tensor by tensor from
+the memory-mapped source. Each source tensor is read, quantized, evaluated and dropped before the next, so the peak is
+the derived model plus one source tensor; the largest is one layer's stacked experts, 1.3 GB. Nothing extra is stored.
 
 - **16** is NVIDIA's BF16 original in NeMo layout, one `model.safetensors`. Keys are mapped at load
-  (`NemotronTranscribeKeys`), the CTC-timestamp head is not loaded, and its own MTP head is.
+  (`NemotronTranscribeKeys`). The CTC-timestamp head is not loaded; the MTP head is loaded as shipped.
 - **8**: every decoder projection (routed and shared experts, Mamba in/out, attention) is int8 affine, group 64.
 - **4**: routed experts (87 % of the parameters) are int4, group 64. Everything a token always passes through is int8.
 
-In 8 and 4, embeddings, the output head, norms, the router, Mamba A/D/dt and both encoders stay as shipped. Both
-carry `extras/mtp.safetensors`; the int8 folder holds the int4 tier's head, which changes only how many drafts are
-accepted, never the output.
+The recipe is `NemotronTranscribeRecipe`, applied by this architecture's loader, like Qwen's float audio tower. In 8
+and 4, embeddings, the output head, norms, the router (FP32), Mamba A_log/D/dt_bias (FP32), `conv1d` and both
+encoders stay as shipped. The MTP draft head is quantized at load as well: routed experts 4-bit, the rest 8-bit, in
+both tiers. It changes how many drafts are accepted, never the output.
 
 The mixes were chosen by teacher-forced checks against a layer-streamed BF16 reference (4 clips, 512 tokens), not by any
-calibration of the weights: the codes are rounded from NVIDIA's weights. Results: int8 KL 0.0107, top-1 98.2 %; int4 KL
-0.0144, top-1 97.9 %; naive all-4-bit KL 0.061, top-1 96.9 %. Each tier is offered where this Mac's memory fits it
-(`Sources/VellaCore/Catalog/MemoryFit.swift`).
+calibration of the weights: the codes are NVIDIA's weights rounded by MLX's affine quantize. Results: int8 KL 0.0107,
+top-1 98.2 %; int4 KL 0.0144, top-1 97.9 %; naive all-4-bit KL 0.061, top-1 96.9 %.
+
+**Derivation checks** (28 Oct, M5 Max 128 GB).
+- Golden test (`derivationMatchesTheReferenceExports`, opt-in): derived from the real BF16, one tensor at a time,
+  against the reference Python exports (mlx-audio, MLX 0.32.4). Weights, scales and biases are bit-identical, and the
+  kept tensors byte-identical: 1,611 of 1,611 for each of int4 and int8, including the 34 MTP tensors. MLX peak was
+  4.0 GB, in 14.5 s with a warm disk cache.
+- A real int4 load through the worker took 39.6 s (read, quantize, warm-up). Footprint was 22.1 GB, and MLX active
+  memory 21.8 GB, the same as the export. The transcript was identical to the export's.
+- The fixture test (`derivesInt4AndInt8FromTheNeMoLayout`, MLX CPU lane) builds a tiny NeMo-layout model and checks:
+  every module's bits and group size; shapes; equality with MLX's own quantize; kept tensors byte for byte; and the
+  dequantization error within MLX's affine bound. That bound is half a step, plus up to one step where MLX's
+  edge-snapping clips a group, plus BF16 scale rounding. Measured worst: 1.0 step at int4, 1.49 at int8.
+
+Each tier is offered where this Mac's memory fits it (`Sources/VellaCore/Catalog/MemoryFit.swift`).
 
 ## What Vella optimizes
 

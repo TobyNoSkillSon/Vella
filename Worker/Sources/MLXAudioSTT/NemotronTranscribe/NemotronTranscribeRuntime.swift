@@ -11,9 +11,8 @@ public enum NemotronTranscribeRuntime: DictationModelRuntime {
     /// decoding (drafts are verified by the main model), not a separately qualified kernel path.
     public static let hasFastPath = false
     public static func loadStock(_ directory: URL, derived: DerivedPrecision?) async throws -> any STTGenerationModel {
-        // Every tier is its own checkpoint; nothing is derived on the Mac.
-        guard derived == nil else { throw ModelRuntimeError.unsupported }
-        return try await NemotronTranscribeModel.fromModelDirectory(directory)
+        // int8 and int4 are made at load from the BF16 download (NemotronTranscribeRecipe).
+        try await NemotronTranscribeModel.fromModelDirectory(directory, derived: derived)
     }
     public static func input(_ samples: MLXArray) -> MLXArray { samples }
 }

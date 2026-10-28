@@ -57,9 +57,25 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
 
     // MARK: Loading
 
-    /// MLX layout (sharded, already sanitized, per-module "quantization" in config.json, extras/mtp.safetensors) or
-    /// NVIDIA's BF16 layout (one model.safetensors in NeMo keys, mapped here; its MTP and CTC heads are not loaded).
-    public static func fromModelDirectory(_ directory: URL) async throws -> NemotronTranscribeModel {
+    /// NVIDIA's BF16 checkpoint (one model.safetensors in NeMo keys, mapped here; its CTC head is not loaded), or an
+    /// int8/int4 precision derived from it at load (`derived`: Vella's manifest-only directory, the recipe in
+    /// `NemotronTranscribeRecipe`). An MLX-layout folder (sharded, per-module "quantization" in config.json,
+    /// extras/mtp.safetensors) also loads, for lab exports.
+    public static func fromModelDirectory(_ directory: URL, derived: DerivedPrecision? = nil) async throws -> NemotronTranscribeModel {
+        let source = derived?.source ?? directory
+        let model = try skeleton(source)
+        let tokenizer = try await AutoTokenizer.from(modelFolder: source)
+        let ids = tokenizer.encode(text: NemotronTranscribePrompt.audioTag, addSpecialTokens: false)
+        guard ids.count == 1 else { throw NemotronTranscribeError.tokenizer("<|audio|> is not one token") }
+        model.tokenizer = tokenizer
+        model.audioToken = ids[0]
+        try model.loadWeights(source, derived: derived)
+        model.warmUp()
+        return model
+    }
+
+    /// The module tree for a checkpoint's config.json; every parameter is a lazy placeholder until `loadWeights`.
+    static func skeleton(_ directory: URL) throws -> NemotronTranscribeModel {
         let root = try JSONSerialization.jsonObject(with: Data(contentsOf: directory.appendingPathComponent("config.json"))) as? [String: Any] ?? [:]
         guard let llmJSON = root["llm_config"] as? [String: Any] else { throw NemotronTranscribeError.config("llm_config") }
         guard (root["prompt_format"] as? String ?? "nemotron3p5") == "nemotron3p5" else { throw NemotronTranscribeError.config("prompt_format") }
@@ -67,47 +83,72 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         let perception = try NTPerceptionConfig(root: root)
         let eosIDs = (root["eos_token_id"] as? [Int]) ?? [(root["eos_token_id"] as? Int) ?? 11]
         let model = NemotronTranscribeModel(decoder: decoder, perception: perception, eos: Set(eosIDs), pad: root["pad_token_id"] as? Int ?? 0)
+        model.checkpointQuantization = NTQuantizationEntries(value: root["quantization"] as? [String: Any])
+        return model
+    }
 
-        let tokenizer = try await AutoTokenizer.from(modelFolder: directory)
-        let ids = tokenizer.encode(text: NemotronTranscribePrompt.audioTag, addSpecialTokens: false)
-        guard ids.count == 1 else { throw NemotronTranscribeError.tokenizer("<|audio|> is not one token") }
-        model.tokenizer = tokenizer
-        model.audioToken = ids[0]
+    /// The folder's own per-module quantization (MLX layout), wrapped so module reflection skips it.
+    private var checkpointQuantization = NTQuantizationEntries(value: nil)
 
+    /// The checkpoint's tensors, lazily (MLX reads each from the file when it is evaluated).
+    static func checkpointTensors(_ directory: URL) throws -> [String: MLXArray] {
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "safetensors" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
         guard !files.isEmpty else { throw NemotronTranscribeError.weights("no safetensors") }
         var weights: [String: MLXArray] = [:]
         for file in files { weights.merge(try MLX.loadArrays(url: file)) { _, new in new } }
-        let nvidia = weights.keys.contains { $0.hasPrefix("llm.model.") }
-        var nvidiaMTP: [String: MLXArray] = [:]
-        if nvidia {
-            nvidiaMTP = mtpWeights(weights)
-            weights = sanitize(weights)
-        }
-        try installQuantization(model, weights: weights, config: root["quantization"] as? [String: Any])
-        try model.update(parameters: ModuleParameters.unflattened(weights), verify: .all)
-        weights.removeAll()
-        eval(model)
+        return weights
+    }
 
+    /// Installs the weights of `directory`, quantizing them first when `derived` asks for it.
+    func loadWeights(_ directory: URL, derived: DerivedPrecision?) throws {
+        var weights = try Self.checkpointTensors(directory)
+        let nvidia = weights.keys.contains { $0.hasPrefix("llm.model.") }
+        guard derived == nil || nvidia else {
+            // Vella's rule: a precision is derived from the 16-bit download only, never from a quantized folder.
+            throw DerivedPrecision.Invalid.manifest("the source is not NVIDIA's BF16 checkpoint")
+        }
+        var mtpTensors: [String: MLXArray] = [:]
+        if nvidia {
+            mtpTensors = Self.mtpWeights(weights)
+            weights = Self.sanitize(weights)
+        }
+        var config = checkpointQuantization.value
+        if let derived {
+            guard let bits = derived.bits, let group = derived.groupSize, derived.dtype == nil, derived.floatModules.isEmpty else {
+                throw DerivedPrecision.Invalid.manifest("Nemotron Transcribe derives int8 or int4 only")
+            }
+            let plan = NemotronTranscribeRecipe.decoderPlan(self, precisionBits: bits)
+            config = NemotronTranscribeRecipe.quantize(&weights, plan: plan, groupSize: group)
+        }
+        try Self.installQuantization(self, weights: weights, config: config)
+        try update(parameters: ModuleParameters.unflattened(weights), verify: .all)
+        weights.removeAll()
+        eval(self)
+        Memory.clearCache()
+
+        let head = NTMTP(decoderConfig)
         let mtpURL = directory.appendingPathComponent("extras/mtp.safetensors")
-        if nvidia, nvidiaMTP.count == NTMTP.nvidiaKeys.count {
-            // BF16: the checkpoint's own head, as shipped (experts transposed, router FP32).
-            let head = NTMTP(decoder)
-            try head.update(parameters: ModuleParameters.unflattened(nvidiaMTP), verify: .all)
-            eval(head)
-            model.mtp = head
+        if nvidia, mtpTensors.count == NTMTP.nvidiaKeys.count {
+            // The checkpoint's own head: as shipped for BF16; for a derived precision, routed experts 4-bit, the rest
+            // 8-bit (drafts are verified by the main model, so the head's precision changes speed, never the text).
+            var headConfig: [String: Any]?
+            if let group = derived?.groupSize {
+                headConfig = NemotronTranscribeRecipe.quantize(&mtpTensors, plan: NemotronTranscribeRecipe.mtpPlan(head), groupSize: group)
+            }
+            try Self.installQuantization(head, weights: mtpTensors, config: headConfig)
+            try head.update(parameters: ModuleParameters.unflattened(mtpTensors), verify: .all)
         } else if !nvidia, FileManager.default.fileExists(atPath: mtpURL.path) {
             let (tensors, metadata) = try MLX.loadArraysAndMetadata(url: mtpURL)
-            let head = NTMTP(decoder)
             let quantization = metadata["quantization"].flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) } as? [String: Any]
-            try installQuantization(head, weights: tensors, config: quantization)
+            try Self.installQuantization(head, weights: tensors, config: quantization)
             try head.update(parameters: ModuleParameters.unflattened(tensors), verify: .all)
-            eval(head)
-            model.mtp = head
+        } else {
+            return
         }
-        model.warmUp()
-        return model
+        eval(head)
+        mtp = head
+        Memory.clearCache()
     }
 
     /// The first request after a load paid ~11 s of one-time kernel preparation (25 s clip: 12.2 s cold, 0.75 s
