@@ -41,6 +41,8 @@ import VellaCore
         o["current"] = controller.identify(path: selectedPath, mode: f.mode)?.family.id == f.id
         o["action"] = String(describing: controller.action(f)).capitalized
         if let reason = controller.memoryRefusal(f) { o["unavailable"] = reason }
+        // The table's greyed switch: Fast runs the same recipe as Exact, so a mode request is refused (409).
+        o["fast_equals_exact"] = !controller.switchAvailable(f)
         if let chosen = controller.rules(f).precision(of: controller.currentSelection(f)), let source = f.acquisition(of: chosen) {
             o["download"] = ["bytes": source.download.downloadBytes, "source": source.download.repository, "revision": source.download.revision]
         }

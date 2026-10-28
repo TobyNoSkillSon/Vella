@@ -206,8 +206,14 @@ final class NemotronTranscribeCatalogTests: XCTestCase {
     func testValidationRequiresTheLicenceFilesAndAcceptsTheMixAndNvidiasLayout() throws {
         let listed = ["config.json", "model.safetensors", "LICENSE", "THIRD_PARTY_NOTICES.md"]
         let mixed = try fixtureFolder(["model.safetensors": "w", "LICENSE": "l", "THIRD_PARTY_NOTICES.md": "n"], config: Self.mixedConfig)
+        // The fixture's layers are 8-bit only (an int8 mix with a 4-bit default): it is int8, never int4.
         XCTAssertNoThrow(try NativeModelDownload.validate(mixed, expected: record(files: listed, bytes: 0, quantization: "8-bit")))
-        XCTAssertNoThrow(try NativeModelDownload.validate(mixed, expected: record(files: listed, bytes: 0, quantization: "4-bit")))
+        XCTAssertThrowsError(try NativeModelDownload.validate(mixed, expected: record(files: listed, bytes: 0, quantization: "4-bit")))
+        var four = Self.mixedConfig
+        four["quantization"] = ["bits": 4, "group_size": 64, "a.switch_mlp.fc1": ["bits": 4, "group_size": 64], "a.in_proj": ["bits": 8, "group_size": 64]]
+        let int4 = try fixtureFolder(["model.safetensors": "w", "LICENSE": "l", "THIRD_PARTY_NOTICES.md": "n"], config: four)
+        XCTAssertNoThrow(try NativeModelDownload.validate(int4, expected: record(files: listed, bytes: 0, quantization: "4-bit")))
+        XCTAssertThrowsError(try NativeModelDownload.validate(int4, expected: record(files: listed, bytes: 0, quantization: "8-bit")), "an int4 build never passes as int8")
         XCTAssertThrowsError(try NativeModelDownload.validate(mixed, expected: record(files: listed, bytes: 0, quantization: "BF16")))
         try FileManager.default.removeItem(at: mixed.appendingPathComponent("LICENSE"))
         XCTAssertThrowsError(try NativeModelDownload.validate(mixed, expected: record(files: listed, bytes: 0))) {

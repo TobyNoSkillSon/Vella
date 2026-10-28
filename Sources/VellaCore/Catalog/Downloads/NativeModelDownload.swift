@@ -395,11 +395,14 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         let quant = (config?["quantization"] ?? config?["quantization_config"]) as? [String: Any]
         let bits = quant?["bits"] as? Int
         let expectedBits = Int(expected.quantization.split(separator: "-").first ?? "")
-        // A published mixed quantization (per-layer entries, Nemotron 3.5 Transcribe's int8 and int4) matches when the
-        // expected width is among its layers' widths; its default `bits` may be another.
-        let layerBits = Set((quant ?? [:]).values.compactMap { ($0 as? [String: Any])?["bits"] as? Int })
-        let mixedMatch = expected.files != nil && expectedBits.map(layerBits.contains) == true
-        guard mixedMatch || (expectedBits == nil ? bits == nil : bits == expectedBits) else {
+        // A published mixed quantization (per-layer entries, Nemotron 3.5 Transcribe's int8 and int4) is named by its
+        // narrowest layer: int4 mixes 4- and 8-bit layers, int8 has only 8-bit ones (its default `bits` may be another).
+        let layerBits = (quant ?? [:]).values.compactMap { ($0 as? [String: Any])?["bits"] as? Int }
+        let matches =
+            expected.files != nil && !layerBits.isEmpty
+            ? expectedBits != nil && layerBits.min() == expectedBits
+            : (expectedBits == nil ? bits == nil : bits == expectedBits)
+        guard matches else {
             throw DownloadError.invalid(expectedBits == nil ? "Expected unquantized weights" : "Quantization does not match recommendation")
         }
         guard try manager.contentsOfDirectory(atPath: folder.path).contains(where: { $0.hasSuffix(".safetensors") }) else {

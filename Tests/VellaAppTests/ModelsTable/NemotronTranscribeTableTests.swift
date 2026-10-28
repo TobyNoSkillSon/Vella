@@ -92,4 +92,49 @@ import XCTest
         c.catalog.families = [f]
         XCTAssertNil(c.firstOffered(.dictation))
     }
+
+    /// No separately qualified fast path (the worker's `hasFastPath` is false): the switch is greyed and pinned to Fast,
+    /// the table, the API (`fast_equals_exact`) and a mode request (409) say so, as for any model where Fast = Exact.
+    func testFastEqualsExactSoTheSwitchIsPinned() throws {
+        let (c, f) = try controller(memoryGB: 64)
+        XCTAssertFalse(NemotronTranscribeDescriptor.descriptor.hasFastPath)
+        XCTAssertTrue(ModelRegistry.all.filter { $0.architecture != .nemotronTranscribe }.allSatisfy(\.hasFastPath))
+        XCTAssertFalse(c.switchAvailable(f))
+        XCTAssertTrue(c.hasOptimizedPath(f), "the switch is drawn, greyed")
+        XCTAssertEqual(c.currentSelection(f).mode, .fast)
+        XCTAssertEqual(c.precisions(f, .exact), c.precisions(f, .fast), "both positions offer the same tiers")
+        XCTAssertThrowsError(try c.setModeForControl(f, mode: .exact)) { XCTAssertEqual(($0 as? APIError)?.message, ExactFastSwitch.sameHelp) }
+        let tips = Dictionary(ModelTable(controller: c).tooltips(f).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
+        XCTAssertEqual(tips["Exact/Fast"], ExactFastSwitch.tooltip(available: false, enabled: true))
+        let runtime = try Runtime.isolated(root.appendingPathComponent("api"))
+        let o = ModelControls(controller: c, runtime: runtime).object(f)
+        XCTAssertEqual(o["fast_equals_exact"] as? Bool, true)
+        XCTAssertEqual((o["selection"] as? [String: Any])?["mode"] as? String, "fast")
+        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
+        XCTAssertEqual(ModelControls(controller: c, runtime: runtime).object(parakeet)["fast_equals_exact"] as? Bool, !c.switchAvailable(parakeet))
+    }
+
+    /// Weights already on disk never start a worker over their floor: every load path passes `recipeRefusal`.
+    func testWeightsOnDiskNeverLoadOverTheirFloor() throws {
+        let (c, f) = try controller(memoryGB: 64)
+        let runtime = try Runtime.isolated(root.appendingPathComponent("runtime"))
+        let model = DictationController(configurationURL: runtime.configURL, monitorDefaultInput: false); defer { model.shutdown() }
+        let bridge = RuntimeBridge(runtime: runtime); bridge.attach(controller: c, model: model)
+        func install(_ label: String) throws -> String {
+            let folder = root.appendingPathComponent(label)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data(#"{"model_type": "nemotron_transcribe"}"#.utf8).write(to: folder.appendingPathComponent("config.json"))
+            c.dictation.installed[f.variants[label]!.id] = InstalledModel(path: folder.path)
+            return folder.path
+        }
+        let bf16 = try install("BF16"), int8 = try install("8b")
+        XCTAssertEqual(
+            bridge.recipeRefusal(path: bf16, mode: .dictation),
+            "Nemotron 3.5 Transcribe at bf16 needs 96 GB of memory; this Mac has 64 GB. Pick a smaller precision in Vella → Models…")
+        XCTAssertNil(bridge.recipeRefusal(path: int8, mode: .dictation))
+        c.physicalMemoryBytes = 32 * 1_073_741_824
+        XCTAssertNotNil(bridge.recipeRefusal(path: int8, mode: .dictation))
+        c.physicalMemoryBytes = 128 * 1_073_741_824
+        XCTAssertNil(bridge.recipeRefusal(path: bf16, mode: .dictation))
+    }
 }

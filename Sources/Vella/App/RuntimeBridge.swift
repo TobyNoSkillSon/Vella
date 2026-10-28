@@ -140,6 +140,14 @@ import VellaCore
     /// Why a load of these files is refused (nil: allowed). Every worker start passes here (`Runtime.admit`): files
     /// that name a catalog precision load only when they are what `precisionLoadPath` resolves that precision to, so
     /// no entry point (table, on-demand dictation, launch preload, API) runs another recipe under the tier's name.
+    /// A precision over this Mac's memory floor: what it needs, what the Mac has, and the way out.
+    func memoryFloorRefusal(_ family: ModelFamily, _ precision: String) -> String? {
+        guard let controller, !fitsMemory(family, precision, physicalBytes: controller.physicalMemoryBytes),
+            let floor = minimumMemoryGB(family, precision)
+        else { return nil }
+        let here = Int((Double(controller.physicalMemoryBytes) / 1_073_741_824).rounded())
+        return "\(family.name) at \(tableLabel(family, precision)) needs \(floor) GB of memory; this Mac has \(here) GB. Pick a smaller precision in Vella → Models…"
+    }
     func recipeRefusal(path: String, mode: RecognitionMode) -> String? {
         guard let controller else { return nil }
         // An earlier version's download kept as the mode's model loads as it is, under its own folder name (only while
@@ -153,6 +161,9 @@ import VellaCore
         let library = controller.library(mode)
         let named: (family: ModelFamily, precision: String)?
         if let id = library.installed.first(where: { sameFiles($0.value.path, path) })?.key, let found = controller.catalog.locate(variant: id) {
+            // Weights on disk never load over their memory floor (MemoryFit.swift): a folder moved from a larger Mac, a
+            // launch-set entry, an on-demand dictation or an API request alike.
+            if let reason = memoryFloorRefusal(found.family, found.precision) { return reason }
             guard registeredCheckpoint(found.family, found.precision, installedPath: { library.installed[$0]?.path }) == nil else { return nil }
             named = found
         } else if let manifest = derivedModelManifest(at: URL(fileURLWithPath: path)), let family = controller.catalog.family(manifest.family),
@@ -163,6 +174,7 @@ import VellaCore
             return nil // not a catalog precision's files
         }
         guard let (family, precision) = named else { return nil }
+        if let reason = memoryFloorRefusal(family, precision) { return reason }
         let name = "\(family.name) at \(precisionFormatName(precision))"
         let files: String?
         do {
