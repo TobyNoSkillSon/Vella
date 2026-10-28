@@ -65,21 +65,26 @@ extension WorkerTests {
 
         /// 28 Oct, Toby's speech: the 17-word list made the model append "Poznań", never spoken.
         @Test func trailingVocabularyGuard() {
+            typealias G = NemotronTranscribeVocabularyGuard
             let words = ["Poznań", "Heimdall", "Liquid AI"]
-            let invented = NemotronTranscribeVocabularyGuard.trailingCandidate("Apparently two caches supported. Poznań", words: words)
+            let invented = G.trailingCandidate("Apparently two caches supported. Poznań", words: words)
             #expect(invented?.kept == "Apparently two caches supported.")
             #expect(invented?.dropped == "Poznań")
-            #expect(NemotronTranscribeVocabularyGuard.trailingCandidate("We met in Poznań. Liquid AI.", words: words)?.dropped == "Liquid AI.")
-            // A list word inside a real sentence, a lone word, or no list: no candidate.
-            #expect(NemotronTranscribeVocabularyGuard.trailingCandidate("We met in Poznań.", words: words) == nil)
-            #expect(NemotronTranscribeVocabularyGuard.trailingCandidate("Poznań.", words: words) == nil)
-            #expect(NemotronTranscribeVocabularyGuard.trailingCandidate("Done. Poznań", words: []) == nil)
-            #expect(NemotronTranscribeVocabularyGuard.trailingCandidate("Done. Poznań is lovely.", words: words) == nil)
-            // The plain decode decides: it heard nothing there → drop; it heard a sentence there → keep.
-            #expect(NemotronTranscribeVocabularyGuard.shouldDrop(withList: "Apparently two caches supported. Poznań",
-                                                                 withoutList: "Apparently two kishi supported."))
-            #expect(!NemotronTranscribeVocabularyGuard.shouldDrop(withList: "We start now. Poznań.", withoutList: "We start now. Posnan."))
-            #expect(NemotronTranscribeVocabularyGuard.split("Dr. No? Yes… ok") == ["Dr. ", "No? ", "Yes… ", "ok"])
+            #expect(G.trailingCandidate("We met in Poznań. Liquid AI.", words: words)?.dropped == "Liquid AI.")
+            // A segment that is only a list word is a candidate too (kept empty); the plain decode decides.
+            #expect(G.trailingCandidate("Poznań.", words: words)?.kept == "")
+            // A list word inside a real sentence, or no list: no candidate.
+            #expect(G.trailingCandidate("We met in Poznań.", words: words) == nil)
+            #expect(G.trailingCandidate("Done. Poznań", words: []) == nil)
+            #expect(G.trailingCandidate("Done. Poznań is lovely.", words: words) == nil)
+            // The plain decode heard nothing there: drop.
+            #expect(G.shouldDrop(withList: "Apparently two caches supported. Poznań", withoutList: "Apparently two kishi supported.", dropped: "Poznań"))
+            #expect(G.shouldDrop(withList: "Poznań.", withoutList: "", dropped: "Poznań."))
+            // It heard a word there, however it spelled or punctuated it: keep.
+            #expect(!G.shouldDrop(withList: "We start now. Poznań.", withoutList: "We start now. Posnan.", dropped: "Poznań."))
+            #expect(!G.shouldDrop(withList: "We start now. Poznań.", withoutList: "We start now, Posnan.", dropped: "Poznań."))
+            #expect(!G.shouldDrop(withList: "Poznań.", withoutList: "Posnan.", dropped: "Poznań."))
+            #expect(G.split("Dr. No? Yes… ok") == ["Dr. ", "No? ", "Yes… ", "ok"])
         }
 
         @Test func markupIsStrippedWordsKept() {
@@ -87,7 +92,9 @@ extension WorkerTests {
             #expect(NemotronTranscribeMarkup.strip("I said <ev:laugh> that <sty:whisper>quietly</sty:whisper> , right") == "I said that quietly, right")
             #expect(NemotronTranscribeMarkup.strip("<think>plan the answer</think>Dzień dobry <spk:3>wszystkim.") == "Dzień dobry wszystkim.")
             #expect(NemotronTranscribeMarkup.strip("Stray </think> tag and <think> here<|im_end|>") == "Stray tag and here")
-            // Ordinary angle brackets and words are untouched.
+            // Text without markup is untouched, French spacing included.
+            #expect(NemotronTranscribeMarkup.strip("Vraiment ? Oui : bien sûr !") == "Vraiment ? Oui : bien sûr !")
+            #expect(NemotronTranscribeMarkup.strip("<spk:0>Bonjour <spk:1> ?") == "Bonjour?")
             #expect(NemotronTranscribeMarkup.strip("a < b and c > d") == "a < b and c > d")
             #expect(NemotronTranscribeMarkup.strip("Plain text.") == "Plain text.")
         }
@@ -126,6 +133,17 @@ extension WorkerTests {
             for dropped in ["llm.mtp.layers.0.eh_proj.weight", "ctc_timestamp.decoder.upsample.bias", "llm.lm_head._extra_state"] {
                 #expect(map(dropped) == nil)
             }
+        }
+
+        /// NVIDIA's BF16 checkpoint carries the MTP head under llm.mtp.*; every one maps to the head (header only).
+        @Test func nvidiaMTPKeysCoverTheCheckpoint() throws {
+            let file = URL(fileURLWithPath: Self.localFolders[2]).appendingPathComponent("model.safetensors")
+            guard let handle = try? FileHandle(forReadingFrom: file) else { return }
+            defer { try? handle.close() }
+            let size = try handle.read(upToCount: 8)!.withUnsafeBytes { $0.loadUnaligned(as: UInt64.self) }
+            let header = try JSONSerialization.jsonObject(with: handle.read(upToCount: Int(size))!) as! [String: Any]
+            let mtp = Set(header.keys.filter { $0.hasPrefix("llm.mtp.") && !$0.hasSuffix("._extra_state") })
+            #expect(mtp == Set(NTMTP.nvidiaKeys.keys))
         }
 
         @Test func modelFolderLicenceFilesPresent() throws {
@@ -182,6 +200,20 @@ extension WorkerTests {
                                "stock_s": stockSeconds, "mtp_s": mtpSeconds, "seconds_audio": Double(samples.count) / 16000,
                                "text": model.text(stock), "mtp_text": model.text(chain)]
             }
+            // Token-exact where the reference runs agreed on 28 Oct (the 15 s clip, the 60 s clip without a list).
+            for key in ["clip15/plain", "clip15/vocab", "clip60/plain"] {
+                let row = report[key] as? [String: Any]
+                #expect(row?["stock_equal"] as? Bool == true, "\(key) stock tokens")
+            }
+            for key in ["clip15/plain", "clip15/vocab"] {
+                #expect((report[key] as? [String: Any])?["mtp_equal"] as? Bool == true, "\(key) MTP tokens")
+            }
+            // The worker's own entry point: chunk plan, prompt, guard and markup strip, on the 15 s clip.
+            let clip = try Data(contentsOf: refDir.appendingPathComponent("clip15.f32")).withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
+            model.vocabularyWords = []
+            let output = model.generate(audio: MLXArray(clip))
+            #expect(model.lastError == nil)
+            #expect(output.text == (ref["clip15/plain"]!["text"] as! String).trimmingCharacters(in: .whitespacesAndNewlines))
             report["peak_gb"] = Double(Memory.peakMemory) / 1e9
             let out = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
             try out.write(to: refDir.appendingPathComponent("swift-parity.json"))

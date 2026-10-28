@@ -144,6 +144,10 @@ final class Worker {
                 stockReason = reason
                 optimizations = capable.fastPathComponents.mapValues { _ in false }
             }
+        } else if let nemotron = loaded as? NemotronTranscribeModel {
+            // Its one lever is the decoder's draft-and-verify (no self-test child; see NemotronTranscribeRuntime).
+            stockReason = nemotron.plainDecodingReason
+            optimizations = ["mtp": nemotron.usesMTP]
         } else {
             stockReason = "No optimized path for this model yet."
         }
@@ -239,6 +243,7 @@ final class Worker {
                     }
                 } else {
                     output = try runStock(model, input, parameters)
+                    if let error = (model as? NemotronTranscribeModel)?.lastError { throw error }
                 }
                 Stream.gpu.synchronize()
                 return output.text.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -27,8 +27,22 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     /// Whether the last request dropped a trailing vocabulary sentence, and how many chunks it had.
     public private(set) var lastGuardDropped: [String] = []
     public private(set) var lastChunkCount = 0
-    public var usesMTP: Bool { mtp != nil && Self.mtpEnabled }
-    static var mtpEnabled: Bool { ProcessInfo.processInfo.environment["VELLA_NEMOTRON_TRANSCRIBE_MTP"] != "0" }
+    /// MTP drafts are verified by the main model, but batched verification changes near-tie choices (1–2 words of
+    /// a 60 s clip with a list), so it is an inexact lever: Optimized · Exact and stock MLX decode plain greedy.
+    public var usesMTP: Bool { mtp != nil && Self.mtpAllowed }
+    static var mtpAllowed: Bool {
+        ProcessInfo.processInfo.environment["VELLA_NEMOTRON_TRANSCRIBE_MTP"] != "0" && !FastPathGate.exactOnly && !FastPathGate.forcedStock
+    }
+    /// Why the model decodes plain greedy (nil while MTP runs), for the helper's status.
+    public var plainDecodingReason: String? {
+        if usesMTP { return nil }
+        if mtp == nil { return "This checkpoint has no draft head; plain decoding." }
+        if FastPathGate.forcedStock { return FastPathGate.forcedStockReason }
+        if FastPathGate.exactOnly { return "Optimized · Exact: plain decoding (draft-and-verify changes near ties)." }
+        return "Draft-and-verify decoding is off (VELLA_NEMOTRON_TRANSCRIBE_MTP=0)."
+    }
+    /// The last request's error (a chunk that threw); the worker turns it into a failed request, never silence.
+    public private(set) var lastError: Error?
 
     init(decoder: NTDecoderConfig, perception: NTPerceptionConfig, eos: Set<Int>, pad: Int) {
         decoderConfig = decoder; self.eos = eos; padToken = pad
@@ -64,7 +78,9 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         var weights: [String: MLXArray] = [:]
         for file in files { weights.merge(try MLX.loadArrays(url: file)) { _, new in new } }
         let nvidia = weights.keys.contains { $0.hasPrefix("llm.model.") }
+        var nvidiaMTP: [String: MLXArray] = [:]
         if nvidia {
+            nvidiaMTP = mtpWeights(weights)
             weights = sanitize(weights)
         }
         try installQuantization(model, weights: weights, config: root["quantization"] as? [String: Any])
@@ -73,7 +89,13 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         eval(model)
 
         let mtpURL = directory.appendingPathComponent("extras/mtp.safetensors")
-        if !nvidia, FileManager.default.fileExists(atPath: mtpURL.path) {
+        if nvidia, nvidiaMTP.count == NTMTP.nvidiaKeys.count {
+            // BF16: the checkpoint's own head, as shipped (experts transposed, router FP32).
+            let head = NTMTP(decoder)
+            try head.update(parameters: ModuleParameters.unflattened(nvidiaMTP), verify: .all)
+            eval(head)
+            model.mtp = head
+        } else if !nvidia, FileManager.default.fileExists(atPath: mtpURL.path) {
             let (tensors, metadata) = try MLX.loadArraysAndMetadata(url: mtpURL)
             let head = NTMTP(decoder)
             let quantization = metadata["quantization"].flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) } as? [String: Any]
@@ -96,6 +118,18 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         }
         lastTokens = []
         Memory.clearCache()
+    }
+
+    /// The MTP head's tensors from NVIDIA's checkpoint in NTMTP layout (research mtp.py `mtp_weights`).
+    static func mtpWeights(_ weights: [String: MLXArray]) -> [String: MLXArray] {
+        var out: [String: MLXArray] = [:]
+        for (source, target) in NTMTP.nvidiaKeys {
+            guard var value = weights[source] else { continue }
+            if source.hasSuffix("_projs") { value = value.transposed(0, 2, 1) }
+            if source.hasSuffix("gate.weight") { value = value.asType(.float32) }
+            out[target] = value
+        }
+        return out
     }
 
     /// NVIDIA's NeMo keys → this module tree (mlx-audio `Model.sanitize`).
@@ -288,7 +322,7 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         if let candidate = NemotronTranscribeVocabularyGuard.trailingCandidate(withList, words: terms) {
             // The audio embeddings are reused; only the prompt and decode run again.
             let plain = text(decode(try inputs(tokens: try promptTokens(words: []), audio: audio), maxTokens: maxTokens))
-            if NemotronTranscribeVocabularyGuard.shouldDrop(withList: withList, withoutList: plain) {
+            if NemotronTranscribeVocabularyGuard.shouldDrop(withList: withList, withoutList: plain, dropped: candidate.dropped) {
                 lastGuardDropped.append(candidate.dropped)
                 return candidate.kept
             }
@@ -302,15 +336,20 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         let plan = NemotronTranscribeChunking.plan(samples)
         lastChunkCount = plan.count
         lastGuardDropped = []
+        lastError = nil
         var parts: [String] = []
         var generated = 0
         for range in plan {
             let seconds = Double(range.count) / Double(NemotronTranscribeChunking.sampleRate)
             // About 2.5 tokens a second of speech; generous so a fast talker is never cut.
             let limit = max(generationParameters.maxTokens, Int(seconds * 15))
-            let chunk = MLXArray(Array(samples[range]))
-            if let part = try? transcribeChunk(chunk, words: vocabularyWords, maxTokens: limit), !part.isEmpty {
-                parts.append(part)
+            lastTokens = []
+            do {
+                let part = try transcribeChunk(MLXArray(Array(samples[range])), words: vocabularyWords, maxTokens: limit)
+                if !part.isEmpty { parts.append(part) }
+            } catch {
+                lastError = error
+                break
             }
             generated += lastTokens.count
             Memory.clearCache()

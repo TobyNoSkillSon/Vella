@@ -89,16 +89,17 @@ public enum NemotronTranscribeChunking {
 }
 
 /// The vocabulary hint can make words up: on Toby's speech, a 17-word list made the model append a list word
-/// ("Poznań") that was never spoken. A trailing sentence made only of list words is a candidate; the model decides
-/// whether it stays: the same audio is decoded once more without the list, and the candidate is dropped when that
-/// transcript has fewer sentences (the plain decode heard nothing there).
+/// ("Poznań") that was never spoken. A trailing sentence made only of list words is a candidate (or the whole text,
+/// when it is only list words); the model decides whether it stays: the same audio is decoded once more without the
+/// list, and the candidate is dropped when that transcript is shorter by at least the candidate's words (the plain
+/// decode heard nothing there). Word counts, not sentences: the plain decode may punctuate differently.
 public enum NemotronTranscribeVocabularyGuard {
-    /// The trailing sentence when it consists only of vocabulary words and something precedes it.
+    /// The trailing sentence when it consists only of vocabulary words (kept is empty when nothing precedes it).
     public static func trailingCandidate(_ text: String, words: [String]) -> (kept: String, dropped: String)? {
         let vocabulary = Set(NemotronTranscribePrompt.vocabulary(words).map { normalize($0) })
         guard !vocabulary.isEmpty else { return nil }
         let sentences = split(text)
-        guard sentences.count >= 2, let last = sentences.last else { return nil }
+        guard let last = sentences.last else { return nil }
         let tokens = last.split(whereSeparator: { $0.isWhitespace }).map { normalize(String($0)) }.filter { !$0.isEmpty }
         guard !tokens.isEmpty else { return nil }
         // Multi-word terms ("Liquid AI") match as a phrase too.
@@ -130,9 +131,10 @@ public enum NemotronTranscribeVocabularyGuard {
         return out
     }
 
-    /// Whether the candidate goes: the decode without the list has fewer sentences.
-    public static func shouldDrop(withList: String, withoutList: String) -> Bool {
-        split(withoutList).count < split(withList).count
+    /// Whether the candidate goes: the decode without the list has at least the candidate's words fewer.
+    public static func shouldDrop(withList: String, withoutList: String, dropped: String) -> Bool {
+        func count(_ t: String) -> Int { t.split(whereSeparator: { $0.isWhitespace }).filter { !normalize(String($0)).isEmpty }.count }
+        return count(withoutList) <= count(withList) - count(dropped)
     }
 
     static func normalize(_ s: String) -> String {
@@ -146,13 +148,16 @@ public enum NemotronTranscribeVocabularyGuard {
 public enum NemotronTranscribeMarkup {
     public static func strip(_ text: String) -> String {
         var s = text
-        s = s.replacingOccurrences(of: #"<think>[\s\S]*?</think>"#, with: " ", options: .regularExpression)
-        s = s.replacingOccurrences(of: #"</?think>"#, with: " ", options: .regularExpression)
-        s = s.replacingOccurrences(of: #"</?(?:spk|ev|sty):[^<>\s]*>"#, with: " ", options: .regularExpression)
-        s = s.replacingOccurrences(of: #"<\|[a-z_]+\|>"#, with: " ", options: .regularExpression)
-        // Tidy the gaps the tags leave: one space between words, none before punctuation.
-        s = s.replacingOccurrences(of: #"[ \t]+"#, with: " ", options: .regularExpression)
-        s = s.replacingOccurrences(of: #" +([,.;:!?…])"#, with: "$1", options: .regularExpression)
+        // Each removed tag leaves a marker; only the gaps at markers are tidied, so text without markup is unchanged
+        // (French spacing before "?" stays).
+        let mark = "\u{1}"
+        for pattern in [#"<think>[\s\S]*?</think>"#, #"</?think>"#, #"</?(?:spk|ev|sty):[^<>\s]*>"#, #"<\|[a-z_]+\|>"#] {
+            s = s.replacingOccurrences(of: pattern, with: mark, options: .regularExpression)
+        }
+        guard s.contains(mark) else { return text.trimmingCharacters(in: .whitespacesAndNewlines) }
+        s = s.replacingOccurrences(of: #"[ \t]*\x{01}[\s\x{01}]*(?=[,.;:!?…]|$)"#, with: "", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"^[\s\x{01}]+"#, with: "", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"[ \t]*\x{01}[\s\x{01}]*"#, with: " ", options: .regularExpression)
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
