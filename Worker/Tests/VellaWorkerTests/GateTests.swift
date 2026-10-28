@@ -425,13 +425,15 @@ extension WorkerTests {
         }
         /// The registry maps each dictation architecture to its runtime, whose gate revision is the model's own.
         @Test func registry() {
-            #expect(ModelRuntimeRegistry.dictation.map { $0.architecture } == [.parakeet, .qwen3ASR, .whisper])
+            #expect(ModelRuntimeRegistry.dictation.map { $0.architecture } == [.parakeet, .qwen3ASR, .whisper, .nemotronTranscribe])
             #expect(ModelRuntimeRegistry.streaming.map { $0.architecture } == [.nemotronASR])
             #expect(ModelRuntimeRegistry.dictation(.parakeet)?.gateRevision == ParakeetModel.fastPathRevision)
             #expect(ModelRuntimeRegistry.dictation(.qwen3ASR)?.gateRevision == "qwen3-asr-3-f32-encoder-p3")
             #expect(ModelRuntimeRegistry.dictation(.whisper)?.gateRevision == WhisperModel.fastPathRevision)
             #expect(ModelRuntimeRegistry.streaming(.nemotronASR)?.gateRevision == "nemotron-stream-5")
-            #expect(ModelRuntimeRegistry.dictation.allSatisfy { $0.requiredGPUFamily == "apple9" })
+            // Every dictation model with an optimized path needs family 9; Nemotron Transcribe has no self-tested path.
+            #expect(ModelRuntimeRegistry.dictation.filter { $0.hasFastPath }.allSatisfy { $0.requiredGPUFamily == "apple9" })
+            #expect(ModelRuntimeRegistry.dictation.filter { !$0.hasFastPath }.map { $0.architecture } == [.nemotronTranscribe])
             #expect(NemotronRuntime.requiredGPUFamily == nil)
             #expect(ModelRuntimeRegistry.dictation(.stub) == nil && ModelRuntimeRegistry.dictation(.nemotronASR) == nil)
         }

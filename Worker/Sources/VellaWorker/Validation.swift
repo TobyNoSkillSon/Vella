@@ -23,8 +23,17 @@ func admitCheckpoint(_ path: URL) throws -> Architecture {
     var architecture = config["model_type"] as? String
     // NeMo transducer checkpoints carry no model_type (the catalog's MLX Parakeet); only TDT ones load.
     if architecture == nil, config["target"] as? String == "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel" { architecture = "parakeet" }
+    // Nemotron 3.5 Transcribe: Vella's MLX tiers say so; NVIDIA's BF16 original is a NeMo SpeechLM with that class.
+    if architecture == "nemo_speechlm", (config["architectures"] as? [String])?.contains("Nemotron3_5TranscribeForConditionalGeneration") == true {
+        architecture = "nemotron_transcribe"
+    }
+    if architecture == "nemotron_transcribe" {
+        guard (config["llm_config"] as? [String: Any])?["model_type"] as? String == "nemotron_h",
+            (config["prompt_format"] as? String ?? "nemotron3p5") == "nemotron3p5"
+        else { throw RequestError.invalid }
+    }
     let stub = StubModel.enabled && architecture == "stub" // Test hook, reported in status.
-    guard let name = architecture, stub || ["parakeet", "qwen3_asr", "whisper"].contains(name),
+    guard let name = architecture, stub || ["parakeet", "qwen3_asr", "whisper", "nemotron_transcribe"].contains(name),
         let architecture = Architecture(rawValue: name)
     else { throw RequestError.invalid }
     let rawQuant = pythonTruthy(config["quantization"]) ? config["quantization"] : pythonTruthy(config["quantization_config"]) ? config["quantization_config"] : [:]

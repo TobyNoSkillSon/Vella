@@ -82,7 +82,20 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
             eval(head)
             model.mtp = head
         }
+        model.warmUp()
         return model
+    }
+
+    /// The first request after a load paid ~11 s of one-time kernel preparation (25 s clip: 12.2 s cold, 0.75 s
+    /// warm). Two seconds of faint noise through the encoders and a few decoded tokens move that into the load.
+    func warmUp() {
+        let noise = MLXRandom.normal([2 * NemotronTranscribeChunking.sampleRate], key: MLXRandom.key(0)) * 1e-3
+        let audio = perception(noise)
+        if let embeddings = try? inputs(tokens: promptTokens(words: []), audio: audio) {
+            _ = decode(embeddings, maxTokens: 8)
+        }
+        lastTokens = []
+        Memory.clearCache()
     }
 
     /// NVIDIA's NeMo keys → this module tree (mlx-audio `Model.sanitize`).
