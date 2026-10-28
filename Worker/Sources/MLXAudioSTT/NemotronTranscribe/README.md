@@ -138,8 +138,8 @@ Speed is × real time, energy is joules per minute of audio (whole chip, idle su
 | Tier | Runs as | Offered | Gate vs 16 |
 |---|---|---|---|
 | 16 (bf16) | the checkpoint as published | yes | — |
-| 8 (int8) | a published mixed quantization, its own download: 8-bit experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-8 g64) | yes | — |
-| 4 (int4) | a published mixed quantization, its own download: 4-bit routed experts, 8-bit shared experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-4 g64) | yes | — |
+| 8 (int8) | affine group 64 from the bf16 weights | yes | — |
+| 4 (int4) | affine group 64 from the bf16 weights | yes | — |
 
 | Tier | Path | English WER % | Format % | Multilingual WER % | Speed | J / audio min | Peak RAM MB | Speed vs Standard | Energy vs Standard |
 |---|---|---|---|---|---|---|---|---|---|
