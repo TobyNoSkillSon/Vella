@@ -33,6 +33,7 @@ REFERENCE_WORKER_FULL_TREE=7640d1d1e0953f58d894ee89711a2f0f74ab7083
 # files, never against history.
 BASE_WORKER_TREE=53e0cd3fce3cb0b11646dd3b085c0328e51fc5aa
 WORKER_DOC_CHANGES="Sources/MLXAudioSTT/NemotronASR/README.md
+Sources/MLXAudioSTT/NemotronTranscribe/README.md
 Sources/MLXAudioSTT/Parakeet/README.md
 Sources/MLXAudioSTT/Qwen3ASR/README.md
 Sources/MLXAudioSTT/Whisper/README.md"
