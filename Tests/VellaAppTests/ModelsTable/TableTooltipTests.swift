@@ -31,6 +31,8 @@ final class TableTooltipTests: XCTestCase {
             benchmarksURL: resources.appendingPathComponent("benchmarks.json"))
         // Fixed hardware, whatever Mac runs the tests: the measured M5 Max.
         c.benchmarkHardware = Self.macs[0].hardware; c.gpu = Self.macs[0].gpu
+        // ... with its 128 GB, so every Nemotron 3.5 Transcribe tier is offered (memory floors: NemotronTranscribeTableTests).
+        c.physicalMemoryBytes = 128 * 1_073_741_824
         return c
     }
 
@@ -64,7 +66,10 @@ final class TableTooltipTests: XCTestCase {
     private func lines(_ text: String) -> [String] { text.components(separatedBy: "\n") }
 
     private static let figures: Set<String> = ["WER", "Format", "Speed", "J / min", "Peak RAM"]
-    private static let provenance = #"^Measured by Vella · M5 Max · 20\d\d-\d\d-\d\d$"#
+    /// Vella's benchmark; or a tier's own published peak (catalog `peakMemoryMB`, Nemotron 3.5 Transcribe): measured
+    /// outside the benchmark, or an estimate that says so.
+    private static let provenance =
+        #"^(Measured by Vella · M5 Max · 20\d\d-\d\d-\d\d|Measured on M5 Max · 20\d\d-\d\d-\d\d, outside Vella's benchmark|Estimated, not measured: [^\n]+)$"#
     /// The tier cell's delta line: vs the 16-bit cell of the same switch position with its basis (speed and energy only
     /// on the measured Mac), the reference itself, or pending. Never "Standard".
     private static let deltaPattern =
@@ -213,7 +218,7 @@ final class TableTooltipTests: XCTestCase {
         let c = try shippedController()
         let table = ModelTable(controller: c)
         let families = c.families(.dictation) + c.families(.streaming)
-        XCTAssertEqual(families.count, 7)
+        XCTAssertEqual(families.count, 8)
         var checked = 0
         for mac in Self.macs {
             c.benchmarkHardware = mac.hardware; c.gpu = mac.gpu
@@ -326,6 +331,12 @@ final class TableTooltipTests: XCTestCase {
         OpenAI, 2024 · MIT
         Whisper large-v3 with 4 decoder layers instead of 32: the same languages, much faster, a little less accurate outside English
         0.8B parameters · native FP16
+        """,
+        "nemotron-3.5-transcribe": """
+        Nemotron 3.5 Transcribe
+        NVIDIA, 2026 · OpenMDW-1.1
+        A 30B speech language model for 40 languages: the text arrives after you stop speaking; needs 48 GB of memory or more
+        30B-A4B parameters · native BF16
         """,
         "nemotron-3.5-streaming-0.6b": """
         Nemotron 3.5 Streaming

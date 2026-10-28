@@ -338,7 +338,8 @@ struct VellaCLI {
         }
         if m["loaded"] as? Bool == true { parts.append("loaded") }
         if m["current"] as? Bool == true { parts.append("current \((m["mode"] as? String)?.lowercased() ?? "dictation") model") }
-        if let action = m["action"] as? String { parts.append(action) }
+        // The table's greyed button: no precision fits this Mac's memory ("Needs 48 GB of memory").
+        if let unavailable = m["unavailable"] as? String { parts.append(unavailable) } else if let action = m["action"] as? String { parts.append(action) }
         if let recommended = m["recommended_precision"] as? String { parts.append("recommended \(recommended)") }
         if m["hardware_note"] is String { parts.append("Speed and J / min measured on M5 Max (40-core GPU), not this Mac") }
         return "\(m["id"] as? String ?? "?")  " + parts.joined(separator: " · ")

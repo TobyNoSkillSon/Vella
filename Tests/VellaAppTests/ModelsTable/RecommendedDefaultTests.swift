@@ -66,7 +66,8 @@ import XCTest
 
     func testFreshInstallOnAnM4StaysOn16Bit() throws {
         let c = try controller(gpu: Self.m4, hardware: BenchmarkHardware(chip: "Apple M4 Pro", gpuCores: 20))
-        for family in c.families(.dictation) + c.families(.streaming) {
+        // Nemotron 3.5 Transcribe starts on its catalog default (int4) wherever it fits (NemotronTranscribeTableTests).
+        for family in c.families(.dictation) + c.families(.streaming) where family.defaultTier == nil {
             XCTAssertEqual(c.recommendedTier(family), .t16, family.id)
             XCTAssertEqual(c.currentSelection(family), .fallback, "\(family.id): no matrix hardware for int8/int4 here")
         }

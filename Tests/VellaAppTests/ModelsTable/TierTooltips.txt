@@ -218,6 +218,36 @@ vs fp16: Speed: 12% faster · Energy: 5% less · WER −0.05 pt · M5 Max, 3 Oct
 vs fp16: Speed: 16% faster · Energy: 2% more · WER +0.39 pt · M5 Max, 3 Oct
 Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
+[Nemotron 3.5 Transcribe · Bolt]
+Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
+
+[Nemotron 3.5 Transcribe · Precision bf16 · Exact · M5 Max]
+bf16, as published
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int8 · Exact · M5 Max]
+8-bit experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-8 g64)
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int4 · Exact · M5 Max]
+4-bit routed experts, 8-bit shared experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-4 g64)
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Exact/Fast]
+Exact: only components that must match plain MLX on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
+
+[Nemotron 3.5 Transcribe · Precision bf16 · Fast · M5 Max]
+bf16, as published
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int8 · Fast · M5 Max]
+8-bit experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-8 g64)
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int4 · Fast · M5 Max]
+4-bit routed experts, 8-bit shared experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-4 g64)
+Not measured yet
+
 [Nemotron 3.5 Streaming · Bolt]
 Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
 
@@ -454,6 +484,30 @@ No hardware support for int4 on this Mac: saves memory, may be slower than fp16
 vs fp16: WER +0.39 pt · M5 Max, 3 Oct
 Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
+[Nemotron 3.5 Transcribe · Precision bf16 · Exact · M4 Pro]
+bf16, as published
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int8 · Exact · M4 Pro]
+8-bit experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-8 g64)
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int4 · Exact · M4 Pro]
+4-bit routed experts, 8-bit shared experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-4 g64)
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision bf16 · Fast · M4 Pro]
+bf16, as published
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int8 · Fast · M4 Pro]
+8-bit experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-8 g64)
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int4 · Fast · M4 Pro]
+4-bit routed experts, 8-bit shared experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-4 g64)
+Not measured yet
+
 [Nemotron 3.5 Streaming · Precision bf16 · Exact · M4 Pro]
 Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.16 pt); int4 fails the quality gate (21 test clips came back empty or cut short)
 bf16, as published
@@ -687,6 +741,30 @@ No hardware support for int4 on this Mac: saves memory, may be slower than fp16
 4-bit weights throughout (affine-4 g64)
 vs fp16: WER +0.39 pt · M5 Max, 3 Oct
 Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
+
+[Nemotron 3.5 Transcribe · Precision bf16 · Exact · M1]
+bf16, as published
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int8 · Exact · M1]
+8-bit experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-8 g64)
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int4 · Exact · M1]
+4-bit routed experts, 8-bit shared experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-4 g64)
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision bf16 · Fast · M1]
+bf16, as published
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int8 · Fast · M1]
+8-bit experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-8 g64)
+Not measured yet
+
+[Nemotron 3.5 Transcribe · Precision int4 · Fast · M1]
+4-bit routed experts, 8-bit shared experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-4 g64)
+Not measured yet
 
 [Nemotron 3.5 Streaming · Precision bf16 · Exact · M1]
 Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.16 pt); int4 fails the quality gate (21 test clips came back empty or cut short)

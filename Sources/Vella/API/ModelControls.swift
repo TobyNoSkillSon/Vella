@@ -40,6 +40,7 @@ import VellaCore
         let selectedPath = controller.config.map { f.mode == .dictation ? $0.model : $0.streamingModel } ?? ""
         o["current"] = controller.identify(path: selectedPath, mode: f.mode)?.family.id == f.id
         o["action"] = String(describing: controller.action(f)).capitalized
+        if let reason = controller.memoryRefusal(f) { o["unavailable"] = reason }
         if let chosen = controller.rules(f).precision(of: controller.currentSelection(f)), let source = f.acquisition(of: chosen) {
             o["download"] = ["bytes": source.download.downloadBytes, "source": source.download.repository, "revision": source.download.revision]
         }
@@ -73,6 +74,8 @@ import VellaCore
                 let s = ModelSelection(tier: tier, mode: mode)
                 var cell = selectionObject(s)
                 cell["precision"] = tierDTypeLabel(f, tier)
+                // The memory floor of a tier that has one (MemoryFit.swift); its `reason` says when this Mac is below it.
+                if let label = precisionLabel(f, tier: tier), let floor = minimumMemoryGB(f, label), floor != Int.max { cell["min_memory_gb"] = floor }
                 if let reason = controller.rules(f).cellRefusal(s, loaded: controller.loadedSelection(f)) { cell["reason"] = reason }
                 // Advice for the cells that can be chosen (an unavailable cell has its `reason` instead).
                 if let a = advice[mode], cell["reason"] == nil {

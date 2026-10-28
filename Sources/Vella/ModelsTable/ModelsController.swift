@@ -396,7 +396,11 @@ struct ModelDeletionPlan {
     /// The tier recommended for this Mac at the default switch position (Fast): what a family nothing was chosen for
     /// previews, offers and loads (Toby, 15 Oct: "we want to suggest them the most efficient model ... they just may not
     /// know"). Nil while the figures are pending (then 16).
-    func recommendedTier(_ f: ModelFamily) -> ModelTier? { advice(f, mode: .fast).recommended }
+    func recommendedTier(_ f: ModelFamily) -> ModelTier? {
+        // The catalog default where it fits; where no tier fits, still the default, so the greyed row shows its smallest tier.
+        advice(f, mode: .fast).recommended
+            ?? f.defaultTier.flatMap(ModelTier.init(rawValue:)).flatMap { rules(f).memoryRefusal($0) == nil || rules(f).rowMemoryRefusal != nil ? $0 : nil }
+    }
     /// The advice in one switch position (where Fast = Exact the switch is pinned to Fast). Figures that predate the final
     /// build (benchmarks.json `figures_pending`) recommend and warn nothing.
     func advice(_ f: ModelFamily, mode requested: OptimizedMode) -> PrecisionAdvice {
@@ -434,7 +438,8 @@ struct ModelDeletionPlan {
     /// What the first dictation without a model offers: the catalog's first offered family at the precision its row
     /// shows unloaded (`committed`: a saved choice, else the recommended one for this Mac), else 16, else native.
     func firstOffered(_ mode: RecognitionMode) -> (family: ModelFamily, precision: String)? {
-        guard let family = catalog.offered(mode).first else { return nil }
+        // The catalog's first family (Parakeet v3 Ultra); never one this Mac's memory cannot hold.
+        guard let family = catalog.offered(mode).first(where: { rules($0).rowMemoryRefusal == nil }) else { return nil }
         for precision in [committed(family), precisionLabel(family, tier: .t16), family.native].compactMap({ $0 }) where family.variants[precision] != nil {
             return (family, precision)
         }
@@ -481,7 +486,17 @@ struct ModelDeletionPlan {
         return shownPrecision(preview: nil, loaded: loaded(f)?.precision, lastLoaded: lastLoaded(f), recommended: nil, family: f)
     }
     /// The cell rules (VellaCore `SelectionRules`, shared with the runtime and the API).
-    func rules(_ f: ModelFamily) -> SelectionRules { SelectionRules(family: f, benchmark: benchmark(f)) }
+    func rules(_ f: ModelFamily) -> SelectionRules { SelectionRules(family: f, benchmark: benchmark(f), physicalMemoryBytes: physicalMemoryBytes) }
+    /// This Mac's memory, for the tiers' memory floors (MemoryFit.swift); tests and renders set another Mac's.
+    var physicalMemoryBytes: UInt64 = HostInfo.physicalMemoryBytes { didSet { adviceCache = [:] } }
+    /// Why the row's button refuses: no offered tier fits this Mac's memory (`Needs 48 GB of memory`), or the shown
+    /// tier does not and it is not the loaded one. Nil when it may act.
+    func memoryRefusal(_ f: ModelFamily) -> String? {
+        let r = rules(f)
+        if let row = r.rowMemoryRefusal { return row }
+        let s = currentSelection(f)
+        return s == loadedSelection(f) ? nil : r.memoryRefusal(s.tier)
+    }
     /// The segments a switch position offers (family coupling rule, `SelectionRules.precisions`).
     func precisions(_ f: ModelFamily, _ mode: OptimizedMode) -> [ModelTier] { rules(f).precisions(mode) }
     /// A cell has numbers (`SelectionRules.measured`).
@@ -708,6 +723,7 @@ struct ModelDeletionPlan {
         let action = action(f)
         guard !inUse(f), !anyBusy else { lastError = "Finish dictation, transcription, loading or downloading before changing this model."; return }
         if action == .unload { actions?.unload(family: f); return }
+        if let reason = memoryRefusal(f) { lastError = "\(f.name): \(reason)."; return }
         guard let source = f.downloadSource(of: precision) else { lastError = "\(f.name) at \(precisionFormatName(precision)) has no source in the catalog."; return }
         if available(f, precision) { commit(f, precision, action); return }
         requestDownload(f, precision, sourceID: source.variant.id)
@@ -818,8 +834,11 @@ struct ModelDeletionPlan {
             try await actions.unloadForControl(family: f); previews[f.id] = nil; return
         }
         if action == "reload", loaded(f) == nil { throw APIError(409, "Load this model before Reload.") }
+        if let reason = rules(f).rowMemoryRefusal { throw APIError(409, "\(f.name): \(reason).", code: "insufficient_memory") }
         let selection = currentSelection(f)
-        if let reason = rules(f).cellRefusal(selection, loaded: loadedSelection(f)) { throw APIError(409, reason) }
+        if let reason = rules(f).cellRefusal(selection, loaded: loadedSelection(f)) {
+            throw APIError(409, reason, code: rules(f).memoryRefusal(selection.tier) == reason ? "insufficient_memory" : nil)
+        }
         guard let precision = rules(f).precision(of: selection) else { throw APIError(409, "Not offered for this model") }
         let lib = library(f.mode)
         let needsDownload = !available(f, precision)

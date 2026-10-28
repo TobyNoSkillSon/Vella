@@ -95,13 +95,17 @@ import VellaUpdate
         /// Override of benchmarks.json `figures_pending` (nil: as shipped).
         var figuresPending: Bool?
         var gpuCores: Int?
+        /// This Mac's memory in GB (nil: the rendering Mac's), for the tiers' memory floors.
+        var memoryGB: Double?
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         NSApp.appearance = NSAppearance(named: .darkAqua)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let states = Self.states()
+        // VELLA_RENDER_STATES=<prefix> renders only the states whose name starts with it.
+        let only = ProcessInfo.processInfo.environment["VELLA_RENDER_STATES"] ?? ""
+        let states = Self.states().filter { only.isEmpty || $0.name.hasPrefix(only) }
         Self.renderControls(to: directory.appendingPathComponent("controls.png")) { [self] in render(states, 0) }
     }
 
@@ -239,6 +243,33 @@ import VellaUpdate
         conversion.downloadError =
             "Could not convert Parakeet v3 to BF16: the downloaded weights are incomplete or damaged. Partial files removed; your recordings are kept."
         states.append(conversion)
+        // Nemotron 3.5 Transcribe by this Mac's memory: int4 only from 48 GB, int8 from 64, bf16 from 96; below 48 the
+        // row is greyed with its reason. Then a download, and int4 loaded.
+        let transcribe = "nemotron-3.5-transcribe"
+        for memory in [32.0, 48, 64, 128] {
+            var state = State(name: "nemotron-transcribe-\(Int(memory))gb")
+            state.memoryGB = memory
+            states.append(state)
+        }
+        var transcribeDownloading = State(name: "nemotron-transcribe-downloading")
+        transcribeDownloading.memoryGB = 128
+        transcribeDownloading.downloading = ("nemotron-3.5-transcribe-30b-a4b-mlx-q4mix", 0.37)
+        states.append(transcribeDownloading)
+        var transcribeReady = State(name: "nemotron-transcribe-loaded")
+        transcribeReady.memoryGB = 128
+        transcribeReady.installed = RenderFixture.downloaded + ["nemotron-3.5-transcribe-30b-a4b-mlx-q4mix"]
+        transcribeReady.runtime.loaded = [
+            transcribe: LoadedFamily(precision: "4b", engine: "optimized", optimizations: fast, residency: "manual", selection: sel(.t4, .fast))
+        ]
+        states.append(transcribeReady)
+        var transcribeOnDisk = State(name: "nemotron-transcribe-on-disk")
+        transcribeOnDisk.memoryGB = 128
+        transcribeOnDisk.installed = RenderFixture.downloaded + ["nemotron-3.5-transcribe-30b-a4b-mlx-q4mix"]
+        states.append(transcribeOnDisk)
+        var transcribeBF16 = State(name: "nemotron-transcribe-128gb-bf16")
+        transcribeBF16.memoryGB = 128
+        transcribeBF16.selections = [transcribe: sel(.t16, .fast)]
+        states.append(transcribeBF16)
         var refusedLong = State(name: "footer-error-long")
         refusedLong.runtime.loaded = loaded.runtime.loaded
         let qwenController = RenderFixture.controller()
@@ -268,6 +299,7 @@ import VellaUpdate
     /// A preview controller showing a state.
     static func controller(_ state: State) -> ModelsController {
         let controller = RenderFixture.controller(installed: state.installed)
+        if let memory = state.memoryGB { controller.physicalMemoryBytes = UInt64(memory * 1_073_741_824) }
         controller.gpu = RenderFixture.gpu(for: state.runtime.chip)
         if let b = state.benchmarks { controller.benchmarks = b }
         if let pending = state.figuresPending { controller.benchmarks.figuresPending = pending }
@@ -282,8 +314,10 @@ import VellaUpdate
         if let error = state.downloadError { controller.dictation.reportDownloadFailure(error, retryable: state.downloadRetryable) }
         if let d = state.downloading, let library = [controller.dictation, controller.streaming].first(where: { $0.models.contains { $0.id == d.id } }) {
             library.downloadingID = d.id; library.busy = true; library.progress = d.progress
-            let total = library.models.first { $0.id == d.id }?.downloadBytes ?? 0
-            library.message = "Parakeet v3 Ultra 16 \u{00b7} Downloading from Hugging Face… \(formatBytes(Int64(Double(total) * d.progress))) of \(formatBytes(total))"
+            let record = library.models.first { $0.id == d.id }
+            let total = record?.downloadBytes ?? 0
+            let label = record.map { "\($0.name) \(precisionInProse(precisionLabel(legacyQuantization: $0.quantization)))" } ?? "Parakeet v3 Ultra 16"
+            library.message = "\(label) \u{00b7} Downloading from Hugging Face… \(formatBytes(Int64(Double(total) * d.progress))) of \(formatBytes(total))"
         }
         return controller
     }

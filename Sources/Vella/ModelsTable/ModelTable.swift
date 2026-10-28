@@ -207,7 +207,7 @@ struct ModelTable: View {
                 }
             }.frame(width: W.model, alignment: .leading)
                 .appKitTooltip(modelHelp(family, loaded: loaded))
-            Text(family.params.isEmpty ? "—" : family.params).frame(width: W.params)
+            Text(paramsColumnText(family.params)).frame(width: W.params)
             precisionControl(family, hot: hot).frame(width: W.precision)
             pathSwitch(family)
                 .frame(width: W.path, height: ExactFastSwitch.height)
@@ -232,8 +232,14 @@ struct ModelTable: View {
                 warning: Self.energyWarning(bench?.j_per_min, hardware: hardware)
             )
             .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, energyHelp(bench, suites: suites), reference: hardware.referenceLine(energy: bench?.j_per_min)))
-            metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
-                .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, memoryHelp(bench, suites: suites)))
+            // A tier published with its own peak and no benchmark figure (Nemotron 3.5 Transcribe): that peak, `~` when estimated.
+            if !pending, bench?.memory_mb == nil, let peak = catalogPeakMemoryText(variant), let variant {
+                metric(peak, nil, W.memory, hot: hot, subdued: variant.peakMemoryEstimated == true)
+                    .appKitTooltip(figureHelp(family, catalogPeakMemoryHelp(variant)))
+            } else {
+                metric(formatMemory(bench?.memory_mb), nil, W.memory, hot: hot)
+                    .appKitTooltip(pending ? figuresPendingHelp : figureHelp(family, memoryHelp(bench, suites: suites)))
+            }
             rowAction(family, action: action, loading: loading, downloading: downloading, variant: variant, library: library, hot: hot, precision: precision, loaded: loaded)
         }.font(Self.valueFont)
             .padding(.horizontal, W.rowPadding).frame(height: Self.rowHeight)
@@ -258,7 +264,7 @@ struct ModelTable: View {
         library: ModelLibrary, hot: Bool, precision: String, loaded: LoadedFamily?
     ) -> some View {
         let enabled =
-            !(loading || variant == nil || (action != .get && !controller.runtimeAvailable)
+            !(loading || variant == nil || controller.memoryRefusal(family) != nil || (action != .get && !controller.runtimeAvailable)
             || (action == .unload && controller.actions == nil) || (controller.anyBusy && !downloading))
         let busy = downloading ? (library.progress.map { "\(Int($0 * 100))%" } ?? "…") : loading ? "…" : nil
         return RowAction(
@@ -325,6 +331,8 @@ struct ModelTable: View {
 
     /// The action button's tooltip: the model's state (loaded, on disk, not downloaded), then what a click does.
     private func actionTooltip(_ action: LoadAction, family: ModelFamily, precision: String, loaded: String?) -> String {
+        // No precision of it fits this Mac's memory: the reason, never a download offer.
+        if let reason = controller.memoryRefusal(family) { return reason }
         let state = controller.loaded(family) != nil ? "Loaded" : controller.available(family, precision) ? "On disk, not loaded" : "Not downloaded"
         return state + "\n" + actionHelp(action, family: family, precision: precision, loaded: loaded)
     }
@@ -418,7 +426,7 @@ struct ModelTable: View {
         if controller.hasOptimizedPath(family) {
             ExactFastSwitch(
                 position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
-                available: controller.switchAvailable(family), enabled: !controller.inUse(family),
+                available: controller.switchAvailable(family), enabled: !controller.inUse(family) && controller.rules(family).rowMemoryRefusal == nil,
                 exactAvailable: controller.exactAvailable(family), hot: controller.loaded(family) != nil,
                 onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
         } else {
@@ -467,7 +475,9 @@ struct ModelTable: View {
                 ("J / min", figureHelp(family, energyHelp(r, suites: suites), reference: hardware.referenceLine(energy: r?.j_per_min))),
                 (Self.memoryTitle, figureHelp(family, memoryHelp(r, suites: suites)))
             ]
-        return cells + figures + [("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))]
+        let peakVariant = !controller.benchmarks.figuresPending && r?.memory_mb == nil ? family.variants[precision].flatMap { $0.peakMemoryMB == nil ? nil : $0 } : nil
+        let shownFigures = figures.map { $0.0 == Self.memoryTitle && peakVariant != nil ? ($0.0, figureHelp(family, catalogPeakMemoryHelp(peakVariant!))) : $0 }
+        return cells + shownFigures + [("Action", actionTooltip(action, family: family, precision: precision, loaded: loaded?.precision))]
     }
 
     /// Retained loaded selections can point at a withdrawn cell; its reason still belongs on every figure. A speed or

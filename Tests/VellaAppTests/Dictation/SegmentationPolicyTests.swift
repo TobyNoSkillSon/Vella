@@ -80,6 +80,15 @@ final class SegmentationPolicyTests: XCTestCase {
         XCTAssertEqual(SegmentedPCMWriter.Policy.forModel(try folder(nil, derivedFrom: whisper).path), .whisper, "A derived precision uses its source's architecture")
         XCTAssertEqual(SegmentedPCMWriter.Policy.forModel(try folder(["model_type": "qwen3_asr"]).path), .init())
         XCTAssertEqual(SegmentedPCMWriter.Policy.forModel(try folder(["target": "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel"]).path), .init())
+        // Nemotron 3.5 Transcribe, an offline speech LLM, cuts at a pause only after 20 s, within the same 25 s bound: Vella's
+        // MLX tiers and NVIDIA's own bf16 layout (nemo_speechlm) alike.
+        let transcribe = SegmentedPCMWriter.Policy.forArchitecture("nemotron_transcribe")
+        XCTAssertEqual(transcribe.preferredSeconds, 20)
+        XCTAssertLessThanOrEqual(transcribe.maximumSeconds, 30)
+        XCTAssertEqual(SegmentedPCMWriter.Policy.forModel(try folder(["model_type": "nemotron_transcribe"]).path), transcribe)
+        XCTAssertEqual(
+            SegmentedPCMWriter.Policy.forModel(
+                try folder(["model_type": "nemo_speechlm", "architectures": ["Nemotron3_5TranscribeForConditionalGeneration"]]).path), transcribe)
         XCTAssertEqual(SegmentedPCMWriter.Policy.forModel("/qa/missing"), .init())
         XCTAssertEqual(SegmentedPCMWriter.Policy.forModel(""), .init())
     }
