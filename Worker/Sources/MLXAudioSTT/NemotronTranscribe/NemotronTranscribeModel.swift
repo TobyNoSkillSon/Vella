@@ -33,12 +33,14 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     static var mtpAllowed: Bool {
         ProcessInfo.processInfo.environment["VELLA_NEMOTRON_TRANSCRIBE_MTP"] != "0" && !FastPathGate.exactOnly && !FastPathGate.forcedStock
     }
-    /// Why the model decodes plain greedy (nil while MTP runs), for the helper's status.
+    /// Why the model runs as stock MLX, for the helper's status; nil when it runs as designed: draft-and-verify,
+    /// or Optimized · Exact, whose recipe is plain decoding (reported as optimized with `mtp` off, like other models'
+    /// inexact components under Exact).
     public var plainDecodingReason: String? {
         if usesMTP { return nil }
         if mtp == nil { return "This checkpoint has no draft head; plain decoding." }
         if FastPathGate.forcedStock { return FastPathGate.forcedStockReason }
-        if FastPathGate.exactOnly { return "Optimized · Exact: plain decoding (draft-and-verify changes near ties)." }
+        if FastPathGate.exactOnly { return nil }
         return "Draft-and-verify decoding is off (VELLA_NEMOTRON_TRANSCRIBE_MTP=0)."
     }
     /// The last request's error (a chunk that threw); the worker turns it into a failed request, never silence.

@@ -84,6 +84,10 @@ extension WorkerTests {
             #expect(!G.shouldDrop(withList: "We start now. Poznań.", withoutList: "We start now. Posnan.", dropped: "Poznań."))
             #expect(!G.shouldDrop(withList: "We start now. Poznań.", withoutList: "We start now, Posnan.", dropped: "Poznań."))
             #expect(!G.shouldDrop(withList: "Poznań.", withoutList: "Posnan.", dropped: "Poznań."))
+            // A filler only the list decode kept does not decide it (round-2 review case), nor a misspelt anchor.
+            #expect(!G.shouldDrop(withList: "So, um, we start now. Poznań.", withoutList: "So we start now Posnan.", dropped: "Poznań."))
+            #expect(G.shouldDrop(withList: "So, um, we start now. Poznań.", withoutList: "So we start now.", dropped: "Poznań."))
+            #expect(G.shouldDrop(withList: "We met in Liquid. Heimdall.", withoutList: "We met in liquids.", dropped: "Heimdall."))
             #expect(G.split("Dr. No? Yes… ok") == ["Dr. ", "No? ", "Yes… ", "ok"])
         }
 

@@ -131,10 +131,20 @@ public enum NemotronTranscribeVocabularyGuard {
         return out
     }
 
-    /// Whether the candidate goes: the decode without the list has at least the candidate's words fewer.
+    /// Whether the candidate goes: the plain decode has no words where the list decode wrote it. The plain decode is
+    /// anchored at the last word the two should share (the last kept word, matched from the end), so a filler or a
+    /// near-tie spelling elsewhere cannot decide it. Without that anchor, word counts decide. Keeping wins any doubt.
     public static func shouldDrop(withList: String, withoutList: String, dropped: String) -> Bool {
-        func count(_ t: String) -> Int { t.split(whereSeparator: { $0.isWhitespace }).filter { !normalize(String($0)).isEmpty }.count }
-        return count(withoutList) <= count(withList) - count(dropped)
+        func words(_ t: String) -> [String] { t.split(whereSeparator: { $0.isWhitespace }).map { normalize(String($0)) }.filter { !$0.isEmpty } }
+        let list = words(withList), plain = words(withoutList), candidate = words(dropped)
+        let kept = Array(list.dropLast(candidate.count))
+        let tail: Int
+        if let anchor = kept.last, let index = plain.lastIndex(of: anchor) {
+            tail = plain.count - index - 1
+        } else {
+            tail = plain.count - kept.count
+        }
+        return tail <= 0
     }
 
     static func normalize(_ s: String) -> String {

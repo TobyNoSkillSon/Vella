@@ -271,7 +271,9 @@ func ntSSMUpdate(
 ) -> (MLXArray, MLXArray) {
     let (n, l, h, d) = (x.dim(0), x.dim(1), x.dim(2), x.dim(3))
     let (groups, ds) = (B.dim(-2), B.dim(-1))
-    if state == nil, ds % 32 == 0 {
+    // The custom kernels need Metal; on the CPU (lab VELLA_MLX_DEVICE=cpu) everything runs as SSD, like mlx-audio.
+    let metal = Device.defaultDevice().deviceType == .gpu
+    if metal, state == nil, ds % 32 == 0 {
         let dtc = ntComputeDt(dt, dtBias, limit)
         let decay = exp(-exp(aLog) * dtc)
         let out = NTSSMKernels.shared.initial(
@@ -281,7 +283,7 @@ func ntSSMUpdate(
             outputShapes: [x.shape, [n, h, d, ds]], outputDTypes: [x.dtype, DType.float32])
         return (out[0], out[1])
     }
-    if l > 1 || state == nil {
+    if l > 1 || state == nil || !metal {
         return ntSSMAttn(x, aLog: aLog, B: B, C: C, D: D, dt: dt, dtBias: dtBias, state: state, limit: limit)
     }
     let s = state!
