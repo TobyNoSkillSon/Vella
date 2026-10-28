@@ -15,7 +15,7 @@ public struct ModelDescriptor: Equatable, Sendable {
     public let calibratable: Bool
     /// The Resources/models.json families that run on this architecture.
     public let catalogFamilies: [String]
-    /// The worker runs an inexact Fast recipe beside Exact (`hasFastPath`). False: Fast and Exact run the same thing, so the
-    /// Exact/Fast switch is greyed and pinned to Fast whatever benchmarks.json holds (Nemotron 3.5 Transcribe).
-    public var hasFastPath = true
+    /// What Exact and Fast mean for this model, when they differ in a way the general switch tooltip does not say: one
+    /// line under it (Nemotron 3.5 Transcribe: plain decoding vs draft-and-verify). Nil: the general tooltip only.
+    public var switchHelp: String? = nil
 }

@@ -87,9 +87,6 @@ public struct SelectionRules {
     /// The Exact/Fast switch is live: some offered tier's Fast recipe runs an inexact component. Unmeasured families
     /// (no tiers in the file) keep it live.
     public var switchAvailable: Bool {
-        // A model whose worker has no inexact Fast recipe: Fast = Exact, measured or not.
-        let architectures = Set(family.variants.values.map(\.architecture))
-        if !architectures.isEmpty, architectures.allSatisfy({ ModelRegistry.descriptor(architecture: $0)?.hasFastPath == false }) { return false }
         guard let b = benchmark, !b.tiers.isEmpty else { return true }
         return fastDiffersFromExact(b)
     }

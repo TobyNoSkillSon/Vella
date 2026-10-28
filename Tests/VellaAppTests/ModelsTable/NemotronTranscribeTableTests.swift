@@ -93,25 +93,31 @@ import XCTest
         XCTAssertNil(c.firstOffered(.dictation))
     }
 
-    /// No separately qualified fast path (the worker's `hasFastPath` is false): the switch is greyed and pinned to Fast,
-    /// the table, the API (`fast_equals_exact`) and a mode request (409) say so, as for any model where Fast = Exact.
-    func testFastEqualsExactSoTheSwitchIsPinned() throws {
+    /// Fast decodes with the MTP draft head (inexact: it can differ from plain greedy on near ties); Exact turns it off.
+    /// The switch is live as on every model whose Fast differs, its tooltip says what the two mean here, and the API,
+    /// the table and the worker's recipe follow the switch.
+    func testTheSwitchIsLiveAndExactRunsPlainDecoding() throws {
         let (c, f) = try controller(memoryGB: 64)
-        XCTAssertFalse(NemotronTranscribeDescriptor.descriptor.hasFastPath)
-        XCTAssertTrue(ModelRegistry.all.filter { $0.architecture != .nemotronTranscribe }.allSatisfy(\.hasFastPath))
-        XCTAssertFalse(c.switchAvailable(f))
-        XCTAssertTrue(c.hasOptimizedPath(f), "the switch is drawn, greyed")
-        XCTAssertEqual(c.currentSelection(f).mode, .fast)
-        XCTAssertEqual(c.precisions(f, .exact), c.precisions(f, .fast), "both positions offer the same tiers")
-        XCTAssertThrowsError(try c.setModeForControl(f, mode: .exact)) { XCTAssertEqual(($0 as? APIError)?.message, ExactFastSwitch.sameHelp) }
+        XCTAssertTrue(c.switchAvailable(f))
+        XCTAssertTrue(c.exactAvailable(f), "an unmeasured family keeps Exact selectable")
+        XCTAssertEqual(c.currentSelection(f).mode, .fast, "Fast by default")
+        try c.setModeForControl(f, mode: .exact)
+        XCTAssertEqual(c.currentSelection(f), ModelSelection(tier: .t4, mode: .exact))
+        XCTAssertEqual(workerRecipe(c.selectionToCommit(f, "4b")), .optimized_exact, "Exact reaches the worker as VELLA_RECIPE optimized_exact")
+        XCTAssertEqual(c.precisions(f, .exact), [.t8, .t4], "the same tiers in either position")
         let tips = Dictionary(ModelTable(controller: c).tooltips(f).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
-        XCTAssertEqual(tips["Exact/Fast"], ExactFastSwitch.tooltip(available: false, enabled: true))
+        XCTAssertEqual(
+            tips["Exact/Fast"],
+            ExactFastSwitch.help + "\nHere Exact decodes one token at a time; Fast drafts and verifies several, about 1.9× faster, differing only on near ties")
         let runtime = try Runtime.isolated(root.appendingPathComponent("api"))
         let o = ModelControls(controller: c, runtime: runtime).object(f)
-        XCTAssertEqual(o["fast_equals_exact"] as? Bool, true)
-        XCTAssertEqual((o["selection"] as? [String: Any])?["mode"] as? String, "fast")
-        let parakeet = try XCTUnwrap(c.catalog.family("parakeet-v3-ultra"))
-        XCTAssertEqual(ModelControls(controller: c, runtime: runtime).object(parakeet)["fast_equals_exact"] as? Bool, !c.switchAvailable(parakeet))
+        XCTAssertEqual(o["fast_equals_exact"] as? Bool, false)
+        XCTAssertEqual(o["preview_selection"].flatMap { ($0 as? [String: Any])?["mode"] as? String }, "exact")
+        // Only this model adds a line; a greyed row's switch says why it is greyed, not "in use".
+        XCTAssertTrue(ModelRegistry.all.filter { $0.architecture != .nemotronTranscribe }.allSatisfy { $0.switchHelp == nil })
+        let (small, g) = try controller(memoryGB: 32)
+        let blocked = Dictionary(ModelTable(controller: small).tooltips(g).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
+        XCTAssertEqual(blocked["Exact/Fast"]?.components(separatedBy: "\n").last, "Needs 48 GB of memory")
     }
 
     /// Weights already on disk never start a worker over their floor: every load path passes `recipeRefusal`.

@@ -44,11 +44,14 @@ struct ExactFastSwitch: View {
     var exactAvailable = true
     /// The model is loaded (its row is blue).
     var hot = false
+    var detail: String?
+    var disabledHelp = ExactFastSwitch.inUseHelp
     let onChange: (Position) -> Void
 
     /// The tooltip as shown for a state.
-    static func tooltip(available: Bool, enabled: Bool, exactAvailable: Bool = true) -> String {
-        [help, available ? nil : (exactAvailable ? sameHelp : pinnedUnmeasuredHelp), !exactAvailable ? exactNotMeasuredHelp : nil, enabled ? nil : inUseHelp]
+    /// `detail`: the model's own line (ModelDescriptor.switchHelp); `disabledHelp`: why a disabled switch is disabled.
+    static func tooltip(available: Bool, enabled: Bool, exactAvailable: Bool = true, detail: String? = nil, disabledHelp: String = inUseHelp) -> String {
+        [help, detail, available ? nil : (exactAvailable ? sameHelp : pinnedUnmeasuredHelp), !exactAvailable ? exactNotMeasuredHelp : nil, enabled ? nil : disabledHelp]
             .compactMap { $0 }.joined(separator: "\n")
     }
 
@@ -56,7 +59,8 @@ struct ExactFastSwitch: View {
         SwitchRepresentable(
             position: available ? position : .fast, active: available && enabled,
             greyed: !available, exactUnavailable: !exactAvailable, hot: hot,
-            tooltip: Self.tooltip(available: available, enabled: enabled, exactAvailable: exactAvailable), onChange: onChange
+            tooltip: Self.tooltip(available: available, enabled: enabled, exactAvailable: exactAvailable, detail: detail, disabledHelp: disabledHelp),
+            onChange: onChange
         )
         .frame(width: Self.width, height: Self.height)
     }

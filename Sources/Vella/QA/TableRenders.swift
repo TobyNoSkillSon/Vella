@@ -266,6 +266,10 @@ import VellaUpdate
         transcribeOnDisk.memoryGB = 128
         transcribeOnDisk.installed = RenderFixture.downloaded + ["nemotron-3.5-transcribe-30b-a4b-mlx-q4mix"]
         states.append(transcribeOnDisk)
+        var transcribeExact = State(name: "nemotron-transcribe-64gb-exact")
+        transcribeExact.memoryGB = 64
+        transcribeExact.selections = [transcribe: sel(.t4, .exact)]
+        states.append(transcribeExact)
         var transcribeBF16 = State(name: "nemotron-transcribe-128gb-bf16")
         transcribeBF16.memoryGB = 128
         transcribeBF16.selections = [transcribe: sel(.t16, .fast)]

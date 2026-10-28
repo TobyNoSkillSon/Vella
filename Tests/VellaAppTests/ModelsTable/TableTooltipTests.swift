@@ -177,6 +177,7 @@ final class TableTooltipTests: XCTestCase {
                 XCTAssertTrue(
                     l.dropFirst().allSatisfy {
                         [ExactFastSwitch.sameHelp, ExactFastSwitch.pinnedUnmeasuredHelp, ExactFastSwitch.inUseHelp, ExactFastSwitch.exactNotMeasuredHelp].contains($0)
+                            || $0 == ModelTable.switchHelp(family)
                     }, label)
             default:
                 XCTFail("\(label): unexpected column")

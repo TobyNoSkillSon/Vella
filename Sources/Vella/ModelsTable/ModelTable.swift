@@ -422,12 +422,17 @@ struct ModelTable: View {
     }
 
     /// The Exact/Fast switch (ExactFastSwitch.swift) beside the Precision row: up Fast, down Exact.
+    /// The model's own line under the switch tooltip (ModelDescriptor.switchHelp).
+    static func switchHelp(_ family: ModelFamily) -> String? {
+        family.variants.values.first.flatMap { ModelRegistry.descriptor(architecture: $0.architecture)?.switchHelp }
+    }
     @ViewBuilder private func pathSwitch(_ family: ModelFamily) -> some View {
         if controller.hasOptimizedPath(family) {
             ExactFastSwitch(
                 position: controller.currentSelection(family).mode == .fast ? .fast : .exact,
                 available: controller.switchAvailable(family), enabled: !controller.inUse(family) && controller.rules(family).rowMemoryRefusal == nil,
                 exactAvailable: controller.exactAvailable(family), hot: controller.loaded(family) != nil,
+                detail: Self.switchHelp(family), disabledHelp: controller.rules(family).rowMemoryRefusal ?? ExactFastSwitch.inUseHelp,
                 onChange: { controller.setMode(family, $0 == .fast ? .fast : .exact) })
         } else {
             Color.clear.frame(height: 1)
@@ -461,8 +466,9 @@ struct ModelTable: View {
                 (
                     "Exact/Fast",
                     ExactFastSwitch.tooltip(
-                        available: controller.switchAvailable(family), enabled: enabled,
-                        exactAvailable: controller.exactAvailable(family))
+                        available: controller.switchAvailable(family), enabled: enabled && controller.rules(family).rowMemoryRefusal == nil,
+                        exactAvailable: controller.exactAvailable(family), detail: Self.switchHelp(family),
+                        disabledHelp: controller.rules(family).rowMemoryRefusal ?? ExactFastSwitch.inUseHelp)
                 ))
         }
         let action = controller.action(family)
