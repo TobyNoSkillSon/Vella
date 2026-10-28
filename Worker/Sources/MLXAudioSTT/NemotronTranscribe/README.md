@@ -37,7 +37,7 @@ removed and the words between tags are kept: `<spk:N>`, `<ev:…>`, `<sty:…>` 
 Only the plain `words` go in, never Parakeet's acoustic entries or variants. The hint can make words up: on the
 maintainer's speech, a 17-word list made the model append "Poznań", which was never spoken. When the last sentence (or
 the whole segment) is only list words, the same audio embeddings are decoded once more without the list. The
-candidate is dropped when that transcript is shorter by at least the candidate's words. The list can also bend
+candidate is dropped only when that transcript has no words after the last word the two share. The list can also bend
 spellings ("usunąć" became "usunąń" once), and nothing here undoes that.
 
 **Segments.** The app cuts dictation and files into segments at pauses: at most 30 s, preferring a cut after 20 s for
