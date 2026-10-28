@@ -172,7 +172,7 @@ Vella.app contains no model weights. When you confirm a download, Vella fetches 
 |---|---|---|---|---|---|
 EOF
   jq -r '.families[] | [.id, .name, (if .offered then "yes" else "no" end), .license,
-      ([.variants | to_entries[] | select((.value.repository // "") != "" and ((.value.repository // "") | startswith("UNPUBLISHED/") | not)) | "`\(.value.repository)`"] | unique | join(", "))] | join("|")' Resources/models.json |
+      ([.variants | to_entries[] | select((.value.repository // "") != "") | "`\(.value.repository)`"] | unique | join(", "))] | join("|")' Resources/models.json |
   while IFS='|' read -r id name offered licence repositories; do
     upstream="$(awk -F'|' -v id="$id" '$1 == id { print $2 }' <<<"$UPSTREAM")"
     [[ -n "$upstream" ]] || fail "Resources/models.json family $id has no upstream entry in this script"
@@ -180,16 +180,16 @@ EOF
     case "$id" in
       parakeet-v3|parakeet-v3-ultra) clarification='https://creativecommons.org/licenses/by/4.0/' ;;
       nemotron-3.5-streaming-0.6b) clarification='https://openmdw.ai/license/1-1/ (upstream since 2026-06-05); MLX card metadata still names NVIDIA Open Model License' ;;
-      nemotron-3.5-transcribe) clarification='https://openmdw.ai/license/1-1/; LICENSE, THIRD_PARTY_NOTICES.md and licenses/ come with every download' ;;
+      nemotron-3.5-transcribe) clarification='https://openmdw.ai/license/1-1/; LICENSE, THIRD_PARTY_NOTICES.md and licenses/ come with the download' ;;
     esac
-    [[ -n "$repositories" ]] || repositories='not published yet' 
+
     printf '| %s | %s | %s | %s | %s | %s |\n' "$name" "$offered" "$licence" "$clarification" "$upstream" "$repositories"
   done
   cat <<'EOF'
 
 Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream NVIDIA card changed to OpenMDW License 1.1 on 2026-06-05 (https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b/commit/24b151a851dd15909e1fc611b11bb2da52b9fc81); its MLX conversions still name NVIDIA Open Model License in their card metadata.
 
-Nemotron 3.5 Transcribe 30B-A4B: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. Licensed under the OpenMDW License Agreement, version 1.1 (https://openmdw.ai/license/1-1/), which allows use, modification and redistribution provided the agreement and NVIDIA's copyright and origin notices are kept with the materials. Its bf16 tier is NVIDIA's release; its int8 and int4 tiers are mixed MLX quantizations of NVIDIA's bf16 weights made for Vella, so modified from the original. Every tier's download includes NVIDIA's `LICENSE` (the agreement), `THIRD_PARTY_NOTICES.md` and `licenses/` (the Apache-2.0 texts of the Qwen3-ASR and vLLM snippets in NVIDIA's model card), and Vella checks that they are in the model folder after Get.
+Nemotron 3.5 Transcribe 30B-A4B: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. Licensed under the OpenMDW License Agreement, version 1.1 (https://openmdw.ai/license/1-1/), which allows use, modification and redistribution provided the agreement and NVIDIA's copyright and origin notices are kept with the materials. Vella downloads NVIDIA's bf16 release as published; its int8 and int4 precisions are quantized from those weights on your Mac when they load and are not redistributed. The download includes NVIDIA's `LICENSE` (the agreement), `THIRD_PARTY_NOTICES.md` and `licenses/` (the Apache-2.0 texts of the Qwen3-ASR and vLLM snippets in NVIDIA's model card), and Vella checks that they are in the model folder after Get.
 
 ## Apple
 

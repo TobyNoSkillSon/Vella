@@ -731,16 +731,19 @@
       ],
       "default_tier": "4",
       "download": {
-        "repo": "UNPUBLISHED/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B",
-        "revision": "0000000000000000000000000000000000000000",
+        "repo": "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B",
+        "revision": "ef905575a106fdad904f3b0ce661dccad654607d",
         "bytes": 67513686219,
-        "convert_to": []
+        "convert_to": [
+          "8",
+          "4"
+        ]
       },
       "variants": {
         "BF16": {
           "id": "nemotron-3.5-transcribe-30b-a4b-bf16",
-          "repository": "UNPUBLISHED/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B",
-          "revision": "0000000000000000000000000000000000000000",
+          "repository": "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B",
+          "revision": "ef905575a106fdad904f3b0ce661dccad654607d",
           "downloadBytes": 67513686219,
           "architecture": "nemotron_transcribe",
           "files": [
@@ -759,62 +762,21 @@
           "peakMemoryEstimated": true
         },
         "8b": {
-          "id": "nemotron-3.5-transcribe-30b-a4b-mlx-q8mix",
-          "repository": "UNPUBLISHED/Nemotron-3.5-Transcribe-30B-A4B-MLX-q8mix",
-          "revision": "0000000000000000000000000000000000000000",
-          "downloadBytes": 36502781302,
+          "id": "nemotron-3.5-transcribe-30b-a4b-8bit",
+          "derivedFrom": "BF16",
+          "bits": 8,
+          "groupSize": 64,
           "architecture": "nemotron_transcribe",
-          "files": [
-            "model-00001-of-00008.safetensors",
-            "model-00002-of-00008.safetensors",
-            "model-00003-of-00008.safetensors",
-            "model-00004-of-00008.safetensors",
-            "model-00005-of-00008.safetensors",
-            "model-00006-of-00008.safetensors",
-            "model-00007-of-00008.safetensors",
-            "model-00008-of-00008.safetensors",
-            "model.safetensors.index.json",
-            "extras/mtp.safetensors",
-            "config.json",
-            "generation_config.json",
-            "tokenizer.json",
-            "tokenizer_config.json",
-            "LICENSE",
-            "THIRD_PARTY_NOTICES.md",
-            "licenses/Qwen3-ASR-LICENSE.txt",
-            "licenses/vLLM-LICENSE.txt",
-            "README.md"
-          ],
           "peakMemoryMB": 40000,
-          "peakMemoryEstimated": true,
-          "mix": "8-bit experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-8 g64)"
+          "peakMemoryEstimated": true
         },
         "4b": {
-          "id": "nemotron-3.5-transcribe-30b-a4b-mlx-q4mix",
-          "repository": "UNPUBLISHED/Nemotron-3.5-Transcribe-30B-A4B-MLX-q4mix",
-          "revision": "0000000000000000000000000000000000000000",
-          "downloadBytes": 21815377547,
+          "id": "nemotron-3.5-transcribe-30b-a4b-4bit",
+          "derivedFrom": "BF16",
+          "bits": 4,
+          "groupSize": 64,
           "architecture": "nemotron_transcribe",
-          "files": [
-            "model-00001-of-00005.safetensors",
-            "model-00002-of-00005.safetensors",
-            "model-00003-of-00005.safetensors",
-            "model-00004-of-00005.safetensors",
-            "model-00005-of-00005.safetensors",
-            "model.safetensors.index.json",
-            "extras/mtp.safetensors",
-            "config.json",
-            "generation_config.json",
-            "tokenizer.json",
-            "tokenizer_config.json",
-            "LICENSE",
-            "THIRD_PARTY_NOTICES.md",
-            "licenses/Qwen3-ASR-LICENSE.txt",
-            "licenses/vLLM-LICENSE.txt",
-            "README.md"
-          ],
-          "peakMemoryMB": 24700,
-          "mix": "4-bit routed experts, 8-bit shared experts, 8-bit Mamba and attention, 16-bit embeddings and encoders (affine-4 g64)"
+          "peakMemoryMB": 24700
         }
       },
       "offered": true,
@@ -822,7 +784,7 @@
       "released": 2026,
       "licence": "OpenMDW-1.1",
       "summary": "A 30B speech language model for 40 languages: the text arrives after you stop speaking; needs 48 GB of memory or more",
-      "notes": "NVIDIA's Nemotron 3.5 Transcribe 30B-A4B, released in October 2026: a hybrid Mamba-Transformer mixture-of-experts speech language model, about 4B parameters active per token, for 40 languages. In Vella: dictation on Macs with 48 GB of memory or more; the text arrives once the whole recording is encoded. bf16 is NVIDIA's release; int8 and int4 are Vella's mixed MLX quantizations of it, each its own download, not made on this Mac."
+      "notes": "NVIDIA's Nemotron 3.5 Transcribe 30B-A4B, released in October 2026: a hybrid Mamba-Transformer mixture-of-experts speech language model, about 4B parameters active per token, for 40 languages. In Vella: dictation on Macs with 48 GB of memory or more; the text arrives once the whole recording is encoded. Get downloads NVIDIA's bf16 release; int8 and int4 are made on this Mac from it at load: int4 keeps the routed experts at 4 bits and the other decoder projections at 8, int8 every decoder projection at 8; embeddings, head, norms, router and both encoders stay as shipped."
     },
     {
       "id": "nemotron-3.5-streaming-0.6b",

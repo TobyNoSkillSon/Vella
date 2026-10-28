@@ -3,9 +3,10 @@ import XCTest
 import VellaTestSupport
 import VellaWire
 
-/// Nemotron 3.5 Transcribe 30B-A4B (Toby, 28 Oct 2026): a Dictation model in three tiers that are each their own
-/// download (NVIDIA's bf16, Vella's mixed int8 and int4), each offered only where this Mac's memory holds it
-/// (MemoryFit.swift), never the first-run model, never downloaded or loaded without the user's Get. No inference.
+/// Nemotron 3.5 Transcribe 30B-A4B (Toby, 28 Oct 2026): a Dictation model downloaded as NVIDIA's bf16 release, with int8
+/// and int4 made from it at load like every family's (the worker's loader applies this architecture's mix). Each tier is
+/// offered only where this Mac's memory holds it (MemoryFit.swift); never the first-run model, never downloaded or
+/// loaded without the user's Get. No inference.
 final class NemotronTranscribeCatalogTests: XCTestCase {
     static let id = "nemotron-3.5-transcribe"
     private func family() throws -> ModelFamily {
@@ -40,38 +41,69 @@ final class NemotronTranscribeCatalogTests: XCTestCase {
         XCTAssertEqual(quantizedActivations[Self.id], .half)
     }
 
-    /// The departure from the family rule: every tier is its own pinned download, none is made on this Mac.
-    func testEveryTierIsItsOwnDownloadWithItsLicenceFiles() throws {
+    /// The family rule (Toby, 28 Oct 2026, 21:38): the 16-bit checkpoint is the one download; 8 and 4 are made from it.
+    func testInt8AndInt4AreMadeFromTheBF16Download() throws {
         let f = try family()
         XCTAssertEqual(f.derivationProblems(), [])
-        XCTAssertEqual(f.download?.convert_to, [], "nothing is made on this Mac")
-        XCTAssertEqual(f.download?.repo, f.variants["BF16"]?.repository)
-        let sizes = ["BF16": Int64(67_513_686_219), "8b": 36_502_781_302, "4b": 21_815_377_547]
-        for (label, bytes) in sizes {
-            let v = try XCTUnwrap(f.variants[label], label)
-            XCTAssertFalse(v.isDerived, label)
-            XCTAssertEqual(v.downloadBytes, bytes, label)
-            XCTAssertEqual(f.downloadSource(of: label)?.label, label, "\(label) downloads itself")
-            XCTAssertEqual(f.diskBytes(label), bytes)
-            XCTAssertEqual(v.revision.count, 40)
-            XCTAssertTrue(v.repository.hasPrefix(NativeModelDownload.unpublishedOwner + "/"), "\(label): placeholder until Toby picks the source")
-            let files = try XCTUnwrap(v.files, label)
-            for licence in ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/Qwen3-ASR-LICENSE.txt", "licenses/vLLM-LICENSE.txt", "README.md", "config.json"] {
-                XCTAssertTrue(files.contains(licence), "\(label) keeps \(licence)")
-            }
-            XCTAssertFalse(files.contains { $0.contains("ctc_timestamp") || $0.hasPrefix("llm_backbone/") }, "\(label): unused files stay upstream")
-            let prompt = try XCTUnwrap(downloadPrompt(family: f, precision: label, followUp: .load, freeBytes: 1_000_000_000_000))
-            XCTAssertEqual(prompt.variantID, v.id); XCTAssertEqual(prompt.downloadBytes, bytes)
+        let bf16 = try XCTUnwrap(f.variants["BF16"])
+        XCTAssertFalse(bf16.isDerived)
+        XCTAssertEqual(bf16.repository, "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B")
+        XCTAssertEqual(bf16.revision, "ef905575a106fdad904f3b0ce661dccad654607d")
+        XCTAssertEqual(bf16.downloadBytes, 67_513_686_219)
+        XCTAssertEqual(f.download, CatalogDownload(repo: bf16.repository, revision: bf16.revision, bytes: bf16.downloadBytes, convert_to: ["8", "4"]))
+        let files = try XCTUnwrap(bf16.files)
+        for name in ["model.safetensors", "config.json", "generation_config.json", "tokenizer.json", "tokenizer_config.json", "LICENSE",
+            "THIRD_PARTY_NOTICES.md", "licenses/Qwen3-ASR-LICENSE.txt", "licenses/vLLM-LICENSE.txt", "README.md"]
+        {
+            XCTAssertTrue(files.contains(name), name)
         }
-        XCTAssertEqual(f.variants["BF16"]?.files?.filter { $0.hasSuffix(".safetensors") }, ["model.safetensors"])
-        XCTAssertEqual(f.variants["8b"]?.files?.filter { $0.hasPrefix("model-") }.count, 8)
-        XCTAssertEqual(f.variants["4b"]?.files?.filter { $0.hasPrefix("model-") }.count, 5)
-        XCTAssertTrue(f.variants["8b"]?.files?.contains("extras/mtp.safetensors") == true)
-        // The downloader's records carry the file lists, so Get fetches and verifies exactly these.
+        XCTAssertFalse(files.contains { $0.hasPrefix("llm_backbone/") || $0.hasPrefix(".") || $0.hasSuffix(".png") }, "upstream-only files stay there")
+        for (label, bits) in [("8b", 8), ("4b", 4)] {
+            let v = try XCTUnwrap(f.variants[label])
+            XCTAssertEqual(v.derivedFrom, "BF16", label); XCTAssertEqual(v.bits, bits); XCTAssertEqual(v.groupSize, 64)
+            XCTAssertEqual(v.architecture, "nemotron_transcribe")
+            XCTAssertNil(v.floatModules, "the mix is the worker loader's, as Qwen's float audio tower"); XCTAssertNil(v.floatShare)
+            XCTAssertNil(v.files); XCTAssertEqual(v.repository, ""); XCTAssertEqual(v.downloadBytes, 0)
+            XCTAssertTrue(f.isDerived(label))
+            XCTAssertEqual(f.downloadSource(of: label)?.variant.id, bf16.id, "\(label) is made from the bf16 download")
+            XCTAssertEqual(f.acquisition(of: label)?.download.id, bf16.id)
+            XCTAssertNil(f.acquisition(of: label)?.convert)
+            XCTAssertEqual(f.diskBytes(label), bf16.downloadBytes, "\(label) stores nothing of its own")
+            let recipe = try f.derivation(label)
+            XCTAssertEqual(recipe.sourceLabel, "BF16"); XCTAssertEqual(recipe.bits, bits); XCTAssertEqual(recipe.floatModules, [])
+            let prompt = try XCTUnwrap(downloadPrompt(family: f, precision: label, followUp: .load, freeBytes: 1_000_000_000_000))
+            XCTAssertEqual(prompt.variantID, bf16.id); XCTAssertEqual(prompt.downloadBytes, bf16.downloadBytes)
+        }
+        // The downloader sees one record for the family, the bf16 one with its file list.
         let records = catalogVariants(ModelCatalog(families: [f]))
-        XCTAssertEqual(Set(records.map(\.id)), Set(f.variants.values.map(\.id)))
-        XCTAssertTrue(records.allSatisfy { $0.files != nil })
-        XCTAssertEqual(records.first { $0.id == f.variants["4b"]?.id }?.quantization, "4-bit")
+        XCTAssertEqual(records.map(\.id), [bf16.id])
+        XCTAssertEqual(records.first?.files, files)
+        XCTAssertEqual(records.first?.quantization, "BF16")
+    }
+
+    /// Load of a made precision writes the manifest-only directory the worker quantizes from (as for every family).
+    func testPreparedDerivedModelIsAManifestReadingTheBF16Folder() throws {
+        let f = try family()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("vella-nt-derived-\(UUID())")
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let models = root.appendingPathComponent("Models")
+        let source = models.appendingPathComponent(f.variants["BF16"]!.id)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try Data(#"{"model_type": "nemo_speechlm", "architectures": ["Nemotron3_5TranscribeForConditionalGeneration"]}"#.utf8)
+            .write(to: source.appendingPathComponent("config.json"))
+        let installed = [f.variants["BF16"]!.id: source.path]
+        for (label, bits) in [("8b", 8), ("4b", 4)] {
+            let path = try XCTUnwrap(try precisionLoadPath(f, label, installedPath: { installed[$0] }, modelsDirectory: models))
+            XCTAssertEqual(path, try prepareDerivedModel(family: f, precision: label, sourcePath: source.path, modelsDirectory: models))
+            let manifest = try XCTUnwrap(derivedModelManifest(at: URL(fileURLWithPath: path)))
+            XCTAssertEqual(manifest.family, Self.id); XCTAssertEqual(manifest.precision, label)
+            XCTAssertEqual(manifest.source, source.standardizedFileURL.path)
+            XCTAssertEqual(manifest.bits, bits); XCTAssertEqual(manifest.groupSize, 64)
+            let contents = try FileManager.default.contentsOfDirectory(atPath: path)
+            XCTAssertEqual(contents, [DerivedModelManifest.fileName], "no weights of its own")
+            XCTAssertTrue(precisionAvailable(f, label) { installed[$0] })
+        }
+        XCTAssertFalse(precisionAvailable(f, "4b") { _ in nil }, "without the bf16 download nothing is available")
     }
 
     /// The fit rule (peak + 16 GB within the Mac's memory, rounded up to a size Macs ship with) gives 96 / 64 / 48 GB.
@@ -131,14 +163,19 @@ final class NemotronTranscribeCatalogTests: XCTestCase {
         XCTAssertTrue(catalogPeakMemoryHelp(f.variants["4b"]!).contains("Measured on M5 Max"))
     }
 
-    func testTooltipsNameTheMixAndTheLicence() throws {
+    func testTooltipsNameTheRecipeAndTheLicence() throws {
         let f = try family()
         let help = modelHelp(f)
         XCTAssertTrue(help.contains("NVIDIA, 2026 \u{00b7} OpenMDW-1.1"), help)
         XCTAssertTrue(help.contains("30B-A4B parameters"), help)
-        XCTAssertTrue(tierCellHelp(f, nil, tier: .t4, mode: .fast).hasPrefix("4-bit routed experts, 8-bit shared experts"), tierCellHelp(f, nil, tier: .t4, mode: .fast))
-        XCTAssertTrue(tierCellHelp(f, nil, tier: .t8, mode: .fast).hasPrefix("8-bit experts"))
+        XCTAssertEqual(
+            tierFlavour(f, tier: .t4, cell: nil),
+            "4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings and encoders (affine-4 g64)")
+        XCTAssertEqual(tierFlavour(f, tier: .t8, cell: nil), "8-bit decoder projections, 16-bit embeddings and encoders (affine-8 g64)")
         XCTAssertEqual(tierFlavour(f, tier: .t16, cell: nil), "bf16, as published")
+        XCTAssertTrue(f.notes?.contains("made on this Mac from it at load") == true)
+        // No other architecture states a mix of its own.
+        XCTAssertTrue(ModelRegistry.all.filter { $0.architecture != .nemotronTranscribe }.allSatisfy { $0.tierRecipes == nil })
     }
 
     // MARK: Get (downloader), with local fixtures only
@@ -155,92 +192,31 @@ final class NemotronTranscribeCatalogTests: XCTestCase {
         try JSONSerialization.data(withJSONObject: config).write(to: root.appendingPathComponent("config.json"))
         return root
     }
-    private static let mixedConfig: [String: Any] = [
-        "model_type": "nemotron_transcribe",
-        "quantization": ["bits": 4, "group_size": 64, "llm.layers.0.mixer.switch_mlp.fc1": ["bits": 8, "group_size": 64]]
-    ]
-    private func record(files: [String], bytes: Int64, quantization: String = "8-bit", repository: String = "UNPUBLISHED/NT-fixture") -> ModelRecommendation {
-        ModelRecommendation(
-            id: "nt-fixture", name: "Nemotron 3.5 Transcribe", quantization: quantization, repository: repository,
-            revision: String(repeating: "0", count: 40), downloadBytes: bytes, architecture: "nemotron_transcribe", license: "openmdw-1.1",
-            recommendation: "", files: files)
-    }
 
-    /// A local source (VELLA_TEST_MODEL_SOURCE_DIR) stands in for the Hub: the listed files, nothing else, all present.
-    func testLocalSourceGetCopiesTheListedFilesAndVerifiesThem() async throws {
-        let files = ["model-00001-of-00001.safetensors": "weights", "LICENSE": "OpenMDW", "THIRD_PARTY_NOTICES.md": "notices",
-            "licenses/vLLM-LICENSE.txt": "apache", "extras/ctc_timestamp.safetensors": "unused"]
-        let sources = try fixtureFolder([:], config: [:])
-        let source = sources.appendingPathComponent("NT-fixture")
-        for (name, body) in files {
-            let url = source.appendingPathComponent(name)
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try Data(body.utf8).write(to: url)
-        }
-        let configData = try JSONSerialization.data(withJSONObject: Self.mixedConfig)
-        try configData.write(to: source.appendingPathComponent("config.json"))
-        let listed = ["config.json", "model-00001-of-00001.safetensors", "LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/vLLM-LICENSE.txt"]
-        let bytes = Int64(configData.count + "weights".utf8.count + "OpenMDW".utf8.count + "notices".utf8.count + "apache".utf8.count)
-        let models = sources.appendingPathComponent("Models")
-        let catalogURL = Repository.root.appendingPathComponent("Resources/models.json")
-        let client = NativeModelDownload(catalogURL: catalogURL, localSources: sources) { _, _, _ in }
-        let folder = try await client.download(record(files: listed, bytes: bytes), modelsDirectory: models)
-        for name in listed { XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent(name).path), name) }
-        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("extras/ctc_timestamp.safetensors").path))
-        // A wrong total (another build in the source folder) is refused.
-        do {
-            _ = try await client.download(record(files: listed, bytes: bytes + 1), modelsDirectory: models)
-            XCTFail("a size mismatch must fail")
-        } catch {}
-        // Without a local source, the placeholder downloads nothing and says why; another Get cannot help.
-        let none = NativeModelDownload(catalogURL: catalogURL, localSources: nil) { _, _, _ in }
-        do {
-            _ = try await none.download(record(files: listed, bytes: bytes), modelsDirectory: models)
-            XCTFail("an unpublished source must not download")
-        } catch {
-            XCTAssertEqual(error.localizedDescription, "Nemotron 3.5 Transcribe is not published for download yet. Update Vella when it is")
-            XCTAssertFalse(NativeModelDownload.isRetryable(error))
-        }
-    }
-
-    func testValidationRequiresTheLicenceFilesAndAcceptsTheMixAndNvidiasLayout() throws {
-        let listed = ["config.json", "model.safetensors", "LICENSE", "THIRD_PARTY_NOTICES.md"]
-        let mixed = try fixtureFolder(["model.safetensors": "w", "LICENSE": "l", "THIRD_PARTY_NOTICES.md": "n"], config: Self.mixedConfig)
-        // The fixture's layers are 8-bit only (an int8 mix with a 4-bit default): it is int8, never int4.
-        XCTAssertNoThrow(try NativeModelDownload.validate(mixed, expected: record(files: listed, bytes: 0, quantization: "8-bit")))
-        XCTAssertThrowsError(try NativeModelDownload.validate(mixed, expected: record(files: listed, bytes: 0, quantization: "4-bit")))
-        var four = Self.mixedConfig
-        four["quantization"] = ["bits": 4, "group_size": 64, "a.switch_mlp.fc1": ["bits": 4, "group_size": 64], "a.in_proj": ["bits": 8, "group_size": 64]]
-        let int4 = try fixtureFolder(["model.safetensors": "w", "LICENSE": "l", "THIRD_PARTY_NOTICES.md": "n"], config: four)
-        XCTAssertNoThrow(try NativeModelDownload.validate(int4, expected: record(files: listed, bytes: 0, quantization: "4-bit")))
-        XCTAssertThrowsError(try NativeModelDownload.validate(int4, expected: record(files: listed, bytes: 0, quantization: "8-bit")), "an int4 build never passes as int8")
-        XCTAssertThrowsError(try NativeModelDownload.validate(mixed, expected: record(files: listed, bytes: 0, quantization: "BF16")))
-        try FileManager.default.removeItem(at: mixed.appendingPathComponent("LICENSE"))
-        XCTAssertThrowsError(try NativeModelDownload.validate(mixed, expected: record(files: listed, bytes: 0))) {
-            XCTAssertEqual($0.localizedDescription, "The model folder is missing LICENSE")
-        }
-        let nvidia = try fixtureFolder(
-            ["model.safetensors": "w", "LICENSE": "l", "THIRD_PARTY_NOTICES.md": "n"],
-            config: ["model_type": "nemo_speechlm", "architectures": ["Nemotron3_5TranscribeForConditionalGeneration"]])
-        XCTAssertNoThrow(try NativeModelDownload.validate(nvidia, expected: record(files: listed, bytes: 0, quantization: "BF16")))
-    }
-
-    /// Where Toby's local builds exist, every listed file is there and they add up to the catalog's download size (file
-    /// sizes only; nothing is read or loaded).
-    func testLocalBuildsMatchTheCatalog() throws {
+    /// After Get the folder must hold every listed file, licence and notices included; NVIDIA's NeMo layout validates as bf16.
+    func testValidationRequiresTheLicenceFilesInNvidiasLayout() throws {
         let f = try family()
-        let home = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Models")
-        var checked = 0
-        for (label, v) in f.variants {
-            let folder = home.appendingPathComponent(String(v.repository.split(separator: "/").last ?? ""))
-            guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("config.json").path) else { continue }
-            let sizes = try (v.files ?? []).map { name -> Int64 in
-                let attributes = try FileManager.default.attributesOfItem(atPath: folder.appendingPathComponent(name).path)
-                return (attributes[.size] as? NSNumber)?.int64Value ?? -1
-            }
-            XCTAssertEqual(sizes.reduce(0, +), v.downloadBytes, label)
-            checked += 1
+        let record = try XCTUnwrap(catalogVariants(ModelCatalog(families: [f])).first)
+        let body = Dictionary(uniqueKeysWithValues: (record.files ?? []).filter { $0 != "config.json" }.map { ($0, $0.hasSuffix(".json") ? "{}" : "x") })
+        let config: [String: Any] = ["model_type": "nemo_speechlm", "architectures": ["Nemotron3_5TranscribeForConditionalGeneration"]]
+        let folder = try fixtureFolder(body, config: config)
+        XCTAssertNoThrow(try NativeModelDownload.validate(folder, expected: record))
+        try FileManager.default.removeItem(at: folder.appendingPathComponent("licenses/vLLM-LICENSE.txt"))
+        XCTAssertThrowsError(try NativeModelDownload.validate(folder, expected: record)) {
+            XCTAssertEqual($0.localizedDescription, "The model folder is missing licenses/vLLM-LICENSE.txt")
         }
-        try XCTSkipIf(checked == 0, "no local Nemotron 3.5 Transcribe builds on this Mac")
+    }
+
+    /// Where Toby's local copy of NVIDIA's release exists, every listed file is there and they add up to the catalog's
+    /// download size (file sizes only; nothing is read or loaded).
+    func testLocalCopyMatchesTheCatalog() throws {
+        let f = try family()
+        let v = try XCTUnwrap(f.variants["BF16"])
+        let folder = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B")
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: folder.appendingPathComponent("config.json").path), "no local copy on this Mac")
+        let sizes = try (v.files ?? []).map { name -> Int64 in
+            ((try FileManager.default.attributesOfItem(atPath: folder.appendingPathComponent(name).path))[.size] as? NSNumber)?.int64Value ?? -1
+        }
+        XCTAssertEqual(sizes.reduce(0, +), v.downloadBytes)
     }
 }

@@ -132,12 +132,7 @@ final class NoticesTests: XCTestCase {
             let row = try XCTUnwrap(notices.split(separator: "\n").first { $0.hasPrefix("| \(name) |") }, "\(name) has no row; rerun scripts/third-party-notices.sh")
             XCTAssertTrue(row.contains("| \(licence) |"), "\(name): \(row)")
             for variant in (family["variants"] as? [String: [String: Any]] ?? [:]).values {
-                // A placeholder source (`UNPUBLISHED/…`) is not a download yet: the row says so instead of naming it.
-                if let repository = variant["repository"] as? String, repository.hasPrefix("UNPUBLISHED/") {
-                    XCTAssertTrue(row.hasSuffix("| not published yet |"), "\(name): \(row)")
-                } else if let repository = variant["repository"] as? String, !repository.isEmpty {
-                    XCTAssertTrue(row.contains("`\(repository)`"), repository)
-                }
+                if let repository = variant["repository"] as? String, !repository.isEmpty { XCTAssertTrue(row.contains("`\(repository)`"), repository) }
             }
         }
     }

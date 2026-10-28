@@ -57,8 +57,10 @@ import XCTest
             var asked: DownloadPrompt?
             c.confirmDownload = { prompt, answer in asked = prompt; answer(nil) }
             c.perform(f)
-            XCTAssertEqual(asked?.variantID, "nemotron-3.5-transcribe-30b-a4b-mlx-q4mix")
-            XCTAssertEqual(asked?.downloadBytes, 21_815_377_547)
+            // int4 is made on this Mac from the bf16 download, as every family's lower precisions are.
+            XCTAssertEqual(asked?.variantID, "nemotron-3.5-transcribe-30b-a4b-bf16")
+            XCTAssertEqual(asked?.precision, "4b")
+            XCTAssertEqual(asked?.downloadBytes, 67_513_686_219)
             XCTAssertNil(c.dictation.downloadingID, "Cancel downloads nothing")
             XCTAssertNil(c.config?.selections[f.id], "nothing written")
         }
@@ -120,27 +122,30 @@ import XCTest
         XCTAssertEqual(blocked["Exact/Fast"]?.components(separatedBy: "\n").last, "Needs 48 GB of memory")
     }
 
-    /// Weights already on disk never start a worker over their floor: every load path passes `recipeRefusal`.
+    /// Weights already on disk never start a worker over their floor: every load path passes `recipeRefusal`, the bf16
+    /// download itself and the int8/int4 manifests made from it alike.
     func testWeightsOnDiskNeverLoadOverTheirFloor() throws {
         let (c, f) = try controller(memoryGB: 64)
         let runtime = try Runtime.isolated(root.appendingPathComponent("runtime"))
         let model = DictationController(configurationURL: runtime.configURL, monitorDefaultInput: false); defer { model.shutdown() }
         let bridge = RuntimeBridge(runtime: runtime); bridge.attach(controller: c, model: model)
-        func install(_ label: String) throws -> String {
-            let folder = root.appendingPathComponent(label)
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try Data(#"{"model_type": "nemotron_transcribe"}"#.utf8).write(to: folder.appendingPathComponent("config.json"))
-            c.dictation.installed[f.variants[label]!.id] = InstalledModel(path: folder.path)
-            return folder.path
-        }
-        let bf16 = try install("BF16"), int8 = try install("8b")
+        let folder = c.dictation.modelsDirectory.appendingPathComponent(f.variants["BF16"]!.id)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data(#"{"model_type": "nemo_speechlm", "architectures": ["Nemotron3_5TranscribeForConditionalGeneration"]}"#.utf8)
+            .write(to: folder.appendingPathComponent("config.json"))
+        c.dictation.installed[f.variants["BF16"]!.id] = InstalledModel(path: folder.path)
+        XCTAssertTrue(c.available(f, "4b")); XCTAssertTrue(c.available(f, "8b"))
+        let int8 = try XCTUnwrap(
+            try precisionLoadPath(f, "8b", installedPath: { c.dictation.installed[$0]?.path }, modelsDirectory: c.dictation.modelsDirectory))
         XCTAssertEqual(
-            bridge.recipeRefusal(path: bf16, mode: .dictation),
+            bridge.recipeRefusal(path: folder.path, mode: .dictation),
             "Nemotron 3.5 Transcribe at bf16 needs 96 GB of memory; this Mac has 64 GB. Pick a smaller precision in Vella → Models…")
         XCTAssertNil(bridge.recipeRefusal(path: int8, mode: .dictation))
         c.physicalMemoryBytes = 32 * 1_073_741_824
-        XCTAssertNotNil(bridge.recipeRefusal(path: int8, mode: .dictation))
+        XCTAssertEqual(
+            bridge.recipeRefusal(path: int8, mode: .dictation),
+            "Nemotron 3.5 Transcribe at int8 needs 64 GB of memory; this Mac has 32 GB. Pick a smaller precision in Vella → Models…")
         c.physicalMemoryBytes = 128 * 1_073_741_824
-        XCTAssertNil(bridge.recipeRefusal(path: bf16, mode: .dictation))
+        XCTAssertNil(bridge.recipeRefusal(path: folder.path, mode: .dictation))
     }
 }

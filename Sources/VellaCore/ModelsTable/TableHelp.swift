@@ -163,8 +163,12 @@ public func tierFlavour(_ family: ModelFamily, tier: ModelTier, cell: BenchmarkC
         }
         return "\(format), as published"
     }
-    // A published mixed quantization (Nemotron 3.5 Transcribe's int8 and int4) states its own mix.
-    if layers.isEmpty, let label = precisionLabel(family, tier: tier), let v = family.variants[label], !v.isDerived, let mix = v.mix { return mix }
+    // An architecture whose loader applies its own mix (Nemotron 3.5 Transcribe) states it until a measured recipe does.
+    if layers.isEmpty, let label = precisionLabel(family, tier: tier),
+        let recipe = family.variants[label].flatMap({ ModelRegistry.descriptor(architecture: $0.architecture) })?.tierRecipes?[tier]
+    {
+        return recipe
+    }
     let affine = "affine-\(tier.rawValue) g64"
     let groups = layers.filter { $0.key != "all" }
     if groups.isEmpty { return "\(tier.rawValue)-bit weights throughout (\(affine))" }

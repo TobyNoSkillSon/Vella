@@ -32,9 +32,9 @@ THIRD_PARTY_NOTICES.md list them).
 
 Nemotron 3.5 Transcribe 30B-A4B: Copyright (c) 2026 NVIDIA CORPORATION &
 AFFILIATES. All rights reserved. OpenMDW License Agreement, version 1.1
-(https://openmdw.ai/license/1-1/). Its int8 and int4 tiers are mixed MLX
-quantizations of NVIDIA's bf16 weights, made for Vella. Each download keeps
-NVIDIA's LICENSE, THIRD_PARTY_NOTICES.md and licenses/ in its model folder.
+(https://openmdw.ai/license/1-1/). Vella downloads NVIDIA's bf16 release; its
+int8 and int4 precisions are made from it on the user's Mac at load. The model
+folder keeps NVIDIA's LICENSE, THIRD_PARTY_NOTICES.md and licenses/.
 
 Audio
 -----

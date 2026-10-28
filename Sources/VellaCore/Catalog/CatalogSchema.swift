@@ -43,8 +43,6 @@ public struct CatalogVariant: Codable, Equatable {
     public var peakMemoryMB: Double?
     /// `peakMemoryMB` is an estimate, not a measurement (the table marks it `~` and says so).
     public var peakMemoryEstimated: Bool?
-    /// A published mixed quantization in plain words (the Precision cell's tooltip), e.g. which layers stay 8-bit.
-    public var mix: String?
     public init(id: String, repository: String, revision: String, downloadBytes: Int64, architecture: String, processorSource: ProcessorSource? = nil) {
         self.id = id; self.repository = repository; self.revision = revision; self.downloadBytes = downloadBytes
         self.architecture = architecture; self.processorSource = processorSource
@@ -59,7 +57,7 @@ public struct CatalogVariant: Codable, Equatable {
     public var isStored: Bool { derivedFrom != nil && stored == true }
     enum CodingKeys: String, CodingKey {
         case id, repository, revision, downloadBytes, architecture, processorSource, derivedFrom, bits, groupSize, dtype, floatModules, floatShare, stored, legacyIDs
-        case files, peakMemoryMB, peakMemoryEstimated, mix
+        case files, peakMemoryMB, peakMemoryEstimated
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -75,7 +73,6 @@ public struct CatalogVariant: Codable, Equatable {
         legacyIDs = try c.decodeIfPresent([String].self, forKey: .legacyIDs)
         files = try c.decodeIfPresent([String].self, forKey: .files)
         peakMemoryMB = try c.decodeIfPresent(Double.self, forKey: .peakMemoryMB)
-        mix = try c.decodeIfPresent(String.self, forKey: .mix)
         peakMemoryEstimated = try c.decodeIfPresent(Bool.self, forKey: .peakMemoryEstimated)
         processorSource = try c.decodeIfPresent(ProcessorSource.self, forKey: .processorSource)
         if derivedFrom == nil {
@@ -102,7 +99,7 @@ public struct CatalogVariant: Codable, Equatable {
         try c.encodeIfPresent(floatModules, forKey: .floatModules); try c.encodeIfPresent(floatShare, forKey: .floatShare)
         try c.encodeIfPresent(stored, forKey: .stored); try c.encodeIfPresent(legacyIDs, forKey: .legacyIDs)
         try c.encodeIfPresent(files, forKey: .files); try c.encodeIfPresent(peakMemoryMB, forKey: .peakMemoryMB)
-        try c.encodeIfPresent(mix, forKey: .mix); try c.encodeIfPresent(peakMemoryEstimated, forKey: .peakMemoryEstimated)
+        try c.encodeIfPresent(peakMemoryEstimated, forKey: .peakMemoryEstimated)
     }
 }
 

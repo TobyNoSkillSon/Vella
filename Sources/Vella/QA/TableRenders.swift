@@ -244,7 +244,7 @@ import VellaUpdate
             "Could not convert Parakeet v3 to BF16: the downloaded weights are incomplete or damaged. Partial files removed; your recordings are kept."
         states.append(conversion)
         // Nemotron 3.5 Transcribe by this Mac's memory: int4 only from 48 GB, int8 from 64, bf16 from 96; below 48 the
-        // row is greyed with its reason. Then a download, and int4 loaded.
+        // row is greyed with its reason. Then Get of int4 (it downloads the bf16 it is made from), and int4 loaded.
         let transcribe = "nemotron-3.5-transcribe"
         for memory in [32.0, 48, 64, 128] {
             var state = State(name: "nemotron-transcribe-\(Int(memory))gb")
@@ -253,18 +253,18 @@ import VellaUpdate
         }
         var transcribeDownloading = State(name: "nemotron-transcribe-downloading")
         transcribeDownloading.memoryGB = 128
-        transcribeDownloading.downloading = ("nemotron-3.5-transcribe-30b-a4b-mlx-q4mix", 0.37)
+        transcribeDownloading.downloading = ("nemotron-3.5-transcribe-30b-a4b-bf16", 0.37)
         states.append(transcribeDownloading)
         var transcribeReady = State(name: "nemotron-transcribe-loaded")
         transcribeReady.memoryGB = 128
-        transcribeReady.installed = RenderFixture.downloaded + ["nemotron-3.5-transcribe-30b-a4b-mlx-q4mix"]
+        transcribeReady.installed = RenderFixture.downloaded + ["nemotron-3.5-transcribe-30b-a4b-bf16"]
         transcribeReady.runtime.loaded = [
             transcribe: LoadedFamily(precision: "4b", engine: "optimized", optimizations: fast, residency: "manual", selection: sel(.t4, .fast))
         ]
         states.append(transcribeReady)
         var transcribeOnDisk = State(name: "nemotron-transcribe-on-disk")
         transcribeOnDisk.memoryGB = 128
-        transcribeOnDisk.installed = RenderFixture.downloaded + ["nemotron-3.5-transcribe-30b-a4b-mlx-q4mix"]
+        transcribeOnDisk.installed = RenderFixture.downloaded + ["nemotron-3.5-transcribe-30b-a4b-bf16"]
         states.append(transcribeOnDisk)
         var transcribeExact = State(name: "nemotron-transcribe-64gb-exact")
         transcribeExact.memoryGB = 64
