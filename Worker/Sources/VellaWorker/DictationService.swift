@@ -115,7 +115,7 @@ final class Worker {
         if FaultHooks.loadFails(path) { throw InjectedFault.load }
         let runtime = Self.runtime(architecture)
         var verdict: FastPathGate.Verdict?
-        if let runtime { verdict = await FastPathGate.qualifyInBackground(path, runtime: runtime) }
+        if let runtime, runtime.hasFastPath { verdict = await FastPathGate.qualifyInBackground(path, runtime: runtime) }
         gateURL = runtime.flatMap { try? FastPathGate.statusURL(path, revision: $0.gateRevision) }
         let loaded = try await loadStock(path, architecture: architecture)
         self.architecture = architecture
@@ -182,6 +182,13 @@ final class Worker {
                 if let parakeet = model as? ParakeetModel {
                     do {
                         try parakeet.setVocabulary(ParakeetVocabulary.read())
+                        vocabularyError = nil
+                    } catch { vocabularyError = "Invalid vocabulary.json; retaining the previous vocabulary." }
+                }
+                if let nemotron = model as? NemotronTranscribeModel {
+                    // The same list as Parakeet's, words only: acoustic entries and variants never reach the prompt.
+                    do {
+                        nemotron.vocabularyWords = try ParakeetVocabulary.read().words
                         vocabularyError = nil
                     } catch { vocabularyError = "Invalid vocabulary.json; retaining the previous vocabulary." }
                 }
@@ -268,6 +275,9 @@ final class Worker {
             result["vocabulary"] = ["count": parakeet.contextualVocabulary.words.count,
                                     "boost": parakeet.contextualVocabulary.boost,
                                     "error": vocabularyError as Any? ?? NSNull()]
+        }
+        if let nemotron = model as? NemotronTranscribeModel {
+            result["vocabulary"] = ["count": nemotron.vocabularyWords.count, "error": vocabularyError as Any? ?? NSNull()]
         }
         return result
     }

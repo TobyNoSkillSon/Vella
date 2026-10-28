@@ -1,0 +1,309 @@
+// SPDX-License-Identifier: MIT
+// Nemotron 3.5 Transcribe 30B-A4B: speech and speaker experts feeding a Nemotron-H decoder. Ported from mlx-audio
+// @92decb7 (MIT, mlx_audio/stt/models/nemotron_transcribe) and the MTP self-speculation of the research runner
+// (Assistant/Research/2026-10-28-nemotron-transcribe/code/mtp.py, generate_chain).
+import Foundation
+import MLX
+import MLXNN
+import Tokenizers
+
+public final class NemotronTranscribeModel: Module, STTGenerationModel {
+    @ModuleInfo(key: "llm") var llm: NTLanguageModel
+    @ModuleInfo(key: "perception") var perception: NTPerception
+
+    let decoderConfig: NTDecoderConfig
+    let eos: Set<Int>
+    let padToken: Int
+    var tokenizer: (any Tokenizer)?
+    var audioToken = 131072
+    /// Loaded from extras/mtp.safetensors (MLX tiers); nil runs plain greedy decoding.
+    var mtp: NTMTP?
+    /// Drafts per pass of the MTP chain (the research runner's measured setting).
+    var draftDepth = 4
+    /// The user's vocabulary words (plain list only), applied to the next request.
+    public var vocabularyWords: [String] = []
+    /// Token IDs of the last chunk, for parity checks.
+    public private(set) var lastTokens: [Int] = []
+    /// Whether the last request dropped a trailing vocabulary sentence, and how many chunks it had.
+    public private(set) var lastGuardDropped: [String] = []
+    public private(set) var lastChunkCount = 0
+    public var usesMTP: Bool { mtp != nil && Self.mtpEnabled }
+    static var mtpEnabled: Bool { ProcessInfo.processInfo.environment["VELLA_NEMOTRON_TRANSCRIBE_MTP"] != "0" }
+
+    init(decoder: NTDecoderConfig, perception: NTPerceptionConfig, eos: Set<Int>, pad: Int) {
+        decoderConfig = decoder; self.eos = eos; padToken = pad
+        _llm.wrappedValue = NTLanguageModel(decoder)
+        _perception.wrappedValue = NTPerception(perception)
+        super.init()
+    }
+
+    public var defaultGenerationParameters: STTGenerateParameters { STTGenerateParameters(maxTokens: 1024, temperature: 0) }
+
+    // MARK: Loading
+
+    /// MLX layout (sharded, already sanitized, per-module "quantization" in config.json, extras/mtp.safetensors) or
+    /// NVIDIA's BF16 layout (one model.safetensors in NeMo keys, mapped here; its MTP and CTC heads are not loaded).
+    public static func fromModelDirectory(_ directory: URL) async throws -> NemotronTranscribeModel {
+        let root = try JSONSerialization.jsonObject(with: Data(contentsOf: directory.appendingPathComponent("config.json"))) as? [String: Any] ?? [:]
+        guard let llmJSON = root["llm_config"] as? [String: Any] else { throw NemotronTranscribeError.config("llm_config") }
+        guard (root["prompt_format"] as? String ?? "nemotron3p5") == "nemotron3p5" else { throw NemotronTranscribeError.config("prompt_format") }
+        let decoder = try NTDecoderConfig(json: llmJSON)
+        let perception = try NTPerceptionConfig(root: root)
+        let eosIDs = (root["eos_token_id"] as? [Int]) ?? [(root["eos_token_id"] as? Int) ?? 11]
+        let model = NemotronTranscribeModel(decoder: decoder, perception: perception, eos: Set(eosIDs), pad: root["pad_token_id"] as? Int ?? 0)
+
+        let tokenizer = try await AutoTokenizer.from(modelFolder: directory)
+        let ids = tokenizer.encode(text: NemotronTranscribePrompt.audioTag, addSpecialTokens: false)
+        guard ids.count == 1 else { throw NemotronTranscribeError.tokenizer("<|audio|> is not one token") }
+        model.tokenizer = tokenizer
+        model.audioToken = ids[0]
+
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "safetensors" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        guard !files.isEmpty else { throw NemotronTranscribeError.weights("no safetensors") }
+        var weights: [String: MLXArray] = [:]
+        for file in files { weights.merge(try MLX.loadArrays(url: file)) { _, new in new } }
+        let nvidia = weights.keys.contains { $0.hasPrefix("llm.model.") }
+        if nvidia {
+            weights = sanitize(weights)
+        }
+        try installQuantization(model, weights: weights, config: root["quantization"] as? [String: Any])
+        try model.update(parameters: ModuleParameters.unflattened(weights), verify: .all)
+        weights.removeAll()
+        eval(model)
+
+        let mtpURL = directory.appendingPathComponent("extras/mtp.safetensors")
+        if !nvidia, FileManager.default.fileExists(atPath: mtpURL.path) {
+            let (tensors, metadata) = try MLX.loadArraysAndMetadata(url: mtpURL)
+            let head = NTMTP(decoder)
+            let quantization = metadata["quantization"].flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) } as? [String: Any]
+            try installQuantization(head, weights: tensors, config: quantization)
+            try head.update(parameters: ModuleParameters.unflattened(tensors), verify: .all)
+            eval(head)
+            model.mtp = head
+        }
+        return model
+    }
+
+    /// NVIDIA's NeMo keys → this module tree (mlx-audio `Model.sanitize`).
+    static func sanitize(_ weights: [String: MLXArray]) -> [String: MLXArray] {
+        var out: [String: MLXArray] = [:]
+        for (original, tensor) in weights {
+            guard let (key, transform) = NemotronTranscribeKeys.map(original, shape: tensor.shape) else { continue }
+            var value = tensor
+            if transform.transpose { value = value.transposed(0, 2, 1) }
+            if transform.float32 { value = value.asType(.float32) }
+            out[key] = value
+        }
+        return out
+    }
+
+    /// Replace every layer whose checkpoint carries scales by its quantized form (bits and group per module from
+    /// the "quantization" entries, else the default). Nothing is quantized here: the codes come from the checkpoint.
+    static func installQuantization(_ model: Module, weights: [String: MLXArray], config: [String: Any]?) throws {
+        let defaultGroup = config?["group_size"] as? Int ?? 64, defaultBits = config?["bits"] as? Int ?? 4
+        var updates: [(String, Module)] = []
+        for (path, module) in model.leafModules().flattened() {
+            guard let weight = weights[path + ".weight"], let scales = weights[path + ".scales"] else { continue }
+            let entry = config?[path] as? [String: Any]
+            let group = entry?["group_size"] as? Int ?? defaultGroup, bits = entry?["bits"] as? Int ?? defaultBits
+            let biases = weights[path + ".biases"]
+            let replacement: Module
+            switch module {
+            case is NTSwitchLinear:
+                replacement = NTQuantizedSwitchLinear(weight: weight, scales: scales, biases: biases, groupSize: group, bits: bits)
+            case is Linear:
+                replacement = QuantizedLinear(weight: weight, bias: weights[path + ".bias"], scales: scales, biases: biases,
+                                              groupSize: group, bits: bits, mode: .affine)
+                replacement.freeze()
+            default: throw NemotronTranscribeError.weights("quantized \(path) is not a linear layer")
+            }
+            updates.append((path, replacement))
+        }
+        model.update(modules: ModuleChildren.unflattened(updates))
+    }
+
+    // MARK: Inputs
+
+    func promptTokens(words: [String]) throws -> [Int] {
+        guard let tokenizer else { throw NemotronTranscribeError.tokenizer("not loaded") }
+        return NemotronTranscribePrompt.turns(words: words).flatMap { tokenizer.encode(text: $0, addSpecialTokens: false) }
+    }
+
+    /// Prompt embeddings with the audio placeholder replaced by the audio embeddings: (tokens, 1 × N × D).
+    func inputs(tokens ids: [Int], audio: MLXArray) throws -> MLXArray {
+        let positions = ids.indices.filter { ids[$0] == audioToken }
+        guard positions.count == 1, let index = positions.first else { throw NemotronTranscribeError.input("one audio placeholder expected") }
+        let embedded = llm.backbone.embeddings(MLXArray(ids.map { Int32($0 == audioToken ? padToken : $0) }).reshaped(1, -1))
+        return concatenated([embedded[0..., ..<index], audio.asType(embedded.dtype), embedded[0..., (index + 1)...]], axis: 1)
+    }
+
+    // MARK: Decoding
+
+    private func head(_ h: MLXArray) -> MLXArray { argMax(llm.lmHead(h), axis: -1) }
+
+    /// Greedy, as mlx-lm's generate_step: 512-token prefill blocks, the last prompt position alone, one step ahead.
+    func decodeGreedy(_ embeddings: MLXArray, maxTokens: Int) -> [Int] {
+        let cache = llm.backbone.makeCache()
+        let total = embeddings.dim(1)
+        var processed = 0
+        while total - processed > 1 {
+            let count = min(512, total - processed - 1)
+            let h = llm.backbone(embeddings[0..., processed ..< (processed + count)], cache: cache)
+            eval(h)
+            processed += count
+        }
+        func step(_ x: MLXArray) -> MLXArray { head(llm.backbone(x, cache: cache)[0..., -1]) }
+        var y = step(embeddings[0..., processed...])
+        asyncEval(y)
+        var out: [Int] = []
+        while out.count < maxTokens {
+            let next = step(llm.backbone.embeddings(y.reshaped(1, 1)))
+            asyncEval(next)
+            let token = y.item(Int.self)
+            if eos.contains(token) { break }
+            out.append(token)
+            y = next
+        }
+        return out
+    }
+
+    /// Greedy self-speculation: `draftDepth` chained MTP drafts verified by the main model in one pass, one host
+    /// sync per pass. Rejected drafts never stay in a cache (Mamba states restored, attention caches trimmed).
+    func decodeMTP(_ embeddings: MLXArray, maxTokens: Int, mtp: NTMTP) -> [Int] {
+        let embed = llm.backbone.embeddings
+        let cache = llm.backbone.makeCache()
+        let mcache = NTKVCache()
+        let depth = draftDepth
+        let total = embeddings.dim(1)
+        var hs: [MLXArray] = []
+        var post = embeddings
+        var s = 0
+        while s < total {
+            post = llm.backbone(embeddings[0..., s ..< min(total, s + 2048)], cache: cache)
+            eval(post)
+            hs.append(post)
+            s += 2048
+        }
+        let t = head(post[0..., (-1)...]).reshaped(-1).item(Int.self)
+        var out: [Int] = []
+        if eos.contains(t) || maxTokens == 0 { return out }
+        out.append(t)
+
+        func chain(_ x0: MLXArray, _ first: MLXArray) -> MLXArray {
+            var drafts = [first], token = first, x = x0
+            for _ in 0 ..< (depth - 1) {
+                let (nx, xo) = mtp(embed(token.reshaped(1, 1)), x, cache: mcache)
+                x = nx
+                token = head(xo[0..., (-1)...]).reshaped(-1)
+                drafts.append(token)
+            }
+            return concatenated(drafts)
+        }
+
+        let next = concatenated([embeddings[0..., 1...], embed(MLXArray([Int32(t)]).reshaped(1, 1))], axis: 1)
+        var offset = 0
+        var x = embeddings, xo = embeddings
+        for h in hs {
+            let l = h.dim(1)
+            (x, xo) = mtp(next[0..., offset ..< (offset + l)], h, cache: mcache)
+            offset += l
+        }
+        var drafts = chain(x[0..., (-1)...], head(xo[0..., (-1)...]).reshaped(-1))
+        var pending = [t]
+        var mtpDone = 0
+        while out.count < maxTokens {
+            let snapshot: [(MLXArray?, MLXArray?)?] = cache.map {
+                if case .mamba(let m)? = $0 { return (m.conv, m.state) }
+                return nil
+            }
+            let feed = concatenated([MLXArray(pending.map { Int32($0) }), drafts.asType(.int32)])
+            let verified = llm.backbone(embed(feed.reshaped(1, -1)), cache: cache)
+            let ysArray = head(verified)[0]
+            eval(ysArray, drafts, verified)
+            let ys = ysArray.asArray(Int.self), dl = drafts.asArray(Int.self)
+            let k = pending.count
+            var accepted = 0
+            while accepted < dl.count && ys[k - 1 + accepted] == dl[accepted] { accepted += 1 }
+            let bonus = ys[k - 1 + accepted]
+            let new = Array(dl[..<accepted]) + [bonus]
+            let fed = pending + dl
+            mcache.trim(depth - 1)
+            let upto = k + accepted
+            let eNext = Array((Array(fed[1 ..< upto]) + [bonus])[mtpDone...])
+            let (nx, nxo) = mtp(embed(MLXArray(eNext.map { Int32($0) }).reshaped(1, -1)), verified[0..., mtpDone ..< upto], cache: mcache)
+            drafts = chain(nx[0..., (-1)...], head(nxo[0..., (-1)...]).reshaped(-1))
+            if accepted == dl.count {
+                pending = [bonus]; mtpDone = 0
+            } else {
+                for (c, snap) in zip(cache, snapshot) {
+                    switch c {
+                    case .mamba(let m)?: m.conv = snap?.0; m.state = snap?.1
+                    case .attention(let a)?: a.trim(fed.count)
+                    case nil: break
+                    }
+                }
+                pending = Array(fed[..<upto]) + [bonus]; mtpDone = upto
+            }
+            for token in new {
+                if eos.contains(token) { return out }
+                out.append(token)
+                if out.count >= maxTokens { return out }
+            }
+        }
+        return out
+    }
+
+    func decode(_ embeddings: MLXArray, maxTokens: Int) -> [Int] {
+        if usesMTP, let mtp { return decodeMTP(embeddings, maxTokens: maxTokens, mtp: mtp) }
+        return decodeGreedy(embeddings, maxTokens: maxTokens)
+    }
+
+    func text(_ tokens: [Int]) -> String {
+        NemotronTranscribeMarkup.strip(tokenizer?.decode(tokens: tokens, skipSpecialTokens: false) ?? "")
+    }
+
+    /// One chunk (at most two minutes) → its text, with the trailing-vocabulary guard.
+    func transcribeChunk(_ samples: MLXArray, words: [String], maxTokens: Int) throws -> String {
+        guard samples.ndim == 1, samples.dim(0) >= 160 else { return "" }
+        let audio = perception(samples.asType(.float32))
+        eval(audio)
+        let terms = NemotronTranscribePrompt.vocabulary(words)
+        let tokens = decode(try inputs(tokens: try promptTokens(words: terms), audio: audio), maxTokens: maxTokens)
+        lastTokens = tokens
+        let withList = text(tokens)
+        if let candidate = NemotronTranscribeVocabularyGuard.trailingCandidate(withList, words: terms) {
+            // The audio embeddings are reused; only the prompt and decode run again.
+            let plain = text(decode(try inputs(tokens: try promptTokens(words: []), audio: audio), maxTokens: maxTokens))
+            if NemotronTranscribeVocabularyGuard.shouldDrop(withList: withList, withoutList: plain) {
+                lastGuardDropped.append(candidate.dropped)
+                return candidate.kept
+            }
+        }
+        return withList
+    }
+
+    public func generate(audio: MLXArray, generationParameters: STTGenerateParameters) -> STTOutput {
+        let start = Date()
+        let samples = audio.asType(.float32).asArray(Float.self)
+        let plan = NemotronTranscribeChunking.plan(samples)
+        lastChunkCount = plan.count
+        lastGuardDropped = []
+        var parts: [String] = []
+        var generated = 0
+        for range in plan {
+            let seconds = Double(range.count) / Double(NemotronTranscribeChunking.sampleRate)
+            // About 2.5 tokens a second of speech; generous so a fast talker is never cut.
+            let limit = max(generationParameters.maxTokens, Int(seconds * 15))
+            let chunk = MLXArray(Array(samples[range]))
+            if let part = try? transcribeChunk(chunk, words: vocabularyWords, maxTokens: limit), !part.isEmpty {
+                parts.append(part)
+            }
+            generated += lastTokens.count
+            Memory.clearCache()
+        }
+        let elapsed = Date().timeIntervalSince(start)
+        return STTOutput(text: parts.joined(separator: " "), generationTokens: generated, totalTokens: generated,
+                         generationTps: elapsed > 0 ? Double(generated) / elapsed : 0, totalTime: elapsed)
+    }
+}

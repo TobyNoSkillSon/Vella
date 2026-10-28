@@ -12,6 +12,12 @@ public protocol SpeechModelRuntime {
     static var gateRevision: String { get }
     /// The Metal family the optimized path needs; nil when it uses stock MLX ops only.
     static var requiredGPUFamily: String? { get }
+    /// Whether loading runs the fast-path self-test child (a second copy of the model in a child process).
+    static var hasFastPath: Bool { get }
+}
+
+public extension SpeechModelRuntime {
+    static var hasFastPath: Bool { true }
 }
 
 /// A dictation model (a whole segment in, text out).
@@ -29,7 +35,9 @@ public enum ModelRuntimeError: Error { case unsupported }
 
 /// Every model runtime, by architecture.
 public enum ModelRuntimeRegistry {
-    public static let dictation: [any DictationModelRuntime.Type] = [ParakeetRuntime.self, Qwen3ASRRuntime.self, WhisperRuntime.self]
+    public static let dictation: [any DictationModelRuntime.Type] = [
+        ParakeetRuntime.self, Qwen3ASRRuntime.self, WhisperRuntime.self, NemotronTranscribeRuntime.self
+    ]
     public static let streaming: [any StreamingModelRuntime.Type] = [NemotronRuntime.self]
     public static func dictation(_ architecture: Architecture) -> (any DictationModelRuntime.Type)? {
         dictation.first { $0.architecture == architecture }
