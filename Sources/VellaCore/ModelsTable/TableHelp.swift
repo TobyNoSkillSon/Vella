@@ -108,6 +108,20 @@ public func memoryHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> S
     return figure("Peak memory of Vella's model worker", on: suite, "loading included", better: "lower is better", r)
 }
 
+/// The Peak RAM cell of a precision with no benchmark figure but a published peak of its own (catalog `peakMemoryMB`):
+/// `24.7 GB`, or `~70 GB` when it is an estimate. Nil without one.
+public func catalogPeakMemoryText(_ v: CatalogVariant?) -> String? {
+    guard let mb = v?.peakMemoryMB else { return nil }
+    return v?.peakMemoryEstimated == true ? "~" + (formatMemory((mb / 1000).rounded() * 1000) ?? "") : formatMemory(mb)
+}
+/// That cell's tooltip: what it is, then measured (where) or estimated.
+public func catalogPeakMemoryHelp(_ v: CatalogVariant) -> String {
+    "Peak memory while transcribing, loading included: lower is better\n"
+        + (v.peakMemoryEstimated == true
+            ? "Estimated, not measured: the weights plus int4's measured working memory"
+            : "Measured on M5 Max \u{00b7} 2026-10-28, outside Vella's benchmark")
+}
+
 // MARK: Cloud reference rows
 
 public let referenceNotApplicableHelp = "Not applicable: a cloud API runs on the provider's servers"
@@ -149,6 +163,8 @@ public func tierFlavour(_ family: ModelFamily, tier: ModelTier, cell: BenchmarkC
         }
         return "\(format), as published"
     }
+    // A published mixed quantization (Nemotron 3.5 Transcribe's int8 and int4) states its own mix.
+    if layers.isEmpty, let label = precisionLabel(family, tier: tier), let v = family.variants[label], !v.isDerived, let mix = v.mix { return mix }
     let affine = "affine-\(tier.rawValue) g64"
     let groups = layers.filter { $0.key != "all" }
     if groups.isEmpty { return "\(tier.rawValue)-bit weights throughout (\(affine))" }

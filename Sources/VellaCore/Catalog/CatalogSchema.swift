@@ -35,6 +35,16 @@ public struct CatalogVariant: Codable, Equatable {
     /// Earlier registry ids whose files are this variant in this exact format (an import from before the catalog had
     /// it); the launch migration re-keys them to `id` (ModelLibrary.migrateRegistry).
     public var legacyIDs: [String]?
+    /// The files Get fetches and verifies, relative to the model folder (licence and notice files included). Nil: every
+    /// allowed data file of the pinned revision.
+    public var files: [String]?
+    /// Peak process memory while transcribing, in MB, for a precision without a benchmarks.json figure: what the
+    /// memory floor (`minimumMemoryGB`) and the load estimate read.
+    public var peakMemoryMB: Double?
+    /// `peakMemoryMB` is an estimate, not a measurement (the table marks it `~` and says so).
+    public var peakMemoryEstimated: Bool?
+    /// A published mixed quantization in plain words (the Precision cell's tooltip), e.g. which layers stay 8-bit.
+    public var mix: String?
     public init(id: String, repository: String, revision: String, downloadBytes: Int64, architecture: String, processorSource: ProcessorSource? = nil) {
         self.id = id; self.repository = repository; self.revision = revision; self.downloadBytes = downloadBytes
         self.architecture = architecture; self.processorSource = processorSource
@@ -49,6 +59,7 @@ public struct CatalogVariant: Codable, Equatable {
     public var isStored: Bool { derivedFrom != nil && stored == true }
     enum CodingKeys: String, CodingKey {
         case id, repository, revision, downloadBytes, architecture, processorSource, derivedFrom, bits, groupSize, dtype, floatModules, floatShare, stored, legacyIDs
+        case files, peakMemoryMB, peakMemoryEstimated, mix
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -62,6 +73,10 @@ public struct CatalogVariant: Codable, Equatable {
         floatShare = try c.decodeIfPresent(Double.self, forKey: .floatShare)
         stored = try c.decodeIfPresent(Bool.self, forKey: .stored)
         legacyIDs = try c.decodeIfPresent([String].self, forKey: .legacyIDs)
+        files = try c.decodeIfPresent([String].self, forKey: .files)
+        peakMemoryMB = try c.decodeIfPresent(Double.self, forKey: .peakMemoryMB)
+        mix = try c.decodeIfPresent(String.self, forKey: .mix)
+        peakMemoryEstimated = try c.decodeIfPresent(Bool.self, forKey: .peakMemoryEstimated)
         processorSource = try c.decodeIfPresent(ProcessorSource.self, forKey: .processorSource)
         if derivedFrom == nil {
             repository = try c.decode(String.self, forKey: .repository)
@@ -86,6 +101,8 @@ public struct CatalogVariant: Codable, Equatable {
         try c.encodeIfPresent(groupSize, forKey: .groupSize); try c.encodeIfPresent(dtype, forKey: .dtype)
         try c.encodeIfPresent(floatModules, forKey: .floatModules); try c.encodeIfPresent(floatShare, forKey: .floatShare)
         try c.encodeIfPresent(stored, forKey: .stored); try c.encodeIfPresent(legacyIDs, forKey: .legacyIDs)
+        try c.encodeIfPresent(files, forKey: .files); try c.encodeIfPresent(peakMemoryMB, forKey: .peakMemoryMB)
+        try c.encodeIfPresent(mix, forKey: .mix); try c.encodeIfPresent(peakMemoryEstimated, forKey: .peakMemoryEstimated)
     }
 }
 
@@ -142,20 +159,24 @@ public struct ModelFamily: Codable, Equatable, Identifiable {
     public var tiersOffered: [String]?
     /// What Get downloads and which tiers are made locally from it.
     public var download: CatalogDownload?
+    /// The tier a family nothing was chosen for starts on when benchmarks.json recommends none (`default_tier`); nil:
+    /// 16. Nemotron 3.5 Transcribe starts on int4, the tier most Macs that run it can hold.
+    public var defaultTier: String?
     enum CodingKeys: String, CodingKey {
         case id, name, mode, languages, params, license, native, variants, offered, notes, publisher, released, licence, summary
-        case nativeDType = "native_dtype", tiersOffered = "tiers_offered", download
+        case nativeDType = "native_dtype", tiersOffered = "tiers_offered", download, defaultTier = "default_tier"
     }
     public init(
         id: String, name: String, mode: RecognitionMode, languages: [String], params: String, license: String, native: String,
         variants: [String: CatalogVariant], offered: Bool = true, notes: String? = nil, publisher: String? = nil,
         released: Int? = nil, licence: String? = nil, summary: String? = nil, nativeDType: String? = nil,
-        tiersOffered: [String]? = nil, download: CatalogDownload? = nil
+        tiersOffered: [String]? = nil, download: CatalogDownload? = nil, defaultTier: String? = nil
     ) {
         self.id = id; self.name = name; self.mode = mode; self.languages = languages; self.params = params; self.license = license
         self.native = native; self.variants = variants; self.offered = offered; self.notes = notes
         self.publisher = publisher; self.released = released; self.licence = licence; self.summary = summary
         self.nativeDType = nativeDType; self.tiersOffered = tiersOffered; self.download = download
+        self.defaultTier = defaultTier
     }
     /// The family's variant whose install id is `variantID`.
     public func precision(ofVariant variantID: String) -> String? { variants.first { $0.value.id == variantID }?.key }
@@ -205,7 +226,7 @@ public func catalogVariants(_ catalog: ModelCatalog) -> [ModelRecommendation] {
             return ModelRecommendation(
                 id: v.id, name: family.name, quantization: legacyQuantization(label), repository: v.repository,
                 revision: v.revision, downloadBytes: v.downloadBytes, architecture: v.architecture, license: family.license,
-                recommendation: family.notes ?? "", recommended: family.offered)
+                recommendation: family.notes ?? "", recommended: family.offered, files: v.files)
         }
     }
 }

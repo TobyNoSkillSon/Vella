@@ -339,6 +339,11 @@ public func estimatedWeightBytes(_ family: ModelFamily, _ label: String) -> Doub
 public func estimatedMemory(family: ModelFamily, precision: String, benchmarks: BenchmarkFile) -> MemoryEstimate? {
     let results = benchmarks.models[family.id]
     if let mb = results?.result(precision)?.memory_mb { return MemoryEstimate(mb: mb, measured: true, note: nil) }
+    // A precision published with its own peak (Nemotron 3.5 Transcribe's tiers): that figure, measured or estimated.
+    if let v = family.variants[precision], let peak = v.peakMemoryMB {
+        let estimated = v.peakMemoryEstimated == true
+        return MemoryEstimate(mb: peak, measured: !estimated, note: estimated ? "Estimated peak memory; \(precision) not measured." : nil)
+    }
     guard let target = estimatedWeightBytes(family, precision) else { return nil }
     // Reference: the derivation's source if measured, else the measured precision closest in bits.
     let measured = (results?.precisions ?? [:]).compactMap { label, r -> (String, Double)? in

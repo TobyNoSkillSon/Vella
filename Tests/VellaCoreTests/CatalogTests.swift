@@ -3,6 +3,10 @@ import XCTest
 import VellaTestSupport
 import VellaWire
 
+/// Catalog families offered before Vella's benchmark measured them: no benchmarks.json row, no figures (absent until
+/// measured). Nemotron 3.5 Transcribe (Oct 2026).
+let unmeasuredFamilies: Set<String> = ["nemotron-3.5-transcribe"]
+
 final class CatalogTests: XCTestCase {
     private var resources: URL { Repository.root.appendingPathComponent("Resources") }
     private func r(_ wer: Double?, j: Double? = nil, x: Double? = nil, format: Double? = nil) -> PrecisionResult {
@@ -88,13 +92,13 @@ final class CatalogTests: XCTestCase {
                 "parakeet-v3": ["FP32", "BF16", "8b", "4b"], "parakeet-v3-ultra": ["BF16", "8b", "4b"],
                 "qwen3-asr-1.7b": ["BF16", "8b", "4b"], "qwen3-asr-0.6b": ["BF16", "8b", "4b"],
                 "whisper-large-v3": ["FP16", "8b", "4b"], "whisper-large-v3-turbo": ["FP16", "8b", "4b"],
-                "nemotron-3.5-streaming-0.6b": ["BF16", "8b", "4b"]
+                "nemotron-3.5-streaming-0.6b": ["BF16", "8b", "4b"], "nemotron-3.5-transcribe": ["BF16", "8b", "4b"]
             ])
         XCTAssertEqual(
             catalog.offered(.dictation).map(\.id),
             [
                 "parakeet-v3-ultra", "parakeet-v3", "qwen3-asr-1.7b", "qwen3-asr-0.6b",
-                "whisper-large-v3", "whisper-large-v3-turbo"
+                "whisper-large-v3", "whisper-large-v3-turbo", "nemotron-3.5-transcribe"
             ])
         XCTAssertEqual(catalog.offered(.streaming).map(\.id), ["nemotron-3.5-streaming-0.6b"])
         XCTAssertEqual(catalog.family("parakeet-v3")?.native, "FP32", "the Parakeet v3 checkpoint is FP32 on disk")
@@ -277,7 +281,8 @@ final class CatalogTests: XCTestCase {
         func fmt(_ v: Double?) -> String { v.map { String(format: "%.2f", $0) } ?? "—" }
         var rows = 0
         for family in catalog.families {
-            let bench = try XCTUnwrap(file.models[family.id], family.id)
+            // Nemotron 3.5 Transcribe has no benchmark row until it is measured, so no README table rows either.
+            guard let bench = file.models[family.id] else { XCTAssertTrue(unmeasuredFamilies.contains(family.id), family.id); continue }
             let mode = family.mode == .streaming ? "Streaming" : "Dictation"
             for tier in ModelTier.allCases {
                 guard let t = bench.tiers[tier] else { continue }
@@ -319,7 +324,9 @@ final class CatalogTests: XCTestCase {
         let file = decodeBenchmarks(try Data(contentsOf: url))
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
         XCTAssertEqual(file.schema, 2)
-        XCTAssertEqual(Set(file.models.keys), Set(catalog.families.map(\.id)), "a benchmark row for every catalog family, none for removed ones")
+        XCTAssertEqual(
+            Set(file.models.keys), Set(catalog.families.map(\.id)).subtracting(unmeasuredFamilies),
+            "a benchmark row for every measured catalog family, none for removed ones")
         // Every measured cell is offered (Toby, 6 Oct); failed presence verdicts are stated in the tooltip.
         for (id, bench) in file.models {
             let family = try XCTUnwrap(catalog.family(id))

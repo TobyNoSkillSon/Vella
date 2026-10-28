@@ -14,17 +14,21 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     }
     enum DownloadError: LocalizedError {
         case invalid(String)
+        /// The catalog's source is a placeholder (`UNPUBLISHED/…`): there is nothing to download yet.
+        case unpublished(String)
         /// The Hub answered a request with this HTTP status instead of the data (`refusal(status:)` words it).
         case refused(Int)
         var errorDescription: String? {
             switch self {
             case .invalid(let message): return message
             case .refused(let status): return NativeModelDownload.refusal(status: status)
+            case .unpublished(let name): return "\(name) is not published for download yet. Update Vella when it is"
             }
         }
     }
     /// Whether retrying the same download can help: false when the Hub says the pinned file is gone or not allowed.
     public static func isRetryable(_ error: Error) -> Bool {
+        if case .unpublished = error as? DownloadError { return false }
         guard case .refused(let status) = error as? DownloadError else { return true }
         return ![401, 403, 404, 410].contains(status)
     }
@@ -52,12 +56,22 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
     private var lastReport = Date.distantPast
     private let progress: (String, Int64?, Int64?) -> Void
     private let catalogURL: URL
+    /// A folder of model folders that Get copies from instead of the Hub (tests and isolated runs): a repository
+    /// `owner/name` is read from `<folder>/name`. `VELLA_TEST_MODEL_SOURCE_DIR` sets it.
+    private let localSources: URL?
+
+    /// The owner of a catalog source that is not published yet; Get refuses it unless a local source has the folder.
+    public static let unpublishedOwner = "UNPUBLISHED"
+    public static var localSourceDirectory: URL? {
+        ProcessInfo.processInfo.environment["VELLA_TEST_MODEL_SOURCE_DIR"].flatMap { $0.hasPrefix("/") ? URL(fileURLWithPath: $0, isDirectory: true) : nil }
+    }
 
     public init(
         baseURL: URL = URL(string: "https://huggingface.co")!, configuration: URLSessionConfiguration = .default, catalogURL: URL,
-        progress: @escaping (String, Int64?, Int64?) -> Void
+        localSources: URL? = NativeModelDownload.localSourceDirectory, progress: @escaping (String, Int64?, Int64?) -> Void
     ) {
-        self.baseURL = baseURL; self.configuration = configuration; self.catalogURL = catalogURL; self.progress = progress
+        self.baseURL = baseURL; self.configuration = configuration; self.catalogURL = catalogURL; self.localSources = localSources
+        self.progress = progress
     }
     public func cancel() {
         lock.lock(); cancelled = true; let active = task; lock.unlock()
@@ -169,8 +183,16 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         try checkCancellation()
         let destination = modelsDirectory.appendingPathComponent(model.id)
         try unlinked(destination, root: modelsDirectory)
+        if let name = model.repository.split(separator: "/").last.map(String.init), let folder = localSources?.appendingPathComponent(name),
+            FileManager.default.fileExists(atPath: folder.appendingPathComponent("config.json").path)
+        {
+            try copyLocal(model, from: folder, to: destination, modelsDirectory: modelsDirectory)
+            return destination
+        }
+        if model.repository.hasPrefix(Self.unpublishedOwner + "/") { throw DownloadError.unpublished(model.name) }
         progress("Checking pinned Hugging Face files…", nil, nil)
-        var files = try await metadata(repository: model.repository, revision: model.revision, processor: nil)
+        // A catalog file list (`files`) is exactly what is fetched; anything else in the repository stays there.
+        var files = try await metadata(repository: model.repository, revision: model.revision, processor: model.files.map(Set.init))
         // Processor files override the same names in the primary source, exactly as snapshot_download does.
         if let recipe = try processorSource(model) {
             let extra = try await metadata(repository: recipe.repository, revision: recipe.revision, processor: Set(recipe.files))
@@ -218,6 +240,43 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         try NativeModelDownload.validate(destination, expected: model)
         try checkCancellation()
         return destination
+    }
+    /// Get from a local source folder: the catalog's files (else every allowed data file), cloned where the volume allows
+    /// (APFS: no second copy on disk), each checked for presence and the set for the pinned total size.
+    private func copyLocal(_ model: ModelRecommendation, from source: URL, to destination: URL, modelsDirectory: URL) throws {
+        let manager = FileManager.default
+        var names = model.files ?? []
+        if model.files == nil, let enumerator = manager.enumerator(at: source, includingPropertiesForKeys: [.isRegularFileKey]) {
+            for case let url as URL in enumerator where (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
+                let name = String(url.standardizedFileURL.path.dropFirst(source.standardizedFileURL.path.count + 1))
+                if Self.safe(name), Self.allowed(name, processor: nil) { names.append(name) }
+            }
+        }
+        guard !names.isEmpty, names.allSatisfy(Self.safe) else { throw DownloadError.invalid("Local model source has no allowed data files") }
+        let sizes = try names.map { name -> Int64 in
+            guard let size = Self.size(source.appendingPathComponent(name)) else { throw DownloadError.invalid("Local model source is missing \(name)") }
+            return size
+        }
+        let total = sizes.reduce(0, +)
+        if model.files != nil, model.downloadBytes > 0, total != model.downloadBytes {
+            throw DownloadError.invalid("Local model source holds \(total) bytes, not the catalog's \(model.downloadBytes)")
+        }
+        var completed: Int64 = 0
+        for (name, size) in zip(names, sizes) {
+            try checkCancellation()
+            let target = destination.appendingPathComponent(name)
+            try unlinked(target, root: modelsDirectory)
+            try manager.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if manager.fileExists(atPath: target.path) { try manager.removeItem(at: target) }
+            progress("Copying local model files…", completed, total)
+            // clonefile shares the blocks on APFS; across volumes it fails and the file is copied.
+            if clonefile(source.appendingPathComponent(name).path, target.path, 0) != 0 {
+                try manager.copyItem(at: source.appendingPathComponent(name), to: target)
+            }
+            completed += size
+        }
+        progress("Verifying downloaded model…", total, total)
+        try NativeModelDownload.validate(destination, expected: model)
     }
     private func processorSource(_ model: ModelRecommendation) throws -> ProcessorSource? {
         // Catalog metadata is decoded by the caller; optional recipes are looked up in its exact catalog (v2 or legacy).
@@ -336,11 +395,19 @@ public final class NativeModelDownload: NSObject, URLSessionDataDelegate, @unche
         let quant = (config?["quantization"] ?? config?["quantization_config"]) as? [String: Any]
         let bits = quant?["bits"] as? Int
         let expectedBits = Int(expected.quantization.split(separator: "-").first ?? "")
-        guard expectedBits == nil ? bits == nil : bits == expectedBits else {
+        // A published mixed quantization (per-layer entries, Nemotron 3.5 Transcribe's int8 and int4) matches when the
+        // expected width is among its layers' widths; its default `bits` may be another.
+        let layerBits = Set((quant ?? [:]).values.compactMap { ($0 as? [String: Any])?["bits"] as? Int })
+        let mixedMatch = expected.files != nil && expectedBits.map(layerBits.contains) == true
+        guard mixedMatch || (expectedBits == nil ? bits == nil : bits == expectedBits) else {
             throw DownloadError.invalid(expectedBits == nil ? "Expected unquantized weights" : "Quantization does not match recommendation")
         }
         guard try manager.contentsOfDirectory(atPath: folder.path).contains(where: { $0.hasSuffix(".safetensors") }) else {
             throw DownloadError.invalid("Model weights are missing")
+        }
+        // Every catalog file, licence and notices included, must be in the folder.
+        if let missing = expected.files?.first(where: { !manager.fileExists(atPath: folder.appendingPathComponent($0).path) }) {
+            throw DownloadError.invalid("The model folder is missing \(missing)")
         }
     }
 }

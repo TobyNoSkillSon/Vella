@@ -22,6 +22,13 @@ public enum HostInfo {
     public static let benchmarkHardware = BenchmarkHardware(chip: cpuBrand, gpuCores: gpuCoreCount)
     /// The macOS build ("25G72"), as the worker's self-test verdicts record it.
     public static let osBuild: String? = sysctlString("kern.osversion")
+    /// Physical memory in bytes. `VELLA_TEST_PHYSICAL_MEMORY_GB` (renders, isolated runs) stands in for the Mac's.
+    public static var physicalMemoryBytes: UInt64 {
+        if let gb = ProcessInfo.processInfo.environment["VELLA_TEST_PHYSICAL_MEMORY_GB"].flatMap(Double.init), gb > 0 {
+            return UInt64(gb * 1_073_741_824)
+        }
+        return ProcessInfo.processInfo.physicalMemory
+    }
     /// The CPU brand string, e.g. "Apple M5 Max".
     public static let cpuBrand: String? = sysctlString("machdep.cpu.brand_string")
 }

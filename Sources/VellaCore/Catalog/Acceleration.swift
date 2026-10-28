@@ -62,7 +62,8 @@ public let tensorQuantizedComponents: Set<String> = ["int8_gemm", "int4_gemm"]
 public enum QuantizedActivations: Sendable { case half, float32 }
 public let quantizedActivations: [String: QuantizedActivations] = [
     "parakeet-v3": .float32, "parakeet-v3-ultra": .float32, "nemotron-3.5-streaming-0.6b": .float32,
-    "whisper-large-v3": .half, "whisper-large-v3-turbo": .half, "qwen3-asr-1.7b": .half, "qwen3-asr-0.6b": .half
+    "whisper-large-v3": .half, "whisper-large-v3-turbo": .half, "qwen3-asr-1.7b": .half, "qwen3-asr-0.6b": .half,
+    "nemotron-3.5-transcribe": .half
 ]
 
 /// What this Mac's qualification decided for a precision's files: the worker's report for a loaded model, else the

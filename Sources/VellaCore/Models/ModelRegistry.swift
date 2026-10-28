@@ -5,7 +5,7 @@ import VellaWire
 public enum ModelRegistry {
     public static let all: [ModelDescriptor] = [
         ParakeetDescriptor.descriptor, Qwen3ASRDescriptor.descriptor,
-        WhisperDescriptor.descriptor, NemotronDescriptor.descriptor
+        WhisperDescriptor.descriptor, NemotronDescriptor.descriptor, NemotronTranscribeDescriptor.descriptor
     ]
     public static func descriptor(_ architecture: Architecture) -> ModelDescriptor? { all.first { $0.architecture == architecture } }
     /// The descriptor for an architecture name as config.json spells it (nil for anything Vella does not run).

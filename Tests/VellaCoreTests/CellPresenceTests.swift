@@ -112,7 +112,7 @@ final class CellPresenceTests: XCTestCase {
         let catalog = try decodeCatalog(Data(contentsOf: resources.appendingPathComponent("models.json")))
         let file = decodeBenchmarks(try Data(contentsOf: resources.appendingPathComponent("benchmarks.json")))
         var checked = 0, warned = 0
-        for family in catalog.families {
+        for family in catalog.families where !unmeasuredFamilies.contains(family.id) {
             let benchmark = try XCTUnwrap(file.models[family.id])
             let rules = SelectionRules(family: family, benchmark: benchmark)
             for tier in ModelTier.allCases {

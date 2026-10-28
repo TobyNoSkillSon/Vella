@@ -186,6 +186,10 @@ public func formatEnergy(_ j: Double?) -> String? {
 }
 /// Megabytes → `782 MB` / `1.34 GB`, like On disk.
 public func formatMemory(_ mb: Double?) -> String? { mb.map { formatBytes(Int64(($0 * 1_000_000).rounded())) } }
+/// The Params column: the total size; a mixture of experts' active share (`30B-A4B`) stays in the Model tooltip.
+public func paramsColumnText(_ params: String) -> String {
+    params.isEmpty ? "\u{2014}" : String(params.split(separator: "-").first ?? Substring(params))
+}
 /// Under ~20× real time a model is very slow for dictation.
 public let slowSpeedFloor = 20.0
 

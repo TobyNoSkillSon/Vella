@@ -36,7 +36,9 @@ final class TierCatalogTests: XCTestCase {
     }
 
     func testEveryFamilyDownloadsItsSixteenBitCheckpointAndDerivesTheRest() throws {
-        for f in try catalog().families {
+        // The one departure from the rule (Toby, 28 Oct 2026): Nemotron 3.5 Transcribe's int8 and int4 are mixed
+        // quantizations published as their own downloads (NemotronTranscribeCatalogTests), never made on this Mac.
+        for f in try catalog().families where f.id != "nemotron-3.5-transcribe" {
             let download = try XCTUnwrap(f.download, f.id)
             XCTAssertEqual(f.derivationProblems(), [], f.id)
             XCTAssertTrue(["bfloat16", "float16", "float32"].contains(f.nativeDType ?? ""), f.id)
@@ -67,7 +69,9 @@ final class TierCatalogTests: XCTestCase {
         let bf16 = try XCTUnwrap(records.first { $0.id == "parakeet-tdt-0.6b-v3-mlx-bf16-local" })
         XCTAssertEqual(bf16.repository, "animaslabs/parakeet-tdt-0.6b-v3-mlx")
         XCTAssertEqual(bf16.quantization, "BF16")
-        XCTAssertFalse(records.contains { $0.quantization.hasSuffix("-bit") }, "no quantized download")
+        XCTAssertFalse(
+            records.contains { $0.quantization.hasSuffix("-bit") && !$0.id.hasPrefix("nemotron-3.5-transcribe-") },
+            "no quantized download outside Nemotron 3.5 Transcribe's published tiers")
     }
 
     func testTobysInstalledVariantsMapOntoPresentTiers() throws {

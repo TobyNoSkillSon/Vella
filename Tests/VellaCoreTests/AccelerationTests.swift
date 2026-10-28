@@ -54,7 +54,7 @@ final class AccelerationTests: XCTestCase {
     ) throws -> [String: (ModelTier?, Set<ModelTier>, Set<ModelTier>)] {
         let (catalog, file) = try shipped()
         var out: [String: (ModelTier?, Set<ModelTier>, Set<ModelTier>)] = [:]
-        for family in catalog.families {
+        for family in catalog.families where !unmeasuredFamilies.contains(family.id) {
             let rules = SelectionRules(family: family, benchmark: file.models[family.id])
             let position: OptimizedMode = rules.switchAvailable ? mode : .fast
             let a = precisionAdvice(

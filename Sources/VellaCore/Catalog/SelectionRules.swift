@@ -10,11 +10,32 @@ import VellaWire
 public struct SelectionRules {
     public let family: ModelFamily
     public let benchmark: FamilyBenchmark?
-    public init(family: ModelFamily, benchmark: FamilyBenchmark?) { self.family = family; self.benchmark = benchmark }
+    /// This Mac's physical memory: a tier whose memory floor (MemoryFit.swift) is above it is not offered here. Nil = no
+    /// memory gate (fixtures).
+    public let physicalMemoryBytes: UInt64?
+    public init(family: ModelFamily, benchmark: FamilyBenchmark?, physicalMemoryBytes: UInt64? = nil) {
+        self.family = family; self.benchmark = benchmark; self.physicalMemoryBytes = physicalMemoryBytes
+    }
+
+    /// `Needs 64 GB of memory` for a catalogued tier this Mac's memory cannot hold; nil when it fits (or is not offered).
+    public func memoryRefusal(_ tier: ModelTier) -> String? {
+        guard let physicalMemoryBytes, let label = precisionLabel(family, tier: tier), options.contains(label),
+            !fitsMemory(family, label, physicalBytes: physicalMemoryBytes), let floor = minimumMemoryGB(family, label)
+        else { return nil }
+        return memoryFloorHelp(floor)
+    }
+    /// The row's reason when no offered tier fits this Mac's memory (its button refuses with it): the smallest floor.
+    public var rowMemoryRefusal: String? {
+        let all = ModelTier.allCases.filter { precisionLabel(family, tier: $0).map(options.contains) ?? false }
+        guard !all.isEmpty, all.allSatisfy({ memoryRefusal($0) != nil }) else { return nil }
+        let floor = all.compactMap { precisionLabel(family, tier: $0).flatMap { minimumMemoryGB(family, $0) } }.min() ?? Int.max
+        return memoryFloorHelp(floor)
+    }
 
     /// The same disabled-cell reason in the table and authenticated model controls.
     public func cellRefusal(_ selection: ModelSelection, loaded: ModelSelection? = nil) -> String? {
         let s = selection.request
+        if s != loaded?.request, let reason = memoryRefusal(s.tier) { return reason }
         if !isPresent(s) {
             // Malformed gate data (no readable presence verdict) is the one data reason a cell is not offered.
             if let gate = benchmarkCell(benchmark, s)?.gate, gate.presence == nil, let reason = gate.reasons.first, !reason.isEmpty {
@@ -28,8 +49,12 @@ public struct SelectionRules {
     }
 
     var options: [String] { precisionOptions(family) }
-    /// Offered tiers (catalog `tiers_offered`).
-    var offeredTiers: [ModelTier] { ModelTier.allCases.filter { precisionLabel(family, tier: $0).map(options.contains) ?? false } }
+    /// The catalog's offered tiers (`tiers_offered`), whatever this Mac's memory.
+    var catalogTiers: [ModelTier] { ModelTier.allCases.filter { precisionLabel(family, tier: $0).map(options.contains) ?? false } }
+    /// Offered tiers (catalog `tiers_offered`) that this Mac's memory can hold.
+    var offeredTiers: [ModelTier] {
+        ModelTier.allCases.filter { (precisionLabel(family, tier: $0).map(options.contains) ?? false) && memoryRefusal($0) == nil }
+    }
     /// Tiers with a stock-MLX (Standard) cell: what a model without any optimized recipe runs.
     public func standardTiers() -> [ModelTier] { offeredTiers.filter { cellPresent(benchmark, tier: $0, segment: .standard) } }
     /// The tiers a switch position offers (family coupling rule): Exact offers the tiers with an Optimized Exact recipe
@@ -48,8 +73,9 @@ public struct SelectionRules {
         return !cell.isPending
     }
     /// The model has optimized recipes (and so a live or pinned Exact/Fast switch); every shipped Vella model does.
+    /// Judged on the catalog's tiers whatever this Mac's memory, so a row whose tiers all exceed it keeps its switch.
     public var hasOptimizedPath: Bool {
-        offeredTiers.contains { tier in [Recipe.optimized_exact, .optimized_fast].contains { cellPresent(benchmark, tier: tier, segment: $0) } }
+        catalogTiers.contains { tier in [Recipe.optimized_exact, .optimized_fast].contains { cellPresent(benchmark, tier: tier, segment: $0) } }
     }
     public func isPresent(_ selection: ModelSelection) -> Bool {
         let s = selection.request

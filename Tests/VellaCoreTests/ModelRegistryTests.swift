@@ -24,10 +24,11 @@ final class ModelRegistryTests: XCTestCase {
     }
 
     func testModesAndPolicies() {
-        XCTAssertEqual(Set(ModelRegistry.architectures(.dictation)), [.parakeet, .qwen3ASR, .whisper])
+        XCTAssertEqual(Set(ModelRegistry.architectures(.dictation)), [.parakeet, .qwen3ASR, .whisper, .nemotronTranscribe])
         XCTAssertEqual(ModelRegistry.architectures(.streaming), [.nemotronASR])
         XCTAssertEqual(ModelRegistry.descriptor(architecture: "whisper")?.preferredSegmentSeconds, 20)
-        XCTAssertEqual(ModelRegistry.all.filter { $0.preferredSegmentSeconds != nil }.map(\.architecture), [.whisper])
+        XCTAssertEqual(ModelRegistry.all.filter { $0.preferredSegmentSeconds != nil }.map(\.architecture), [.whisper, .nemotronTranscribe])
+        XCTAssertEqual(ModelRegistry.descriptor(architecture: "nemotron_transcribe")?.preferredSegmentSeconds, 20)
         XCTAssertEqual(ModelRegistry.all.filter(\.calibratable).map(\.architecture.rawValue).sorted(), ["parakeet", "qwen3_asr", "whisper"])
         XCTAssertNil(ModelRegistry.descriptor(architecture: "stub"))
         XCTAssertNil(ModelRegistry.descriptor(architecture: nil))
