@@ -20,7 +20,8 @@ let folders = [
     "parakeet": "Worker/Sources/MLXAudioSTT/Parakeet",
     "qwen3_asr": "Worker/Sources/MLXAudioSTT/Qwen3ASR",
     "whisper": "Worker/Sources/MLXAudioSTT/Whisper",
-    "nemotron_asr": "Worker/Sources/MLXAudioSTT/NemotronASR"
+    "nemotron_asr": "Worker/Sources/MLXAudioSTT/NemotronASR",
+    "nemotron_transcribe": "Worker/Sources/MLXAudioSTT/NemotronTranscribe"
 ]
 let tiers = ["16", "8", "4"]
 let paths = [("standard", "Standard"), ("optimized_exact", "Optimized Exact"), ("optimized_fast", "Optimized Fast")]
@@ -182,6 +183,8 @@ func footnoteLines(_ keys: [MeasureKey]) -> [String] {
 func recipeText(_ family: JSON, _ tier: String) -> String {
     if tier == "16" { return family["native_dtype"] as? String == "float32" ? "converted once from the fp32 download" : "the checkpoint as published" }
     let variant = (family["variants"] as? [String: JSON])?[tier == "8" ? "8b" : "4b"] ?? [:]
+    // A tier published as its own download (Nemotron 3.5 Transcribe): its mix, as the catalog states it.
+    if variant["derivedFrom"] == nil, let mix = variant["mix"] as? String { return "a published mixed quantization, its own download: \(mix)" }
     guard let group = (variant["groupSize"] as? NSNumber)?.intValue else { fail("\(family["id"] ?? "?"): the \(tier == "8" ? "8b" : "4b") variant has no groupSize") }
     var text = "affine group \(group) from the \(dtypeLabel(family, "16")) weights"
     if let kept = variant["floatModules"] as? [String], !kept.isEmpty {

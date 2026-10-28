@@ -11,7 +11,8 @@ final class ModelDocsTests: XCTestCase {
     /// Runtime folder of each architecture, as in scripts/model-readmes.swift.
     static let folders = [
         "parakeet": "Worker/Sources/MLXAudioSTT/Parakeet", "qwen3_asr": "Worker/Sources/MLXAudioSTT/Qwen3ASR",
-        "whisper": "Worker/Sources/MLXAudioSTT/Whisper", "nemotron_asr": "Worker/Sources/MLXAudioSTT/NemotronASR"
+        "whisper": "Worker/Sources/MLXAudioSTT/Whisper", "nemotron_asr": "Worker/Sources/MLXAudioSTT/NemotronASR",
+        "nemotron_transcribe": "Worker/Sources/MLXAudioSTT/NemotronTranscribe"
     ]
 
     func text(_ path: String) throws -> String { try String(contentsOf: Self.root.appendingPathComponent(path), encoding: .utf8) }

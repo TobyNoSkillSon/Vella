@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Nemotron 3.5 Transcribe** (NVIDIA, 30B-A4B, OpenMDW-1.1) joins Dictation for 40 languages: a speech language model that returns the text once the recording is encoded. Three precisions, each its own download: bf16 (NVIDIA's release, 67.5 GB), int8 (36.5 GB) and int4 (21.8 GB, Vella's mixed quantizations). Each shows only where your Mac has the memory: int4 from 48 GB, int8 from 64 GB, bf16 from 96 GB; below that the row is greyed with what it needs. Parakeet v3 Ultra stays the first-dictation model; nothing downloads or loads until you click Get. Your vocabulary list applies to it too ([docs/vocabulary.md](docs/vocabulary.md)).
+- The Models table, `vella models` and the API state each precision's memory floor (`min_memory_gb`) and refuse a tier that does not fit (`insufficient_memory`).
+
 ## 2.1.2 (24 October 2026)
 
 - **Copy Last Transcript is back after a relaunch or update.** Vella keeps the last transcript in memory only, so a restart hid the item until the next dictation. It now copies the newest saved transcript from Recordings, the top row of Transcripts…, and it is hidden only when no recording has text. Copying with no transcript leaves the clipboard alone.

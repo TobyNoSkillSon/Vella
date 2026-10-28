@@ -30,6 +30,14 @@ allowing an observed suffix spelling to complete the same canonical word. They
 have the same count and spelling limits. Keep personal entries and variants in
 the private file, too.
 
+## Nemotron 3.5 Transcribe
+
+Nemotron 3.5 Transcribe dictation reads the same `vocabulary.json`, at the same
+time and with the same limits. Its `words` go to the model as context before each
+recording, as a list of terms the speech may contain; the model decides whether
+they were said. `boost`, `entries` and `variants` steer Parakeet's decoder and do
+not apply. An empty list adds no context.
+
 ## Decoding
 
 A bounded SentencePiece prefix automaton operates before the selected token

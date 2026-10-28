@@ -2505,7 +2505,7 @@ LibriSpeech by Vassil Panayotov, Guoguo Chen, Daniel Povey and Sanjeev Khudanpur
 
 ## Model weights (downloaded, not included)
 
-Vella.app contains no model weights. When you confirm a download, Vella fetches the pinned revision from Hugging Face, including its README.md model card. The current model repositories provide no separate licence files; the model cards and linked upstream terms govern the weights. Precisions without a published download are made on your Mac from the downloaded weights and are not redistributed. Each model's licence also shows in its table tooltip.
+Vella.app contains no model weights. When you confirm a download, Vella fetches the pinned revision from Hugging Face, including its README.md model card. Apart from Nemotron 3.5 Transcribe, the model repositories provide no separate licence files; the model cards and linked upstream terms govern the weights. Precisions without a published download are made on your Mac from the downloaded weights and are not redistributed. Each model's licence also shows in its table tooltip.
 
 | Model | In the app | Licence | Licence URL / clarification | Upstream weights | MLX downloads (Hugging Face) |
 |---|---|---|---|---|---|
@@ -2515,9 +2515,12 @@ Vella.app contains no model weights. When you confirm a download, Vella fetches 
 | Qwen3 ASR 0.6B | yes | apache-2.0 |  | Qwen/Qwen3-ASR-0.6B | `mlx-community/Qwen3-ASR-0.6B-bf16` |
 | Whisper large-v3 | yes | apache-2.0 |  | openai/whisper-large-v3 | `mlx-community/whisper-large-v3-asr-fp16` |
 | Whisper large-v3 turbo | yes | mit |  | openai/whisper-large-v3-turbo | `mlx-community/whisper-large-v3-turbo-asr-fp16` |
+| Nemotron 3.5 Transcribe | yes | openmdw-1.1 | https://openmdw.ai/license/1-1/; LICENSE, THIRD_PARTY_NOTICES.md and licenses/ come with every download | nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B (bf16 SHA-256 03142dde5176c1d4df21ee829642745a1d670ea4d79e1a4684c64d53195acff2) | not published yet |
 | Nemotron 3.5 Streaming | yes | OpenMDW-1.1 (upstream); converter card lists NVIDIA Open Model License | https://openmdw.ai/license/1-1/ (upstream since 2026-06-05); MLX card metadata still names NVIDIA Open Model License | nvidia/nemotron-3.5-asr-streaming-0.6b | `mlx-community/nemotron-3.5-asr-streaming-0.6b` |
 
 Licence names follow the upstream model cards: `cc-by-4.0` is Creative Commons Attribution 4.0, `apache-2.0` the Apache License 2.0, `mit` the MIT License. Nemotron 3.5's upstream NVIDIA card changed to OpenMDW License 1.1 on 2026-06-05 (https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b/commit/24b151a851dd15909e1fc611b11bb2da52b9fc81); its MLX conversions still name NVIDIA Open Model License in their card metadata.
+
+Nemotron 3.5 Transcribe 30B-A4B: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. Licensed under the OpenMDW License Agreement, version 1.1 (https://openmdw.ai/license/1-1/), which allows use, modification and redistribution provided the agreement and NVIDIA's copyright and origin notices are kept with the materials. Its bf16 tier is NVIDIA's release; its int8 and int4 tiers are mixed MLX quantizations of NVIDIA's bf16 weights made for Vella, so modified from the original. Every tier's download includes NVIDIA's `LICENSE` (the agreement), `THIRD_PARTY_NOTICES.md` and `licenses/` (the Apache-2.0 texts of the Qwen3-ASR and vLLM snippets in NVIDIA's model card), and Vella checks that they are in the model folder after Get.
 
 ## Apple
 
