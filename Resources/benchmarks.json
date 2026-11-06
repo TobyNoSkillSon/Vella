@@ -5155,7 +5155,8 @@
               },
               "baseline": "tier16 Standard (same build)"
             },
-            "accuracy_note": "Accuracy reused from Standard: Exact decodes plain greedy like Standard (int4 full v2: 797 of 797 transcripts identical; the cache reuse is exact, v2-quick 122/122)."
+            "accuracy_note": "Accuracy reused from Standard: Exact decodes plain greedy like Standard (int4 full v2: 797 of 797 transcripts identical; the cache reuse is exact, v2-quick 122/122).",
+            "note": "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. Fewer than two clean GPU-only brackets."
           },
           "optimized_fast": {
             "wer": 14.54,
@@ -5364,7 +5365,8 @@
               },
               "baseline": "tier16 Standard (same build)"
             },
-            "accuracy_note": "Accuracy reused from Standard: Exact decodes plain greedy like Standard (int4 full v2: 797 of 797 transcripts identical; the cache reuse is exact, v2-quick 122/122)."
+            "accuracy_note": "Accuracy reused from Standard: Exact decodes plain greedy like Standard (int4 full v2: 797 of 797 transcripts identical; the cache reuse is exact, v2-quick 122/122).",
+            "note": "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. Fewer than two clean GPU-only brackets."
           },
           "optimized_fast": {
             "wer": 14.56,
@@ -5634,7 +5636,8 @@
                 "reasons": []
               },
               "baseline": "tier16 Standard (same build)"
-            }
+            },
+            "note": "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. Fewer than two clean GPU-only brackets."
           },
           "display_cells": {
             "standard": "standard",
