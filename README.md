@@ -11,7 +11,7 @@
   &nbsp;
   <a href="https://tobynoskillson.com/vella"><img src="docs/images/website.svg" alt="Website" width="140" height="42"></a>
   &nbsp;
-  <a href="https://tobynoskillson.com/#support"><img src="docs/images/support.svg" alt="Support the Developer on GitHub Sponsors or Buy Me a Coffee" width="228" height="42"></a>
+  <a href="https://tobynoskillson.com/#support"><img src="docs/images/support-developer.svg" alt="Support the Developer on GitHub Sponsors or Buy Me a Coffee" width="228" height="42"></a>
 </p>
 
 <p align="center">
