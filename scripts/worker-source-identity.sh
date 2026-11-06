@@ -11,16 +11,18 @@
 # a Worker README-only change, refresh that declared full-tree identity and its published provenance references.
 set -euo pipefail
 SOURCE=9aad75cbac72dbc650669fe227fc273414db6c63 # informational measured-defaults commit, never a reachability gate
-WORKER_CODE_TREE=565ed73f5f08f0ebda18b4bac13a52954e229ca0   # git tree of Worker/ with its README.md files removed
+WORKER_CODE_TREE=cf37aea2607394c560e116efb53237f645d3f1f8   # git tree of Worker/ with its README.md files removed
 # 5 Oct: Worker/build-split.sh weak-links swift_initBorrow for Swift >= 6.4 builds only; with Swift 6.3.3 its commands are
 # unchanged.
-PACKAGES_TREE=6851d8c101f507aea8980af93fd877aa0e84a20c
+PACKAGES_TREE=49279fb93529ce1d711cfe84e6fffb79bc20198b
 # 3 Oct chip-safety delta: macOS 26.2 tensor preflight; GPU architecture/name in gate keys and optional verdict metadata.
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
-# Active 2.1 recovery-hardening source tree. Benchmark figures retain their historical source identity below;
+# 6 Nov: Nemotron 3.5 Transcribe (runtime, derived int8/int4, draft-and-verify with its runtime fallback and runaway
+# guard; VellaWire architecture and lab switches). Measured from this code tree (commit 07d2e98); the other
+# families' figures keep their historical source identity below. Before it: the 2.1 recovery-hardening source tree. Benchmark figures retain their historical source identity below;
 # this pin does not re-measure or claim new performance evidence.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=ed8c246057af28f6f3b24279c5fdaec0e14629c0   # 15 Oct: bounded gate/recovery and regression tests, swift-format applied
+WORKER_FULL_TREE=75c50e115ac809d597cc7449ff06ba60cb9924a7   # 6 Nov: Nemotron 3.5 Transcribe measured (READMEs regenerated)
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
 HISTORICAL_WORKER_FULL_TREE=ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c
 # Recorded provenance: it must differ from HISTORICAL_WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;

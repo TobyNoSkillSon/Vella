@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## 2.2.0 (7 November 2026)
 
 - **Nemotron 3.5 Transcribe** (NVIDIA, 30B-A4B, OpenMDW-1.1) joins Dictation for 40 languages: a speech language model that returns the text once the recording is encoded. Get downloads NVIDIA's bf16 release (67.5 GB); int8 and int4 are made from it on your Mac when they load, as for the other models. Each precision shows only where your Mac has the memory: int4 from 48 GB, int8 from 64 GB, bf16 from 96 GB; below that the row is greyed with what it needs. Parakeet v3 Ultra stays the first-dictation model; nothing downloads or loads until you click Get. Your vocabulary list applies to it too ([docs/vocabulary.md](docs/vocabulary.md)).
 - The Models table, `vella models` and the API state each precision's memory floor (`min_memory_gb`) and refuse a tier that does not fit (`insufficient_memory`).
+- **Measured in the Models table.** On an M5 Max its English word error rate is 14.5–14.8 % at every precision (Parakeet v3 Ultra: 15.5 %), with all nine benchmark languages. int4 with Fast runs at 29× real time in 24 GB and keeps 16-bit accuracy, so it is the gold precision wherever it fits; bf16 needs 65 GB, int8 38 GB. Its energy column stays empty: on macOS 27 the energy meter reads only the GPU without administrator rights, and the tooltip says so.
+- A precision that keeps 16-bit accuracy is recommended even on a Mac too small for the 16-bit tier itself.
+- Fast decoding (draft and verify) falls back to plain decoding by itself if it fails, and a segment it would repeat endlessly is decoded again plainly.
 
 ## 2.1.2 (24 October 2026)
 

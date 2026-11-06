@@ -62,7 +62,7 @@ Each model downloads one pinned checkpoint at its published 16-bit precision, ex
 
 Measured 2026-10-01, 2026-10-03 on Apple M5 Max, macOS 26.6. English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately; speed, energy and peak RAM: v2-quick (22.5 min). Languages are supported benchmark languages, out of 9.
 
-Nemotron 3.5 Transcribe was measured on 2026-11-06 on Apple M5 Max, macOS 27.0.1 (Vella build `nt-cc294836a0be`), with the same suites, scorer and gate; its J / min is empty because the macOS 27 energy meter reads only the GPU without root, which is not comparable with the whole-chip figures above (GPU-only figures are in `Resources/benchmarks.json` notes). On the same night and meter, Parakeet v3 Ultra bf16 Fast reproduced its English WER of 15.51.
+Nemotron 3.5 Transcribe was measured on 2026-11-06 on Apple M5 Max, macOS 27.0.1 (worker code of commit `07d2e98`), with the same suites, scorer and gate; its J / min is empty because the macOS 27 energy meter reads only the GPU without root, which is not comparable with the whole-chip figures above (GPU-only figures are in `Resources/benchmarks.json` notes). On the same night and meter, Parakeet v3 Ultra bf16 Fast reproduced its English WER of 15.51.
 
 **Standard** is plain MLX, the path a model falls back to; **Optimized** adds custom kernels and is what Vella runs. Whisper Standard runs faithful fp16. Whisper Exact and Fast share the same exact-only whisper-4 recipe and canonical measurement. Whisper Standard and Optimized were measured together on the faithful build; their per-cell and tier gates use that build’s fp16 Standard baseline. Other families retain their dated release measurements.
 

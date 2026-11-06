@@ -48,7 +48,9 @@ func sourceIdentityPasses() -> Bool {
     return process.terminationStatus == 0
 }
 let historicalTrees: Set<String> = [
-    "af976137fbcd3cb0346fb187aced20cd82f9cc86", "ce8b527583b37c77274eb242b58025b85f35b6fc", "093375e515b30db74a5803abfdd6c1c0d28e29e2", "53e0cd3fce3cb0b11646dd3b085c0328e51fc5aa"
+    "af976137fbcd3cb0346fb187aced20cd82f9cc86", "ce8b527583b37c77274eb242b58025b85f35b6fc", "093375e515b30db74a5803abfdd6c1c0d28e29e2", "53e0cd3fce3cb0b11646dd3b085c0328e51fc5aa",
+    // The Packages tree pinned for 2.0/2.1; still cited by their benchmark provenance after the 6 Nov source pin.
+    "6851d8c101f507aea8980af93fd877aa0e84a20c"
 ]
 let sourcePins = try String(contentsOf: root.appendingPathComponent("scripts/worker-source-identity.sh"), encoding: .utf8)
 guard currentTreesMatchPins(sourcePins), sourceIdentityPasses() else {

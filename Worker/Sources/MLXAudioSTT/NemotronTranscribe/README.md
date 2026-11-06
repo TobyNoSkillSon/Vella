@@ -135,7 +135,7 @@ mlx-audio's own chain differs from its own stock there too. MTP is token-identic
 clip and has the same words as Swift stock on the 60 s clip without a list. The test fails on any of those regressions
 and also runs `generate()` end to end. Peak MLX memory was 23.1 GB.
 
-**Release gate** (offline, full v2, `local gate_check.py`; run 6 Nov on M5 Max, macOS 27.0.1, build `nt-cc294836a0be`). Against the base (the 16 tier
+**Release gate** (offline, full v2, `local gate_check.py`; run 6 Nov on M5 Max, macOS 27.0.1, the worker code of commit `07d2e98`). Against the base (the 16 tier
 for a tier, the plain-greedy path for draft-and-verify), the usual limits hold: English WER and format CER within the
 model's tolerance; no lost clips (an empty hypothesis or a deleted tail counts as lost only when it removes at least 3
 reference words the base transcribed correctly (`TAIL_WORDS`)); no request error or worker exit.
