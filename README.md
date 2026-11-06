@@ -281,6 +281,17 @@ with open("talk.m4a", "rb") as f:
     text = client.audio.transcriptions.create(model="whisper-1", file=f, response_format="text")
 ```
 
+## Feedback
+
+Send a bug, complaint or idea to [tobynoskillson.com/feedback](https://tobynoskillson.com/feedback), or have your agent post it:
+
+```sh
+curl -X POST https://tobynoskillson.com/api/feedback -H 'Content-Type: application/json' \
+  -d '{"app":"vella","version":"unknown","kind":"bug","message":"What happened, what you expected, steps to reproduce"}'
+```
+
+`kind` is `bug`, `feedback` or `idea`; `message` takes up to 5,000 characters and the optional `details` up to 20,000; add `contact` (an email) only if you want a reply. Up to four files of 5 MB each (PNG, JPEG, WebP, GIF, HEIC or plain-text logs) go as multipart `-F file=@shot.png`. Five reports a minute per address; `curl https://tobynoskillson.com/api/feedback` prints the full usage. [GitHub Issues](https://github.com/TobyNoSkillSon/Vella/issues) work too, and fixes are welcome as pull requests.
+
 ## Privacy
 
 Your audio and transcripts never leave your Mac. The recognition helpers run in a sandbox that denies all network access. The app's local API listens on 127.0.0.1 only and refuses browser requests. The only network traffic is model downloads from Hugging Face when you choose **Get**, and a check for a newer release at most once a day (at launch when due; failed checks retry about hourly) (an ordinary request to GitHub's releases API, no speech data); an update downloads only when you choose **Update Now**. There is no telemetry and no audio upload. Apps you dictate into, clipboard managers and Universal Clipboard see the text you insert or copy.
