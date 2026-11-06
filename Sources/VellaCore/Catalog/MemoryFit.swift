@@ -8,7 +8,7 @@ import Foundation
 //
 // 16 GB stays with macOS and the apps beside the model. `peak` is the catalog's `peakMemoryMB` (peak process memory
 // while transcribing); a precision without one has no floor (every model under 10 GB). Nemotron 3.5 Transcribe:
-// int4 24.7 GB measured → 48 GB, int8 ~40 GB estimated → 64 GB, bf16 ~70 GB estimated → 96 GB.
+// int4 24.1 GB → 48 GB, int8 37.5 GB → 64 GB, bf16 65.3 GB → 96 GB (catalog peaks).
 
 /// Memory sizes Apple silicon Macs ship with, in GB (binary gigabytes, as `physicalMemory` reports them).
 public let appleSiliconMemorySizesGB = [8, 16, 18, 24, 32, 36, 48, 64, 96, 128, 192, 256, 512]

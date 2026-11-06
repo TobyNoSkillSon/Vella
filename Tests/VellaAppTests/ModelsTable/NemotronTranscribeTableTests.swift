@@ -112,7 +112,7 @@ import XCTest
     func testTheSwitchIsLiveAndExactRunsPlainDecoding() throws {
         let (c, f) = try controller(memoryGB: 64)
         XCTAssertTrue(c.switchAvailable(f))
-        XCTAssertTrue(c.exactAvailable(f), "an unmeasured family keeps Exact selectable")
+        XCTAssertTrue(c.exactAvailable(f), "Exact stays selectable where Fast differs")
         XCTAssertEqual(c.currentSelection(f).mode, .fast, "Fast by default")
         try c.setModeForControl(f, mode: .exact)
         XCTAssertEqual(c.currentSelection(f), ModelSelection(tier: .t4, mode: .exact))
@@ -121,7 +121,7 @@ import XCTest
         let tips = Dictionary(ModelTable(controller: c).tooltips(f).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
         XCTAssertEqual(
             tips["Exact/Fast"],
-            ExactFastSwitch.help + "\nHere Exact decodes one token at a time; Fast drafts and verifies several, about 1.9× faster, differing only on near ties")
+            ExactFastSwitch.help + "\nHere Exact decodes one token at a time; Fast drafts and verifies several, about 1.25× faster, differing only on near ties")
         let runtime = try Runtime.isolated(root.appendingPathComponent("api"))
         let o = ModelControls(controller: c, runtime: runtime).object(f)
         XCTAssertEqual(o["fast_equals_exact"] as? Bool, false)

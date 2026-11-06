@@ -238,7 +238,7 @@ Loss vs bf16: English WER +0.21 pt
 
 [Nemotron 3.5 Transcribe · Exact/Fast]
 Exact: only components that must match plain MLX on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
-Here Exact decodes one token at a time; Fast drafts and verifies several, about 1.9× faster, differing only on near ties
+Here Exact decodes one token at a time; Fast drafts and verifies several, about 1.25× faster, differing only on near ties
 
 [Nemotron 3.5 Transcribe · Precision bf16 · Fast · M5 Max]
 bf16, as published

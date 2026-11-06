@@ -10,5 +10,5 @@ public enum NemotronTranscribeDescriptor {
     public static let descriptor = ModelDescriptor(
         architecture: .nemotronTranscribe, mode: .dictation, preferredSegmentSeconds: 20,
         calibratable: false, catalogFamilies: ["nemotron-3.5-transcribe"],
-        switchHelp: "Here Exact decodes one token at a time; Fast drafts and verifies several, about 1.9× faster, differing only on near ties")
+        switchHelp: "Here Exact decodes one token at a time; Fast drafts and verifies several, about 1.25× faster, differing only on near ties")
 }
