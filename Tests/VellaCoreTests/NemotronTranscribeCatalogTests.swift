@@ -52,9 +52,10 @@ final class NemotronTranscribeCatalogTests: XCTestCase {
         XCTAssertEqual(bf16.downloadBytes, 67_513_686_219)
         XCTAssertEqual(f.download, CatalogDownload(repo: bf16.repository, revision: bf16.revision, bytes: bf16.downloadBytes, convert_to: ["8", "4"]))
         let files = try XCTUnwrap(bf16.files)
-        for name in ["model.safetensors", "config.json", "generation_config.json", "tokenizer.json", "tokenizer_config.json", "LICENSE",
-            "THIRD_PARTY_NOTICES.md", "licenses/Qwen3-ASR-LICENSE.txt", "licenses/vLLM-LICENSE.txt", "README.md"]
-        {
+        for name in [
+            "model.safetensors", "config.json", "generation_config.json", "tokenizer.json", "tokenizer_config.json", "LICENSE",
+            "THIRD_PARTY_NOTICES.md", "licenses/Qwen3-ASR-LICENSE.txt", "licenses/vLLM-LICENSE.txt", "README.md"
+        ] {
             XCTAssertTrue(files.contains(name), name)
         }
         XCTAssertFalse(files.contains { $0.hasPrefix("llm_backbone/") || $0.hasPrefix(".") || $0.hasSuffix(".png") }, "upstream-only files stay there")

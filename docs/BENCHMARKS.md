@@ -337,6 +337,7 @@ Clean rebuild receipt: Swift driver/compiler `1.168.6 Apple Swift version 6.4 (s
 | Model | Recorded recipe gate revisions |
 |---|---|
 | Nemotron 3.5 Streaming | `native-kernels-10`, `stock` |
+| Nemotron 3.5 Transcribe | `nemotron-transcribe-1`, `stock` |
 | Parakeet v3 | `native-kernels-10`, `stock` |
 | Parakeet v3 Ultra | `native-kernels-10`, `stock` |
 | Qwen3 ASR 0.6B | `native-kernels-10`, `stock` |

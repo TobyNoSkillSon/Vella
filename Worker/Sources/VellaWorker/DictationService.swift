@@ -286,9 +286,11 @@ final class Worker {
             disabledComponents: disabledComponents
         ).jsonObject
         if let parakeet = model as? ParakeetModel {
-            result["vocabulary"] = ["count": parakeet.contextualVocabulary.words.count,
-                                    "boost": parakeet.contextualVocabulary.boost,
-                                    "error": vocabularyError as Any? ?? NSNull()]
+            result["vocabulary"] = [
+                "count": parakeet.contextualVocabulary.words.count,
+                "boost": parakeet.contextualVocabulary.boost,
+                "error": vocabularyError as Any? ?? NSNull()
+            ]
         }
         if let nemotron = model as? NemotronTranscribeModel {
             result["vocabulary"] = ["count": nemotron.vocabularyWords.count, "error": vocabularyError as Any? ?? NSNull()]

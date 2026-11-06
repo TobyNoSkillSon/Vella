@@ -27,7 +27,7 @@ extension WorkerTests {
             let user = NemotronTranscribePrompt.user(words: ["Parakeet", " Heimdall ", "", "parakeet", "Poznań"])
             #expect(user == NemotronTranscribePrompt.asr + "\nContextual vocabulary: Parakeet, Heimdall, Poznań <|audio|>")
             #expect(user.components(separatedBy: "<|audio|>").count == 2)
-            let many = (0 ..< 300).map { "Word\($0)" }
+            let many = (0..<300).map { "Word\($0)" }
             #expect(NemotronTranscribePrompt.vocabulary(many).count == NemotronTranscribePrompt.maxWords)
         }
 
@@ -37,7 +37,8 @@ extension WorkerTests {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: dir) }
             let file = dir.appendingPathComponent("vocabulary.json")
-            try #"{"words": ["Zephyr", "Heimdall"], "boost": 4, "entries": [{"word": "Zephyr", "surface": "se", "prefix": "ze"}], "variants": [{"word": "Heimdall", "spelling": "Heimdal"}]}"#
+            try
+                #"{"words": ["Zephyr", "Heimdall"], "boost": 4, "entries": [{"word": "Zephyr", "surface": "se", "prefix": "ze"}], "variants": [{"word": "Heimdall", "spelling": "Heimdal"}]}"#
                 .write(to: file, atomically: true, encoding: .utf8)
             let vocabulary = try ParakeetVocabulary.read(from: file)
             let user = NemotronTranscribePrompt.user(words: vocabulary.words)
@@ -47,10 +48,10 @@ extension WorkerTests {
 
         @Test func chunksAtMostTwoMinutesCutAtSilence() {
             let rate = NemotronTranscribeChunking.sampleRate
-            #expect(NemotronTranscribeChunking.plan([Float](repeating: 0.1, count: 120 * rate)) == [0 ..< 120 * rate])
+            #expect(NemotronTranscribeChunking.plan([Float](repeating: 0.1, count: 120 * rate)) == [0..<120 * rate])
             // 5 minutes of tone with silence at 110 s and 225 s.
-            var samples = (0 ..< 300 * rate).map { Float(sin(Double($0) * 0.05)) * 0.3 }
-            for s in [110, 225] { for i in (s * rate) ..< (s * rate + rate / 2) { samples[i] = 0 } }
+            var samples = (0..<300 * rate).map { Float(sin(Double($0) * 0.05)) * 0.3 }
+            for s in [110, 225] { for i in (s * rate)..<(s * rate + rate / 2) { samples[i] = 0 } }
             let plan = NemotronTranscribeChunking.plan(samples)
             #expect(plan.count == 3)
             #expect(plan.allSatisfy { $0.count <= 120 * rate })
@@ -59,7 +60,7 @@ extension WorkerTests {
             #expect(abs(plan[0].upperBound - (110 * rate + rate / 4)) < rate / 4)
             #expect(abs(plan[1].upperBound - (225 * rate + rate / 4)) < rate / 4)
             // No silence anywhere: still never over the limit.
-            let dense = (0 ..< 250 * rate).map { Float(sin(Double($0) * 0.05)) * 0.3 + 0.01 }
+            let dense = (0..<250 * rate).map { Float(sin(Double($0) * 0.05)) * 0.3 + 0.01 }
             #expect(NemotronTranscribeChunking.plan(dense).allSatisfy { $0.count <= 120 * rate })
         }
 
@@ -186,9 +187,11 @@ extension WorkerTests {
                 let data = try Data(contentsOf: refDir.appendingPathComponent("\(clip).f32"))
                 let samples = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
                 let tokens = try model.promptTokens(words: words)
-                #expect(tokens == (entry["prompt_ids"] as! [Int]).map { $0 == 0 ? model.audioToken : $0 }.reduce(into: [Int]()) { out, t in
-                    if t != model.audioToken || out.last != model.audioToken { out.append(t) }
-                }, "\(key) prompt tokens")
+                #expect(
+                    tokens
+                        == (entry["prompt_ids"] as! [Int]).map { $0 == 0 ? model.audioToken : $0 }.reduce(into: [Int]()) { out, t in
+                            if t != model.audioToken || out.last != model.audioToken { out.append(t) }
+                        }, "\(key) prompt tokens")
                 let audio = model.perception(MLXArray(samples))
                 let embeddings = try model.inputs(tokens: tokens, audio: audio)
                 let start = Date()
@@ -199,10 +202,12 @@ extension WorkerTests {
                 let mtpSeconds = Date().timeIntervalSince(mtpStart)
                 let refStock = entry["stock"] as! [Int], refChain = entry["chain"] as! [Int]
                 func agree(_ a: [Int], _ b: [Int]) -> Int { zip(a, b).prefix { $0 == $1 }.count }
-                report[key] = ["stock_equal": stock == refStock, "stock_prefix": agree(stock, refStock), "stock_len": [stock.count, refStock.count],
-                               "mtp_equal": chain == refChain, "mtp_prefix": agree(chain, refChain), "mtp_len": [chain.count, refChain.count],
-                               "stock_s": stockSeconds, "mtp_s": mtpSeconds, "seconds_audio": Double(samples.count) / 16000,
-                               "text": model.text(stock), "mtp_text": model.text(chain)]
+                report[key] = [
+                    "stock_equal": stock == refStock, "stock_prefix": agree(stock, refStock), "stock_len": [stock.count, refStock.count],
+                    "mtp_equal": chain == refChain, "mtp_prefix": agree(chain, refChain), "mtp_len": [chain.count, refChain.count],
+                    "stock_s": stockSeconds, "mtp_s": mtpSeconds, "seconds_audio": Double(samples.count) / 16000,
+                    "text": model.text(stock), "mtp_text": model.text(chain)
+                ]
             }
             // Token-exact where the reference runs agreed on 28 Oct (the 15 s clip, the 60 s clip without a list).
             for key in ["clip15/plain", "clip15/vocab", "clip60/plain"] {

@@ -243,8 +243,40 @@ import VellaUpdate
         conversion.downloadError =
             "Could not convert Parakeet v3 to BF16: the downloaded weights are incomplete or damaged. Partial files removed; your recordings are kept."
         states.append(conversion)
-        // Nemotron 3.5 Transcribe by this Mac's memory: int4 only from 48 GB, int8 from 64, bf16 from 96; below 48 the
-        // row is greyed with its reason. Then Get of int4 (it downloads the bf16 it is made from), and int4 loaded.
+        states += transcribeStates()
+        var refusedLong = State(name: "footer-error-long")
+        refusedLong.runtime.loaded = loaded.runtime.loaded
+        let qwenController = RenderFixture.controller()
+        if let family = qwenController.catalog.family("qwen3-asr-1.7b") {
+            let ref = ModelRef(
+                id: family.id, precision: "BF16", path: "/render/qwen", name: family.name,
+                memoryMB: qwenController.benchmark(family)?.tiers[.t16]?.cells[.optimized_fast]?.result.memory_mb,
+                precisionOptions: precisionOptions(family))
+            refusedLong.runtime.refusal = TableRefusal(
+                message: refusalMessage(
+                    ref, needMB: memoryEstimateMB(ref) + MemoryProbe.headroomMB,
+                    freeMB: 900, loaded: ["Parakeet v3"]), at: now)
+        }
+        states.append(refusedLong)
+        var otherChip = State(name: "other-chip-M3-Pro")
+        otherChip.runtime.chip = chip == "M3 Pro" ? "M5 Max" : "M3 Pro"
+        states.append(otherChip)
+        for (name, cores) in [("M5 Max", 32), ("M5 Pro", 20), ("M5", 10), ("M4", 10)] {
+            var other = State(name: "reference-label-" + name.replacingOccurrences(of: " ", with: "-") + "-\(cores)")
+            other.runtime.chip = name; other.gpuCores = cores
+            states.append(other)
+        }
+        states.append(State(name: "unmeasured-no-benchmarks", benchmarks: BenchmarkFile()))
+        return states
+    }
+
+    /// A preview controller showing a state.
+    /// Nemotron 3.5 Transcribe by this Mac's memory: int4 only from 48 GB, int8 from 64, bf16 from 96; below 48 the row is
+    /// greyed with its reason. Then Get of int4 (it downloads the bf16 it is made from), and int4 loaded.
+    static func transcribeStates() -> [State] {
+        func sel(_ tier: ModelTier, _ mode: OptimizedMode = .exact) -> ModelSelection { ModelSelection(tier: tier, mode: mode) }
+        let fast = RenderFixture.optimized
+        var states: [State] = []
         let transcribe = "nemotron-3.5-transcribe"
         for memory in [32.0, 48, 64, 128] {
             var state = State(name: "nemotron-transcribe-\(Int(memory))gb")
@@ -274,33 +306,9 @@ import VellaUpdate
         transcribeBF16.memoryGB = 128
         transcribeBF16.selections = [transcribe: sel(.t16, .fast)]
         states.append(transcribeBF16)
-        var refusedLong = State(name: "footer-error-long")
-        refusedLong.runtime.loaded = loaded.runtime.loaded
-        let qwenController = RenderFixture.controller()
-        if let family = qwenController.catalog.family("qwen3-asr-1.7b") {
-            let ref = ModelRef(
-                id: family.id, precision: "BF16", path: "/render/qwen", name: family.name,
-                memoryMB: qwenController.benchmark(family)?.tiers[.t16]?.cells[.optimized_fast]?.result.memory_mb,
-                precisionOptions: precisionOptions(family))
-            refusedLong.runtime.refusal = TableRefusal(
-                message: refusalMessage(
-                    ref, needMB: memoryEstimateMB(ref) + MemoryProbe.headroomMB,
-                    freeMB: 900, loaded: ["Parakeet v3"]), at: now)
-        }
-        states.append(refusedLong)
-        var otherChip = State(name: "other-chip-M3-Pro")
-        otherChip.runtime.chip = chip == "M3 Pro" ? "M5 Max" : "M3 Pro"
-        states.append(otherChip)
-        for (name, cores) in [("M5 Max", 32), ("M5 Pro", 20), ("M5", 10), ("M4", 10)] {
-            var other = State(name: "reference-label-" + name.replacingOccurrences(of: " ", with: "-") + "-\(cores)")
-            other.runtime.chip = name; other.gpuCores = cores
-            states.append(other)
-        }
-        states.append(State(name: "unmeasured-no-benchmarks", benchmarks: BenchmarkFile()))
         return states
     }
 
-    /// A preview controller showing a state.
     static func controller(_ state: State) -> ModelsController {
         let controller = RenderFixture.controller(installed: state.installed)
         if let memory = state.memoryGB { controller.physicalMemoryBytes = UInt64(memory * 1_073_741_824) }

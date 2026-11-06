@@ -81,9 +81,11 @@ extension WorkerTests {
             let target = #"{"target": "nemo.collections.asr.models.rnnt_bpe_models.EncDecRNNTBPEModel"}"#
             #expect(try admitCheckpoint(folder(s, "tdt", config: target)) == .parakeet)
             // Nemotron 3.5 Transcribe: Vella's int8/int4 mixes, and NVIDIA's BF16 original (a NeMo SpeechLM).
-            let mix = #"{"model_type": "nemotron_transcribe", "prompt_format": "nemotron3p5", "llm_config": {"model_type": "nemotron_h"}, "quantization": {"bits": 4, "group_size": 64, "llm.backbone.layers.1.mixer.shared_experts.up_proj": {"bits": 8, "group_size": 64}}}"#
+            let mix =
+                #"{"model_type": "nemotron_transcribe", "prompt_format": "nemotron3p5", "llm_config": {"model_type": "nemotron_h"}, "quantization": {"bits": 4, "group_size": 64, "llm.backbone.layers.1.mixer.shared_experts.up_proj": {"bits": 8, "group_size": 64}}}"#
             #expect(try admitCheckpoint(folder(s, "nt4", config: mix)) == .nemotronTranscribe)
-            let nvidia = #"{"model_type": "nemo_speechlm", "architectures": ["Nemotron3_5TranscribeForConditionalGeneration"], "prompt_format": "nemotron3p5", "llm_config": {"model_type": "nemotron_h"}}"#
+            let nvidia =
+                #"{"model_type": "nemo_speechlm", "architectures": ["Nemotron3_5TranscribeForConditionalGeneration"], "prompt_format": "nemotron3p5", "llm_config": {"model_type": "nemotron_h"}}"#
             #expect(try admitCheckpoint(folder(s, "nt16", config: nvidia)) == .nemotronTranscribe)
         }
 

@@ -32,7 +32,9 @@ extension WorkerTests {
             #expect(!trie.complete[ab * trie.width + 7])
             #expect(trie.bonus[ab * trie.width + 7] == 4)
             func format(_ ids: [Int], gap: Double = 0.08) -> String {
-                let tokens = ids.enumerated().map { ParakeetAlignedToken(id: $0.element, text: ParakeetTokenizer.decode(tokens: [$0.element], vocabulary: pieces), start: Double($0.offset) * gap, duration: 0.08) }
+                let tokens = ids.enumerated().map {
+                    ParakeetAlignedToken(id: $0.element, text: ParakeetTokenizer.decode(tokens: [$0.element], vocabulary: pieces), start: Double($0.offset) * gap, duration: 0.08)
+                }
                 return trie.format(tokens, pieces: pieces, frameSeconds: 0.08).map(\.text).joined()
             }
             #expect(format([0, 1, 2]) == " Zephyr")
@@ -43,27 +45,37 @@ extension WorkerTests {
         }
         @Test func entryFragmentsAndExactVariants() throws {
             let pieces = ["▁S", "e", "ph", "yr", "▁Se", "ir", "▁Ze", "▁Sephir"]
-            let trie = try ParakeetVocabularyTrie(.init(words: ["Zephyr"],
-                entries: [.init(word: "Zephyr", surface: "se", prefix: "ze")],
-                variants: [.init(word: "Zephyr", spelling: "sephir")]), pieces: pieces)
+            let trie = try ParakeetVocabularyTrie(
+                .init(
+                    words: ["Zephyr"],
+                    entries: [.init(word: "Zephyr", surface: "se", prefix: "ze")],
+                    variants: [.init(word: "Zephyr", spelling: "sephir")]), pieces: pieces)
             let s = Int(trie.next[0]), se = Int(trie.next[s * trie.width + 1])
             #expect(trie.bonus[0] == 0)
             #expect(trie.bonus[s * trie.width + 1] == 0)
             #expect(trie.bonus[se * trie.width + 2] == 4)
             #expect(trie.bonus[4] == 2)
             #expect(trie.bonus[6] == 1)
-            let suppressed = try ParakeetVocabularyTrie(.init(words: ["Zephyr"],
-                entries: [.init(word: "Zephyr", surface: "se", prefix: "ze", boostStart: false)]), pieces: pieces)
+            let suppressed = try ParakeetVocabularyTrie(
+                .init(
+                    words: ["Zephyr"],
+                    entries: [.init(word: "Zephyr", surface: "se", prefix: "ze", boostStart: false)]), pieces: pieces)
             #expect(suppressed.bonus[4] == 0)
-            let tokens = [4, 2, 5].enumerated().map { ParakeetAlignedToken(id: $0.element,
-                text: ParakeetTokenizer.decode(tokens: [$0.element], vocabulary: pieces), start: Double($0.offset) * 0.08, duration: 0.08) }
+            let tokens = [4, 2, 5].enumerated().map {
+                ParakeetAlignedToken(
+                    id: $0.element,
+                    text: ParakeetTokenizer.decode(tokens: [$0.element], vocabulary: pieces), start: Double($0.offset) * 0.08, duration: 0.08)
+            }
             #expect(trie.format(tokens, pieces: pieces, frameSeconds: 0.08).map(\.text).joined() == " Zephyr")
         }
         @Test func completedWordsKeepWholeSuffixesAndSplitJoinedWords() throws {
             func format(_ pieces: [String], word: String) throws -> String {
                 let trie = try ParakeetVocabularyTrie(.init(words: [word]), pieces: pieces)
-                let tokens = pieces.indices.map { ParakeetAlignedToken(id: $0,
-                    text: ParakeetTokenizer.decode(tokens: [$0], vocabulary: pieces), start: Double($0) * 0.08, duration: 0.08) }
+                let tokens = pieces.indices.map {
+                    ParakeetAlignedToken(
+                        id: $0,
+                        text: ParakeetTokenizer.decode(tokens: [$0], vocabulary: pieces), start: Double($0) * 0.08, duration: 0.08)
+                }
                 let output = trie.format(tokens, pieces: pieces, frameSeconds: 0.08)
                 #expect(output.map(\.id) == tokens.map(\.id))
                 #expect(output.map(\.start) == tokens.map(\.start))
@@ -82,9 +94,11 @@ extension WorkerTests {
             #expect(try format(["▁ze", "ph", "yr", "b", "ug"], word: "Zephyr") == " Zephyr bug")
         }
         @Test func validationAndBoundedFiles() throws {
-            for value in [ParakeetVocabulary(words: ["two words"]), .init(words: ["a-b"]),
-                          .init(words: [""]), .init(words: [String(repeating: "a", count: 65)]),
-                          .init(words: Array(repeating: "word", count: 129)), .init(boost: .nan), .init(boost: 9)] {
+            for value in [
+                ParakeetVocabulary(words: ["two words"]), .init(words: ["a-b"]),
+                .init(words: [""]), .init(words: [String(repeating: "a", count: 65)]),
+                .init(words: Array(repeating: "word", count: 129)), .init(boost: .nan), .init(boost: 9)
+            ] {
                 #expect(throws: (any Error).self) { try value.validate() }
             }
             let scratch = try Scratch("vocabulary")

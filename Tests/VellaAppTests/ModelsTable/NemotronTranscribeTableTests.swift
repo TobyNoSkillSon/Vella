@@ -31,7 +31,9 @@ import XCTest
             XCTAssertTrue(c.families(.dictation).contains(f), "the row stays, greyed")
             XCTAssertEqual(c.memoryRefusal(f), "Needs 48 GB of memory", "\(memory) GB")
             var asked = false
-            c.confirmDownload = { _, answer in asked = true; answer(nil) }
+            c.confirmDownload = { _, answer in
+                asked = true; answer(nil)
+            }
             c.perform(f)
             XCTAssertFalse(asked, "\(memory) GB: no download prompt")
             XCTAssertEqual(c.lastError, "Nemotron 3.5 Transcribe: Needs 48 GB of memory.")
@@ -55,7 +57,9 @@ import XCTest
             XCTAssertEqual(c.selected(f), "4b", "\(memory) GB")
             XCTAssertEqual(c.action(f), .get)
             var asked: DownloadPrompt?
-            c.confirmDownload = { prompt, answer in asked = prompt; answer(nil) }
+            c.confirmDownload = { prompt, answer in
+                asked = prompt; answer(nil)
+            }
             c.perform(f)
             // int4 is made on this Mac from the bf16 download, as every family's lower precisions are.
             XCTAssertEqual(asked?.variantID, "nemotron-3.5-transcribe-30b-a4b-bf16")
@@ -69,7 +73,9 @@ import XCTest
         c.select(f, tier: .t16)
         XCTAssertEqual(c.selected(f), "BF16")
         var asked: DownloadPrompt?
-        c.confirmDownload = { prompt, answer in asked = prompt; answer(nil) }
+        c.confirmDownload = { prompt, answer in
+            asked = prompt; answer(nil)
+        }
         c.perform(f)
         XCTAssertEqual(asked?.variantID, "nemotron-3.5-transcribe-30b-a4b-bf16")
         XCTAssertEqual(asked?.downloadBytes, 67_513_686_219)

@@ -18,8 +18,10 @@ extension WorkerTests {
             typealias R = NemotronTranscribeRecipe
             let expert = "llm.backbone.layers.1.mixer.switch_mlp.fc1"
             #expect(R.decoderBits(expert, precisionBits: 4) == 4 && R.decoderBits(expert, precisionBits: 8) == 8)
-            for path in ["llm.backbone.layers.0.mixer.in_proj", "llm.backbone.layers.0.mixer.out_proj", "llm.backbone.layers.2.mixer.q_proj",
-                         "llm.backbone.layers.2.mixer.o_proj", "llm.backbone.layers.1.mixer.shared_experts.up_proj"] {
+            for path in [
+                "llm.backbone.layers.0.mixer.in_proj", "llm.backbone.layers.0.mixer.out_proj", "llm.backbone.layers.2.mixer.q_proj",
+                "llm.backbone.layers.2.mixer.o_proj", "llm.backbone.layers.1.mixer.shared_experts.up_proj"
+            ] {
                 #expect(R.decoderBits(path, precisionBits: 4) == 8 && R.decoderBits(path, precisionBits: 8) == 8, "\(path)")
             }
             for path in ["llm.lm_head", "llm.backbone.embeddings", "perception.proj", "perception.encoder.asr_encoder.layers.0.attn.w_qkv"] {
@@ -55,9 +57,11 @@ extension WorkerTests {
         /// The module tree's key → NVIDIA's NeMo key and whether NeMo stores it transposed (0, 2, 1).
         static func nemo(_ key: String) -> (String, Bool) {
             var k = key
-            for (from, to) in [("llm.backbone.embeddings.", "llm.model.embed_tokens."), ("llm.backbone.norm_f.", "llm.model.norm."),
-                               ("llm.backbone.layers.", "llm.model.layers."), (".ffn.linear1.", ".ffn.net.0."), (".ffn.linear2.", ".ffn.net.3."),
-                               (".preprocessor.fb", ".preprocessor.featurizer.fb"), (".preprocessor.window", ".preprocessor.featurizer.window")] {
+            for (from, to) in [
+                ("llm.backbone.embeddings.", "llm.model.embed_tokens."), ("llm.backbone.norm_f.", "llm.model.norm."),
+                ("llm.backbone.layers.", "llm.model.layers."), (".ffn.linear1.", ".ffn.net.0."), (".ffn.linear2.", ".ffn.net.3."),
+                (".preprocessor.fb", ".preprocessor.featurizer.fb"), (".preprocessor.window", ".preprocessor.featurizer.window")
+            ] {
                 k = k.replacingOccurrences(of: from, with: to)
             }
             for name in ["A_log", "D", "dt_bias"] where k.hasSuffix(".mixer.\(name)") {
@@ -90,8 +94,9 @@ extension WorkerTests {
             let reverse = Dictionary(uniqueKeysWithValues: NTMTP.nvidiaKeys.map { ($1, $0) })
             for (key, value) in NTMTP(skeleton.decoderConfig).parameters().flattened() {
                 let source = try #require(reverse[key], "MTP \(key)")
-                tensors[source] = random(source.hasSuffix("_projs") ? [value.dim(0), value.dim(2), value.dim(1)] : value.shape,
-                                         fp32: source.hasSuffix("e_score_correction_bias"))
+                tensors[source] = random(
+                    source.hasSuffix("_projs") ? [value.dim(0), value.dim(2), value.dim(1)] : value.shape,
+                    fp32: source.hasSuffix("e_score_correction_bias"))
             }
             tensors["ctc_timestamp.decoder.upsample.bias"] = MLXArray.zeros([4], dtype: .float32)
             tensors["llm.lm_head._extra_state"] = MLXArray.zeros([0], dtype: .bfloat16)
@@ -107,8 +112,10 @@ extension WorkerTests {
         /// Vella's derived-model directory: only `vella-derived.json`, as VellaCore's prepareDerivedModel writes it.
         static func manifest(_ scratch: Scratch, source: URL, bits: Int) throws -> URL {
             let dir = try scratch.folder("derived-\(bits)b")
-            let object: [String: Any] = ["schema": 1, "precision": "\(bits)b", "source": source.path, "bits": bits, "groupSize": 64,
-                                         "family": "nemotron-3.5-transcribe"]
+            let object: [String: Any] = [
+                "schema": 1, "precision": "\(bits)b", "source": source.path, "bits": bits, "groupSize": 64,
+                "family": "nemotron-3.5-transcribe"
+            ]
             try JSONSerialization.data(withJSONObject: object).write(to: dir.appendingPathComponent(DerivedPrecision.manifestName))
             return dir
         }
@@ -153,7 +160,7 @@ extension WorkerTests {
                         #expect(FileManager.default.fileExists(atPath: derived.source.appendingPathComponent(name).path), "\(name)")
                     }
                     let model = try NemotronTranscribeModel.skeleton(derived.source)
-                    try model.loadWeights(derived.source, derived: derived)   // update(verify: .all) inside
+                    try model.loadWeights(derived.source, derived: derived) // update(verify: .all) inside
                     let mtp = try #require(model.mtp)
                     for (owner, sourceWeights, rule) in [
                         (model as Module, original, { NemotronTranscribeRecipe.decoderBits($0, precisionBits: bits) }),
@@ -169,14 +176,16 @@ extension WorkerTests {
                                 let s = try #require(source)
                                 #expect(q.weight.shape == [s.dim(0), s.dim(1) * q.bits / 32] && q.scales.shape == [s.dim(0), s.dim(1) / 64])
                                 #expect(Self.sameAsQuantize(s, weight: q.weight, scales: q.scales, biases: q.biases, bits: q.bits), "\(path)")
-                                #expect(Self.errorInSteps(source: s, weight: q.weight, scales: q.scales, biases: q.biases!, bits: q.bits) <= Self.affineBound(bits: q.bits), "\(path)")
+                                #expect(
+                                    Self.errorInSteps(source: s, weight: q.weight, scales: q.scales, biases: q.biases!, bits: q.bits) <= Self.affineBound(bits: q.bits), "\(path)")
                                 quantizedPaths.insert(path)
                             case let q as NTQuantizedSwitchLinear:
                                 #expect(planned == q.bits && q.groupSize == 64, "\(path): \(q.bits)-bit")
                                 let s = try #require(source)
                                 #expect(q.weight.shape == [s.dim(0), s.dim(1), s.dim(2) * q.bits / 32])
                                 #expect(Self.sameAsQuantize(s, weight: q.weight, scales: q.scales, biases: q.biases, bits: q.bits), "\(path)")
-                                #expect(Self.errorInSteps(source: s, weight: q.weight, scales: q.scales, biases: q.biases!, bits: q.bits) <= Self.affineBound(bits: q.bits), "\(path)")
+                                #expect(
+                                    Self.errorInSteps(source: s, weight: q.weight, scales: q.scales, biases: q.biases!, bits: q.bits) <= Self.affineBound(bits: q.bits), "\(path)")
                                 quantizedPaths.insert(path)
                             default:
                                 #expect(planned == nil, "\(path) should be quantized")
@@ -209,8 +218,9 @@ extension WorkerTests {
                 var config = Self.config
                 config["model_type"] = "nemotron_transcribe"
                 try JSONSerialization.data(withJSONObject: config).write(to: mlxDir.appendingPathComponent("config.json"))
-                try MLX.save(arrays: NemotronTranscribeModel.sanitize(try NemotronTranscribeModel.checkpointTensors(source)),
-                             url: mlxDir.appendingPathComponent("model.safetensors"))
+                try MLX.save(
+                    arrays: NemotronTranscribeModel.sanitize(try NemotronTranscribeModel.checkpointTensors(source)),
+                    url: mlxDir.appendingPathComponent("model.safetensors"))
                 let derived = try #require(try DerivedPrecision.resolve(try Self.manifest(scratch, source: mlxDir, bits: 4)))
                 let model = try NemotronTranscribeModel.skeleton(mlxDir)
                 #expect(throws: DerivedPrecision.Invalid.self) { try model.loadWeights(mlxDir, derived: derived) }
@@ -227,8 +237,10 @@ extension WorkerTests {
         func derivationMatchesTheReferenceExports() throws {
             let home = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Models")
             let bf16 = home.appendingPathComponent("NVIDIA-Nemotron-3.5-Transcribe-30B-A4B")
-            let references = [4: home.appendingPathComponent("Nemotron-3.5-Transcribe-30B-A4B-MLX-q4mix"),
-                              8: home.appendingPathComponent("Nemotron-3.5-Transcribe-30B-A4B-MLX-q8mix")]
+            let references = [
+                4: home.appendingPathComponent("Nemotron-3.5-Transcribe-30B-A4B-MLX-q4mix"),
+                8: home.appendingPathComponent("Nemotron-3.5-Transcribe-30B-A4B-MLX-q8mix")
+            ]
             let savedCacheLimit = Memory.cacheLimit
             Memory.cacheLimit = 256 << 20
             defer { Memory.cacheLimit = savedCacheLimit }
@@ -240,12 +252,16 @@ extension WorkerTests {
             // that held it is dropped before the next (an evaluated lazy array keeps its bytes while referenced).
             var all = try NemotronTranscribeModel.checkpointTensors(bf16)
             var sources: [(name: String, tensors: [String: MLXArray], plans: [Int: [String: Int]], refs: [Int: [String: MLXArray]])] = [
-                ("decoder", NemotronTranscribeModel.sanitize(all),
-                 [4: NemotronTranscribeRecipe.decoderPlan(model, precisionBits: 4), 8: NemotronTranscribeRecipe.decoderPlan(model, precisionBits: 8)],
-                 try references.mapValues { try NemotronTranscribeModel.checkpointTensors($0) }),
-                ("mtp", NemotronTranscribeModel.mtpWeights(all),
-                 [4: NemotronTranscribeRecipe.mtpPlan(head), 8: NemotronTranscribeRecipe.mtpPlan(head)],
-                 try references.mapValues { try MLX.loadArrays(url: $0.appendingPathComponent("extras/mtp.safetensors")) })
+                (
+                    "decoder", NemotronTranscribeModel.sanitize(all),
+                    [4: NemotronTranscribeRecipe.decoderPlan(model, precisionBits: 4), 8: NemotronTranscribeRecipe.decoderPlan(model, precisionBits: 8)],
+                    try references.mapValues { try NemotronTranscribeModel.checkpointTensors($0) }
+                ),
+                (
+                    "mtp", NemotronTranscribeModel.mtpWeights(all),
+                    [4: NemotronTranscribeRecipe.mtpPlan(head), 8: NemotronTranscribeRecipe.mtpPlan(head)],
+                    try references.mapValues { try MLX.loadArrays(url: $0.appendingPathComponent("extras/mtp.safetensors")) }
+                )
             ]
             all = [:]
             func same(_ a: MLXArray, _ b: MLXArray?) -> Bool {
@@ -291,8 +307,10 @@ extension WorkerTests {
                 sources[index].refs = [:]
             }
             for bits in [4, 8] {
-                report["\(bits)b"] = ["compared": compared[bits]!, "mismatches": mismatches[bits]!.count,
-                                      "first_mismatches": Array(mismatches[bits]!.prefix(20))]
+                report["\(bits)b"] = [
+                    "compared": compared[bits]!, "mismatches": mismatches[bits]!.count,
+                    "first_mismatches": Array(mismatches[bits]!.prefix(20))
+                ]
                 #expect(mismatches[bits]!.isEmpty, "\(bits)b: \(mismatches[bits]!.prefix(10))")
             }
             report["seconds"] = Date().timeIntervalSince(start)
