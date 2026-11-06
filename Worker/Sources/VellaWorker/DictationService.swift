@@ -243,7 +243,16 @@ final class Worker {
                     }
                 } else {
                     output = try runStock(model, input, parameters)
-                    if let error = (model as? NemotronTranscribeModel)?.lastError { throw error }
+                    if let nemotron = model as? NemotronTranscribeModel {
+                        if let error = nemotron.lastError { throw error }
+                        if nemotron.lastRequestFellBack, optimizations["mtp"] == true {
+                            // Draft-and-verify failed in this request; its chunk was decoded again plain greedy (the
+                            // stock recipe) and the model stays plain until reload, like the other models' fallback.
+                            stockReason = nemotron.plainDecodingReason
+                            optimizations["mtp"] = false
+                            push?(status("fallback"))
+                        }
+                    }
                 }
                 Stream.gpu.synchronize()
                 return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -283,6 +292,8 @@ final class Worker {
         }
         if let nemotron = model as? NemotronTranscribeModel {
             result["vocabulary"] = ["count": nemotron.vocabularyWords.count, "error": vocabularyError as Any? ?? NSNull()]
+            // Draft-and-verify chunks that hit the token limit (a repetition loop) and were decoded again plain greedy.
+            result["runaway_retries"] = nemotron.runawayRetries
         }
         return result
     }

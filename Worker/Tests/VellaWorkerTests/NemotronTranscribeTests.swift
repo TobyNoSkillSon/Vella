@@ -195,7 +195,7 @@ extension WorkerTests {
                 let stock = model.decodeGreedy(embeddings, maxTokens: 1024)
                 let stockSeconds = Date().timeIntervalSince(start)
                 let mtpStart = Date()
-                let chain = model.mtp.map { model.decodeMTP(embeddings, maxTokens: 1024, mtp: $0) } ?? []
+                let chain = try model.mtp.map { try model.decodeMTP(embeddings, maxTokens: 1024, mtp: $0) } ?? []
                 let mtpSeconds = Date().timeIntervalSince(mtpStart)
                 let refStock = entry["stock"] as! [Int], refChain = entry["chain"] as! [Int]
                 func agree(_ a: [Int], _ b: [Int]) -> Int { zip(a, b).prefix { $0 == $1 }.count }
@@ -218,6 +218,21 @@ extension WorkerTests {
             let output = model.generate(audio: MLXArray(clip))
             #expect(model.lastError == nil)
             #expect(output.text == (ref["clip15/plain"]!["text"] as! String).trimmingCharacters(in: .whitespacesAndNewlines))
+            // Runtime fallback: a draft-and-verify failure decodes the same input plain greedy (the stock tokens) and
+            // keeps draft-and-verify off until reload (night 6 Nov). Last, because the model stays on plain greedy.
+            if model.usesMTP {
+                let tokens = try model.promptTokens(words: [])
+                let embeddings = try model.inputs(tokens: tokens, audio: model.perception(MLXArray(clip)))
+                let stock = model.decodeGreedy(embeddings, maxTokens: 1024)
+                for fault in ["nonfinite", "throw"] {
+                    setenv("VELLA_TEST_OPTIMIZED_FAULT", fault, 1)
+                    defer { unsetenv("VELLA_TEST_OPTIMIZED_FAULT") }
+                    #expect(model.decodeWithFallbackForTests(embeddings, maxTokens: 1024) == stock, "\(fault) fallback = stock tokens")
+                    #expect(model.mtpRuntimeFailure != nil && !model.usesMTP && model.lastRequestFellBack)
+                    #expect(model.plainDecodingReason?.hasPrefix("Runtime fallback") == true)
+                    model.resetRuntimeFallbackForTests()
+                }
+            }
             report["peak_gb"] = Double(Memory.peakMemory) / 1e9
             let out = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
             try out.write(to: refDir.appendingPathComponent("swift-parity.json"))

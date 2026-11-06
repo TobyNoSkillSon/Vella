@@ -369,6 +369,16 @@ extension WorkerTests {
 
         /// The opt-in levers: absent by default; the inexact joint batch never runs (or keys, or reports) under
         /// Optimized · Exact or forced stock, and reports only when its BF16 copy was built.
+        /// Nemotron 3.5 Transcribe's gate revision ("nemotron-transcribe-N") shares the streaming model's "nemotron-"
+        /// prefix; the streaming levers must never join its key (night 6 Nov parity audit).
+        @Test func transcribeRevisionIgnoresStreamingLevers() {
+            let levers = KeptLevers(family: "nemotron-3.5-streaming-0.6b", precision: "8b", recipe: .optimized_fast,
+                                    environment: ["VELLA_NEMO_KEEPCACHE": "1", "VELLA_NEMO_JOINTBATCH": "1"])
+            #expect(levers.contains("VELLA_NEMO_KEEPCACHE"))
+            #expect(FastPathGate.effectiveRevision("nemotron-stream-5", levers: levers).contains("+keepcache-1"))
+            #expect(FastPathGate.effectiveRevision(NemotronTranscribeRuntime.gateRevision, levers: levers) == NemotronTranscribeRuntime.gateRevision)
+        }
+
         @Test func nemotronLabLevers() {
             typealias S = VellaNemotronOptions.Switches
             let both = ["VELLA_NEMO_KEEPCACHE": "1", "VELLA_NEMO_JOINTBATCH": "1"]

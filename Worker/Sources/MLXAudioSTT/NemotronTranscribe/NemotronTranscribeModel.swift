@@ -18,8 +18,10 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     var audioToken = 131072
     /// Loaded from extras/mtp.safetensors (MLX tiers); nil runs plain greedy decoding.
     var mtp: NTMTP?
-    /// Drafts per pass of the MTP chain (the research runner's measured setting).
-    var draftDepth = 4
+    /// Drafts per pass of the MTP chain (the research runner's measured setting; `VELLA_NEMOTRON_TRANSCRIBE_DRAFTS`
+    /// overrides it for lab A/B, 2–8).
+    var draftDepth = ProcessInfo.processInfo.environment["VELLA_NEMOTRON_TRANSCRIBE_DRAFTS"].flatMap(Int.init)
+        .map { Swift.min(8, Swift.max(2, $0)) } ?? 4
     /// The user's vocabulary words (plain list only), applied to the next request.
     public var vocabularyWords: [String] = []
     /// Token IDs of the last chunk, for parity checks.
@@ -29,7 +31,15 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     public private(set) var lastChunkCount = 0
     /// MTP drafts are verified by the main model, but batched verification changes near-tie choices (1–2 words of
     /// a 60 s clip with a list), so it is an inexact lever: Optimized · Exact and stock MLX decode plain greedy.
-    public var usesMTP: Bool { mtp != nil && Self.mtpAllowed }
+    public var usesMTP: Bool { mtp != nil && Self.mtpAllowed && mtpRuntimeFailure == nil }
+    /// Draft-and-verify failed at run time (an MLX error or non-finite logits in a verify pass): that chunk was decoded
+    /// again plain greedy, and the model stays on plain greedy until it is reloaded (sticky, like the other models'
+    /// runtime fallback to stock). Nil while draft-and-verify is healthy.
+    public private(set) var mtpRuntimeFailure: String?
+    /// Set when the last request fell back (the worker pushes a "fallback" status once).
+    public private(set) var lastRequestFellBack = false
+    /// Chunks whose draft-and-verify output hit the token limit and were decoded again plain greedy (since load).
+    public private(set) var runawayRetries = 0
     static var mtpAllowed: Bool {
         ProcessInfo.processInfo.environment["VELLA_NEMOTRON_TRANSCRIBE_MTP"] != "0" && !FastPathGate.exactOnly && !FastPathGate.forcedStock
     }
@@ -38,6 +48,7 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     /// inexact components under Exact).
     public var plainDecodingReason: String? {
         if usesMTP { return nil }
+        if let mtpRuntimeFailure { return "Runtime fallback: draft-and-verify failed (\(mtpRuntimeFailure)); plain decoding." }
         if mtp == nil { return "This checkpoint has no draft head; plain decoding." }
         if FastPathGate.forcedStock { return FastPathGate.forcedStockReason }
         if FastPathGate.exactOnly { return nil }
@@ -261,7 +272,8 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
 
     /// Greedy self-speculation: `draftDepth` chained MTP drafts verified by the main model in one pass, one host
     /// sync per pass. Rejected drafts never stay in a cache (Mamba states restored, attention caches trimmed).
-    func decodeMTP(_ embeddings: MLXArray, maxTokens: Int, mtp: NTMTP) -> [Int] {
+    func decodeMTP(_ embeddings: MLXArray, maxTokens: Int, mtp: NTMTP) throws -> [Int] {
+        let fault = Self.injectedFault
         let embed = llm.backbone.embeddings
         let cache = llm.backbone.makeCache()
         let mcache = NTKVCache()
@@ -310,8 +322,14 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
             }
             let feed = concatenated([MLXArray(pending.map { Int32($0) }), drafts.asType(.int32)])
             let verified = llm.backbone(embed(feed.reshaped(1, -1)), cache: cache)
-            let ysArray = head(verified)[0]
-            eval(ysArray, drafts, verified)
+            let logits = llm.lmHead(verified)
+            let ysArray = argMax(logits, axis: -1)[0]
+            // One flag per verify pass, read in the same sync as the tokens: a NaN/Inf logit means the draft path
+            // (or the model under it) produced garbage, and greedy argmax over it would be a wrong transcript.
+            let bad = logicalOr(isNaN(logits).any(), isInf(logits).any())
+            eval(ysArray, drafts, verified, bad)
+            if fault == "throw" { throw NemotronTranscribeError.input("injected draft-and-verify fault") }
+            if bad.item(Bool.self) || fault == "nonfinite" { throw NemotronTranscribeError.input("non-finite logits") }
             let ys = ysArray.asArray(Int.self), dl = drafts.asArray(Int.self)
             let k = pending.count
             var accepted = 0
@@ -345,10 +363,36 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         return out
     }
 
+    /// `VELLA_TEST_OPTIMIZED_FAULT` (throw | nonfinite): the draft-and-verify path fails at run time (tests).
+    static var injectedFault: String? { ProcessInfo.processInfo.environment["VELLA_TEST_OPTIMIZED_FAULT"].flatMap { $0.isEmpty ? nil : $0 } }
+
+    /// Draft-and-verify when allowed; on a runtime failure the same input is decoded again plain greedy (the stock
+    /// recipe) and draft-and-verify stays off until reload. Greedy itself has no fallback: its errors propagate.
     func decode(_ embeddings: MLXArray, maxTokens: Int) -> [Int] {
-        if usesMTP, let mtp { return decodeMTP(embeddings, maxTokens: maxTokens, mtp: mtp) }
+        if usesMTP, let mtp {
+            do {
+                let tokens = try withError { try decodeMTP(embeddings, maxTokens: maxTokens, mtp: mtp) }
+                // A draft-and-verify run that reaches the token limit without an end token is a repetition loop
+                // (night 6 Nov, int4 full v2: one 20 s segment repeated "It's awesome." 248 times where plain greedy
+                // transcribed it). The chunk is decoded again plain greedy; draft-and-verify stays on for the next one.
+                guard tokens.count >= maxTokens else { return tokens }
+                runawayRetries += 1
+            } catch {
+                mtpRuntimeFailure = "\(error)"
+                lastRequestFellBack = true
+                Stream.gpu.synchronize()
+                Memory.clearCache()
+            }
+        }
         return decodeGreedy(embeddings, maxTokens: maxTokens)
     }
+
+    /// Tests: `decode` as a request runs it, and clearing the sticky fallback between injected faults.
+    func decodeWithFallbackForTests(_ embeddings: MLXArray, maxTokens: Int) -> [Int] {
+        lastRequestFellBack = false
+        return decode(embeddings, maxTokens: maxTokens)
+    }
+    func resetRuntimeFallbackForTests() { mtpRuntimeFailure = nil; lastRequestFellBack = false }
 
     func text(_ tokens: [Int]) -> String {
         NemotronTranscribeMarkup.strip(tokenizer?.decode(tokens: tokens, skipSpecialTokens: false) ?? "")
@@ -357,8 +401,10 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     /// One chunk (at most two minutes) → its text, with the trailing-vocabulary guard.
     func transcribeChunk(_ samples: MLXArray, words: [String], maxTokens: Int) throws -> String {
         guard samples.ndim == 1, samples.dim(0) >= 160 else { return "" }
+        let perceptionStart = Date()
         let audio = perception(samples.asType(.float32))
         eval(audio)
+        lastPerceptionSeconds = Date().timeIntervalSince(perceptionStart)
         let terms = NemotronTranscribePrompt.vocabulary(words)
         let tokens = decode(try inputs(tokens: try promptTokens(words: terms), audio: audio), maxTokens: maxTokens)
         lastTokens = tokens
@@ -374,6 +420,10 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         return withList
     }
 
+    /// Optimized paths only (Standard keeps the stock per-chunk clear).
+    static var keepCache: Bool { ProcessInfo.processInfo.environment["VELLA_DICTATION_KEEP_CACHE"] != "0" && !FastPathGate.forcedStock }
+    private var lastPerceptionSeconds = 0.0
+
     public func generate(audio: MLXArray, generationParameters: STTGenerateParameters) -> STTOutput {
         let start = Date()
         let samples = audio.asType(.float32).asArray(Float.self)
@@ -381,6 +431,7 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         lastChunkCount = plan.count
         lastGuardDropped = []
         lastError = nil
+        lastRequestFellBack = false
         var parts: [String] = []
         var generated = 0
         for range in plan {
@@ -388,6 +439,7 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
             // About 2.5 tokens a second of speech; generous so a fast talker is never cut.
             let limit = max(generationParameters.maxTokens, Int(seconds * 15))
             lastTokens = []
+            let chunkStart = Date()
             do {
                 let part = try transcribeChunk(MLXArray(Array(samples[range])), words: vocabularyWords, maxTokens: limit)
                 if !part.isEmpty { parts.append(part) }
@@ -396,10 +448,30 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
                 break
             }
             generated += lastTokens.count
-            Memory.clearCache()
+            NemotronTranscribeProfile.chunk(seconds: seconds, wall: Date().timeIntervalSince(chunkStart), tokens: lastTokens.count,
+                                            mtp: usesMTP, perception: lastPerceptionSeconds)
+            // The dictation service keeps MLX's buffer cache between requests (cache-limited); clearing it after every
+            // chunk made each 20 s segment re-allocate its Metal buffers. VELLA_DICTATION_KEEP_CACHE=0 restores it.
+            if !Self.keepCache { Memory.clearCache() }
         }
         let elapsed = Date().timeIntervalSince(start)
         return STTOutput(text: parts.joined(separator: " "), generationTokens: generated, totalTokens: generated,
                          generationTps: elapsed > 0 ? Double(generated) / elapsed : 0, totalTime: elapsed)
+    }
+}
+
+/// `VELLA_NEMOTRON_TRANSCRIBE_PROFILE=<file>`: one JSON line per chunk (audio seconds, wall, perception, tokens, path),
+/// appended to the file. Lab only; costs nothing when unset.
+enum NemotronTranscribeProfile {
+    static let path = ProcessInfo.processInfo.environment["VELLA_NEMOTRON_TRANSCRIBE_PROFILE"].flatMap { $0.hasPrefix("/") ? $0 : nil }
+    static func chunk(seconds: Double, wall: Double, tokens: Int, mtp: Bool, perception: Double) {
+        guard let path else { return }
+        let line = String(format: "{\"audio_s\":%.3f,\"wall_s\":%.4f,\"perception_s\":%.4f,\"tokens\":%d,\"mtp\":%@}\n",
+                          seconds, wall, perception, tokens, mtp ? "true" : "false")
+        if let handle = FileHandle(forWritingAtPath: path) {
+            handle.seekToEndOfFile(); handle.write(Data(line.utf8)); try? handle.close()
+        } else {
+            FileManager.default.createFile(atPath: path, contents: Data(line.utf8))
+        }
     }
 }

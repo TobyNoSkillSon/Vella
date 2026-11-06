@@ -4,7 +4,7 @@ import XCTest
 
 final class VellaWireTests: XCTestCase {
     func testRawSpellings() {
-        XCTAssertEqual(Architecture.allCases.map(\.rawValue), ["parakeet", "qwen3_asr", "whisper", "nemotron_asr", "stub"])
+        XCTAssertEqual(Architecture.allCases.map(\.rawValue), ["parakeet", "qwen3_asr", "whisper", "nemotron_asr", "nemotron_transcribe", "stub"])
         XCTAssertEqual(Recipe.allCases.map(\.rawValue), ["standard", "optimized_exact", "optimized_fast"])
         XCTAssertEqual(Recipe.variable, "VELLA_RECIPE")
         XCTAssertEqual(Engine.allCases.map(\.rawValue), ["optimized", "mlx"])

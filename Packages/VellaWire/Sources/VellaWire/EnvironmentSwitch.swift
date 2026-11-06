@@ -51,6 +51,8 @@ public struct EnvironmentSwitch: Equatable, Sendable {
         .init("VELLA_PARAKEET_PROFILE", .lab, worker: true),
         .init("VELLA_DICTATION_KEEP_CACHE", .lab, worker: true),
         .init("VELLA_NEMOTRON_TRANSCRIBE_MTP", .lab, worker: true),
+        .init("VELLA_NEMOTRON_TRANSCRIBE_DRAFTS", .lab, worker: true),
+        .init("VELLA_NEMOTRON_TRANSCRIBE_PROFILE", .lab, worker: true),
         .init("VELLA_QWEN_PROFILE", .lab, worker: true),
         .init("VELLA_WHISPER_PROFILE", .lab, worker: true),
         .init("VELLA_STREAM_PROFILE", .lab, worker: true),

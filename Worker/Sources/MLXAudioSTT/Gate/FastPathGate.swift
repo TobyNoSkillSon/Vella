@@ -146,7 +146,8 @@ public enum FastPathGate {
             if levers.contains("VELLA_PARAKEET_INT4") { revision += "+int4-2+smallm-" + SmallMGEMM.qtileRevision }
             if levers.contains("VELLA_PARAKEET_TAILBLOCK") { revision += "+tailblock-1" }
         }
-        if base.hasPrefix("nemotron-") {
+        // The streaming model's levers only; Nemotron 3.5 Transcribe ("nemotron-transcribe-N") shares the prefix.
+        if base.hasPrefix("nemotron-"), !base.hasPrefix("nemotron-transcribe") {
             if levers.contains("VELLA_NEMO_KEEPCACHE") { revision += "+keepcache-1" }
             if levers.contains("VELLA_NEMO_JOINTBATCH") { revision += "+jointbatch-1" }
         }
