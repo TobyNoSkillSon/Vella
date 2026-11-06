@@ -22,7 +22,7 @@ PACKAGES_TREE=49279fb93529ce1d711cfe84e6fffb79bc20198b
 # families' figures keep their historical source identity below. Before it: the 2.1 recovery-hardening source tree. Benchmark figures retain their historical source identity below;
 # this pin does not re-measure or claim new performance evidence.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=75c50e115ac809d597cc7449ff06ba60cb9924a7   # 6 Nov: Nemotron 3.5 Transcribe measured (READMEs regenerated)
+WORKER_FULL_TREE=69ae2d2fa881dfe1d0fcd60cc7fc6b299c193171   # 6 Nov: Nemotron 3.5 Transcribe measured (READMEs regenerated)
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
 HISTORICAL_WORKER_FULL_TREE=ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c
 # Recorded provenance: it must differ from HISTORICAL_WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
