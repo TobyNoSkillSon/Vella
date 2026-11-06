@@ -286,11 +286,11 @@ with open("talk.m4a", "rb") as f:
 Send a bug, complaint or idea to [tobynoskillson.com/feedback](https://tobynoskillson.com/feedback), or have your agent post it:
 
 ```sh
-curl -X POST https://tobynoskillson.com/api/feedback -H 'Content-Type: application/json' \
-  -d '{"app":"vella","version":"unknown","kind":"bug","message":"What happened, what you expected, steps to reproduce"}'
+curl -d "vella: what happened, what you expected, steps to reproduce" https://tobynoskillson.com/api/feedback
+curl -F "message=vella: the window goes blank" -F file=@shot.png https://tobynoskillson.com/api/feedback   # with a screenshot or log
 ```
 
-`kind` is `bug`, `feedback` or `idea`; `message` takes up to 5,000 characters and the optional `details` up to 20,000; add `contact` (an email) only if you want a reply. Up to four files of 5 MB each (PNG, JPEG, WebP, GIF, HEIC or plain-text logs) go as multipart `-F file=@shot.png`. Five reports a minute per address; `curl https://tobynoskillson.com/api/feedback` prints the full usage. [GitHub Issues](https://github.com/TobyNoSkillSon/Vella/issues) work too, and fixes are welcome as pull requests.
+Any text works; JSON or form fields such as `version`, `kind` (`bug`, `feedback`, `idea`), `details` and `contact` (only if you want a reply) are optional. Up to four files of 5 MB each (PNG, JPEG, WebP, GIF, HEIC or plain-text logs). Five reports a minute per address; `curl https://tobynoskillson.com/api/feedback` prints the full usage. [GitHub Issues](https://github.com/TobyNoSkillSon/Vella/issues) work too, and fixes are welcome as pull requests.
 
 ## Privacy
 
