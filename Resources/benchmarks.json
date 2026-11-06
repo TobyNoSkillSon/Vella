@@ -5023,6 +5023,626 @@
           }
         }
       }
+    },
+    "nemotron-3.5-transcribe": {
+      "noise_pt": 0.0,
+      "tolerance_pt": 0.1,
+      "noise_ml_pt": 0.06,
+      "tolerance_ml_pt": 0.11,
+      "tiers": {
+        "16": {
+          "precision": "BF16",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "wer": 14.54,
+            "format": 7.78,
+            "multilingual": {
+              "mean": 14.14,
+              "macro_wer": 14.29,
+              "macro_cer": 13.85,
+              "coverage": 9,
+              "by_language": {
+                "pl": 8.59,
+                "de": 14.3,
+                "fr": 16.15,
+                "es": 12.55,
+                "sv": 13.98,
+                "tr": 20.16,
+                "ja": 4.95,
+                "zh": 19.53,
+                "ko": 17.08
+              }
+            },
+            "speed_x": 14.1,
+            "memory_mb": 65250,
+            "note": "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. GPU-only 67.6 J/min (median of 3 clean brackets).",
+            "latency_ms": {
+              "p50": 643.5,
+              "p95": 1349.0,
+              "n": 133,
+              "kind": "segment"
+            },
+            "disk_mb": 67514,
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 27.0.1",
+              "date": "2026-11-06",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "mlx",
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock",
+              "env": {}
+            },
+            "gate": {
+              "status": "pass",
+              "reasons": [],
+              "presence": {
+                "offered": true,
+                "reasons": []
+              },
+              "baseline": "tier16 Standard (same build)"
+            }
+          },
+          "optimized_exact": {
+            "wer": 14.54,
+            "format": 7.78,
+            "multilingual": {
+              "mean": 14.14,
+              "macro_wer": 14.29,
+              "macro_cer": 13.85,
+              "coverage": 9,
+              "by_language": {
+                "pl": 8.59,
+                "de": 14.3,
+                "fr": 16.15,
+                "es": 12.55,
+                "sv": 13.98,
+                "tr": 20.16,
+                "ja": 4.95,
+                "zh": 19.53,
+                "ko": 17.08
+              }
+            },
+            "speed_x": 14.0,
+            "memory_mb": 65248,
+            "latency_ms": {
+              "p50": 644.5,
+              "p95": 1358.2,
+              "n": 133,
+              "kind": "segment"
+            },
+            "disk_mb": 67514,
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 27.0.1",
+              "date": "2026-11-06",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "keep_cache"
+              ],
+              "inexact": [],
+              "gate_revision": "nemotron-transcribe-1",
+              "env": {}
+            },
+            "gate": {
+              "status": "pass",
+              "reasons": [],
+              "presence": {
+                "offered": true,
+                "reasons": []
+              },
+              "baseline": "tier16 Standard (same build)"
+            },
+            "accuracy_note": "Accuracy reused from Standard: Exact decodes plain greedy like Standard (int4 full v2: 797 of 797 transcripts identical; the cache reuse is exact, v2-quick 122/122)."
+          },
+          "optimized_fast": {
+            "wer": 14.54,
+            "format": 7.8,
+            "multilingual": {
+              "mean": 14.2,
+              "macro_wer": 14.38,
+              "macro_cer": 13.83,
+              "coverage": 9,
+              "by_language": {
+                "pl": 8.1,
+                "de": 14.57,
+                "fr": 16.39,
+                "es": 12.55,
+                "sv": 13.98,
+                "tr": 20.71,
+                "ja": 4.82,
+                "zh": 20.12,
+                "ko": 16.55
+              }
+            },
+            "speed_x": 18.0,
+            "memory_mb": 65245,
+            "note": "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. GPU-only 70.9 J/min (median of 3 clean brackets).",
+            "latency_ms": {
+              "p50": 521.5,
+              "p95": 998.2,
+              "n": 133,
+              "kind": "segment"
+            },
+            "disk_mb": 67514,
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 27.0.1",
+              "date": "2026-11-06",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
+            "recipe": {
+              "layers": {
+                "all": "bf16"
+              },
+              "kernels": [
+                "keep_cache",
+                "mtp"
+              ],
+              "inexact": [
+                "mtp"
+              ],
+              "gate_revision": "nemotron-transcribe-1",
+              "env": {}
+            },
+            "gate": {
+              "status": "pass",
+              "reasons": [],
+              "presence": {
+                "offered": true,
+                "reasons": []
+              },
+              "baseline": "tier16 Standard (same build)"
+            }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
+          }
+        },
+        "8": {
+          "precision": "8b",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "fail",
+            "reasons": [
+              "multilingual mean +0.31 pt vs 16 (limit 0.11)"
+            ],
+            "loss": [
+              "multilingual mean +0.31 pt"
+            ]
+          },
+          "standard": {
+            "wer": 14.57,
+            "format": 7.89,
+            "multilingual": {
+              "mean": 14.54,
+              "macro_wer": 14.83,
+              "macro_cer": 13.96,
+              "coverage": 9,
+              "by_language": {
+                "pl": 8.1,
+                "de": 13.94,
+                "fr": 16.31,
+                "es": 12.47,
+                "sv": 15.7,
+                "tr": 22.48,
+                "ja": 5.07,
+                "zh": 19.88,
+                "ko": 16.92
+              }
+            },
+            "speed_x": 19.4,
+            "memory_mb": 37463,
+            "note": "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. GPU-only 96.8 J/min (median of 2 clean brackets).",
+            "latency_ms": {
+              "p50": 461.8,
+              "p95": 999.3,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 27.0.1",
+              "date": "2026-11-06",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "mlx",
+            "recipe": {
+              "layers": {
+                "decoder projections": "affine-8 g64",
+                "embeddings": "bf16",
+                "head and encoders": "bf16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock",
+              "env": {}
+            },
+            "gate": {
+              "status": "fail",
+              "reasons": [
+                "multilingual mean +0.40 pt vs 16 (limit 0.11)",
+                "Turkish +2.33 pt vs 16 (limit 2.0)",
+                "format CER +0.11 pt vs 16 (limit 0.10)"
+              ],
+              "presence": {
+                "offered": true,
+                "reasons": []
+              },
+              "baseline": "tier16 Standard (same build)"
+            }
+          },
+          "optimized_exact": {
+            "wer": 14.57,
+            "format": 7.89,
+            "multilingual": {
+              "mean": 14.54,
+              "macro_wer": 14.83,
+              "macro_cer": 13.96,
+              "coverage": 9,
+              "by_language": {
+                "pl": 8.1,
+                "de": 13.94,
+                "fr": 16.31,
+                "es": 12.47,
+                "sv": 15.7,
+                "tr": 22.48,
+                "ja": 5.07,
+                "zh": 19.88,
+                "ko": 16.92
+              }
+            },
+            "speed_x": 19.5,
+            "memory_mb": 37523,
+            "latency_ms": {
+              "p50": 464.2,
+              "p95": 968.7,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 27.0.1",
+              "date": "2026-11-06",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
+            "recipe": {
+              "layers": {
+                "decoder projections": "affine-8 g64",
+                "embeddings": "bf16",
+                "head and encoders": "bf16"
+              },
+              "kernels": [
+                "keep_cache"
+              ],
+              "inexact": [],
+              "gate_revision": "nemotron-transcribe-1",
+              "env": {}
+            },
+            "gate": {
+              "status": "fail",
+              "reasons": [
+                "multilingual mean +0.40 pt vs 16 (limit 0.11)",
+                "Turkish +2.33 pt vs 16 (limit 2.0)",
+                "format CER +0.11 pt vs 16 (limit 0.10)"
+              ],
+              "presence": {
+                "offered": true,
+                "reasons": []
+              },
+              "baseline": "tier16 Standard (same build)"
+            },
+            "accuracy_note": "Accuracy reused from Standard: Exact decodes plain greedy like Standard (int4 full v2: 797 of 797 transcripts identical; the cache reuse is exact, v2-quick 122/122)."
+          },
+          "optimized_fast": {
+            "wer": 14.56,
+            "format": 7.83,
+            "multilingual": {
+              "mean": 14.45,
+              "macro_wer": 14.79,
+              "macro_cer": 13.77,
+              "coverage": 9,
+              "by_language": {
+                "pl": 8.22,
+                "de": 14.48,
+                "fr": 16.55,
+                "es": 12.55,
+                "sv": 15.7,
+                "tr": 21.26,
+                "ja": 5.01,
+                "zh": 19.53,
+                "ko": 16.77
+              }
+            },
+            "speed_x": 24.1,
+            "memory_mb": 37543,
+            "note": "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. GPU-only 94.5 J/min (median of 2 clean brackets).",
+            "latency_ms": {
+              "p50": 398.6,
+              "p95": 726.4,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 27.0.1",
+              "date": "2026-11-06",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
+            "recipe": {
+              "layers": {
+                "decoder projections": "affine-8 g64",
+                "embeddings": "bf16",
+                "head and encoders": "bf16"
+              },
+              "kernels": [
+                "keep_cache",
+                "mtp"
+              ],
+              "inexact": [
+                "mtp"
+              ],
+              "gate_revision": "nemotron-transcribe-1",
+              "env": {}
+            },
+            "gate": {
+              "status": "fail",
+              "reasons": [
+                "multilingual mean +0.31 pt vs 16 (limit 0.11)"
+              ],
+              "presence": {
+                "offered": true,
+                "reasons": []
+              },
+              "baseline": "tier16 Standard (same build)"
+            }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
+          }
+        },
+        "4": {
+          "precision": "4b",
+          "presence": {
+            "offered": true,
+            "reasons": []
+          },
+          "gate": {
+            "status": "pass",
+            "reasons": [],
+            "loss": []
+          },
+          "standard": {
+            "wer": 14.75,
+            "format": 7.85,
+            "multilingual": {
+              "mean": 13.89,
+              "macro_wer": 13.89,
+              "macro_cer": 13.88,
+              "coverage": 9,
+              "by_language": {
+                "pl": 8.47,
+                "de": 14.75,
+                "fr": 16.23,
+                "es": 10.58,
+                "sv": 15.05,
+                "tr": 18.27,
+                "ja": 5.45,
+                "zh": 18.95,
+                "ko": 17.23
+              }
+            },
+            "speed_x": 23.6,
+            "memory_mb": 23881,
+            "note": "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. GPU-only 86.7 J/min (median of 2 clean brackets).",
+            "latency_ms": {
+              "p50": 383.3,
+              "p95": 815.3,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 27.0.1",
+              "date": "2026-11-06",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "mlx",
+            "recipe": {
+              "layers": {
+                "routed experts": "affine-4 g64",
+                "other decoder projections": "affine-8 g64",
+                "embeddings": "bf16",
+                "head and encoders": "bf16"
+              },
+              "kernels": [],
+              "inexact": [],
+              "gate_revision": "stock",
+              "env": {}
+            },
+            "gate": {
+              "status": "fail",
+              "reasons": [
+                "English WER +0.21 pt vs 16 (limit 0.10)"
+              ],
+              "presence": {
+                "offered": true,
+                "reasons": []
+              },
+              "baseline": "tier16 Standard (same build)"
+            }
+          },
+          "optimized_exact": {
+            "wer": 14.75,
+            "format": 7.85,
+            "multilingual": {
+              "mean": 13.89,
+              "macro_wer": 13.89,
+              "macro_cer": 13.88,
+              "coverage": 9,
+              "by_language": {
+                "pl": 8.47,
+                "de": 14.75,
+                "fr": 16.23,
+                "es": 10.58,
+                "sv": 15.05,
+                "tr": 18.27,
+                "ja": 5.45,
+                "zh": 18.95,
+                "ko": 17.23
+              }
+            },
+            "speed_x": 23.2,
+            "memory_mb": 23810,
+            "note": "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. GPU-only 89.1 J/min (median of 3 clean brackets).",
+            "latency_ms": {
+              "p50": 388.2,
+              "p95": 861.3,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 27.0.1",
+              "date": "2026-11-06",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
+            "recipe": {
+              "layers": {
+                "routed experts": "affine-4 g64",
+                "other decoder projections": "affine-8 g64",
+                "embeddings": "bf16",
+                "head and encoders": "bf16"
+              },
+              "kernels": [
+                "keep_cache"
+              ],
+              "inexact": [],
+              "gate_revision": "nemotron-transcribe-1",
+              "env": {}
+            },
+            "gate": {
+              "status": "fail",
+              "reasons": [
+                "English WER +0.21 pt vs 16 (limit 0.10)"
+              ],
+              "presence": {
+                "offered": true,
+                "reasons": []
+              },
+              "baseline": "tier16 Standard (same build)"
+            },
+            "accuracy_note": "Accuracy reused from Standard: Exact decodes plain greedy like Standard (int4 full v2: 797 of 797 transcripts identical; the cache reuse is exact, v2-quick 122/122)."
+          },
+          "optimized_fast": {
+            "wer": 14.63,
+            "format": 7.81,
+            "multilingual": {
+              "mean": 13.94,
+              "macro_wer": 14.03,
+              "macro_cer": 13.77,
+              "coverage": 9,
+              "by_language": {
+                "pl": 8.28,
+                "de": 14.57,
+                "fr": 16.39,
+                "es": 10.83,
+                "sv": 14.84,
+                "tr": 19.27,
+                "ja": 5.39,
+                "zh": 19.01,
+                "ko": 16.92
+              }
+            },
+            "speed_x": 29.3,
+            "memory_mb": 23844,
+            "latency_ms": {
+              "p50": 320.4,
+              "p95": 613.0,
+              "n": 133,
+              "kind": "segment"
+            },
+            "measured": {
+              "hardware": "Apple M5 Max, macOS 27.0.1",
+              "date": "2026-11-06",
+              "suite": "v2",
+              "audio_min": 239.7,
+              "performance_suite": "v2-quick"
+            },
+            "engine": "optimized",
+            "recipe": {
+              "layers": {
+                "routed experts": "affine-4 g64",
+                "other decoder projections": "affine-8 g64",
+                "embeddings": "bf16",
+                "head and encoders": "bf16"
+              },
+              "kernels": [
+                "keep_cache",
+                "mtp"
+              ],
+              "inexact": [
+                "mtp"
+              ],
+              "gate_revision": "nemotron-transcribe-1",
+              "env": {}
+            },
+            "gate": {
+              "status": "pass",
+              "reasons": [],
+              "presence": {
+                "offered": true,
+                "reasons": []
+              },
+              "baseline": "tier16 Standard (same build)"
+            }
+          },
+          "display_cells": {
+            "standard": "standard",
+            "optimized_exact": "optimized_exact",
+            "optimized_fast": "optimized_fast"
+          }
+        }
+      }
     }
   },
   "references": {

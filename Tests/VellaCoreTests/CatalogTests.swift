@@ -5,7 +5,7 @@ import VellaWire
 
 /// Catalog families offered before Vella's benchmark measured them: no benchmarks.json row, no figures (absent until
 /// measured). Nemotron 3.5 Transcribe (Oct 2026).
-let unmeasuredFamilies: Set<String> = ["nemotron-3.5-transcribe"]
+let unmeasuredFamilies: Set<String> = []
 
 final class CatalogTests: XCTestCase {
     private var resources: URL { Repository.root.appendingPathComponent("Resources") }
@@ -281,7 +281,6 @@ final class CatalogTests: XCTestCase {
         func fmt(_ v: Double?) -> String { v.map { String(format: "%.2f", $0) } ?? "—" }
         var rows = 0
         for family in catalog.families {
-            // Nemotron 3.5 Transcribe has no benchmark row until it is measured, so no README table rows either.
             guard let bench = file.models[family.id] else { XCTAssertTrue(unmeasuredFamilies.contains(family.id), family.id); continue }
             let mode = family.mode == .streaming ? "Streaming" : "Dictation"
             for tier in ModelTier.allCases {

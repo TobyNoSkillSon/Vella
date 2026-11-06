@@ -51,7 +51,7 @@ Measured 1–2 October 2026; Whisper refreshed 2026-10-03 on Apple M5 Max, macOS
 
 Every model runs Vella's optimized kernels where your Mac supports them and falls back to plain MLX by itself. Measurements are from an M5 Max with a 40-core GPU; on other Macs the table shows those speed and energy figures for reference, marked with a triangle.
 
-Parakeet v3 Ultra is Moondream's post-training of NVIDIA Parakeet v3 (CC BY 4.0), converted to MLX by `selcukkubur/parakeet-ultra-mlx`. Nemotron 3.5 Transcribe, NVIDIA's 30B speech language model (OpenMDW-1.1), is offered from 48 GB of memory (int4), 64 GB (int8) and 96 GB (bf16); Vella's benchmark has not measured it yet. Publishers, source models, MLX converters and licences for every model are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md#model-weights-downloaded-not-included).
+Parakeet v3 Ultra is Moondream's post-training of NVIDIA Parakeet v3 (CC BY 4.0), converted to MLX by `selcukkubur/parakeet-ultra-mlx`. Nemotron 3.5 Transcribe, NVIDIA's 30B speech language model (OpenMDW-1.1), is offered from 48 GB of memory (int4), 64 GB (int8) and 96 GB (bf16); its int4 tier (draft-and-verify decoding) keeps 16-bit English accuracy at 29× real time on an M5 Max. Publishers, source models, MLX converters and licences for every model are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md#model-weights-downloaded-not-included).
 
 Each model downloads one pinned checkpoint at its published 16-bit precision, except Parakeet v3, whose pinned source is FP32 (2.51 GB) and which Vella converts once to BF16 when you choose **Get**. `int8` and `int4` are made on your Mac from the 16-bit weights; the download prompt names the exact size first. The table shows the dtype actually running (`bf16`/`fp16`, `int8`, `int4`), the precision recommended for your Mac in gold (the smallest that keeps 16-bit accuracy and runs on its GPU's matrix hardware), and a triangle on precisions your Mac runs in software. An Exact/Fast switch chooses the recipe. Missing figures show `—`, never a sibling model's score. Models and weights retain their own licences in [`Resources/models.json`](Resources/models.json).
 
@@ -61,6 +61,8 @@ Each model downloads one pinned checkpoint at its published 16-bit precision, ex
 <!-- BENCHMARK_TABLE_START -->
 
 Measured 2026-10-01, 2026-10-03 on Apple M5 Max, macOS 26.6. English WER on the 167 English minutes of v2 (239.7 min total); nine other languages scored separately; speed, energy and peak RAM: v2-quick (22.5 min). Languages are supported benchmark languages, out of 9.
+
+Nemotron 3.5 Transcribe was measured on 2026-11-06 on Apple M5 Max, macOS 27.0.1 (Vella build `nt-cc294836a0be`), with the same suites, scorer and gate; its J / min is empty because the macOS 27 energy meter reads only the GPU without root, which is not comparable with the whole-chip figures above (GPU-only figures are in `Resources/benchmarks.json` notes). On the same night and meter, Parakeet v3 Ultra bf16 Fast reproduced its English WER of 15.51.
 
 **Standard** is plain MLX, the path a model falls back to; **Optimized** adds custom kernels and is what Vella runs. Whisper Standard runs faithful fp16. Whisper Exact and Fast share the same exact-only whisper-4 recipe and canonical measurement. Whisper Standard and Optimized were measured together on the faithful build; their per-cell and tier gates use that build’s fp16 Standard baseline. Other families retain their dated release measurements.
 
@@ -108,6 +110,15 @@ Measured 2026-10-01, 2026-10-03 on Apple M5 Max, macOS 26.6. English WER on the 
 | Whisper large-v3 turbo | Dictation | int8 | Optimized (Exact = Fast) | 16.52 | 7.46 | 9/9 | 129.8× | 34.64 | 2,363 MB | v2 |
 | Whisper large-v3 turbo | Dictation | int4 | Standard | 16.96 | 8.14 | 9/9 | 93.8× | 39.81 | 1,723 MB | v2 |
 | Whisper large-v3 turbo | Dictation | int4 | Optimized (Exact = Fast) | 16.96 | 8.14 | 9/9 | 134.6× | 37.27 | 1,731 MB | v2 |
+| Nemotron 3.5 Transcribe | Dictation | bf16 | Standard | 14.54 | 7.78 | 9/9 | 14.1× | — | 65,250 MB | v2 |
+| Nemotron 3.5 Transcribe | Dictation | bf16 | Optimized · Exact | 14.54 | 7.78 | 9/9 | 14.0× | — | 65,248 MB | v2 |
+| Nemotron 3.5 Transcribe | Dictation | bf16 | Optimized · Fast | 14.54 | 7.80 | 9/9 | 18.0× | — | 65,245 MB | v2 |
+| Nemotron 3.5 Transcribe | Dictation | int8 | Standard | 14.57 | 7.89 | 9/9 | 19.4× | — | 37,463 MB | v2 |
+| Nemotron 3.5 Transcribe | Dictation | int8 | Optimized · Exact | 14.57 | 7.89 | 9/9 | 19.5× | — | 37,523 MB | v2 |
+| Nemotron 3.5 Transcribe | Dictation | int8 | Optimized · Fast | 14.56 | 7.83 | 9/9 | 24.1× | — | 37,543 MB | v2 |
+| Nemotron 3.5 Transcribe | Dictation | int4 | Standard | 14.75 | 7.85 | 9/9 | 23.6× | — | 23,881 MB | v2 |
+| Nemotron 3.5 Transcribe | Dictation | int4 | Optimized · Exact | 14.75 | 7.85 | 9/9 | 23.2× | — | 23,810 MB | v2 |
+| Nemotron 3.5 Transcribe | Dictation | int4 | Optimized · Fast | 14.63 | 7.81 | 9/9 | 29.3× | — | 23,844 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | bf16 | Standard | 23.39 | 10.57 | 9/9 | 7.3× | 188.25 | 2,253 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | bf16 | Optimized · Exact | 23.39 | 10.57 | 9/9 | 19.3× | 80.33 | 2,725 MB | v2 |
 | Nemotron 3.5 Streaming | Streaming | bf16 | Optimized · Fast | 23.35 | 10.58 | 9/9 | 34.9× | 50.03 | 1,655 MB | v2 |

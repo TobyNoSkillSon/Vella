@@ -37,7 +37,7 @@ import XCTest
             XCTAssertEqual(c.lastError, "Nemotron 3.5 Transcribe: Needs 48 GB of memory.")
             XCTAssertNil(c.dictation.downloadingID)
             XCTAssertEqual(c.firstOffered(.dictation)?.family.id, "parakeet-v3-ultra")
-            // The greyed row keeps the layout of the others: its switch, and its smallest tier (int4's 24.7 GB peak).
+            // The greyed row keeps the layout of the others: its switch, and its smallest tier (int4's measured peak).
             XCTAssertTrue(c.hasOptimizedPath(f))
             XCTAssertEqual(c.selected(f), "4b")
         }
@@ -80,14 +80,19 @@ import XCTest
     }
 
     func testNeverTheFirstRunModelAndNeverFetchedOrLoadedByItself() throws {
-        for memory in [32.0, 64, 128] {
+        for memory in [32.0, 48, 64, 128] {
             let (c, f) = try controller(memoryGB: memory)
             XCTAssertEqual(c.firstOffered(.dictation).map { "\($0.family.id) \($0.precision)" }, "parakeet-v3-ultra BF16", "\(memory) GB")
             XCTAssertEqual(c.firstOffer(.dictation)?.id, "parakeet-ultra-mlx-bf16")
             XCTAssertNil(c.dictation.downloadingID)
             XCTAssertNil(c.loaded(f))
             XCTAssertFalse(c.available(f, "4b"))
-            XCTAssertNil(c.recommended(f), "no benchmark, no gold cell")
+            // Measured 6 Nov: int4 (Fast) passes the gate vs bf16, so it is the gold cell where it fits; the row is still
+            // never the first-run model and nothing downloads or loads by itself.
+            XCTAssertEqual(c.recommended(f), "4b", "the benchmark's recommendation (int4 Fast passes vs bf16)")
+            XCTAssertEqual(c.advice(f, mode: .fast).recommended, memory >= 48 ? .t4 : nil, "\(memory) GB: gold only where int4 fits")
+            // Exact: int4 Exact fails vs bf16 (English +0.21), int8 too; bf16 is gold only where it fits (96 GB).
+            XCTAssertEqual(c.advice(f, mode: .exact).recommended, memory >= 96 ? .t16 : nil, "\(memory) GB exact")
         }
         // Even with every other family removed, a Mac too small for it gets no first-run offer of it.
         let (c, f) = try controller(memoryGB: 32)
@@ -147,5 +152,13 @@ import XCTest
             "Nemotron 3.5 Transcribe at int8 needs 64 GB of memory; this Mac has 32 GB. Pick a smaller precision in Vella → Models…")
         c.physicalMemoryBytes = 128 * 1_073_741_824
         XCTAssertNil(bridge.recipeRefusal(path: folder.path, mode: .dictation))
+    }
+
+    /// A cell whose energy the macOS 27 meter could not measure says why instead of "Not measured at this precision"
+    /// (night 6 Nov: GPU-only meter without administrator rights).
+    func testEnergyTooltipStatesWhyItIsMissing() {
+        let r = PrecisionResult(wer: 14.6, note: "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights. GPU-only 89.1 J/min.")
+        XCTAssertEqual(energyHelp(r, suites: nil), "Energy not measured: on macOS 27 the energy meter reads only the GPU without administrator rights")
+        XCTAssertEqual(energyHelp(PrecisionResult(wer: 14.6), suites: nil), notMeasuredHelp)
     }
 }

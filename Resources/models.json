@@ -758,8 +758,7 @@
             "licenses/vLLM-LICENSE.txt",
             "README.md"
           ],
-          "peakMemoryMB": 70000,
-          "peakMemoryEstimated": true
+          "peakMemoryMB": 65250
         },
         "8b": {
           "id": "nemotron-3.5-transcribe-30b-a4b-8bit",
@@ -767,8 +766,7 @@
           "bits": 8,
           "groupSize": 64,
           "architecture": "nemotron_transcribe",
-          "peakMemoryMB": 40000,
-          "peakMemoryEstimated": true,
+          "peakMemoryMB": 37543,
           "recipe": "8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)"
         },
         "4b": {
@@ -777,7 +775,7 @@
           "bits": 4,
           "groupSize": 64,
           "architecture": "nemotron_transcribe",
-          "peakMemoryMB": 24700,
+          "peakMemoryMB": 24050,
           "recipe": "4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)"
         }
       },

@@ -32,7 +32,6 @@ import SwiftUI
         XCTAssertFalse(c.benchmarkHardware.isMeasuredConfiguration)
         XCTAssertFalse(c.gpu.tensorOps, "the M4 Pro profile has no tensor units")
         let table = ModelTable(controller: c)
-        // A family Vella has not benchmarked yet (Nemotron 3.5 Transcribe) has no figures to show.
         for family in c.families(.dictation) + c.families(.streaming) where c.benchmark(family) != nil {
             let r = try XCTUnwrap(c.shownResult(family), family.id)
             // Hardware-independent figures: present and shown exactly as measured.
@@ -40,11 +39,17 @@ import SwiftUI
             XCTAssertNotNil(formatErrorRate(r.format), family.id)
             // Hardware-dependent figures: the M5 Max number, never blank, never "not known", never a relative claim.
             let speed = try XCTUnwrap(c.benchmarkHardware.speedText(r.speed_x), family.id)
-            let energy = try XCTUnwrap(c.benchmarkHardware.energyText(r.j_per_min), family.id)
-            XCTAssertFalse(energy.contains("not known")); XCTAssertEqual(c.benchmarkHardware.speedReferenceLabel, "M5 Max")
+            XCTAssertEqual(c.benchmarkHardware.speedReferenceLabel, "M5 Max")
             let tips = Dictionary(table.tooltips(family).map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
             XCTAssertEqual(tips["Speed"]?.components(separatedBy: "\n").first, "Not measured on your Mac. M5 Max: \(speed) real time.", family.id)
-            XCTAssertEqual(tips["J / min"]?.components(separatedBy: "\n").first, "Not measured on your Mac. M5 Max: \(energy) per audio minute.", family.id)
+            if r.j_per_min == nil {
+                // Nemotron 3.5 Transcribe (6 Nov, macOS 27): energy not measurable with the GPU-only meter; the tooltip says so.
+                XCTAssertEqual(tips["J / min"]?.hasPrefix("Energy not measured"), true, family.id)
+            } else {
+                let energy = try XCTUnwrap(c.benchmarkHardware.energyText(r.j_per_min), family.id)
+                XCTAssertFalse(energy.contains("not known"))
+                XCTAssertEqual(tips["J / min"]?.components(separatedBy: "\n").first, "Not measured on your Mac. M5 Max: \(energy) per audio minute.", family.id)
+            }
             for column in ["WER", "Format", "Peak RAM"] { XCTAssertFalse(tips[column]?.contains("Not measured on your Mac") ?? true, "\(family.id) \(column)") }
             for (column, text) in tips {
                 XCTAssertNil(text.range(of: #"\d+% (less|more|faster|slower)"#, options: .regularExpression), "\(family.id) \(column): no relative claim here: \(text)")
@@ -54,12 +59,11 @@ import SwiftUI
             hardwareNote(thisChip: c.benchmarkHardware.chip, measuredOn: measurementChip(c.benchmarks), gpuCores: c.benchmarkHardware.gpuCores)?.text,
             "Speed and J / min measured on M5 Max")
         // The drawn row carries the triangles: one on every Speed and J / min figure; the table lays out at its width.
-        // A family Vella has not benchmarked yet (Nemotron 3.5 Transcribe) has no figures to show.
         for family in c.families(.dictation) + c.families(.streaming) where c.benchmark(family) != nil {
             let r = try XCTUnwrap(c.shownResult(family))
             let slow = family.mode == .dictation && (r.speed_x ?? 0) < slowSpeedFloor
             XCTAssertEqual(ModelTable.speedWarning(family.mode, speed: r.speed_x, hardware: c.benchmarkHardware), slow ? "very slow" : ModelTable.referenceWarning)
-            XCTAssertEqual(ModelTable.energyWarning(r.j_per_min, hardware: c.benchmarkHardware), ModelTable.referenceWarning)
+            XCTAssertEqual(ModelTable.energyWarning(r.j_per_min, hardware: c.benchmarkHardware), r.j_per_min == nil ? nil : ModelTable.referenceWarning)
         }
         XCTAssertEqual(hosted(c).fittingSize.width, ModelTable.width)
     }
@@ -72,7 +76,6 @@ import SwiftUI
             for (column, text) in table.tooltips(family) { XCTAssertFalse(text.contains("Not measured on your Mac"), "\(family.id) \(column)") }
         }
         XCTAssertNil(hardwareNote(thisChip: c.benchmarkHardware.chip, measuredOn: measurementChip(c.benchmarks), gpuCores: c.benchmarkHardware.gpuCores))
-        // A family Vella has not benchmarked yet (Nemotron 3.5 Transcribe) has no figures to show.
         for family in c.families(.dictation) + c.families(.streaming) where c.benchmark(family) != nil {
             let r = try XCTUnwrap(c.shownResult(family))
             XCTAssertNotEqual(ModelTable.speedWarning(family.mode, speed: r.speed_x, hardware: c.benchmarkHardware), ModelTable.referenceWarning)

@@ -97,6 +97,10 @@ public func speedHelp(_ mode: RecognitionMode, _ r: PrecisionResult?, suites: [S
 }
 
 public func energyHelp(_ r: PrecisionResult?, suites: [String: SuiteInfo]?) -> String {
+    // A cell whose energy could not be measured says why (its note's first sentence), e.g. macOS 27's GPU-only meter.
+    if let note = r?.note, r?.j_per_min == nil, note.hasPrefix("Energy not measured") {
+        return String(note.prefix { $0 != "." })
+    }
     guard let r, r.j_per_min != nil else { return notMeasuredHelp }
     let suite = suites?[performanceSuite] != nil ? suiteDescription(performanceSuite, suites: suites) : nil
     return figure("Whole-chip joules per audio minute", on: suite, "net of loaded idle power", better: "lower is better", r)

@@ -134,11 +134,13 @@ public func precisionAdvice(
     _ family: ModelFamily, _ benchmark: FamilyBenchmark?, mode: OptimizedMode, tiers: [ModelTier], gpu: GPUCapability, measuredHere: Bool,
     qualification: (ModelTier) -> Qualification? = { _ in nil }
 ) -> PrecisionAdvice {
-    guard let benchmark, !benchmark.tiers.isEmpty, tiers.contains(.t16) else { return PrecisionAdvice() }
+    // The 16-bit cell is the quality reference even where this Mac cannot hold 16-bit (Nemotron 3.5 Transcribe's tiers
+    // have memory floors): a smaller tier that keeps its accuracy is still recommended there.
+    guard let benchmark, !benchmark.tiers.isEmpty, benchmark.tiers[.t16] != nil, !tiers.isEmpty else { return PrecisionAdvice() }
     let base = benchmarkCell(benchmark, ModelSelection(tier: .t16, mode: mode))
     let baseName = tierDTypeLabel(family, .t16)
     var advice = PrecisionAdvice()
-    advice.hardware[.t16] = true
+    if tiers.contains(.t16) { advice.hardware[.t16] = true }
     var quality: Set<ModelTier> = [.t16]
     for tier in tiers where tier != .t16 {
         let cell = benchmarkCell(benchmark, ModelSelection(tier: tier, mode: mode))
@@ -172,7 +174,9 @@ public func precisionAdvice(
         }
     }
     // Smallest first (4, 8, 16): the first that keeps quality on the matrix hardware.
-    let pick = tiers.sorted { $0.bits < $1.bits }.first { quality.contains($0) && advice.hardware[$0] == true } ?? .t16
+    let found = tiers.sorted { $0.bits < $1.bits }.first { quality.contains($0) && advice.hardware[$0] == true }
+    // Nothing smaller keeps quality and 16-bit does not fit this Mac: no gold cell.
+    guard let pick = found ?? (tiers.contains(.t16) ? .t16 : nil) else { return advice }
     advice.recommended = pick
     let name = tierDTypeLabel(family, pick)
     if pick != .t16 {

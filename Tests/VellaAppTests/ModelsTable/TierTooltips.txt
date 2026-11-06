@@ -222,16 +222,19 @@ Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, mu
 Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
 
 [Nemotron 3.5 Transcribe · Precision bf16 · Exact · M5 Max]
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.40 pt); int4 fails the quality gate (English WER +0.21 pt)
 bf16, as published
-Not measured yet
+Reference for the deltas · M5 Max, 6 Nov
 
 [Nemotron 3.5 Transcribe · Precision int8 · Exact · M5 Max]
 8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
-Not measured yet
+vs bf16: Speed: 39% faster · WER +0.03 pt · M5 Max, 6 Nov
+Loss vs bf16: multilingual mean +0.40 pt, Turkish +2.33 pt, format CER +0.11 pt
 
 [Nemotron 3.5 Transcribe · Precision int4 · Exact · M5 Max]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
-Not measured yet
+8-bit other decoder projections, 4-bit routed experts, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
+vs bf16: Speed: 66% faster · WER +0.21 pt · M5 Max, 6 Nov
+Loss vs bf16: English WER +0.21 pt
 
 [Nemotron 3.5 Transcribe · Exact/Fast]
 Exact: only components that must match plain MLX on the load-time self-test. Fast: adds chip-specific kernels within the model's own noise.
@@ -239,15 +242,17 @@ Here Exact decodes one token at a time; Fast drafts and verifies several, about 
 
 [Nemotron 3.5 Transcribe · Precision bf16 · Fast · M5 Max]
 bf16, as published
-Not measured yet
+Reference for the deltas · M5 Max, 6 Nov
 
 [Nemotron 3.5 Transcribe · Precision int8 · Fast · M5 Max]
 8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
-Not measured yet
+vs bf16: Speed: 34% faster · WER +0.02 pt · M5 Max, 6 Nov
+Loss vs bf16: multilingual mean +0.31 pt
 
 [Nemotron 3.5 Transcribe · Precision int4 · Fast · M5 Max]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
-Not measured yet
+Recommended for this Mac: int4 keeps bf16 accuracy, uses less memory and runs on this Mac's matrix hardware
+8-bit other decoder projections, 4-bit routed experts, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
+vs bf16: Speed: 63% faster · WER +0.09 pt · M5 Max, 6 Nov
 
 [Nemotron 3.5 Streaming · Bolt]
 Vella runs each model the fastest way this Mac supports and falls back to plain MLX by itself if that fails
@@ -486,28 +491,37 @@ vs fp16: WER +0.39 pt · M5 Max, 3 Oct
 Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
 [Nemotron 3.5 Transcribe · Precision bf16 · Exact · M4 Pro]
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.40 pt); int4 fails the quality gate (English WER +0.21 pt)
 bf16, as published
-Not measured yet
+Reference for the deltas · M5 Max, 6 Nov
 
 [Nemotron 3.5 Transcribe · Precision int8 · Exact · M4 Pro]
+No hardware support for int8 on this Mac: saves memory, may be slower than bf16
 8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
-Not measured yet
+vs bf16: WER +0.03 pt · M5 Max, 6 Nov
+Loss vs bf16: multilingual mean +0.40 pt, Turkish +2.33 pt, format CER +0.11 pt
 
 [Nemotron 3.5 Transcribe · Precision int4 · Exact · M4 Pro]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
-Not measured yet
+No hardware support for int4 on this Mac: saves memory, may be slower than bf16
+8-bit other decoder projections, 4-bit routed experts, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
+vs bf16: WER +0.21 pt · M5 Max, 6 Nov
+Loss vs bf16: English WER +0.21 pt
 
 [Nemotron 3.5 Transcribe · Precision bf16 · Fast · M4 Pro]
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.31 pt); int4 has no hardware support here
 bf16, as published
-Not measured yet
+Reference for the deltas · M5 Max, 6 Nov
 
 [Nemotron 3.5 Transcribe · Precision int8 · Fast · M4 Pro]
+No hardware support for int8 on this Mac: saves memory, may be slower than bf16
 8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
-Not measured yet
+vs bf16: WER +0.02 pt · M5 Max, 6 Nov
+Loss vs bf16: multilingual mean +0.31 pt
 
 [Nemotron 3.5 Transcribe · Precision int4 · Fast · M4 Pro]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
-Not measured yet
+No hardware support for int4 on this Mac: saves memory, may be slower than bf16
+8-bit other decoder projections, 4-bit routed experts, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
+vs bf16: WER +0.09 pt · M5 Max, 6 Nov
 
 [Nemotron 3.5 Streaming · Precision bf16 · Exact · M4 Pro]
 Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.16 pt); int4 fails the quality gate (21 test clips came back empty or cut short)
@@ -744,28 +758,37 @@ vs fp16: WER +0.39 pt · M5 Max, 3 Oct
 Loss vs fp16: 1 test clip came back empty or cut short, English WER +0.39 pt, multilingual mean +0.23 pt, Turkish +2.66 pt, format CER +0.70 pt
 
 [Nemotron 3.5 Transcribe · Precision bf16 · Exact · M1]
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.40 pt); int4 fails the quality gate (English WER +0.21 pt)
 bf16, as published
-Not measured yet
+Reference for the deltas · M5 Max, 6 Nov
 
 [Nemotron 3.5 Transcribe · Precision int8 · Exact · M1]
+No hardware support for int8 on this Mac: saves memory, may be slower than bf16
 8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
-Not measured yet
+vs bf16: WER +0.03 pt · M5 Max, 6 Nov
+Loss vs bf16: multilingual mean +0.40 pt, Turkish +2.33 pt, format CER +0.11 pt
 
 [Nemotron 3.5 Transcribe · Precision int4 · Exact · M1]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
-Not measured yet
+No hardware support for int4 on this Mac: saves memory, may be slower than bf16
+8-bit other decoder projections, 4-bit routed experts, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
+vs bf16: WER +0.21 pt · M5 Max, 6 Nov
+Loss vs bf16: English WER +0.21 pt
 
 [Nemotron 3.5 Transcribe · Precision bf16 · Fast · M1]
+Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.31 pt); int4 has no hardware support here
 bf16, as published
-Not measured yet
+Reference for the deltas · M5 Max, 6 Nov
 
 [Nemotron 3.5 Transcribe · Precision int8 · Fast · M1]
+No hardware support for int8 on this Mac: saves memory, may be slower than bf16
 8-bit decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-8 g64)
-Not measured yet
+vs bf16: WER +0.02 pt · M5 Max, 6 Nov
+Loss vs bf16: multilingual mean +0.31 pt
 
 [Nemotron 3.5 Transcribe · Precision int4 · Fast · M1]
-4-bit routed experts, 8-bit other decoder projections, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
-Not measured yet
+No hardware support for int4 on this Mac: saves memory, may be slower than bf16
+8-bit other decoder projections, 4-bit routed experts, 16-bit embeddings, 16-bit head and encoders (affine-4 g64)
+vs bf16: WER +0.09 pt · M5 Max, 6 Nov
 
 [Nemotron 3.5 Streaming · Precision bf16 · Exact · M1]
 Recommended for this Mac: int8 fails the quality gate (multilingual mean +0.16 pt); int4 fails the quality gate (21 test clips came back empty or cut short)

@@ -135,7 +135,7 @@ final class CellPresenceTests: XCTestCase {
                 }
             }
         }
-        XCTAssertEqual(checked, 63)
+        XCTAssertEqual(checked, 72)
         XCTAssertEqual(warned, 21)
     }
 

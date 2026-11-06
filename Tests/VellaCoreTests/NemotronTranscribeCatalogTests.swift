@@ -112,9 +112,9 @@ final class NemotronTranscribeCatalogTests: XCTestCase {
         XCTAssertEqual(minimumMemoryGB(f, "BF16"), 96)
         XCTAssertEqual(minimumMemoryGB(f, "8b"), 64)
         XCTAssertEqual(minimumMemoryGB(f, "4b"), 48)
-        XCTAssertEqual(f.variants["4b"]?.peakMemoryEstimated, nil, "int4's 24.7 GB peak is measured")
-        XCTAssertEqual(f.variants["8b"]?.peakMemoryEstimated, true)
-        XCTAssertEqual(f.variants["BF16"]?.peakMemoryEstimated, true)
+        XCTAssertEqual(f.variants["4b"]?.peakMemoryEstimated, nil, "int4's peak is measured")
+        XCTAssertEqual(f.variants["8b"]?.peakMemoryEstimated, nil, "measured 6 Nov")
+        XCTAssertEqual(f.variants["BF16"]?.peakMemoryEstimated, nil, "measured 6 Nov")
         XCTAssertNil(minimumMemoryGB(peakMB: 600_000))
         // No other family has a floor: they run on every Mac Vella supports.
         let catalog = try decodeCatalog(Data(contentsOf: Repository.root.appendingPathComponent("Resources/models.json")))
@@ -153,13 +153,13 @@ final class NemotronTranscribeCatalogTests: XCTestCase {
     func testAdmissionUsesTheTierPeak() throws {
         let f = try family()
         let empty = decodeBenchmarks(Data(#"{"schema": 2, "models": {}}"#.utf8))
-        XCTAssertEqual(estimatedMemory(family: f, precision: "4b", benchmarks: empty), MemoryEstimate(mb: 24_700, measured: true, note: nil))
-        XCTAssertEqual(estimatedMemory(family: f, precision: "BF16", benchmarks: empty)?.mb, 70_000)
-        XCTAssertEqual(estimatedMemory(family: f, precision: "BF16", benchmarks: empty)?.measured, false)
-        XCTAssertEqual(catalogPeakMemoryText(f.variants["4b"]), "24.7 GB")
-        XCTAssertEqual(catalogPeakMemoryText(f.variants["8b"]), "~40 GB")
-        XCTAssertEqual(catalogPeakMemoryText(f.variants["BF16"]), "~70 GB")
-        XCTAssertTrue(catalogPeakMemoryHelp(f.variants["BF16"]!).contains("Estimated, not measured"))
+        XCTAssertEqual(estimatedMemory(family: f, precision: "4b", benchmarks: empty), MemoryEstimate(mb: 24_050, measured: true, note: nil))
+        XCTAssertEqual(estimatedMemory(family: f, precision: "BF16", benchmarks: empty)?.mb, 65_250)
+        XCTAssertEqual(estimatedMemory(family: f, precision: "BF16", benchmarks: empty)?.measured, true)
+        XCTAssertEqual(catalogPeakMemoryText(f.variants["4b"]), "24.05 GB")
+        XCTAssertEqual(catalogPeakMemoryText(f.variants["8b"]), "37.54 GB")
+        XCTAssertEqual(catalogPeakMemoryText(f.variants["BF16"]), "65.25 GB")
+        XCTAssertTrue(catalogPeakMemoryHelp(f.variants["BF16"]!).contains("Measured on M5 Max"))
         XCTAssertTrue(catalogPeakMemoryHelp(f.variants["4b"]!).contains("Measured on M5 Max"))
     }
 

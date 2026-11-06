@@ -73,7 +73,7 @@ final class TableTooltipTests: XCTestCase {
     /// The tier cell's delta line: vs the 16-bit cell of the same switch position with its basis (speed and energy only
     /// on the measured Mac), the reference itself, or pending. Never "Standard".
     private static let deltaPattern =
-        #"^(vs (bf16|fp16): (Speed: (same|[0-9.]+% (faster|slower)|[0-9.]+× faster)( · Energy: (same|[0-9.]+% (less|more)))? · )?(WER (−|\+)[0-9.]+ pt|same WER) · M5 Max, \d+ (Sep|Oct)|Reference for the deltas · M5 Max, \d+ (Sep|Oct)|No (bf16|fp16) measurement to compare with yet · M5 Max, \d+ (Sep|Oct)|Not measured yet(: [^\n]+)?)$"#
+        #"^(vs (bf16|fp16): (Speed: (same|[0-9.]+% (faster|slower)|[0-9.]+× faster)( · Energy: (same|[0-9.]+% (less|more)))? · )?(WER (−|\+)[0-9.]+ pt|same WER) · M5 Max, \d+ (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)|Reference for the deltas · M5 Max, \d+ (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)|No (bf16|fp16) measurement to compare with yet · M5 Max, \d+ (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)|Not measured yet(: [^\n]+)?)$"#
     /// A greyed cell's one line: why it cannot be chosen.
     private static let greyedPattern =
         #"^(Not measured yet(: [^\n]+)?|Not offered: [^\n]+|Not offered for this model|No Exact recipe at (bf16|fp16|int[48]); Fast offers it)$"#
@@ -110,6 +110,10 @@ final class TableTooltipTests: XCTestCase {
             case let c where Self.figures.contains(c):
                 XCTAssertEqual(text == figuresPendingHelp, table.controller.benchmarks.figuresPending, "\(label): pending figures show none")
                 if text == notMeasuredHelp || text == figuresPendingHelp { continue }
+                // An energy figure the meter could not take says why in one line (macOS 27's GPU-only meter, 6 Nov).
+                if c == "J / min", text.hasPrefix("Energy not measured: ") {
+                    XCTAssertFalse(text.contains("\n"), label); assertNoTrailingPeriod(text, label); continue
+                }
                 if text.hasPrefix("Not measured yet:") {
                     let cell = table.controller.shownCell(family).flatMap { benchmarkCell(table.controller.benchmark(family), $0) }
                     XCTAssertTrue(cell?.isPending == true, label)
