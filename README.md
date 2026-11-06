@@ -7,9 +7,11 @@
 <p align="center">Offline dictation and transcription for Apple Silicon Macs.</p>
 
 <p align="center">
-  <a href="#install"><img src="docs/images/install.svg" alt="Install Vella" width="152" height="42"></a>
+  <a href="https://github.com/TobyNoSkillSon/Vella/releases/latest"><img src="docs/images/download.svg" alt="Download" width="152" height="42"></a>
   &nbsp;
-  <a href="https://github.com/sponsors/TobyNoSkillSon"><img src="docs/images/support.svg" alt="Support Vella on GitHub Sponsors" width="176" height="42"></a>
+  <a href="https://tobynoskillson.com/vella"><img src="docs/images/website.svg" alt="Website" width="140" height="42"></a>
+  &nbsp;
+  <a href="https://tobynoskillson.com/#support"><img src="docs/images/support.svg" alt="Support the Developer on GitHub Sponsors or Buy Me a Coffee" width="228" height="42"></a>
 </p>
 
 <p align="center">

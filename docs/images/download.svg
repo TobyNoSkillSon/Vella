@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="152" height="42" viewBox="0 0 152 42" role="img" aria-labelledby="title">
+  <title id="title">Download</title>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f7f8"/><stop offset="1" stop-color="#dcdcdf"/></linearGradient></defs>
+  <rect x="0.5" y="0.5" width="151" height="41" rx="10" fill="url(#g)" stroke="#b9b9bd"/>
+  <g fill="none" stroke="#141414" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M28 12v13m-5-5 5 5 5-5M20 27v3h16v-3"/></g>
+  <text x="91" y="26" text-anchor="middle" fill="#141414" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="14" font-weight="600">Download</text>
+</svg>
