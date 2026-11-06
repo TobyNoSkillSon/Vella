@@ -371,12 +371,10 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     func decode(_ embeddings: MLXArray, maxTokens: Int) -> [Int] {
         if usesMTP, let mtp {
             do {
-                let tokens = try withError { try decodeMTP(embeddings, maxTokens: maxTokens, mtp: mtp) }
-                // A draft-and-verify run that reaches the token limit without an end token is a repetition loop
-                // (night 6 Nov, int4 full v2: one 20 s segment repeated "It's awesome." 248 times where plain greedy
-                // transcribed it). The chunk is decoded again plain greedy; draft-and-verify stays on for the next one.
-                guard tokens.count >= maxTokens else { return tokens }
-                runawayRetries += 1
+                return try Self.retryingRunaway(
+                    maxTokens: maxTokens, runawayRetries: &runawayRetries,
+                    draftAndVerify: { try withError { try decodeMTP(embeddings, maxTokens: maxTokens, mtp: mtp) } },
+                    greedy: { decodeGreedy(embeddings, maxTokens: maxTokens) })
             } catch {
                 mtpRuntimeFailure = "\(error)"
                 lastRequestFellBack = true
@@ -385,6 +383,18 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
             }
         }
         return decodeGreedy(embeddings, maxTokens: maxTokens)
+    }
+
+    /// A draft-and-verify run that reaches the token limit without an end token is a repetition loop (night 6 Nov,
+    /// int4 full v2: one 20 s segment repeated "It's awesome." 248 times where plain greedy transcribed it). The chunk
+    /// is decoded again by `greedy`; draft-and-verify stays on for the next one. Errors propagate to `decode`.
+    static func retryingRunaway(
+        maxTokens: Int, runawayRetries: inout Int, draftAndVerify: () throws -> [Int], greedy: () -> [Int]
+    ) rethrows -> [Int] {
+        let tokens = try draftAndVerify()
+        guard tokens.count >= maxTokens else { return tokens }
+        runawayRetries += 1
+        return greedy()
     }
 
     /// Tests: `decode` as a request runs it, and clearing the sticky fallback between injected faults.

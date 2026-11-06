@@ -163,6 +163,25 @@ extension WorkerTests {
             }
         }
 
+        /// Draft-and-verify that reaches the token limit is a repetition loop: the chunk is decoded again plain greedy
+        /// and counted once (int4 Fast's 248× "It's awesome." segment, night 6 Nov). A shorter run is kept as it is.
+        @Test func runawayDraftAndVerifyIsDecodedAgainGreedy() {
+            var retries = 0
+            let looped = NemotronTranscribeModel.retryingRunaway(
+                maxTokens: 8, runawayRetries: &retries, draftAndVerify: { [Int](repeating: 7, count: 8) }, greedy: { [1, 2, 3] })
+            #expect(looped == [1, 2, 3])
+            #expect(retries == 1)
+            var greedyRan = false
+            let finished = NemotronTranscribeModel.retryingRunaway(
+                maxTokens: 8, runawayRetries: &retries, draftAndVerify: { [4, 5, 6, 7, 8, 9, 10] },
+                greedy: {
+                    greedyRan = true
+                    return []
+                })
+            #expect(finished == [4, 5, 6, 7, 8, 9, 10])
+            #expect(retries == 1 && !greedyRan)
+        }
+
         static let localFolders = [
             NSHomeDirectory() + "/Models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B"
         ]
