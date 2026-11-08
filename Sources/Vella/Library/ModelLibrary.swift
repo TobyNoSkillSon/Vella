@@ -459,6 +459,7 @@ import VellaCore
             let previous = try (try? Data(contentsOf: Backend.configURL)) ?? JSONEncoder().encode(config)
             try previous.write(to: Backend.support.appendingPathComponent("config.previous.json"), options: .atomic)
             config.selectModel(local.path, for: mode)
+            config.markOwnChoice(mode)
             try JSONEncoder().encode(config).write(to: Backend.configURL, options: .atomic)
             activeModelPath = local.path; onUse?()
             message = "Selected for the next \(mode.title.lowercased()). Previous settings saved. Previous Vella workers have been asked to stop."

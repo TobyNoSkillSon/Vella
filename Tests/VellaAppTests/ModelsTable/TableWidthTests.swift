@@ -56,7 +56,9 @@ import SwiftUI
             window.contentView = view
             view.layoutSubtreeIfNeeded() // the first pass only: no run-loop turn, no click
             let actions = all(RowActionView.self, in: view)
-            XCTAssertEqual(actions.count, c.families(.dictation).count + c.families(.streaming).count, "\(state.name): one action per model")
+            // Heimdall's row has a Load only while present and not chosen (an About link only once a page is configured).
+            let shared = c.heimdall.map { $0.presence == .present && !$0.chosen ? 1 : 0 } ?? 0
+            XCTAssertEqual(actions.count, c.families(.dictation).count + c.families(.streaming).count + shared, "\(state.name): one action per model")
             let limit = view.bounds.maxX - ModelTable.trailingMargin
             for action in actions {
                 for (part, rect) in [("button", action.buttonRect), ("trash", action.trashRect), ("cell", action.bounds)] {

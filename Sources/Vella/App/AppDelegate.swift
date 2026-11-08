@@ -16,6 +16,27 @@ import VellaCore
     /// In-app updates: the orange "Update to X…" item under Support and its popup.
     let updates: UpdateController
     private(set) var shortcutManager: ShortcutManager
+    /// Heimdall's two channels (docs/HEIMDALL.md); set at launch.
+    var heimdall: HeimdallLink?
+    /// Launch: Heimdall's shared model in every instance; the dictation signal only in the real menu-bar app (a QA or lab
+    /// instance never records, and must not speak for the user's Vella).
+    func startHeimdall(bus: HeimdallBus? = nil, announcesDictation: Bool) {
+        // Under XCTest nothing reaches a real Heimdall; a binary not running from an app bundle (a bare debug build)
+        // never announces dictation for the user.
+        let testing = NSClassFromString("XCTestCase") != nil
+        let bundled = Bundle.main.bundleURL.pathExtension == "app"
+        let link = HeimdallLink(
+            bus: bus ?? (testing ? SilentHeimdallBus() : DistributedHeimdallBus()), announcesDictation: announcesDictation && (bundled || testing && bus != nil))
+        if let announcer = link.announcer {
+            announcer.mode = { [weak model] in model?.mode.rawValue ?? "dictation" }
+            announcer.shortcut = { [weak self] in shortcutSignalFields(self?.shortcutManager.workingConfiguration ?? .default) }
+        }
+        RuntimeBridge.shared.attachHeimdall(link)
+        model.heimdall = link
+        heimdall = link
+        link.start()
+        link.reevaluate()
+    }
     init(model: DictationController? = nil, updates: UpdateController? = nil, shortcutManager: ShortcutManager? = nil, shortcutStoreURL: URL? = nil) {
         let resolved = model ?? DictationController()
         self.model = resolved
@@ -195,6 +216,9 @@ import VellaCore
         if Self.qaHeadless() {
             configureHUDPanel()
             model.onChange = { [weak self] in self?.refresh() }
+            // QA runs stay independent of a running Heimdall; only a lab measurement borrows its model.
+            if LabDictation.requested() { startHeimdall(announcesDictation: LabDictation.announces()) }
+            LabDictation.startIfRequested(delegate: self)
             return
         }
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -234,6 +258,9 @@ import VellaCore
                 model.update(.failed, shortcutManager.lastError ?? "⌃⌘N is already reserved or could not be registered. Free it in the other application, then restart Vella.")
             }
         }
+        // After the binding is known: hello carries it; a later change sends another.
+        startHeimdall(announcesDictation: true)
+        shortcutManager.onBindingChange = { [weak self] in self?.heimdall?.announcer?.shortcutMayHaveChanged() }
         rebuildMenu()
         // Prepare accessibility on activation; Dictation chooses its field at Finish.
         AccessibilityFocus.prepare(NSWorkspace.shared.frontmostApplication)
@@ -296,6 +323,7 @@ import VellaCore
     }
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard menu === self.menu, !settingsMenuIsTracking else { return }
+        heimdall?.refreshInstalled() // Heimdall installed or removed since launch: the Models row follows
         if checkPermission() { stopPermissionPolling() }
         rebuildMenu()
     }
@@ -313,7 +341,11 @@ import VellaCore
         case .failed: summary = model.attentionTitle
         }
         // The loaded model is the fact most worth knowing before opening Models.
-        if let activeModel = modelsMenu.controller.activeLabel(model.mode) { summary += " · \(activeModel)" }
+        if model.mode == .dictation, let borrowed = heimdall?.borrowLabel {
+            summary += " · \(borrowed)"
+        } else if let activeModel = modelsMenu.controller.activeLabel(model.mode) {
+            summary += " · \(activeModel)"
+        }
         let pending = pendingModelRow()
         if pending != nil, model.phase == .idle || model.phase == .failed { summary = "Recording saved. Get a model to transcribe it." }
         let needsPermission = !model.insertionPermission.granted
@@ -540,7 +572,11 @@ import VellaCore
             }
             var summary = model.insertionPermission.granted ? "\(mode.title): ready" : "Accessibility is off — allow Vella in Settings"
             // The header keeps the loaded model, as rebuildMenu shows it.
-            if let activeModel = modelsMenu.controller.activeLabel(mode) { summary += " \u{00b7} \(activeModel)" }
+            if mode == .dictation, let borrowed = heimdall?.borrowLabel {
+                summary += " \u{00b7} \(borrowed)"
+            } else if let activeModel = modelsMenu.controller.activeLabel(mode) {
+                summary += " \u{00b7} \(activeModel)"
+            }
             if let header = menu.items.first {
                 header.title = summary
                 header.toolTip = menuHeaderToolTip(
@@ -826,5 +862,6 @@ import VellaCore
         if let spaceObserver { NSWorkspace.shared.notificationCenter.removeObserver(spaceObserver) }
         dismissal?.cancel(); stopPermissionPolling(); model.hudVisible = false
         dictationLibrary.shutdown(); streamingLibrary.shutdown(); model.shutdown()
+        heimdall?.announcer?.quit()
     }
 }

@@ -23,6 +23,15 @@ import VellaWire
     var recipeRefusal: ((String, RecognitionMode) -> String?)?
     weak var dictation: Backend?
     weak var streaming: StreamingBackend?
+    /// The family whose model Vella borrows from Heimdall now (docs/HEIMDALL.md): Vella's own copy stays unloaded, even
+    /// in the launch set (the entry is kept, so it loads again once Heimdall is gone). Nil: normal residency.
+    var borrowedFamily: () -> String? = { nil }
+    /// Before the launch set loads: give a running Heimdall a moment to answer Vella's query, so its family is not
+    /// loaded only to be unloaded again.
+    var settleBorrowing: () async -> Void = {}
+    /// Heimdall's state and the path of the latest dictation, for the status file and /status.
+    var heimdall: HeimdallStatus? { didSet { if heimdall != oldValue { writeStatus() } } }
+    var lastDictation: LastDictationStatus? { didSet { writeStatus() } }
     var statusURL: URL { support.appendingPathComponent("worker-status.json") }
     var configURL: URL { support.appendingPathComponent("config.json") }
 
@@ -167,7 +176,8 @@ import VellaWire
         Task { await self.loadLaunchSet() }
     }
     func loadLaunchSet() async {
-        for stored in settings.launchSet where entries[stored.id] == nil {
+        await settleBorrowing()
+        for stored in settings.launchSet where entries[stored.id] == nil && stored.id != borrowedFamily() {
             // The same resolution as Load and on-demand dictation: the catalog's current recipe and files.
             guard let ref = launchRef(stored) else {
                 error = "\(stored.displayName) in the launch set no longer matches the catalog's recipe at \(stored.precision). Load it again in Models."
@@ -177,7 +187,34 @@ import VellaWire
                 error = "\(ref.displayName) is in the launch set but its files are missing. Get it again or unload it."; writeStatus(); continue
             }
             do { try await load(ref) } catch { /* recorded in status (refused / error) */  }
+            // Heimdall announced its copy while this one loaded (a launch race): unload Vella's.
+            if borrowedFamily() == stored.id { await releaseBorrowed(stored.id) }
         }
+    }
+    /// Heimdall holds this family's model and Vella borrows it: unload Vella's idle copy, keeping its launch-set entry.
+    /// A model serving a request or loading is left alone.
+    func releaseBorrowed(_ id: String) async {
+        guard let entry = entries[id] else { return }
+        // Busy (a request, an API job, a load): try again once it has been idle a while.
+        guard (pinned[id] ?? 0) == 0, loading != id else { scheduleBorrowRelease(id); return }
+        await evict(id, reason: "heimdall: dictation borrows Heimdall's \(entry.ref.displayName); Vella's copy unloaded until Heimdall is gone")
+    }
+    /// How long Vella's copy of a borrowed family may stay idle after it served (an API file job loads it on demand;
+    /// releasing between its segments would reload it for every one).
+    var borrowReleaseDelay: TimeInterval = 30
+    private var borrowRelease: [String: DispatchWorkItem] = [:]
+    private func scheduleBorrowRelease(_ id: String) {
+        borrowRelease[id]?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.borrowRelease[id] = nil
+                guard self.borrowedFamily() == id else { return }
+                Task { await self.releaseBorrowed(id) }
+            }
+        }
+        borrowRelease[id] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + borrowReleaseDelay, execute: work)
     }
     /// A launch-set entry as on-demand dictation resolves its path; nil when it names a catalog precision its files no
     /// longer run (e.g. an imported uniform checkpoint recorded for a tier that is now a mixed recipe).
@@ -372,6 +409,7 @@ import VellaWire
     func unpin(_ id: String) {
         pinned[id] = max(0, (pinned[id] ?? 1) - 1)
         touch(id)
+        if borrowedFamily() == id, entries[id] != nil { scheduleBorrowRelease(id) }
     }
     /// Keeps a model out of eviction (and its idle timer paused) without counting as a use: the dictation model while
     /// an API job loads and runs another model. `unshield` re-arms the timer from the unchanged last use.
@@ -382,6 +420,7 @@ import VellaWire
     func unshield(_ id: String) {
         pinned[id] = max(0, (pinned[id] ?? 1) - 1)
         schedule(id)
+        if borrowedFamily() == id, entries[id] != nil { scheduleBorrowRelease(id) }
     }
     /// Load-then-select transactions in flight (the table's Load/Reload). Until one ends, the loaded precision and
     /// config.json's selection may disagree, so API work waits instead of acting on either.
@@ -427,7 +466,7 @@ import VellaWire
         restarts[id] = policy
         log("\(id): restarting in \(Int(delay)) s (attempt \(policy.failures))")
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            guard let self, self.entries[id] == nil, self.settings.launchSet.contains(where: { $0.id == id }) else { return }
+            guard let self, self.entries[id] == nil, self.settings.launchSet.contains(where: { $0.id == id }), self.borrowedFamily() != id else { return }
             Task { try? await self.load(entry.ref) }
         }
     }
@@ -507,6 +546,8 @@ import VellaWire
         next.gpu = gpu
         next.test_hooks = activeTestHooks(environment).merging(workerHooks) { $1 }
         if let apiPort { next.api = vellaAPIVersion; next.api_port = apiPort; next.api_token = apiToken }
+        next.heimdall = heimdall
+        next.last_dictation = lastDictation
         status = next
         try? next.write(to: statusURL)
     }

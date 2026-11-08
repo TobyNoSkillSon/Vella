@@ -42,6 +42,24 @@ import VellaCore
     private var hardwareEvents: HardwareEvents?
     private var interruptedForSleep = false
     var captureIsFinalizing: Bool { finishingCapture }
+    /// Heimdall (docs/HEIMDALL.md): routes Parakeet v3 Ultra dictations to Heimdall's copy of the model, and announces
+    /// recording state. Nil in most tests: every dictation uses Vella's own model.
+    var heimdall: HeimdallLink?
+    /// Set by a recording start (toggle) until it records or fails, so `preparing` for a Get or a recovery is not "on".
+    private var captureStarting = false
+    /// The next `preparing` is a recording start (toggle: a press, the menu's Start, `vella` or the API).
+    func beginCaptureSignal() { captureStarting = true }
+    /// The phase as Heimdall's dictation signal sees it.
+    var signalPhase: DictationSignalPhase {
+        switch phase {
+        case .idle: return .idle
+        case .preparing: return captureStarting ? .preparingCapture : .preparingOther
+        case .recording: return .recording
+        case .transcribing: return .transcribing
+        case .success: return .success
+        case .failed: return .failed
+        }
+    }
     init(
         insertionPermission: InsertionPermission? = nil, pasteboard: NSPasteboard = .general,
         stopCapture: ((Recorder) async throws -> Void)? = nil,
@@ -133,6 +151,7 @@ import VellaCore
         guard let fetchModel else { update(.failed, "Model downloads are unavailable. Get a model in Models…, then Retry."); return }
         captureGeneration &+= 1
         operation = UUID(); let operation = self.operation
+        captureStarting = false
         update(.preparing, "Getting \(offer.name)… The recording is saved and will be transcribed when it is ready.")
         task = Task {
             do {
@@ -222,7 +241,9 @@ import VellaCore
     func update(_ phase: Phase, _ message: String) {
         successTask?.cancel(); successTask = nil
         if phase == .failed { failureStartedAt = Date() }
+        if phase != .preparing { captureStarting = false }
         self.phase = phase; self.message = message
+        heimdall?.announcer?.phaseChanged(signalPhase)
         if phase == .idle { hudVisible = false }
         if phase == .success {
             // Every success path, including copy-only recovery, must settle back to idle.
@@ -259,6 +280,7 @@ import VellaCore
         // Recording may roam freely. Only Finish chooses a Dictation destination.
         destinationCheck = nil
         allowAutomaticInsertion = false
+        beginCaptureSignal()
         update(.preparing, "Checking microphone permission…")
         task = Task {
             do {
@@ -269,6 +291,8 @@ import VellaCore
                 let saved = try backend.configuration(requiresModel: false)
                 var config = saved
                 if saved.selectedModel.isEmpty { config.model = "" } else { config = try saved.forRecording() }
+                // Heimdall's row chosen: pin that choice, with Vella's own Ultra (if downloaded) as the offline fallback.
+                if let heimdall { config = heimdall.recordingConfiguration(config) }
                 mode = config.mode
                 try await CalibrationStore.shared.cancelAndWait()
                 try Task.checkCancellation()
@@ -523,16 +547,73 @@ import VellaCore
             }
         }
     }
+    /// Thrown when Heimdall could not serve a dictation recorded without a model of Vella's own: the recording then waits
+    /// for one, as it would have without Heimdall.
+    struct NeedsOwnModel: Error {}
+    /// Which path served a transcription's requests.
+    final class RouteLog {
+        var heimdall = 0, own = 0
+        var lastWasOwn = false
+        var fallback: String?
+        var path: String? { heimdall > 0 && own > 0 ? "mixed" : heimdall > 0 ? "heimdall" : own > 0 ? "vella" : nil }
+    }
+    /// Each recognition request goes to Heimdall when it holds this recording's model (Parakeet v3 Ultra), else to
+    /// Vella's own model. A failed Heimdall request falls back to Vella's model for that request; the link marks Heimdall
+    /// unavailable, so the rest of the dictation stays on Vella's model too.
+    func routedRequest(_ own: @escaping SessionTranscriber.Request, log: RouteLog) -> SessionTranscriber.Request {
+        { [weak self] url, config in
+            if let link = self?.heimdall, let socket = link.socket(for: config) {
+                do {
+                    let text = try await link.transcribe(wav: url, socket: socket)
+                    log.heimdall += 1; log.lastWasOwn = false
+                    return text
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    log.fallback = (error as? HeimdallASRError)?.code ?? "error"
+                    if link.labRoute == .heimdall { throw error }
+                }
+            }
+            guard !config.model.isEmpty else { throw NeedsOwnModel() }
+            let text = try await own(url, config)
+            log.own += 1; log.lastWasOwn = true
+            return text
+        }
+    }
+    /// Lab runs (`--lab-dictate`): the saved recording's latest transcription, its route and its time.
+    private(set) var lastRoute: (path: String?, seconds: Double, fallback: String?, requests: Int)?
     private func runTranscription(_ session: RecordingSession, liveStream: Bool = false) {
-        if session.manifest.config.model.isEmpty { awaitModel(session); return }
+        lastRoute = nil
+        let borrows = session.manifest.config.mode == .dictation && heimdall?.socket(for: session.manifest.config) != nil
+        if session.manifest.config.model.isEmpty && !borrows { awaitModel(session); return }
         pendingModelRequest = nil
         if session.manifest.config.mode == .streaming { runStreamingTranscription(session, live: liveStream); return }
         let operation = self.operation
         processingProgress = ""
         update(.transcribing, "Transcribing saved segments locally. Estimates exclude unknown model-loading and queue delays.")
+        let started = ProcessInfo.processInfo.systemUptime
+        let route = RouteLog()
         task = Task {
             do {
-                let runner = SessionTranscriber(request: transcriptionRequest ?? { [backend] url, config in try await backend.transcribe(url, config: config) })
+                let own: SessionTranscriber.Request = transcriptionRequest ?? { [backend] url, config in try await backend.transcribe(url, config: config) }
+                let runner = SessionTranscriber(request: routedRequest(own, log: route))
+                // Borrowing: the whole dictation in one request (docs/HEIMDALL.md), not one per 5-second segment.
+                runner.whole = { [weak self] audio in
+                    guard let link = self?.heimdall, let socket = link.socket(for: session.manifest.config),
+                        Double(audio.count) / 16_000 <= HeimdallASRWire.maxSeconds
+                    else { return nil }
+                    do {
+                        let text = try await link.transcribe(samples: audio, socket: socket)
+                        route.heimdall += 1; route.lastWasOwn = false
+                        return text
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch {
+                        route.fallback = (error as? HeimdallASRError)?.code ?? "error"
+                        if link.labRoute == .heimdall { throw error }
+                        return nil
+                    }
+                }
                 try Task.checkCancellation()
                 guard self.operation == operation else { return }
                 let speed =
@@ -571,6 +652,9 @@ import VellaCore
                 }
                 var observedAudio = 0.0, observedProcessing = 0.0
                 runner.onObservation = { _, audio, processing in
+                    // Heimdall's timings are not Vella's model speed, and the first own request after a fallback includes
+                    // loading the model.
+                    guard route.lastWasOwn, route.own > 1 || route.heimdall == 0 else { return }
                     observedAudio += audio; observedProcessing += processing
                 }
                 let used = session.manifest.config.model
@@ -593,6 +677,14 @@ import VellaCore
                 guard self.operation == operation else { return }
                 progressTimer?.invalidate(); progressTimer = nil; processingProgress = showEstimate ? "100%" : ""
                 lastText = text; lastTranscriptIncomplete = false
+                let seconds = ProcessInfo.processInfo.systemUptime - started
+                lastRoute = (route.path, seconds, route.fallback, route.heimdall + route.own)
+                if let path = route.path {
+                    heimdall?.recordDictation(
+                        LastDictationStatus(
+                            path: path, model: path == "heimdall" ? HeimdallNames.sharedModel : session.manifest.config.model,
+                            at: Date().timeIntervalSince1970, seconds: seconds, audio_seconds: session.seconds, fallback: route.fallback))
+                }
                 // Audio and transcript are durable BEFORE attempting insertion; retained until explicit deletion.
                 insert(text)
                 onTranscriptionCompleted?()
@@ -600,6 +692,13 @@ import VellaCore
                 guard self.operation == operation else { return }
                 progressTimer?.invalidate(); progressTimer = nil
                 processingProgress = ""
+                lastRoute = (route.path, ProcessInfo.processInfo.systemUptime - started, route.fallback, route.heimdall + route.own)
+                if error is NeedsOwnModel {
+                    // Heimdall served what it could; the rest waits for a model of Vella's own (the Get row).
+                    allowAutomaticInsertion = false
+                    awaitModel(session)
+                    return
+                }
                 session.manifest.state = "interrupted"
                 if error is CancellationError {
                     session.manifest.failureCode = "cancelled"
@@ -655,6 +754,7 @@ import VellaCore
         liveInsertion?.cancel(); liveInsertion = nil
         operation = UUID(); let operation = self.operation
         destinationCheck = nil; allowAutomaticInsertion = false
+        captureStarting = false
         update(.preparing, "Checking saved audio integrity…")
         task = Task {
             do {
@@ -665,6 +765,17 @@ import VellaCore
                 runTranscription(recovered)
             } catch is CancellationError {} catch { if self.operation == operation { update(.failed, error.localizedDescription) } }
         }
+    }
+    /// Lab runs (`--lab-dictate`): transcribe a finished recording exactly as Finish does, minus capture and insertion
+    /// into another app (the lab's pasteboard is private).
+    /// `fromRecording`: the lab played a recording's phases first (VELLA_LAB_ANNOUNCE); this is its Finish.
+    @discardableResult func labTranscribe(_ session: RecordingSession, fromRecording: Bool = false) -> Bool {
+        guard !busy, phase != .recording || fromRecording else { return false }
+        captureGeneration &+= 1
+        operation = UUID(); destinationCheck = nil; allowAutomaticInsertion = false
+        savedSession = session
+        runTranscription(session)
+        return true
     }
     func cancel() {
         let liveTextWasSent = liveInsertion?.didSend == true

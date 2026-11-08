@@ -97,6 +97,8 @@ import VellaUpdate
         var gpuCores: Int?
         /// This Mac's memory in GB (nil: the rendering Mac's), for the tiers' memory floors.
         var memoryGB: Double?
+        /// The "from Heimdall" row (nil: none).
+        var heimdall: ModelsController.HeimdallRow?
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -267,6 +269,13 @@ import VellaUpdate
             states.append(other)
         }
         states.append(State(name: "unmeasured-no-benchmarks", benchmarks: BenchmarkFile()))
+        // Heimdall's shared model in each state, over the same downloads (the table must not move between them).
+        let loadedV3 = TableRuntime(
+            loaded: ["parakeet-v3": LoadedFamily(precision: "4b", engine: "optimized", optimizations: RenderFixture.optimized, residency: "manual")], chip: chip)
+        states.append(State(name: "heimdall-present", runtime: loadedV3, heimdall: .init(presence: .present, chosen: false)))
+        states.append(State(name: "heimdall-chosen", heimdall: .init(presence: .present, chosen: true)))
+        states.append(State(name: "heimdall-offline", heimdall: .init(presence: .offline, chosen: true)))
+        states.append(State(name: "heimdall-absent", runtime: loadedV3, heimdall: .init(presence: .absent, chosen: false)))
         return states
     }
 
@@ -316,6 +325,7 @@ import VellaUpdate
         if let b = state.benchmarks { controller.benchmarks = b }
         if let pending = state.figuresPending { controller.benchmarks.figuresPending = pending }
         controller.runtime = state.runtime
+        controller.heimdall = state.heimdall
         controller.benchmarkHardware = BenchmarkHardware(chip: state.runtime.chip, gpuCores: state.gpuCores ?? RenderFixture.gpuCores(for: state.runtime.chip))
         controller.previewConfig(state.config)
         controller.previewSelections(state.selections)
@@ -664,7 +674,12 @@ import VellaUpdate
     private var keep: [AnyObject] = []
 
     /// `worker`: a transcription worker is running (Restart Worker); false shows Start Worker.
-    struct State { var prefix: String; var settings: DefaultMenuSettings; var fact: String?; var lastText: String; var pending: (title: String, help: String)?; var worker = true }
+    struct State {
+        var prefix: String; var settings: DefaultMenuSettings; var fact: String?; var lastText: String; var pending: (title: String, help: String)?; var worker = true
+        /// Dictation borrows Heimdall's Parakeet v3 Ultra (docs/HEIMDALL.md).
+        var heimdall = false
+    }
+    /// Renders never post or observe anything: Heimdall's link gets a bus that drops everything.
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -687,7 +702,8 @@ import VellaUpdate
             State(prefix: "custom-", settings: DefaultMenuSettings(manualIdleMinutes: 60, onDemandIdleMinutes: 5, allowSwap: true, availableMB: 42_100), fact: nil, lastText: ""),
             State(
                 prefix: "first-dictation-", settings: DefaultMenuSettings(availableMB: 86_900), fact: nil, lastText: "",
-                pending: controller.firstOffer(.dictation).map { ($0.title, $0.help) }, worker: false)
+                pending: controller.firstOffer(.dictation).map { ($0.title, $0.help) }, worker: false),
+            State(prefix: "heimdall-", settings: DefaultMenuSettings(availableMB: 86_900), fact: nil, lastText: "Rendered transcript", heimdall: true)
         ]
         render(states, 0)
     }
@@ -705,6 +721,16 @@ import VellaUpdate
         app.model.lastText = state.lastText
         app.pendingModelRow = { state.pending }
         app.workersRunning = { state.worker }
+        if state.heimdall {
+            let link = HeimdallLink(bus: SilentHeimdallBus(), announcesDictation: false)
+            link.findInstalled = { true }
+            link.familyName = { [weak controller = app.modelsMenu.controller] in controller?.catalog.family($0)?.name }
+            link.currentConfiguration = { Configuration(model: "") }
+            link.receive(HeimdallAnnouncement(state: .ready, socket: "/render/asr.sock", model: HeimdallNames.sharedModel))
+            app.heimdall = link
+        } else {
+            app.heimdall = nil
+        }
         let microphone = state.prefix == "custom-" ? (Recorder.devices().first?.name ?? "") : ""
         try? JSONEncoder().encode(Configuration(model: "", preferredMicrophone: microphone)).write(to: app.model.backend.runtime.configURL)
         if state.pending != nil { app.modelsMenu.controller.runtime = TableRuntime(chip: RenderFixture.chip); RenderFixture.setInstalled(app.modelsMenu.controller, []) }

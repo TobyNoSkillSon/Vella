@@ -179,6 +179,9 @@ public struct Diagnosis: Equatable {
     public var referenceAvailable: Bool
     /// True when the bundled reference was captured under load and is not a qualified measurement.
     public var referenceProvisional: Bool
+    /// Heimdall's shared model as the app sees it, and which path served the latest dictation (docs/HEIMDALL.md).
+    public var heimdall: HeimdallStatus?
+    public var lastDictation: LastDictationStatus?
     public init(
         cliVersion: String? = nil, appVersion: String? = nil, api: Int? = nil, host: Host, running: Bool, dictation: String? = nil,
         dictationModel: String? = nil, models: [Model] = [], gate: [GateVerdict] = [], gateVersion: String? = nil,
@@ -287,6 +290,7 @@ public enum Diagnose {
         } else {
             if let loaded = d.loadedForDiagnosis { out.append("loaded \(loaded) for this diagnosis (--load)") }
             if let state = d.dictation, state != "idle" { out.append("dictation: \(state)") }
+            if let line = heimdallLine(d) { out.append(line) }
             for m in d.models { out += modelLines(m, chip: h.chip, gpuCores: h.gpuCores) }
             if d.models.isEmpty {
                 out.append(
@@ -438,8 +442,28 @@ public enum Diagnose {
             "vella": v(d.cliVersion), "app": v(d.appVersion), "api": v(d.api), "worker_version": v(d.gateVersion), "running": d.running,
             "host": host, "dictation": v(d.dictation), "dictation_model": v(d.dictationModel), "loaded_for_diagnosis": v(d.loadedForDiagnosis),
             "models": models, "gate_verdicts": gate, "last_load_error": v(d.statusError.map(redact)), "last_refusal": v(d.refused.map(redact)),
-            "diagnostic_switches": d.switches.sorted(), "reference_available": d.referenceAvailable, "reference_provisional": d.referenceProvisional, "issue_url": issueURL
+            "diagnostic_switches": d.switches.sorted(), "reference_available": d.referenceAvailable, "reference_provisional": d.referenceProvisional, "issue_url": issueURL,
+            // No socket path, pid or model path: this JSON can go into a public issue.
+            "heimdall": d.heimdall.map { ["state": $0.state, "borrowing": $0.borrowing, "last_failure": v($0.last_failure)] as [String: Any] } ?? NSNull(),
+            "last_dictation": d.lastDictation.map { ["path": $0.path, "seconds": v($0.seconds), "fallback": v($0.fallback)] as [String: Any] } ?? NSNull()
         ]
+    }
+
+    /// "heimdall: ready, dictation borrows its model · last dictation via heimdall in 0.42 s"; nil when Heimdall was never
+    /// seen and no dictation ran.
+    static func heimdallLine(_ d: Diagnosis) -> String? {
+        var parts: [String] = []
+        if let h = d.heimdall, h.state != "absent" || h.last_failure != nil {
+            var state = "heimdall: \(h.state)" + (h.borrowing ? ", dictation borrows its model" : "")
+            if let failure = h.last_failure { state += " (last request: \(failure))" }
+            parts.append(state)
+        }
+        if let last = d.lastDictation {
+            parts.append(
+                "last dictation via \(last.path == "vella" ? "Vella's model" : last.path)" + (last.seconds.map { String(format: " in %.2f s", $0) } ?? "")
+                    + (last.fallback.map { " (fell back: \($0))" } ?? ""))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     public static func jsonText(_ d: Diagnosis, issueURL: String) -> String {

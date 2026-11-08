@@ -12,6 +12,7 @@ import VellaCore
     private weak var controller: ModelsController?
     private weak var model: DictationController?
     private var subscription: AnyCancellable?
+    private weak var heimdallLink: HeimdallLink?
     init(runtime: Runtime? = nil) { self.runtime = runtime ?? .shared }
 
     var migrationNotice: ((String) -> Void)?
@@ -308,6 +309,8 @@ import VellaCore
         controller?.library(mode).activeModelPath = path
         controller?.reloadConfig()
         model?.refreshPendingModel()
+        // A dictation model of Vella's own is now the choice: borrowing detaches (no further socket requests).
+        if mode == .dictation { heimdallLink?.reevaluate(residency: false) }
     }
 
     // MARK: MenuSettingsSource
@@ -354,6 +357,8 @@ import VellaCore
             let path = mode == .dictation ? config.model : config.streamingModel
             guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
             let ref = runtime.resolve(path, mode: mode)
+            // Heimdall's row is the dictation choice (even offline): no own dictation model is started for it.
+            if mode == .dictation, runtime.borrowedFamily() == ref.id || self.heimdallLink?.heimdallChosen == true { return }
             switch mode {
             case .dictation: try? await model.backend.preload(ref, residency: .onDemand)
             case .streaming: try? await model.streamingBackend.preload(ref, residency: .onDemand)
@@ -361,11 +366,97 @@ import VellaCore
         }
     }
 
+    // MARK: Heimdall
+
+    /// Heimdall's shared model (docs/HEIMDALL.md) ↔ residency, status and the catalog.
+    func attachHeimdall(_ link: HeimdallLink) {
+        heimdallLink = link
+        link.currentConfiguration = { [weak self] in self?.cachedConfiguration() }
+        link.ownSharedModelPath = { [weak self] in
+            // Vella's own Parakeet v3 Ultra only if its files are here: the committed precision first, then any.
+            guard let self, let controller = self.controller, let family = controller.catalog.family(HeimdallNames.sharedModel) else { return nil }
+            for precision in [controller.committed(family)] + controller.options(family) {
+                if let path = self.runnablePath(family, precision) { return path }
+            }
+            return nil
+        }
+        link.onPresenceChange = { [weak self, weak link] in
+            guard let link, let controller = self?.controller else { return }
+            let row = ModelsController.HeimdallRow(presence: link.presence, chosen: link.heimdallChosen)
+            if controller.heimdall != row { controller.heimdall = row }
+            self?.model?.onChange?()
+        }
+        if let controller {
+            controller.useHeimdall = { [weak self] in
+                Task {
+                    do { try await self?.useHeimdall() } catch { self?.controller?.lastError = error.localizedDescription }
+                }
+            }
+            controller.heimdall = ModelsController.HeimdallRow(presence: link.presence, chosen: link.heimdallChosen)
+        }
+        link.familyName = { [weak self] id in self?.controller?.catalog.family(id)?.name }
+        link.onBorrowChange = { [weak self, weak link] now, before in
+            guard let runtime = self?.runtime, let link else { return }
+            if let now {
+                runtime.log("heimdall: dictation borrows Heimdall's \(now)")
+                Task { await runtime.releaseBorrowed(now) }
+            } else if let before {
+                runtime.log("heimdall: stopped borrowing \(before)")
+                // Heimdall gone, or an own model chosen: Vella's launch set loads again. A one-off failure does not:
+                // the next ready would unload it again.
+                if link.borrow.ready == nil || !link.heimdallChosen { Task { await runtime.loadLaunchSet() } }
+            }
+        }
+        link.onStatus = { [weak self] status in self?.runtime.heimdall = status }
+        link.onLastDictation = { [weak self] status in self?.runtime.lastDictation = status }
+        runtime.borrowedFamily = { [weak link] in link?.borrowingFamily }
+        runtime.settleBorrowing = { [weak link] in await link?.settle() }
+    }
+
+    /// The "from Heimdall" row's single selection action: record the explicit choice, then release Vella's own dictation
+    /// models (their workers exit and they leave the launch set). Nothing is asked of Heimdall. Refused while a
+    /// dictation records or transcribes, or a model is loading or in use, like Load.
+    /// config.json, decoded again only when the file changed (the link asks on every status change).
+    private var configCache: (stamp: [FileAttributeKey: AnyHashable], config: Configuration)?
+    func cachedConfiguration() -> Configuration {
+        let url = runtime.configURL
+        let attributes = (try? FileManager.default.attributesOfItem(atPath: url.path)) ?? [:]
+        let stamp = attributes.filter { [.modificationDate, .size, .systemFileNumber].contains($0.key) }.compactMapValues { $0 as? AnyHashable }
+        if let configCache, !stamp.isEmpty, configCache.stamp == stamp { return configCache.config }
+        let config = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) } ?? Configuration(model: "")
+        configCache = stamp.isEmpty ? nil : (stamp, config)
+        return config
+    }
+    private var switchingToHeimdall = false
+    func useHeimdall() async throws {
+        guard let model, model.phase != .recording, !model.busy, runtime.status.loading == nil, runtime.selectionsInFlight == 0, !switchingToHeimdall
+        else {
+            throw APIError(409, "Finish dictation or loading before changing the dictation model.")
+        }
+        switchingToHeimdall = true
+        defer { switchingToHeimdall = false }
+        let url = runtime.configURL
+        var config = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Configuration.self, from: $0) } ?? Configuration(model: "")
+        config.dictationSource = .heimdall
+        try JSONEncoder().encode(config).write(to: url, options: .atomic)
+        controller?.reloadConfig()
+        runtime.log("heimdall: Heimdall's model chosen for dictation")
+        // Loaded dictation models, and dictation entries of the launch set an idle timeout already unloaded (they would
+        // come back at the next launch otherwise). Unload counts as the user's change and leaves the launch set.
+        let loaded = runtime.status.models.filter { $0.value.mode != .streaming }.map(\.key)
+        let launch = runtime.settings.launchSet.filter { $0.mode == .dictation }.map(\.id)
+        for id in Set(loaded + launch).sorted() { _ = await runtime.unload(id) }
+        heimdallLink?.reevaluate()
+        model.refreshPendingModel()
+    }
+
     // MARK: Table state
 
     private func publish(_ status: WorkerStatus) {
         guard let controller, !controller.previewing else { return }
         model?.refreshPendingModel()
+        // A Load, Use or Delete may have changed the dictation selection: whether it borrows Heimdall's model.
+        heimdallLink?.reevaluate(residency: false)
         var loaded: [String: LoadedFamily] = [:]
         for (id, entry) in status.models {
             loaded[id] = LoadedFamily(
