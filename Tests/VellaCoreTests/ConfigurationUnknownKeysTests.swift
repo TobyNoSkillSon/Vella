@@ -54,7 +54,7 @@ final class ConfigurationUnknownKeysTests: XCTestCase {
             Set(saved.allKeys.compactMap { $0 as? String }),
             [
                 "model", "mode", "streamingModel", "preferredMicrophone", "fallbackMicrophone", "residency", "lastLoaded", "selections",
-                "clearedSelectionReasons", "dictationSource",
+                "clearedSelectionReasons", "dictationSource"
             ])
         let again = try JSONDecoder().decode(Configuration.self, from: JSONEncoder().encode(config))
         XCTAssertEqual(again.dictationSource, .own)

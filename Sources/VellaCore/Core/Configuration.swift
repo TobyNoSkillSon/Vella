@@ -121,12 +121,19 @@ public enum StoredJSON: Codable, Equatable, Sendable {
     case null, bool(Bool), number(Double), string(String), array([StoredJSON]), object([String: StoredJSON])
     public init(from decoder: Decoder) throws {
         let single = try decoder.singleValueContainer()
-        if single.decodeNil() { self = .null }
-        else if let value = try? single.decode(Bool.self) { self = .bool(value) }
-        else if let value = try? single.decode(Double.self) { self = .number(value) }
-        else if let value = try? single.decode(String.self) { self = .string(value) }
-        else if let value = try? single.decode([StoredJSON].self) { self = .array(value) }
-        else { self = .object(try single.decode([String: StoredJSON].self)) }
+        if single.decodeNil() {
+            self = .null
+        } else if let value = try? single.decode(Bool.self) {
+            self = .bool(value)
+        } else if let value = try? single.decode(Double.self) {
+            self = .number(value)
+        } else if let value = try? single.decode(String.self) {
+            self = .string(value)
+        } else if let value = try? single.decode([StoredJSON].self) {
+            self = .array(value)
+        } else {
+            self = .object(try single.decode([String: StoredJSON].self))
+        }
     }
     public func encode(to encoder: Encoder) throws {
         var single = encoder.singleValueContainer()
