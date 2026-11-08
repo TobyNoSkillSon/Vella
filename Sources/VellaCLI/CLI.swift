@@ -21,37 +21,38 @@ let usage = """
     """
 
 /// `vella help all`: every command, including the Models table controls agents rarely need.
-let fullUsage = usage.replacingOccurrences(of: "        vella help all               every command and option\n", with: "") + """
+let fullUsage =
+    usage.replacingOccurrences(of: "        vella help all               every command and option\n", with: "") + """
 
-    More:
-        vella status --json          the full status
-        vella models --json          per-cell measured figures, provenance, refusals, source and size
-        vella select ID [--precision bf16|fp16|int8|int4] [--mode Fast|Exact]
-            previews a cell under the table's rules; Load / Reload / Get commits it. An unavailable cell says why.
-        vella get ID [--yes]         Get and Load; --yes consents to the displayed source/size; without it nothing downloads
-        vella load ID                Load downloaded weights; never downloads
-        vella reload ID              Reload the previewed cell; never downloads
-        vella unload ID              Unload; keep the weights
-        vella delete ID --precision bf16|fp16|int8|int4 --yes
-            Move these weights to Trash through the table gate; without --yes prints what/size and changes nothing
-        vella keep-hot ["Manually loaded"|"Loaded on demand" "Always"|"5 min idle"|"15 min idle"|"30 min idle"|"60 min idle"]
-        vella memory ["Fit in free memory"|"Allow swap (slower)"]
-            with no arguments, print Keep Hot and Memory; values match the menu
-        vella url                    the OpenAI-compatible base URL (base_url for the openai SDKs)
-        vella --version              print the version without starting Vella
-        vella skill [--install DIR]  print the agent skill, or write DIR/transcribe/SKILL.md
-        vella diagnose [--load] [--json]
-            for bug reports: this Mac, versions, each loaded model's engine and fallbacks, the optimized-path gate
-            verdicts, and each loaded dictation model timed on five built-in clips, compared with reference transcripts;
-            ends with a prefilled GitHub issue link. --load loads the dictation model first. Never starts Vella.
+        More:
+            vella status --json          the full status
+            vella models --json          per-cell measured figures, provenance, refusals, source and size
+            vella select ID [--precision bf16|fp16|int8|int4] [--mode Fast|Exact]
+                previews a cell under the table's rules; Load / Reload / Get commits it. An unavailable cell says why.
+            vella get ID [--yes]         Get and Load; --yes consents to the displayed source/size; without it nothing downloads
+            vella load ID                Load downloaded weights; never downloads
+            vella reload ID              Reload the previewed cell; never downloads
+            vella unload ID              Unload; keep the weights
+            vella delete ID --precision bf16|fp16|int8|int4 --yes
+                Move these weights to Trash through the table gate; without --yes prints what/size and changes nothing
+            vella keep-hot ["Manually loaded"|"Loaded on demand" "Always"|"5 min idle"|"15 min idle"|"30 min idle"|"60 min idle"]
+            vella memory ["Fit in free memory"|"Allow swap (slower)"]
+                with no arguments, print Keep Hot and Memory; values match the menu
+            vella url                    the OpenAI-compatible base URL (base_url for the openai SDKs)
+            vella --version              print the version without starting Vella
+            vella skill [--install DIR]  print the agent skill, or write DIR/transcribe/SKILL.md
+            vella diagnose [--load] [--json]
+                for bug reports: this Mac, versions, each loaded model's engine and fallbacks, the optimized-path gate
+                verdicts, and each loaded dictation model timed on five built-in clips, compared with reference transcripts;
+                ends with a prefilled GitHub issue link. --load loads the dictation model first. Never starts Vella.
 
-    Transcribe, rarely needed: --prompt TEXT gives Nemotron 3.5 Transcribe context terms in place of your vocabulary.
-    Older spellings still work: --text, --verbose-json (= --json), --no-vocabulary, --lang/-l, -m, --format FORMAT,
-    and --option=value for any option.
+        Transcribe, rarely needed: --prompt TEXT gives Nemotron 3.5 Transcribe context terms in place of your vocabulary.
+        Older spellings still work: --text, --verbose-json (= --json), --no-vocabulary, --lang/-l, -m, --format FORMAT,
+        and --option=value for any option.
 
-    Talks to the Vella app over its local HTTP API (OpenAI-compatible /v1/audio/transcriptions, /v1/models, plus
-    /status); starts the app if it is not running. Transcripts are printed, never pasted or saved.
-    """
+        Talks to the Vella app over its local HTTP API (OpenAI-compatible /v1/audio/transcriptions, /v1/models, plus
+        /status); starts the app if it is not running. Transcripts are printed, never pasted or saved.
+        """
 
 /// `vella transcribe --help`.
 let transcribeUsage = """

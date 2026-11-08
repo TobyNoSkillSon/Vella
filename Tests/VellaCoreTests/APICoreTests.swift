@@ -162,7 +162,10 @@ final class APICoreTests: XCTestCase {
         XCTAssertEqual(json.words, ["Vella", "Heimdall"])
         XCTAssertFalse(try TranscriptionOptions.validate(["vocabulary": ["off"]]).vocabulary)
         XCTAssertThrowsError(try TranscriptionOptions.validate(["vocabulary": ["GPT-4"]]))
-        XCTAssertThrowsError(try TranscriptionOptions.validate(["vocabulary": [Array(repeating: "a", count: 65).enumerated().map { "w\(String(repeating: "x", count: $0.offset))" }.joined(separator: ",")]]))
+        XCTAssertThrowsError(
+            try TranscriptionOptions.validate([
+                "vocabulary": [(0..<65).map { "w" + String(repeating: "x", count: $0 / 2) + ($0 % 2 == 0 ? "a" : "b") }.joined(separator: ",")]
+            ]))
         XCTAssertEqual(
             (try? TranscriptionControls.check(TranscriptionOptions(words: ["Vella"]), familyID: "whisper-large-v3", name: "Whisper", languages: [])) == nil, true)
         XCTAssertNoThrow(try TranscriptionControls.check(TranscriptionOptions(words: ["Vella"]), familyID: "parakeet-v3-ultra", name: "P", languages: []))
@@ -183,7 +186,9 @@ final class APICoreTests: XCTestCase {
         XCTAssertEqual(TranscriptionControls.pick(turkish, current: "parakeet-v3-ultra", available: available), "qwen3-asr-1.7b", "the light model before the 30B one")
         XCTAssertNil(TranscriptionControls.pick(TranscriptionOptions(language: "pl"), current: "parakeet-v3-ultra", available: available), "Parakeet knows Polish")
         XCTAssertNil(TranscriptionControls.pick(TranscriptionOptions(), current: "parakeet-v3-ultra", available: available))
-        XCTAssertNil(TranscriptionControls.pick(TranscriptionOptions(model: "parakeet-v3-ultra", language: "tr"), current: "parakeet-v3-ultra", available: available), "a named model is kept")
+        XCTAssertNil(
+            TranscriptionControls.pick(TranscriptionOptions(model: "parakeet-v3-ultra", language: "tr"), current: "parakeet-v3-ultra", available: available),
+            "a named model is kept")
         XCTAssertNil(TranscriptionControls.pick(TranscriptionOptions(language: "sw"), current: "parakeet-v3-ultra", available: available), "nothing downloaded knows it")
         XCTAssertEqual(
             TranscriptionControls.pick(TranscriptionOptions(language: "tr", words: ["Kadıköy"]), current: "parakeet-v3-ultra", available: available),
