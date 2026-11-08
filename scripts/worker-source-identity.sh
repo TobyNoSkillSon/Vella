@@ -11,18 +11,21 @@
 # a Worker README-only change, refresh that declared full-tree identity and its published provenance references.
 set -euo pipefail
 SOURCE=9aad75cbac72dbc650669fe227fc273414db6c63 # informational measured-defaults commit, never a reachability gate
-WORKER_CODE_TREE=316e149eea18f3be8bf5ffc1d6475dba1d884bf3   # git tree of Worker/ with its README.md files removed
+WORKER_CODE_TREE=1e1c0d0491674346805b85342bc591b8f4aa158f   # git tree of Worker/ with its README.md files removed
 # 5 Oct: Worker/build-split.sh weak-links swift_initBorrow for Swift >= 6.4 builds only; with Swift 6.3.3 its commands are
 # unchanged.
-PACKAGES_TREE=49279fb93529ce1d711cfe84e6fffb79bc20198b
+PACKAGES_TREE=45ac7c981e4175cee1c61f82a930e5a0ba72c4fd
 # 3 Oct chip-safety delta: macOS 26.2 tensor preflight; GPU architecture/name in gate keys and optional verdict metadata.
 # Kernels, tile plans, deadlines, dependency pins and pinned build scripts are unchanged.
 # 6 Nov: Nemotron 3.5 Transcribe (runtime, derived int8/int4, draft-and-verify with its runtime fallback and runaway
 # guard; VellaWire architecture and lab switches). Measured from commit 07d2e98's worker code; this tree adds swift-format layout and the runaway-guard test seam (1f4fccd) only; the other
 # families' figures keep their historical source identity below. Before it: the 2.1 recovery-hardening source tree. Benchmark figures retain their historical source identity below;
 # this pin does not re-measure or claim new performance evidence.
+# 8 Nov (2.2.1): request options (language, prompt, vocabulary) reach the helper; Nemotron's prompt is NVIDIA's verbatim
+# template; loop recovery and the list guard; runtime-fallback verdicts requalify; GateRecord counts fallbacks. Nemotron
+# 3.5 Transcribe's published figures were measured with the earlier prompt and are re-measured in the next benchmark night.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=573db6cda6865e33375c182a4ce76fc16d4b113b   # 6 Nov: Nemotron 3.5 Transcribe measured (READMEs regenerated)
+WORKER_FULL_TREE=ff5533db446f05dabe74f319ebff25a7c0ff0de6   # 8 Nov: agent-friction fixes (request options, loop recovery, prompt, list guard, fallback requalification)
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
 HISTORICAL_WORKER_FULL_TREE=ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c
 # Recorded provenance: it must differ from HISTORICAL_WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
