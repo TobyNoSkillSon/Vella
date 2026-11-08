@@ -99,7 +99,9 @@ public final class FakeHeimdallServer: @unchecked Sendable {
         switch reply {
         case .ok(let text):
             let escaped = String(decoding: (try? JSONSerialization.data(withJSONObject: [text], options: [])) ?? Data(), as: UTF8.self).dropFirst().dropLast()
-            if object["op"] as? String == "status" { send(#"{"v":1,"ok":true}"#) } else {
+            if object["op"] as? String == "status" {
+                send(#"{"v":1,"ok":true}"#)
+            } else {
                 send(#"{"v":1,"ok":true,"text":\#(escaped),"queue_ms":1,"decode_ms":2,"audio_ms":\#(samples / 16)}"#)
             }
         case .error(let code): send(#"{"v":1,"ok":false,"error":"\#(code)"}"#)

@@ -77,8 +77,10 @@ import VellaCore
     /// edition's own fixed socket path, a socket owned by this user and closed to others, from a process signed as that
     /// edition. So the personal build and the public alpha can never be taken for each other.
     var acceptAnnouncement: (HeimdallAnnouncement) -> Bool = { HeimdallLink.trusted($0) }
-    nonisolated static func trusted(_ a: HeimdallAnnouncement, home: String = NSHomeDirectory(),
-                                    identity: (Int) -> String? = HeimdallLink.signingIdentifier) -> Bool {
+    nonisolated static func trusted(
+        _ a: HeimdallAnnouncement, home: String = NSHomeDirectory(),
+        identity: (Int) -> String? = HeimdallLink.signingIdentifier
+    ) -> Bool {
         guard let app = a.app, let expected = HeimdallApp.socketPath(app: app, home: home), a.socket == expected,
             heimdallSocketAcceptable(a.socket, expected: expected), let pid = a.pid
         else { return false }

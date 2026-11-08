@@ -132,7 +132,11 @@ private final class TestRegistrar: ShortcutRegistrar {
     /// Counts the requests Vella's own model served.
     final class OwnModel {
         var calls = 0
-        var request: SessionTranscriber.Request { { _, _ in self.calls += 1; return "own model text" } }
+        var request: SessionTranscriber.Request {
+            { _, _ in
+                self.calls += 1; return "own model text"
+            }
+        }
     }
     struct Rig {
         let bus: MemoryHeimdallBus
@@ -146,7 +150,9 @@ private final class TestRegistrar: ShortcutRegistrar {
         let bus = MemoryHeimdallBus()
         let link = HeimdallLink(bus: bus, announcesDictation: false)
         link.findInstalled = { false }
-        link.currentConfiguration = { var c = Configuration(model: "/models/parakeet-ultra"); c.dictationSource = .heimdall; return c }
+        link.currentConfiguration = {
+            var c = Configuration(model: "/models/parakeet-ultra"); c.dictationSource = .heimdall; return c
+        }
         link.acceptAnnouncement = { _ in true } // the fake server lives in /tmp, not Heimdall's support folder
         if let timeout { link.exchange = { try await HeimdallASRClient.transcribe(socket: $0, samples: $1, timeout: timeout, peer: $2) } }
         var last: LastDictationStatus?
@@ -317,15 +323,19 @@ private final class TestRegistrar: ShortcutRegistrar {
         func a(_ socket: String, _ app: String) -> HeimdallAnnouncement { .init(state: .ready, socket: socket, model: HeimdallNames.sharedModel, pid: 42, app: app) }
         XCTAssertTrue(HeimdallLink.trusted(a(personal, HeimdallApp.personal), home: home, identity: signedAs(HeimdallApp.personal)))
         XCTAssertTrue(HeimdallLink.trusted(a(alpha, HeimdallApp.publicAlpha), home: home, identity: signedAs(HeimdallApp.publicAlpha)))
-        XCTAssertFalse(HeimdallLink.trusted(a(personal, HeimdallApp.publicAlpha), home: home, identity: signedAs(HeimdallApp.publicAlpha)),
-                       "the alpha announcing the personal socket")
-        XCTAssertFalse(HeimdallLink.trusted(a(alpha, HeimdallApp.personal), home: home, identity: signedAs(HeimdallApp.personal)),
-                       "the personal build announcing the alpha's socket")
-        XCTAssertFalse(HeimdallLink.trusted(a(personal, HeimdallApp.personal), home: home, identity: signedAs(HeimdallApp.publicAlpha)),
-                       "a process signed as the other edition")
+        XCTAssertFalse(
+            HeimdallLink.trusted(a(personal, HeimdallApp.publicAlpha), home: home, identity: signedAs(HeimdallApp.publicAlpha)),
+            "the alpha announcing the personal socket")
+        XCTAssertFalse(
+            HeimdallLink.trusted(a(alpha, HeimdallApp.personal), home: home, identity: signedAs(HeimdallApp.personal)),
+            "the personal build announcing the alpha's socket")
+        XCTAssertFalse(
+            HeimdallLink.trusted(a(personal, HeimdallApp.personal), home: home, identity: signedAs(HeimdallApp.publicAlpha)),
+            "a process signed as the other edition")
         XCTAssertFalse(HeimdallLink.trusted(a(personal, HeimdallApp.personal), home: home, identity: { _ in nil }), "an unsigned process")
-        XCTAssertNil(HeimdallAnnouncement(userInfo: ["v": 1, "state": "ready", "socket": personal, "model": "parakeet-v3-ultra", "pid": 42]),
-                     "a ready that names no edition")
+        XCTAssertNil(
+            HeimdallAnnouncement(userInfo: ["v": 1, "state": "ready", "socket": personal, "model": "parakeet-v3-ultra", "pid": 42]),
+            "a ready that names no edition")
     }
     /// Both editions ready: Vella borrows from the personal one and says so; the alpha announcing again or going away
     /// changes nothing; when the personal one goes, the alpha serves and the status names it.

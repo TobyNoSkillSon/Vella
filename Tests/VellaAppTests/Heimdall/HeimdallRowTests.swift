@@ -43,7 +43,9 @@ import VellaTestSupport
             }, configurationURL: f.runtime.configURL, streamingBackend: f.stream, captureDestination: { { "test: no destination" } },
             backend: backend, monitorDefaultInput: false)
         f.bridge.attach(controller: f.controller, model: model)
-        model.fetchModel = { (_: DictationController.ModelOffer) async throws -> String in counts.fetches += 1; throw CancellationError() }
+        model.fetchModel = { (_: DictationController.ModelOffer) async throws -> String in
+            counts.fetches += 1; throw CancellationError()
+        }
         let bus = MemoryHeimdallBus()
         let link = HeimdallLink(bus: bus, announcesDictation: false)
         link.findInstalled = { installed }

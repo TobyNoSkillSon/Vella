@@ -17,7 +17,14 @@ import VellaTestSupport
         func set(_ next: DictationSignalPhase) {
             phase = next
             var sessions = 0
-            if let reason = tracker.observe(next, newSession: { sessions += 1; return "s\(self.reasons.count)" }) { reasons.append(reason) }
+            if let reason = tracker.observe(
+                next,
+                newSession: {
+                    sessions += 1; return "s\(self.reasons.count)"
+                })
+            {
+                reasons.append(reason)
+            }
         }
         func start() { operation += 1; set(.preparingCapture); set(startFails ? .failed : .recording) }
         func finish() { set(.transcribing); set(.success); set(.idle) }
@@ -94,7 +101,9 @@ import VellaTestSupport
     func testEachRecordingGetsANewSession() {
         var tracker = DictationSignalTracker()
         var n = 0
-        let next = { () -> String in n += 1; return "id\(n)" }
+        let next = { () -> String in
+            n += 1; return "id\(n)"
+        }
         _ = tracker.observe(.preparingCapture, newSession: next)
         _ = tracker.observe(.recording, newSession: next)
         XCTAssertEqual(tracker.session, "id1", "recording continues the session that preparing started")
@@ -129,7 +138,12 @@ import VellaTestSupport
         var fire: (@MainActor () -> Void)?
         var cancels = 0
         var start: DictationAnnouncer.StartTimer {
-            { interval, fire in self.interval = interval; self.fire = fire; return { self.cancels += 1; self.fire = nil } }
+            { interval, fire in
+                self.interval = interval; self.fire = fire;
+                return {
+                    self.cancels += 1; self.fire = nil
+                }
+            }
         }
     }
     var activity: [Bool] = []
@@ -259,7 +273,8 @@ final class HeimdallASRCoreTests: XCTestCase {
         XCTAssertEqual(object["model"] as? String, "parakeet-v3-ultra"); XCTAssertEqual(object["rate"] as? Int, 16_000)
         XCTAssertEqual(object["samples"] as? Int, 3); XCTAssertEqual(object["format"] as? String, "f32le")
         XCTAssertEqual(HeimdallASRWire.body([1, -0.5]), Data([0, 0, 0x80, 0x3F, 0, 0, 0, 0xBF]))
-        XCTAssertEqual(try HeimdallASRWire.parse(Data(#"{"v":1,"ok":true,"text":"hi","queue_ms":3,"decode_ms":120,"audio_ms":8400}"#.utf8)).get(),
+        XCTAssertEqual(
+            try HeimdallASRWire.parse(Data(#"{"v":1,"ok":true,"text":"hi","queue_ms":3,"decode_ms":120,"audio_ms":8400}"#.utf8)).get(),
             HeimdallTranscript(text: "hi", queueMs: 3, decodeMs: 120, audioMs: 8400))
         XCTAssertEqual(HeimdallASRWire.parse(Data(#"{"v":1,"ok":false,"error":"busy"}"#.utf8)), .failure(.rejected("busy")))
         XCTAssertEqual(HeimdallASRWire.parse(Data("nope".utf8)), .failure(.invalidReply))
@@ -355,7 +370,9 @@ final class HeimdallSocketClientTests: XCTestCase {
         }
     }
     func testNoSocketIsAConnectFailure() async {
-        do { _ = try await HeimdallASRClient.transcribe(socket: "/tmp/vh-missing-\(UUID().uuidString.prefix(6)).sock", samples: audio); XCTFail() } catch let error as HeimdallASRError {
+        do { _ = try await HeimdallASRClient.transcribe(socket: "/tmp/vh-missing-\(UUID().uuidString.prefix(6)).sock", samples: audio); XCTFail() } catch let error
+            as HeimdallASRError
+        {
             XCTAssertEqual(error.code, "connect")
         } catch { XCTFail("\(error)") }
         let ok = await HeimdallASRClient.status(socket: "/tmp/vh-none.sock")
