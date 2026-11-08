@@ -11,7 +11,7 @@
 # a Worker README-only change, refresh that declared full-tree identity and its published provenance references.
 set -euo pipefail
 SOURCE=9aad75cbac72dbc650669fe227fc273414db6c63 # informational measured-defaults commit, never a reachability gate
-WORKER_CODE_TREE=1e1c0d0491674346805b85342bc591b8f4aa158f   # git tree of Worker/ with its README.md files removed
+WORKER_CODE_TREE=1840f50de1621e331b1eebcd28ffb073f39d9d5d   # git tree of Worker/ with its README.md files removed
 # 5 Oct: Worker/build-split.sh weak-links swift_initBorrow for Swift >= 6.4 builds only; with Swift 6.3.3 its commands are
 # unchanged.
 PACKAGES_TREE=45ac7c981e4175cee1c61f82a930e5a0ba72c4fd
@@ -24,8 +24,10 @@ PACKAGES_TREE=45ac7c981e4175cee1c61f82a930e5a0ba72c4fd
 # 8 Nov (2.2.1): request options (language, prompt, vocabulary) reach the helper; Nemotron's prompt is NVIDIA's verbatim
 # template; loop recovery and the list guard; runtime-fallback verdicts requalify; GateRecord counts fallbacks. Nemotron
 # 3.5 Transcribe's published figures were measured with the earlier prompt and are re-measured in the next benchmark night.
+# 8 Nov (2.2.1, later): a request's own vocabulary words (`words`) join vocabulary.json for that request; no kernel,
+# decoding or default-request change.
 # Reported, not gated by this script: README content is outside its code pin. The citation guard gates the full HEAD tree.
-WORKER_FULL_TREE=ff5533db446f05dabe74f319ebff25a7c0ff0de6   # 8 Nov: agent-friction fixes (request options, loop recovery, prompt, list guard, fallback requalification)
+WORKER_FULL_TREE=76cd8301c9d8fdc2defbf4d7ea870197eb21e7b6   # 8 Nov: per-request vocabulary words, after the agent-friction fixes
 # Full Worker tree the final diagnose reference was captured with (3 Oct night, before the night's README regeneration).
 HISTORICAL_WORKER_FULL_TREE=ad99ab6dfd1d039e01ac31012cbc7d08c458fd0c
 # Recorded provenance: it must differ from HISTORICAL_WORKER_FULL_TREE in Worker README.md files and build-split.sh only (checked below;
