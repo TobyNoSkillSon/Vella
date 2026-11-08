@@ -80,13 +80,13 @@ final class ShortcutAdversarialTests: XCTestCase {
     }
 
     @MainActor func testUnknownModeStringFallsBackToDictation() throws {
-        // Configuration.init uses decodeIfPresent + default, but an invalid raw
-        // value still throws dataCorrupted at decode time. Production recovers
-        // via `try?` in Model.init (falls back to .dictation). Future shortcut
-        // prefs must follow the same pattern: never force-unwrap/precondition,
-        // always recover to defaults.
+        // Since 2.2.1 an unreadable value resets only its own field (a newer Vella's mode must not wipe the
+        // model, microphones and selections). Future shortcut prefs must follow the same pattern: never
+        // force-unwrap/precondition, always recover to defaults.
         let payload = Data(#"{"executable":"/unused","model":"/m","mode":"hyperdrive"}"#.utf8)
-        XCTAssertThrowsError(try JSONDecoder().decode(Configuration.self, from: payload))
+        let decoded = try JSONDecoder().decode(Configuration.self, from: payload)
+        XCTAssertEqual(decoded.mode, .dictation)
+        XCTAssertEqual(decoded.model, "/m", "the rest of the file is kept")
         let root = try tempRoot()
         let url = root.appendingPathComponent("config.json")
         try payload.write(to: url)

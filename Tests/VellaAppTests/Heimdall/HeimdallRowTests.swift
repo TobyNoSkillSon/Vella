@@ -237,13 +237,13 @@ import VellaTestSupport
     }
 
     func testOnlyHeimdallGoneOrAnOwnChoiceReloadsTheLaunchSet() async throws {
-        let server = try FakeHeimdallServer(reply: .error("busy")); defer { server.stop() }
+        let server = try FakeHeimdallServer(reply: .error("unavailable")); defer { server.stop() }
         let e = try env(); defer { e.f.close() }
         e.bus.ready(server.path)
         try await e.f.bridge.useHeimdall()
         var reloads = 0
         e.f.runtime.settleBorrowing = { reloads += 1 } // runs at the start of every launch-set load
-        try await dictate(e) // busy: a one-off failure
+        try await dictate(e) // a one-off failure (busy is waited for, not a failure)
         try await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertEqual(e.link.presence, .offline)
         XCTAssertEqual(reloads, 0, "the next ready would only unload it again")
