@@ -155,6 +155,7 @@ private final class TestRegistrar: ShortcutRegistrar {
         }
         link.acceptAnnouncement = { _ in true } // the fake server lives in /tmp, not Heimdall's support folder
         if let timeout { link.exchange = { try await HeimdallASRClient.transcribe(socket: $0, samples: $1, timeout: timeout, peer: $2) } }
+        link.busyPause = 1_000_000
         var last: LastDictationStatus?
         var changes: [String?] = []
         link.onLastDictation = { last = $0 }
@@ -260,7 +261,35 @@ private final class TestRegistrar: ShortcutRegistrar {
         XCTAssertEqual(r.model.lastText, "borrowed again")
         XCTAssertEqual(server.requests.count, 2)
     }
-    func testBusyFallsBack() async throws { try await assertFallsBack(.error("busy"), code: "busy") }
+    func testUnavailableFallsBack() async throws { try await assertFallsBack(.error("unavailable"), code: "unavailable") }
+    /// Review of 2.2.1 (8 Nov): a moment of `busy` used to fail the dictation over to Vella's own model and keep
+    /// Heimdall unavailable for a minute (a Get offer for every dictation then, without an own copy).
+    func testAMomentOfBusyIsWaitedForAndNeverMarksHeimdallUnavailable() async throws {
+        let server = try FakeHeimdallServer(reply: .error("busy")); defer { server.stop() }
+        let r = try rig(); defer { r.model.shutdown() }
+        r.bus.ready(server.path)
+        var calls = 0
+        r.link.exchange = { [server] socket, samples, peer in
+            calls += 1
+            if calls == 3 { server.setReply(.ok("after busy")) }
+            return try await HeimdallASRClient.transcribe(socket: socket, samples: samples, peer: peer)
+        }
+        try await dictate(r)
+        XCTAssertEqual(r.model.lastText, "after busy")
+        XCTAssertEqual(r.lastDictation()?.path, "heimdall")
+        XCTAssertEqual(r.own.calls, 0)
+        // Busy for longer than the wait: that dictation uses Vella's own copy; Heimdall stays available for the next.
+        server.setReply(.error("busy"))
+        r.link.exchange = { try await HeimdallASRClient.transcribe(socket: $0, samples: $1, peer: $2) }
+        try await dictate(r)
+        XCTAssertEqual(r.model.phase, .success)
+        XCTAssertEqual(r.model.lastText, "own model text")
+        XCTAssertEqual(r.lastDictation()?.fallback, "busy")
+        XCTAssertEqual(r.link.borrow.label, "ready", "busy is not a failure")
+        server.setReply(.ok("borrowed again"))
+        try await dictate(r)
+        XCTAssertEqual(r.model.lastText, "borrowed again")
+    }
     func testGarbageFallsBack() async throws { try await assertFallsBack(.garbage, code: "invalid_reply") }
     func testSilenceFallsBackAfterTheDeadline() async throws { try await assertFallsBack(.silence, code: "timeout", timeout: 0.3) }
     func testHeimdallQuittingMidRequestFallsBack() async throws { try await assertFallsBack(.close, code: "invalid_reply") }
@@ -420,16 +449,26 @@ private final class TestRegistrar: ShortcutRegistrar {
         XCTAssertEqual(r.lastDictation()?.path, "heimdall", "and it serves the rest of the dictation")
         XCTAssertEqual(r.model.lastText, "new")
     }
-    func testAfterAFailureVellaAsksHeimdallAgainLater() async throws {
-        let server = try FakeHeimdallServer(reply: .error("busy")); defer { server.stop() }
+    /// Review of 2.2.1 (8 Nov): Vella asked once after a failure; a Heimdall still stuck then was never asked again.
+    func testAfterAFailureVellaKeepsAskingHeimdallUntilItAnswers() async throws {
+        let server = try FakeHeimdallServer(reply: .error("unavailable")); defer { server.stop() }
         let r = try rig(); defer { r.model.shutdown() }
         r.link.requeryDelay = { _ in 0.1 }
+        r.link.laterRequeryDelay = { _ in 0.1 }
         r.bus.ready(server.path)
-        let before = r.bus.posts.filter { $0.name == HeimdallNames.asrQuery }.count
+        func queries() -> Int { r.bus.posts.filter { $0.name == HeimdallNames.asrQuery }.count }
+        let before = queries()
         try await dictate(r)
         XCTAssertEqual(r.link.borrow.label, "unavailable")
+        try await Task.sleep(nanoseconds: 450_000_000)
+        XCTAssertGreaterThanOrEqual(queries(), before + 3, "asked again and again while no ready comes back")
+        r.bus.ready(server.path)
+        XCTAssertEqual(r.link.borrow.label, "ready")
+        let answered = queries()
         try await Task.sleep(nanoseconds: 300_000_000)
-        XCTAssertEqual(r.bus.posts.filter { $0.name == HeimdallNames.asrQuery }.count, before + 1)
+        XCTAssertEqual(queries(), answered, "a ready stops the asking")
+        XCTAssertEqual(HeimdallLink(bus: MemoryHeimdallBus(), announcesDictation: false).laterRequeryDelay(1), 300)
+        XCTAssertEqual(HeimdallLink(bus: MemoryHeimdallBus(), announcesDictation: false).laterRequeryDelay(5), 600)
     }
 
     // MARK: Residency

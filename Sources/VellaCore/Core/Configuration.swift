@@ -59,11 +59,13 @@ public struct Configuration: Codable {
             }
         }
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        model = try values.decodeIfPresent(String.self, forKey: .model) ?? ""
-        mode = try values.decodeIfPresent(RecognitionMode.self, forKey: .mode) ?? .dictation
-        streamingModel = try values.decodeIfPresent(String.self, forKey: .streamingModel) ?? ""
-        preferredMicrophone = try values.decodeIfPresent(String.self, forKey: .preferredMicrophone) ?? ""
-        fallbackMicrophone = try values.decodeIfPresent(String.self, forKey: .fallbackMicrophone) ?? ""
+        // Each field on its own: a value a newer Vella writes that this one cannot read (a new mode, say) resets only
+        // that field, never the whole file (every writer would then save a blank configuration over it).
+        model = (try? values.decodeIfPresent(String.self, forKey: .model)) ?? ""
+        mode = (try? values.decodeIfPresent(RecognitionMode.self, forKey: .mode)) ?? .dictation
+        streamingModel = (try? values.decodeIfPresent(String.self, forKey: .streamingModel)) ?? ""
+        preferredMicrophone = (try? values.decodeIfPresent(String.self, forKey: .preferredMicrophone)) ?? ""
+        fallbackMicrophone = (try? values.decodeIfPresent(String.self, forKey: .fallbackMicrophone)) ?? ""
         residency = (try? values.decodeIfPresent(ResidencySettings.self, forKey: .residency)) ?? ResidencySettings()
         lastLoaded = (try? values.decodeIfPresent([String: String].self, forKey: .lastLoaded)) ?? [:]
         clearedSelectionReasons = (try? values.decodeIfPresent([String: String].self, forKey: .clearedSelectionReasons)) ?? [:]

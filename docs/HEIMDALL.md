@@ -98,12 +98,15 @@ never holds Heimdall's microphone queue (1.6 s per source) long enough to overfl
 dictation for more than one live step.
 
 **Vella's choice and fallback:** Vella's Models table has a "Parakeet v3 Ultra · from Heimdall" row, a normal
-selectable row. It is the default for a user who never chose, and a selection of Vella's own Ultra made before this
-integration moves to it when Heimdall is present; any explicit choice afterwards stands. While that row is chosen,
+selectable row. It is the default for a user who never chose; a selection stored before this integration (Vella's own
+Ultra included) stays the user's choice, as does any explicit choice afterwards. While that row is chosen,
 Vella sends one request per finished dictation and keeps its own Ultra unloaded and undownloaded. Any connect failure,
 `ok:false` or no reply within 5 s plus a tenth of the audio length falls back, for that dictation, to Vella's own Ultra
 if it is already downloaded (otherwise its usual Get offer; never a silent download), and marks Heimdall unavailable
-until its next `ready`. With Heimdall absent the row is greyed; its link to Heimdall's public page opens nothing until
+until its next `ready`; Vella asks again after a minute (ten after a timeout), then after 5 minutes, then every 10
+minutes until a `ready` comes back. A `busy` reply is asked again for up to 2 s before that dictation falls back, and
+never marks Heimdall unavailable. The socket carries no vocabulary: while dictation borrows Heimdall's copy, Vella's
+vocabulary list does not apply to it. With Heimdall absent the row is greyed; its link to Heimdall's public page opens nothing until
 that URL is configured.
 
-**Vella side (as built):** one request per finished dictation (the whole recording). Files sent to Vella's API for Parakeet v3 Ultra use the socket too, one request per segment of up to 25 s, but only when no vocabulary applies (Heimdall's socket takes none); a `busy` reply is waited for briefly, and any other failure sends that segment to Vella's own copy without marking Heimdall unavailable, so dictation keeps borrowing. The "Parakeet v3 Ultra · from Heimdall" row borrows when it is the dictation choice: chosen explicitly, or the default for an install with no selection yet. A selection stored before this build is kept as the user's choice. Trust per edition as above; the signing identity is read with `SecCodeCopyGuestWithAttributes` for the announcing pid.
+**Vella side (as built):** one request per finished dictation (the whole recording). Files sent to Vella's API for Parakeet v3 Ultra use the socket too, one request per segment of up to 25 s, but only when no vocabulary applies (Heimdall's socket takes none); a `busy` reply is waited for briefly, and any other failure sends that segment and the rest of that file to Vella's own copy without marking Heimdall unavailable, so dictation keeps borrowing. The "Parakeet v3 Ultra · from Heimdall" row borrows when it is the dictation choice: chosen explicitly, or the default for an install with no selection yet. A selection stored before this build is kept as the user's choice. Trust per edition as above; the signing identity is read with `SecCodeCopyGuestWithAttributes` for the announcing pid.

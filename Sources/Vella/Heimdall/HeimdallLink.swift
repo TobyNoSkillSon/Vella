@@ -210,7 +210,23 @@ import VellaCore
     /// One request with these 16 kHz mono samples (the whole dictation, straight from the saved Float32 audio).
     /// The latest request's timings, for lab runs: the socket round trip and what Heimdall reported.
     private(set) var lastExchange: (ms: Double, queueMs: Double?, decodeMs: Double?, start: Double, end: Double)?
+    /// Dictation (`marksFailure`): a `busy` reply (Heimdall decoding its own audio or another request) is asked again
+    /// this many times, `busyPause` apart, before that dictation falls back; `busy` never marks Heimdall unavailable.
+    /// API files wait for `busy` themselves (APITranscriber).
+    var busyRetries = 20
+    var busyPause: UInt64 = 100_000_000
     func transcribe(samples: [Float], socket: String, marksFailure: Bool = true) async throws -> String {
+        var busy = 0
+        while true {
+            do {
+                return try await attempt(samples: samples, socket: socket, marksFailure: marksFailure)
+            } catch let error as HeimdallASRError where error.code == "busy" && marksFailure && busy < busyRetries {
+                busy += 1
+                try await Task.sleep(nanoseconds: busyPause)
+            }
+        }
+    }
+    private func attempt(samples: [Float], socket: String, marksFailure: Bool) async throws -> String {
         let asked = borrow.ready
         do {
             // Just before connecting: still a socket owned by this user, closed to others, not a link (lab runs name
@@ -227,22 +243,29 @@ import VellaCore
             throw CancellationError()
         } catch {
             if Task.isCancelled { throw CancellationError() }
-            guard marksFailure else { throw error }
             let code = (error as? HeimdallASRError)?.code ?? "error"
+            guard marksFailure, code != "busy" else { throw error }
             let before = borrow
             borrow.failed(code, for: labRoute == .heimdall ? borrow.ready : asked)
             reevaluate()
-            if borrow.unavailable, !before.unavailable { scheduleRequery(after: requeryDelay(code)) }
+            if borrow.unavailable, !before.unavailable { requeryAttempts = 0; scheduleRequery(after: requeryDelay(code)) }
             throw error
         }
     }
     func recordDictation(_ status: LastDictationStatus) { onLastDictation?(status) }
+    /// Queries sent since Heimdall became unavailable. While it stays unavailable (no `ready` came back), Vella keeps
+    /// asking, each time later: the first delay, then 5 minutes, then every 10 minutes, so a Heimdall that recovers is
+    /// borrowed again without a restart of either app.
+    private(set) var requeryAttempts = 0
+    var laterRequeryDelay: (_ attempts: Int) -> TimeInterval = { $0 <= 1 ? 300 : 600 }
     private func scheduleRequery(after delay: TimeInterval) {
         requery?.cancel()
         let work = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, self.borrow.unavailable else { return }
+                self.requeryAttempts += 1
                 self.bus.post(HeimdallNames.asrQuery, object: HeimdallNames.dictationObject, userInfo: nil)
+                self.scheduleRequery(after: self.laterRequeryDelay(self.requeryAttempts))
             }
         }
         requery = work

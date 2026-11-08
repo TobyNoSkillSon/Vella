@@ -286,6 +286,30 @@ final class APITests: XCTestCase {
         XCTAssertFalse(APITranscriber.sharesHeimdall(model: "fake-a", options: TranscriptionOptions(), borrowing: nil, vocabularyWords: 0))
     }
 
+    /// Review of 2.2.1 (8 Nov): with Heimdall hung, every 25-second segment of a file waited out the deadline before
+    /// using Vella's own copy (about 54 extra minutes for a 3-hour file). Now the first failure decides the whole file.
+    @MainActor func testAHeimdallFailureSendsTheRestOfTheFileToVellasOwnCopy() async throws {
+        let api = try await APIFixture()
+        defer { api.close() }
+        let long = FileManager.default.temporaryDirectory.appendingPathComponent("vella-api-long-\(UUID().uuidString).wav")
+        try writeTestWAV(long, bursts: [20, 20, 20, 20], gap: 0.8, rate: 16_000)
+        defer { try? FileManager.default.removeItem(at: long) }
+        var asked = 0
+        api.transcriber.heimdallSocket = { model, options in
+            APITranscriber.sharesHeimdall(model: model.id, options: options, borrowing: "fake-a", vocabularyWords: 0) ? "/tmp/heimdall-test.sock" : nil
+        }
+        api.transcriber.heimdallTranscribe = { _, _ in
+            asked += 1
+            throw HeimdallASRError.timeout
+        }
+        let (code, _, data) = try await api.post(fields: ["response_format": "verbose_json"], file: long)
+        XCTAssertEqual(code, 200, String(decoding: data, as: UTF8.self))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertGreaterThan((object["segments"] as? [Any])?.count ?? 0, 1, "a file of several segments")
+        XCTAssertEqual(asked, 1, "Heimdall is asked once per file after it fails, not once per segment")
+        XCTAssertEqual((object["vella"] as? [String: Any])?["via"] as? String, "vella")
+    }
+
     @MainActor func testStatusAndModelsRoutes() async throws {
         let api = try await APIFixture()
         defer { api.close() }

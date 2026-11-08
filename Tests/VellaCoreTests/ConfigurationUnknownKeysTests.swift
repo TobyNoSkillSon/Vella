@@ -31,6 +31,21 @@ final class ConfigurationUnknownKeysTests: XCTestCase {
         XCTAssertNil(saved["executable"])
     }
 
+    /// Review of 2.2.1: a value this version cannot read (a newer mode) resets that field only; before, the whole
+    /// decode failed and the next save wrote a blank configuration.
+    func testAnUnreadableValueResetsOnlyThatField() throws {
+        let written = """
+            {"model":"/m/parakeet","mode":"meeting","preferredMicrophone":"Shure","dictationSource":"heimdall",
+             "selections":{"parakeet-v3-ultra":{"mode":"fast","tier":"16","path":"optimized"}}}
+            """
+        let config = try JSONDecoder().decode(Configuration.self, from: Data(written.utf8))
+        XCTAssertEqual(config.mode, .dictation)
+        XCTAssertEqual(config.model, "/m/parakeet")
+        XCTAssertEqual(config.preferredMicrophone, "Shure")
+        XCTAssertEqual(config.dictationSource, .heimdall)
+        XCTAssertEqual(config.selections.count, 1)
+    }
+
     func testAConfigWithoutUnknownKeysSavesTheSameKeysAsBefore() throws {
         var config = Configuration(model: "/m/parakeet", preferredMicrophone: "Shure")
         config.dictationSource = .own

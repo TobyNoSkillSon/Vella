@@ -142,8 +142,9 @@ struct APITranscript {
     /// nil for Vella's own model. Only when that loses nothing: the same model, and no vocabulary to apply (Heimdall's
     /// socket takes none). The app wires it (APIHost); tests may set it.
     var heimdallSocket: (_ model: APIModel, _ options: TranscriptionOptions) -> String? = { _, _ in nil }
-    /// One segment's WAV over that socket. A failure marks Heimdall unavailable (the link), so later segments use
-    /// Vella's own model.
+    /// One segment's WAV over that socket. A failure does not mark Heimdall unavailable (dictation keeps borrowing);
+    /// the rest of that request uses Vella's own model instead, so a hung Heimdall costs one deadline per file, not
+    /// one per segment.
     var heimdallTranscribe: (_ wav: URL, _ socket: String) async throws -> String = { _, _ in throw CancellationError() }
     /// Whether Heimdall's copy serves a request for `model` without losing anything: Vella borrows that very family
     /// (`borrowing`), and no vocabulary would apply (no added words; vocabulary off, or `vocabularyWords` 0).
@@ -214,6 +215,8 @@ struct APITranscript {
         }
         var applied = AppliedSettings()
         applied.vocabulary = options.vocabulary
+        /// Heimdall failed (not just busy) for this request: its remaining segments go to Vella's own copy.
+        var heimdallFailed = false
         /// The socket the next segment goes to (the model resolved again first), or nil for Vella's own model.
         func viaHeimdall() throws -> String? {
             model = try resolve()
@@ -227,7 +230,7 @@ struct APITranscript {
                 // A busy Heimdall (its own listening, or a dictation) is waited for briefly, with dictation re-checked,
                 // before Vella's own copy is loaded for this segment.
                 var busy = 0
-                while let socket = try viaHeimdall() {
+                while !heimdallFailed, let socket = try viaHeimdall() {
                     do {
                         let text = try await self.heimdallTranscribe(url, socket)
                         applied.add(["via": "heimdall", "language": NSNull(), "vocabulary": options.vocabulary, "vocabulary_words": 0])
@@ -238,7 +241,10 @@ struct APITranscript {
                         busy += 1
                         try await Task.sleep(nanoseconds: 100_000_000)
                         try await self.waitForTurn()
-                    } catch { break }
+                    } catch {
+                        heimdallFailed = true
+                        break
+                    }
                 }
                 var attempts = 0
                 while true {
