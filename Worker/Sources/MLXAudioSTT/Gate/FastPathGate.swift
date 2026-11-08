@@ -219,7 +219,7 @@ public enum FastPathGate {
     /// `model` and `reason` are for `vella diagnose` only (the model folder's name, never its path; why it is stock);
     /// the key alone decides reuse.
     @discardableResult public static func persist(_ value: String, to url: URL, count: Int? = nil, model: URL? = nil, reason: String? = nil,
-                               disabled: [String: String] = [:]) -> Bool {
+                               disabled: [String: String] = [:], fallbacks: Int? = nil) -> Bool {
         guard let status = GateRecord.Status(rawValue: value) else { return false }
         do { try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true) } catch { return false }
         // Atomic rename protects readers; a separate nonblocking lock serializes writers without hanging a load.
@@ -235,14 +235,62 @@ public enum FastPathGate {
         // A runtime failure wins over a late self-test success from another worker.
         if status == .fast, Self.status(url) == "stock" { return false }
         let host = Host.current
+        // The runtime-fallback count survives every rewrite of the key (self-test reservations and verdicts included).
         let record = GateRecord(status: status, workerVersion: version, gpuFamily: host.gpuFamily, gpuArchitecture: host.gpuArchitecture,
                                 gpuName: host.gpuName, osBuild: host.osBuild,
                                 date: ISO8601DateFormatter().string(from: Date()), count: count, model: model?.lastPathComponent,
-                                reason: reason, disabled: disabled)
+                                reason: reason, disabled: disabled, fallbacks: fallbacks ?? Self.record(url)?.fallbacks)
         do {
             try JSONSerialization.data(withJSONObject: record.json).write(to: url, options: .atomic)
             return true
         } catch { return false }
+    }
+
+    // MARK: Runtime fallback
+
+    /// The persisted reason of a runtime fallback (an optimized request threw or returned non-finite values).
+    public static let runtimeFallbackReason = "Runtime fallback: optimized execution failed; using stock MLX."
+    /// A key that fell back at run time this many times stays stock; fewer, and the next load runs the self-test again
+    /// (17 Oct: one runtime failure kept a Parakeet model on stock MLX for three weeks while the setting asked for
+    /// Optimized Fast).
+    public static let runtimeFallbackLimit = 3
+    /// Records a runtime fallback for the key: stock until the next load, counted toward `runtimeFallbackLimit`.
+    @discardableResult public static func persistRuntimeFallback(to url: URL, model: URL?) -> Bool {
+        let previous = record(url)
+        // A pre-2.2.1 runtime-fallback verdict carries no count: it was one.
+        let before = previous?.fallbacks ?? (isRuntimeFallback(previous) ? 1 : 0)
+        return persist("stock", to: url, model: model, reason: runtimeFallbackReason, fallbacks: before + 1)
+    }
+    static func isRuntimeFallback(_ record: GateRecord?) -> Bool {
+        record?.status == .stock && record?.reason?.hasPrefix("Runtime fallback") == true
+    }
+    /// Fallbacks recorded for a runtime-fallback stock verdict (at least 1), or nil for any other verdict.
+    public static func runtimeFallbacks(_ url: URL) -> Int? {
+        let previous = record(url)
+        guard isRuntimeFallback(previous) else { return nil }
+        return max(1, previous?.fallbacks ?? 1)
+    }
+    /// "17 Oct 2026" from a verdict's ISO 8601 date; nil when absent or unreadable.
+    public static func verdictDay(_ url: URL) -> String? {
+        guard let raw = record(url)?.date, let date = ISO8601DateFormatter().date(from: raw) else { return nil }
+        let format = DateFormatter()
+        format.locale = Locale(identifier: "en_US_POSIX"); format.dateFormat = "d MMM yyyy"
+        return format.string(from: date)
+    }
+    /// What a stock verdict says in status, from the reason it was persisted with.
+    public static func stockMessage(_ url: URL) -> String {
+        let day = verdictDay(url).map { " on \($0)" } ?? ""
+        if let fallbacks = runtimeFallbacks(url) {
+            return "The optimized path failed while running \(fallbacks == 1 ? "once" : "\(fallbacks) times") on this Mac (last\(day)); using stock MLX."
+        }
+        switch record(url)?.reason {
+        case let reason? where reason.contains("streaming"):
+            // The streaming helper's runtime fallbacks stay final: its Retry must run stock in a fresh helper.
+            return "The optimized streaming path failed while running on this Mac\(day); using stock MLX."
+        case let reason? where reason.hasPrefix("self-test timed out"): return "The optimized path's self-test did not finish within 45 s on this Mac\(day)."
+        case let reason? where reason.hasPrefix("GPU family"): return "The optimized kernels need Apple GPU family 9 (\(reason))."
+        default: return "The optimized path failed its self-test against stock MLX on this Mac\(day)."
+        }
     }
 
     public enum Verdict: Equatable {
@@ -294,10 +342,11 @@ public enum FastPathGate {
                 return .stock("The self-test verdict is unreadable or incomplete; using stock MLX.")
             }
         }
-        // "inconclusive" is not a verdict: retry at most twice for this key.
-        if let previous = status(url), previous != "inconclusive" {
-            return previous == "fast" ? .fast(disabled: disabledComponents(url))
-                                      : .stock("The optimized path failed its self-test against stock MLX on this Mac.")
+        // "inconclusive" is not a verdict: retry at most twice for this key. A runtime fallback is no verdict on the
+        // kernels either: below the limit, this load tests them again (the count is kept), so a one-off failure heals.
+        let fallbacks = runtimeFallbacks(url)
+        if let previous = status(url), previous != "inconclusive", (fallbacks ?? runtimeFallbackLimit) >= runtimeFallbackLimit {
+            return previous == "fast" ? .fast(disabled: disabledComponents(url)) : .stock(stockMessage(url))
         }
         if let requiredFamily, gpuFamily != requiredFamily {
             persist("stock", to: url, model: path, reason: "GPU family \(gpuFamily), needs \(requiredFamily)")
@@ -309,7 +358,7 @@ public enum FastPathGate {
         }
         let attempt = inconclusiveCount(url) + 1
         // Reserve the attempt before launching: a parent crash cannot reset the retry budget.
-        persist("inconclusive", to: url, count: attempt, model: path, reason: "self-test in progress")
+        persist("inconclusive", to: url, count: attempt, model: path, reason: "self-test in progress", fallbacks: fallbacks)
         guard inconclusiveCount(url) == attempt else { return .stock("The self-test result cannot be saved; using stock MLX.") }
         let process = makeProcess()
         if process.executableURL == nil { process.executableURL = URL(fileURLWithPath: CommandLine.arguments[0]) }

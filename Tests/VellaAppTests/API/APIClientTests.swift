@@ -74,7 +74,8 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(
             help.components(separatedBy: "\n")[0],
             "Every model runs Vella's optimized kernels where this Mac supports them and falls back to stock MLX by itself; figures are measured on M5 Max so far.")
-        XCTAssertTrue(help.contains("vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]"), help)
+        XCTAssertTrue(
+            help.contains("vella transcribe FILE [--model ID] [--language CODE] [--prompt TEXT] [--no-vocabulary] [--text | --json | --verbose-json | --srt | --vtt]"), help)
 
         // Errors: one line on stderr, exit 1, no stdout.
         for (args, message) in [

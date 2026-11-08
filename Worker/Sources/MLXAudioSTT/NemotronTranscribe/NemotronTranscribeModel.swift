@@ -22,9 +22,22 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     /// overrides it for lab A/B, 2–8).
     var draftDepth = ProcessInfo.processInfo.environment["VELLA_NEMOTRON_TRANSCRIBE_DRAFTS"].flatMap(Int.init)
         .map { Swift.min(8, Swift.max(2, $0)) } ?? 4
-    /// The user's vocabulary words (plain list only), applied to the next request.
+    /// The user's vocabulary words (plain list only), applied to the next request (empty: no list).
     public var vocabularyWords: [String] = []
-    /// Token IDs of the last chunk, for parity checks.
+    /// The next request's language for the prompt's `Language:` slot ("Turkish"); nil: "as spoken".
+    public var languageName: String?
+    /// The next request's own context (the API's `prompt`); it replaces the vocabulary list in `Context terms:`.
+    public var context: String?
+    /// Tests only: another instruction in place of NVIDIA's template (the parity reference used mlx-audio's).
+    var instructionOverride: String?
+    /// The user turn the last request sent, exactly (agents can see what was asked).
+    public private(set) var lastPrompt = ""
+    /// Pieces of the last request whose decode still ended in a repetition loop after every retry (their text keeps
+    /// one copy of the repeated block).
+    public private(set) var lastLoops = 0
+    /// List sentences the last request dropped (the vocabulary leaking into the text).
+    public private(set) var lastListDropped: [String] = []
+    /// Token IDs of the last decode, for parity checks.
     public private(set) var lastTokens: [Int] = []
     /// Whether the last request dropped a trailing vocabulary sentence, and how many chunks it had.
     public private(set) var lastGuardDropped: [String] = []
@@ -229,7 +242,12 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
 
     func promptTokens(words: [String]) throws -> [Int] {
         guard let tokenizer else { throw NemotronTranscribeError.tokenizer("not loaded") }
-        return NemotronTranscribePrompt.turns(words: words).flatMap { tokenizer.encode(text: $0, addSpecialTokens: false) }
+        return NemotronTranscribePrompt.turns(words: words, language: languageName, context: context, instruction: instructionOverride)
+            .flatMap { tokenizer.encode(text: $0, addSpecialTokens: false) }
+    }
+    /// The user turn for `words` with this request's language and context.
+    func userPrompt(words: [String]) -> String {
+        NemotronTranscribePrompt.user(words: words, language: languageName, context: context, instruction: instructionOverride)
     }
 
     /// Prompt embeddings with the audio placeholder replaced by the audio embeddings: (tokens, 1 × N × D).
@@ -265,9 +283,22 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
             let token = y.item(Int.self)
             if eos.contains(token) { break }
             out.append(token)
+            if Self.endsInLoop(&out) { decodeLooped = true; break }
             y = next
         }
         return out
+    }
+
+    /// Set by the last `decodeGreedy` / `decodeMTP` when it stopped at a repetition loop (its tokens keep one copy).
+    var decodeLooped = false
+    /// Checked every few tokens: a tail of one block repeated `NemotronTranscribeLoop.minRepeats` times stops the
+    /// decode early (instead of running to the token limit) and is cut to one copy.
+    static func endsInLoop(_ out: inout [Int]) -> Bool {
+        guard out.count >= NemotronTranscribeLoop.minRepeats, out.count % 4 == 0 else { return false }
+        let cut = NemotronTranscribeLoop.cut(out)
+        guard cut.looped else { return false }
+        out = cut.tokens
+        return true
     }
 
     /// Greedy self-speculation: `draftDepth` chained MTP drafts verified by the main model in one pass, one host
@@ -358,6 +389,7 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
                 if eos.contains(token) { return out }
                 out.append(token)
                 if out.count >= maxTokens { return out }
+                if Self.endsInLoop(&out) { decodeLooped = true; return out }
             }
         }
         return out
@@ -366,15 +398,28 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     /// `VELLA_TEST_OPTIMIZED_FAULT` (throw | nonfinite): the draft-and-verify path fails at run time (tests).
     static var injectedFault: String? { ProcessInfo.processInfo.environment["VELLA_TEST_OPTIMIZED_FAULT"].flatMap { $0.isEmpty ? nil : $0 } }
 
+    /// A decode's tokens and whether it ended in a repetition loop (cut early, or the token limit without an end token).
+    typealias Decoded = (tokens: [Int], looped: Bool)
+
+    func greedyDecoded(_ embeddings: MLXArray, maxTokens: Int) -> Decoded {
+        decodeLooped = false
+        let tokens = decodeGreedy(embeddings, maxTokens: maxTokens)
+        return (tokens, decodeLooped || tokens.count >= maxTokens)
+    }
+
     /// Draft-and-verify when allowed; on a runtime failure the same input is decoded again plain greedy (the stock
     /// recipe) and draft-and-verify stays off until reload. Greedy itself has no fallback: its errors propagate.
-    func decode(_ embeddings: MLXArray, maxTokens: Int) -> [Int] {
+    func decode(_ embeddings: MLXArray, maxTokens: Int) -> Decoded {
         if usesMTP, let mtp {
             do {
                 return try Self.retryingRunaway(
                     maxTokens: maxTokens, runawayRetries: &runawayRetries,
-                    draftAndVerify: { try withError { try decodeMTP(embeddings, maxTokens: maxTokens, mtp: mtp) } },
-                    greedy: { decodeGreedy(embeddings, maxTokens: maxTokens) })
+                    draftAndVerify: {
+                        decodeLooped = false
+                        let tokens = try withError { try decodeMTP(embeddings, maxTokens: maxTokens, mtp: mtp) }
+                        return (tokens, decodeLooped)
+                    },
+                    greedy: { greedyDecoded(embeddings, maxTokens: maxTokens) })
             } catch {
                 mtpRuntimeFailure = "\(error)"
                 lastRequestFellBack = true
@@ -382,17 +427,17 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
                 Memory.clearCache()
             }
         }
-        return decodeGreedy(embeddings, maxTokens: maxTokens)
+        return greedyDecoded(embeddings, maxTokens: maxTokens)
     }
 
-    /// A draft-and-verify run that reaches the token limit without an end token is a repetition loop (night 6 Nov,
-    /// int4 full v2: one 20 s segment repeated "It's awesome." 248 times where plain greedy transcribed it). The chunk
-    /// is decoded again by `greedy`; draft-and-verify stays on for the next one. Errors propagate to `decode`.
+    /// A draft-and-verify run that loops (it repeats one block, or reaches the token limit without an end token) is
+    /// decoded again by `greedy` (night 6 Nov, int4 full v2: one 20 s segment repeated "It's awesome." 248 times
+    /// where plain greedy transcribed it); draft-and-verify stays on for the next chunk. Errors propagate to `decode`.
     static func retryingRunaway(
-        maxTokens: Int, runawayRetries: inout Int, draftAndVerify: () throws -> [Int], greedy: () -> [Int]
-    ) rethrows -> [Int] {
-        let tokens = try draftAndVerify()
-        guard tokens.count >= maxTokens else { return tokens }
+        maxTokens: Int, runawayRetries: inout Int, draftAndVerify: () throws -> Decoded, greedy: () -> Decoded
+    ) rethrows -> Decoded {
+        let first = try draftAndVerify()
+        guard first.looped || first.tokens.count >= maxTokens else { return first }
         runawayRetries += 1
         return greedy()
     }
@@ -400,7 +445,7 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
     /// Tests: `decode` as a request runs it, and clearing the sticky fallback between injected faults.
     func decodeWithFallbackForTests(_ embeddings: MLXArray, maxTokens: Int) -> [Int] {
         lastRequestFellBack = false
-        return decode(embeddings, maxTokens: maxTokens)
+        return decode(embeddings, maxTokens: maxTokens).tokens
     }
     func resetRuntimeFallbackForTests() { mtpRuntimeFailure = nil; lastRequestFellBack = false }
 
@@ -408,26 +453,37 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         NemotronTranscribeMarkup.strip(tokenizer?.decode(tokens: tokens, skipSpecialTokens: false) ?? "")
     }
 
-    /// One chunk (at most two minutes) → its text, with the trailing-vocabulary guard.
-    func transcribeChunk(_ samples: MLXArray, words: [String], maxTokens: Int) throws -> String {
-        guard samples.ndim == 1, samples.dim(0) >= 160 else { return "" }
+    /// One chunk (at most two minutes) → its text, with the vocabulary guards and NVIDIA's loop guardrail, and
+    /// whether its decode still ended in a loop.
+    func transcribeChunk(_ samples: MLXArray, words: [String], maxTokens: Int) throws -> NemotronTranscribeLoop.Piece {
+        guard samples.ndim == 1, samples.dim(0) >= 160 else { return .init(text: "", looped: false) }
         let perceptionStart = Date()
         let audio = perception(samples.asType(.float32))
         eval(audio)
         lastPerceptionSeconds = Date().timeIntervalSince(perceptionStart)
-        let terms = NemotronTranscribePrompt.vocabulary(words)
-        let tokens = decode(try inputs(tokens: try promptTokens(words: terms), audio: audio), maxTokens: maxTokens)
-        lastTokens = tokens
-        let withList = text(tokens)
-        if let candidate = NemotronTranscribeVocabularyGuard.trailingCandidate(withList, words: terms) {
-            // The audio embeddings are reused; only the prompt and decode run again.
-            let plain = text(decode(try inputs(tokens: try promptTokens(words: []), audio: audio), maxTokens: maxTokens))
-            if NemotronTranscribeVocabularyGuard.shouldDrop(withList: withList, withoutList: plain, dropped: candidate.dropped) {
+        // A request's own context replaces the list; then no list guard applies.
+        let terms = context == nil ? NemotronTranscribePrompt.vocabulary(words) : []
+        lastPrompt = userPrompt(words: terms)
+        let decoded = decode(try inputs(tokens: try promptTokens(words: terms), audio: audio), maxTokens: maxTokens)
+        lastTokens = decoded.tokens
+        var result = text(decoded.tokens)
+        let trailing = NemotronTranscribeVocabularyGuard.trailingCandidate(result, words: terms)
+        let lists = NemotronTranscribeVocabularyGuard.listCandidates(result, words: terms)
+        if trailing != nil || !lists.isEmpty {
+            // The audio embeddings are reused; only the prompt and decode run again, once.
+            let plain = text(decode(try inputs(tokens: try promptTokens(words: []), audio: audio), maxTokens: maxTokens).tokens)
+            let dropped = lists.filter { NemotronTranscribeVocabularyGuard.shouldDropList($0, withoutList: plain, words: terms) }
+            if !dropped.isEmpty {
+                lastListDropped.append(contentsOf: dropped)
+                result = NemotronTranscribeVocabularyGuard.removing(dropped, from: result)
+            }
+            if let candidate = NemotronTranscribeVocabularyGuard.trailingCandidate(result, words: terms),
+                NemotronTranscribeVocabularyGuard.shouldDrop(withList: result, withoutList: plain, dropped: candidate.dropped) {
                 lastGuardDropped.append(candidate.dropped)
-                return candidate.kept
+                result = candidate.kept
             }
         }
-        return withList
+        return .init(text: NemotronTranscribeLoop.cleanup(result), looped: decoded.looped, tokens: decoded.tokens.count)
     }
 
     /// Optimized paths only (Standard keeps the stock per-chunk clear).
@@ -442,23 +498,37 @@ public final class NemotronTranscribeModel: Module, STTGenerationModel {
         lastGuardDropped = []
         lastError = nil
         lastRequestFellBack = false
+        lastLoops = 0
+        lastListDropped = []
         var parts: [String] = []
         var generated = 0
         for range in plan {
-            let seconds = Double(range.count) / Double(NemotronTranscribeChunking.sampleRate)
-            // About 2.5 tokens a second of speech; generous so a fast talker is never cut.
-            let limit = max(generationParameters.maxTokens, Int(seconds * 15))
-            lastTokens = []
             let chunkStart = Date()
+            lastTokens = []
+            var chunkTokens = 0
             do {
-                let part = try transcribeChunk(MLXArray(Array(samples[range])), words: vocabularyWords, maxTokens: limit)
-                if !part.isEmpty { parts.append(part) }
+                // A piece that still loops after the decoder's retry is decoded again in two halves cut at a quiet
+                // point, so the speech after the loop is not lost (a noisy Turkish recording, 8 Nov: its radio-call ending).
+                let pieces = try NemotronTranscribeLoop.recovering(
+                    range,
+                    decode: { piece in
+                        let seconds = Double(piece.count) / Double(NemotronTranscribeChunking.sampleRate)
+                        // About 2.5 tokens a second of speech; generous so a fast talker is never cut.
+                        let limit = max(generationParameters.maxTokens, Int(seconds * 15))
+                        return try transcribeChunk(MLXArray(Array(samples[piece])), words: vocabularyWords, maxTokens: limit)
+                    },
+                    split: { NemotronTranscribeLoop.split(samples, range: $0) })
+                // One count per chunk (the app's segment), however many pieces it was split into.
+                if pieces.contains(where: { $0.looped }) { lastLoops += 1 }
+                parts.append(contentsOf: pieces.map(\.text).filter { !$0.isEmpty })
+                chunkTokens = pieces.reduce(0) { $0 + $1.tokens }
             } catch {
                 lastError = error
                 break
             }
-            generated += lastTokens.count
-            NemotronTranscribeProfile.chunk(seconds: seconds, wall: Date().timeIntervalSince(chunkStart), tokens: lastTokens.count,
+            generated += chunkTokens
+            NemotronTranscribeProfile.chunk(seconds: Double(range.count) / Double(NemotronTranscribeChunking.sampleRate),
+                                            wall: Date().timeIntervalSince(chunkStart), tokens: chunkTokens,
                                             mtp: usesMTP, perception: lastPerceptionSeconds)
             // The dictation service keeps MLX's buffer cache between requests (cache-limited); clearing it after every
             // chunk made each 20 s segment re-allocate its Metal buffers. VELLA_DICTATION_KEEP_CACHE=0 restores it.

@@ -5,9 +5,12 @@ let usage = """
     Every model runs Vella's optimized kernels where this Mac supports them and falls back to stock MLX by itself; figures are measured on M5 Max so far.
     vella: transcribe audio files offline with Vella’s downloaded Dictation models.
 
-        vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]
+        vella transcribe FILE [--model ID] [--language CODE] [--prompt TEXT] [--no-vocabulary] [--text | --json | --verbose-json | --srt | --vtt]
             prints the transcript (--text, the default); --json/--verbose-json print OpenAI's JSON response, --srt/--vtt
-            subtitles. --language CODE only labels verbose JSON; it does not change recognition in 2.0.
+            subtitles. --language CODE tells the model the language (Nemotron 3.5 Transcribe, Whisper, Qwen3-ASR; Parakeet
+            detects it and refuses the flag). --prompt TEXT gives Nemotron 3.5 Transcribe context terms in place of your
+            vocabulary. --no-vocabulary leaves vocabulary.json out of this file only. --verbose-json shows what was applied
+            ("vella": language, the exact prompt, vocabulary words, loops); a repetition loop is reported on stderr.
             FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
             `vella models` (a downloaded Dictation model; Streaming models do not transcribe files); without it the current dictation model is used. Dictation always goes first.
         vella status                 one line: running, dictation model, loaded models, API address
@@ -80,7 +83,7 @@ struct VellaCLI {
 
     static func commandHelp(_ command: String) -> String? {
         let commands: [String: String] = [
-            "transcribe": "Usage: vella transcribe FILE [--model ID] [--language CODE] [--text|--json|--verbose-json|--srt|--vtt]",
+            "transcribe": "Usage: vella transcribe FILE [--model ID] [--language CODE] [--prompt TEXT] [--no-vocabulary] [--text|--json|--verbose-json|--srt|--vtt]",
             "status": "Usage: vella status",
             "models": "Usage: vella models [--json]",
             "select": "Usage: vella select ID [--precision bf16|fp16|int8|int4] [--mode Fast|Exact]",
@@ -100,7 +103,7 @@ struct VellaCLI {
             $0
                 + (command == "memory" || command == "keep-hot"
                     ? "\nWith no value, print the current settings."
-                    : command == "transcribe" ? "\n--language only labels verbose JSON; it does not change recognition in 2.0." : "")
+                    : command == "transcribe" ? "\n--verbose-json shows the language, prompt and vocabulary the model was given." : "")
         }
     }
 
@@ -252,9 +255,10 @@ struct VellaCLI {
     }
 
     func transcribe(_ rest: [String]) async throws {
-        let args = try Arguments(rest, values: ["--model", "--language"], flags: ["--json", "--verbose-json", "--srt", "--vtt", "--text"])
+        let args = try Arguments(
+            rest, values: ["--model", "--language", "--prompt"], flags: ["--json", "--verbose-json", "--srt", "--vtt", "--text", "--no-vocabulary"])
         guard args.positional.count == 1 else {
-            throw CLIError("vella transcribe FILE [--model ID] [--language CODE] [--text | --json | --verbose-json | --srt | --vtt]")
+            throw CLIError("vella transcribe FILE [--model ID] [--language CODE] [--prompt TEXT] [--no-vocabulary] [--text | --json | --verbose-json | --srt | --vtt]")
         }
         let formats: [(String, String)] = [("--json", "json"), ("--verbose-json", "verbose_json"), ("--srt", "srt"), ("--vtt", "vtt"), ("--text", "text")]
         let chosen = formats.filter { args.flags.contains($0.0) }
@@ -266,12 +270,26 @@ struct VellaCLI {
         var isDirectory = ObjCBool(false)
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { throw CLIError("no such file: \(args.positional[0])") }
         guard !isDirectory.boolValue else { throw CLIError("\(args.positional[0]) is a directory; give an audio file") }
-        var body: [String: Any] = ["path": url.path, "response_format": chosen.first?.1 ?? "text"]
+        let plain = chosen.isEmpty || chosen.first?.1 == "text"
+        // Plain text is read from verbose JSON, so a loop warning can go to stderr while stdout stays the transcript.
+        var body: [String: Any] = ["path": url.path, "response_format": plain ? "verbose_json" : chosen.first!.1]
         if let model = args.values["--model"] { body["model"] = model }
         if let language = args.values["--language"] { body["language"] = language }
+        if let prompt = args.values["--prompt"] { body["prompt"] = prompt }
+        if args.flags.contains("--no-vocabulary") { body["vocabulary"] = false }
         let data = try await client().request("POST", "/v1/audio/transcriptions", json: body)
-        let text = String(decoding: data, as: UTF8.self)
-        write(chosen.isEmpty || chosen.first?.1 == "text" ? text.trimmingCharacters(in: .whitespacesAndNewlines) : text.trimmingCharacters(in: .newlines))
+        guard plain else {
+            if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let warnings = object["warnings"] as? [String] {
+                for line in warnings { warn("warning: \(line)") }
+            }
+            write(String(decoding: data, as: UTF8.self).trimmingCharacters(in: .newlines))
+            return
+        }
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let text = object["text"] as? String else {
+            throw CLIError("Vella answered with an invalid transcript")
+        }
+        for line in object["warnings"] as? [String] ?? [] { warn("warning: \(line)") }
+        write(text.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     func client() -> VellaClient { clientFactory?() ?? VellaClient(environment: environment) }
@@ -294,7 +312,9 @@ struct VellaCLI {
                         var details = [precision].compactMap { $0 }.filter { !$0.isEmpty }
                         if let selection {
                             let effective = effectiveSelection(selection, engine: model["engine"] as? String)
-                            let asked = effective != selection ? " (\(recipeLabel(selection)) asked)" : ""
+                            // Why an Optimized request runs Standard, so an agent can tell a fallback from a choice.
+                            let why = (model["engine_reason"] as? String).map { ": " + compactText($0, limit: 110) } ?? ""
+                            let asked = effective != selection ? " (\(recipeLabel(selection)) asked\(why))" : ""
                             details.append(recipeLabel(effective) + asked)
                         }
                         return id + (details.isEmpty ? "" : " " + details.joined(separator: " · "))

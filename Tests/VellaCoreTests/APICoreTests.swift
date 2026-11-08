@@ -107,6 +107,65 @@ final class APICoreTests: XCTestCase {
         XCTAssertThrowsError(try TranscriptionOptions.validate(json: Data(#"{"path":"/a","model":{"x":1}}"#.utf8)))
     }
 
+    /// Agent friction, 8 Nov: `language` and `prompt` were accepted and silently ignored, and there was no
+    /// per-request vocabulary switch. Each now reaches the model or is refused with a 400 that says why.
+    func testRequestSettingsReachTheModelOrAreRefused() throws {
+        let off = try TranscriptionOptions.validate(["vocabulary": ["false"], "language": ["tr"], "prompt": ["Istanbul police radio"]])
+        XCTAssertFalse(off.vocabulary)
+        XCTAssertEqual(off.workerOptions as NSDictionary?, ["language": "tr", "prompt": "Istanbul police radio", "vocabulary": false] as NSDictionary)
+        XCTAssertNil(TranscriptionOptions().workerOptions, "a default request sends no options")
+        XCTAssertNil(try TranscriptionOptions.validate(["prompt": ["  "]]).workerOptions)
+        XCTAssertEqual(try TranscriptionOptions.validate(json: Data(#"{"path":"/a.wav","vocabulary":false}"#.utf8)).options.vocabulary, false)
+        XCTAssertThrowsError(try TranscriptionOptions.validate(["vocabulary": ["maybe"]])) { XCTAssertEqual(($0 as? APIError)?.param, "vocabulary") }
+
+        func refusal(_ options: TranscriptionOptions, _ family: String, languages: [String] = ["en", "tr"]) -> APIError? {
+            do { try TranscriptionControls.check(options, familyID: family, name: family, languages: languages); return nil } catch { return error as? APIError }
+        }
+        let turkish = TranscriptionOptions(language: "tr")
+        let prompted = TranscriptionOptions(prompt: "Names: Vella.")
+        XCTAssertNil(refusal(turkish, "nemotron-3.5-transcribe"))
+        XCTAssertNil(refusal(prompted, "nemotron-3.5-transcribe"))
+        XCTAssertNil(refusal(turkish, "whisper-large-v3-turbo"))
+        XCTAssertNil(refusal(turkish, "qwen3-asr-1.7b"))
+        let parakeet = try XCTUnwrap(refusal(turkish, "parakeet-v3-ultra"))
+        XCTAssertEqual(parakeet.status, 400); XCTAssertEqual(parakeet.param, "language"); XCTAssertEqual(parakeet.code, "unsupported_parameter")
+        XCTAssertTrue(parakeet.message.contains("detects the language itself"))
+        XCTAssertEqual(refusal(prompted, "whisper-large-v3")?.param, "prompt")
+        XCTAssertEqual(refusal(prompted, "parakeet-v3")?.param, "prompt")
+        XCTAssertEqual(refusal(TranscriptionOptions(language: "xx"), "nemotron-3.5-transcribe")?.code, "unsupported_language")
+        XCTAssertNil(refusal(TranscriptionOptions(language: "pt-br"), "qwen3-asr-1.7b", languages: ["pt"]))
+        // Vocabulary off is harmless everywhere; lab and test families pass through to their helper.
+        XCTAssertNil(refusal(TranscriptionOptions(vocabulary: false), "parakeet-v3-ultra"))
+        XCTAssertNil(refusal(TranscriptionOptions(language: "en", prompt: "x"), "fake-b", languages: []))
+    }
+
+    /// The echo of what reached the model, and a loop reported as a warning instead of a clean success (friction 2, 9).
+    func testAppliedSettingsAreEchoedAndLoopsWarned() throws {
+        var applied = AppliedSettings()
+        applied.add(["language": "tr", "prompt": "Audio transcription. Language: Turkish.", "vocabulary": false, "vocabulary_words": 0, "loops": 0])
+        applied.add(["language": "tr", "prompt": "later", "vocabulary": false, "vocabulary_words": 0, "loops": 1, "vocabulary_dropped": 2])
+        XCTAssertEqual(applied.language, "tr"); XCTAssertEqual(applied.prompt, "Audio transcription. Language: Turkish.")
+        XCTAssertEqual(applied.loops, 1); XCTAssertEqual(applied.vocabularyDropped, 2); XCTAssertFalse(applied.vocabulary)
+        XCTAssertEqual(applied.warnings.count, 1)
+        let verbose = TranscriptFormatter.render(
+            .verbose_json, text: "Merhaba.", segments: [], duration: 3, language: "tr", model: "nemotron-3.5-transcribe 4b Optimized Fast", applied: applied)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: verbose.body) as? [String: Any])
+        let vella = try XCTUnwrap(object["vella"] as? [String: Any])
+        XCTAssertEqual(vella["language_applied"] as? String, "tr")
+        XCTAssertEqual(vella["prompt"] as? String, "Audio transcription. Language: Turkish.")
+        XCTAssertEqual(vella["model"] as? String, "nemotron-3.5-transcribe 4b Optimized Fast")
+        XCTAssertEqual(vella["loops"] as? Int, 1)
+        XCTAssertEqual((object["warnings"] as? [String])?.count, 1)
+        let json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: TranscriptFormatter.render(.json, text: "x", segments: [], duration: 1, language: nil, applied: applied).body) as? [String: Any])
+        XCTAssertNotNil(json["warnings"])
+        // A clean transcript keeps OpenAI's plain json shape.
+        let clean = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: TranscriptFormatter.render(.json, text: "x", segments: [], duration: 1, language: nil, applied: AppliedSettings()).body)
+                as? [String: Any])
+        XCTAssertEqual(Set(clean.keys), ["text", "usage"])
+    }
+
     func testFormats() throws {
         let segments = [
             TranscriptSegment(id: 0, start: 0, end: 5.25, text: "Hello there."),

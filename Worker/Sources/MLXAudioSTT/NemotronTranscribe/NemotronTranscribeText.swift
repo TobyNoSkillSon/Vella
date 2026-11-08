@@ -18,21 +18,49 @@ public enum NemotronTranscribeError: Error, LocalizedError {
     }
 }
 
-/// The checkpoint's `nemotron3p5` chat format and ASR task prompt (mlx-audio nemotron_transcribe.py).
+/// The checkpoint's `nemotron3p5` chat format and NVIDIA's recommended verbatim ASR prompt (model card, "Prompt
+/// Guide" and "Exact ASR Benchmark Prompts"): empty system prompt, thinking off, the instruction in the user turn.
 public enum NemotronTranscribePrompt {
     public static let audioTag = "<|audio|>"
-    public static let asr = "Produce a verbatim transcript of the audio. Preserve named entities, abbreviations, numbers, dates, "
+    /// NVIDIA's verbatim template; `Language:` reads "as spoken" unless a request names the language.
+    public static let asr = instruction(language: nil)
+    /// mlx-audio's default prompt, which Vella sent before 2.2.1 (the opt-in parity test's reference used it).
+    public static let mlxAudioASR = "Produce a verbatim transcript of the audio. Preserve named entities, abbreviations, numbers, dates, "
         + "measurements, acronyms, and technical terms as clearly as possible. Keep the same language as spoken and do not translate."
     /// Words passed to the model at most (a long list dilutes the hint and costs prefill).
     public static let maxWords = 128
+    /// A request's context text at most (the API's `prompt`), in characters.
+    public static let maxContextCharacters = 2_000
 
-    /// The user turn. Only the plain word list goes in: never Parakeet's acoustic entries or variants (they are
-    /// spellings of sounds, and a model reading them as text is primed to write them).
-    public static func user(words: [String]) -> String {
-        var prompt = asr
-        let terms = vocabulary(words)
-        if !terms.isEmpty { prompt += "\nContextual vocabulary: " + terms.joined(separator: ", ") }
+    /// The verbatim instruction with its language slot filled ("Turkish"), or "as spoken".
+    public static func instruction(language: String?) -> String {
+        let name = language?.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ".", with: "")
+        let slot = (name?.isEmpty ?? true) ? "as spoken" : name!
+        return "Audio transcription. Language: \(slot). Wording: verbatim, including fillers and repetitions. "
+            + "Formatting: punctuation and capitalization. Output: transcript only."
+    }
+
+    /// The user turn. Context goes in NVIDIA's `Context terms:` slot: the request's own context when it has one
+    /// (it replaces the vocabulary), else the plain vocabulary word list. Never Parakeet's acoustic entries or
+    /// variants (they are spellings of sounds, and a model reading them as text is primed to write them).
+    public static func user(words: [String], language: String? = nil, context: String? = nil, instruction custom: String? = nil) -> String {
+        var prompt = custom ?? instruction(language: language)
+        if let terms = contextTerms(words: words, context: context) { prompt += " Context terms: " + terms }
         return prompt + " " + audioTag
+    }
+
+    /// What follows "Context terms:", or nil for none: the request's context on one line (ending with a full stop),
+    /// else the vocabulary list.
+    public static func contextTerms(words: [String], context: String?) -> String? {
+        if let context {
+            var line = context.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }.joined(separator: " ")
+            line = String(line.prefix(maxContextCharacters))
+            guard !line.isEmpty else { return nil }
+            return ".!?…".contains(line.last!) ? line : line + "."
+        }
+        let terms = vocabulary(words)
+        return terms.isEmpty ? nil : terms.joined(separator: ", ") + "."
     }
 
     /// Trimmed, non-empty, de-duplicated (case-insensitively, first spelling kept), at most `maxWords`.
@@ -49,8 +77,109 @@ public enum NemotronTranscribePrompt {
     }
 
     /// The three chat turns, each tokenized on its own without BOS (as NeMo does). Thinking is off.
-    public static func turns(words: [String]) -> [String] {
-        ["<|im_start|>system\n<|im_end|>\n", "<|im_start|>user\n\(user(words: words))<|im_end|>\n", "<|im_start|>assistant\n<think></think>"]
+    public static func turns(words: [String], language: String? = nil, context: String? = nil, instruction custom: String? = nil) -> [String] {
+        ["<|im_start|>system\n<|im_end|>\n", "<|im_start|>user\n\(user(words: words, language: language, context: context, instruction: custom))<|im_end|>\n",
+         "<|im_start|>assistant\n<think></think>"]
+    }
+
+    /// English name of an ISO 639 code for the `Language:` slot ("tr" → "Turkish"); nil when unknown.
+    public static func languageName(_ code: String) -> String? {
+        let key = code.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "_", with: "-").lowercased()
+        guard !key.isEmpty else { return nil }
+        let base = String(key.split(separator: "-").first ?? Substring(key))
+        guard let name = Locale(identifier: "en_US").localizedString(forLanguageCode: base), name.lowercased() != base else { return nil }
+        return name
+    }
+}
+
+/// Repetition loops. The model can fail to stop and repeat one block until the token limit (NVIDIA's card,
+/// "Generation-Loop Guardrail"; on a noisy Turkish recording (8 Nov) int4 repeated "Kültür! Beden!" 167 times, in Vella's
+/// Swift path and in mlx-audio's Python code alike, with or without draft-and-verify).
+public enum NemotronTranscribeLoop {
+    /// A block repeated this many times in a row is a loop (the card's guardrail threshold).
+    public static let minRepeats = 20
+    /// Longest repeated block looked for during decoding, in tokens.
+    public static let maxPeriod = 64
+
+    /// When the tail of `tokens` is one block of at most `maxPeriod` tokens repeated at least `minRepeats` times:
+    /// where the repetition starts and the block length. The shortest block wins.
+    public static func tail(_ tokens: [Int], minRepeats: Int = minRepeats, maxPeriod: Int = maxPeriod) -> (start: Int, period: Int)? {
+        let n = tokens.count
+        guard minRepeats >= 2 else { return nil }
+        for period in 1 ... maxPeriod where period * minRepeats <= n {
+            var periodic = true
+            for i in 0 ..< period * (minRepeats - 1) where tokens[n - 1 - i] != tokens[n - 1 - i - period] {
+                periodic = false
+                break
+            }
+            guard periodic else { continue }
+            var start = n - period * minRepeats
+            while start > 0, tokens[start - 1] == tokens[start - 1 + period] { start -= 1 }
+            return (start, period)
+        }
+        return nil
+    }
+
+    /// The tokens up to and including the first copy of a looping tail, and whether there was one.
+    public static func cut(_ tokens: [Int]) -> (tokens: [Int], looped: Bool) {
+        guard let loop = tail(tokens) else { return (tokens, false) }
+        return (Array(tokens[..<(loop.start + loop.period)]), true)
+    }
+
+    // The card's `cleanup_generation_loops`, adapted from Qwen3-ASR's `detect_and_fix_repetitions` (Apache-2.0,
+    // Copyright 2026 The Alibaba Qwen team; see THIRD_PARTY_NOTICES.md): a character repeated more than 20 times, and a
+    // block of 1–4,096 characters repeated at least 20 times, each collapse to one copy.
+    private static let charRun = try! NSRegularExpression(pattern: #"(.)\1{20,}"#, options: [.dotMatchesLineSeparators])
+    private static let blockRun = try! NSRegularExpression(pattern: #"(.{1,4096}?)\1{19,}"#, options: [.dotMatchesLineSeparators])
+
+    /// NVIDIA's guardrail on decoded text; text without such a run is returned unchanged.
+    public static func cleanup(_ text: String) -> String {
+        var s = text
+        for regex in [charRun, blockRun] {
+            let range = NSRange(s.startIndex..., in: s)
+            s = regex.stringByReplacingMatches(in: s, range: range, withTemplate: "$1")
+        }
+        return s
+    }
+
+    /// Where a looping chunk is cut in two for a second try: the quietest 100 ms frame in its middle half, or nil
+    /// when either half would be shorter than `minimumSeconds`.
+    public static func split(_ samples: [Float], range: Range<Int>, sampleRate: Int = 16_000, minimumSeconds: Double = 4) -> Int? {
+        let minimum = Int(minimumSeconds * Double(sampleRate))
+        guard range.count >= 2 * minimum else { return nil }
+        let frame = sampleRate / 10
+        let lower = max(range.lowerBound + range.count / 4, range.lowerBound + minimum)
+        let upper = min(range.upperBound - range.count / 4, range.upperBound - minimum)
+        guard upper - lower >= frame else { return range.lowerBound + range.count / 2 }
+        var best = range.lowerBound + range.count / 2, bestEnergy = Double.infinity
+        var start = lower
+        while start + frame <= upper {
+            var energy = 0.0
+            for i in start ..< (start + frame) { energy += Double(samples[i] * samples[i]) }
+            if energy < bestEnergy { bestEnergy = energy; best = start + frame / 2 }
+            start += frame / 2
+        }
+        return best
+    }
+
+    /// A decoded piece of audio: its text, whether its decode still ended in a loop, and its generated tokens.
+    public struct Piece: Equatable, Sendable {
+        public var text: String
+        public var looped: Bool
+        public var tokens: Int
+        public init(text: String, looped: Bool, tokens: Int = 0) { self.text = text; self.looped = looped; self.tokens = tokens }
+    }
+
+    /// Decodes `range`; a piece that still loops after the decoder's own retry is cut in two at a quiet point and each
+    /// half decoded again (at most `depth` times), so the speech after a loop is not lost. A half that loops once
+    /// more keeps its text up to the first copy of the loop.
+    public static func recovering(
+        _ range: Range<Int>, depth: Int = 2, decode: (Range<Int>) throws -> Piece, split: (Range<Int>) -> Int?
+    ) rethrows -> [Piece] {
+        let piece = try decode(range)
+        guard piece.looped, depth > 0, let cut = split(range), cut > range.lowerBound, cut < range.upperBound else { return [piece] }
+        return try recovering(range.lowerBound ..< cut, depth: depth - 1, decode: decode, split: split)
+            + recovering(cut ..< range.upperBound, depth: depth - 1, decode: decode, split: split)
     }
 }
 
@@ -107,6 +236,69 @@ public enum NemotronTranscribeVocabularyGuard {
         guard vocabulary.contains(phrase) || tokens.allSatisfy({ vocabulary.contains($0) }) else { return nil }
         let kept = sentences.dropLast().joined().trimmingCharacters(in: .whitespacesAndNewlines)
         return (kept, last.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// The hint can also leak as the list itself, anywhere in the text (a noisy Turkish recording, 8 Nov: the
+    /// output opened with "Vella, Heimdall, Qwen, harness, Nemotron, …" and repeated it later). A sentence of at least
+    /// `listMinimumWords` list words that are at least 80 % of its words is a candidate; `shouldDropList` decides.
+    public static let listMinimumWords = 3
+    public static func listCandidates(_ text: String, words: [String]) -> [String] {
+        let vocabulary = vocabularyTokens(words)
+        guard !vocabulary.isEmpty else { return [] }
+        return split(text).filter { sentence in
+            let tokens = tokens(sentence)
+            let listed = tokens.filter { vocabulary.contains($0) }.count
+            return listed >= listMinimumWords && Double(listed) >= 0.8 * Double(tokens.count)
+        }.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+
+    /// A list candidate goes when the decode without the list did not hear most of its list words: fewer than half
+    /// of them appear anywhere in that transcript, spelled alike ("Heimdal" or "Bella" counts as hearing "Heimdall" or
+    /// "Vella": without the list the model misspells exactly these words). Keeping wins a tie.
+    public static func shouldDropList(_ candidate: String, withoutList: String, words: [String]) -> Bool {
+        let vocabulary = vocabularyTokens(words)
+        let listed = tokens(candidate).filter { vocabulary.contains($0) }
+        guard !listed.isEmpty else { return false }
+        let heard = Set(tokens(withoutList))
+        return 2 * listed.filter { word in heard.contains { alike($0, word) } }.count < listed.count
+    }
+
+    /// Equal, or within one character edit per four letters (at least one).
+    static func alike(_ a: String, _ b: String) -> Bool {
+        if a == b { return true }
+        let x = Array(a), y = Array(b)
+        let limit = max(1, max(x.count, y.count) / 4)
+        guard abs(x.count - y.count) <= limit else { return false }
+        var row = Array(0 ... y.count)
+        for i in 1 ... max(1, x.count) where !x.isEmpty {
+            var previous = row[0]
+            row[0] = i
+            for j in stride(from: 1, through: y.count, by: 1) {
+                let current = row[j]
+                row[j] = min(row[j] + 1, row[j - 1] + 1, previous + (x[i - 1] == y[j - 1] ? 0 : 1))
+                previous = current
+            }
+        }
+        return row[y.count] <= limit
+    }
+
+    /// `text` without the given sentences (each removed once, in order), spaces tidied.
+    public static func removing(_ dropped: [String], from text: String) -> String {
+        var remaining = dropped
+        let kept = split(text).filter { sentence in
+            let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let i = remaining.firstIndex(of: trimmed) { remaining.remove(at: i); return false }
+            return true
+        }
+        return kept.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Every word of every list term, normalized ("Liquid AI" → "liquid", "ai").
+    static func vocabularyTokens(_ words: [String]) -> Set<String> {
+        Set(NemotronTranscribePrompt.vocabulary(words).flatMap { tokens($0) })
+    }
+    static func tokens(_ text: String) -> [String] {
+        text.split(whereSeparator: { $0.isWhitespace }).map { normalize(String($0)) }.filter { !$0.isEmpty }
     }
 
     /// Sentences with their terminators and trailing spaces (a fragment without a terminator counts).

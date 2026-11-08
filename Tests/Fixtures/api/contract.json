@@ -265,6 +265,14 @@
       "usage" : {
         "seconds" : "number",
         "type" : "string"
+      },
+      "vella" : {
+        "language_applied" : "null",
+        "loops" : "number",
+        "model" : "string",
+        "vocabulary" : "bool",
+        "vocabulary_dropped" : "number",
+        "vocabulary_words" : "number"
       }
     }
   },

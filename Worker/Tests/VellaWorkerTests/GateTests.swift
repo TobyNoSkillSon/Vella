@@ -258,6 +258,61 @@ extension WorkerTests {
             }
         }
 
+        /// 17 Oct: one runtime failure kept a Parakeet model on stock MLX for three weeks while the setting asked for
+        /// Optimized Fast. A runtime fallback now re-runs the self-test at the next load, keeping the count; the third
+        /// one for the key is final. A self-test failure stays sticky as before.
+        @Test func runtimeFallbackHealsAtTheNextLoadUntilTheLimit() throws {
+            let scratch = try Scratch("gate-fallback")
+            let model = try checkpoint(scratch)
+            try withEnvironment(Self.clean) {
+                try withEnvironment(["VELLA_WORKER_DATA_DIR": scratch.url.path]) {
+                    var children = 0
+                    func qualify(exit code: Int = 0) -> FastPathGate.Verdict {
+                        FastPathGate.qualify(model, revision: "fallback", requiredFamily: nil, timeout: 5) {
+                            children += 1
+                            let process = Process()
+                            process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+                            process.arguments = ["-c", "raise SystemExit(\(code))"]
+                            return process
+                        }
+                    }
+                    let url = try FastPathGate.statusURL(model, revision: "fallback")
+                    // The verdict 2.2.0 wrote: no count.
+                    FastPathGate.persist("stock", to: url, model: model, reason: FastPathGate.runtimeFallbackReason)
+                    #expect(FastPathGate.runtimeFallbacks(url) == 1)
+                    #expect(FastPathGate.stockMessage(url).hasPrefix("The optimized path failed while running once on this Mac (last on "))
+                    #expect(qualify() == .fast(disabled: [:]) && children == 1)
+                    #expect(FastPathGate.status(url) == "fast")
+                    // The next load reuses the pass without a child.
+                    #expect(qualify() == .fast(disabled: [:]) && children == 1)
+
+                    FastPathGate.persistRuntimeFallback(to: url, model: model)
+                    #expect(FastPathGate.runtimeFallbacks(url) == 2)
+                    #expect(qualify() == .fast(disabled: [:]) && children == 2)
+
+                    FastPathGate.persistRuntimeFallback(to: url, model: model)
+                    #expect(FastPathGate.runtimeFallbacks(url) == FastPathGate.runtimeFallbackLimit)
+                    guard case .stock(let message) = qualify() else { Issue.record("the third fallback must be final"); return }
+                    #expect(children == 2)
+                    #expect(message.contains("3 times"))
+
+                    // A self-test that fails during requalification is a verdict on the kernels: sticky.
+                    try FileManager.default.removeItem(at: url)
+                    FastPathGate.persist("stock", to: url, model: model, reason: FastPathGate.runtimeFallbackReason)
+                    if case .fast = qualify(exit: 2) { Issue.record("a failed requalification enabled optimization") }
+                    #expect(children == 3 && FastPathGate.runtimeFallbacks(url) == nil)
+                    if case .fast = qualify() { Issue.record("a self-test failure must stay sticky") }
+                    #expect(children == 3)
+                    #expect(FastPathGate.stockMessage(url).hasPrefix("The optimized path failed its self-test against stock MLX on this Mac on "))
+                    // The streaming helper's runtime failure is worded as one, and stays final.
+                    try FileManager.default.removeItem(at: url)
+                    FastPathGate.persist("stock", to: url, model: model, reason: "optimized streaming execution failed")
+                    #expect(FastPathGate.runtimeFallbacks(url) == nil)
+                    #expect(FastPathGate.stockMessage(url).hasPrefix("The optimized streaming path failed while running on this Mac on "))
+                }
+            }
+        }
+
         @Test func corruptUnwritableAndConcurrentQualificationFailClosed() throws {
             let scratch = try Scratch("gate-storage")
             let model = try checkpoint(scratch)

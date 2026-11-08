@@ -25,7 +25,7 @@ Get prints download byte progress on stderr while it waits; a progressing downlo
 
 `vella transcribe` prints the transcript on stdout and nothing else; `--json`, `--verbose-json`, `--srt` and `--vtt` print that format instead. `vella status` and `vella url` print one line, `vella models` one line per catalog model. An error is one line on stderr, `error: …`, that says what to do (for example "not downloaded; get it in Vella → Models…", or a memory refusal with the model's size), and the exit code is 1. Pass that line to the user. Status, Models, URL, transcription and model/settings controls start Vella if needed. Help, Version, Skill and Diagnose do not.
 
-`--language` does not change recognition in 2.0; it only sets `verbose_json.language`, which echoes the requested code, or `unknown` when none is given. Detected language is not reported.
+`--language CODE` tells the model the language (Nemotron 3.5 Transcribe, Whisper and Qwen3-ASR); Parakeet detects it itself, and the command refuses `--language` for it with one `error:` line naming the models that take it. `--prompt TEXT` gives Nemotron 3.5 Transcribe context terms (names, jargon) in place of the user's vocabulary; other models refuse it. `--no-vocabulary` leaves the user's vocabulary out of this file only and changes no setting. `--verbose-json` adds `vella`: the model and precision that ran, `language_applied`, the exact `prompt` sent, `vocabulary_words` and `loops`. If a segment ended in a repetition loop, a `warning:` line goes to stderr with the default text, `--json` and `--verbose-json` (`warnings` in the JSON; not with `--srt` or `--vtt`): the repeated words are kept once and speech there may be missing; tell the user. Detected language is not reported.
 
 ## Commands
 
@@ -33,7 +33,8 @@ Get prints download byte progress on stderr while it waits; a progressing downlo
 vella transcribe talk.m4a                      # the transcript as plain text
 vella transcribe talk.m4a --srt > talk.srt     # subtitles; --vtt, --json, --verbose-json (segments) also work
 vella transcribe talk.m4a --model parakeet-v3  # a specific model
-vella transcribe talk.m4a --verbose-json --language pl        # echoed in verbose JSON, not a detection result
+vella transcribe talk.m4a --model nemotron-3.5-transcribe --language tr --no-vocabulary   # Turkish forced, no vocabulary
+vella transcribe talk.m4a --model nemotron-3.5-transcribe --verbose-json --prompt "Kadıköy, Beşiktaş"   # what was sent: .vella.prompt
 vella models                                   # parakeet-v3-ultra  Parakeet v3 Ultra · bf16 · Optimized Fast · loaded · current dictation model · Unload   (one line per catalog model)
 vella status                                   # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra bf16 · Optimized Fast loaded · dictation model Parakeet v3 Ultra (bf16, Optimized Fast) · API http://127.0.0.1:63080/v1
 vella url                                      # http://127.0.0.1:63080/v1

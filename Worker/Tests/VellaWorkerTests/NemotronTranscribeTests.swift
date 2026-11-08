@@ -15,17 +15,20 @@ extension WorkerTests {
             #expect(ParakeetRuntime.hasFastPath && NemotronRuntime.hasFastPath)
         }
 
+        /// NVIDIA's recommended verbatim prompt (model card, Prompt Guide), word for word (agent friction, 8 Nov).
         @Test func plainASRPromptOnly() {
             let user = NemotronTranscribePrompt.user(words: [])
-            #expect(user == NemotronTranscribePrompt.asr + " <|audio|>")
-            for word in ["speaker", "<spk", "<ev:", "<sty:", "Translate", "Contextual"] { #expect(!user.contains(word)) }
+            #expect(
+                user == "Audio transcription. Language: as spoken. Wording: verbatim, including fillers and repetitions. "
+                    + "Formatting: punctuation and capitalization. Output: transcript only. <|audio|>")
+            for word in ["speaker", "<spk", "<ev:", "<sty:", "Translate", "Context"] { #expect(!user.contains(word)) }
             let turns = NemotronTranscribePrompt.turns(words: [])
             #expect(turns == ["<|im_start|>system\n<|im_end|>\n", "<|im_start|>user\n\(user)<|im_end|>\n", "<|im_start|>assistant\n<think></think>"])
         }
 
         @Test func vocabularyPromptHoldsOnlyTheWordList() {
             let user = NemotronTranscribePrompt.user(words: ["Parakeet", " Heimdall ", "", "parakeet", "Poznań"])
-            #expect(user == NemotronTranscribePrompt.asr + "\nContextual vocabulary: Parakeet, Heimdall, Poznań <|audio|>")
+            #expect(user == NemotronTranscribePrompt.asr + " Context terms: Parakeet, Heimdall, Poznań. <|audio|>")
             #expect(user.components(separatedBy: "<|audio|>").count == 2)
             let many = (0..<300).map { "Word\($0)" }
             #expect(NemotronTranscribePrompt.vocabulary(many).count == NemotronTranscribePrompt.maxWords)
@@ -42,8 +45,29 @@ extension WorkerTests {
                 .write(to: file, atomically: true, encoding: .utf8)
             let vocabulary = try ParakeetVocabulary.read(from: file)
             let user = NemotronTranscribePrompt.user(words: vocabulary.words)
-            #expect(user.hasSuffix("\nContextual vocabulary: Zephyr, Heimdall <|audio|>"))
+            #expect(user.hasSuffix(" Context terms: Zephyr, Heimdall. <|audio|>"))
             #expect(!user.contains("Heimdal,") && !user.contains(" se") && !user.contains("Heimdal "))
+        }
+
+        /// `--language tr` reaches the model: the card's `Language:` slot is filled (agent friction 1, 8 Nov).
+        @Test func languageFillsTheLanguageSlot() {
+            #expect(NemotronTranscribePrompt.languageName("tr") == "Turkish")
+            #expect(NemotronTranscribePrompt.languageName("pt-BR") == "Portuguese")
+            #expect(NemotronTranscribePrompt.languageName("zz") == nil)
+            let user = NemotronTranscribePrompt.user(words: [], language: "Turkish")
+            #expect(user.hasPrefix("Audio transcription. Language: Turkish. Wording: verbatim"))
+            #expect(!user.contains("as spoken"))
+        }
+
+        /// The API's `prompt` is the request's context: it replaces the vocabulary list, on one line (friction 3, 4).
+        @Test func requestContextReplacesTheList() {
+            let user = NemotronTranscribePrompt.user(words: ["Heimdall"], language: nil, context: "  Istanbul police radio,\nunit 45-34 ")
+            #expect(user.hasSuffix(" Context terms: Istanbul police radio, unit 45-34. <|audio|>"))
+            #expect(!user.contains("Heimdall"))
+            #expect(NemotronTranscribePrompt.user(words: ["Heimdall"], context: "  \n ") == NemotronTranscribePrompt.asr + " <|audio|>")
+            #expect(NemotronTranscribePrompt.contextTerms(words: [], context: "Ends here?") == "Ends here?")
+            let long = String(repeating: "a", count: 5_000)
+            #expect(NemotronTranscribePrompt.contextTerms(words: [], context: long)!.count == NemotronTranscribePrompt.maxContextCharacters + 1)
         }
 
         @Test func chunksAtMostTwoMinutesCutAtSilence() {
@@ -90,6 +114,94 @@ extension WorkerTests {
             #expect(G.shouldDrop(withList: "So, um, we start now. Poznań.", withoutList: "So we start now.", dropped: "Poznań."))
             #expect(G.shouldDrop(withList: "We met in Liquid. Heimdall.", withoutList: "We met in liquids.", dropped: "Heimdall."))
             #expect(G.split("Dr. No? Yes… ok") == ["Dr. ", "No? ", "Yes… ", "ok"])
+        }
+
+        /// A noisy Turkish recording with a 17-word list (8 Nov): the list opened the transcript and came back later.
+        @Test func vocabularyListLeakIsDroppedAnywhere() {
+            typealias G = NemotronTranscribeVocabularyGuard
+            let words = [
+                "Vella", "Heimdall", "Qwen", "harness", "Nemotron", "Opus", "Codex", "Mobius", "Silero", "Ultron", "VAD",
+                "optimization", "BiRefNet", "Poznań", "Liquid AI"
+            ]
+            let leaked =
+                "Vella, Heimdall, Qwen, harness, Nemotron, Opus, Codex, Mobius, Silero, Ultron, VAD, optimization, BiRefNet, Poznań. "
+                + "Ara sıra diş fırçalamıyor. Vella, Heimdall, Qwen, harness. Belebe!"
+            let lists = G.listCandidates(leaked, words: words)
+            #expect(lists.count == 2)
+            #expect(lists.allSatisfy { G.shouldDropList($0, withoutList: "Ara sıra diş fırçalamıyor. Belebe!", words: words) })
+            #expect(G.removing(lists, from: leaked) == "Ara sıra diş fırçalamıyor. Belebe!")
+            // Real speech naming list words: a sentence with other words, or two words only, is no candidate.
+            #expect(G.listCandidates("I asked Vella and Heimdall about Qwen today.", words: words).isEmpty)
+            #expect(G.listCandidates("Vella, Heimdall.", words: words).isEmpty)
+            #expect(G.listCandidates("Liquid AI, Vella.", words: words).count == 1)
+            // The plain decode heard them too, even misspelt (review, 8 Nov): kept.
+            #expect(!G.shouldDropList("Vella, Heimdall, Qwen.", withoutList: "So Vella, Heimdall, Quen.", words: words))
+            #expect(!G.shouldDropList("Heimdall, Vella, Codex.", withoutList: "Heimdal, Bella, codecs.", words: words))
+            #expect(G.alike("heimdal", "heimdall") && G.alike("bella", "vella") && !G.alike("vad", "bad dog") && !G.alike("opus", "bus"))
+            #expect(G.listCandidates(leaked, words: []).isEmpty)
+        }
+
+        /// The card's guardrail: a block repeated 20 times or more, or a character 21 times or more, collapses to one copy.
+        @Test func loopGuardrailCollapsesRuns() {
+            typealias L = NemotronTranscribeLoop
+            let loop = "Biraz sabah alacağım. " + String(repeating: "Kültür! Beden! ", count: 167) + "Son."
+            #expect(L.cleanup(loop) == "Biraz sabah alacağım. Kültür! Beden! Son.")
+            #expect(L.cleanup("Çık! Çık! Çık! Çık! Çık!") == "Çık! Çık! Çık! Çık! Çık!")
+            #expect(L.cleanup("Hmm" + String(repeating: "m", count: 25)) == "Hm")
+            #expect(L.cleanup("Plain text.") == "Plain text.")
+        }
+
+        /// Decoding stops at a loop instead of running to the token limit, and keeps one copy of the block.
+        @Test func tokenLoopIsDetectedAndCut() {
+            typealias L = NemotronTranscribeLoop
+            let prefix = [5, 6, 7, 8, 9]
+            let block = [21, 22, 23]
+            let tokens = prefix + Array([[Int]](repeating: block, count: 20).joined())
+            let loop = L.tail(tokens)
+            #expect(loop?.start == prefix.count)
+            #expect(loop?.period == 3)
+            let cut = L.cut(tokens)
+            #expect(cut.tokens == prefix + block && cut.looped)
+            // 19 repeats is speech, not a loop; nor is a varied tail.
+            let short = prefix + Array([[Int]](repeating: block, count: 19).joined())
+            let kept = L.cut(short)
+            #expect(L.tail(short) == nil && kept.tokens == short && !kept.looped)
+            #expect(L.tail(Array(0..<200)) == nil)
+            var out = tokens + [21]
+            while out.count % 4 != 0 { out.append(out[out.count - 3]) }
+            #expect(NemotronTranscribeModel.endsInLoop(&out))
+            #expect(out == prefix + block)
+        }
+
+        /// A piece that still loops is decoded again in two halves at a quiet point, so the speech after it survives
+        /// (a noisy Turkish recording lost its radio-call ending to the loop); a half that loops again keeps one copy.
+        @Test func loopingPieceIsSplitAndDecodedAgain() {
+            typealias L = NemotronTranscribeLoop
+            var calls: [Range<Int>] = []
+            let pieces = L.recovering(
+                0..<100,
+                decode: { range in
+                    calls.append(range)
+                    if range == 0..<100 { return .init(text: "Kültür! Beden!", looped: true) }
+                    if range == 0..<50 { return .init(text: "Biraz sabah alacağım.", looped: false) }
+                    if range == 50..<100 { return .init(text: "Kültür!", looped: true) }
+                    return .init(text: "part \(range.lowerBound)", looped: false)
+                },
+                split: { range in range.count >= 50 ? range.lowerBound + range.count / 2 : nil })
+            #expect(calls == [0..<100, 0..<50, 50..<100, 50..<75, 75..<100])
+            #expect(pieces.map(\.text) == ["Biraz sabah alacağım.", "part 50", "part 75"])
+            let anyLooped = pieces.contains { $0.looped }
+            #expect(!anyLooped)
+            // Depth exhausted or no cut possible: the looped piece is kept, flagged.
+            let kept = L.recovering(0..<10, decode: { _ in .init(text: "x", looped: true) }, split: { _ in nil })
+            #expect(kept == [.init(text: "x", looped: true)])
+            // The cut is the quietest frame in the middle half, never closer than 4 s to either end.
+            let rate = 16_000
+            var samples = [Float](repeating: 0.3, count: 30 * rate)
+            for i in (18 * rate)..<(18 * rate + rate / 5) { samples[i] = 0 }
+            let cut = L.split(samples, range: 0..<samples.count)!
+            #expect(abs(cut - (18 * rate + rate / 10)) <= rate / 10)
+            #expect(L.split(samples, range: 0..<7 * rate) == nil)
         }
 
         @Test func markupIsStrippedWordsKept() {
@@ -168,18 +280,22 @@ extension WorkerTests {
         @Test func runawayDraftAndVerifyIsDecodedAgainGreedy() {
             var retries = 0
             let looped = NemotronTranscribeModel.retryingRunaway(
-                maxTokens: 8, runawayRetries: &retries, draftAndVerify: { [Int](repeating: 7, count: 8) }, greedy: { [1, 2, 3] })
-            #expect(looped == [1, 2, 3])
+                maxTokens: 8, runawayRetries: &retries, draftAndVerify: { ([Int](repeating: 7, count: 8), false) }, greedy: { ([1, 2, 3], false) })
+            #expect(looped.tokens == [1, 2, 3] && !looped.looped)
             #expect(retries == 1)
+            // A loop cut early (below the limit) is retried too, and a greedy loop stays flagged for the caller.
+            let cutEarly = NemotronTranscribeModel.retryingRunaway(
+                maxTokens: 1024, runawayRetries: &retries, draftAndVerify: { ([7, 7], true) }, greedy: { ([9], true) })
+            #expect(cutEarly.tokens == [9] && cutEarly.looped && retries == 2)
             var greedyRan = false
             let finished = NemotronTranscribeModel.retryingRunaway(
-                maxTokens: 8, runawayRetries: &retries, draftAndVerify: { [4, 5, 6, 7, 8, 9, 10] },
+                maxTokens: 8, runawayRetries: &retries, draftAndVerify: { ([4, 5, 6, 7, 8, 9, 10], false) },
                 greedy: {
                     greedyRan = true
-                    return []
+                    return ([], false)
                 })
-            #expect(finished == [4, 5, 6, 7, 8, 9, 10])
-            #expect(retries == 1 && !greedyRan)
+            #expect(finished.tokens == [4, 5, 6, 7, 8, 9, 10])
+            #expect(retries == 2 && !greedyRan)
         }
 
         static let localFolders = [
@@ -196,6 +312,8 @@ extension WorkerTests {
             // A model folder, or a derived precision's manifest-only directory (int4 made at load from the BF16 download).
             let path = URL(fileURLWithPath: env["VELLA_NEMOTRON_TRANSCRIBE_MODEL"]!)
             let model = try await NemotronTranscribeModel.fromModelDirectory(path, derived: try DerivedPrecision.resolve(path))
+            // The 28 Oct reference exports used mlx-audio's default prompt and the old list line.
+            model.instructionOverride = NemotronTranscribePrompt.mlxAudioASR
             let refDir = URL(fileURLWithPath: env["VELLA_NEMOTRON_TRANSCRIBE_REF"]!)
             let ref = try JSONSerialization.jsonObject(with: Data(contentsOf: refDir.appendingPathComponent("ref.json"))) as! [String: [String: Any]]
             var report: [String: Any] = [:]
@@ -206,11 +324,15 @@ extension WorkerTests {
                 let data = try Data(contentsOf: refDir.appendingPathComponent("\(clip).f32"))
                 let samples = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
                 let tokens = try model.promptTokens(words: words)
+                // The list line changed to the card's "Context terms:" in 2.2.1; the vocab rows' reference has the old
+                // one, so only the plain rows are held to the reference's prompt and tokens.
                 #expect(
-                    tokens
-                        == (entry["prompt_ids"] as! [Int]).map { $0 == 0 ? model.audioToken : $0 }.reduce(into: [Int]()) { out, t in
-                            if t != model.audioToken || out.last != model.audioToken { out.append(t) }
-                        }, "\(key) prompt tokens")
+                    !words.isEmpty
+                        || tokens
+                            == (entry["prompt_ids"] as! [Int]).map { $0 == 0 ? model.audioToken : $0 }.reduce(into: [Int]()) { out, t in
+                                if t != model.audioToken || out.last != model.audioToken { out.append(t) }
+                            },
+                    "\(key) prompt tokens")
                 let audio = model.perception(MLXArray(samples))
                 let embeddings = try model.inputs(tokens: tokens, audio: audio)
                 let start = Date()
@@ -229,11 +351,11 @@ extension WorkerTests {
                 ]
             }
             // Token-exact where the reference runs agreed on 28 Oct (the 15 s clip, the 60 s clip without a list).
-            for key in ["clip15/plain", "clip15/vocab", "clip60/plain"] {
+            for key in ["clip15/plain", "clip60/plain"] {
                 let row = report[key] as? [String: Any]
                 #expect(row?["stock_equal"] as? Bool == true, "\(key) stock tokens")
             }
-            for key in ["clip15/plain", "clip15/vocab"] {
+            for key in ["clip15/plain"] {
                 #expect((report[key] as? [String: Any])?["mtp_equal"] as? Bool == true, "\(key) MTP tokens")
             }
             // The worker's own entry point: chunk plan, prompt, guard and markup strip, on the 15 s clip.

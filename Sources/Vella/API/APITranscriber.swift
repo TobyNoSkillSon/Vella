@@ -118,6 +118,8 @@ struct APITranscript {
     var segments: [TranscriptSegment]
     var duration: Double
     var model: APIModel
+    /// What the segments' model applied (language, prompt, vocabulary, loops).
+    var applied = AppliedSettings()
 }
 
 /// Runs API transcriptions on the dictation runtime without ever getting in dictation's way: one file at a time
@@ -148,7 +150,10 @@ struct APITranscript {
 
     /// `resolve`: the model the request names, as it stands now (with its files prepared). `current`: the family id of
     /// the current dictation model, kept out of eviction while this request loads another one.
-    func transcribe(_ file: URL, resolve: @escaping () throws -> APIModel, current: @escaping () -> String?) async throws -> APITranscript {
+    func transcribe(
+        _ file: URL, options: TranscriptionOptions = TranscriptionOptions(), resolve: @escaping () throws -> APIModel,
+        current: @escaping () -> String?
+    ) async throws -> APITranscript {
         guard tickets.count <= maxWaiting else { throw APIError(429, "Vella is already transcribing \(tickets.count) files; try again when they finish.") }
         let ticket = UUID(); tickets.append(ticket)
         defer { tickets.removeAll { $0 == ticket } }
@@ -194,6 +199,9 @@ struct APITranscript {
                 }
             }
         }
+        var applied = AppliedSettings()
+        applied.vocabulary = options.vocabulary
+        let workerOptions = options.workerOptions
         let runner = SessionTranscriber { [weak self] url, config in
             guard let self else { throw CancellationError() }
             return try await self.retryingDictationStops {
@@ -201,7 +209,11 @@ struct APITranscript {
                 while true {
                     try await ready()
                     var segment = config; segment.model = model.path
-                    do { return try await self.backend.transcribe(url, config: segment, lane: .api) } catch is Backend.ModelNotReady {
+                    do {
+                        let text = try await self.backend.transcribe(url, config: segment, lane: .api, options: workerOptions)
+                        applied.add(self.backend.lastApplied)
+                        return text
+                    } catch is Backend.ModelNotReady {
                         // Unloaded between the check and the call: load it again, outside the lane.
                         attempts += 1
                         if attempts >= 3 { throw APIError(500, "\(model.name) did not stay loaded; try again.", code: "model_load_failed") }
@@ -230,7 +242,7 @@ struct APITranscript {
         completed += 1
         let (text, segments) = APIAudio.segments(session)
         var used = model; used.loaded = true
-        return APITranscript(text: text, segments: segments, duration: duration, model: used)
+        return APITranscript(text: text, segments: segments, duration: duration, model: used, applied: applied)
     }
 
     /// Waits while a dictation is active, another request is in the worker, or a model is loading or being selected

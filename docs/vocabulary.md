@@ -35,8 +35,17 @@ the private file, too.
 Nemotron 3.5 Transcribe dictation reads the same `vocabulary.json`, at the same
 time and with the same limits. Its `words` go to the model as context before each
 recording, as a list of terms the speech may contain; the model decides whether
-they were said. `boost`, `entries` and `variants` steer Parakeet's decoder and do
-not apply. An empty list adds no context.
+they were said (NVIDIA's `Context terms:`). `boost`, `entries` and `variants` steer
+Parakeet's decoder and do not apply. An empty list adds no context. On hard audio
+the model sometimes writes the list itself; such a sentence is dropped when a
+second decode without the list did not hear those words.
+
+## One file without it
+
+`vella transcribe FILE --no-vocabulary`, or the API's `vocabulary=false`, leaves
+the list out of that request only, for Parakeet and Nemotron alike; the file and
+dictation are unchanged. With Nemotron, the API's `prompt` (`--prompt TEXT`)
+replaces the list for that request.
 
 ## Decoding
 

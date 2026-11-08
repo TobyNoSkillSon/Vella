@@ -161,6 +161,7 @@ import VellaCore
             }
             let parsed = try TranscriptionOptions.validate(json: data)
             options = parsed.options
+            try checkControls(options)
             let url = URL(fileURLWithPath: parsed.path).standardizedFileURL
             let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .isReadableKey])
             guard values?.isRegularFile == true, values?.isReadable == true else {
@@ -185,8 +186,8 @@ import VellaCore
             }
             options = try TranscriptionOptions.validate(fields)
             guard let file, !file.range.isEmpty else { throw APIError(400, "file is required: the audio file as a multipart/form-data upload", param: "file") }
-            // Resolve the model before copying anything, so a bad name costs nothing.
-            _ = try model(for: options)
+            // Resolve the model before copying anything, so a bad name or setting costs nothing.
+            try checkControls(options)
             try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             let url = scratch.appendingPathComponent(UUID().uuidString + Self.fileExtension(file.filename))
             cleanup = url; audio = url
@@ -207,16 +208,28 @@ import VellaCore
         // Resolved again when the request's turn comes and before each segment: the current model and the precision
         // the user committed may change while it waits.
         let result = try await transcriber.transcribe(
-            audio,
+            audio, options: options,
             resolve: { [weak self] in
                 guard let self else { throw CancellationError() }
                 let chosen = try self.model(for: options)
+                // The model may have changed while the request waited (the current dictation model): check it again.
+                try TranscriptionControls.check(options, familyID: chosen.id, name: chosen.name, languages: chosen.languages)
                 return try self.models?.prepare(chosen) ?? chosen
             }, current: { [weak self] in (self?.models?.models() ?? []).first(where: \.current)?.id })
+        let used = [result.model.id, result.model.precision, result.model.selection.map(Self.recipeName)].compactMap { $0 }
+            .filter { !$0.isEmpty }.joined(separator: " ")
         let rendered = TranscriptFormatter.render(
             options.format, text: result.text, segments: result.segments,
-            duration: result.duration, language: options.language)
+            duration: result.duration, language: options.language, model: used, applied: result.applied)
         return APIResponse(status: 200, contentType: rendered.contentType, body: rendered.body)
+    }
+    /// The named model can apply every setting the request asks for (else a 400 before any work).
+    private func checkControls(_ options: TranscriptionOptions) throws {
+        let chosen = try model(for: options)
+        try TranscriptionControls.check(options, familyID: chosen.id, name: chosen.name, languages: chosen.languages)
+    }
+    static func recipeName(_ selection: ModelSelection) -> String {
+        selection.path == .standard ? "Standard" : selection.mode == .exact ? "Optimized Exact" : "Optimized Fast"
     }
     private func model(for options: TranscriptionOptions) throws -> APIModel {
         guard let model = try resolve(options.model) else {

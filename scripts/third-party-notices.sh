@@ -44,6 +44,7 @@ ADAPTED='
 mlx-audio-swift|https://github.com/Blaizzy/mlx-audio-swift at 01dec7c9bdce3088a6b6b7ab9f2e403458195efb|the speech models in Worker/Sources/MLXAudioSTT (Parakeet and NeMo layers, Nemotron, Qwen3 ASR, Whisper), generation and output types, audio and DSP utilities; changed for Vella (local loading only, optimized paths)|MIT|Worker/LICENSE-mlx-audio-swift
 mlx-audio|https://github.com/Blaizzy/mlx-audio at v0.5.1|the mel filterbank of the Parakeet front end and the streaming DSP|MIT|Worker/LICENSE-mlx-audio-python
 mlx-whisper|https://github.com/ml-explore/mlx-examples (whisper)|Whisper decoding settings|MIT|Worker/LICENSE-mlx-whisper
+Qwen3-ASR repetition fix|https://github.com/QwenLM/Qwen3-ASR/blob/7c6daf77a2421100f5fb066495372c00129d39ff/qwen_asr/inference/utils.py (detect_and_fix_repetitions, Copyright 2026 The Alibaba Qwen team), as NVIDIA adapted it in the Nemotron 3.5 Transcribe model card (cleanup_generation_loops)|the repetition-loop guardrail of Nemotron 3.5 Transcribe (NemotronTranscribeLoop.cleanup), reimplemented in Swift|Apache-2.0|Worker/LICENSE-qwen3-asr
 '
 # Artwork in the app: name | source | what it is in Vella | licence | files (relative to the repository)
 ARTWORK='

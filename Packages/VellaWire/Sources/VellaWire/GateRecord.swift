@@ -17,14 +17,16 @@ public struct GateRecord: Equatable, Sendable {
     public var reason: String?
     /// Tolerant components a `fast` verdict leaves off, with why (`disabled.<component>` keys).
     public var disabled: [String: String]
+    /// Runtime fallbacks recorded for this key so far (a requalification keeps the count; absent: none).
+    public var fallbacks: Int?
 
     public init(
         status: Status, workerVersion: String? = nil, gpuFamily: String? = nil, gpuArchitecture: String? = nil, gpuName: String? = nil, osBuild: String? = nil, date: String? = nil,
-        count: Int? = nil, model: String? = nil, reason: String? = nil, disabled: [String: String] = [:]
+        count: Int? = nil, model: String? = nil, reason: String? = nil, disabled: [String: String] = [:], fallbacks: Int? = nil
     ) {
         self.status = status; self.workerVersion = workerVersion; self.gpuFamily = gpuFamily; self.osBuild = osBuild; self.date = date
         self.gpuArchitecture = gpuArchitecture; self.gpuName = gpuName
-        self.count = count; self.model = model; self.reason = reason; self.disabled = disabled
+        self.count = count; self.model = model; self.reason = reason; self.disabled = disabled; self.fallbacks = fallbacks
     }
 
     static let disabledPrefix = "disabled."
@@ -41,7 +43,8 @@ public struct GateRecord: Equatable, Sendable {
                 uniqueKeysWithValues: json.compactMap { key, value in
                     guard key.hasPrefix(Self.disabledPrefix), let why = value as? String else { return nil }
                     return (String(key.dropFirst(Self.disabledPrefix.count)), why)
-                }))
+                }),
+            fallbacks: text("fallbacks").flatMap(Int.init))
     }
 
     /// The file's object.
@@ -49,7 +52,7 @@ public struct GateRecord: Equatable, Sendable {
         var object = ["status": status.rawValue]
         for (key, value) in [
             ("workerVersion", workerVersion), ("gpuFamily", gpuFamily), ("gpuArchitecture", gpuArchitecture), ("gpuName", gpuName), ("osBuild", osBuild), ("date", date),
-            ("count", count.map(String.init)), ("model", model), ("reason", reason)
+            ("count", count.map(String.init)), ("model", model), ("reason", reason), ("fallbacks", fallbacks.map(String.init))
         ] {
             if let value { object[key] = value }
         }

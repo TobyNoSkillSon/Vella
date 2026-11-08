@@ -9,6 +9,59 @@ import VellaWire
 
 enum InjectedFault: Error { case load, optimized, stock }
 
+/// A transcription request's own settings (the API's `language`, `prompt` and `vocabulary`), sent as `options`.
+/// Absent fields keep the defaults: the language as spoken, no context, the user's vocabulary.json.
+struct RequestOptions: Equatable {
+    var language: String?
+    var prompt: String?
+    var vocabulary = true
+
+    /// nil when `value` is absent; throws when it is not an object of known, well-typed fields.
+    init?(json value: Any?) throws {
+        guard let value else { return nil }
+        guard let object = value as? [String: Any], Set(object.keys).isSubset(of: ["language", "prompt", "vocabulary"]) else { throw RequestError.invalid }
+        if let raw = object["language"] {
+            guard let code = raw as? String, (1...16).contains(code.count) else { throw RequestError.invalid }
+            language = code
+        }
+        if let raw = object["prompt"] {
+            guard let text = raw as? String, text.utf8.count <= 16 * 1024 else { throw RequestError.invalid }
+            prompt = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
+        }
+        if let raw = object["vocabulary"] {
+            guard let flag = raw as? Bool else { throw RequestError.invalid }
+            vocabulary = flag
+        }
+    }
+    init(language: String? = nil, prompt: String? = nil, vocabulary: Bool = true) {
+        self.language = language; self.prompt = prompt; self.vocabulary = vocabulary
+    }
+
+    /// Which settings an architecture can apply. The app refuses the rest before any work (`TranscriptionControls`);
+    /// the worker refuses them too, so no option is ever silently dropped.
+    static func unsupported(_ options: RequestOptions, architecture: Architecture?) -> String? {
+        let language: Bool, prompt: Bool
+        switch architecture {
+        case .whisper?, .qwen3ASR?: (language, prompt) = (true, false)
+        case .nemotronTranscribe?, .stub?: (language, prompt) = (true, true)
+        default: (language, prompt) = (false, false)
+        }
+        if options.language != nil, !language { return "language" }
+        if options.prompt != nil, !prompt { return "prompt" }
+        // Qwen3-ASR and Nemotron's prompt take the language's English name; a code without one cannot be applied.
+        if let code = options.language, architecture == .qwen3ASR || architecture == .nemotronTranscribe,
+            NemotronTranscribePrompt.languageName(code) == nil
+        {
+            return "language \(code)"
+        }
+        return nil
+    }
+    /// Whisper's tokens are base codes: "pt-BR" → "pt".
+    static func baseCode(_ code: String) -> String {
+        String(code.lowercased().split(whereSeparator: { $0 == "-" || $0 == "_" }).first ?? Substring(code))
+    }
+}
+
 /// Exactly one stock attempt. Errors in preparation or stock propagate; neither can re-enter optimized execution.
 enum StockFallback {
     static func run<T>(optimized: () throws -> T, prepareStock: (Error) throws -> Void, stock: () throws -> T) throws -> T {
@@ -176,33 +229,61 @@ final class Worker {
     /// Runtime fallback: the optimized path throws or returns non-finite values → the whole request reruns on stock.
     /// Once optimized execution fails, stock stays selected even if the stock attempt also fails. That error
     /// propagates once; the app retains the recording and a manual Retry also runs stock.
-    func infer(_ audio: Audio) throws -> String {
+    /// What the last request actually applied, echoed in its reply as `applied` (agents can check what was sent).
+    private(set) var applied: [String: Any] = [:]
+
+    func infer(_ audio: Audio, options: RequestOptions = RequestOptions()) throws -> String {
         guard let model else { throw RequestError.invalid }
+        if RequestOptions.unsupported(options, architecture: architecture) != nil { throw RequestError.invalid }
         return try autoreleasepool {
             try withError {
                 trackCompilationCache()
                 let input = (architecture.flatMap(Self.runtime)?.input ?? { $0 })(MLXArray(audio.samples))
-                let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, chunkDuration: 30)
+                // Whisper takes the code; Qwen3-ASR and Nemotron's prompt take the English name ("Turkish").
+                let name = options.language.flatMap(NemotronTranscribePrompt.languageName)
+                let language = model is WhisperModel ? options.language.map(RequestOptions.baseCode) : name
+                let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, language: language, chunkDuration: 30)
+                applied = ["language": options.language as Any? ?? NSNull(), "vocabulary": options.vocabulary]
                 if let parakeet = model as? ParakeetModel {
-                    do {
-                        try parakeet.setVocabulary(ParakeetVocabulary.read())
-                        vocabularyError = nil
-                    } catch { vocabularyError = "Invalid vocabulary.json; retaining the previous vocabulary." }
+                    if options.vocabulary {
+                        do {
+                            try parakeet.setVocabulary(ParakeetVocabulary.read())
+                            vocabularyError = nil
+                        } catch { vocabularyError = "Invalid vocabulary.json; retaining the previous vocabulary." }
+                    } else {
+                        // This request only: the next one reads vocabulary.json again.
+                        try parakeet.setVocabulary(ParakeetVocabulary())
+                    }
+                    applied["vocabulary_words"] = parakeet.contextualVocabulary.words.count
                 }
                 if let nemotron = model as? NemotronTranscribeModel {
                     // The same list as Parakeet's, words only: acoustic entries and variants never reach the prompt.
-                    do {
-                        nemotron.vocabularyWords = try ParakeetVocabulary.read().words
-                        vocabularyError = nil
-                    } catch { vocabularyError = "Invalid vocabulary.json; retaining the previous vocabulary." }
+                    if options.vocabulary {
+                        do {
+                            nemotron.vocabularyWords = try ParakeetVocabulary.read().words
+                            vocabularyError = nil
+                        } catch { vocabularyError = "Invalid vocabulary.json; retaining the previous vocabulary." }
+                    } else {
+                        nemotron.vocabularyWords = []
+                    }
+                    nemotron.languageName = name
+                    nemotron.context = options.prompt
                 }
                 var output: STTOutput
                 if stockReason == nil, let capable = model as? any FastPathCapable {
                     var checkingEmpty = false
+                    var committed = false
                     func commitStock() {
-                        stockReason = "Runtime fallback: optimized execution failed; using stock MLX."
+                        // One request records one fallback, however many of its steps fail.
+                        guard !committed else { return }
+                        committed = true
                         optimizations = optimizations.mapValues { _ in false }
-                        if let gateURL { FastPathGate.persist("stock", to: gateURL, model: path, reason: stockReason) }
+                        if let gateURL { FastPathGate.persistRuntimeFallback(to: gateURL, model: path) }
+                        // Unknown (no verdict file, or the write lost its lock): the next load decides; never claim final.
+                        let left = gateURL.flatMap(FastPathGate.runtimeFallbacks).map { FastPathGate.runtimeFallbackLimit - $0 } ?? 1
+                        stockReason =
+                            "Runtime fallback: the optimized path failed while running; stock MLX"
+                            + (left > 0 ? " until the next load tests it again." : " from now on (it failed \(FastPathGate.runtimeFallbackLimit) times).")
                         push?(status("fallback"))
                     }
                     do {
@@ -253,6 +334,13 @@ final class Worker {
                             push?(status("fallback"))
                         }
                     }
+                }
+                if let nemotron = model as? NemotronTranscribeModel {
+                    applied["prompt"] = nemotron.lastPrompt
+                    applied["vocabulary_words"] = nemotron.context == nil ? NemotronTranscribePrompt.vocabulary(nemotron.vocabularyWords).count : 0
+                    // A loop that survived every retry is kept as one copy and reported, never passed off as clean text.
+                    applied["loops"] = nemotron.lastLoops
+                    applied["vocabulary_dropped"] = nemotron.lastGuardDropped.count + nemotron.lastListDropped.count
                 }
                 Stream.gpu.synchronize()
                 return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -378,11 +466,17 @@ final class Worker {
         var metrics: [String: Any] = [:]
         var keepModel = false
         do {
-            let local: URL; let audio: Audio; let architecture: Architecture?
+            let local: URL; let audio: Audio; let architecture: Architecture?; let options: RequestOptions
             do {
-                guard Set(request.keys) == Set(["id", "model", "audio"]) else { throw RequestError.invalid }
+                let keys = Set(request.keys)
+                guard keys == Set(["id", "model", "audio"]) || keys == Set(["id", "model", "audio", "options"]) else { throw RequestError.invalid }
                 local = try localPath(request["model"]); audio = try Audio(request["audio"])
+                options = try RequestOptions(json: request["options"]) ?? RequestOptions()
                 architecture = local != path ? try admit(local) : nil
+                if let reason = RequestOptions.unsupported(options, architecture: architecture ?? self.architecture) {
+                    response["error"] = ["code": "unsupported", "message": "This model cannot apply \(reason)."]
+                    return response
+                }
             } catch { throw RequestError.invalid }
             let cold = local != path
             metrics = [
@@ -391,7 +485,10 @@ final class Worker {
             ]
             if cold, let architecture { try await loadIfNeeded(local, architecture: architecture, metrics: &metrics) } else { Memory.peakMemory = 0 }
             let t = ProcessInfo.processInfo.systemUptime
-            do { response["text"] = try infer(audio) } catch {
+            do {
+                response["text"] = try infer(audio, options: options)
+                response["applied"] = applied
+            } catch {
                 // Both paths failed on this request: the model itself is intact (restored optimized path).
                 keepModel = stockReason == nil
                 throw error

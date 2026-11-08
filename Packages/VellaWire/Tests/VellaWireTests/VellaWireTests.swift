@@ -30,6 +30,11 @@ final class VellaWireTests: XCTestCase {
         let inconclusive = try XCTUnwrap(GateRecord(json: ["status": "inconclusive", "count": "1"]))
         XCTAssertEqual(inconclusive.count, 1)
         XCTAssertEqual(inconclusive.json, ["status": "inconclusive", "count": "1"])
+        // Runtime fallbacks counted per key (2.2.1): read and written as a string, absent when none.
+        let fallback = try XCTUnwrap(GateRecord(json: ["status": "stock", "reason": "Runtime fallback: x", "fallbacks": "2"]))
+        XCTAssertEqual(fallback.fallbacks, 2)
+        XCTAssertEqual(fallback.json, ["status": "stock", "reason": "Runtime fallback: x", "fallbacks": "2"])
+        XCTAssertNil(GateRecord(json: ["status": "stock"])?.fallbacks)
         XCTAssertNil(GateRecord(json: ["status": "maybe"]))
         XCTAssertNil(GateRecord(json: ["model": "x"]))
     }

@@ -7,7 +7,9 @@ public enum TranscriptFormat: String, CaseIterable {
 }
 
 /// The fields of `POST /v1/audio/transcriptions` Vella uses. `temperature` is validated and ignored (decoding is
-/// greedy); `prompt` is accepted and ignored; verbose_json echoes the requested language, or `unknown` when omitted.
+/// greedy). `language` and `prompt` reach the model, or the request is refused with a 400 naming why
+/// (`TranscriptionControls`); `vocabulary=false` leaves the user's vocabulary.json out of this request only.
+/// verbose_json echoes the requested language (`unknown` when omitted) and what was applied (`vella`).
 public struct TranscriptionOptions: Equatable {
     /// Empty: the current dictation model.
     public var model: String
@@ -16,12 +18,23 @@ public struct TranscriptionOptions: Equatable {
     public var format: TranscriptFormat
     public var temperature: Double?
     public var granularities: [String]
+    /// false: this request ignores vocabulary.json (Parakeet's biasing and Nemotron's context terms).
+    public var vocabulary: Bool
     public init(
         model: String = "", language: String? = nil, prompt: String? = nil, format: TranscriptFormat = .json,
-        temperature: Double? = nil, granularities: [String] = []
+        temperature: Double? = nil, granularities: [String] = [], vocabulary: Bool = true
     ) {
         self.model = model; self.language = language; self.prompt = prompt; self.format = format
-        self.temperature = temperature; self.granularities = granularities
+        self.temperature = temperature; self.granularities = granularities; self.vocabulary = vocabulary
+    }
+
+    /// The worker request's `options` object; nil when every setting is the default (the request is unchanged).
+    public var workerOptions: [String: Any]? {
+        var object: [String: Any] = [:]
+        if let language { object["language"] = language }
+        if let prompt, !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { object["prompt"] = prompt }
+        if !vocabulary { object["vocabulary"] = false }
+        return object.isEmpty ? nil : object
     }
 
     /// Validates form fields (each name → its values, in order). Unknown fields are ignored, like OpenAI's optional
@@ -50,6 +63,13 @@ public struct TranscriptionOptions: Equatable {
         if let raw = try one("prompt") {
             guard raw.utf8.count <= 16 * 1024 else { throw APIError(400, "prompt is too long", param: "prompt") }
             options.prompt = raw
+        }
+        if let raw = try one("vocabulary"), !raw.isEmpty {
+            switch raw.lowercased() {
+            case "true", "1": options.vocabulary = true
+            case "false", "0": options.vocabulary = false
+            default: throw APIError(400, "vocabulary must be true or false", param: "vocabulary")
+            }
         }
         if let raw = try one("temperature"), !raw.isEmpty {
             guard let value = Double(raw), value.isFinite, (0...1).contains(value) else {
@@ -98,6 +118,87 @@ public struct TranscriptionOptions: Equatable {
     }
 }
 
+// MARK: What each model can apply
+
+/// Which request settings a Dictation model applies. A setting a model cannot apply is refused, never dropped
+/// (agent friction, 8 Nov: `--language tr` was accepted and silently ignored).
+public enum TranscriptionControls {
+    public struct Capabilities: Equatable {
+        public var language: Bool
+        public var prompt: Bool
+    }
+    /// By catalog family. Families outside the catalog (lab and test models) pass through; their helper refuses
+    /// what its architecture cannot apply.
+    public static func capabilities(familyID: String) -> Capabilities {
+        let id = familyID.lowercased()
+        if id.hasPrefix("parakeet-") { return Capabilities(language: false, prompt: false) }
+        if id.hasPrefix("whisper-") || id.hasPrefix("qwen3-asr-") { return Capabilities(language: true, prompt: false) }
+        return Capabilities(language: true, prompt: true)
+    }
+    /// Models that can take `language` / `prompt`, for the error text.
+    static let languageModels = "Nemotron 3.5 Transcribe, Whisper or Qwen3-ASR"
+    static let promptModels = "Nemotron 3.5 Transcribe"
+
+    /// Throws the 400 for a setting `familyID` cannot apply, or a language outside `languages` (when it lists any).
+    public static func check(_ options: TranscriptionOptions, familyID: String, name: String, languages: [String]) throws {
+        let can = capabilities(familyID: familyID)
+        if let language = options.language {
+            guard can.language else {
+                throw APIError(
+                    400, "\(name) detects the language itself and cannot be told one. Omit language, or use \(languageModels).",
+                    param: "language", code: "unsupported_parameter")
+            }
+            let base = String(language.split(whereSeparator: { $0 == "-" || $0 == "_" }).first ?? "")
+            if !languages.isEmpty, !languages.contains(where: { $0.lowercased() == base || $0.lowercased() == language }) {
+                throw APIError(
+                    400, "\(name) does not recognize language \(language). It knows: \(languages.joined(separator: ", ")).",
+                    param: "language", code: "unsupported_language")
+            }
+        }
+        if let prompt = options.prompt, !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !can.prompt {
+            throw APIError(
+                400, "\(name) cannot use a prompt. Omit prompt, or use \(promptModels), which takes it as context terms.",
+                param: "prompt", code: "unsupported_parameter")
+        }
+    }
+}
+
+/// What a transcription actually applied, gathered from its segments' worker replies (`applied`).
+public struct AppliedSettings: Equatable {
+    /// The language the model was told; nil: as spoken.
+    public var language: String?
+    /// The exact instruction sent (Nemotron 3.5 Transcribe; nil for models without a text prompt).
+    public var prompt: String?
+    public var vocabulary = true
+    /// Vocabulary words the model was given (the most any segment used).
+    public var vocabularyWords = 0
+    /// Segments whose decode still ended in a repetition loop (their text keeps one copy of the repeated block).
+    public var loops = 0
+    /// Vocabulary sentences removed because the model wrote the list, not the speech.
+    public var vocabularyDropped = 0
+    public init() {}
+
+    /// Adds one segment's `applied` object.
+    public mutating func add(_ object: [String: Any]) {
+        if let value = object["language"] as? String { language = value }
+        if let value = object["prompt"] as? String, prompt == nil { prompt = value }
+        if let value = object["vocabulary"] as? Bool { vocabulary = value }
+        if let value = (object["vocabulary_words"] as? NSNumber)?.intValue { vocabularyWords = max(vocabularyWords, value) }
+        loops += (object["loops"] as? NSNumber)?.intValue ?? 0
+        vocabularyDropped += (object["vocabulary_dropped"] as? NSNumber)?.intValue ?? 0
+    }
+
+    /// Plain warnings for the response; empty when the transcript needs none.
+    public var warnings: [String] {
+        loops == 0
+            ? []
+            : [
+                "\(loops) \(loops == 1 ? "segment" : "segments") ended in a repetition loop; the repeated words are kept once and "
+                    + "speech there may be missing. Try another precision or model for this audio."
+            ]
+    }
+}
+
 // MARK: Responses
 
 /// One timed piece of a transcript (one of the app's audio segments; seconds from the start of the file).
@@ -113,23 +214,35 @@ public enum TranscriptFormatter {
     /// Body and Content-Type for a finished transcript in the requested format.
     public static func render(
         _ format: TranscriptFormat, text: String, segments: [TranscriptSegment], duration: Double,
-        language: String?
+        language: String?, model: String? = nil, applied: AppliedSettings? = nil
     ) -> (contentType: String, body: Data) {
         let usage: [String: Any] = ["type": "duration", "seconds": Int(duration.rounded(.up))]
+        let warnings = applied?.warnings ?? []
         switch format {
         case .json:
-            return ("application/json", jsonData(["text": text, "usage": usage]))
+            var object: [String: Any] = ["text": text, "usage": usage]
+            if !warnings.isEmpty { object["warnings"] = warnings }
+            return ("application/json", jsonData(object))
         case .verbose_json:
             let items: [[String: Any]] = segments.map {
                 ["id": $0.id, "seek": 0, "start": round3($0.start), "end": round3($0.end), "text": $0.text, "tokens": [Int](), "temperature": 0.0]
             }
-            return (
-                "application/json",
-                jsonData([
-                    "task": "transcribe", "language": language ?? "unknown", "duration": round3(duration),
-                    "text": text, "segments": items, "usage": usage
-                ])
-            )
+            var object: [String: Any] = [
+                "task": "transcribe", "language": language ?? "unknown", "duration": round3(duration),
+                "text": text, "segments": items, "usage": usage
+            ]
+            if let applied {
+                // What reached the model: agents need not read the source to check it (friction 2, 8 Nov).
+                var vella: [String: Any] = [
+                    "language_applied": applied.language as Any? ?? NSNull(), "vocabulary": applied.vocabulary,
+                    "vocabulary_words": applied.vocabularyWords, "loops": applied.loops, "vocabulary_dropped": applied.vocabularyDropped
+                ]
+                if let model { vella["model"] = model }
+                if let prompt = applied.prompt { vella["prompt"] = prompt }
+                object["vella"] = vella
+            }
+            if !warnings.isEmpty { object["warnings"] = warnings }
+            return ("application/json", jsonData(object))
         case .text:
             return ("text/plain; charset=utf-8", Data((text + "\n").utf8))
         case .srt:

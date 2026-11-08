@@ -19,6 +19,30 @@ extension WorkerTests {
             return url
         }
 
+        /// A request's own settings (agent friction, 8 Nov): parsed strictly, refused where the model cannot apply them,
+        /// never dropped; a request without them is unchanged on the wire.
+        @Test func requestOptionsParseAndAreRefusedWhereUnsupported() throws {
+            #expect(try RequestOptions(json: nil) == nil)
+            let all = try #require(try RequestOptions(json: ["language": "tr", "prompt": "Kadıköy", "vocabulary": false]))
+            #expect(all == RequestOptions(language: "tr", prompt: "Kadıköy", vocabulary: false))
+            #expect(try RequestOptions(json: ["prompt": "   "])?.prompt == nil)
+            for bad: Any in [["colour": "red"], ["vocabulary": "no"], ["language": 7], ["prompt": String(repeating: "x", count: 17_000)], "tr"] {
+                #expect(throws: (any Error).self) { try RequestOptions(json: bad) }
+            }
+            let turkish = RequestOptions(language: "tr"), prompted = RequestOptions(prompt: "x")
+            #expect(RequestOptions.unsupported(turkish, architecture: .parakeet) == "language")
+            #expect(RequestOptions.unsupported(prompted, architecture: .whisper) == "prompt")
+            #expect(RequestOptions.unsupported(prompted, architecture: .qwen3ASR) == "prompt")
+            #expect(RequestOptions.unsupported(turkish, architecture: .nemotronTranscribe) == nil)
+            #expect(RequestOptions.unsupported(prompted, architecture: .nemotronTranscribe) == nil)
+            #expect(RequestOptions.unsupported(RequestOptions(vocabulary: false), architecture: .parakeet) == nil)
+            // A code Foundation cannot name reaches Whisper as a code, but Qwen3-ASR and Nemotron need the name.
+            #expect(RequestOptions.unsupported(RequestOptions(language: "zz"), architecture: .nemotronTranscribe) == "language zz")
+            #expect(RequestOptions.unsupported(RequestOptions(language: "zz"), architecture: .whisper) == nil)
+            // Whisper's language tokens are base codes (review, 8 Nov: "pt-BR" was silently auto-detected).
+            #expect(RequestOptions.baseCode("pt-BR") == "pt" && RequestOptions.baseCode("en_us") == "en" && RequestOptions.baseCode("tr") == "tr")
+        }
+
         @Test func optimizedFailuresTryStockExactlyOnceAndPropagateItsError() throws {
             enum Failure: Error { case optimized, stock }
             for stockFails in [false, true] {

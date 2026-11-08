@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.1 (unreleased)
+
+- **`language` reaches the model.** `vella transcribe --language tr` and the API's `language` tell Nemotron 3.5 Transcribe, Whisper and Qwen3-ASR the language. Parakeet detects the language itself, so it refuses the option with a message naming the models that take it, instead of accepting and ignoring it. A language outside a model's list is refused too.
+- **`prompt` reaches Nemotron 3.5 Transcribe** as context terms (names, places, jargon) in place of your vocabulary; the other models refuse it rather than drop it. `vella transcribe --prompt TEXT` does the same.
+- **Vocabulary off for one file:** `vella transcribe --no-vocabulary` or the API's `vocabulary=false`. Your `vocabulary.json` and dictation stay as they are.
+- **See what was sent.** `--verbose-json` adds `vella`: the model, precision and path that ran, the language applied, Nemotron's exact instruction, the vocabulary word count and any loops. `vella status` says why a model asked for Optimized runs Standard.
+- **Nemotron 3.5 Transcribe uses NVIDIA's recommended prompt** ("Audio transcription. Language: as spoken. Wording: verbatim …"), with the language filled in when you set one, and your vocabulary as NVIDIA's `Context terms`.
+- **Repetition loops are caught.** When the model starts repeating one phrase, decoding stops early, the segment is decoded again plainly, and if it still loops it is split at a pause and each half decoded again, so the speech after the loop is kept. A loop that survives is cut to one copy (NVIDIA's guardrail) and reported as a warning, never as a clean transcript.
+- **Your vocabulary no longer leaks into Nemotron's text** on hard audio: a sentence that is just a run of your list words, anywhere in the text, is dropped when the model did not hear those words without the list.
+- **Dictation returns to the optimized path by itself.** One failure while running used to keep a model on plain MLX until its files or macOS changed (weeks, in one case). Now the next load tests the optimized path again; only a model that fails three times stays on plain MLX.
+
 ## 2.2.0 (7 November 2026)
 
 - **Nemotron 3.5 Transcribe** (NVIDIA, 30B-A4B, OpenMDW-1.1) joins Dictation for 40 languages: a speech language model that returns the text once the recording is encoded. Get downloads NVIDIA's bf16 release (67.5 GB); int8 and int4 are made from it on your Mac when they load, as for the other models. Each precision shows only where your Mac has the memory: int4 from 48 GB, int8 from 64 GB, bf16 from 96 GB; below that the row is greyed with what it needs. Parakeet v3 Ultra stays the first-dictation model; nothing downloads or loads until you click Get. Your vocabulary list applies to it too ([docs/vocabulary.md](docs/vocabulary.md)).

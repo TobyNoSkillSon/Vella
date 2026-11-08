@@ -30,16 +30,33 @@ NeMo Speech (Apache-2.0):
 - `NemotronTranscribeModel.swift`: loading for all three tiers, the prompt, decoding, chunking and the vocabulary guard.
 - `NemotronTranscribeText.swift`: the parts that need no MLX, covered by `Worker/Tests/VellaWorkerTests/NemotronTranscribeTests.swift`.
 
-**Prompt.** Dictation always uses the checkpoint's plain ASR prompt, in the `nemotron3p5` chat format with thinking off.
-The speaker-attributed, rich-transcription and translation prompts are never used. Any markup that still appears is
-removed and the words between tags are kept: `<spk:N>`, `<ev:…>`, `<sty:…>` and `<think>` blocks.
+**Prompt.** NVIDIA's recommended verbatim prompt from the model card's Prompt Guide, in the `nemotron3p5` chat format
+with an empty system prompt and thinking off: `Audio transcription. Language: as spoken. Wording: verbatim, including
+fillers and repetitions. Formatting: punctuation and capitalization. Output: transcript only.` A request's `language`
+fills the slot (`Language: Turkish.`, from the ISO code). Before 2.2.1 Vella sent mlx-audio's default prompt
+(`NemotronTranscribePrompt.mlxAudioASR`); the measured figures below were made with it and are re-measured in the next
+benchmark night. The speaker-attributed, rich-transcription and translation prompts are never used. Any markup that
+still appears is removed and the words between tags are kept: `<spk:N>`, `<ev:…>`, `<sty:…>` and `<think>` blocks.
 
-**Vocabulary.** The user's `vocabulary.json` (`docs/vocabulary.md`) adds `Contextual vocabulary: a, b, c` to the prompt.
-Only the plain `words` go in, never Parakeet's acoustic entries or variants. The hint can make words up: on the
-maintainer's speech, a 17-word list made the model append "Poznań", which was never spoken. When the last sentence (or
-the whole segment) is only list words, the same audio embeddings are decoded once more without the list. The
-candidate is dropped only when that transcript has no words after the last word the two share. The list can also bend
-spellings ("usunąć" became "usunąń" once), and nothing here undoes that.
+**Vocabulary and context.** The user's `vocabulary.json` (`docs/vocabulary.md`) goes in NVIDIA's `Context terms:` slot
+(`… Output: transcript only. Context terms: a, b, c.`). A request's `prompt` replaces the list there, and
+`vocabulary=false` leaves it out. Only the plain `words` go in, never Parakeet's acoustic entries or variants. The
+hint can make words up: on the maintainer's speech, a 17-word list made the model append "Poznań", which was never
+spoken. On noisy audio it can write the list itself: a noisy Turkish recording (8 Nov) opened with the whole 17-word list and
+repeated part of it later. Two guards decide with the same audio embeddings decoded once more without the list:
+a trailing sentence (or a whole segment) of only list words is dropped when that transcript has no words after the
+last word the two share; a sentence anywhere of at least three list words that make up 80 % of it is dropped when
+fewer than half of its list words appear in that transcript. The list can also bend spellings ("usunąć" became
+"usunąń" once), and nothing here undoes that. `verbose_json.vella` shows the exact instruction sent.
+
+**Repetition loops.** Nemotron can fail to stop and repeat one block until the token limit. On that Turkish recording,
+int4 repeated "Kültür! Beden!" 167 times; mlx-audio's Python code on the same int4 weights, plain greedy without the
+draft head, looped the same way ("Belet." to the limit), and int8 did not, so it is the int4 rounding meeting hard
+audio, not the draft path. Vella stops a decode as soon as its tail is one block of at most 64 tokens repeated 20
+times (the card's guardrail threshold), keeping one copy; a looping draft-and-verify chunk is decoded again plain
+greedy; a chunk that still loops is cut at its quietest 100 ms in the middle half (never within 4 s of an end) and
+each half decoded again, twice at most. The text then gets NVIDIA's `cleanup_generation_loops` (adapted from
+Qwen3-ASR, Apache-2.0). A loop that survives is counted in `verbose_json.vella.loops` and the response's `warnings`.
 
 **Segments.** The app cuts dictation and files into segments at pauses: at most 30 s, preferring a cut after 20 s for
 this model, like Whisper. A worker request is at most about 65 s of audio. NVIDIA's offline model is meant for chunks
@@ -96,8 +113,8 @@ Each tier is offered where this Mac's memory fits it (`Sources/VellaCore/Catalog
   names it in the engine reason (the other models fall back to stock the same way). Checked live on int4 (6 Nov):
   with `VELLA_TEST_OPTIMIZED_FAULT=throw` or `nonfinite`, v2-mini ran with 0 errors and 21 of 21 transcripts equal to
   Standard.
-- **Runaway guard.** A draft-and-verify run that reaches the token limit without an end token is a repetition loop;
-  that chunk is decoded again plain greedy, and draft-and-verify stays on. Full v2 at int4 (6 Nov): one 20 s segment
+- **Runaway guard.** A draft-and-verify run that loops (one block repeated 20 times, or the token limit without an end
+  token) is decoded again plain greedy, and draft-and-verify stays on. Full v2 at int4 (6 Nov): one 20 s segment
   of a DiPCo dinner-party recording repeated "It's awesome." 248 times under draft-and-verify (English WER +1.67 pt
   for the whole tier from that one clip); with the guard the clip has 833 words and no loop (Standard: 854). The status
   reports `runaway_retries`.

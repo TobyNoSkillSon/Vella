@@ -60,6 +60,8 @@ struct WorkerExited: LocalizedError {
     }
     private var lastSlot: String?
     private(set) var lastMetrics: [String: Double] = [:]
+    /// The last reply's `applied` object: the settings the model actually used (empty when the helper sent none).
+    private(set) var lastApplied: [String: Any] = [:]
     private(set) var ownership = "Vella runtime unloaded"
     /// The worker that served the latest request (tests, diagnostics).
     var processID: Int32? { lastSlot.flatMap { slots[$0]?.pid } ?? slots.values.lazy.compactMap(\.pid).first }
@@ -110,7 +112,8 @@ struct WorkerExited: LocalizedError {
 
     // MARK: Requests
 
-    func transcribe(_ file: URL, config: Configuration, lane: Lane = .dictation) async throws -> String {
+    /// `options`: the API request's own settings (`TranscriptionOptions.workerOptions`); nil for dictation.
+    func transcribe(_ file: URL, config: Configuration, lane: Lane = .dictation, options: [String: Any]? = nil) async throws -> String {
         if activeCall != nil, lane == .dictation, activeLane == .api {
             // One API segment (≤ 25 s of audio) is in flight: wait for it rather than fail the dictation.
             let until = ProcessInfo.processInfo.systemUptime + requestTimeout + 5
@@ -136,8 +139,15 @@ struct WorkerExited: LocalizedError {
                 try Task.checkCancellation()
                 runtime.pin(ref.id); defer { runtime.unpin(ref.id) }
                 activeSlot = slot; lastSlot = ref.id
-                let object = try await send(slot, ["audio": file.path, "model": slot.ref.path], timeout: requestTimeout)
+                var request: [String: Any] = ["audio": file.path, "model": slot.ref.path]
+                if let options { request["options"] = options }
+                let object = try await send(slot, request, timeout: requestTimeout)
                 lastMetrics = (object["metrics"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? NSNumber)?.doubleValue }
+                lastApplied = object["applied"] as? [String: Any] ?? [:]
+                if let error = object["error"] as? [String: Any], error["code"] as? String == "unsupported" {
+                    // A setting this model cannot apply (the app checks first; this is the helper's own refusal).
+                    throw VellaError.message(error["message"] as? String ?? "This model cannot apply a requested setting.")
+                }
                 if let error = object["error"] as? [String: Any] {
                     retire(slot)
                     throw VellaError.message(
