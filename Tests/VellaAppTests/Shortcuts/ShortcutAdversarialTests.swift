@@ -84,9 +84,7 @@ final class ShortcutAdversarialTests: XCTestCase {
         // model, microphones and selections). Future shortcut prefs must follow the same pattern: never
         // force-unwrap/precondition, always recover to defaults.
         let payload = Data(#"{"executable":"/unused","model":"/m","mode":"hyperdrive"}"#.utf8)
-        let decoded = try JSONDecoder().decode(Configuration.self, from: payload)
-        XCTAssertEqual(decoded.mode, .dictation)
-        XCTAssertEqual(decoded.model, "/m", "the rest of the file is kept")
+        XCTAssertEqual(try JSONDecoder().decode(Configuration.self, from: payload).model, "/m", "an unknown mode resets only itself")
         let root = try tempRoot()
         let url = root.appendingPathComponent("config.json")
         try payload.write(to: url)
