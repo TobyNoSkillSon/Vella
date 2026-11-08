@@ -310,6 +310,35 @@ final class APITests: XCTestCase {
         XCTAssertEqual((object["vella"] as? [String: Any])?["via"] as? String, "vella")
     }
 
+    /// VM rehearsal of 2.2.1 (8 Nov): a new install beside Heimdall dictated through Heimdall's copy, but
+    /// `vella transcribe FILE` refused with "No dictation model is selected yet". Files now use Heimdall's copy too,
+    /// and say plainly what to do when it cannot take the file; nothing is loaded or downloaded.
+    @MainActor func testWithOnlyHeimdallsCopyFilesUseItAndNeverLoadOrDownload() async throws {
+        let api = try await APIFixture(models: [])
+        defer { api.close() }
+        api.models.list = [
+            APIModel(
+                id: "parakeet-v3-ultra", name: "Parakeet v3 Ultra", precision: "BF16", path: "", languages: ["en"], current: true,
+                heimdallOnly: true)
+        ]
+        var up = true
+        api.transcriber.heimdallSocket = { model, _ in model.heimdallOnly ? "/tmp/heimdall-test.sock" : nil }
+        api.transcriber.heimdallTranscribe = { _, _ in
+            guard up else { throw HeimdallASRError.connect("test") }
+            return "heimdall heard."
+        }
+        let (code, _, data) = try await api.post(fields: ["response_format": "verbose_json"], file: audio)
+        XCTAssertEqual(code, 200, String(decoding: data, as: UTF8.self))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual((object["vella"] as? [String: Any])?["via"] as? String, "heimdall")
+        up = false
+        let (failed, _, failedData) = try await api.post(fields: [:], file: audio)
+        XCTAssertEqual(failed, 503)
+        let text = String(decoding: failedData, as: UTF8.self)
+        XCTAssertTrue(text.contains("model_not_downloaded") && text.contains("Get Parakeet v3 Ultra"), text)
+        XCTAssertTrue(api.runtime.status.models.isEmpty, "nothing was loaded")
+    }
+
     @MainActor func testStatusAndModelsRoutes() async throws {
         let api = try await APIFixture()
         defer { api.close() }

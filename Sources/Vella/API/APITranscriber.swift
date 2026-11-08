@@ -111,6 +111,8 @@ struct APIModel: Equatable {
     var selection: ModelSelection?
     /// The requested selection when it differs from `selection` (an Optimized one on stock MLX).
     var requested: ModelSelection?
+    /// Not downloaded in Vella: only Heimdall's copy serves it (dictation borrows it and Vella has no copy of its own).
+    var heimdallOnly = false
 }
 
 struct APITranscript {
@@ -245,6 +247,12 @@ struct APITranscript {
                         heimdallFailed = true
                         break
                     }
+                }
+                if model.heimdallOnly {
+                    throw APIError(
+                        503,
+                        "\(model.name) runs in Heimdall here and is not downloaded in Vella, and Heimdall's copy could not take this file. Try again, or Get \(model.name) in Vella → Models….",
+                        code: "model_not_downloaded")
                 }
                 var attempts = 0
                 while true {

@@ -7,6 +7,8 @@ import VellaCore
     let controller: ModelsController
     let runtime: Runtime
     init(controller: ModelsController, runtime: Runtime) { self.controller = controller; self.runtime = runtime }
+    /// The family dictation borrows from Heimdall (HeimdallLink.borrowingFamily), if any.
+    var borrowedFamily: () -> String? = { nil }
 
     /// The current family is always at its selected precision (what the next dictation loads), even when another
     /// precision of it is loaded (a saved recording retried with an older one); other families at their loaded
@@ -60,6 +62,16 @@ import VellaCore
                     loaded: isLoaded, current: currentIdentity?.family.id == family.id,
                     selection: running, requested: running == requested ? nil : requested))
         }
+        // Dictation borrows Heimdall's copy and Vella has none of its own (a new install beside Heimdall): files use
+        // Heimdall's copy as dictation does, so `vella transcribe FILE` works with no download.
+        if let borrowed = borrowedFamily(), !result.contains(where: { $0.id == borrowed }),
+            let family = controller.families(.dictation).first(where: { $0.id == borrowed })
+        {
+            result.append(
+                APIModel(
+                    id: family.id, name: family.name, precision: controller.committed(family), path: "", languages: family.languages,
+                    current: !result.contains(where: \.current), heimdallOnly: true))
+        }
         return result
     }
 
@@ -70,7 +82,7 @@ import VellaCore
     }
 
     func prepare(_ model: APIModel) throws -> APIModel {
-        guard model.path.isEmpty else { return model }
+        guard model.path.isEmpty, !model.heimdallOnly else { return model }
         // The one resolution (`precisionLoadPath`), as the Models table's Load.
         let library = controller.library(.dictation)
         guard let family = controller.catalog.family(model.id),
@@ -105,7 +117,11 @@ import VellaCore
         // Files share Heimdall's Parakeet v3 Ultra like dictation does, when that loses nothing (no vocabulary to apply).
         let vocabulary = runtime.support.appendingPathComponent("vocabulary.json")
         transcriber.heimdallSocket = { [weak model] api, options in
-            guard let link = model?.heimdall, link.labRoute == nil,
+            guard let link = model?.heimdall, link.labRoute == nil else { return nil }
+            // Only Heimdall's copy exists: the user's vocabulary cannot apply either way (as in dictation); words
+            // added for this request still refuse Heimdall, and the request then says so.
+            if api.heimdallOnly { return options.words.isEmpty ? link.borrow.socket(for: api.id) : nil }
+            guard
                 APITranscriber.sharesHeimdall(
                     model: api.id, options: options, borrowing: link.borrowingFamily,
                     vocabularyWords: options.vocabulary ? TranscriptionControls.vocabularyWordCount(at: vocabulary) : 0)
@@ -117,8 +133,10 @@ import VellaCore
             // A file's failure must not take dictation off Heimdall: the link is not marked unavailable.
             return try await link.transcribe(wav: wav, socket: socket, marksFailure: false)
         }
+        let source = ControllerModelSource(controller: controller, runtime: runtime)
+        source.borrowedFamily = { [weak model] in model?.heimdall?.borrowingFamily }
         let service = APIService(
-            transcriber: transcriber, models: ControllerModelSource(controller: controller, runtime: runtime),
+            transcriber: transcriber, models: source,
             scratch: root.appendingPathComponent("files", isDirectory: true))
         service.controls = ModelControls(controller: controller, runtime: runtime)
         service.vocabularyURL = vocabulary
