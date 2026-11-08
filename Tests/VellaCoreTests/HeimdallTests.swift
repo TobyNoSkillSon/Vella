@@ -139,7 +139,7 @@ import VellaTestSupport
         var cancels = 0
         var start: DictationAnnouncer.StartTimer {
             { interval, fire in
-                self.interval = interval; self.fire = fire;
+                self.interval = interval; self.fire = fire
                 return {
                     self.cancels += 1; self.fire = nil
                 }
