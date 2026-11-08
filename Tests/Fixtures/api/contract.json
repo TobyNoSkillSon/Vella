@@ -270,6 +270,7 @@
         "language_applied" : "null",
         "loops" : "number",
         "model" : "string",
+        "via" : "string",
         "vocabulary" : "bool",
         "vocabulary_dropped" : "number",
         "vocabulary_words" : "number"

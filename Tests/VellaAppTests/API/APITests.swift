@@ -208,6 +208,84 @@ final class APITests: XCTestCase {
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: audio) }
 
+    /// 8 Nov ("a lot of defaults"): `language` for a language the dictation model does not know uses a downloaded
+    /// model that does; a language it knows stays with it; a model's prefix names it.
+    @MainActor func testLanguageTheDictationModelLacksPicksADownloadedModelThatKnowsIt() async throws {
+        let api = try await APIFixture(models: ["parakeet-test", "fake-b"])
+        defer { api.close() }
+        api.models.list[0].languages = ["en", "pl"]
+        api.models.list[1].languages = ["en", "tr"]
+        for (language, heard) in [("tr", "fake-b heard"), ("Turkish", "fake-b heard"), ("pl", "parakeet-test heard"), ("auto", "parakeet-test heard")] {
+            let (code, _, data) = try await api.post(fields: ["language": language, "response_format": "text"], file: audio)
+            XCTAssertEqual(code, 200, "\(language): " + String(decoding: data, as: UTF8.self))
+            XCTAssertTrue(String(decoding: data, as: UTF8.self).hasPrefix(heard), language)
+        }
+        let (named, _, namedData) = try await api.post(fields: ["model": "parakeet-test", "language": "tr"], file: audio)
+        XCTAssertEqual(named, 400, "a named model is kept, and refuses what it cannot do")
+        XCTAssertTrue(String(decoding: namedData, as: UTF8.self).contains("unsupported_language"))
+        let (prefix, _, prefixData) = try await api.post(fields: ["model": "fake", "response_format": "text"], file: audio)
+        XCTAssertEqual(prefix, 200)
+        XCTAssertTrue(String(decoding: prefixData, as: UTF8.self).hasPrefix("fake-b heard"))
+        let (words, _, wordsData) = try await api.post(fields: ["vocabulary": "Kadıköy, Beşiktaş", "response_format": "verbose_json"], file: audio)
+        XCTAssertEqual(words, 200, String(decoding: wordsData, as: UTF8.self))
+    }
+
+    /// Files share Heimdall's copy of the dictation model when it loses nothing, like dictation; a failure falls back
+    /// to Vella's own model for the rest of the file.
+    @MainActor func testFilesUseHeimdallsSharedModelWhenNothingIsLost() async throws {
+        let api = try await APIFixture()
+        defer { api.close() }
+        var heimdallUp = true, asked = 0
+        api.transcriber.heimdallSocket = { model, options in
+            APITranscriber.sharesHeimdall(model: model.id, options: options, borrowing: "fake-a", vocabularyWords: 0) ? "/tmp/heimdall-test.sock" : nil
+        }
+        api.transcriber.heimdallTranscribe = { _, socket in
+            asked += 1
+            XCTAssertEqual(socket, "/tmp/heimdall-test.sock")
+            if !heimdallUp { throw HeimdallASRError.connect("test") }
+            return "heimdall heard."
+        }
+        let (code, _, data) = try await api.post(fields: ["response_format": "verbose_json"], file: audio)
+        XCTAssertEqual(code, 200)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertTrue((object["text"] as? String)?.hasPrefix("heimdall heard.") == true, "\(object)")
+        XCTAssertEqual((object["vella"] as? [String: Any])?["via"] as? String, "heimdall")
+        XCTAssertNil(api.runtime.status.models["fake-a"], "Vella's own copy is never loaded")
+        XCTAssertGreaterThan(asked, 0)
+
+        XCTAssertEqual((object["vella"] as? [String: Any])?["model"] as? String, "fake-a (Heimdall's copy)")
+        // Busy: waited for, not a fallback (no second copy loaded for a moment of contention).
+        var busyLeft = 2
+        api.transcriber.heimdallTranscribe = { _, _ in
+            if busyLeft > 0 { busyLeft -= 1; throw HeimdallASRError.rejected("busy") }
+            return "heimdall heard."
+        }
+        let (bCode, _, bData) = try await api.post(fields: ["response_format": "verbose_json"], file: audio)
+        XCTAssertEqual(bCode, 200)
+        XCTAssertEqual(((try JSONSerialization.jsonObject(with: bData) as? [String: Any])?["vella"] as? [String: Any])?["via"] as? String, "heimdall")
+        XCTAssertNil(api.runtime.status.models["fake-a"], "still no own copy")
+        api.transcriber.heimdallTranscribe = { _, _ in
+            asked += 1
+            if !heimdallUp { throw HeimdallASRError.connect("test") }
+            return "heimdall heard."
+        }
+
+        heimdallUp = false
+        let (fCode, _, fData) = try await api.post(fields: ["response_format": "verbose_json"], file: audio)
+        XCTAssertEqual(fCode, 200)
+        let fallback = try XCTUnwrap(JSONSerialization.jsonObject(with: fData) as? [String: Any])
+        XCTAssertTrue((fallback["text"] as? String)?.hasPrefix("fake-a heard") == true)
+        XCTAssertEqual((fallback["vella"] as? [String: Any])?["via"] as? String, "vella")
+
+        // Another model, added words, or the user's vocabulary on: Vella's own model, which applies them.
+        XCTAssertFalse(APITranscriber.sharesHeimdall(model: "fake-b", options: TranscriptionOptions(), borrowing: "fake-a", vocabularyWords: 0))
+        XCTAssertFalse(APITranscriber.sharesHeimdall(model: "fake-a", options: TranscriptionOptions(words: ["Vella"]), borrowing: "fake-a", vocabularyWords: 0))
+        XCTAssertFalse(APITranscriber.sharesHeimdall(model: "fake-a", options: TranscriptionOptions(), borrowing: "fake-a", vocabularyWords: 17))
+        XCTAssertFalse(APITranscriber.sharesHeimdall(model: "fake-a", options: TranscriptionOptions(), borrowing: "fake-a", vocabularyWords: nil))
+        XCTAssertTrue(APITranscriber.sharesHeimdall(model: "fake-a", options: TranscriptionOptions(vocabulary: false), borrowing: "fake-a", vocabularyWords: 17))
+        XCTAssertFalse(APITranscriber.sharesHeimdall(model: "fake-a", options: TranscriptionOptions(), borrowing: nil, vocabularyWords: 0))
+    }
+
     @MainActor func testStatusAndModelsRoutes() async throws {
         let api = try await APIFixture()
         defer { api.close() }

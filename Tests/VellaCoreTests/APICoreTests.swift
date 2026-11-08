@@ -116,7 +116,7 @@ final class APICoreTests: XCTestCase {
         XCTAssertNil(TranscriptionOptions().workerOptions, "a default request sends no options")
         XCTAssertNil(try TranscriptionOptions.validate(["prompt": ["  "]]).workerOptions)
         XCTAssertEqual(try TranscriptionOptions.validate(json: Data(#"{"path":"/a.wav","vocabulary":false}"#.utf8)).options.vocabulary, false)
-        XCTAssertThrowsError(try TranscriptionOptions.validate(["vocabulary": ["maybe"]])) { XCTAssertEqual(($0 as? APIError)?.param, "vocabulary") }
+        XCTAssertThrowsError(try TranscriptionOptions.validate(["vocabulary": ["may-be"]])) { XCTAssertEqual(($0 as? APIError)?.param, "vocabulary") }
 
         func refusal(_ options: TranscriptionOptions, _ family: String, languages: [String] = ["en", "tr"]) -> APIError? {
             do { try TranscriptionControls.check(options, familyID: family, name: family, languages: languages); return nil } catch { return error as? APIError }
@@ -127,9 +127,14 @@ final class APICoreTests: XCTestCase {
         XCTAssertNil(refusal(prompted, "nemotron-3.5-transcribe"))
         XCTAssertNil(refusal(turkish, "whisper-large-v3-turbo"))
         XCTAssertNil(refusal(turkish, "qwen3-asr-1.7b"))
-        let parakeet = try XCTUnwrap(refusal(turkish, "parakeet-v3-ultra"))
-        XCTAssertEqual(parakeet.status, 400); XCTAssertEqual(parakeet.param, "language"); XCTAssertEqual(parakeet.code, "unsupported_parameter")
-        XCTAssertTrue(parakeet.message.contains("detects the language itself"))
+        // Parakeet detects the language: one it knows is accepted (and not sent), one it does not is refused.
+        XCTAssertNil(refusal(TranscriptionOptions(language: "pl"), "parakeet-v3-ultra", languages: ["en", "pl"]))
+        let parakeet = try XCTUnwrap(refusal(turkish, "parakeet-v3-ultra", languages: ["en", "pl"]))
+        XCTAssertEqual(parakeet.status, 400); XCTAssertEqual(parakeet.param, "language"); XCTAssertEqual(parakeet.code, "unsupported_language")
+        XCTAssertTrue(parakeet.message.contains("Omit language to detect it"), parakeet.message)
+        XCTAssertEqual(refusal(turkish, "parakeet-v3-ultra", languages: [])?.code, "unsupported_parameter")
+        XCTAssertNil(TranscriptionControls.applying(TranscriptionOptions(language: "pl"), familyID: "parakeet-v3").workerOptions)
+        XCTAssertEqual(TranscriptionControls.applying(turkish, familyID: "whisper-large-v3").language, "tr")
         XCTAssertEqual(refusal(prompted, "whisper-large-v3")?.param, "prompt")
         XCTAssertEqual(refusal(prompted, "parakeet-v3")?.param, "prompt")
         XCTAssertEqual(refusal(TranscriptionOptions(language: "xx"), "nemotron-3.5-transcribe")?.code, "unsupported_language")
@@ -137,6 +142,72 @@ final class APICoreTests: XCTestCase {
         // Vocabulary off is harmless everywhere; lab and test families pass through to their helper.
         XCTAssertNil(refusal(TranscriptionOptions(vocabulary: false), "parakeet-v3-ultra"))
         XCTAssertNil(refusal(TranscriptionOptions(language: "en", prompt: "x"), "fake-b", languages: []))
+    }
+
+    /// Zero-config requests (8 Nov, "way less flags, a lot of defaults"): a language by name or `auto`, words added
+    /// for one request, a model by its prefix, and a downloaded model picked for a language the dictation model lacks.
+    func testDefaultsAndShortFormsResolveWithoutExtraFlags() throws {
+        XCTAssertEqual(try TranscriptionOptions.languageCode("Turkish"), "tr")
+        XCTAssertEqual(try TranscriptionOptions.languageCode("polish"), "pl")
+        XCTAssertEqual(try TranscriptionOptions.languageCode("TR"), "tr")
+        XCTAssertEqual(try TranscriptionOptions.languageCode("pt-BR"), "pt-br")
+        XCTAssertNil(try TranscriptionOptions.languageCode("auto"))
+        XCTAssertNil(try TranscriptionOptions.validate(["language": ["auto"]]).language)
+        XCTAssertThrowsError(try TranscriptionOptions.languageCode("Klingonese")) { XCTAssertEqual(($0 as? APIError)?.code, "unsupported_language") }
+
+        let words = try TranscriptionOptions.validate(["vocabulary": ["Kadıköy, Beşiktaş kadıköy"]])
+        XCTAssertTrue(words.vocabulary); XCTAssertEqual(words.words, ["Kadıköy", "Beşiktaş"])
+        XCTAssertEqual(words.workerOptions as NSDictionary?, ["words": ["Kadıköy", "Beşiktaş"]] as NSDictionary)
+        let json = try TranscriptionOptions.validate(json: Data(#"{"path":"/a.wav","vocabulary":["Vella","Heimdall"]}"#.utf8)).options
+        XCTAssertEqual(json.words, ["Vella", "Heimdall"])
+        XCTAssertFalse(try TranscriptionOptions.validate(["vocabulary": ["off"]]).vocabulary)
+        XCTAssertThrowsError(try TranscriptionOptions.validate(["vocabulary": ["GPT-4"]]))
+        XCTAssertThrowsError(try TranscriptionOptions.validate(["vocabulary": [Array(repeating: "a", count: 65).enumerated().map { "w\(String(repeating: "x", count: $0.offset))" }.joined(separator: ",")]]))
+        XCTAssertEqual(
+            (try? TranscriptionControls.check(TranscriptionOptions(words: ["Vella"]), familyID: "whisper-large-v3", name: "Whisper", languages: [])) == nil, true)
+        XCTAssertNoThrow(try TranscriptionControls.check(TranscriptionOptions(words: ["Vella"]), familyID: "parakeet-v3-ultra", name: "P", languages: []))
+
+        let ids = ["parakeet-v3-ultra", "parakeet-v3", "whisper-large-v3", "whisper-large-v3-turbo", "nemotron-3.5-transcribe"]
+        XCTAssertEqual(TranscriptionControls.match("nemotron", ids: ids, current: nil), "nemotron-3.5-transcribe")
+        XCTAssertEqual(TranscriptionControls.match("Parakeet", ids: ids, current: nil), "parakeet-v3-ultra")
+        XCTAssertEqual(TranscriptionControls.match("parakeet", ids: ids, current: "parakeet-v3"), "parakeet-v3")
+        XCTAssertEqual(TranscriptionControls.match("parakeet-v3", ids: ids, current: "parakeet-v3-ultra"), "parakeet-v3", "an exact id wins")
+        XCTAssertEqual(TranscriptionControls.match("whisper-large-v3-t", ids: ids, current: nil), "whisper-large-v3-turbo")
+        XCTAssertNil(TranscriptionControls.match("qwen", ids: ids, current: nil))
+
+        let european = ["en", "pl", "de"]
+        let available: [(id: String, languages: [String])] = [
+            ("parakeet-v3-ultra", european), ("nemotron-3.5-transcribe", ["en", "tr", "pl"]), ("qwen3-asr-1.7b", ["en", "tr", "zh"])
+        ]
+        let turkish = TranscriptionOptions(language: "tr")
+        XCTAssertEqual(TranscriptionControls.pick(turkish, current: "parakeet-v3-ultra", available: available), "qwen3-asr-1.7b", "the light model before the 30B one")
+        XCTAssertNil(TranscriptionControls.pick(TranscriptionOptions(language: "pl"), current: "parakeet-v3-ultra", available: available), "Parakeet knows Polish")
+        XCTAssertNil(TranscriptionControls.pick(TranscriptionOptions(), current: "parakeet-v3-ultra", available: available))
+        XCTAssertNil(TranscriptionControls.pick(TranscriptionOptions(model: "parakeet-v3-ultra", language: "tr"), current: "parakeet-v3-ultra", available: available), "a named model is kept")
+        XCTAssertNil(TranscriptionControls.pick(TranscriptionOptions(language: "sw"), current: "parakeet-v3-ultra", available: available), "nothing downloaded knows it")
+        XCTAssertEqual(
+            TranscriptionControls.pick(TranscriptionOptions(language: "tr", words: ["Kadıköy"]), current: "parakeet-v3-ultra", available: available),
+            "nemotron-3.5-transcribe", "words need a model that takes them")
+        XCTAssertTrue(TranscriptionOptions(model: "whisper-1").usesDefaultModel)
+
+        // Review, 8 Nov: a word list is always words; words never silently dropped.
+        let no = try TranscriptionOptions.validate(json: Data(#"{"path":"/a.wav","vocabulary":["No","On"]}"#.utf8)).options
+        XCTAssertTrue(no.vocabulary); XCTAssertEqual(no.words, ["No", "On"])
+        XCTAssertNoThrow(try TranscriptionControls.checkRoom(TranscriptionOptions(words: ["A"]), vocabularyWords: 127))
+        XCTAssertThrowsError(try TranscriptionControls.checkRoom(TranscriptionOptions(words: ["A", "B"]), vocabularyWords: 127)) {
+            XCTAssertEqual(($0 as? APIError)?.code, "vocabulary_too_large")
+        }
+        XCTAssertNoThrow(try TranscriptionControls.checkRoom(TranscriptionOptions(vocabulary: false, words: ["A", "B"]), vocabularyWords: 127))
+        XCTAssertThrowsError(
+            try TranscriptionControls.check(TranscriptionOptions(prompt: "Names", words: ["Vella"]), familyID: "nemotron-3.5-transcribe", name: "N", languages: []))
+
+        let vocabulary = FileManager.default.temporaryDirectory.appendingPathComponent("vella-vocab-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: vocabulary) }
+        XCTAssertEqual(TranscriptionControls.vocabularyWordCount(at: vocabulary), 0)
+        try Data(#"{"words":["Vella","Heimdall"],"boost":4}"#.utf8).write(to: vocabulary)
+        XCTAssertEqual(TranscriptionControls.vocabularyWordCount(at: vocabulary), 2)
+        try Data("nonsense".utf8).write(to: vocabulary)
+        XCTAssertNil(TranscriptionControls.vocabularyWordCount(at: vocabulary))
     }
 
     /// The echo of what reached the model, and a loop reported as a warning instead of a clean success (friction 2, 9).
@@ -155,6 +226,7 @@ final class APICoreTests: XCTestCase {
         XCTAssertEqual(vella["prompt"] as? String, "Audio transcription. Language: Turkish.")
         XCTAssertEqual(vella["model"] as? String, "nemotron-3.5-transcribe 4b Optimized Fast")
         XCTAssertEqual(vella["loops"] as? Int, 1)
+        XCTAssertEqual(vella["via"] as? String, "vella", "segments served by Vella's own model")
         XCTAssertEqual((object["warnings"] as? [String])?.count, 1)
         let json = try XCTUnwrap(
             JSONSerialization.jsonObject(with: TranscriptFormatter.render(.json, text: "x", segments: [], duration: 1, language: nil, applied: applied).body) as? [String: Any])

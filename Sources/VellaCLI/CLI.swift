@@ -5,22 +5,33 @@ let usage = """
     Every model runs Vella's optimized kernels where this Mac supports them and falls back to stock MLX by itself; figures are measured on M5 Max so far.
     vella: transcribe audio files offline with Vella’s downloaded Dictation models.
 
-        vella transcribe FILE [--model ID] [--language CODE] [--prompt TEXT] [--no-vocabulary] [--text | --json | --verbose-json | --srt | --vtt]
-            prints the transcript (--text, the default); --json/--verbose-json print OpenAI's JSON response, --srt/--vtt
-            subtitles. --language CODE tells the model the language (Nemotron 3.5 Transcribe, Whisper, Qwen3-ASR; Parakeet
-            detects it and refuses the flag). --prompt TEXT gives Nemotron 3.5 Transcribe context terms in place of your
-            vocabulary. --no-vocabulary leaves vocabulary.json out of this file only. --verbose-json shows what was applied
-            ("vella": language, the exact prompt, vocabulary words, loops); a repetition loop is reported on stderr.
-            FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. --model takes an id from
-            `vella models` (a downloaded Dictation model; Streaming models do not transcribe files); without it the current dictation model is used. Dictation always goes first.
-        vella status [--json]        one line: running, dictation model, loaded models, API address; --json: the full status
-        vella models [--json]        all local Models table rows, including not downloaded; --json includes per-cell measured figures, provenance and refusals
+        vella transcribe FILE        the transcript as plain text: language detected, your vocabulary on, your dictation model
+            --language CODE          the spoken language (tr or Turkish); without it the model detects it
+            --vocab "A, B"           add words for this file (names, jargon); your vocabulary stays as it is
+            --no-vocab               leave your vocabulary out for this file
+            --model ID               another downloaded model; a prefix works (nemotron, whisper, qwen)
+            --json                   text, timed segments and what the model was given
+            --srt | --vtt            subtitles
+        vella status                 one line: running, dictation model, loaded models, API address
+        vella models                 every model, downloaded or not
+        vella get ID --yes           download and load a model (only with the user's consent)
+        vella help all               every command and option
+
+    FILE: anything macOS decodes (wav, mp3, m4a, flac, caf, aiff), up to 3 hours. Dictation always goes first.
+    """
+
+/// `vella help all`: every command, including the Models table controls agents rarely need.
+let fullUsage = usage.replacingOccurrences(of: "        vella help all               every command and option\n", with: "") + """
+
+    More:
+        vella status --json          the full status
+        vella models --json          per-cell measured figures, provenance, refusals, source and size
         vella select ID [--precision bf16|fp16|int8|int4] [--mode Fast|Exact]
             previews a cell under the table's rules; Load / Reload / Get commits it. An unavailable cell says why.
         vella get ID [--yes]         Get and Load; --yes consents to the displayed source/size; without it nothing downloads
-        vella load ID               Load downloaded weights; never downloads
-        vella reload ID             Reload the previewed cell; never downloads
-        vella unload ID             Unload; keep the weights
+        vella load ID                Load downloaded weights; never downloads
+        vella reload ID              Reload the previewed cell; never downloads
+        vella unload ID              Unload; keep the weights
         vella delete ID --precision bf16|fp16|int8|int4 --yes
             Move these weights to Trash through the table gate; without --yes prints what/size and changes nothing
         vella keep-hot ["Manually loaded"|"Loaded on demand" "Always"|"5 min idle"|"15 min idle"|"30 min idle"|"60 min idle"]
@@ -34,8 +45,26 @@ let usage = """
             verdicts, and each loaded dictation model timed on five built-in clips, compared with reference transcripts;
             ends with a prefilled GitHub issue link. --load loads the dictation model first. Never starts Vella.
 
+    Transcribe, rarely needed: --prompt TEXT gives Nemotron 3.5 Transcribe context terms in place of your vocabulary.
+    Older spellings still work: --text, --verbose-json (= --json), --no-vocabulary, --lang/-l, -m, --format FORMAT,
+    and --option=value for any option.
+
     Talks to the Vella app over its local HTTP API (OpenAI-compatible /v1/audio/transcriptions, /v1/models, plus
     /status); starts the app if it is not running. Transcripts are printed, never pasted or saved.
+    """
+
+/// `vella transcribe --help`.
+let transcribeUsage = """
+    Usage: vella transcribe FILE [--language CODE] [--vocab "A, B"] [--no-vocab] [--model ID] [--json | --srt | --vtt]
+    Prints the transcript. Defaults: the language detected, your vocabulary on, your dictation model, plain text.
+        --language CODE   tr, pt-BR or a name (Turkish). A language your dictation model does not know picks a
+                          downloaded model that does.
+        --vocab "A, B"    words to add for this file only (letters only; commas or spaces separate them)
+        --no-vocab        leave your vocabulary out for this file
+        --model ID        an id from `vella models` or its prefix (nemotron, whisper, qwen, parakeet)
+        --json            text, timed segments and `vella`: the model, language, prompt and vocabulary it was given
+        --srt | --vtt     subtitles
+    A repetition loop is reported on stderr as `warning: …`.
     """
 
 struct CLIError: Error { let message: String; init(_ message: String) { self.message = message } }
@@ -66,7 +95,9 @@ struct VellaCLI {
     var warn: @Sendable (String) -> Void = { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }
 
     func run(_ argv: [String]) async -> Int32 {
-        guard let command = argv.first, !["-h", "--help", "help"].contains(command) else { write(usage); return 0 }
+        guard let command = argv.first, !["-h", "--help", "help"].contains(command) else {
+            write(argv.dropFirst().first == "all" ? fullUsage : usage); return 0
+        }
         do {
             if argv.dropFirst().contains("--help") || argv.dropFirst().contains("-h") {
                 guard let help = Self.commandHelp(command) else { throw CLIError("unknown command \(command); see vella --help") }
@@ -83,7 +114,7 @@ struct VellaCLI {
 
     static func commandHelp(_ command: String) -> String? {
         let commands: [String: String] = [
-            "transcribe": "Usage: vella transcribe FILE [--model ID] [--language CODE] [--prompt TEXT] [--no-vocabulary] [--text|--json|--verbose-json|--srt|--vtt]",
+            "transcribe": transcribeUsage,
             "status": "Usage: vella status [--json]",
             "models": "Usage: vella models [--json]",
             "select": "Usage: vella select ID [--precision bf16|fp16|int8|int4] [--mode Fast|Exact]",
@@ -103,7 +134,7 @@ struct VellaCLI {
             $0
                 + (command == "memory" || command == "keep-hot"
                     ? "\nWith no value, print the current settings."
-                    : command == "transcribe" ? "\n--verbose-json shows the language, prompt and vocabulary the model was given." : "")
+                    : "")
         }
     }
 
@@ -111,10 +142,19 @@ struct VellaCLI {
         var values: [String: String] = [:]
         var flags: Set<String> = []
         var positional: [String] = []
-        init(_ args: [String], values valueOptions: Set<String>, flags flagOptions: Set<String>) throws {
+        /// `aliases`: another spelling → the option it means (`-m` → `--model`). `--option=value` works for any value option.
+        init(_ args: [String], values valueOptions: Set<String>, flags flagOptions: Set<String>, aliases: [String: String] = [:]) throws {
             var i = 0
+            var args = args
             while i < args.count {
-                let a = args[i]
+                var a = aliases[args[i]] ?? args[i]
+                if a.hasPrefix("--"), let equals = a.firstIndex(of: "=") {
+                    let name = aliases[String(a[..<equals])] ?? String(a[..<equals])
+                    if valueOptions.contains(name) {
+                        args[i] = name; args.insert(String(a[a.index(after: equals)...]), at: i + 1)
+                        a = name
+                    }
+                }
                 if valueOptions.contains(a) {
                     guard i + 1 < args.count else { throw CLIError("\(a) needs a value") }
                     values[a] = args[i + 1]; i += 2
@@ -258,15 +298,29 @@ struct VellaCLI {
         write("Keep Hot · Manually loaded \(hot["Manually loaded"] ?? "?") · Loaded on demand \(hot["Loaded on demand"] ?? "?") · Memory \(memory)")
     }
 
+    /// Spellings `vella transcribe` also accepts (older flags, short forms); none is shown in the main help.
+    static let transcribeAliases: [String: String] = [
+        "-m": "--model", "-l": "--language", "--lang": "--language", "--no-vocabulary": "--no-vocab",
+        "--vocabulary": "--vocab", "--words": "--vocab", "--verbose-json": "--json"
+    ]
+
     func transcribe(_ rest: [String]) async throws {
         let args = try Arguments(
-            rest, values: ["--model", "--language", "--prompt"], flags: ["--json", "--verbose-json", "--srt", "--vtt", "--text", "--no-vocabulary"])
+            rest, values: ["--model", "--language", "--prompt", "--vocab", "--format"], flags: ["--json", "--srt", "--vtt", "--text", "--no-vocab"],
+            aliases: Self.transcribeAliases)
         guard args.positional.count == 1 else {
-            throw CLIError("vella transcribe FILE [--model ID] [--language CODE] [--prompt TEXT] [--no-vocabulary] [--text | --json | --verbose-json | --srt | --vtt]")
+            throw CLIError(
+                args.positional.isEmpty
+                    ? "give one audio file: vella transcribe FILE" : "one file at a time: vella transcribe FILE (got \(args.positional.count))")
         }
-        let formats: [(String, String)] = [("--json", "json"), ("--verbose-json", "verbose_json"), ("--srt", "srt"), ("--vtt", "vtt"), ("--text", "text")]
-        let chosen = formats.filter { args.flags.contains($0.0) }
-        guard chosen.count <= 1 else { throw CLIError("choose one of --text, --json, --verbose-json, --srt, --vtt") }
+        let formats: [(String, String)] = [("--json", "verbose_json"), ("--srt", "srt"), ("--vtt", "vtt"), ("--text", "text")]
+        var chosen = formats.filter { args.flags.contains($0.0) }.map(\.1)
+        if let format = args.values["--format"] {
+            let names = ["text": "text", "txt": "text", "json": "verbose_json", "verbose_json": "verbose_json", "verbose-json": "verbose_json", "srt": "srt", "vtt": "vtt"]
+            guard let name = names[format.lowercased()] else { throw CLIError("--format is text, json, srt or vtt") }
+            chosen.append(name)
+        }
+        guard Set(chosen).count <= 1 else { throw CLIError("choose one of --json, --srt, --vtt (plain text is the default)") }
         let url = URL(
             fileURLWithPath: (args.positional[0] as NSString).expandingTildeInPath,
             relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -274,13 +328,19 @@ struct VellaCLI {
         var isDirectory = ObjCBool(false)
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { throw CLIError("no such file: \(args.positional[0])") }
         guard !isDirectory.boolValue else { throw CLIError("\(args.positional[0]) is a directory; give an audio file") }
-        let plain = chosen.isEmpty || chosen.first?.1 == "text"
+        let plain = chosen.isEmpty || chosen.first == "text"
         // Plain text is read from verbose JSON, so a loop warning can go to stderr while stdout stays the transcript.
-        var body: [String: Any] = ["path": url.path, "response_format": plain ? "verbose_json" : chosen.first!.1]
+        var body: [String: Any] = ["path": url.path, "response_format": plain ? "verbose_json" : chosen.first!]
         if let model = args.values["--model"] { body["model"] = model }
         if let language = args.values["--language"] { body["language"] = language }
         if let prompt = args.values["--prompt"] { body["prompt"] = prompt }
-        if args.flags.contains("--no-vocabulary") { body["vocabulary"] = false }
+        if let words = args.values["--vocab"] {
+            guard !args.flags.contains("--no-vocab") else { throw CLIError("use --vocab or --no-vocab, not both") }
+            let list = words.split(whereSeparator: { $0 == "," || $0 == ";" || $0.isWhitespace }).map(String.init)
+            guard !list.isEmpty else { throw CLIError("--vocab needs words, for example --vocab \"Kadıköy, Beşiktaş\"") }
+            body["vocabulary"] = list
+        }
+        if args.flags.contains("--no-vocab") { body["vocabulary"] = false }
         let data = try await client().request("POST", "/v1/audio/transcriptions", json: body)
         guard plain else {
             if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let warnings = object["warnings"] as? [String] {

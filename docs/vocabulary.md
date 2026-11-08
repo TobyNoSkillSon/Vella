@@ -42,10 +42,11 @@ second decode without the list did not hear those words.
 
 ## One file without it
 
-`vella transcribe FILE --no-vocabulary`, or the API's `vocabulary=false`, leaves
+`vella transcribe FILE --no-vocab`, or the API's `vocabulary=false`, leaves
 the list out of that request only, for Parakeet and Nemotron alike; the file and
-dictation are unchanged. With Nemotron, the API's `prompt` (`--prompt TEXT`)
-replaces the list for that request.
+dictation are unchanged. `--vocab "Kadıköy, Beşiktaş"` (the API's `vocabulary`
+with words) adds words for that request only. With Nemotron, the API's `prompt`
+(`--prompt TEXT`) replaces the list for that request.
 
 ## Decoding
 

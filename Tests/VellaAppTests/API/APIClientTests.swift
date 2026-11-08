@@ -74,15 +74,28 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(
             help.components(separatedBy: "\n")[0],
             "Every model runs Vella's optimized kernels where this Mac supports them and falls back to stock MLX by itself; figures are measured on M5 Max so far.")
-        XCTAssertTrue(
-            help.contains("vella transcribe FILE [--model ID] [--language CODE] [--prompt TEXT] [--no-vocabulary] [--text | --json | --verbose-json | --srt | --vtt]"), help)
+        XCTAssertTrue(help.contains("    vella transcribe FILE        the transcript as plain text"), help)
+        XCTAssertFalse(help.contains("--precision"), "Models table controls are in `vella help all` only")
+        let (_, all, _) = try await vella(api, ["help", "all"])
+        XCTAssertTrue(all.contains("vella select ID [--precision") && all.contains("--verbose-json (= --json)"), all)
+
+        // Older spellings and short forms (8 Nov): hidden aliases, `--option=value`, a model prefix.
+        let (aCode, aliased, aErr) = try await vella(api, ["transcribe", audio.path, "-m", "fake-b", "--format=srt"])
+        XCTAssertEqual(aCode, 0, aErr); XCTAssertEqual(aliased, srt)
+        let (pCode, prefixed, pErr) = try await vella(api, ["transcribe", audio.path, "--model=fake", "--text"])
+        XCTAssertEqual(pCode, 0, pErr); XCTAssertEqual(prefixed, text, "a prefix of several models picks the current one")
+        let (vCode, verbose, _) = try await vella(api, ["transcribe", audio.path, "--verbose-json"])
+        XCTAssertEqual(vCode, 0); XCTAssertEqual(verbose, json)
+        XCTAssertNotNil((try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])?["segments"], "--json is the detailed JSON")
 
         // Errors: one line on stderr, exit 1, no stdout.
         for (args, message) in [
             (["transcribe", audio.path, "--model", "nope"], "error: unknown model nope; see GET /v1/models\n"),
             (["transcribe", "/no/such.wav"], "error: no such file: /no/such.wav\n"),
-            (["transcribe", audio.path, "--srt", "--vtt"], "error: choose one of --text, --json, --verbose-json, --srt, --vtt\n"),
+            (["transcribe", audio.path, "--srt", "--vtt"], "error: choose one of --json, --srt, --vtt (plain text is the default)\n"),
             (["transcribe", NSTemporaryDirectory()], "error: \(NSTemporaryDirectory()) is a directory; give an audio file\n"),
+            (["transcribe", audio.path, "--vocab", "A", "--no-vocab"], "error: use --vocab or --no-vocab, not both\n"),
+            (["transcribe", audio.path, audio.path], "error: one file at a time: vella transcribe FILE (got 2)\n"),
             (["frobnicate"], "error: unknown command frobnicate; see vella --help\n")
         ] {
             let (eCode, eOut, eErr) = try await vella(api, args)

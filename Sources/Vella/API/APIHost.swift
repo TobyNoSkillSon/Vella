@@ -102,10 +102,26 @@ import VellaCore
             guard let model else { return false }
             return model.phase == .recording || model.busy
         }
+        // Files share Heimdall's Parakeet v3 Ultra like dictation does, when that loses nothing (no vocabulary to apply).
+        let vocabulary = runtime.support.appendingPathComponent("vocabulary.json")
+        transcriber.heimdallSocket = { [weak model] api, options in
+            guard let link = model?.heimdall, link.labRoute == nil,
+                APITranscriber.sharesHeimdall(
+                    model: api.id, options: options, borrowing: link.borrowingFamily,
+                    vocabularyWords: options.vocabulary ? TranscriptionControls.vocabularyWordCount(at: vocabulary) : 0)
+            else { return nil }
+            return link.borrow.socket(for: api.id)
+        }
+        transcriber.heimdallTranscribe = { [weak model] wav, socket in
+            guard let link = model?.heimdall else { throw HeimdallASRError.connect("link") }
+            // A file's failure must not take dictation off Heimdall: the link is not marked unavailable.
+            return try await link.transcribe(wav: wav, socket: socket, marksFailure: false)
+        }
         let service = APIService(
             transcriber: transcriber, models: ControllerModelSource(controller: controller, runtime: runtime),
             scratch: root.appendingPathComponent("files", isDirectory: true))
         service.controls = ModelControls(controller: controller, runtime: runtime)
+        service.vocabularyURL = vocabulary
         service.dictationState = { [weak model] in
             switch model?.phase {
             case .recording?: return "recording"

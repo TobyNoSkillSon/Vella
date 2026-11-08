@@ -43,6 +43,31 @@ extension WorkerTests {
             #expect(RequestOptions.baseCode("pt-BR") == "pt" && RequestOptions.baseCode("en_us") == "en" && RequestOptions.baseCode("tr") == "tr")
         }
 
+        /// `vella transcribe --vocab "A, B"` (8 Nov): words added for one request, on top of vocabulary.json or alone
+        /// when it is off; refused by models that cannot take them.
+        @Test func requestWordsJoinTheVocabularyForOneRequest() throws {
+            let added = try #require(try RequestOptions(json: ["words": ["Kadıköy", "Beşiktaş"]]))
+            #expect(added.words == ["Kadıköy", "Beşiktaş"])
+            for bad: Any in [["words": "Kadıköy"], ["words": ["GPT-4"]], ["words": [""]], ["words": Array(repeating: "a", count: 65)]] {
+                #expect(throws: (any Error).self) { try RequestOptions(json: bad) }
+            }
+            let base = ParakeetVocabulary(words: ["Vella", "Heimdall"], boost: 3)
+            let merged = try RequestOptions(words: ["heimdall", "Kadıköy"]).effectiveVocabulary(base: base)
+            #expect(merged.words == ["Vella", "Heimdall", "Kadıköy"] && merged.boost == 3)
+            #expect(try RequestOptions(vocabulary: false, words: ["Kadıköy"]).effectiveVocabulary(base: base).words == ["Kadıköy"])
+            #expect(try RequestOptions().effectiveVocabulary(base: base) == base)
+            // Past the file's 128-word limit the request is refused, never trimmed (review, 8 Nov).
+            let full = ParakeetVocabulary(words: (0..<128).map { "w" + String(repeating: "a", count: $0 % 60 + 1) })
+            #expect(throws: (any Error).self) { try RequestOptions(words: ["Extra"]).effectiveVocabulary(base: full) }
+            #expect(try RequestOptions(words: ["waa"]).effectiveVocabulary(base: full).words.count == 128, "a word already listed adds nothing")
+            #expect(RequestOptions.unsupported(RequestOptions(prompt: "x", words: ["Kadıköy"]), architecture: .nemotronTranscribe) == "words with prompt")
+            let words = RequestOptions(words: ["Kadıköy"])
+            #expect(RequestOptions.unsupported(words, architecture: .parakeet) == nil)
+            #expect(RequestOptions.unsupported(words, architecture: .nemotronTranscribe) == nil)
+            #expect(RequestOptions.unsupported(words, architecture: .whisper) == "words")
+            #expect(RequestOptions.unsupported(words, architecture: .qwen3ASR) == "words")
+        }
+
         @Test func optimizedFailuresTryStockExactlyOnceAndPropagateItsError() throws {
             enum Failure: Error { case optimized, stock }
             for stockFails in [false, true] {

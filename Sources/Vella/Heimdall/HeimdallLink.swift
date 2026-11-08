@@ -203,13 +203,14 @@ import VellaCore
 
     /// One recognition request (a segment's WAV) over Heimdall's socket. A failure marks Heimdall unavailable until its
     /// next `ready` and rethrows; the caller falls back to Vella's own model. Cancellation is not a failure.
-    func transcribe(wav: URL, socket: String) async throws -> String {
-        try await transcribe(samples: heimdallWAVSamples(Data(contentsOf: wav)), socket: socket)
+    /// `marksFailure` false (API files): a failure is only rethrown, so dictation keeps borrowing.
+    func transcribe(wav: URL, socket: String, marksFailure: Bool = true) async throws -> String {
+        try await transcribe(samples: heimdallWAVSamples(Data(contentsOf: wav)), socket: socket, marksFailure: marksFailure)
     }
     /// One request with these 16 kHz mono samples (the whole dictation, straight from the saved Float32 audio).
     /// The latest request's timings, for lab runs: the socket round trip and what Heimdall reported.
     private(set) var lastExchange: (ms: Double, queueMs: Double?, decodeMs: Double?, start: Double, end: Double)?
-    func transcribe(samples: [Float], socket: String) async throws -> String {
+    func transcribe(samples: [Float], socket: String, marksFailure: Bool = true) async throws -> String {
         let asked = borrow.ready
         do {
             // Just before connecting: still a socket owned by this user, closed to others, not a link (lab runs name
@@ -226,6 +227,7 @@ import VellaCore
             throw CancellationError()
         } catch {
             if Task.isCancelled { throw CancellationError() }
+            guard marksFailure else { throw error }
             let code = (error as? HeimdallASRError)?.code ?? "error"
             let before = borrow
             borrow.failed(code, for: labRoute == .heimdall ? borrow.ready : asked)

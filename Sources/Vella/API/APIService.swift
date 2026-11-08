@@ -15,7 +15,7 @@ import VellaCore
 /// Routes: `GET /status`, `GET /v1/models`, `GET /v1/models/{id}`, `POST /v1/audio/transcriptions` (OpenAI-compatible).
 @MainActor final class APIService: APIHandling {
     /// Names that mean "the current dictation model" (OpenAI SDK examples send whisper-1).
-    static let currentAliases: Set<String> = ["", "whisper-1", "vella", "default", "current"]
+    static var currentAliases: Set<String> { TranscriptionOptions.currentAliases }
     let transcriber: APITranscriber
     var controls: ModelControls?
     /// Strong: the service is the source's only owner (APIHost creates it inline). A weak reference here freed it at
@@ -27,6 +27,8 @@ import VellaCore
     let version: String
     /// Upload scratch space (parts of multipart bodies); removed per request.
     let scratch: URL
+    /// The user's vocabulary.json (its word count bounds a request's added words); nil in tests without one.
+    var vocabularyURL: URL?
     /// The per-launch secret a JSON `path` request must send as `X-Vella-Token` (from worker-status.json).
     var pathToken: String? { runtime.apiToken }
 
@@ -143,6 +145,10 @@ import VellaCore
         }
         if let model = available.first(where: { $0.id.lowercased() == key }) { return model }
         if let reason = models?.unavailableReason(requested) { throw APIError(404, reason, param: "model", code: "model_not_found") }
+        // A short name ("nemotron", "whisper"): the downloaded model it starts.
+        if allowAlias, let id = TranscriptionControls.match(key, ids: available.map(\.id), current: available.first(where: \.current)?.id) {
+            return available.first { $0.id == id }
+        }
         return nil
     }
 
@@ -216,8 +222,12 @@ import VellaCore
                 try TranscriptionControls.check(options, familyID: chosen.id, name: chosen.name, languages: chosen.languages)
                 return try self.models?.prepare(chosen) ?? chosen
             }, current: { [weak self] in (self?.models?.models() ?? []).first(where: \.current)?.id })
-        let used = [result.model.id, result.model.precision, result.model.selection.map(Self.recipeName)].compactMap { $0 }
-            .filter { !$0.isEmpty }.joined(separator: " ")
+        // Heimdall's copy runs its own precision and recipe: name it rather than Vella's selection.
+        let used =
+            result.applied.via == "heimdall"
+            ? "\(result.model.id) (Heimdall's copy)"
+            : [result.model.id, result.model.precision, result.model.selection.map(Self.recipeName)].compactMap { $0 }
+                .filter { !$0.isEmpty }.joined(separator: " ")
         let rendered = TranscriptFormatter.render(
             options.format, text: result.text, segments: result.segments,
             duration: result.duration, language: options.language, model: used, applied: result.applied)
@@ -227,11 +237,20 @@ import VellaCore
     private func checkControls(_ options: TranscriptionOptions) throws {
         let chosen = try model(for: options)
         try TranscriptionControls.check(options, familyID: chosen.id, name: chosen.name, languages: chosen.languages)
+        try TranscriptionControls.checkRoom(options, vocabularyWords: vocabularyURL.flatMap(TranscriptionControls.vocabularyWordCount(at:)))
     }
     static func recipeName(_ selection: ModelSelection) -> String {
         selection.path == .standard ? "Standard" : selection.mode == .exact ? "Optimized Exact" : "Optimized Fast"
     }
     private func model(for options: TranscriptionOptions) throws -> APIModel {
+        // No model named and a language the dictation model does not know: a downloaded model that does.
+        let available = models?.models() ?? []
+        if let id = TranscriptionControls.pick(
+            options, current: available.first(where: \.current)?.id, available: available.map { ($0.id, $0.languages) }),
+            let picked = available.first(where: { $0.id == id })
+        {
+            return picked
+        }
         guard let model = try resolve(options.model) else {
             throw APIError(404, "unknown model \(options.model); see GET /v1/models", param: "model", code: "model_not_found")
         }

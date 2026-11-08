@@ -11,15 +11,17 @@ enum InjectedFault: Error { case load, optimized, stock }
 
 /// A transcription request's own settings (the API's `language`, `prompt` and `vocabulary`), sent as `options`.
 /// Absent fields keep the defaults: the language as spoken, no context, the user's vocabulary.json.
+/// `words`: vocabulary words added for this request only (on top of vocabulary.json, or alone when it is off).
 struct RequestOptions: Equatable {
     var language: String?
     var prompt: String?
     var vocabulary = true
+    var words: [String] = []
 
     /// nil when `value` is absent; throws when it is not an object of known, well-typed fields.
     init?(json value: Any?) throws {
         guard let value else { return nil }
-        guard let object = value as? [String: Any], Set(object.keys).isSubset(of: ["language", "prompt", "vocabulary"]) else { throw RequestError.invalid }
+        guard let object = value as? [String: Any], Set(object.keys).isSubset(of: ["language", "prompt", "vocabulary", "words"]) else { throw RequestError.invalid }
         if let raw = object["language"] {
             guard let code = raw as? String, (1...16).contains(code.count) else { throw RequestError.invalid }
             language = code
@@ -32,9 +34,26 @@ struct RequestOptions: Equatable {
             guard let flag = raw as? Bool else { throw RequestError.invalid }
             vocabulary = flag
         }
+        if let raw = object["words"] {
+            guard let list = raw as? [String], list.count <= 64,
+                list.allSatisfy({ !$0.isEmpty && $0.count <= 64 && $0.allSatisfy(\.isLetter) })
+            else { throw RequestError.invalid }
+            words = list
+        }
     }
-    init(language: String? = nil, prompt: String? = nil, vocabulary: Bool = true) {
-        self.language = language; self.prompt = prompt; self.vocabulary = vocabulary
+    init(language: String? = nil, prompt: String? = nil, vocabulary: Bool = true, words: [String] = []) {
+        self.language = language; self.prompt = prompt; self.vocabulary = vocabulary; self.words = words
+    }
+
+    /// The vocabulary this request uses: vocabulary.json (or none when off) plus its own words, new ones only. Words
+    /// that would go past the file's 128-word limit refuse the request; they are never dropped.
+    func effectiveVocabulary(base: ParakeetVocabulary) throws -> ParakeetVocabulary {
+        var out = vocabulary ? base : ParakeetVocabulary()
+        for word in words where !out.words.contains(where: { $0.lowercased() == word.lowercased() }) {
+            out.words.append(word)
+        }
+        guard out.words.count <= 128 else { throw RequestError.invalid }
+        return out
     }
 
     /// Which settings an architecture can apply. The app refuses the rest before any work (`TranscriptionControls`);
@@ -48,6 +67,9 @@ struct RequestOptions: Equatable {
         }
         if options.language != nil, !language { return "language" }
         if options.prompt != nil, !prompt { return "prompt" }
+        if !options.words.isEmpty, !(architecture == .parakeet || architecture == .nemotronTranscribe || architecture == .stub) { return "words" }
+        // Nemotron's prompt replaces the word list, so added words would never reach it.
+        if !options.words.isEmpty, options.prompt != nil { return "words with prompt" }
         // Qwen3-ASR and Nemotron's prompt take the language's English name; a code without one cannot be applied.
         if let code = options.language, architecture == .qwen3ASR || architecture == .nemotronTranscribe,
             NemotronTranscribePrompt.languageName(code) == nil
@@ -245,7 +267,11 @@ final class Worker {
                 let parameters = STTGenerateParameters(maxTokens: 1024, verbose: false, language: language, chunkDuration: 30)
                 applied = ["language": options.language as Any? ?? NSNull(), "vocabulary": options.vocabulary]
                 if let parakeet = model as? ParakeetModel {
-                    if options.vocabulary {
+                    if !options.words.isEmpty {
+                        // A request's own words must reach the model or fail the request: no fallback to an earlier list.
+                        let base = options.vocabulary ? try ParakeetVocabulary.read() : ParakeetVocabulary()
+                        try parakeet.setVocabulary(options.effectiveVocabulary(base: base))
+                    } else if options.vocabulary {
                         do {
                             try parakeet.setVocabulary(ParakeetVocabulary.read())
                             vocabularyError = nil
@@ -258,7 +284,10 @@ final class Worker {
                 }
                 if let nemotron = model as? NemotronTranscribeModel {
                     // The same list as Parakeet's, words only: acoustic entries and variants never reach the prompt.
-                    if options.vocabulary {
+                    if !options.words.isEmpty {
+                        let base = options.vocabulary ? try ParakeetVocabulary.read() : ParakeetVocabulary()
+                        nemotron.vocabularyWords = try options.effectiveVocabulary(base: base).words
+                    } else if options.vocabulary {
                         do {
                             nemotron.vocabularyWords = try ParakeetVocabulary.read().words
                             vocabularyError = nil

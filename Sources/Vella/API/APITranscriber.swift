@@ -138,6 +138,19 @@ struct APITranscript {
     /// True while a dictation records, finishes or transcribes (the app wires its phase).
     var dictationActive: () -> Bool = { false }
     var maxWaiting = 8
+    /// Heimdall's shared model (docs/HEIMDALL.md): the socket a segment for this model and these settings goes to, or
+    /// nil for Vella's own model. Only when that loses nothing: the same model, and no vocabulary to apply (Heimdall's
+    /// socket takes none). The app wires it (APIHost); tests may set it.
+    var heimdallSocket: (_ model: APIModel, _ options: TranscriptionOptions) -> String? = { _, _ in nil }
+    /// One segment's WAV over that socket. A failure marks Heimdall unavailable (the link), so later segments use
+    /// Vella's own model.
+    var heimdallTranscribe: (_ wav: URL, _ socket: String) async throws -> String = { _, _ in throw CancellationError() }
+    /// Whether Heimdall's copy serves a request for `model` without losing anything: Vella borrows that very family
+    /// (`borrowing`), and no vocabulary would apply (no added words; vocabulary off, or `vocabularyWords` 0).
+    nonisolated static func sharesHeimdall(model: String, options: TranscriptionOptions, borrowing: String?, vocabularyWords: Int?) -> Bool {
+        guard let borrowing, borrowing == model, options.words.isEmpty else { return false }
+        return !options.vocabulary || vocabularyWords == 0
+    }
     private var tickets: [UUID] = []
     private(set) var completed = 0
     var running: Int { tickets.isEmpty ? 0 : 1 }
@@ -201,15 +214,39 @@ struct APITranscript {
         }
         var applied = AppliedSettings()
         applied.vocabulary = options.vocabulary
-        let workerOptions = options.workerOptions
+        /// The socket the next segment goes to (the model resolved again first), or nil for Vella's own model.
+        func viaHeimdall() throws -> String? {
+            model = try resolve()
+            return heimdallSocket(model, options)
+        }
         let runner = SessionTranscriber { [weak self] url, config in
             guard let self else { throw CancellationError() }
             return try await self.retryingDictationStops {
+                // Dictation still goes first; then Heimdall's copy if it serves this segment, else Vella's own.
+                try await self.waitForTurn()
+                // A busy Heimdall (its own listening, or a dictation) is waited for briefly, with dictation re-checked,
+                // before Vella's own copy is loaded for this segment.
+                var busy = 0
+                while let socket = try viaHeimdall() {
+                    do {
+                        let text = try await self.heimdallTranscribe(url, socket)
+                        applied.add(["via": "heimdall", "language": NSNull(), "vocabulary": options.vocabulary, "vocabulary_words": 0])
+                        return text
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch let error as HeimdallASRError where error.code == "busy" && busy < 20 {
+                        busy += 1
+                        try await Task.sleep(nanoseconds: 100_000_000)
+                        try await self.waitForTurn()
+                    } catch { break }
+                }
                 var attempts = 0
                 while true {
                     try await ready()
                     var segment = config; segment.model = model.path
                     do {
+                        // Per segment: the model may change between segments, and each is sent only what it applies.
+                        let workerOptions = TranscriptionControls.applying(options, familyID: model.id).workerOptions
                         let text = try await self.backend.transcribe(url, config: segment, lane: .api, options: workerOptions)
                         applied.add(self.backend.lastApplied)
                         return text
@@ -224,6 +261,8 @@ struct APITranscript {
         let result: (RecordingSession, Double)
         do {
             result = try await APIAudio.overlapping(file, root: root, config: config, runner: runner) {
+                // Heimdall's copy serves the first segment: nothing of Vella's to load.
+                if try viaHeimdall() != nil { return }
                 // Preserve the initial load's separate one-retry allowance while the decoder runs ahead.
                 do { try await retryingDictationStops { try await ready() } } catch is WorkerExited {
                     do { try await retryingDictationStops { try await ready() } } catch is WorkerExited {

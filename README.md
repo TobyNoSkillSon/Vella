@@ -266,7 +266,7 @@ Install: follow [AGENTS.md](AGENTS.md), then `vella skill --install <skills dire
 ```sh
 vella status                      # Vella 2.0.0 running (pid 29335), parakeet-v3-ultra bf16 · Optimized Fast loaded · dictation model Parakeet v3 Ultra (bf16, Optimized Fast) · API http://127.0.0.1:63080/v1
 vella transcribe talk.m4a         # the transcript as plain text
-vella transcribe talk.m4a --srt   # SRT subtitles; also --vtt, --json, --verbose-json
+vella transcribe talk.m4a --srt   # SRT subtitles; also --vtt, --json (timed segments)
 vella models --json                # all catalog rows, cells, reasons, source and download size
 vella select parakeet-v3-ultra --precision bf16 --mode Fast
 vella get parakeet-v3-ultra --yes   # only after consent; downloads then loads
