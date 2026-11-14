@@ -37,10 +37,11 @@ final class DocsTests: XCTestCase {
         XCTAssertTrue(try text("CODE_OF_CONDUCT.md").contains("https://github.com/TobyNoSkillSon/Vella/security/advisories/new"))
     }
 
-    /// FUNDING.yml names the same GitHub Sponsors account as the README's Support button; the app's Support item opens
-    /// the support section of Toby's site, which links that account.
+    /// FUNDING.yml names the same GitHub Sponsors and Buy Me a Coffee accounts as the README; the app's Support item
+    /// opens the support section of Toby's site, which links both.
     func testFundingMatchesTheSupportLink() throws {
-        XCTAssertEqual(try text(".github/FUNDING.yml"), "github: [TobyNoSkillSon]\n")
+        XCTAssertEqual(try text(".github/FUNDING.yml"), "github: [TobyNoSkillSon]\nbuy_me_a_coffee: TobyNoskillson\n")
+        XCTAssertTrue(try text("README.md").contains("https://buymeacoffee.com/TobyNoskillson"))
         XCTAssertTrue(try text("README.md").contains("https://github.com/sponsors/TobyNoSkillSon"))
         XCTAssertTrue(try text("Sources/Vella/App/AppDelegate.swift").contains("https://tobynoskillson.com/#support"))
     }
